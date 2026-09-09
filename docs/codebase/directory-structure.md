@@ -24,7 +24,7 @@ pp-hub/
 │   ├── utils/                   # existing shared utils
 │   ├── ui/                      # @workspace/ui — shadcn/ui preset components + design tokens (globals.css)
 ├── tools/
-│   └── compose/                 # ✅ docker-compose — postgres, keycloak (+realm import), server; onlyoffice lands in M4
+│   └── compose/                 # ✅ docker-compose — postgres, Zitadel (+ its database), server; onlyoffice lands in M4
 ├── docs/                        # this documentation
 ├── package.json                 # bun workspaces, Vite+ catalog
 ├── vite.config.ts
@@ -34,8 +34,8 @@ pp-hub/
 ## Entry Points
 
 - Web dev: `vp run web#dev` (root `vp run dev`); Vite proxies `/api`, `/auth`, `/s` → `localhost:8080`.
-- Server local: `go run ./cmd/server` from `apps/server` (needs Postgres + Keycloak from compose).
-- Full stack: `docker compose -f tools/compose/docker-compose.yml up --build` — Keycloak on :9080 (realm `pphub`, user `dev`/`dev`), server on :8080, then open `http://localhost:5173`.
+- Server local: `go run ./cmd/server` from `apps/server` (needs Postgres + Zitadel from compose).
+- Full stack: `docker compose -f tools/compose/docker-compose.yml up --build` — Zitadel on :9080 (first admin `admin`/`admin123!`; create the `pphub-server` OIDC Web Application in the Zitadel console), server on :8080, then open `http://localhost:5173`.
 - sqlc codegen: `go run github.com/sqlc-dev/sqlc/cmd/sqlc@latest generate` in `apps/server`.
 
 ## Notes

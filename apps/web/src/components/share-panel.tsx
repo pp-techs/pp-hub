@@ -1,11 +1,13 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { toast } from "sonner";
-import { Copy, X } from "lucide-react";
+import { Copy, Link2, X } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 import { Badge } from "@workspace/ui/components/badge";
+import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar";
+import { ToggleGroup, ToggleGroupItem } from "@workspace/ui/components/toggle-group";
 import {
   Dialog,
   DialogContent,
@@ -71,16 +73,28 @@ export function SharePanel({ node }: { node: Node }) {
             );
           }}
         >
-          <Label htmlFor="share-email">Share with user</Label>
-          <div className="flex gap-2">
+          <Label htmlFor="share-email">Collaborators</Label>
+          <div className="flex flex-wrap items-center gap-2">
             <Input
               id="share-email"
               type="email"
-              placeholder="user@example.com"
+              placeholder="Add people or groups"
+              className="min-w-48 flex-1"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
-            <PermSelect value={directPerm} onChange={setDirectPerm} allowEdit />
+            <ToggleGroup
+              size="sm"
+              variant="outline"
+              value={[directPerm]}
+              onValueChange={(val) => {
+                if (val.length > 0) setDirectPerm(val[0]);
+              }}
+            >
+              <ToggleGroupItem value="view">Viewer</ToggleGroupItem>
+              <ToggleGroupItem value="download">Download</ToggleGroupItem>
+              <ToggleGroupItem value="edit">Editor</ToggleGroupItem>
+            </ToggleGroup>
             <Button type="submit" disabled={create.isPending}>
               Share
             </Button>
@@ -141,20 +155,32 @@ export function SharePanel({ node }: { node: Node }) {
           ) : shares.data?.length === 0 ? (
             <p className="text-muted-foreground text-sm">None yet.</p>
           ) : (
-            <ul className="flex flex-col gap-1">
+            <ul className="flex flex-col gap-2">
               {shares.data?.map((s) => (
                 <li key={s.id} className="flex items-center gap-2 text-sm">
-                  <Badge variant="outline">{s.kind}</Badge>
-                  <span>
-                    {s.perm}
-                    {s.grantee_email ? ` → ${s.grantee_email}` : ""}
-                  </span>
+                  <Avatar size="sm">
+                    <AvatarFallback>
+                      {s.grantee_email ? (
+                        s.grantee_email.charAt(0).toUpperCase()
+                      ) : (
+                        <Link2 className="size-3.5" />
+                      )}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex min-w-0 flex-1 items-center gap-2">
+                    <span className="truncate">
+                      {s.grantee_email || (s.kind === "link" ? "Public link" : s.kind)}
+                    </span>
+                    <Badge variant="outline" className="shrink-0 text-[10px]">
+                      {s.perm}
+                    </Badge>
+                  </div>
                   {s.url ? (
                     <a
                       href={s.url}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-primary inline-flex items-center gap-1 underline"
+                      className="text-primary inline-flex items-center gap-1 text-xs underline"
                     >
                       <Copy className="size-3.5" /> link
                     </a>
@@ -162,7 +188,7 @@ export function SharePanel({ node }: { node: Node }) {
                   <Button
                     variant="ghost"
                     size="icon-xs"
-                    className="ml-auto"
+                    className="shrink-0"
                     aria-label="Revoke share"
                     onClick={() =>
                       revoke.mutate(

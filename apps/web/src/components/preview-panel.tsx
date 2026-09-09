@@ -38,11 +38,36 @@ export function PreviewPanel({ node }: { node: Node }) {
       </Dialog>
     );
   }
-  return <TextPreview node={node} url={url} />;
+  return (
+    <Dialog open onOpenChange={(v) => !v && close()}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Preview · {node.name}</DialogTitle>
+          <DialogDescription>{node.mime}</DialogDescription>
+        </DialogHeader>
+        <TextPreviewContent url={url} />
+      </DialogContent>
+    </Dialog>
+  );
 }
 
-function TextPreview({ node, url }: { node: Node; url: string }) {
-  const close = useUiStore((s) => s.closePanel);
+export function PreviewContent({ node }: { node: Node }) {
+  const kind = previewKind(node.mime);
+  const url = `/api/v1/nodes/${node.id}/preview?kind=${kind}`;
+
+  if (kind === "thumbnail") {
+    return (
+      <img
+        src={url}
+        alt={`Preview of ${node.name}`}
+        className="max-h-48 w-full rounded-md object-contain"
+      />
+    );
+  }
+  return <TextPreviewContent url={url} />;
+}
+
+function TextPreviewContent({ url }: { url: string }) {
   const [text, setText] = useState<string | null>(null);
   const [missing, setMissing] = useState(false);
 
@@ -63,25 +88,19 @@ function TextPreview({ node, url }: { node: Node; url: string }) {
     };
   }, [url]);
 
+  if (missing) {
+    return (
+      <p className="text-muted-foreground text-xs">
+        Preview not ready yet — the server generates it shortly after upload.
+      </p>
+    );
+  }
+  if (text === null) {
+    return <p className="text-muted-foreground text-xs">Loading…</p>;
+  }
   return (
-    <Dialog open onOpenChange={(v) => !v && close()}>
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Preview · {node.name}</DialogTitle>
-          <DialogDescription>
-            {missing
-              ? "Preview not ready yet — the server generates it shortly after upload."
-              : node.mime}
-          </DialogDescription>
-        </DialogHeader>
-        {!missing && text === null ? (
-          <p className="text-muted-foreground text-sm">Loading…</p>
-        ) : (
-          <pre className="bg-muted max-h-[60svh] overflow-auto rounded-md p-3 text-xs whitespace-pre-wrap">
-            {text ?? ""}
-          </pre>
-        )}
-      </DialogContent>
-    </Dialog>
+    <pre className="bg-muted max-h-64 overflow-auto rounded-md p-3 text-xs whitespace-pre-wrap">
+      {text}
+    </pre>
   );
 }

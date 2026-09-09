@@ -7,7 +7,7 @@ Monorepo: bun workspaces + Vite+ frontend (`apps/web`), Go modular-monolith back
 
 Before planning or implementing, read this `docs/SUMMARY.md` file first. Load only the detail docs relevant to the current task, and prioritize `Code Standard` docs for implementation conventions. If docs conflict with code or user intent, use the available question tool before making broad changes.
 
-Status: M1–M5 done — full MVP: Keycloak OIDC auth, drive (spaces/nodes/CAS blob/upload/download/versioning), sharing (direct + link), OnlyOffice WOPI editing with locks, previews (image/PDF/video/text) via background jobs. All in docker-compose. UI is minimal — a shadcn refactor is planned.
+Status: M1–M5 done — full MVP: Zitadel OIDC auth, drive (spaces/nodes/CAS blob/upload/download/versioning), sharing (direct + link), OnlyOffice WOPI editing with locks, previews (image/PDF/video/text) via background jobs. All in docker-compose. UI is minimal — a shadcn refactor is planned.
 
 ## Architecture
 

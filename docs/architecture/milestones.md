@@ -4,10 +4,10 @@ Each milestone ends in a working end-to-end state inside the compose stack.
 
 ## M1 — Skeleton ✅ done
 
-- `apps/server` boots; chi router; OIDC login against **Keycloak** in compose; `GET /me`.
+- `apps/server` boots; chi router; OIDC login against **Zitadel** in compose; `GET /me`.
 - Website calls the API (same-origin via Vite proxy; OpenAPI-generated TS client deferred until the API surface grows in M2).
-- Verified: `go test ./...` (session cookie unit tests), `vp check`, docker-compose E2E login flow (Keycloak form login → session cookie → `/api/v1/me` → logout).
-- IdP note: **Keycloak** chosen over Zitadel for M1 — lighter in dev (H2 embedded, no extra Postgres), realm import via JSON gives reproducible dev setup. Zitadel remains a valid alternative via OIDC config only.
+- Verified: `go test ./...` (session cookie unit tests), `vp check`, docker-compose OIDC discovery and login flow.
+- IdP note: Zitadel is the compose identity provider; backend uses standard OIDC and remains provider-independent.
 
 ## M2 — Drive Core ✅ done
 

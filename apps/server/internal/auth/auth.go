@@ -1,11 +1,8 @@
-// Package auth implements OIDC login against Keycloak and cookie sessions.
+// Package auth implements OIDC login against Zitadel and cookie sessions.
 //
-// The browser must reach the IdP at the same issuer URL the server uses for
-// discovery (iss must match the discovery document). In compose the server
-// talks to http://keycloak:8080 while the browser uses http://localhost:9080;
-// Keycloak is started with KC_HOSTNAME=http://localhost:9080 so the iss it
-// advertises is the external one, and the server discovers through that URL
-// via a container-level /etc/hosts mapping.
+// The issuer URL is intentionally configurable: in compose, the server reaches
+// Zitadel through localhost:9080 (mapped to the host gateway) so the issuer
+// advertised to the browser and the server is identical.
 package auth
 
 import (
@@ -171,7 +168,7 @@ func (s *Service) CurrentUser(r *http.Request) *store.User {
 
 func (s *Service) EndSessionURL(w http.ResponseWriter, r *http.Request) string {
 	u, err := url.Parse(strings.TrimSuffix(s.cfg.OIDCIssuerExt, "/") +
-		"/protocol/openid-connect/logout?post_logout_redirect_uri=" +
+		"/oidc/v1/end_session?post_logout_redirect_uri=" +
 		url.QueryEscape(s.cfg.ExternalURL) + "&client_id=" + url.QueryEscape(s.cfg.OIDCClientID))
 	if err != nil {
 		return "/"

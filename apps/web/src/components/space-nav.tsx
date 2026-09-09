@@ -11,7 +11,7 @@ export function SpaceNav() {
     return <p className="px-3 py-2 text-xs opacity-60">Loading spaces…</p>;
   }
   if (spaces.isError || !spaces.data?.length) {
-    return <p className="px-3 py-2 text-xs opacity-60">No spaces yet — use + above.</p>;
+    return <p className="px-3 py-2 text-xs opacity-60">No spaces yet.</p>;
   }
 
   return (

@@ -28,6 +28,8 @@ interface UiState {
   /** Record dir id + its parent (from the listing it appeared in). */
   rememberDir: (node: Node) => void;
   setLastSpaceId: (id: string) => void;
+  newSpaceOpen: boolean;
+  setNewSpaceOpen: (v: boolean) => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -46,6 +48,8 @@ export const useUiStore = create<UiState>()(
         }));
       },
       setLastSpaceId: (id) => set({ lastSpaceId: id }),
+      newSpaceOpen: false,
+      setNewSpaceOpen: (v) => set({ newSpaceOpen: v }),
     }),
     {
       name: "pp-hub-ui",
