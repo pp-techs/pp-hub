@@ -25,3 +25,10 @@ release. Add a tool name to select part of the graph. For example, run
 - [ ] If setup, runtime, or package-manager behavior looks wrong, run `vp env doctor` and include its output when asking for help.
 
 <!--VITE PLUS END-->
+
+<!-- RULES -->
+
+- Use `docs/` as source of context, documentation
+- Update `docs/` when having break/changes to current
+
+<!-- RULES END-->

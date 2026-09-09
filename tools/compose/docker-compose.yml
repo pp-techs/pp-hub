@@ -1,0 +1,86 @@
+name: pphub
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: pphub
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d pphub"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.2
+    command: start-dev --import-realm
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      # iss must be the browser-reachable URL so discovery (server-side) and
+      # the browser login redirect agree on the issuer.
+      KC_HOSTNAME: http://localhost:9080
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      - ./keycloak/realm-pphub.json:/opt/keycloak/data/import/realm-pphub.json:ro
+    ports:
+      - "9080:8080"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.0\r\n\r\n' >&3 && grep -q '200' <&3",
+        ]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+      start_period: 30s
+
+  server:
+    build:
+      context: ../../apps/server
+    environment:
+      PP_ADDR: ":8080"
+      PP_DATABASE_URL: postgres://postgres:postgres@postgres:5432/pphub?sslmode=disable
+      PP_OIDC_ISSUER: http://keycloak:8080/realms/pphub
+      PP_OIDC_ISSUER_EXTERNAL: http://localhost:9080/realms/pphub
+      PP_OIDC_CLIENT_ID: pphub-server
+      PP_OIDC_CLIENT_SECRET: pphub-server-secret
+      PP_EXTERNAL_URL: http://localhost:8080
+      PP_DEV_INSECURE: "1"
+      PP_BLOB_ROOT: /data/blobs
+      PP_ONLYOFFICE_URL: http://localhost:9980
+      # WOPI src OnlyOffice uses to call back into this server (container network).
+      PP_WOPI_SERVER_URL: http://server:8080
+    # The browser reaches Keycloak as localhost:9080; the server must resolve
+    # the same issuer URL from inside the container.
+    extra_hosts:
+      - "localhost:host-gateway"
+    ports:
+      - "8080:8080"
+    volumes:
+      - blobdata:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      onlyoffice:
+        condition: service_started
+
+  onlyoffice:
+    image: onlyoffice/documentserver:latest
+    environment:
+      JWT_ENABLED: "false"
+      WOPI_ENABLED: "true"
+    ports:
+      - "9980:80"
+
+volumes:
+  pgdata:
+  blobdata:
