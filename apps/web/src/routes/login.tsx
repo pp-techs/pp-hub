@@ -7,7 +7,7 @@ import {
   CardTitle,
 } from "@workspace/ui/components/card";
 import { Button } from "@workspace/ui/components/button";
-import { fetchMe } from "@/lib/auth";
+import { fetchMe } from "@/lib/queries";
 
 export const Route = createFileRoute("/login")({
   head: () => ({ meta: [{ title: "Sign in · pp-hub" }] }),

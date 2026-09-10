@@ -13,8 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@workspace/ui/components/dialog";
-import { requireAuth } from "@/lib/auth";
-import { logout, meOptions, useCreateSpace } from "@/lib/queries";
+import { requireAuth, logout, meOptions, useCreateSpace } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
 import { SpaceNav } from "@/components/space-nav";
 

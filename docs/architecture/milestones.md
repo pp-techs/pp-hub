@@ -7,7 +7,7 @@ Each milestone ends in a working end-to-end state inside the compose stack.
 - `apps/server` boots; chi router; OIDC login against **Zitadel** in compose; `GET /me`.
 - Website calls the API (same-origin via Vite proxy; OpenAPI-generated TS client deferred until the API surface grows in M2).
 - Verified: `go test ./...` (session cookie unit tests), `vp check`, docker-compose OIDC discovery and login flow.
-- IdP note: Zitadel is the compose identity provider; backend uses standard OIDC and remains provider-independent.
+- IdP note: Zitadel là compose IdP; backend dùng standard OIDC. Lần đầu khởi động: mở http://localhost:9080 và làm theo setup wizard để tạo admin user và OIDC app. Xem [docs/architecture/zitadel-setup.md](docs/architecture/zitadel-setup.md).
 
 ## M2 — Drive Core ✅ done
 

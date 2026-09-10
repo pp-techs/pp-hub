@@ -1,5 +1,5 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { fetchMe } from "@/lib/auth";
+import { fetchMe } from "@/lib/queries";
 
 export const Route = createFileRoute("/")({
   beforeLoad: async ({ context }) => {

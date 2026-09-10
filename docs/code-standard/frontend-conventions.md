@@ -1,8 +1,4 @@
-# Frontend Conventions
-
-Stack: TypeScript, Vite+ (`vp`) toolchain — Vite, Rolldown, Vitest, tsdown, Oxlint, Oxfmt, Vite Task. Package manager: bun. Node >= 22.18.
-
-Web app (`apps/web`): React 19 + TanStack Router (file-based routes via `@tanstack/router-plugin`, routes in `src/routes/`) + TanStack Query (server state, `src/lib/queries.ts`) + zustand (`src/lib/ui-store.ts`, ephemeral UI + persisted navigation cache). UI components come from `@workspace/ui` (`packages/ui`), a shadcn/ui preset (style `base-mira`, base-ui primitives); add components with `bunx shadcn add <name>` from `apps/web`.
+Web app (`apps/web`): React 19 + TanStack Router (file-based routes via `@tanstack/router-plugin`, routes in `src/routes/`) + TanStack Query (server state, `src/lib/queries/` — one file per resource) + zustand (`src/lib/ui-store.ts`). UI components come from `@workspace/ui` (`packages/ui`), a shadcn/ui preset; add components with `bunx shadcn add <name>` from `apps/web`.
 
 ## Monorepo Rules
 
