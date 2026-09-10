@@ -38,7 +38,7 @@ flowchart LR
     PG[(Postgres: metadata + job queue)]
     DISK[(data/blobs: content-addressed)]
     OO[OnlyOffice Document Server]
-    IDP["Keycloak\n(OIDC; Zitadel-compatible)"]
+    IDP["Logto\n(OIDC)"]
 
     Web --> API
     Future -. later .-> API
@@ -87,4 +87,4 @@ Every table carries `tenant_id` (single value `'default'` in MVP). No tenant rou
 
 ## Deployment
 
-One `docker-compose.yml` (see `docs/codebase/directory-structure.md` for location): server, postgres, onlyoffice, zitadel (+ its own database). Persistent state: `data/blobs` volume + postgres volume. Backup = `pg_dump` + rsync of `data/blobs`.
+Compose files in `deploy/compose/` (see `docs/codebase/directory-structure.md`): server, postgres, onlyoffice, Logto (self-hosted option, + its own database; Logto Cloud is the default dev IdP). Persistent state: `data/blobs` volume + postgres volume. Backup = `pg_dump` + rsync of `data/blobs`.

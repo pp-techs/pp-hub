@@ -36,7 +36,7 @@ A minimal, self-hosted Google Workspace alternative: Drive, collaborative office
 
 ## Deployment Model
 
-Self-host all-in-one: a single `docker compose up` brings up the app server, Postgres, OnlyOffice Document Server, and the identity provider (**Keycloak** in M1; Zitadel remains a drop-in OIDC alternative).
+Self-host all-in-one: a single `docker compose up` brings up the app server, Postgres, OnlyOffice Document Server, and the identity provider (**Logto**; any OIDC provider works — Logto Cloud is the default dev IdP).
 
 ## Success Criteria (MVP)
 

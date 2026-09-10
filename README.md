@@ -33,10 +33,10 @@ vp run dev
 ## Full Stack (M1)
 
 ```bash
-docker compose -f tools/compose/docker-compose.yml up --build
+docker compose -f deploy/compose/compose.pg-oo.yml up -d
 ```
 
-Keycloak on <http://localhost:9080> (realm `pphub`, user `dev` / `dev`), API server on <http://localhost:8080>. Then run `vp run dev` and open <http://localhost:5173> to sign in.
+Identity provider: Logto — create a free Cloud tenant at <https://cloud.logto.io> (Traditional Web app, redirect URI `http://localhost:8080/auth/callback`) or self-host via `deploy/compose/compose.logto.yml`. OnlyOffice on :9980, API server on <http://localhost:8080>. Setup steps: [deploy/compose/README.md](deploy/compose/README.md). Then run `vp run dev` and open <http://localhost:5173> to sign in.
 
 ## Documentation
 

@@ -1,13 +1,13 @@
 # Documentation Summary
 
 pp-hub — a minimal, self-hosted Google Workspace alternative: Drive, collaborative office (OnlyOffice/WOPI), permissions, and multiple spaces.
-Monorepo: bun workspaces + Vite+ frontend (`apps/web`), Go modular-monolith backend (`apps/server`), Postgres + content-addressed disk storage, all-in-one docker-compose deployment.
+Monorepo: bun workspaces + Vite+ frontend (`apps/web`), Go modular-monolith backend (`apps/server`), shared UI package (`packages/ui`), Postgres + content-addressed disk storage, compose variants in `deploy/compose/`.
 
 ## Agent Context Guide
 
 Before planning or implementing, read this `docs/SUMMARY.md` file first. Load only the detail docs relevant to the current task, and prioritize `Code Standard` docs for implementation conventions. If docs conflict with code or user intent, use the available question tool before making broad changes.
 
-Status: M1–M5 done — full MVP: Zitadel OIDC auth, drive (spaces/nodes/CAS blob/upload/download/versioning), sharing (direct + link), OnlyOffice WOPI editing with locks, previews (image/PDF/video/text) via background jobs. All in docker-compose. UI is minimal — a shadcn refactor is planned.
+Status: M1–M5 done — full MVP: OIDC auth (Logto; any OIDC provider works), drive (spaces/nodes/CAS blob/upload/download/versioning), sharing (direct + link), OnlyOffice WOPI editing with locks, previews (image/PDF/video/text) via background jobs. Compose stacks in `deploy/compose/`. UI primitives extracted to `packages/ui` (shadcn/ui preset).
 
 ## Architecture
 
@@ -26,9 +26,9 @@ System design, component interactions, data flows, deployment, and external inte
 
 Directory structure, entry points, API patterns, and key modules.
 
-| File                                                      | Description                                                     |
-| --------------------------------------------------------- | --------------------------------------------------------------- |
-| [directory-structure.md](codebase/directory-structure.md) | Monorepo layout, planned `apps/server` module map, entry points |
+| File                                                      | Description                                                             |
+| --------------------------------------------------------- | ----------------------------------------------------------------------- |
+| [directory-structure.md](codebase/directory-structure.md) | Monorepo layout, `apps/server` module map, web data layer, entry points |
 
 ## Code Standard
 
@@ -37,7 +37,7 @@ Conventions, naming rules, tech stack versions, and development workflows.
 | File                                                             | Description                                                                     |
 | ---------------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | [backend-conventions.md](code-standard/backend-conventions.md)   | Go stack (chi, sqlc/pgx, go-oidc), module boundaries, error taxonomy, job rules |
-| [frontend-conventions.md](code-standard/frontend-conventions.md) | Vite+/bun workflow, catalog versions, API client generation, style rules        |
+| [frontend-conventions.md](code-standard/frontend-conventions.md) | Vite+/bun workflow, api/queries/ui-store layering, catalog versions, style      |
 
 ## Project PDR
 
@@ -47,3 +47,11 @@ Product goals, use cases, business rules, and constraints.
 | ------------------------------------------------ | --------------------------------------------------------------------------------------- |
 | [product-goals.md](project-pdr/product-goals.md) | Vision, competitive landscape, MVP scope, non-goals, deployment model, success criteria |
 | [use-cases.md](project-pdr/use-cases.md)         | UC-1..UC-10: drive, sharing, office co-edit, permissions, previews                      |
+
+## Other
+
+Repository-specific docs outside the standard topic folders.
+
+| File                                                    | Description                                     |
+| ------------------------------------------------------- | ----------------------------------------------- |
+| [deploy/compose/README.md](../deploy/compose/README.md) | Dev workflows, compose file variants, env setup |

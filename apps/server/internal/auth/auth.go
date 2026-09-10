@@ -1,8 +1,10 @@
-// Package auth implements OIDC login against Zitadel and cookie sessions.
+// Package auth implements generic OIDC login (Logto, or any compliant
+// provider) and cookie sessions.
 //
-// The issuer URL is intentionally configurable: in compose, the server reaches
-// Zitadel through localhost:9080 (mapped to the host gateway) so the issuer
-// advertised to the browser and the server is identical.
+// The issuer URL is intentionally configurable: PP_OIDC_ISSUER_EXTERNAL is the
+// issuer advertised to the browser and used for discovery, so both sides agree
+// on the `iss` claim. Endpoints (auth, token, end_session) come from the
+// provider's discovery document — nothing provider-specific is hardcoded.
 package auth
 
 import (
@@ -36,10 +38,12 @@ const (
 )
 
 type Service struct {
-	cfg      *config.Config
-	queries  *store.Queries
-	verifier *oidc.IDTokenVerifier
-	oauth    oauth2.Config
+	cfg           *config.Config
+	queries       *store.Queries
+	provider      *oidc.Provider
+	verifier      *oidc.IDTokenVerifier
+	oauth         oauth2.Config
+	endSessionURL string // from discovery doc, empty if unsupported
 }
 
 func NewService(ctx context.Context, cfg *config.Config, queries *store.Queries) (*Service, error) {
@@ -50,6 +54,7 @@ func NewService(ctx context.Context, cfg *config.Config, queries *store.Queries)
 	s := &Service{
 		cfg:      cfg,
 		queries:  queries,
+		provider: provider,
 		verifier: provider.Verifier(&oidc.Config{ClientID: cfg.OIDCClientID}),
 		oauth: oauth2.Config{
 			ClientID:     cfg.OIDCClientID,
@@ -59,6 +64,13 @@ func NewService(ctx context.Context, cfg *config.Config, queries *store.Queries)
 			Scopes:       []string{oidc.ScopeOpenID, "profile", "email"},
 		},
 	}
+	var meta struct {
+		EndSession string `json:"end_session_endpoint"`
+	}
+	if err := provider.Claims(&meta); err != nil {
+		return nil, fmt.Errorf("oidc discovery claims: %w", err)
+	}
+	s.endSessionURL = meta.EndSession
 	slog.Info("oidc ready", "issuer", cfg.OIDCIssuerExt)
 	return s, nil
 }
@@ -110,6 +122,16 @@ func (s *Service) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	if err := idToken.Claims(&claims); err != nil {
 		http.Error(w, "invalid claims", http.StatusBadGateway)
 		return
+	}
+
+	// Some providers omit profile claims from the ID token; fall back to the
+	// userinfo endpoint so the local user record always has email/name.
+	if claims.Email == "" && claims.Name == "" {
+		if info, err := s.provider.UserInfo(r.Context(), oauth2.StaticTokenSource(token)); err != nil {
+			slog.Warn("userinfo fetch", "err", err)
+		} else if err := info.Claims(&claims); err != nil {
+			slog.Warn("userinfo claims", "err", err)
+		}
 	}
 
 	user, err := s.queries.UpsertUser(r.Context(), store.UpsertUserParams{
@@ -167,12 +189,17 @@ func (s *Service) CurrentUser(r *http.Request) *store.User {
 }
 
 func (s *Service) EndSessionURL(w http.ResponseWriter, r *http.Request) string {
-	u, err := url.Parse(strings.TrimSuffix(s.cfg.OIDCIssuerExt, "/") +
-		"/oidc/v1/end_session?post_logout_redirect_uri=" +
-		url.QueryEscape(s.cfg.ExternalURL) + "&client_id=" + url.QueryEscape(s.cfg.OIDCClientID))
+	if s.endSessionURL == "" {
+		return "/"
+	}
+	u, err := url.Parse(s.endSessionURL)
 	if err != nil {
 		return "/"
 	}
+	q := u.Query()
+	q.Set("post_logout_redirect_uri", s.cfg.ExternalURL)
+	q.Set("client_id", s.cfg.OIDCClientID)
+	u.RawQuery = q.Encode()
 	return u.String()
 }
 

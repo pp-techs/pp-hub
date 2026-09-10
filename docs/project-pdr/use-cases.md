@@ -2,7 +2,7 @@
 
 ## Actors
 
-- **User** — authenticated via OIDC (Keycloak in M1; any OIDC provider works).
+- **User** — authenticated via OIDC (Logto in dev; any OIDC provider works).
 - **Space owner / editor / viewer** — user with a role inside a space.
 - **Anonymous visitor** — holds a share link token, no account.
 

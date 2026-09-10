@@ -1,0 +1,47 @@
+# Logto (IdP) + PostgreSQL, self-hosted option
+# Default dev flow is Logto Cloud (no IdP container needed); use this file only
+# when you want a fully local IdP.
+#
+# First start takes ~30s while Logto runs its database migrations.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pphub-logto-pg
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: logto
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  logto:
+    image: svhd/logto:latest
+    entrypoint: ["sh", "-c", "npm run cli db seed -- --swe && npm start"]
+    container_name: pphub-logto
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      TRUST_PROXY_HEADER: "true"
+      DB_URL: postgres://postgres:postgres@postgres:5432/logto
+      ENDPOINT: http://localhost:3001
+      ADMIN_ENDPOINT: http://localhost:3002
+    ports:
+      - "3001:3001" # OIDC issuer / API
+      - "3002:3002" # Admin console
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/api/status || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  pg_data:

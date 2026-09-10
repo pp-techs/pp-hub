@@ -4,10 +4,10 @@ Each milestone ends in a working end-to-end state inside the compose stack.
 
 ## M1 — Skeleton ✅ done
 
-- `apps/server` boots; chi router; OIDC login against **Zitadel** in compose; `GET /me`.
+- `apps/server` boots; chi router; OIDC login against **Logto** (cloud or self-hosted in compose); `GET /me`.
 - Website calls the API (same-origin via Vite proxy; OpenAPI-generated TS client deferred until the API surface grows in M2).
-- Verified: `go test ./...` (session cookie unit tests), `vp check`, docker-compose OIDC discovery and login flow.
-- IdP note: Zitadel là compose IdP; backend dùng standard OIDC. Lần đầu khởi động: mở http://localhost:9080 và làm theo setup wizard để tạo admin user và OIDC app. Xem [docs/architecture/zitadel-setup.md](docs/architecture/zitadel-setup.md).
+- Verified: `go test ./...` (session cookie unit tests), `vp check`, OIDC discovery and login flow.
+- IdP note: Logto là IdP (Cloud tenant mặc định cho dev, hoặc self-host qua `compose.logto.yml`); backend dùng standard OIDC. Setup steps and compose file variants live in [deploy/compose/README.md](../../deploy/compose/README.md) (main dev stack: `compose.pg-oo.yml`).
 
 ## M2 — Drive Core ✅ done
 
@@ -47,11 +47,11 @@ Each milestone ends in a working end-to-end state inside the compose stack.
 
 - **Unit**: permission resolver matrix (role × share × ancestor), blob CAS (put/get/dedup/gc), tree ops (move-cycle rejection, rename conflicts).
 - **Integration** (compose test profile): upload→download byte-identical roundtrip; WOPI flow against real OnlyOffice (open → PutFile → version increments); link share access without auth.
-- **Contract**: `openapi.yaml` is the source of truth → oapi-codegen (Go) + TS client; CI fails on drift.
+- **Contract**: hand-typed TS interfaces in `apps/web/src/lib/api/types.ts` mirror the Go handlers; OpenAPI codegen deferred until the surface grows.
 - **Load sanity**: k6 — 100 concurrent uploads, 5-user co-edit; pass = no errors, no performance target yet.
 
 ## Rollout / Operations
 
-- Single `docker-compose.yml` at repo root (`tools/compose/`); configuration via env vars.
+- Compose files live in `deploy/compose/` — main dev stack (pg+onlyoffice, use with Logto Cloud), self-hosted Logto variant, onlyoffice-only; configuration via env vars (`.env.example`, `server.env`).
 - Persistent state: `data/` volume (blobs) + Postgres volume.
 - Backup: `pg_dump` + rsync of `data/blobs`.

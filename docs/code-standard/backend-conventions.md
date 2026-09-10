@@ -1,4 +1,4 @@
-# Backend Conventions (Go, planned)
+# Backend Conventions (Go)
 
 Stack: Go, chi (HTTP router), sqlc + pgx (Postgres), go-oidc (OIDC), blake3 (content hashing). No ORM, no heavy framework — go-zero/kratos/gorm were explicitly rejected (too much magic, poor fit for file-tree/permission queries).
 
@@ -16,7 +16,7 @@ Stack: Go, chi (HTTP router), sqlc + pgx (Postgres), go-oidc (OIDC), blake3 (con
 
 - Routes in `internal/httpapi` only; business logic stays in modules.
 - Errors are returned as RFC 7807 `problem+json`. Typed errors: `ErrNotFound` (404), `ErrPermission` (403), `ErrQuota` (413), `ErrLocked` (409, WOPI lock conflict), `ErrVersionConflict` (409).
-- `openapi.yaml` is the contract source of truth; Go types via oapi-codegen, TS client in `packages/api-client`. Never hand-edit generated files.
+- The FE↔BE contract is currently hand-typed TS interfaces in `apps/web/src/lib/api/types.ts`; `openapi.yaml` codegen (oapi-codegen + TS client) is deferred until the API surface justifies it. Keep interfaces in sync with the Go handlers.
 
 ## Naming & Style
 

@@ -1,0 +1,25 @@
+# OnlyOffice Document Server only
+# Use this when PostgreSQL and the IdP (Logto) are already running elsewhere
+name: pphub-onlyoffice
+
+services:
+  onlyoffice:
+    image: onlyoffice/documentserver:latest
+    container_name: pphub-onlyoffice
+    environment:
+      - JWT_ENABLED=false
+      - ONLYOFFICE_HTTPS_ENABLED=false
+    volumes:
+      - onlyoffice_data:/var/www/onlyoffice/Data
+      - onlyoffice_logs:/var/log/onlyoffice
+    ports:
+      - "9980:80"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  onlyoffice_data:
+  onlyoffice_logs:
