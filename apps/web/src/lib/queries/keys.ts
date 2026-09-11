@@ -1,6 +1,7 @@
 // Query keys — single source of truth for cache keys.
 export const keys = {
   me: ["me"] as const,
+  profile: ["profile"] as const,
   spaces: ["spaces"] as const,
   children: (spaceId: string, parentId?: string) =>
     ["children", spaceId, parentId ?? null] as const,
@@ -8,4 +9,7 @@ export const keys = {
   tree: (spaceId: string, parentId?: string) => ["tree", spaceId, parentId ?? null] as const,
   shares: (nodeId: string) => ["shares", nodeId] as const,
   shareInfo: (token: string) => ["share", token] as const,
+  users: ["users"] as const,
+  userSearch: ["users", "search"] as const,
+  members: (spaceId: string) => ["spaces", spaceId, "members"] as const,
 };

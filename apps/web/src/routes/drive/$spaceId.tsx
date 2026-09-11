@@ -80,6 +80,7 @@ import {
   ContextMenuTrigger,
 } from "@workspace/ui/components/context-menu";
 import { cn } from "@workspace/ui/lib/utils";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import {
   fmtSize,
   fmtDate,
@@ -104,12 +105,13 @@ import { NodePanels } from "@/components/node-panels";
 import { PreviewDialog } from "@/components/preview-dialog";
 import { SortBar } from "@/components/sort-bar";
 import { DetailsPanel } from "@/components/preview-panel";
+import { SpaceMembersPanel } from "@/components/space-members-panel";
 
 export const Route = createFileRoute("/drive/$spaceId")({
   head: () => ({ meta: [{ title: "Drive · pp-hub" }] }),
   validateSearch: (
     search: Record<string, unknown>,
-  ): { dir?: string; sort?: SortField; order?: SortOrder; view?: NodeView } => ({
+  ): { dir?: string; sort?: SortField; order?: SortOrder; view?: NodeView; members?: boolean } => ({
     dir: typeof search.dir === "string" && search.dir ? search.dir : undefined,
     sort:
       search.sort === "name" || search.sort === "modified" || search.sort === "size"
@@ -117,6 +119,7 @@ export const Route = createFileRoute("/drive/$spaceId")({
         : "name",
     order: search.order === "asc" ? "asc" : "desc",
     view: search.view === "list" ? "list" : "grid",
+    members: search.members === true,
   }),
   notFoundComponent: SpaceGone,
   component: FolderView,
@@ -146,6 +149,7 @@ function FolderView() {
     sort = "name",
     order = "asc",
     view = "grid",
+    members = false,
   } = useSearch({ from: "/drive/$spaceId" });
   const navigate = useNavigate();
   const spaces = spacesOptions();
@@ -159,6 +163,7 @@ function FolderView() {
   const [newFolderName, setNewFolderName] = useState("");
   const [renameNode, setRenameNode] = useState<Node | null>(null);
   const [renameName, setRenameName] = useState("");
+  const [confirmNode, setConfirmNode] = useState<Node | null>(null);
   const [dialogNode, setDialogNode] = useState<Node | null>(null);
 
   const fileRef = useRef<HTMLInputElement>(null);
@@ -220,6 +225,10 @@ function FolderView() {
     },
     [navigate, spaceId, rememberDir],
   );
+
+  const handleDeleteRequest = useCallback((node: Node) => {
+    setConfirmNode(node);
+  }, []);
 
   const handleDelete = useCallback(
     (nodeId: string) => {
@@ -383,61 +392,85 @@ function FolderView() {
 
       {/* ── Top bar Row 2: Crumbs, Sort, View toggle ── */}
       <div className="flex items-center justify-between gap-2 border-b px-4 py-2">
-        <Crumbs spaceId={spaceId} dir={dir} />
         <div className="flex items-center gap-2">
-          <SortBar
-            dir={dir}
-            sort={sort}
-            order={order}
-            view={view}
-            navigate={(s) =>
+          <Crumbs spaceId={spaceId} dir={dir} />
+          <Button
+            variant={members ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() =>
               void navigate({
                 to: "/drive/$spaceId",
                 params: { spaceId },
-                search: s,
+                search: { dir, sort, order, view, members: !members },
               })
             }
-          />
-          <Separator orientation="vertical" className="h-4" />
-          <ButtonGroup orientation="horizontal" className="rounded-md border">
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              aria-label="Grid view"
-              className={view === "grid" ? "bg-muted" : ""}
-              onClick={() =>
-                void navigate({
-                  to: "/drive/$spaceId",
-                  params: { spaceId },
-                  search: { dir, sort, order, view: "grid" },
-                })
-              }
-            >
-              <LayoutGrid />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              aria-label="List view"
-              className={view === "list" ? "bg-muted" : ""}
-              onClick={() =>
-                void navigate({
-                  to: "/drive/$spaceId",
-                  params: { spaceId },
-                  search: { dir, sort, order, view: "list" },
-                })
-              }
-            >
-              <List />
-            </Button>
-          </ButtonGroup>
+          >
+            Members
+          </Button>
+        </div>
+        <div className="flex items-center gap-2">
+          {!members && (
+            <>
+              <SortBar
+                dir={dir}
+                sort={sort}
+                order={order}
+                view={view}
+                navigate={(s) =>
+                  void navigate({
+                    to: "/drive/$spaceId",
+                    params: { spaceId },
+                    search: { ...s, members },
+                  })
+                }
+              />
+              <Separator orientation="vertical" className="h-4" />
+              <ButtonGroup orientation="horizontal" className="rounded-md border">
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label="Grid view"
+                  className={view === "grid" ? "bg-muted" : ""}
+                  onClick={() =>
+                    void navigate({
+                      to: "/drive/$spaceId",
+                      params: { spaceId },
+                      search: { dir, sort, order, view: "grid", members },
+                    })
+                  }
+                >
+                  <LayoutGrid />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label="List view"
+                  className={view === "list" ? "bg-muted" : ""}
+                  onClick={() =>
+                    void navigate({
+                      to: "/drive/$spaceId",
+                      params: { spaceId },
+                      search: { dir, sort, order, view: "list", members },
+                    })
+                  }
+                >
+                  <List />
+                </Button>
+              </ButtonGroup>
+            </>
+          )}
         </div>
       </div>
 
       {/* ── Content Area + Details Panel ── */}
       <div className="flex min-h-0 flex-1">
         <div className="min-h-0 flex-1 overflow-auto p-4">
-          {children.isPending ? (
+          {members ? (
+            <SpaceMembersPanel
+              spaceId={spaceId}
+              currentUserRole={spaces.data?.find((s) => s.id === spaceId)?.role ?? "viewer"}
+            />
+          ) : children.isPending ? (
             <p className="text-muted-foreground py-8 text-sm">Loading…</p>
           ) : sortedDirs.length === 0 && sortedFiles.length === 0 ? (
             <Empty className="py-12">
@@ -473,7 +506,7 @@ function FolderView() {
                         selected={activeSelected?.id === n.id}
                         onClick={handleClick}
                         onDoubleClick={handleDoubleClick}
-                        onDelete={handleDelete}
+                        onDeleteRequest={handleDeleteRequest}
                         onRename={handleRename}
                         onSelect={handleSelect}
                         onPreview={handlePreview}
@@ -498,7 +531,7 @@ function FolderView() {
                         selected={activeSelected?.id === n.id}
                         onClick={handleClick}
                         onDoubleClick={handleDoubleClick}
-                        onDelete={handleDelete}
+                        onDeleteRequest={handleDeleteRequest}
                         onRename={handleRename}
                         onSelect={handleSelect}
                         onPreview={handlePreview}
@@ -528,7 +561,7 @@ function FolderView() {
                       selected={activeSelected?.id === n.id}
                       onClick={handleClick}
                       onDoubleClick={handleDoubleClick}
-                      onDelete={handleDelete}
+                      onDeleteRequest={handleDeleteRequest}
                       onRename={handleRename}
                       onSelect={handleSelect}
                       onPreview={handlePreview}
@@ -550,8 +583,25 @@ function FolderView() {
 
       {/* Full-screen preview dialog (on double-click) */}
       <PreviewDialog node={dialogNode} onClose={() => setDialogNode(null)} />
-
       <NodePanels />
+
+      {/* Delete confirmation */}
+      <ConfirmDialog
+        open={!!confirmNode}
+        onOpenChange={(v) => !v && setConfirmNode(null)}
+        title="Move to trash"
+        description={
+          confirmNode
+            ? `Are you sure you want to move "${confirmNode.name}" to trash?`
+            : "Are you sure you want to delete this item?"
+        }
+        confirmLabel="Move to trash"
+        confirmVariant="destructive"
+        onConfirm={() => {
+          if (confirmNode) handleDelete(confirmNode.id);
+        }}
+        node={confirmNode}
+      />
     </div>
   );
 }
@@ -609,14 +659,12 @@ function Crumbs({ spaceId, dir }: { spaceId: string; dir?: string }) {
   );
 }
 
-// ── Grid Card ─────────────────────────────────────────────────────────────────
-
 interface NodeCardProps {
   node: Node;
   selected: boolean;
   onClick: (n: Node) => void;
   onDoubleClick: (n: Node) => void;
-  onDelete: (nodeId: string) => void;
+  onDeleteRequest: (node: Node) => void;
   onRename: (n: Node) => void;
   onSelect: (n: Node) => void;
   onPreview: (n: Node) => void;
@@ -627,14 +675,13 @@ function NodeCard({
   selected,
   onClick,
   onDoubleClick,
-  onDelete,
+  onDeleteRequest,
   onRename,
   onSelect,
   onPreview,
 }: NodeCardProps) {
   const openPanel = useUiStore((s) => s.openPanel);
   const isSpreadsheet = /\.(xlsx|xls|ods)$/i.test(node.name);
-
   const isDir = node.kind === "dir";
 
   return (
@@ -642,7 +689,7 @@ function NodeCard({
       <ContextMenuTrigger>
         <Card
           className={cn(
-            "group relative flex p-3 transition-colors hover:border-foreground/20 cursor-pointer",
+            "group relative flex cursor-pointer p-3 transition-colors hover:border-foreground/20",
             isDir ? "flex-row items-center gap-2 bg-muted/50" : "flex-col",
             selected && "ring-ring border-primary ring-2",
           )}
@@ -658,7 +705,6 @@ function NodeCard({
             </>
           ) : (
             <>
-              {/* Icon */}
               <div className="flex size-10 items-center justify-center">
                 {isSpreadsheet ? (
                   <FileSpreadsheet className="text-muted-foreground size-8" />
@@ -666,29 +712,11 @@ function NodeCard({
                   <FileText className="text-muted-foreground size-8" />
                 )}
               </div>
-
-              {/* Name */}
-              <div className="w-full min-w-0">
-                <p className="truncate text-sm font-medium" title={node.name}>
-                  {node.name}
-                </p>
-              </div>
-
-              {/* Modified date + Owner avatar */}
-              <div className="mt-1 flex items-center justify-between gap-1">
-                <span className="text-muted-foreground truncate text-[10px]">
-                  {fmtDate(node.modified_at)}
-                </span>
-                {node.owner_id && (
-                  <Avatar size="sm" title={node.owner ?? ""}>
-                    <AvatarFallback>{(node.owner ?? "?").charAt(0).toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                )}
-              </div>
+              <p className="truncate text-sm font-medium" title={node.name}>
+                {node.name}
+              </p>
             </>
           )}
-
-          {/* Action button (⋯) */}
           <div className="absolute right-1 top-1">
             <DropdownMenu>
               <DropdownMenuTrigger>
@@ -765,9 +793,7 @@ function NodeCard({
                     variant="destructive"
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (confirm(`Delete &quot;${node.name}&quot;?`)) {
-                        onDelete(node.id);
-                      }
+                      onDeleteRequest(node);
                     }}
                   >
                     <Trash2 /> Move to trash
@@ -808,14 +834,7 @@ function NodeCard({
           <Pencil data-icon="inline-start" /> Rename
         </ContextMenuItem>
         <ContextMenuSeparator />
-        <ContextMenuItem
-          variant="destructive"
-          onClick={() => {
-            if (confirm(`Delete &quot;${node.name}&quot;?`)) {
-              onDelete(node.id);
-            }
-          }}
-        >
+        <ContextMenuItem variant="destructive" onClick={() => onDeleteRequest(node)}>
           <Trash2 data-icon="inline-start" /> Move to trash
         </ContextMenuItem>
       </ContextMenuContent>
@@ -830,7 +849,7 @@ interface NodeRowProps {
   selected: boolean;
   onClick: (n: Node) => void;
   onDoubleClick: (n: Node) => void;
-  onDelete: (nodeId: string) => void;
+  onDeleteRequest: (node: Node) => void;
   onRename: (n: Node) => void;
   onSelect: (n: Node) => void;
   onPreview: (n: Node) => void;
@@ -841,7 +860,7 @@ function NodeRow({
   selected,
   onClick,
   onDoubleClick,
-  onDelete,
+  onDeleteRequest,
   onRename,
   onSelect,
   onPreview,
@@ -961,9 +980,7 @@ function NodeRow({
                       variant="destructive"
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (confirm(`Delete &quot;${node.name}&quot;?`)) {
-                          onDelete(node.id);
-                        }
+                        onDeleteRequest(node);
                       }}
                     >
                       <Trash2 /> Move to trash
@@ -1008,9 +1025,7 @@ function NodeRow({
         <ContextMenuItem
           variant="destructive"
           onClick={() => {
-            if (confirm(`Delete &quot;${node.name}&quot;?`)) {
-              onDelete(node.id);
-            }
+            onDeleteRequest(node);
           }}
         >
           <Trash2 data-icon="inline-start" /> Move to trash

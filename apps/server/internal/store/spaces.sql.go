@@ -125,7 +125,7 @@ func (q *Queries) ListMySpaces(ctx context.Context, userID pgtype.UUID) ([]Space
 }
 
 const listSpaceMembers = `-- name: ListSpaceMembers :many
-SELECT m.space_id, m.user_id, m.role, m.created_at, u.email, u.name AS user_name
+SELECT m.space_id, m.user_id, m.role, m.created_at, u.email, u.name AS user_name, u.display_name, u.avatar_url
 FROM space_members m
 JOIN users u ON u.id = m.user_id
 WHERE m.space_id = $1
@@ -133,12 +133,14 @@ ORDER BY m.created_at
 `
 
 type ListSpaceMembersRow struct {
-	SpaceID   pgtype.UUID        `json:"space_id"`
-	UserID    pgtype.UUID        `json:"user_id"`
-	Role      MemberRole         `json:"role"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	Email     string             `json:"email"`
-	UserName  string             `json:"user_name"`
+	SpaceID     pgtype.UUID        `json:"space_id"`
+	UserID      pgtype.UUID        `json:"user_id"`
+	Role        MemberRole         `json:"role"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	Email       string             `json:"email"`
+	UserName    string             `json:"user_name"`
+	DisplayName string             `json:"display_name"`
+	AvatarUrl   string             `json:"avatar_url"`
 }
 
 func (q *Queries) ListSpaceMembers(ctx context.Context, spaceID pgtype.UUID) ([]ListSpaceMembersRow, error) {
@@ -157,6 +159,8 @@ func (q *Queries) ListSpaceMembers(ctx context.Context, spaceID pgtype.UUID) ([]
 			&i.CreatedAt,
 			&i.Email,
 			&i.UserName,
+			&i.DisplayName,
+			&i.AvatarUrl,
 		); err != nil {
 			return nil, err
 		}

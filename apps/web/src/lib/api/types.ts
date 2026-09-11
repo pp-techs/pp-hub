@@ -6,6 +6,36 @@ export interface Me {
   email: string;
 }
 
+export interface UserProfile {
+  id: string;
+  email: string;
+  name: string;
+  display_name: string;
+  avatar_url: string;
+  bio: string;
+  is_admin: boolean;
+  created_at: string;
+  last_seen?: string;
+}
+
+export interface UserSearchResult {
+  id: string;
+  email: string;
+  name: string;
+  display_name: string;
+  avatar_url: string;
+}
+
+export interface SpaceMember {
+  user_id: string;
+  email: string;
+  name: string;
+  display_name: string;
+  avatar_url: string;
+  role: "viewer" | "editor" | "owner";
+  created_at: string;
+}
+
 export interface Space {
   id: string;
   name: string;

@@ -38,3 +38,16 @@ export { useCreateShare, useRevokeShare, useEditSession } from "./shares";
 import { useShares, useShareInfo } from "./shares";
 export const sharesOptions = (nodeId: string | null) => useShares(nodeId);
 export const shareInfoOptions = (token: string) => useShareInfo(token);
+
+// Users
+export {
+  useMyProfile,
+  useUpdateProfile,
+  useUploadAvatar,
+  useUserSearch,
+  useUsers,
+  useSpaceMembers,
+  useAddSpaceMember,
+  useUpdateMemberRole,
+  useRemoveSpaceMember,
+} from "./users";

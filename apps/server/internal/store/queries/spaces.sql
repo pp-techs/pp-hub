@@ -21,7 +21,7 @@ ON CONFLICT (space_id, user_id) DO UPDATE SET role = EXCLUDED.role;
 DELETE FROM space_members WHERE space_id = $1 AND user_id = $2;
 
 -- name: ListSpaceMembers :many
-SELECT m.*, u.email, u.name AS user_name
+SELECT m.space_id, m.user_id, m.role, m.created_at, u.email, u.name AS user_name, u.display_name, u.avatar_url
 FROM space_members m
 JOIN users u ON u.id = m.user_id
 WHERE m.space_id = $1

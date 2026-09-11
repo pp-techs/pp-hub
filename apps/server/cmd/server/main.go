@@ -22,6 +22,7 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 	"github.com/nhatbui/pp-hub/apps/server/internal/spaces"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
+	"github.com/nhatbui/pp-hub/apps/server/internal/users"
 	"github.com/nhatbui/pp-hub/apps/server/internal/wopi"
 )
 
@@ -91,9 +92,10 @@ func run() error {
 			}
 		}
 	}()
+	usersSvc := users.NewService(queries)
 	srv := &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           httpapi.NewServer(authSvc, spacesSvc, fsSvc, shareSvc, wopiSvc, previewWorker, queries, cfg.ExternalURL, cfg.OnlyOfficeURL, cfg.WopiServerURL).Router(),
+		Handler:           httpapi.NewServer(authSvc, spacesSvc, fsSvc, shareSvc, wopiSvc, previewWorker, usersSvc, queries, cfg.ExternalURL, cfg.OnlyOfficeURL, cfg.WopiServerURL).Router(),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 

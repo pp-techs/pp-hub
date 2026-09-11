@@ -1,0 +1,80 @@
+// User management API endpoints.
+import { api, ApiError } from "./client";
+import type { SpaceMember, UserProfile, UserSearchResult } from "./types";
+
+// ─── Profile ─────────────────────────────────────────────────────────────────
+
+export async function getMyProfile(): Promise<UserProfile> {
+  const res = await api.get("api/v1/users/me");
+  if (!res.ok) throw new ApiError(res.status, "Failed to get profile");
+  return res.json();
+}
+
+export async function updateMyProfile(body: {
+  display_name?: string;
+  bio?: string;
+}): Promise<UserProfile> {
+  const res = await api.put("api/v1/users/me", { json: body });
+  if (!res.ok) throw new ApiError(res.status, "Failed to update profile");
+  return res.json();
+}
+
+export async function uploadAvatar(file: File): Promise<{ avatar_url: string }> {
+  const form = new FormData();
+  form.append("avatar", file);
+  const res = await api.post("api/v1/users/me/avatar", { body: form });
+  if (!res.ok) throw new ApiError(res.status, "Failed to upload avatar");
+  return res.json();
+}
+
+// ─── User Search ─────────────────────────────────────────────────────────────
+
+export async function searchUsers(q: string, limit = 20): Promise<UserSearchResult[]> {
+  const res = await api.get("api/v1/users/search", { searchParams: { q, limit } });
+  if (!res.ok) throw new ApiError(res.status, "Search failed");
+  return res.json();
+}
+
+// ─── Admin: List Users ───────────────────────────────────────────────────────
+
+export async function listUsers(
+  limit = 50,
+  offset = 0,
+): Promise<{ users: UserProfile[]; total: number }> {
+  const res = await api.get("api/v1/users", { searchParams: { limit, offset } });
+  if (!res.ok) throw new ApiError(res.status, "Failed to list users");
+  return res.json();
+}
+
+// ─── Space Members ───────────────────────────────────────────────────────────
+
+export async function getSpaceMembers(spaceId: string): Promise<SpaceMember[]> {
+  const res = await api.get(`api/v1/spaces/${spaceId}/members`);
+  if (!res.ok) throw new ApiError(res.status, "Failed to get members");
+  return res.json();
+}
+
+export async function addSpaceMember(
+  spaceId: string,
+  body: { user_id: string; role: "viewer" | "editor" | "owner" },
+): Promise<void> {
+  const res = await api.post(`api/v1/spaces/${spaceId}/members`, { json: body });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new ApiError(res.status, text || "Failed to add member");
+  }
+}
+
+export async function updateMemberRole(
+  spaceId: string,
+  userId: string,
+  role: "viewer" | "editor" | "owner",
+): Promise<void> {
+  const res = await api.patch(`api/v1/spaces/${spaceId}/members/${userId}`, { json: { role } });
+  if (!res.ok) throw new ApiError(res.status, "Failed to update role");
+}
+
+export async function removeSpaceMember(spaceId: string, userId: string): Promise<void> {
+  const res = await api.delete(`api/v1/spaces/${spaceId}/members/${userId}`);
+  if (!res.ok) throw new ApiError(res.status, "Failed to remove member");
+}

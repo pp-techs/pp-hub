@@ -11,8 +11,65 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countUsers = `-- name: CountUsers :one
+SELECT COUNT(*) FROM users WHERE tenant_id = $1
+`
+
+func (q *Queries) CountUsers(ctx context.Context, tenantID string) (int64, error) {
+	row := q.db.QueryRow(ctx, countUsers, tenantID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const getSpaceMembers = `-- name: GetSpaceMembers :many
+SELECT m.user_id, m.role, m.created_at, u.email, u.name, u.display_name, u.avatar_url
+FROM space_members m
+JOIN users u ON u.id = m.user_id
+WHERE m.space_id = $1
+ORDER BY m.created_at
+`
+
+type GetSpaceMembersRow struct {
+	UserID      pgtype.UUID        `json:"user_id"`
+	Role        MemberRole         `json:"role"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	Email       string             `json:"email"`
+	Name        string             `json:"name"`
+	DisplayName string             `json:"display_name"`
+	AvatarUrl   string             `json:"avatar_url"`
+}
+
+func (q *Queries) GetSpaceMembers(ctx context.Context, spaceID pgtype.UUID) ([]GetSpaceMembersRow, error) {
+	rows, err := q.db.Query(ctx, getSpaceMembers, spaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetSpaceMembersRow
+	for rows.Next() {
+		var i GetSpaceMembersRow
+		if err := rows.Scan(
+			&i.UserID,
+			&i.Role,
+			&i.CreatedAt,
+			&i.Email,
+			&i.Name,
+			&i.DisplayName,
+			&i.AvatarUrl,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getUser = `-- name: GetUser :one
-SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, created_at FROM users WHERE id = $1 LIMIT 1
+SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, created_at, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash FROM users WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetUser(ctx context.Context, id pgtype.UUID) (User, error) {
@@ -26,12 +83,19 @@ func (q *Queries) GetUser(ctx context.Context, id pgtype.UUID) (User, error) {
 		&i.Email,
 		&i.Name,
 		&i.CreatedAt,
+		&i.DisplayName,
+		&i.AvatarUrl,
+		&i.Bio,
+		&i.Settings,
+		&i.IsAdmin,
+		&i.LastSeen,
+		&i.EmailHash,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, created_at FROM users WHERE email = $1 LIMIT 1
+SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, created_at, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash FROM users WHERE email = $1 LIMIT 1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -45,6 +109,223 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.Email,
 		&i.Name,
 		&i.CreatedAt,
+		&i.DisplayName,
+		&i.AvatarUrl,
+		&i.Bio,
+		&i.Settings,
+		&i.IsAdmin,
+		&i.LastSeen,
+		&i.EmailHash,
+	)
+	return i, err
+}
+
+const isSpaceMember = `-- name: IsSpaceMember :one
+SELECT EXISTS(SELECT 1 FROM space_members WHERE space_id = $1 AND user_id = $2)
+`
+
+type IsSpaceMemberParams struct {
+	SpaceID pgtype.UUID `json:"space_id"`
+	UserID  pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) IsSpaceMember(ctx context.Context, arg IsSpaceMemberParams) (bool, error) {
+	row := q.db.QueryRow(ctx, isSpaceMember, arg.SpaceID, arg.UserID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const listUsers = `-- name: ListUsers :many
+SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, created_at, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash FROM users
+WHERE tenant_id = $1
+ORDER BY created_at DESC
+LIMIT $2 OFFSET $3
+`
+
+type ListUsersParams struct {
+	TenantID string `json:"tenant_id"`
+	Limit    int32  `json:"limit"`
+	Offset   int32  `json:"offset"`
+}
+
+func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error) {
+	rows, err := q.db.Query(ctx, listUsers, arg.TenantID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.OidcSub,
+			&i.OidcIss,
+			&i.Email,
+			&i.Name,
+			&i.CreatedAt,
+			&i.DisplayName,
+			&i.AvatarUrl,
+			&i.Bio,
+			&i.Settings,
+			&i.IsAdmin,
+			&i.LastSeen,
+			&i.EmailHash,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchUsers = `-- name: SearchUsers :many
+SELECT id, email, name, display_name, avatar_url
+FROM users
+WHERE tenant_id = $1
+  AND (
+    email ILIKE '%' || $2 || '%'
+    OR name ILIKE '%' || $2 || '%'
+    OR display_name ILIKE '%' || $2 || '%'
+  )
+ORDER BY
+  CASE
+    WHEN email ILIKE $2 || '%' THEN 0
+    WHEN display_name ILIKE $2 || '%' THEN 1
+    WHEN name ILIKE $2 || '%' THEN 2
+    ELSE 3
+  END,
+  display_name, email
+LIMIT $3
+`
+
+type SearchUsersParams struct {
+	TenantID string      `json:"tenant_id"`
+	Column2  pgtype.Text `json:"column_2"`
+	Limit    int32       `json:"limit"`
+}
+
+type SearchUsersRow struct {
+	ID          pgtype.UUID `json:"id"`
+	Email       string      `json:"email"`
+	Name        string      `json:"name"`
+	DisplayName string      `json:"display_name"`
+	AvatarUrl   string      `json:"avatar_url"`
+}
+
+func (q *Queries) SearchUsers(ctx context.Context, arg SearchUsersParams) ([]SearchUsersRow, error) {
+	rows, err := q.db.Query(ctx, searchUsers, arg.TenantID, arg.Column2, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchUsersRow
+	for rows.Next() {
+		var i SearchUsersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.Name,
+			&i.DisplayName,
+			&i.AvatarUrl,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const setUserAdmin = `-- name: SetUserAdmin :exec
+UPDATE users SET is_admin = $2 WHERE id = $1
+`
+
+type SetUserAdminParams struct {
+	ID      pgtype.UUID `json:"id"`
+	IsAdmin bool        `json:"is_admin"`
+}
+
+func (q *Queries) SetUserAdmin(ctx context.Context, arg SetUserAdminParams) error {
+	_, err := q.db.Exec(ctx, setUserAdmin, arg.ID, arg.IsAdmin)
+	return err
+}
+
+const setUserAvatar = `-- name: SetUserAvatar :one
+UPDATE users SET avatar_url = $2 WHERE id = $1 RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, created_at, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash
+`
+
+type SetUserAvatarParams struct {
+	ID        pgtype.UUID `json:"id"`
+	AvatarUrl string      `json:"avatar_url"`
+}
+
+func (q *Queries) SetUserAvatar(ctx context.Context, arg SetUserAvatarParams) (User, error) {
+	row := q.db.QueryRow(ctx, setUserAvatar, arg.ID, arg.AvatarUrl)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.OidcSub,
+		&i.OidcIss,
+		&i.Email,
+		&i.Name,
+		&i.CreatedAt,
+		&i.DisplayName,
+		&i.AvatarUrl,
+		&i.Bio,
+		&i.Settings,
+		&i.IsAdmin,
+		&i.LastSeen,
+		&i.EmailHash,
+	)
+	return i, err
+}
+
+const updateUserProfile = `-- name: UpdateUserProfile :one
+UPDATE users
+SET display_name = $2, bio = $3, settings = COALESCE($4, settings)
+WHERE id = $1
+RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, created_at, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash
+`
+
+type UpdateUserProfileParams struct {
+	ID          pgtype.UUID `json:"id"`
+	DisplayName string      `json:"display_name"`
+	Bio         string      `json:"bio"`
+	Settings    []byte      `json:"settings"`
+}
+
+func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateUserProfile,
+		arg.ID,
+		arg.DisplayName,
+		arg.Bio,
+		arg.Settings,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.OidcSub,
+		&i.OidcIss,
+		&i.Email,
+		&i.Name,
+		&i.CreatedAt,
+		&i.DisplayName,
+		&i.AvatarUrl,
+		&i.Bio,
+		&i.Settings,
+		&i.IsAdmin,
+		&i.LastSeen,
+		&i.EmailHash,
 	)
 	return i, err
 }
@@ -53,8 +334,8 @@ const upsertUser = `-- name: UpsertUser :one
 INSERT INTO users (oidc_sub, oidc_iss, email, name)
 VALUES ($1, $2, $3, $4)
 ON CONFLICT (oidc_iss, oidc_sub)
-DO UPDATE SET email = EXCLUDED.email, name = EXCLUDED.name
-RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, created_at
+DO UPDATE SET email = EXCLUDED.email, name = EXCLUDED.name, last_seen = now()
+RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, created_at, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash
 `
 
 type UpsertUserParams struct {
@@ -80,6 +361,13 @@ func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) (User, e
 		&i.Email,
 		&i.Name,
 		&i.CreatedAt,
+		&i.DisplayName,
+		&i.AvatarUrl,
+		&i.Bio,
+		&i.Settings,
+		&i.IsAdmin,
+		&i.LastSeen,
+		&i.EmailHash,
 	)
 	return i, err
 }

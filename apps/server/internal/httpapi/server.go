@@ -12,6 +12,7 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 	"github.com/nhatbui/pp-hub/apps/server/internal/spaces"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
+	"github.com/nhatbui/pp-hub/apps/server/internal/users"
 	"github.com/nhatbui/pp-hub/apps/server/internal/wopi"
 )
 
@@ -22,14 +23,15 @@ type Server struct {
 	share         *share.Service
 	wopi          *wopi.Service
 	preview       *preview.Worker
+	users         *users.Service
 	store         *store.Queries
 	externalURL   string
 	onlyOfficeURL string
 	wopiServerURL string
 }
 
-func NewServer(a *auth.Service, sp *spaces.Service, f *fs.Service, sh *share.Service, wp *wopi.Service, pv *preview.Worker, q *store.Queries, externalURL, onlyOfficeURL, wopiServerURL string) *Server {
-	return &Server{auth: a, spaces: sp, fs: f, share: sh, wopi: wp, preview: pv, store: q, externalURL: externalURL, onlyOfficeURL: onlyOfficeURL, wopiServerURL: wopiServerURL}
+func NewServer(a *auth.Service, sp *spaces.Service, f *fs.Service, sh *share.Service, wp *wopi.Service, pv *preview.Worker, us *users.Service, q *store.Queries, externalURL, onlyOfficeURL, wopiServerURL string) *Server {
+	return &Server{auth: a, spaces: sp, fs: f, share: sh, wopi: wp, preview: pv, users: us, store: q, externalURL: externalURL, onlyOfficeURL: onlyOfficeURL, wopiServerURL: wopiServerURL}
 }
 
 func (s *Server) Router() http.Handler {
@@ -47,6 +49,11 @@ func (s *Server) Router() http.Handler {
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/me", s.handleMe)
+		r.Get("/users/me", s.handleGetMyProfile)
+		r.Put("/users/me", s.handleUpdateMyProfile)
+		r.Post("/users/me/avatar", s.handleUploadAvatar)
+		r.Get("/users", s.handleListUsers)       // admin only
+		r.Get("/users/search", s.handleSearchUsers) // autocomplete
 
 		r.Route("/spaces", func(r chi.Router) {
 			r.Post("/", s.handleCreateSpace)
@@ -58,6 +65,14 @@ func (s *Server) Router() http.Handler {
 				r.Get("/shared", s.handleListShared)
 				r.Post("/dirs", s.handleMkdir)
 				r.Post("/files", s.handleUpload)
+				r.Route("/members", func(r chi.Router) {
+					r.Get("/", s.handleListMembers)
+					r.Post("/", s.handleAddMember)
+					r.Route("/{userID}", func(r chi.Router) {
+						r.Patch("/", s.handleUpdateMemberRole)
+						r.Delete("/", s.handleRemoveMember)
+					})
+				})
 			})
 		})
 

@@ -42,168 +42,212 @@ export function SharePanel({ node }: { node: Node }) {
 
   return (
     <Dialog open onOpenChange={(v) => !v && close()}>
-      <DialogContent className="max-h-[85svh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="max-h-[85svh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Share “{node.name}”</DialogTitle>
           <DialogDescription>
-            Direct shares grant a user access; link shares are public.
+            Choose who can access this item and what they can do with it.
           </DialogDescription>
         </DialogHeader>
 
-        <form
-          className="flex flex-col gap-2"
-          onSubmit={(e: FormEvent) => {
-            e.preventDefault();
-            if (!email.trim()) {
-              toast.error("Email required");
-              return;
-            }
-            create.mutate(
-              {
-                nodeId: node.id,
-                body: { kind: "direct", perm: directPerm, email: email.trim() },
-              },
-              {
-                onSuccess: () => {
-                  setEmail("");
-                  toast.success("Shared");
+        <section className="rounded-lg border bg-muted/20 p-4">
+          <div className="mb-4">
+            <h3 className="text-sm font-semibold">Invite people</h3>
+            <p className="text-muted-foreground mt-1 text-xs">
+              Add a collaborator and choose the access they should have.
+            </p>
+          </div>
+          <form
+            className="flex flex-col gap-3"
+            onSubmit={(e: FormEvent) => {
+              e.preventDefault();
+              if (!email.trim()) {
+                toast.error("Email required");
+                return;
+              }
+              create.mutate(
+                {
+                  nodeId: node.id,
+                  body: { kind: "direct", perm: directPerm, email: email.trim() },
                 },
-                onError: fail,
-              },
-            );
-          }}
-        >
-          <Label htmlFor="share-email">Collaborators</Label>
-          <div className="flex flex-wrap items-center gap-2">
-            <Input
-              id="share-email"
-              type="email"
-              placeholder="Add people or groups"
-              className="min-w-48 flex-1"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            <ToggleGroup
-              size="sm"
-              variant="outline"
-              value={[directPerm]}
-              onValueChange={(val) => {
-                if (val.length > 0) setDirectPerm(val[0]);
-              }}
-            >
-              <ToggleGroupItem value="view">Viewer</ToggleGroupItem>
-              <ToggleGroupItem value="download">Download</ToggleGroupItem>
-              <ToggleGroupItem value="edit">Editor</ToggleGroupItem>
-            </ToggleGroup>
-            <Button type="submit" disabled={create.isPending}>
+                {
+                  onSuccess: () => {
+                    setEmail("");
+                    toast.success("Shared");
+                  },
+                  onError: fail,
+                },
+              );
+            }}
+          >
+            <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+              <div className="grid gap-1.5">
+                <Label htmlFor="share-email">Person or group email</Label>
+                <Input
+                  id="share-email"
+                  type="email"
+                  placeholder="name@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="direct-permission">Permission</Label>
+                <ToggleGroup
+                  id="direct-permission"
+                  size="sm"
+                  variant="outline"
+                  value={[directPerm]}
+                  onValueChange={(val) => {
+                    if (val.length > 0) setDirectPerm(val[0]);
+                  }}
+                >
+                  <ToggleGroupItem value="view">Viewer</ToggleGroupItem>
+                  <ToggleGroupItem value="download">Download</ToggleGroupItem>
+                  <ToggleGroupItem value="edit">Editor</ToggleGroupItem>
+                </ToggleGroup>
+              </div>
+            </div>
+            <Button type="submit" className="self-start" disabled={create.isPending}>
               Share
             </Button>
-          </div>
-        </form>
+          </form>
+        </section>
 
         <Separator />
 
-        <form
-          className="flex flex-col gap-2"
-          onSubmit={(e: FormEvent) => {
-            e.preventDefault();
-            create.mutate(
-              {
-                nodeId: node.id,
-                body: { kind: "link", perm: linkPerm, expires_in: Number(expires) || 0 },
-              },
-              {
-                onSuccess: (sh: Share) => {
-                  if (sh.url) {
-                    toast.success("Link created (shown once)", {
-                      action: {
-                        label: "Copy",
-                        onClick: () => void navigator.clipboard.writeText(sh.url!),
-                      },
-                    });
-                  }
+        <section className="rounded-lg border bg-muted/20 p-4">
+          <div className="mb-4">
+            <h3 className="text-sm font-semibold">Public link</h3>
+            <p className="text-muted-foreground mt-1 text-xs">
+              Anyone with this link can access the item using the selected permission.
+            </p>
+          </div>
+          <form
+            className="flex flex-col gap-3"
+            onSubmit={(e: FormEvent) => {
+              e.preventDefault();
+              create.mutate(
+                {
+                  nodeId: node.id,
+                  body: { kind: "link", perm: linkPerm, expires_in: Number(expires) || 0 },
                 },
-                onError: fail,
-              },
-            );
-          }}
-        >
-          <Label>Public link</Label>
-          <div className="flex gap-2">
-            <PermSelect value={linkPerm} onChange={setLinkPerm} />
-            <Input
-              type="number"
-              min={0}
-              className="w-28"
-              value={expires}
-              onChange={(e) => setExpires(e.target.value)}
-              aria-label="Expires in seconds (0 = never)"
-              placeholder="expires (s)"
-            />
-            <Button type="submit" variant="outline" disabled={create.isPending}>
-              Create link
+                {
+                  onSuccess: (sh: Share) => {
+                    if (sh.url) {
+                      toast.success("Link created (shown once)", {
+                        action: {
+                          label: "Copy",
+                          onClick: () => void navigator.clipboard.writeText(sh.url!),
+                        },
+                      });
+                    }
+                  },
+                  onError: fail,
+                },
+              );
+            }}
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-1.5">
+                <Label htmlFor="link-permission">Permission</Label>
+                <PermSelect value={linkPerm} onChange={setLinkPerm} />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="link-expiry">Expiration</Label>
+                <Input
+                  id="link-expiry"
+                  type="number"
+                  min={0}
+                  value={expires}
+                  onChange={(e) => setExpires(e.target.value)}
+                  aria-describedby="link-expiry-help"
+                />
+                <span id="link-expiry-help" className="text-muted-foreground text-xs">
+                  Seconds; use 0 for no expiration.
+                </span>
+              </div>
+            </div>
+            <Button
+              type="submit"
+              variant="outline"
+              className="self-start"
+              disabled={create.isPending}
+            >
+              Create public link
             </Button>
-          </div>
-        </form>
+          </form>
+        </section>
 
         <Separator />
 
-        <div className="flex flex-col gap-1">
-          <Label>Current shares</Label>
-          {shares.isPending ? (
-            <p className="text-muted-foreground text-sm">Loading…</p>
-          ) : shares.data?.length === 0 ? (
-            <p className="text-muted-foreground text-sm">None yet.</p>
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {shares.data?.map((s) => (
-                <li key={s.id} className="flex items-center gap-2 text-sm">
-                  <Avatar size="sm">
-                    <AvatarFallback>
-                      {s.grantee_email ? (
-                        s.grantee_email.charAt(0).toUpperCase()
-                      ) : (
-                        <Link2 className="size-3.5" />
-                      )}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex min-w-0 flex-1 items-center gap-2">
-                    <span className="truncate">
-                      {s.grantee_email || (s.kind === "link" ? "Public link" : s.kind)}
-                    </span>
-                    <Badge variant="outline" className="shrink-0 text-[10px]">
+        <section className="grid gap-2">
+          <div>
+            <h3 className="text-sm font-semibold">Current access</h3>
+            <p className="text-muted-foreground mt-1 text-xs">
+              Review who can access this item and revoke access when needed.
+            </p>
+          </div>
+
+          <div className="rounded-md border bg-background">
+            {shares.isPending ? (
+              <p className="text-muted-foreground p-3 text-sm">Loading…</p>
+            ) : shares.data?.length === 0 ? (
+              <p className="text-muted-foreground p-3 text-sm">No one else has access yet.</p>
+            ) : (
+              <ul className="divide-y">
+                {shares.data?.map((s) => (
+                  <li key={s.id} className="flex items-center gap-3 p-3 text-sm">
+                    <Avatar size="sm">
+                      <AvatarFallback>
+                        {s.grantee_email ? (
+                          s.grantee_email.charAt(0).toUpperCase()
+                        ) : (
+                          <Link2 className="size-3.5" />
+                        )}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">
+                        {s.grantee_email || (s.kind === "link" ? "Anyone with the link" : s.kind)}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        {s.kind === "link" ? "Public link" : "Direct invitation"}
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="shrink-0 capitalize">
                       {s.perm}
                     </Badge>
-                  </div>
-                  {s.url ? (
-                    <a
-                      href={s.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-primary inline-flex items-center gap-1 text-xs underline"
+                    {s.url ? (
+                      <a
+                        href={s.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary inline-flex items-center gap-1 text-xs underline"
+                      >
+                        <Copy className="size-3.5" /> Open
+                      </a>
+                    ) : null}
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      className="shrink-0"
+                      aria-label={`Revoke access for ${s.grantee_email || "public link"}`}
+                      onClick={() =>
+                        revoke.mutate(
+                          { nodeId: node.id, shareId: s.id },
+                          { onSuccess: () => toast.success("Access revoked"), onError: fail },
+                        )
+                      }
                     >
-                      <Copy className="size-3.5" /> link
-                    </a>
-                  ) : null}
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    className="shrink-0"
-                    aria-label="Revoke share"
-                    onClick={() =>
-                      revoke.mutate(
-                        { nodeId: node.id, shareId: s.id },
-                        { onSuccess: () => toast.success("Revoked"), onError: fail },
-                      )
-                    }
-                  >
-                    <X />
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+                      <X />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
       </DialogContent>
     </Dialog>
   );
