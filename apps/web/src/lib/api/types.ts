@@ -84,6 +84,7 @@ export interface Share {
 export interface EditSession {
   editor_url: string;
   token: string;
+  access_token_ttl: number;
 }
 
 export interface ShareInfo {

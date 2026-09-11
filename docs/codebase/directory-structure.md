@@ -13,14 +13,26 @@ pp-hub/
 │   │       │   ├── query-client.ts # shared QueryClient
 │   │       │   └── ui-store.ts     # zustand ephemeral UI state
 │   │       ├── components/         # app-level UI panels
+│   │       │   ├── share-panel.tsx       # share dialog (direct + link)
+│   │       │   ├── space-members-panel.tsx # space member management
+│   │       │   ├── member-picker.tsx     # user search + member add
+│   │       │   ├── user-avatar.tsx       # avatar with fallback
+│   │       │   ├── confirm-dialog.tsx    # confirmation modal
+│   │       │   └── ...                  # folder-tree, preview, edit, nav, etc.
 │   │       └── routes/             # TanStack Router file-based routes
+│   │           ├── profile.tsx          # user profile page
+│   │           ├── admin.users.tsx      # admin: user management
+│   │           └── drive/$spaceId.tsx   # space drive view
 │   └── server/                     # Go backend — own go.mod
 │       ├── cmd/server/             # entry point: config, PG pool, migrate, OIDC wait, http.Server
 │       └── internal/
 │           ├── auth/               # ✅ OIDC login/callback/logout, HMAC session cookies (go-oidc)
 │           ├── config/             # ✅ env-based config
 │           ├── httpapi/            # ✅ chi routes (/healthz, /auth/*, /api/v1/*), RFC 7807 errors
+│           │   ├── users.go        # user profile CRUD + search endpoints
+│           │   └── spaces_members.go # space members API (list/add/update/remove)
 │           ├── store/              # ✅ sqlc queries, embedded migrations runner
+│           ├── users/              # user service layer (profile, search)
 │           ├── spaces/             # space CRUD, member roles
 │           ├── fs/                 # file tree, versioning, move/copy/rename
 │           ├── blob/               # CAS Store interface + local impl (S3 impl later)

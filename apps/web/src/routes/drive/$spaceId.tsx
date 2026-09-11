@@ -85,6 +85,7 @@ import {
   fmtSize,
   fmtDate,
   isOfficeFile,
+  openEditor,
   sortNodes,
   type Node,
   type SortField,
@@ -749,7 +750,7 @@ function NodeCard({
                         <DropdownMenuItem
                           onClick={(e) => {
                             e.stopPropagation();
-                            openPanel("edit", node);
+                            openEditor(node);
                           }}
                         >
                           <SquarePen /> Edit
@@ -812,7 +813,7 @@ function NodeCard({
               <Eye data-icon="inline-start" /> Preview
             </ContextMenuItem>
             {isOfficeFile(node.name) && (
-              <ContextMenuItem onClick={() => openPanel("edit", node)}>
+              <ContextMenuItem onClick={() => openEditor(node)}>
                 <SquarePen data-icon="inline-start" /> Edit
               </ContextMenuItem>
             )}
@@ -936,7 +937,7 @@ function NodeRow({
                           <DropdownMenuItem
                             onClick={(e) => {
                               e.stopPropagation();
-                              openPanel("edit", node);
+                              openEditor(node);
                             }}
                           >
                             <SquarePen /> Edit
@@ -1000,7 +1001,7 @@ function NodeRow({
               <Eye data-icon="inline-start" /> Preview
             </ContextMenuItem>
             {isOfficeFile(node.name) && (
-              <ContextMenuItem onClick={() => openPanel("edit", node)}>
+              <ContextMenuItem onClick={() => openEditor(node)}>
                 <SquarePen data-icon="inline-start" /> Edit
               </ContextMenuItem>
             )}

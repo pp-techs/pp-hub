@@ -2,15 +2,13 @@ import { useEffect, useState } from "react";
 import { Dialog, DialogContent } from "@workspace/ui/components/dialog";
 import { Button } from "@workspace/ui/components/button";
 import { Download, ExternalLink } from "lucide-react";
-import { fmtSize, previewKind, isOfficeFile, type Node } from "@/lib/api";
-import { useUiStore } from "@/lib/ui-store";
+import { fmtSize, previewKind, isOfficeFile, openEditor, type Node } from "@/lib/api";
 
 /**
  * Full-screen preview dialog, opened on double-click.
  * Uses shadcn Dialog component.
  */
 export function PreviewDialog({ node, onClose }: { node: Node | null; onClose: () => void }) {
-  const openPanel = useUiStore((s) => s.openPanel);
   const kind = previewKind(node?.mime);
   const previewUrl = node ? `/api/v1/nodes/${node.id}/preview?kind=${kind}` : null;
   const downloadUrl = node ? `/api/v1/nodes/${node.id}/download` : null;
@@ -34,7 +32,7 @@ export function PreviewDialog({ node, onClose }: { node: Node | null; onClose: (
                   className="h-7 gap-1 text-xs"
                   onClick={() => {
                     onClose();
-                    openPanel("edit", node);
+                    openEditor(node);
                   }}
                 >
                   <ExternalLink className="size-3.5" />

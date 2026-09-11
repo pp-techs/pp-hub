@@ -32,7 +32,7 @@ export const childrenOptions = (spaceId: string, parentId?: string) =>
 export const versionsOptions = (nodeId: string | null) => useVersions(nodeId);
 
 // Shares
-export { useCreateShare, useRevokeShare, useEditSession } from "./shares";
+export { useCreateShare, useRevokeShare } from "./shares";
 
 // Backward compat
 import { useShares, useShareInfo } from "./shares";

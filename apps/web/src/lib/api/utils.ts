@@ -13,6 +13,11 @@ export function isOfficeFile(name: string): boolean {
   return OFFICE_EXT_RE.test(name);
 }
 
+/** Open the office editor for a node in a new browser tab. */
+export function openEditor(node: Node): void {
+  window.open(`/edit/${node.id}`, "_blank");
+}
+
 export type PreviewKind = "thumbnail" | "pdf" | "video" | "text";
 
 export function previewKind(mime?: string): PreviewKind {

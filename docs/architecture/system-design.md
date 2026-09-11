@@ -65,7 +65,7 @@ flowchart LR
 
 ### OnlyOffice edit (WOPI)
 
-1. Website requests an edit session → server returns iframe URL + HMAC-signed WOPI access token (TTL ~10h; carries `user_id`, `node_id`, `perm`).
+1. Website requests an edit session → server returns the OnlyOffice 9.x action URL (`/hosting/wopi/{type}/edit?WOPISrc=…`) + HMAC-signed WOPI access token (TTL ~10h; carries `user_id`, `node_id`, `perm`); the SPA POSTs a form with `access_token`/`access_token_ttl` into the editor iframe.
 2. OnlyOffice calls `CheckFileInfo` → `BaseFileName, Size, OwnerId, UserId, UserCanWrite, Version, SupportsUpdate, SupportsLocks`.
 3. `GetFile` streams the blob of `current_version_id`.
 4. Co-editing happens inside OnlyOffice (same `FileId` = same session).

@@ -1,15 +1,13 @@
 import { useEffect, useState } from "react";
 import { X, Download, ExternalLink } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
-import { fmtSize, previewKind, isOfficeFile, type Node } from "@/lib/api";
-import { useUiStore } from "@/lib/ui-store";
+import { fmtSize, previewKind, isOfficeFile, openEditor, type Node } from "@/lib/api";
 
 /**
  * Slide-in details panel (right sidebar). Shows when a node is selected.
  * Works for files AND folders.
  */
 export function DetailsPanel({ node, onClose }: { node: Node; onClose: () => void }) {
-  const openPanel = useUiStore((s) => s.openPanel);
   const kind = previewKind(node.mime);
   const previewUrl = `/api/v1/nodes/${node.id}/preview?kind=${kind}`;
   const downloadUrl = `/api/v1/nodes/${node.id}/download`;
@@ -28,7 +26,7 @@ export function DetailsPanel({ node, onClose }: { node: Node; onClose: () => voi
             variant="ghost"
             size="sm"
             className="h-7 gap-1 text-xs"
-            onClick={() => openPanel("edit", node)}
+            onClick={() => openEditor(node)}
           >
             <ExternalLink className="size-3.5" />
             Open

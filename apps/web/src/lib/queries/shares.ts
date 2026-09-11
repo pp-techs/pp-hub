@@ -1,7 +1,7 @@
 // Share and WOPI hooks.
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createEditSession, createShare, getShareInfo, getShares, revokeShare } from "@/lib/api";
+import { createShare, getShareInfo, getShares, revokeShare } from "@/lib/api";
 import { keys } from "./keys";
 
 export function sharesOptions(nodeId: string | null) {
@@ -46,12 +46,4 @@ export function shareInfoOptions(token: string) {
 
 export function useShareInfo(token: string) {
   return useQuery(shareInfoOptions(token));
-}
-
-// ─── WOPI ───────────────────────────────────────────────────────────────────
-
-export function useEditSession() {
-  return useMutation({
-    mutationFn: (nodeId: string) => createEditSession(nodeId),
-  });
 }

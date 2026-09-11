@@ -2,6 +2,18 @@
 
 All tables carry `tenant_id` (default `'default'`). Postgres is the only metadata store.
 
+## Users Table
+
+```sql
+users(id, tenant_id, external_id, email, name,            -- OIDC-sourced fields
+      display_name, avatar_url, bio,                      -- user-editable profile
+      settings,                                            -- JSONB preferences
+      is_admin, last_seen, created_at)
+  -- email_hash (sha256) for search, unique per tenant
+```
+
+Profile fields (`display_name`, `avatar_url`, `bio`, `settings`, `is_admin`, `last_seen`) are added in migration 0006. The `is_admin` flag gates admin-only endpoints.
+
 ## Core Tables
 
 ```sql

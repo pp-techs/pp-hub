@@ -28,8 +28,8 @@ Each milestone ends in a working end-to-end state inside the compose stack.
 
 - `file_locks` table; `wopi` module (HMAC token sign/verify, Lock/Unlock/Refresh with conflict semantics); `handleEditSession` issues token + editor URL.
 - WOPI host endpoints: `GET /wopi/files/{id}` (CheckFileInfo), `GET/POST .../contents` (GetFile/PutFile), `POST .../` (X-WOPI-Override: LOCK/UNLOCK/REFRESH_LOCK/GET_LOCK).
-- OnlyOffice Document Server in compose (`onlyoffice` service, :9980), `WOPI_ENABLED=true`, `JWT_ENABLED=false` for dev.
-- Website: 📝 button on office files → edit-session → iframe OnlyOffice editor; close refreshes version list.
+- OnlyOffice Document Server 9.x in compose (`onlyoffice` service, :9980), `WOPI_ENABLED=true`, `JWT_ENABLED=false` for dev. Editor URL is `/hosting/wopi/{type}/edit`; the SPA POSTs `access_token`/`access_token_ttl` via a hidden form into the iframe (9.x dropped the old `index.html?wopiSrc=…&access_token=…` GET shim). `PP_WOPI_SERVER_URL` must be container-reachable (`host.docker.internal` on macOS).
+- Website: 📝/Edit on office files → opens `/edit/{nodeId}` in a new tab (full-page, not a modal) → edit-session → POST form → iframe OnlyOffice editor.
 - Verified E2E: edit-session → CheckFileInfo (200, canWrite=true) → GetFile → Lock → PutFile → version v2 → download new content; lock conflict 409 with X-WOPI-Lock echo; bad token 401.
 
 ## M5 — Previews & Jobs ✅ done

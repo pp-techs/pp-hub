@@ -26,6 +26,9 @@ services:
     environment:
       - JWT_ENABLED=false
       - ONLYOFFICE_HTTPS_ENABLED=false
+      # OnlyOffice 9.x requires WOPI_ENABLED=true to serve /hosting/discovery
+      # and /hosting/wopi/{type}/edit.
+      - WOPI_ENABLED=true
     volumes:
       - onlyoffice_data:/var/www/onlyoffice/Data
       - onlyoffice_logs:/var/log/onlyoffice

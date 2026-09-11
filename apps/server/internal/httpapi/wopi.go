@@ -4,7 +4,11 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
+	"path"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -221,13 +225,29 @@ func (s *Server) handleEditSession(w http.ResponseWriter, r *http.Request) {
 	}
 	// OnlyOffice Document Server editor URL. wopiSrc must be reachable from the
 	// OnlyOffice container (PP_WOPI_SERVER_URL), the browser loads editor from
-	// PP_ONLYOFFICE_URL.
+	// PP_ONLYOFFICE_URL. OnlyOffice 9.x serves the WOPI editor at
+	// /hosting/wopi/{documentType}/edit (see /hosting/discovery); it expects a
+	// POST form with access_token (+ttl) in the body, not query params.
 	nodeID, _ := node.ID.Value()
 	wopiSrc := s.wopiServerURL + "/wopi/files/" + nodeID.(string)
-	editorURL := s.onlyOfficeURL + "/web-apps/apps/api/documents/index.html?wopiSrc=" + wopiSrc + "&access_token=" + token
-	writeJSON(w, http.StatusOK, map[string]string{
-		"editor_url": editorURL,
-		"wopi_src":   wopiSrc,
-		"token":      token,
+	editorURL := s.onlyOfficeURL + "/hosting/wopi/" + wopiDocumentType(node.Name) + "/edit?WOPISrc=" + url.QueryEscape(wopiSrc)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"editor_url":       editorURL,
+		"wopi_src":         wopiSrc,
+		"token":            token,
+		"access_token_ttl": time.Now().Add(wopi.TokenTTL).UnixMilli(),
 	})
+}
+
+// wopiDocumentType maps a file name to the OnlyOffice WOPI document type
+// (word/cell/slide) used in the /hosting/wopi/{type}/edit route.
+func wopiDocumentType(name string) string {
+	switch strings.ToLower(path.Ext(name)) {
+	case ".xlsx", ".xls", ".xlsm", ".xlt", ".xltx", ".xltm", ".ods", ".fods", ".ots", ".csv":
+		return "cell"
+	case ".pptx", ".ppt", ".odp", ".fodp", ".otp", ".ppsx", ".pps", ".ppsm", ".pot", ".potx", ".potm":
+		return "slide"
+	default:
+		return "word"
+	}
 }

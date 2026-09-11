@@ -18,8 +18,14 @@ Mounted under `/wopi`:
 ## WOPI Access Token
 
 - HMAC-signed, TTL ~10h, payload: `user_id`, `node_id`, `perm`.
-- Issued by the server when the web app opens an editor; passed to OnlyOffice per WOPI convention (`access_token` query param).
+- Issued by the server when the web app opens an editor.
 - OnlyOffice's callbacks authenticate with this token — no session cookies cross the service boundary.
+
+## Editor URL (OnlyOffice 9.x)
+
+- Compose sets `WOPI_ENABLED=true`; OnlyOffice serves `/hosting/discovery` and the editor at `/hosting/wopi/{documentType}/edit` (`word|cell|slide`, mapped from the file extension).
+- The browser loads the editor by **POSTing a form** into an iframe with `access_token` and `access_token_ttl` in the body — 9.x does not accept the token as a query param on this route.
+- `PP_WOPI_SERVER_URL` must be reachable **from the OnlyOffice container** — on macOS/Windows Docker Desktop use `http://host.docker.internal:8080`, not `localhost`.
 
 ## Co-Editing
 
