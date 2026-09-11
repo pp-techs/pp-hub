@@ -19,6 +19,7 @@ export {
   useDeleteNode,
   useVersions,
   useRestoreVersion,
+  useTree,
 } from "./nodes";
 
 // Backward compat: old components call these as hooks returning query state

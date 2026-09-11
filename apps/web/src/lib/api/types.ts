@@ -22,6 +22,17 @@ export interface Node {
   size?: number;
   mime?: string;
   version?: number;
+  modified_at?: string; // ISO timestamp: latest version.CreatedAt (file) or node.CreatedAt (folder)
+  owner?: string; // display name of creator
+  owner_id?: string; // user id for avatar initials
+}
+export type NodeView = "grid" | "list";
+export interface TreeNode {
+  id: string;
+  parent_id?: string;
+  kind: "dir" | "file";
+  name: string;
+  has_children: boolean;
 }
 
 export interface Version {

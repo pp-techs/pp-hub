@@ -5,6 +5,7 @@ export const keys = {
   children: (spaceId: string, parentId?: string) =>
     ["children", spaceId, parentId ?? null] as const,
   versions: (nodeId: string) => ["versions", nodeId] as const,
+  tree: (spaceId: string, parentId?: string) => ["tree", spaceId, parentId ?? null] as const,
   shares: (nodeId: string) => ["shares", nodeId] as const,
   shareInfo: (token: string) => ["share", token] as const,
 };

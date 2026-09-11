@@ -27,15 +27,18 @@ type spaceDTO struct {
 }
 
 type nodeDTO struct {
-	ID        string `json:"id"`
-	SpaceID   string `json:"space_id"`
-	ParentID  string `json:"parent_id,omitempty"`
-	Kind      string `json:"kind"`
-	Name      string `json:"name"`
-	Size      int64  `json:"size,omitempty"`
-	Mime      string `json:"mime,omitempty"`
-	Version   int32  `json:"version,omitempty"`
-	CreatedAt string `json:"created_at"`
+	ID         string `json:"id"`
+	SpaceID    string `json:"space_id"`
+	ParentID   string `json:"parent_id,omitempty"`
+	Kind       string `json:"kind"`
+	Name       string `json:"name"`
+	Size       int64  `json:"size,omitempty"`
+	Mime       string `json:"mime,omitempty"`
+	Version    int32  `json:"version,omitempty"`
+	ModifiedAt string `json:"modified_at,omitempty"` // latest version.CreatedAt (file) or node.CreatedAt (folder)
+	Owner      string `json:"owner,omitempty"`
+	OwnerID    string `json:"owner_id,omitempty"`
+	CreatedAt  string `json:"created_at"`
 }
 
 type versionDTO struct {
@@ -45,6 +48,15 @@ type versionDTO struct {
 	Mime      string `json:"mime"`
 	CreatedAt string `json:"created_at"`
 }
+
+type treeNodeDTO struct {
+	ID          string `json:"id"`
+	ParentID    string `json:"parent_id,omitempty"`
+	Kind        string `json:"kind"`
+	Name        string `json:"name"`
+	HasChildren bool   `json:"has_children"`
+}
+
 
 func uuidParam(r *http.Request, name string) (pgtype.UUID, error) {
 	var id pgtype.UUID
@@ -83,6 +95,52 @@ func nodeToDTO(n store.Node, ver *store.NodeVersion) nodeDTO {
 		dto.Size = ver.Size
 		dto.Mime = ver.Mime
 		dto.Version = ver.VersionNo
+	}
+	return dto
+}
+
+// nodeToDTOMeta builds a nodeDTO from a NodeWithMeta row (includes modified_at + owner).
+func nodeToDTOMeta(n store.NodeWithMeta) nodeDTO {
+	id, _ := n.ID.Value()
+	sid, _ := n.SpaceID.Value()
+	dto := nodeDTO{
+		ID:        id.(string),
+		SpaceID:   sid.(string),
+		Kind:      string(n.Kind),
+		Name:      n.Name,
+		CreatedAt: n.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
+	}
+	if n.ParentID.Valid {
+		if p, _ := n.ParentID.Value(); p != nil {
+			dto.ParentID = p.(string)
+		}
+	}
+	// Populate version fields from the joined latest version row.
+	if n.VerID.Valid {
+		dto.Size = n.VerSize
+		dto.Mime = n.VerMime
+		dto.Version = n.VerVersionNo
+		dto.ModifiedAt = n.VerCreatedAt.Time.Format("2006-01-02T15:04:05Z07:00")
+	}
+	// For dirs with no version, modified_at = node.CreatedAt.
+	if n.Kind == store.NodeKindDir && dto.ModifiedAt == "" {
+		dto.ModifiedAt = n.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00")
+	}
+	// Owner = node creator's display name (from LEFT JOIN users).
+	if n.OwnerName != "" {
+		dto.Owner = n.OwnerName
+	} else if n.OwnerEmail != "" {
+		dto.Owner = n.OwnerEmail
+	}
+	// OwnerID: use node.created_by (always set).
+	if n.OwnerID.Valid {
+		if oid, _ := n.OwnerID.Value(); oid != nil {
+			dto.OwnerID = oid.(string)
+		}
+	} else if n.CreatedBy.Valid {
+		if oid, _ := n.CreatedBy.Value(); oid != nil {
+			dto.OwnerID = oid.(string)
+		}
 	}
 	return dto
 }
@@ -192,14 +250,14 @@ func (s *Server) handleListChildren(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	children, err := s.fs.List(r.Context(), spaceID, parentID)
+	children, err := s.fs.ListWithMeta(r.Context(), spaceID, parentID)
 	if err != nil {
 		Error(w, r, err)
 		return
 	}
 	out := make([]nodeDTO, 0, len(children))
 	for _, n := range children {
-		out = append(out, nodeToDTO(n, nil))
+		out = append(out, nodeToDTOMeta(n))
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -395,6 +453,103 @@ func (s *Server) handleRestoreVersion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+// --- Sidebar handlers ---
+
+func (s *Server) handleListTree(w http.ResponseWriter, r *http.Request) {
+	u := s.requireUser(w, r)
+	if u == nil {
+		return
+	}
+	spaceID, err := uuidParam(r, "spaceID")
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
+		return
+	}
+	if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleViewer); err != nil {
+		s.spaceError(w, r, err)
+		return
+	}
+	var parentID pgtype.UUID
+	if p := r.URL.Query().Get("parent"); p != "" {
+		if err := parentID.Scan(p); err != nil {
+			writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid parent id")
+			return
+		}
+	}
+	nodes, err := s.fs.List(r.Context(), spaceID, parentID)
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+	out := make([]treeNodeDTO, 0, len(nodes))
+	for _, n := range nodes {
+		var parentStr string
+		if n.ParentID.Valid {
+			if p, _ := n.ParentID.Value(); p != nil {
+				parentStr = p.(string)
+			}
+		}
+		hasChildren := false
+		if n.Kind == store.NodeKindDir {
+			count, err := s.fs.HasChildren(r.Context(), n.ID)
+			if err == nil {
+				hasChildren = count > 0
+			}
+		}
+		out = append(out, treeNodeDTO{
+			ID:          func() string { id, _ := n.ID.Value(); return id.(string) }(),
+			ParentID:    parentStr,
+			Kind:        string(n.Kind),
+			Name:        n.Name,
+			HasChildren: hasChildren,
+		})
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+func (s *Server) handleListDeleted(w http.ResponseWriter, r *http.Request) {
+	u := s.requireUser(w, r)
+	if u == nil {
+		return
+	}
+	spaceID, err := uuidParam(r, "spaceID")
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
+		return
+	}
+	if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleViewer); err != nil {
+		s.spaceError(w, r, err)
+		return
+	}
+	nodes, err := s.fs.ListDeleted(r.Context(), spaceID)
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+	out := make([]nodeDTO, 0, len(nodes))
+	for _, n := range nodes {
+		out = append(out, nodeToDTO(n, nil))
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+func (s *Server) handleListShared(w http.ResponseWriter, r *http.Request) {
+	u := s.requireUser(w, r)
+	if u == nil {
+		return
+	}
+	nodes, err := s.fs.ListShared(r.Context(), u.ID)
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+	out := make([]nodeDTO, 0, len(nodes))
+	for _, n := range nodes {
+		out = append(out, nodeToDTO(n, nil))
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
 // --- error mapping helpers ---

@@ -6,6 +6,9 @@ import {
   deleteNode,
   getChildren,
   getVersions,
+  getTree,
+  getTrash,
+  getShared,
   renameNode,
   restoreVersion,
   uploadFile,
@@ -86,5 +89,32 @@ export function useRestoreVersion(spaceId: string) {
       void invalidate();
       void qc.invalidateQueries({ queryKey: keys.versions(nodeId) });
     },
+  });
+}
+
+// ─── Tree / Trash / Shared (Sidebar) ─────────────────────────────────────────
+
+export function treeOptions(spaceId: string, parentId?: string) {
+  return {
+    queryKey: keys.tree(spaceId, parentId),
+    queryFn: () => getTree(spaceId, parentId),
+  } as const;
+}
+
+export function useTree(spaceId: string, parentId?: string) {
+  return useQuery(treeOptions(spaceId, parentId));
+}
+
+export function useTrash(spaceId: string) {
+  return useQuery({
+    queryKey: ["trash", spaceId] as const,
+    queryFn: () => getTrash(spaceId),
+  });
+}
+
+export function useShared() {
+  return useQuery({
+    queryKey: ["shared"] as const,
+    queryFn: getShared,
   });
 }

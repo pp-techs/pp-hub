@@ -1,7 +1,7 @@
 import { useUiStore } from "@/lib/ui-store";
 import { SharePanel } from "@/components/share-panel";
 import { VersionsPanel } from "@/components/versions-panel";
-import { PreviewPanel } from "@/components/preview-panel";
+import { DetailsPanel } from "@/components/preview-panel";
 import { EditPanel } from "@/components/edit-panel";
 
 /** Renders the currently-open node dialog (zustand-driven). */
@@ -14,7 +14,7 @@ export function NodePanels() {
     case "versions":
       return <VersionsPanel node={panel.node} />;
     case "preview":
-      return <PreviewPanel node={panel.node} />;
+      return <DetailsPanel node={panel.node} onClose={() => {}} />;
     case "edit":
       return <EditPanel node={panel.node} />;
   }

@@ -136,8 +136,6 @@ const getNodeParent = `-- name: GetNodeParent :one
 SELECT parent_id FROM nodes WHERE id = $1 AND deleted_at IS NULL LIMIT 1
 `
 
-// Returns parent_id of a live node (NULL for roots). Used to walk the chain
-// in Go (cycle check, permission inheritance) without recursive SQL.
 func (q *Queries) GetNodeParent(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error) {
 	row := q.db.QueryRow(ctx, getNodeParent, id)
 	var parent_id pgtype.UUID
@@ -189,6 +187,19 @@ func (q *Queries) GetVersion(ctx context.Context, id pgtype.UUID) (NodeVersion, 
 	return i, err
 }
 
+const hasChildren = `-- name: HasChildren :one
+SELECT COUNT(*) FROM nodes
+WHERE parent_id = $1 AND deleted_at IS NULL
+LIMIT 1
+`
+
+func (q *Queries) HasChildren(ctx context.Context, parentID pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, hasChildren, parentID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const listChildren = `-- name: ListChildren :many
 SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, created_by, created_at FROM nodes
 WHERE space_id = $1
@@ -204,6 +215,213 @@ type ListChildrenParams struct {
 
 func (q *Queries) ListChildren(ctx context.Context, arg ListChildrenParams) ([]Node, error) {
 	rows, err := q.db.Query(ctx, listChildren, arg.SpaceID, arg.ParentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Node
+	for rows.Next() {
+		var i Node
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.SpaceID,
+			&i.ParentID,
+			&i.Kind,
+			&i.Name,
+			&i.CurrentVersionID,
+			&i.DeletedAt,
+			&i.CreatedBy,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listChildrenWithMeta = `-- name: ListChildrenWithMeta :many
+SELECT
+  n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at,
+  v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
+  u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email
+FROM nodes n
+LEFT JOIN node_versions v ON v.id = n.current_version_id
+LEFT JOIN users u ON u.id = n.created_by
+WHERE n.space_id = $1
+  AND n.parent_id IS NOT DISTINCT FROM $2
+  AND n.deleted_at IS NULL
+ORDER BY n.kind, n.name
+`
+
+type ListChildrenWithMetaParams struct {
+	SpaceID  pgtype.UUID `json:"space_id"`
+	ParentID pgtype.UUID `json:"parent_id"`
+}
+
+type ListChildrenWithMetaRow struct {
+	ID               pgtype.UUID        `json:"id"`
+	TenantID         string             `json:"tenant_id"`
+	SpaceID          pgtype.UUID        `json:"space_id"`
+	ParentID         pgtype.UUID        `json:"parent_id"`
+	Kind             NodeKind           `json:"kind"`
+	Name             string             `json:"name"`
+	CurrentVersionID pgtype.UUID        `json:"current_version_id"`
+	DeletedAt        pgtype.Timestamptz `json:"deleted_at"`
+	CreatedBy        pgtype.UUID        `json:"created_by"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	VID              pgtype.UUID        `json:"v_id"`
+	BlobHash         pgtype.Text        `json:"blob_hash"`
+	VSize            pgtype.Int8        `json:"v_size"`
+	Mime             pgtype.Text        `json:"mime"`
+	VersionNo        pgtype.Int4        `json:"version_no"`
+	VCreatedBy       pgtype.UUID        `json:"v_created_by"`
+	VCreatedAt       pgtype.Timestamptz `json:"v_created_at"`
+	OwnerUid         pgtype.UUID        `json:"owner_uid"`
+	OwnerName        pgtype.Text        `json:"owner_name"`
+	OwnerEmail       pgtype.Text        `json:"owner_email"`
+}
+
+func (q *Queries) ListChildrenWithMeta(ctx context.Context, arg ListChildrenWithMetaParams) ([]ListChildrenWithMetaRow, error) {
+	rows, err := q.db.Query(ctx, listChildrenWithMeta, arg.SpaceID, arg.ParentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListChildrenWithMetaRow
+	for rows.Next() {
+		var i ListChildrenWithMetaRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.SpaceID,
+			&i.ParentID,
+			&i.Kind,
+			&i.Name,
+			&i.CurrentVersionID,
+			&i.DeletedAt,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.VID,
+			&i.BlobHash,
+			&i.VSize,
+			&i.Mime,
+			&i.VersionNo,
+			&i.VCreatedBy,
+			&i.VCreatedAt,
+			&i.OwnerUid,
+			&i.OwnerName,
+			&i.OwnerEmail,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDeleted = `-- name: ListDeleted :many
+SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, created_by, created_at FROM nodes
+WHERE space_id = $1 AND deleted_at IS NOT NULL
+ORDER BY deleted_at DESC
+`
+
+func (q *Queries) ListDeleted(ctx context.Context, spaceID pgtype.UUID) ([]Node, error) {
+	rows, err := q.db.Query(ctx, listDeleted, spaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Node
+	for rows.Next() {
+		var i Node
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.SpaceID,
+			&i.ParentID,
+			&i.Kind,
+			&i.Name,
+			&i.CurrentVersionID,
+			&i.DeletedAt,
+			&i.CreatedBy,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSharedWithMe = `-- name: ListSharedWithMe :many
+SELECT DISTINCT n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name, n.current_version_id, n.deleted_at, n.created_by, n.created_at FROM nodes n
+JOIN spaces s ON s.id = n.space_id
+JOIN space_members m ON m.space_id = s.id
+WHERE m.user_id = $1
+  AND n.deleted_at IS NULL
+  AND n.parent_id IS NOT NULL
+ORDER BY n.kind, n.name
+LIMIT 50
+`
+
+func (q *Queries) ListSharedWithMe(ctx context.Context, userID pgtype.UUID) ([]Node, error) {
+	rows, err := q.db.Query(ctx, listSharedWithMe, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Node
+	for rows.Next() {
+		var i Node
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.SpaceID,
+			&i.ParentID,
+			&i.Kind,
+			&i.Name,
+			&i.CurrentVersionID,
+			&i.DeletedAt,
+			&i.CreatedBy,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTree = `-- name: ListTree :many
+SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, created_by, created_at FROM nodes
+WHERE space_id = $1
+  AND parent_id IS NOT DISTINCT FROM $2
+  AND deleted_at IS NULL
+ORDER BY kind, name
+`
+
+type ListTreeParams struct {
+	SpaceID  pgtype.UUID `json:"space_id"`
+	ParentID pgtype.UUID `json:"parent_id"`
+}
+
+func (q *Queries) ListTree(ctx context.Context, arg ListTreeParams) ([]Node, error) {
+	rows, err := q.db.Query(ctx, listTree, arg.SpaceID, arg.ParentID)
 	if err != nil {
 		return nil, err
 	}

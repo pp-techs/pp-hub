@@ -52,9 +52,12 @@ func (s *Server) Router() http.Handler {
 			r.Post("/", s.handleCreateSpace)
 			r.Get("/", s.handleListSpaces)
 			r.Route("/{spaceID}", func(r chi.Router) {
-				r.Get("/children", s.handleListChildren) // ?parent=<id> or root
+				r.Get("/children", s.handleListChildren)
+				r.Get("/tree", s.handleListTree)
+				r.Get("/trash", s.handleListDeleted)
+				r.Get("/shared", s.handleListShared)
 				r.Post("/dirs", s.handleMkdir)
-				r.Post("/files", s.handleUpload) // multipart: parent_id?, file
+				r.Post("/files", s.handleUpload)
 			})
 		})
 
@@ -67,13 +70,11 @@ func (s *Server) Router() http.Handler {
 			r.Post("/versions/{versionID}/restore", s.handleRestoreVersion)
 			r.Post("/shares", s.handleCreateShare)
 			r.Get("/shares", s.handleListShares)
-			r.Post("/edit-session", s.handleEditSession) // returns OnlyOffice editor URL + WOPI token
-			r.Get("/preview", s.handlePreview)           // ?kind=thumbnail|pdf|video|text
-
+			r.Post("/edit-session", s.handleEditSession)
+			r.Get("/preview", s.handlePreview)
 		})
 	})
 
-	// WOPI host endpoints (OnlyOffice calls these; token in query).
 	r.Route("/wopi/files/{nodeID}", func(r chi.Router) {
 		r.Get("/", s.handleWopiCheckFileInfo)
 		r.Get("/contents", s.handleWopiGetFile)
@@ -81,7 +82,6 @@ func (s *Server) Router() http.Handler {
 		r.Post("/", s.handleWopiLockOps)
 	})
 
-	// Anonymous share-link access (no auth middleware).
 	r.Route("/s/{token}", func(r chi.Router) {
 		r.Get("/", s.handleShareInfo)
 		r.Get("/download", s.handleShareDownload)

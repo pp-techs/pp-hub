@@ -1,106 +1,158 @@
 import { useEffect, useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@workspace/ui/components/dialog";
-import { fmtSize, previewKind, type Node } from "@/lib/api";
+import { X, Download, ExternalLink } from "lucide-react";
+import { Button } from "@workspace/ui/components/button";
+import { fmtSize, previewKind, isOfficeFile, type Node } from "@/lib/api";
 import { useUiStore } from "@/lib/ui-store";
 
 /**
- * Server-side previews: thumbnail (image/PDF -> PNG) or extracted text.
- * The preview blob is generated asynchronously after upload; a 404 means
- * "not ready yet".
+ * Slide-in details panel (right sidebar). Shows when a node is selected.
+ * Works for files AND folders.
  */
-export function PreviewPanel({ node }: { node: Node }) {
-  const close = useUiStore((s) => s.closePanel);
+export function DetailsPanel({ node, onClose }: { node: Node; onClose: () => void }) {
+  const openPanel = useUiStore((s) => s.openPanel);
   const kind = previewKind(node.mime);
-  const url = `/api/v1/nodes/${node.id}/preview?kind=${kind}`;
+  const previewUrl = `/api/v1/nodes/${node.id}/preview?kind=${kind}`;
+  const downloadUrl = `/api/v1/nodes/${node.id}/download`;
 
-  if (kind === "thumbnail") {
-    return (
-      <Dialog open onOpenChange={(v) => !v && close()}>
-        <DialogContent className="sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle>{node.name}</DialogTitle>
-            <DialogDescription>
-              {node.mime} · {node.size != null ? fmtSize(node.size) : "—"}
-            </DialogDescription>
-          </DialogHeader>
-          <img
-            src={url}
-            alt={`Preview of ${node.name}`}
-            className="mx-auto max-h-[60svh] max-w-full object-contain"
-          />
-        </DialogContent>
-      </Dialog>
-    );
-  }
   return (
-    <Dialog open onOpenChange={(v) => !v && close()}>
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Preview · {node.name}</DialogTitle>
-          <DialogDescription>{node.mime}</DialogDescription>
-        </DialogHeader>
-        <TextPreviewContent url={url} />
-      </DialogContent>
-    </Dialog>
+    <div className="flex h-full flex-col bg-background">
+      {/* Toolbar */}
+      <div className="flex shrink-0 items-center gap-2 border-b px-3 py-2">
+        <span className="flex-1 truncate text-sm font-medium" title={node.name}>
+          {node.name}
+        </span>
+
+        {/* Open with (office files) */}
+        {node.kind === "file" && isOfficeFile(node.name) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1 text-xs"
+            onClick={() => openPanel("edit", node)}
+          >
+            <ExternalLink className="size-3.5" />
+            Open
+          </Button>
+        )}
+
+        {/* Download */}
+        {node.kind === "file" && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1 text-xs"
+            onClick={() => window.open(downloadUrl, "_blank")}
+          >
+            <Download className="size-3.5" />
+            Download
+          </Button>
+        )}
+
+        {/* Close */}
+        <Button variant="ghost" size="icon-xs" className="shrink-0" onClick={onClose}>
+          <X />
+        </Button>
+      </div>
+
+      {/* Preview content (files only) */}
+      {node.kind === "file" ? (
+        <div className="min-h-0 flex-1 overflow-auto">
+          {kind === "thumbnail" && (
+            <img
+              src={previewUrl}
+              alt={`Preview of ${node.name}`}
+              className="mx-auto max-h-full max-w-full object-contain"
+            />
+          )}
+          {kind === "pdf" && <PdfPreview url={previewUrl} />}
+          {kind === "video" && <VideoPreview url={previewUrl} />}
+          {kind === "text" && <TextPreview url={previewUrl} />}
+        </div>
+      ) : (
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 p-6 text-center">
+          <p className="text-muted-foreground text-4xl">📁</p>
+          <p className="text-muted-foreground text-sm">Folder</p>
+        </div>
+      )}
+
+      {/* Footer: size info */}
+      <div className="shrink-0 border-t px-3 py-1.5">
+        <p className="text-muted-foreground text-xs">
+          {node.kind === "file" ? (node.mime ?? "file") : "Folder"} ·{" "}
+          {node.size != null ? fmtSize(node.size) : "—"}
+        </p>
+      </div>
+    </div>
   );
 }
 
-export function PreviewContent({ node }: { node: Node }) {
-  const kind = previewKind(node.mime);
-  const url = `/api/v1/nodes/${node.id}/preview?kind=${kind}`;
+// ── PDF preview ───────────────────────────────────────────────────────────────
 
-  if (kind === "thumbnail") {
-    return (
-      <img
-        src={url}
-        alt={`Preview of ${node.name}`}
-        className="max-h-48 w-full rounded-md object-contain"
-      />
-    );
-  }
-  return <TextPreviewContent url={url} />;
+function PdfPreview({ url }: { url: string }) {
+  return <iframe src={url} className="h-full w-full border-0" title="PDF preview" />;
 }
 
-function TextPreviewContent({ url }: { url: string }) {
+// ── Video preview ─────────────────────────────────────────────────────────────
+
+function VideoPreview({ url }: { url: string }) {
+  return (
+    <video controls className="mx-auto max-h-full max-w-full" preload="metadata">
+      <source src={url} />
+    </video>
+  );
+}
+
+// ── Text preview ──────────────────────────────────────────────────────────────
+
+function TextPreview({ url }: { url: string }) {
   const [text, setText] = useState<string | null>(null);
   const [missing, setMissing] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
-    void fetch(url)
-      .then(async (res) => {
-        if (cancelled) return;
-        if (res.ok) {
-          setText(await res.text());
-        } else {
-          setMissing(true);
-        }
+    setText(null);
+    setMissing(false);
+    fetch(url)
+      .then((r) => {
+        if (!r.ok) throw new Error("not found");
+        return r.text();
       })
-      .catch(() => !cancelled && setMissing(true));
-    return () => {
-      cancelled = true;
-    };
+      .then(setText)
+      .catch(() => setMissing(true));
   }, [url]);
 
   if (missing) {
     return (
-      <p className="text-muted-foreground text-xs">
-        Preview not ready yet — the server generates it shortly after upload.
-      </p>
+      <p className="text-muted-foreground p-4 text-xs">Preview not available for this file.</p>
     );
   }
   if (text === null) {
-    return <p className="text-muted-foreground text-xs">Loading…</p>;
+    return <p className="text-muted-foreground p-4 text-xs">Loading…</p>;
   }
   return (
-    <pre className="bg-muted max-h-64 overflow-auto rounded-md p-3 text-xs whitespace-pre-wrap">
+    <pre className="bg-muted m-4 overflow-auto rounded-md p-3 text-xs whitespace-pre-wrap">
       {text}
     </pre>
+  );
+}
+
+// ── Inline preview (used in right sidebar when a file is selected) ─────────────
+
+export function PreviewContent({ node }: { node: Node }) {
+  const kind = previewKind(node.mime);
+  const previewUrl = `/api/v1/nodes/${node.id}/preview?kind=${kind}`;
+
+  return (
+    <div className="min-h-0 flex-1 overflow-auto">
+      {kind === "thumbnail" && (
+        <img
+          src={previewUrl}
+          alt={`Preview of ${node.name}`}
+          className="mx-auto max-h-full max-w-full object-contain"
+        />
+      )}
+      {kind === "pdf" && <PdfPreview url={previewUrl} />}
+      {kind === "video" && <VideoPreview url={previewUrl} />}
+      {kind === "text" && <TextPreview url={previewUrl} />}
+    </div>
   );
 }

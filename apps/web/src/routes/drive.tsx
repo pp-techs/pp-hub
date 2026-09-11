@@ -1,10 +1,9 @@
-import { Link, Outlet, createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
-import { HardDrive, LogOut, Settings, UserRound } from "lucide-react";
+import { Outlet, createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { FolderPlus, Plus } from "lucide-react";
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
-import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar";
 import {
   Dialog,
   DialogContent,
@@ -13,22 +12,27 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@workspace/ui/components/dialog";
-import { requireAuth, logout, meOptions, useCreateSpace } from "@/lib/queries";
+import { requireAuth, useCreateSpace, useSpaces } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
-import { SpaceNav } from "@/components/space-nav";
+import { TeamSwitcher } from "@/components/team-switcher";
+import { NavUser } from "@/components/nav-user";
+import { FolderTree } from "@/components/folder-tree";
 
 export const Route = createFileRoute("/drive")({
   head: () => ({ meta: [{ title: "Drive · pp-hub" }] }),
   beforeLoad: async ({ context }) => {
     await requireAuth(context.queryClient);
-    // Landing on bare /drive: jump to the last visited space. The child
-    // validates it still exists (notFound -> SpaceGone).
     if (/^\/drive\/?$/.test(location.pathname)) {
-      const last = useUiStore.getState().lastSpaceId;
-      if (last) {
+      const spaces = await context.queryClient.ensureQueryData({
+        queryKey: ["spaces"],
+        queryFn: () => import("@/lib/api").then((m) => m.getSpaces()),
+      });
+      if (spaces.length > 0) {
+        const last = useUiStore.getState().lastSpaceId;
+        const target = last ?? spaces[0].id;
         throw redirect({
           to: "/drive/$spaceId",
-          params: { spaceId: last },
+          params: { spaceId: target },
           search: { dir: undefined },
         });
       }
@@ -38,81 +42,77 @@ export const Route = createFileRoute("/drive")({
 });
 
 function DriveLayout() {
-  const navigate = useNavigate();
-  const me = meOptions();
+  const spaces = useSpaces();
+  const showLanding = spaces.data?.length === 0;
 
   return (
     <div className="bg-background text-foreground flex min-h-svh">
       <aside className="bg-sidebar text-sidebar-foreground flex w-64 shrink-0 flex-col border-r">
-        <div className="flex items-center gap-2 px-3 py-3">
-          <HardDrive className="size-5" />
-          <span className="text-sm font-semibold">pp-hub</span>
+        {/* Team Switcher */}
+        <div className="border-b p-2">
+          <TeamSwitcher />
         </div>
-        <div className="flex flex-col gap-0.5 p-2">
-          <Button
-            variant="ghost"
-            className="justify-start"
-            nativeButton={false}
-            render={<Link to="/drive" />}
-          >
-            <HardDrive data-icon="inline-start" /> Drive
-          </Button>
-          <Button variant="ghost" className="justify-start" disabled>
-            <Settings data-icon="inline-start" /> Settings
-          </Button>
-          <Button variant="ghost" className="justify-start" disabled>
-            <UserRound data-icon="inline-start" /> User Profile
-          </Button>
-        </div>
-        <div className="flex min-h-0 flex-1 flex-col">
-          <div className="px-3 py-1 text-[11px] font-medium uppercase text-muted-foreground">
-            Spaces
+
+        {/* Navigation sections */}
+        <nav className="flex flex-1 flex-col overflow-y-auto p-2">
+          {/* My Drive — folder tree */}
+          <div className="flex flex-col gap-0.5">
+            <span className="px-3 py-1 text-[11px] font-medium uppercase text-muted-foreground">
+              My Drive
+            </span>
+            <FolderTree />
           </div>
-          <SpaceNav />
-        </div>
-        <div className="mt-auto border-t p-2">
-          <div className="flex items-center gap-2 px-2 py-1.5">
-            <Avatar size="sm">
-              <AvatarFallback>
-                {(me.data?.name || me.data?.email || "?").charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <UserChip />
+
+          {/* Trash & Shared */}
+          <div className="mt-4 flex flex-col gap-0.5">
+            <Button variant="ghost" className="justify-start text-muted-foreground" disabled>
+              Trash
+            </Button>
+            <Button variant="ghost" className="justify-start text-muted-foreground" disabled>
+              Shared with me
+            </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="mt-1 w-full justify-start"
-            onClick={async () => {
-              await logout();
-              void navigate({ to: "/login" });
-            }}
-          >
-            <LogOut data-icon="inline-start" /> Sign out
-          </Button>
+        </nav>
+
+        {/* User profile */}
+        <div className="border-t p-2">
+          <NavUser />
         </div>
       </aside>
+
       <main className="flex min-w-0 flex-1 flex-col">
-        <Outlet />
+        {/* Always render both to keep hooks order stable */}
+        <div className={showLanding ? "flex flex-1 flex-col" : "hidden"}>
+          <LandingPage />
+        </div>
+        <div className={showLanding ? "hidden" : "flex flex-1 flex-col"}>
+          <Outlet />
+        </div>
       </main>
-      <NewSpaceDialog
-        onCreated={(id) => void navigate({ to: "/drive/$spaceId", params: { spaceId: id } })}
-      />
+
+      <NewSpaceDialog />
     </div>
   );
 }
 
-function UserChip() {
-  const me = meOptions();
-  if (!me.data) return null;
+function LandingPage() {
+  const setNewSpaceOpen = useUiStore((s) => s.setNewSpaceOpen);
   return (
-    <p className="text-muted-foreground truncate text-xs" title={me.data.email}>
-      {me.data.name || me.data.email}
-    </p>
+    <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8">
+      <FolderPlus className="text-muted-foreground size-16" />
+      <h1 className="text-xl font-semibold">Welcome to pp-hub</h1>
+      <p className="text-muted-foreground max-w-sm text-center">
+        Create your first space to start organizing your files and collaborating with your team.
+      </p>
+      <Button onClick={() => setNewSpaceOpen(true)}>
+        <Plus data-icon="inline-start" /> Create space
+      </Button>
+    </div>
   );
 }
 
-function NewSpaceDialog({ onCreated }: { onCreated: (id: string) => void }) {
+function NewSpaceDialog() {
+  const navigate = useNavigate();
   const open = useUiStore((s) => s.newSpaceOpen);
   const setOpen = useUiStore((s) => s.setNewSpaceOpen);
   const [name, setName] = useState("");
@@ -132,7 +132,7 @@ function NewSpaceDialog({ onCreated }: { onCreated: (id: string) => void }) {
               onSuccess: (sp) => {
                 setOpen(false);
                 setName("");
-                onCreated(sp.id);
+                void navigate({ to: "/drive/$spaceId", params: { spaceId: sp.id } });
               },
             });
           }}

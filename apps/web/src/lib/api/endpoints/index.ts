@@ -2,7 +2,7 @@
 // Each file covers one resource domain.
 
 import { api, ApiError } from "../client";
-import type { EditSession, Me, Node, Share, ShareInfo, Space, Version } from "../types";
+import type { EditSession, Me, Node, Share, ShareInfo, Space, TreeNode, Version } from "../types";
 
 // ─── Auth ───────────────────────────────────────────────────────────────────
 
@@ -124,4 +124,27 @@ export async function createEditSession(nodeId: string): Promise<EditSession> {
 export async function logout(): Promise<void> {
   const res = await api.post("auth/logout");
   if (!res.ok) throw new ApiError(res.status, await res.text());
+}
+
+// ─── Tree / Trash / Shared (Sidebar) ─────────────────────────────────────────
+
+export async function getTree(spaceId: string, parentId?: string): Promise<TreeNode[]> {
+  const url = parentId
+    ? `api/v1/spaces/${spaceId}/tree?parent=${parentId}`
+    : `api/v1/spaces/${spaceId}/tree`;
+  const res = await api.get(url);
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<TreeNode[]>;
+}
+
+export async function getTrash(spaceId: string): Promise<Node[]> {
+  const res = await api.get(`api/v1/spaces/${spaceId}/trash`);
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<Node[]>;
+}
+
+export async function getShared(): Promise<Node[]> {
+  const res = await api.get(`api/v1/spaces/shared`);
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<Node[]>;
 }

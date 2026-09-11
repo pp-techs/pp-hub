@@ -29,7 +29,7 @@ func Load() (*Config, error) {
 	}
  	c := &Config{
  		Addr:             env("PP_ADDR", ":8080"),
- 		DatabaseURL:      env("PP_DATABASE_URL", "postgres://postgres:postgres@localhost:5432/pphub?sslmode=disable"),
+ 		DatabaseURL:      env("PP_DATABASE_URL", "postgres://pphub:pphub@localhost:5432/pphub?sslmode=disable"),
  		OIDCIssuer:       env("PP_OIDC_ISSUER", "http://localhost:9080"),
  		OIDCIssuerExt:    os.Getenv("PP_OIDC_ISSUER_EXTERNAL"),
  		OIDCClientID:     env("PP_OIDC_CLIENT_ID", "pphub-server"),

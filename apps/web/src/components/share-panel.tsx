@@ -218,19 +218,22 @@ function PermSelect({
   onChange: (v: string) => void;
   allowEdit?: boolean;
 }) {
+  const permItems = [
+    { label: "view", value: "view" },
+    { label: "download", value: "download" },
+    ...(allowEdit ? [{ label: "edit", value: "edit" }] : []),
+  ];
   return (
-    <Select
-      value={value}
-      onValueChange={(v) => onChange(v ?? value)}
-      items={{ view: "view", download: "download", edit: "edit" }}
-    >
+    <Select value={value} items={permItems} onValueChange={(v) => onChange(v ?? value)}>
       <SelectTrigger size="sm" className="w-28">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="view">view</SelectItem>
-        <SelectItem value="download">download</SelectItem>
-        {allowEdit ? <SelectItem value="edit">edit</SelectItem> : null}
+        {permItems.map((item) => (
+          <SelectItem key={item.value} value={item.value}>
+            {item.label}
+          </SelectItem>
+        ))}
       </SelectContent>
     </Select>
   );

@@ -169,6 +169,54 @@ func (s *Service) List(ctx context.Context, spaceID, parentID pgtype.UUID) ([]st
 	return s.q.ListChildren(ctx, store.ListChildrenParams{SpaceID: spaceID, ParentID: parentID})
 }
 
+// ListWithMeta returns children with latest version + owner metadata.
+func (s *Service) ListWithMeta(ctx context.Context, spaceID, parentID pgtype.UUID) ([]store.NodeWithMeta, error) {
+	rows, err := s.q.ListChildrenWithMeta(ctx, store.ListChildrenWithMetaParams{SpaceID: spaceID, ParentID: parentID})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]store.NodeWithMeta, len(rows))
+	for i, r := range rows {
+		ownerID := pgtype.UUID{}
+		if r.OwnerUid.Valid {
+			ownerID = r.OwnerUid
+		}
+		ownerName := ""
+		if r.OwnerName.Valid {
+			ownerName = r.OwnerName.String
+		}
+		ownerEmail := ""
+		if r.OwnerEmail.Valid {
+			ownerEmail = r.OwnerEmail.String
+		}
+		out[i] = store.NodeWithMeta{
+			Node: store.Node{
+				ID:               r.ID,
+				TenantID:         r.TenantID,
+				SpaceID:          r.SpaceID,
+				ParentID:         r.ParentID,
+				Kind:             store.NodeKind(r.Kind),
+				Name:             r.Name,
+				CurrentVersionID: r.CurrentVersionID,
+				DeletedAt:        r.DeletedAt,
+				CreatedBy:        r.CreatedBy,
+				CreatedAt:        r.CreatedAt,
+			},
+			VerID:        r.VID,
+			VerBlobHash:  r.BlobHash.String,
+			VerSize:      r.VSize.Int64,
+			VerMime:      r.Mime.String,
+			VerVersionNo: int32(r.VersionNo.Int32),
+			VerCreatedBy: r.VCreatedBy,
+			VerCreatedAt: r.VCreatedAt,
+			OwnerID:    ownerID,
+			OwnerName:  ownerName,
+			OwnerEmail: ownerEmail,
+		}
+	}
+	return out, nil
+}
+
 func (s *Service) Get(ctx context.Context, nodeID pgtype.UUID) (store.Node, error) {
 	return s.get(ctx, nodeID)
 }
@@ -230,6 +278,21 @@ func (s *Service) RestoreVersion(ctx context.Context, nodeID, versionID pgtype.U
 		return ErrNotFound
 	}
 	return s.q.SetCurrentVersion(ctx, store.SetCurrentVersionParams{ID: nodeID, CurrentVersionID: versionID})
+}
+
+// ListDeleted returns soft-deleted nodes in a space.
+func (s *Service) ListDeleted(ctx context.Context, spaceID pgtype.UUID) ([]store.Node, error) {
+	return s.q.ListDeleted(ctx, spaceID)
+}
+
+// ListShared returns nodes in spaces the user is a member of.
+func (s *Service) ListShared(ctx context.Context, userID pgtype.UUID) ([]store.Node, error) {
+	return s.q.ListSharedWithMe(ctx, userID)
+}
+
+// HasChildren reports whether a node has any child nodes.
+func (s *Service) HasChildren(ctx context.Context, nodeID pgtype.UUID) (int64, error) {
+	return s.q.HasChildren(ctx, nodeID)
 }
 
 // isDescendant reports whether nodeID is reachable by walking up from candidateID
