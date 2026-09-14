@@ -40,4 +40,5 @@ dist-ssr
 .tanstack/
 
 .agents/
+.claude/
 skills-lock.json

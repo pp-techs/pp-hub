@@ -54,13 +54,14 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import {
   fmtSize,
   fmtDate,
+  canEdit,
   isOfficeFile,
   openEditor,
   sortNodes,
   type Node,
+  type NodeView,
   type SortField,
   type SortOrder,
-  type NodeView,
 } from "@/lib/api";
 import { childrenOptions, spacesOptions, useDeleteNode } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
@@ -158,7 +159,7 @@ function FolderView() {
           params: { spaceId },
           search: { dir: node.id },
         });
-      } else if (isOfficeFile(node.name)) {
+      } else if (canEdit(node)) {
         openEditor(node);
       } else {
         void PreviewModal.show({ node });
@@ -166,7 +167,6 @@ function FolderView() {
     },
     [navigate, spaceId, rememberDir],
   );
-
   const handleDeleteRequest = useCallback((node: Node) => {
     setConfirmNode(node);
   }, []);
@@ -177,7 +177,6 @@ function FolderView() {
     },
     [del, selectedNode],
   );
-
   const handlePreview = useCallback((node: Node) => {
     void PreviewModal.show({ node });
   }, []);

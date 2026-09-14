@@ -20,6 +20,7 @@ System design, component interactions, data flows, deployment, and external inte
 | [storage.md](architecture/storage.md)                       | Content-addressed blob store, blake3, dedup/versioning, GC, sync-readiness                       |
 | [office-integration.md](architecture/office-integration.md) | WOPI host endpoints, access tokens, OnlyOffice co-editing, locking                               |
 | [permissions.md](architecture/permissions.md)               | Space roles + per-node shares, resolution order, share-link security                             |
+| [preview-pipeline.md](architecture/preview-pipeline.md)     | Preview job flow, the MIME→kind contract, why `preview not ready` happens                        |
 | [milestones.md](architecture/milestones.md)                 | M1–M5 delivery plan, testing strategy, rollout/ops                                               |
 
 ## Codebase

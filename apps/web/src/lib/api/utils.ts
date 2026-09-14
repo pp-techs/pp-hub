@@ -7,7 +7,6 @@ export function fmtSize(n: number): string {
   return `${(n / (1 << 20)).toFixed(1)} MB`;
 }
 
-// MIME types and extensions for Office files that should open in OnlyOffice editor.
 const OFFICE_EXTS = new Set([
   ".docx",
   ".xlsx",
@@ -19,6 +18,8 @@ const OFFICE_EXTS = new Set([
   ".odt",
   ".ods",
   ".odp",
+  ".rtf",
+  ".epub",
 ]);
 const OFFICE_MIMES = new Set([
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -43,13 +44,38 @@ export function isOfficeFile(nameOrMime?: string): boolean {
 export function openEditor(node: Node): void {
   window.open(`/edit/${node.id}`, "_blank");
 }
+
 export type PreviewKind = "thumbnail" | "pdf" | "video" | "text";
 
-export function previewKind(mime?: string): PreviewKind {
-  if (mime?.startsWith("image/")) return "thumbnail";
-  if (mime === "application/pdf") return "pdf";
-  if (mime?.startsWith("video/")) return "video";
-  return "text";
+/**
+ * Returns the preview kind the server generated for a MIME type, or null when
+ * no preview exists for it.
+ *
+ * This MUST mirror kindForMime in apps/server/internal/preview/preview.go —
+ * the worker stores blobs under the kind it picks, and GET
+ * /nodes/:id/preview?kind=... 404s ("preview not ready") on any mismatch.
+ */
+export function previewKind(mime?: string): PreviewKind | null {
+  if (!mime) return null;
+  // Strip parameters, e.g. "text/plain; charset=utf-8".
+  const m = mime.split(";")[0]!.trim();
+  if (m === "application/pdf") return "pdf";
+  if (m === "image/png" || m === "image/jpeg" || m === "image/gif" || m === "image/webp") {
+    return "thumbnail";
+  }
+  if (m === "video/mp4" || m === "video/webm" || m === "video/quicktime") return "video";
+  if (m === "application/rtf" || m.startsWith("text/")) return "text";
+  return null;
+}
+
+/** File types that open in OnlyOffice on double-click. */
+export function canEdit(node: Node): boolean {
+  return node.kind === "file" && isOfficeFile(node.name);
+}
+
+/** File types the server can render a preview for. */
+export function canPreview(node: Node): boolean {
+  return node.kind === "file" && previewKind(node.mime) !== null;
 }
 
 export type SortField = "name" | "modified" | "size";

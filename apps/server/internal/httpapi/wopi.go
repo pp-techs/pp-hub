@@ -191,7 +191,6 @@ func (s *Server) wopiLockError(w http.ResponseWriter, r *http.Request, err error
 
 // --- Editor session (authenticated, called by the SPA) ---
 
-// handleEditSession returns the OnlyOffice editor URL + WOPI token for a node.
 func (s *Server) handleEditSession(w http.ResponseWriter, r *http.Request) {
 	u, node := s.requireNodeAccess(w, r, 3)
 	if u == nil {
@@ -199,6 +198,16 @@ func (s *Server) handleEditSession(w http.ResponseWriter, r *http.Request) {
 	}
 	if node.Kind != store.NodeKindFile {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "not a file")
+		return
+	}
+	// Get MIME from the current version (node has no mime field).
+	ver, err := s.store.GetCurrentVersion(r.Context(), node.ID)
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+	if !isOfficeMime(ver.Mime) {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "file type not supported by editor")
 		return
 	}
 	// Resolve effective rank for token claims.
@@ -239,6 +248,33 @@ func (s *Server) handleEditSession(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// isOfficeMime returns true for MIME types OnlyOffice Document Server can handle.
+func isOfficeMime(mime string) bool {
+	switch strings.TrimSpace(strings.SplitN(mime, ";", 2)[0]) {
+	case
+		// Word processing
+		"application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
+		"application/msword",                                                  // .doc
+		"application/vnd.oasis.opendocument.text",          // .odt
+		"application/rtf",                                  // .rtf (registered in preview.init)
+		"application/epub+zip",                             // .epub (registered in preview.init)
+		// Spreadsheets
+		"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+		"application/vnd.ms-excel",                                           // .xls
+		"application/vnd.oasis.opendocument.spreadsheet",                     // .ods
+		"text/csv", // .csv
+		// Presentations
+		"application/vnd.openxmlformats-officedocument.presentationml.presentation", // .pptx
+		"application/vnd.ms-powerpoint",          // .ppt
+		"application/vnd.oasis.opendocument.presentation", // .odp
+		// Fallback: generic octet-stream for unknown extensions (shouldn't happen)
+		"application/octet-stream":
+		return true
+	default:
+		return false
+	}
+}
+
 // wopiDocumentType maps a file name to the OnlyOffice WOPI document type
 // (word/cell/slide) used in the /hosting/wopi/{type}/edit route.
 func wopiDocumentType(name string) string {
@@ -247,6 +283,8 @@ func wopiDocumentType(name string) string {
 		return "cell"
 	case ".pptx", ".ppt", ".odp", ".fodp", ".otp", ".ppsx", ".pps", ".ppsm", ".pot", ".potx", ".potm":
 		return "slide"
+	case ".rtf", ".epub":
+		return "word"
 	default:
 		return "word"
 	}

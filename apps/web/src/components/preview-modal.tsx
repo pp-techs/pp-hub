@@ -2,14 +2,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@workspace/ui/
 import { Button } from "@workspace/ui/components/button";
 import { Download } from "lucide-react";
 import { createModal } from "@buiducnhat/better-modal";
-import { fmtSize, previewKind, type Node } from "@/lib/api";
+import { fmtSize, type Node } from "@/lib/api";
+import { PreviewContent } from "./preview-content";
 
 type Props = { node: Node };
 type Result = void;
 
 export const PreviewModal = createModal<Props, Result>("preview", ({ node, modal }) => {
-  const kind = previewKind(node.mime);
-  const previewUrl = `/api/v1/nodes/${node.id}/preview?kind=${kind}`;
   const downloadUrl = `/api/v1/nodes/${node.id}/download`;
 
   return (
@@ -33,19 +32,9 @@ export const PreviewModal = createModal<Props, Result>("preview", ({ node, modal
           </span>
         </DialogHeader>
 
-        {/* Preview content — images only */}
-        <div className="min-h-0 flex flex-1 flex-col items-center justify-center overflow-auto">
-          {kind === "thumbnail" ? (
-            <img
-              src={previewUrl}
-              alt={`Preview of ${node.name}`}
-              className="mx-auto max-h-full max-w-full object-contain"
-            />
-          ) : (
-            <p className="text-muted-foreground text-sm">
-              No preview available — use Download to view this file.
-            </p>
-          )}
+        {/* Preview content — all supported kinds */}
+        <div className="min-h-0 flex flex-1 flex-col overflow-auto">
+          <PreviewContent node={node} />
         </div>
       </DialogContent>
     </Dialog>

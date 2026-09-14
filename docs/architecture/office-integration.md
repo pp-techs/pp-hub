@@ -1,8 +1,20 @@
 # Office Integration (WOPI + OnlyOffice)
 
-## Approach
+## Supported File Types
 
-OnlyOffice Document Server (community edition) runs as a bundled compose service and owns all realtime collaboration inside a document. The Go server implements the WOPI **host** side. We deliberately do not build a CRDT/OT engine.
+OnlyOffice Document Server renders and edits the following formats natively via WOPI:
+
+| Format family   | Extensions                               | MIME type (registered in `preview.init`)                                         |
+| --------------- | ---------------------------------------- | -------------------------------------------------------------------------------- |
+| Word processing | `.docx`, `.doc`, `.odt`, `.rtf`, `.epub` | `application/rtf`, `application/epub+zip` registered via `mime.AddExtensionType` |
+| Spreadsheets    | `.xlsx`, `.xls`, `.csv`, `.ods`          | —                                                                                |
+| Presentations   | `.pptx`, `.ppt`, `.odp`                  | —                                                                                |
+
+PDF goes through the preview pipeline rather than OnlyOffice — Community edition does not
+support PDF editing. `.epub` and `.rtf` open in the editor and have no inline preview; see
+[preview-pipeline.md](preview-pipeline.md).
+
+The backend `handleEditSession` validates the file's MIME type via `isOfficeMime` before returning an editor URL — only known office MIME types pass.
 
 ## WOPI Host Endpoints
 

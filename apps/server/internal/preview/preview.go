@@ -11,15 +11,21 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"mime"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
-
 	"github.com/nhatbui/pp-hub/apps/server/internal/blob"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 )
+
+func init() {
+	// Register MIME types that Go's stdlib doesn't know by default.
+	mime.AddExtensionType(".epub", "application/epub+zip")
+	mime.AddExtensionType(".rtf", "application/rtf")
+}
 
 // Kinds of jobs we process.
 const (
@@ -79,7 +85,9 @@ func kindForMime(m string) string {
 		return JobThumbnail
 	case m == "video/mp4", m == "video/webm", m == "video/quicktime":
 		return JobVideo
-	case m == "text/plain", m == "text/markdown", m == "text/csv":
+	// .epub is a zip — a raw byte snippet is garbage, so it gets no preview
+	// and is opened in the office editor instead.
+	case m == "application/rtf", strings.HasPrefix(m, "text/"):
 		return JobText
 	default:
 		return ""

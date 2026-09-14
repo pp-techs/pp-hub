@@ -82,6 +82,7 @@ import {
 import {
   fmtSize,
   fmtDate,
+  canEdit,
   isOfficeFile,
   openEditor,
   sortNodes,
@@ -227,7 +228,7 @@ function FolderView() {
           params: { spaceId },
           search: { dir: node.id },
         });
-      } else if (isOfficeFile(node.mime)) {
+      } else if (canEdit(node)) {
         openEditor(node);
       } else {
         void PreviewModal.show({ node });
