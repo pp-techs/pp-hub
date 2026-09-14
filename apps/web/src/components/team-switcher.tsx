@@ -24,14 +24,16 @@ export function TeamSwitcher() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger>
-        <Button variant="ghost" className="w-full justify-between gap-2 px-2 py-1.5 text-sm">
-          <span className="flex items-center gap-2 truncate">
-            <HardDrive size={16} />
-            {currentSpace?.name ?? "Select a space"}
-          </span>
-          <ChevronDown size={14} className="shrink-0 opacity-60" />
-        </Button>
+      <DropdownMenuTrigger
+        render={
+          <Button variant="ghost" className="w-full justify-between gap-2 px-2 py-1.5 text-sm" />
+        }
+      >
+        <span className="flex items-center gap-2 truncate">
+          <HardDrive size={16} />
+          {currentSpace?.name ?? "Select a space"}
+        </span>
+        <ChevronDown size={14} className="shrink-0 opacity-60" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-56">
         <DropdownMenuGroup>

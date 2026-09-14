@@ -7,17 +7,42 @@ export function fmtSize(n: number): string {
   return `${(n / (1 << 20)).toFixed(1)} MB`;
 }
 
-export const OFFICE_EXT_RE = /\.(docx|xlsx|pptx|doc|xls|ppt|odt|ods|odp)$/i;
+// MIME types and extensions for Office files that should open in OnlyOffice editor.
+const OFFICE_EXTS = new Set([
+  ".docx",
+  ".xlsx",
+  ".pptx",
+  ".doc",
+  ".xls",
+  ".csv",
+  ".ppt",
+  ".odt",
+  ".ods",
+  ".odp",
+]);
+const OFFICE_MIMES = new Set([
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/msword",
+  "application/vnd.ms-excel",
+  "application/vnd.ms-powerpoint",
+]);
 
-export function isOfficeFile(name: string): boolean {
-  return OFFICE_EXT_RE.test(name);
+/** Check by filename (e.g. "report.docx") or MIME type (e.g. "application/vnd...") */
+export function isOfficeFile(nameOrMime?: string): boolean {
+  if (!nameOrMime) return false;
+  // If it looks like a MIME type (has "/"), check MIME set
+  if (nameOrMime.includes("/")) return OFFICE_MIMES.has(nameOrMime);
+  // Otherwise treat as filename and check extension
+  const ext = nameOrMime.toLowerCase().match(/\.[^.]+$/)?.[0];
+  return !!ext && OFFICE_EXTS.has(ext);
 }
 
 /** Open the office editor for a node in a new browser tab. */
 export function openEditor(node: Node): void {
   window.open(`/edit/${node.id}`, "_blank");
 }
-
 export type PreviewKind = "thumbnail" | "pdf" | "video" | "text";
 
 export function previewKind(mime?: string): PreviewKind {

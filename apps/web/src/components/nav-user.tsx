@@ -21,19 +21,21 @@ export function NavUser() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger>
-        <Button
-          variant="ghost"
-          className="relative flex h-fit w-full items-center gap-2 px-2 py-1.5 text-sm"
-        >
-          <Avatar size="sm">
-            <AvatarFallback>{initials}</AvatarFallback>
-          </Avatar>
-          <div className="flex min-w-0 flex-col text-left">
-            <span className="truncate text-xs font-medium">{me.data?.name || "User"}</span>
-            <span className="truncate text-[10px] text-muted-foreground">{me.data?.email}</span>
-          </div>
-        </Button>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="ghost"
+            className="relative flex h-fit w-full items-center gap-2 px-2 py-1.5 text-sm"
+          />
+        }
+      >
+        <Avatar size="sm">
+          <AvatarFallback>{initials}</AvatarFallback>
+        </Avatar>
+        <div className="flex min-w-0 flex-col text-left">
+          <span className="truncate text-xs font-medium">{me.data?.name || "User"}</span>
+          <span className="truncate text-[10px] text-muted-foreground">{me.data?.email}</span>
+        </div>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" side="top" className="w-56">
         <DropdownMenuGroup>

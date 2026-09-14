@@ -2,6 +2,7 @@ import { Outlet, createRootRouteWithContext, Link } from "@tanstack/react-router
 import { QueryClientProvider } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import { Button } from "@workspace/ui/components/button";
+import { ModalContainer } from "@buiducnhat/better-modal";
 
 interface RouterContext {
   queryClient: QueryClient;
@@ -18,6 +19,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />
+      <ModalContainer />
     </QueryClientProvider>
   );
 }

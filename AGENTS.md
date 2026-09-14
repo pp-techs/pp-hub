@@ -31,5 +31,6 @@ release. Add a tool name to select part of the graph. For example, run
 - Use `docs/` as source of context, documentation
 - Update `docs/` when having break/changes to current
 - Use better-modal when writing a new modal/dialog and use it. Also shadcn skill for latest component documentation
+- When necessary to self-test, run the dev environement and use browser to test base on the available tools for open browser
 
 <!-- RULES END-->

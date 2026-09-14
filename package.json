@@ -11,7 +11,8 @@
   "scripts": {
     "ready": "vp check && vp run -r test && vp run -r build",
     "dev": "vp run web#dev",
-    "prepare": "vp config"
+    "prepare": "vp config",
+    "check": "vp check"
   },
   "devDependencies": {
     "vite": "catalog:",

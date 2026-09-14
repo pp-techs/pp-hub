@@ -32,16 +32,9 @@ export function MemberPicker({
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className="w-full justify-between"
-        >
-          {placeholder}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
+      <DropdownMenuTrigger render={<Button variant="outline" className="w-full justify-between" />}>
+        {placeholder}
+        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-[300px] p-2" align="start">
         <Input

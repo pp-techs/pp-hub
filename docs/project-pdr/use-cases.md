@@ -43,8 +43,8 @@
 
 ### UC-6: Edit a document in browser
 
-1. User opens a .docx/.xlsx/.pptx from the Drive UI.
-2. Server issues a short-lived HMAC-signed WOPI access token (`user_id`, `node_id`, `perm`) and returns the editor iframe URL.
+1. User clicks Edit on a .docx/.xlsx/.pptx in the Drive UI → the editor opens full-page in a new tab at `/edit/{nodeId}`.
+2. Server issues a short-lived HMAC-signed WOPI access token (`user_id`, `node_id`, `perm`) and returns the OnlyOffice 9.x action URL; the SPA POSTs it (with `access_token`/`access_token_ttl`) into the editor iframe.
 3. OnlyOffice calls WOPI host endpoints: `CheckFileInfo`, `GetFile` (streams current version blob), `Lock/Unlock/RefreshLock`.
 4. On save, OnlyOffice `PutFile`s the new content → server writes a new blob and appends a new `node_version`.
 

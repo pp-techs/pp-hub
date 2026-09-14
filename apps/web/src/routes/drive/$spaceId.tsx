@@ -79,8 +79,6 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@workspace/ui/components/context-menu";
-import { cn } from "@workspace/ui/lib/utils";
-import { ConfirmDialog } from "@/components/confirm-dialog";
 import {
   fmtSize,
   fmtDate,
@@ -88,9 +86,9 @@ import {
   openEditor,
   sortNodes,
   type Node,
+  type NodeView,
   type SortField,
   type SortOrder,
-  type NodeView,
 } from "@/lib/api";
 import {
   childrenOptions,
@@ -102,12 +100,13 @@ import {
   useUpload,
 } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
-import { NodePanels } from "@/components/node-panels";
-import { PreviewDialog } from "@/components/preview-dialog";
-import { SortBar } from "@/components/sort-bar";
-import { DetailsPanel } from "@/components/preview-panel";
 import { SpaceMembersPanel } from "@/components/space-members-panel";
-
+import { NodePanels } from "@/components/node-panels";
+import { PreviewModal } from "@/components/preview-modal";
+import { DetailsPanel } from "@/components/preview-panel";
+import { SortBar } from "@/components/sort-bar";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { cn } from "@workspace/ui/lib/utils";
 export const Route = createFileRoute("/drive/$spaceId")({
   head: () => ({ meta: [{ title: "Drive · pp-hub" }] }),
   validateSearch: (
@@ -165,7 +164,6 @@ function FolderView() {
   const [renameNode, setRenameNode] = useState<Node | null>(null);
   const [renameName, setRenameName] = useState("");
   const [confirmNode, setConfirmNode] = useState<Node | null>(null);
-  const [dialogNode, setDialogNode] = useState<Node | null>(null);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const upload = useUpload(spaceId, dir);
@@ -179,6 +177,10 @@ function FolderView() {
   useEffect(() => {
     setSelectedNode(null);
   }, [spaceId, dir]);
+
+  useEffect(() => {
+    return () => clearTimeout(clickTimer.current);
+  }, []);
 
   if (spaces.isSuccess && !spaces.data.some((s) => s.id === spaceId)) {
     throw notFound();
@@ -200,19 +202,24 @@ function FolderView() {
     ? (children.data?.find((n) => n.id === selectedNode.id) ?? selectedNode)
     : null;
 
-  // Single click / select
+  // Single click / select — delayed so double-click doesn't flash the sidebar
+  const clickTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const handleClick = useCallback((node: Node) => {
-    setSelectedNode(node);
+    clearTimeout(clickTimer.current);
+    clickTimer.current = setTimeout(() => {
+      setSelectedNode(node);
+    }, 250);
   }, []);
 
-  // Select from ⋯ button (same as single click)
+  // Select from ⋯ button (same as single click, no delay needed)
   const handleSelect = useCallback((node: Node) => {
+    clearTimeout(clickTimer.current);
     setSelectedNode(node);
   }, []);
-
-  // Double click: navigate into folder, open dialog for file
   const handleDoubleClick = useCallback(
     (node: Node) => {
+      clearTimeout(clickTimer.current);
+      clickTimer.current = undefined;
       if (node.kind === "dir") {
         rememberDir(node);
         void navigate({
@@ -220,26 +227,14 @@ function FolderView() {
           params: { spaceId },
           search: { dir: node.id },
         });
+      } else if (isOfficeFile(node.mime)) {
+        openEditor(node);
       } else {
-        setDialogNode(node);
+        void PreviewModal.show({ node });
       }
     },
     [navigate, spaceId, rememberDir],
   );
-
-  const handleDeleteRequest = useCallback((node: Node) => {
-    setConfirmNode(node);
-  }, []);
-
-  const handleDelete = useCallback(
-    (nodeId: string) => {
-      del.mutate(nodeId);
-      if (selectedNode?.id === nodeId) setSelectedNode(null);
-      if (dialogNode?.id === nodeId) setDialogNode(null);
-    },
-    [del, selectedNode, dialogNode],
-  );
-
   const handleRename = useCallback((node: Node) => {
     setSelectedNode(node);
     setRenameNode(node);
@@ -248,8 +243,18 @@ function FolderView() {
 
   // Open preview dialog (from context menu)
   const handlePreview = useCallback((node: Node) => {
-    setDialogNode(node);
+    void PreviewModal.show({ node });
   }, []);
+  const handleDeleteRequest = useCallback((node: Node) => {
+    setConfirmNode(node);
+  }, []);
+  const handleDelete = useCallback(
+    (nodeId: string) => {
+      del.mutate(nodeId);
+      if (selectedNode?.id === nodeId) setSelectedNode(null);
+    },
+    [del, selectedNode],
+  );
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -285,11 +290,9 @@ function FolderView() {
           </Tooltip>
         </TooltipProvider>
         <DropdownMenu>
-          <DropdownMenuTrigger>
-            <Button>
-              New
-              <ChevronDown data-icon="inline-end" />
-            </Button>
+          <DropdownMenuTrigger render={<Button />}>
+            New
+            <ChevronDown data-icon="inline-end" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuGroup>
@@ -582,8 +585,6 @@ function FolderView() {
         )}
       </div>
 
-      {/* Full-screen preview dialog (on double-click) */}
-      <PreviewDialog node={dialogNode} onClose={() => setDialogNode(null)} />
       <NodePanels />
 
       {/* Delete confirmation */}
@@ -720,19 +721,21 @@ function NodeCard({
           )}
           <div className="absolute right-1 top-1">
             <DropdownMenu>
-              <DropdownMenuTrigger>
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  className={cn(
-                    "hover:bg-foreground/10",
-                    !selected && "opacity-0 group-hover:opacity-100",
-                  )}
-                  aria-label="Actions"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Ellipsis />
-                </Button>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className={cn(
+                      "hover:bg-foreground/10",
+                      !selected && "opacity-0 group-hover:opacity-100",
+                    )}
+                    aria-label="Actions"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                }
+              >
+                <Ellipsis />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuGroup>
@@ -910,16 +913,18 @@ function NodeRow({
           <TableCell>
             <div className="flex justify-end">
               <DropdownMenu>
-                <DropdownMenuTrigger>
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    className="opacity-0 group-hover:opacity-100"
-                    aria-label="Actions"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Ellipsis />
-                  </Button>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      className="opacity-0 group-hover:opacity-100"
+                      aria-label="Actions"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  }
+                >
+                  <Ellipsis />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuGroup>

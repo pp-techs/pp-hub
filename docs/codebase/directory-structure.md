@@ -18,10 +18,11 @@ pp-hub/
 │   │       │   ├── member-picker.tsx     # user search + member add
 │   │       │   ├── user-avatar.tsx       # avatar with fallback
 │   │       │   ├── confirm-dialog.tsx    # confirmation modal
-│   │       │   └── ...                  # folder-tree, preview, edit, nav, etc.
+│   │       │   └── ...                  # folder-tree, preview, nav, etc. (edit is a route, not a panel)
 │   │       └── routes/             # TanStack Router file-based routes
 │   │           ├── profile.tsx          # user profile page
 │   │           ├── admin.users.tsx      # admin: user management
+│   │           ├── edit/$nodeId.tsx     # full-page OnlyOffice editor (opened in a new tab)
 │   │           └── drive/$spaceId.tsx   # space drive view
 │   └── server/                     # Go backend — own go.mod
 │       ├── cmd/server/             # entry point: config, PG pool, migrate, OIDC wait, http.Server
