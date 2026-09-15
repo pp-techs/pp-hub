@@ -50,18 +50,37 @@ function Message({ children }: { children: React.ReactNode }) {
 
 const NOT_READY = "Preview not available yet — it is generated shortly after upload.";
 
-// ── Thumbnail preview ─────────────────────────────────────────────────────────
+// ── Image preview ─────────────────────────────────────────────────────────────
 
-function ThumbnailPreview({ url }: { url: string }) {
+/** Centres a media element in the viewer and lets it use the whole area. */
+function Stage({ children }: { children: React.ReactNode }) {
+  return <div className="flex h-full min-h-full items-center justify-center p-4">{children}</div>;
+}
+
+/**
+ * Images render from `/content` — the file's own bytes — not from the
+ * generated `thumbnail` blob, which is capped at 256px on its longest side
+ * (docs/architecture/preview-pipeline.md) and shows as a stamp in a full-size
+ * viewer. The thumbnail stays as the fallback for an image whose bytes the
+ * server won't serve inline.
+ */
+function ImagePreview({ node, thumbUrl }: { node: Node; thumbUrl: string }) {
+  const [src, setSrc] = useState(contentUrl(node));
   const [failed, setFailed] = useState(false);
+
   if (failed) return <Message>{NOT_READY}</Message>;
   return (
-    <img
-      src={url}
-      alt=""
-      className="mx-auto max-h-full max-w-full object-contain"
-      onError={() => setFailed(true)}
-    />
+    <Stage>
+      <img
+        src={src}
+        alt={node.name}
+        className="max-h-full max-w-full object-contain"
+        onError={() => {
+          if (src === thumbUrl) setFailed(true);
+          else setSrc(thumbUrl);
+        }}
+      />
+    </Stage>
   );
 }
 
@@ -102,13 +121,15 @@ function VideoPreview({ node }: { node: Node }) {
   const [failed, setFailed] = useState(false);
   if (failed) return <Message>This video can&apos;t be played here — use Download.</Message>;
   return (
-    <video
-      controls
-      className="mx-auto max-h-full max-w-full"
-      preload="metadata"
-      src={contentUrl(node)}
-      onError={() => setFailed(true)}
-    />
+    <Stage>
+      <video
+        controls
+        className="max-h-full max-w-full"
+        preload="metadata"
+        src={contentUrl(node)}
+        onError={() => setFailed(true)}
+      />
+    </Stage>
   );
 }
 
@@ -173,12 +194,13 @@ function PreviewBody({ node }: { node: Node }) {
     );
   }
 
-  // thumbnail/text come from the generated preview blob; pdf/video stream the
-  // original file, whose generated "preview" is only a placeholder marker.
+  // Only `text` reads the generated blob outright. Images stream the original
+  // and keep this as a fallback; pdf/video ignore it, their blob being a
+  // placeholder marker rather than rendered output.
   const url = `/api/v1/nodes/${node.id}/preview?kind=${kind}`;
   switch (kind) {
     case "thumbnail":
-      return <ThumbnailPreview url={url} />;
+      return <ImagePreview node={node} thumbUrl={url} />;
     case "pdf":
       return <PdfPreview node={node} />;
     case "video":

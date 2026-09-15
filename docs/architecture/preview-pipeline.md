@@ -3,10 +3,12 @@
 Background job workers generate a small preview blob per file version. The
 browser fetches it from `GET /api/v1/nodes/{id}/preview?kind=…`.
 
-Two of the four kinds are placeholders, so the client does **not** use them:
-PDFs and video render from the original bytes at
-`GET /api/v1/nodes/{id}/content` instead — see
-[Serving the original file](#serving-the-original-file).
+Only `text` is read outright. PDFs and video have placeholder blobs, and the
+`thumbnail` blob is too small for a full-size viewer, so all three render from
+the original bytes at `GET /api/v1/nodes/{id}/content` instead — see
+[Serving the original file](#serving-the-original-file). The thumbnail is still
+what the details panel shows, and the fallback when an image's own bytes won't
+load.
 
 ## Flow
 
@@ -83,10 +85,16 @@ same read path as `/download` (`serveBlob` in
 - **Range requests** — served through `http.ServeContent`, which PDF viewers
   and `<video>` need in order to seek.
 
-The client uses it for the `pdf` and `video` kinds (`PreviewContent`), for the
-"Open in new tab" row action, and for the Open button in the preview modal.
-`thumbnail` and `text` still come from the generated preview blob — those are
-real output and far smaller than the file.
+The client uses it for the `pdf`, `video` and `thumbnail` kinds
+(`PreviewContent`), for the "Open in new tab" row action, and for the Open
+button in the preview modal. Only `text` comes from the generated preview blob
+in the viewer — a 4KB head is all the viewer shows, so fetching the whole file
+would buy nothing.
+
+Images are the case worth spelling out: the generated thumbnail caps the
+longest side at 256px, which is right for the details panel's 4:3 box but
+renders as a stamp in a 90vw modal, so `ImagePreview` points at `/content` and
+falls back to the thumbnail only if those bytes fail to load.
 
 ## Limitations
 

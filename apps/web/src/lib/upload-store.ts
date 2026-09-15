@@ -65,9 +65,10 @@ const aborts = new Map<string, () => void>();
 const dirCache = new Map<string, Promise<string>>();
 
 /**
- * Callbacks fired after each successful upload so the data layer can refetch.
- * The store has no access to the query client, and wiring one in would make it
- * unusable outside React.
+ * Callbacks fired whenever an upload changes a folder's contents — a file
+ * landing in it, or a folder segment being created inside it — so the data
+ * layer can refetch that listing. The store has no access to the query client,
+ * and wiring one in would make it unusable outside React.
  */
 type UploadListener = (spaceId: string, parentId: string | undefined) => void;
 const listeners = new Set<UploadListener>();
@@ -75,6 +76,10 @@ const listeners = new Set<UploadListener>();
 export function onUploadSettled(fn: UploadListener): () => void {
   listeners.add(fn);
   return () => listeners.delete(fn);
+}
+
+function notify(spaceId: string, parentId: string | undefined): void {
+  for (const fn of listeners) fn(spaceId, parentId);
 }
 
 let seq = 0;
@@ -207,7 +212,7 @@ async function run(id: string): Promise<void> {
     aborts.set(id, abort);
     await promise;
     patch(id, { status: "done", loaded: transfer.size });
-    for (const fn of listeners) fn(transfer.spaceId, parentId);
+    notify(transfer.spaceId, parentId);
   } catch (e) {
     // A cancel already moved the row to its final state; do not overwrite it.
     const current = useUploadStore.getState().transfers.find((t) => t.id === id);
@@ -272,6 +277,11 @@ async function resolveDir(
 ): Promise<string> {
   try {
     const dir = await createFolder(spaceId, name, parentId);
+    // The folder that contains it just gained a row. Without this, uploading a
+    // folder into the view you are looking at leaves that view unchanged until
+    // a reload — every later notification names a folder deeper in the tree,
+    // not the one on screen.
+    notify(spaceId, parentId);
     return dir.id;
   } catch (e) {
     if (!(e instanceof ApiError) || e.status !== 409) throw e;

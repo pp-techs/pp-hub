@@ -142,7 +142,10 @@ pp-hub/
   cancellation, and it has to outlive the route that started it. So uploads run
   through `lib/upload-store.ts` and `TransferTray` is mounted by `drive.tsx`,
   not by the folder view. The store cannot reach the query client, so it
-  publishes completions through `onUploadSettled` and the tray invalidates.
+  publishes changes through `onUploadSettled` and the tray invalidates. It
+  fires for a created folder as well as a finished file — otherwise uploading a
+  folder only ever names directories below the view you are looking at, and the
+  new folder wouldn't appear in it until a reload.
   `uploadFileWithProgress` is the one endpoint that uses `XMLHttpRequest`
   rather than the shared `ky` client, because `fetch` reports no upload
   progress.
