@@ -10,6 +10,20 @@ export { useMe, requireAuth, fetchMe, logout } from "./auth";
 // Spaces
 export { useSpaces, useCreateSpace } from "./spaces";
 
+// Groups and folder grants
+export {
+  useGroups,
+  useGroupMembers,
+  useCreateGroup,
+  useUpdateGroup,
+  useDeleteGroup,
+  useAddGroupMember,
+  useRemoveGroupMember,
+  useGrants,
+  useUpsertGrant,
+  useRevokeGrant,
+} from "./groups";
+
 // Nodes
 export {
   useNode,

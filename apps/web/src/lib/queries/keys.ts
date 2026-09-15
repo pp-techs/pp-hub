@@ -23,5 +23,9 @@ export const keys = {
   userSearch: ["users", "search"] as const,
   members: (spaceId: string) => ["spaces", spaceId, "members"] as const,
   invitations: (spaceId: string) => ["spaces", spaceId, "invitations"] as const,
+  groups: (spaceId: string) => ["spaces", spaceId, "groups"] as const,
+  groupMembers: (spaceId: string, groupId: string) =>
+    ["spaces", spaceId, "groups", groupId, "members"] as const,
+  grants: (nodeId: string) => ["grants", nodeId] as const,
   adminStats: ["admin", "stats"] as const,
 };

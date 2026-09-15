@@ -19,6 +19,8 @@ pp-hub/
 │   │       ├── components/         # app-level UI panels
 │   │       │   ├── share-panel.tsx       # share dialog (direct + link)
 │   │       │   ├── space-members-panel.tsx # members + pending invites in one table
+│   │       │   ├── space-groups-panel.tsx  # Groups tab: groups, their people, what they open
+│   │       │   ├── folder-access-dialog.tsx # who can open a folder (better-modal, admin only)
 │   │       │   ├── member-picker.tsx     # user search + member add
 │   │       │   ├── user-avatar.tsx       # avatar with fallback
 │   │       │   ├── confirm-dialog.tsx    # confirmation modal
@@ -30,7 +32,7 @@ pp-hub/
 │   │       │   ├── transfer-tray.tsx     # upload queue tray, mounted by the shell
 │   │       │   ├── command-palette.tsx   # ⌘K search across every space
 │   │       │   ├── continue-cards.tsx    # Home: the few files you were last in
-│   │       │   ├── space-settings-panel.tsx # General / Members / Danger zone tabs
+│   │       │   ├── space-settings-panel.tsx # General / Members / Groups / Danger zone tabs
 │   │       │   ├── cross-space-table.tsx # listings spanning spaces (Recent, Starred)
 │   │       │   ├── activity-feed.tsx     # the event timeline
 │   │       │   ├── storage-breakdown.tsx # usage by MIME family
@@ -69,7 +71,8 @@ pp-hub/
 │           │   └── spaces_members.go # space members API (list/add/update/remove)
 │           ├── store/              # ✅ sqlc queries, embedded migrations runner
 │           ├── users/              # user service layer (profile, search)
-│           ├── spaces/             # space CRUD, member roles
+│           ├── spaces/             # space CRUD, member roles, personal folders
+│           ├── groups/             # groups + the grants that open folders
 │           ├── fs/                 # file tree, versioning, move/copy/rename
 │           ├── blob/               # CAS Store interface + local impl (S3 impl later)
 │           ├── share/              # share links, direct grants

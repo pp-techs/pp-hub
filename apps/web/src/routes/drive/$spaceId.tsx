@@ -64,6 +64,7 @@ import { NodeGrid } from "@/components/node-grid";
 import { NodeList } from "@/components/node-list";
 import { SelectionBar } from "@/components/selection-bar";
 import { MoveDialog } from "@/components/move-dialog";
+import { FolderAccessDialog } from "@/components/folder-access-dialog";
 import { DropZone } from "@/components/drop-zone";
 import { downloadUrl } from "@/components/node-actions";
 
@@ -295,6 +296,8 @@ function FolderView() {
 
   const starredIds = useMemo(() => new Set((starred.data ?? []).map((n) => n.id)), [starred.data]);
 
+  const space = spaces.data?.find((s) => s.id === spaceId);
+
   const nodeHandlers = {
     onPreview: handlePreview,
     onCopy: (node: Node) =>
@@ -312,6 +315,13 @@ function FolderView() {
       ),
     onRename: handleRename,
     onMove: (node: Node) => void handleMove([node]),
+    // Only offered to admins: granting a group standing access is
+    // administration of the company, so the server refuses it from anyone
+    // else and showing the item would be a dead end.
+    onManageAccess:
+      space?.role === "admin"
+        ? (node: Node) => void FolderAccessDialog.show({ node, spaceId })
+        : undefined,
     onDeleteRequest: handleDeleteRequest,
   };
 
@@ -321,9 +331,6 @@ function FolderView() {
 
   const showDetails = browsing && detailsOpen && activeFocused !== null;
 
-  const space = spaces.data?.find((s) => s.id === spaceId);
-  // Uploading needs editor rank; the server rejects a viewer, so the toolbar
-  // and the drop overlay stay out of their way entirely.
   // Whether you may write is now a property of the folder you are in, not of
   // your role, and the client cannot know it without asking. So this is only
   // "are you in this space at all" — the server authorises the target folder on

@@ -11,6 +11,7 @@ import {
   Star,
   StarOff,
   Trash2,
+  Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { canOpenInTab, isOfficeFile, openEditor, openInTab, type Node } from "@/lib/api";
@@ -34,6 +35,8 @@ export interface NodeActionHandlers {
   onToggleStar: (node: Node, starred: boolean) => void;
   onRename: (node: Node) => void;
   onMove: (node: Node) => void;
+  /** Admin-only: which groups open this folder. Absent for non-admins. */
+  onManageAccess?: (node: Node) => void;
   onCopy: (node: Node) => void;
   onDeleteRequest: (node: Node) => void;
 }
@@ -108,6 +111,14 @@ export function nodeActions(
     shortcut: "⌘⇧S",
     run: () => openPanel("share", node),
   });
+  if (node.kind === "dir" && handlers.onManageAccess) {
+    actions.push({
+      key: "access",
+      label: "Who can open this…",
+      icon: Users,
+      run: () => handlers.onManageAccess?.(node),
+    });
+  }
   actions.push({
     key: "rename",
     label: "Rename",

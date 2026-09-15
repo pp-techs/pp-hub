@@ -12,6 +12,7 @@ import { fmtSize, type MemberRole, type Space, type SpaceSettings } from "@/lib/
 import { useDeleteSpace, useUpdateSpace } from "@/lib/queries";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { SpaceMembersPanel } from "@/components/space-members-panel";
+import { SpaceGroupsPanel } from "@/components/space-groups-panel";
 
 /**
  * Space settings, reached from the rail as `?panel=settings`.
@@ -29,7 +30,7 @@ export function SpaceSettingsPanel({ space }: { space: Space }) {
       <div className="flex flex-col gap-1">
         <h2 className="font-heading text-sm font-medium">Settings</h2>
         <p className="text-muted-foreground text-xs">
-          Only a space owner can change these settings.
+          Only a space admin can change these settings.
         </p>
       </div>
     );
@@ -40,6 +41,7 @@ export function SpaceSettingsPanel({ space }: { space: Space }) {
       <TabsList variant="line">
         <TabsTrigger value="general">General</TabsTrigger>
         <TabsTrigger value="members">Members</TabsTrigger>
+        <TabsTrigger value="groups">Groups</TabsTrigger>
         <TabsTrigger value="danger">Danger zone</TabsTrigger>
       </TabsList>
 
@@ -48,6 +50,9 @@ export function SpaceSettingsPanel({ space }: { space: Space }) {
       </TabsContent>
       <TabsContent value="members">
         <MembersTab space={space} />
+      </TabsContent>
+      <TabsContent value="groups">
+        <SpaceGroupsPanel space={space} />
       </TabsContent>
       <TabsContent value="danger">
         <DangerTab space={space} />

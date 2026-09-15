@@ -257,3 +257,41 @@ export type SharePerm = "view" | "download" | "edit";
 
 // Re-export ApiError for convenience
 export { ApiError } from "./client";
+
+/**
+ * A named set of people inside one space, and the unit access is granted to.
+ *
+ * `is_everyone` marks the automatic group holding every member: the server
+ * maintains its membership, and it cannot be renamed, deleted, or edited by
+ * hand. It is how someone granted nothing individually reaches anything.
+ */
+export interface Group {
+  id: string;
+  space_id: string;
+  name: string;
+  description: string;
+  is_everyone: boolean;
+  member_count: number;
+  /** How many folders this group opens — what deleting it would take away. */
+  grant_count: number;
+  created_at: string;
+}
+
+export interface GroupMember {
+  user_id: string;
+  email: string;
+  name: string;
+  display_name?: string;
+  avatar_url?: string;
+  added_at: string;
+}
+
+/** A group's standing access to one folder. */
+export interface Grant {
+  id: string;
+  group_id: string;
+  group_name: string;
+  is_everyone: boolean;
+  perm: SharePerm;
+  created_at: string;
+}
