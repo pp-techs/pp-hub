@@ -23,6 +23,13 @@ interface UiState {
   dirs: Record<string, DirEntry>;
   /** Last opened space, used to auto-select when landing on /drive. */
   lastSpaceId: string | null;
+  /**
+   * Name filter for the current listing. It lives here rather than in the
+   * space view because the search field sits in the left rail, which is
+   * mounted by the drive layout above the route that consumes it.
+   */
+  filterQuery: string;
+  setFilterQuery: (v: string) => void;
   openPanel: OpenPanel;
   closePanel: () => void;
   /** Record dir id + its parent (from the listing it appeared in). */
@@ -38,6 +45,8 @@ export const useUiStore = create<UiState>()(
       panel: null,
       dirs: {},
       lastSpaceId: null,
+      filterQuery: "",
+      setFilterQuery: (v) => set({ filterQuery: v }),
       openPanel: (kind, node) => set({ panel: { kind, node } }),
       closePanel: () => set({ panel: null }),
       rememberDir: (node) => {

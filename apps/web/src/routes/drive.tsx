@@ -14,9 +14,14 @@ import {
 } from "@workspace/ui/components/dialog";
 import { requireAuth, useCreateSpace, useSpaces } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
-import { TeamSwitcher } from "@/components/team-switcher";
+import { SpaceSwitcher } from "@/components/space-switcher";
 import { NavUser } from "@/components/nav-user";
 import { FolderTree } from "@/components/folder-tree";
+import { QuickAccess } from "@/components/quick-access";
+import { SpaceNav } from "@/components/space-nav";
+import { RailSearch } from "@/components/rail-search";
+import { StorageMeter } from "@/components/storage-meter";
+import { RailLabel } from "@/components/rail-item";
 
 export const Route = createFileRoute("/drive")({
   head: () => ({ meta: [{ title: "Drive · pp-hub" }] }),
@@ -46,46 +51,46 @@ function DriveLayout() {
   const showLanding = spaces.data?.length === 0;
 
   return (
-    <div className="bg-background text-foreground flex min-h-svh">
-      <aside className="bg-sidebar text-sidebar-foreground flex w-64 shrink-0 flex-col border-r">
-        {/* Team Switcher */}
-        <div className="border-b p-2">
-          <TeamSwitcher />
-        </div>
+    <div className="bg-background text-foreground flex h-svh overflow-hidden">
+      <aside className="bg-sidebar text-sidebar-foreground border-border flex w-64 shrink-0 flex-col justify-between border-r">
+        {/* Band 1 — active space */}
+        <SpaceSwitcher />
 
-        {/* Navigation sections */}
-        <nav className="flex flex-1 flex-col overflow-y-auto p-2">
-          {/* My Drive — folder tree */}
-          <div className="flex flex-col gap-0.5">
-            <span className="px-3 py-1 text-[11px] font-medium uppercase text-muted-foreground">
-              My Drive
-            </span>
+        {/* Band 2 — search and navigation */}
+        <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-2 py-3">
+          <RailSearch />
+
+          <div>
+            <RailLabel>Quick access</RailLabel>
+            <QuickAccess />
+          </div>
+
+          <div>
+            <RailLabel>My Drive</RailLabel>
             <FolderTree />
           </div>
 
-          {/* Trash & Shared */}
-          <div className="mt-4 flex flex-col gap-0.5">
-            <Button variant="ghost" className="justify-start text-muted-foreground" disabled>
-              Trash
-            </Button>
-            <Button variant="ghost" className="justify-start text-muted-foreground" disabled>
-              Shared with me
-            </Button>
+          <div>
+            <RailLabel>Spaces</RailLabel>
+            <SpaceNav />
           </div>
-        </nav>
+        </div>
 
-        {/* User profile */}
-        <div className="border-t p-2">
-          <NavUser />
+        {/* Band 3 — storage and account */}
+        <div className="border-border flex shrink-0 flex-col gap-3 border-t p-3">
+          <StorageMeter />
+          <div className="border-border border-t pt-2">
+            <NavUser />
+          </div>
         </div>
       </aside>
 
-      <main className="flex min-w-0 flex-1 flex-col">
+      <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* Always render both to keep hooks order stable */}
         <div className={showLanding ? "flex flex-1 flex-col" : "hidden"}>
           <LandingPage />
         </div>
-        <div className={showLanding ? "hidden" : "flex flex-1 flex-col"}>
+        <div className={showLanding ? "hidden" : "flex min-h-0 flex-1 flex-col"}>
           <Outlet />
         </div>
       </main>

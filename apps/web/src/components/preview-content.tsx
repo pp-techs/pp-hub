@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ExternalLink } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import type { Node } from "@/lib/api";
-import { isOfficeFile, openEditor, previewKind } from "@/lib/api";
+import { contentUrl, isOfficeFile, openEditor, openInTab, previewKind } from "@/lib/api";
 
 // ── Fetching ──────────────────────────────────────────────────────────────────
 
@@ -67,33 +67,46 @@ function ThumbnailPreview({ url }: { url: string }) {
 
 // ── PDF preview ───────────────────────────────────────────────────────────────
 
-function PdfPreview({ url }: { url: string }) {
-  const state = usePreviewBlob(url);
-  const [src, setSrc] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (state.status !== "ready") return;
-    const objectUrl = URL.createObjectURL(state.blob);
-    setSrc(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [state]);
-
-  if (state.status === "missing") return <Message>{NOT_READY}</Message>;
-  if (!src) return <Message>Loading…</Message>;
-  return <iframe src={src} className="h-full w-full border-0" title="PDF preview" />;
+/**
+ * PDFs render from `/content` — the file's own bytes — rather than from
+ * `/preview`. The worker's `pdf` blob is a placeholder marker, not a rendered
+ * page (docs/architecture/preview-pipeline.md), so the browser's built-in
+ * viewer is both the fastest and the only real option today.
+ *
+ * <object> rather than <iframe>: browsers with no PDF plugin render the
+ * children instead of a blank frame.
+ */
+function PdfPreview({ node }: { node: Node }) {
+  return (
+    <object
+      data={contentUrl(node)}
+      type="application/pdf"
+      className="h-full min-h-[60vh] w-full"
+      aria-label={`PDF preview of ${node.name}`}
+    >
+      <Message>
+        <span>This browser can&apos;t display PDFs inline.</span>
+        <Button variant="outline" size="sm" className="gap-1" onClick={() => openInTab(node)}>
+          <ExternalLink className="size-3.5" />
+          Open in new tab
+        </Button>
+      </Message>
+    </object>
+  );
 }
 
 // ── Video preview ─────────────────────────────────────────────────────────────
 
-function VideoPreview({ url }: { url: string }) {
+/** Plays the stored file itself; `/content` answers Range requests so it seeks. */
+function VideoPreview({ node }: { node: Node }) {
   const [failed, setFailed] = useState(false);
-  if (failed) return <Message>{NOT_READY}</Message>;
+  if (failed) return <Message>This video can&apos;t be played here — use Download.</Message>;
   return (
     <video
       controls
       className="mx-auto max-h-full max-w-full"
       preload="metadata"
-      src={url}
+      src={contentUrl(node)}
       onError={() => setFailed(true)}
     />
   );
@@ -160,14 +173,16 @@ function PreviewBody({ node }: { node: Node }) {
     );
   }
 
+  // thumbnail/text come from the generated preview blob; pdf/video stream the
+  // original file, whose generated "preview" is only a placeholder marker.
   const url = `/api/v1/nodes/${node.id}/preview?kind=${kind}`;
   switch (kind) {
     case "thumbnail":
       return <ThumbnailPreview url={url} />;
     case "pdf":
-      return <PdfPreview url={url} />;
+      return <PdfPreview node={node} />;
     case "video":
-      return <VideoPreview url={url} />;
+      return <VideoPreview node={node} />;
     case "text":
       return <TextPreview url={url} />;
   }

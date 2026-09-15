@@ -7,7 +7,8 @@ Monorepo: bun workspaces + Vite+ frontend (`apps/web`), Go modular-monolith back
 
 Before planning or implementing, read this `docs/SUMMARY.md` file first. Load only the detail docs relevant to the current task, and prioritize `Code Standard` docs for implementation conventions. If docs conflict with code or user intent, use the available question tool before making broad changes.
 
-Status: M1–M5 done — full MVP: OIDC auth (Logto; any OIDC provider works), drive (spaces/nodes/CAS blob/upload/download/versioning), sharing (direct + link), OnlyOffice WOPI editing with locks, previews (image/PDF/video/text) via background jobs. Compose stacks in `deploy/compose/`. UI primitives extracted to `packages/ui` (shadcn/ui preset).
+Status: M1–M5 done — full MVP: OIDC auth (Logto; any OIDC provider works), drive (spaces/nodes/CAS blob/upload/download/versioning), sharing (direct + link), OnlyOffice WOPI editing with locks, previews (image/PDF/video/text) via background jobs — PDFs and video render from the original
+bytes at `GET /api/v1/nodes/{id}/content` (inline, allowlisted MIME), since their generated preview blobs are placeholders. Compose stacks in `deploy/compose/`. UI primitives extracted to `packages/ui` (shadcn/ui preset). Drive rail exposes Trash and Shared with me as read-only panels (`?panel=trash|shared`); restore and permanent-delete have no endpoints yet.
 
 ## Architecture
 

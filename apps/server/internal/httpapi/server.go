@@ -78,6 +78,7 @@ func (s *Server) Router() http.Handler {
 
 		r.Route("/nodes/{nodeID}", func(r chi.Router) {
 			r.Get("/download", s.handleDownload)
+			r.Get("/content", s.handleContent)
 			r.Patch("/rename", s.handleRenameNode)
 			r.Patch("/move", s.handleMoveNode)
 			r.Delete("/", s.handleDeleteNode)

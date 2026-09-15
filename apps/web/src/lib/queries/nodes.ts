@@ -94,14 +94,17 @@ export function useRestoreVersion(spaceId: string) {
 
 // ─── Tree / Trash / Shared (Sidebar) ─────────────────────────────────────────
 
-export function treeOptions(spaceId: string, parentId?: string) {
+export function treeOptions(spaceId: string | undefined, parentId?: string) {
   return {
-    queryKey: keys.tree(spaceId, parentId),
-    queryFn: () => getTree(spaceId, parentId),
+    queryKey: keys.tree(spaceId ?? "", parentId),
+    queryFn: () => getTree(spaceId as string, parentId),
+    // The rail mounts above the space route, so it renders for a beat with no
+    // space selected. Without this the tree would request `/spaces/undefined`.
+    enabled: !!spaceId,
   } as const;
 }
 
-export function useTree(spaceId: string, parentId?: string) {
+export function useTree(spaceId: string | undefined, parentId?: string) {
   return useQuery(treeOptions(spaceId, parentId));
 }
 

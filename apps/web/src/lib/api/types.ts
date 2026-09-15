@@ -41,6 +41,8 @@ export interface Space {
   name: string;
   role: string;
   used_bytes: number;
+  /** Byte allowance for the space. 0 means unlimited. */
+  quota_bytes: number;
 }
 
 export interface Node {
@@ -57,6 +59,9 @@ export interface Node {
   owner_id?: string; // user id for avatar initials
 }
 export type NodeView = "grid" | "list";
+/** Which secondary surface replaces the file listing in the space view. */
+export type DrivePanel = "members" | "trash" | "shared";
+
 export interface TreeNode {
   id: string;
   parent_id?: string;

@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"mime"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -18,12 +20,13 @@ import (
 // --- DTOs ---
 
 type spaceDTO struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	OwnerID   string `json:"owner_id"`
-	UsedBytes int64  `json:"used_bytes"`
-	Role      string `json:"role,omitempty"`
-	CreatedAt string `json:"created_at"`
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	OwnerID    string `json:"owner_id"`
+	UsedBytes  int64  `json:"used_bytes"`
+	QuotaBytes int64  `json:"quota_bytes"` // 0 = unlimited
+	Role       string `json:"role,omitempty"`
+	CreatedAt  string `json:"created_at"`
 }
 
 type nodeDTO struct {
@@ -57,7 +60,6 @@ type treeNodeDTO struct {
 	HasChildren bool   `json:"has_children"`
 }
 
-
 func uuidParam(r *http.Request, name string) (pgtype.UUID, error) {
 	var id pgtype.UUID
 	return id, id.Scan(chi.URLParam(r, name))
@@ -67,12 +69,13 @@ func spaceToDTO(sp store.Space, role string) spaceDTO {
 	id, _ := sp.ID.Value()
 	owner, _ := sp.OwnerID.Value()
 	return spaceDTO{
-		ID:        id.(string),
-		Name:      sp.Name,
-		OwnerID:   owner.(string),
-		UsedBytes: sp.UsedBytes,
-		Role:      role,
-		CreatedAt: sp.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
+		ID:         id.(string),
+		Name:       sp.Name,
+		OwnerID:    owner.(string),
+		UsedBytes:  sp.UsedBytes,
+		QuotaBytes: sp.QuotaBytes,
+		Role:       role,
+		CreatedAt:  sp.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
 	}
 }
 
@@ -340,9 +343,51 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, nodeToDTO(node, &ver))
 }
 
+// inlineMimes are the types /content may hand the browser to render in place.
+// Blobs are served from the app's own origin, so anything that can execute
+// there (HTML, SVG, scripts) is deliberately absent and falls back to a
+// download. Mirrored by INLINE_MIMES in apps/web/src/lib/api/utils.ts.
+var inlineMimes = map[string]bool{
+	"application/pdf": true,
+	"image/png":       true,
+	"image/jpeg":      true,
+	"image/gif":       true,
+	"image/webp":      true,
+	"video/mp4":       true,
+	"video/webm":      true,
+	"video/quicktime": true,
+	"audio/mpeg":      true,
+	"audio/mp4":       true,
+	"audio/ogg":       true,
+	"audio/wav":       true,
+	"text/plain":      true,
+}
+
+// inlineDisposition reports how mimeType may be served: "inline" for the
+// allowlisted types, "attachment" for everything else.
+func inlineDisposition(mimeType string) string {
+	// Strip parameters ("text/plain; charset=utf-8") before matching.
+	base, _, _ := strings.Cut(mimeType, ";")
+	if inlineMimes[strings.TrimSpace(strings.ToLower(base))] {
+		return "inline"
+	}
+	return "attachment"
+}
+
 func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
+	s.serveBlob(w, r, "attachment")
+}
+
+// handleContent streams the file's own bytes for in-browser viewing: the PDF
+// viewer, <img>, <video>. Distinct from /preview, which serves the small blob
+// the worker generated, and from /download, which forces a save dialog.
+func (s *Server) handleContent(w http.ResponseWriter, r *http.Request) {
+	s.serveBlob(w, r, "inline")
+}
+
+func (s *Server) serveBlob(w http.ResponseWriter, r *http.Request, disposition string) {
 	_, node := s.requireNodeAccess(w, r, 1)
-	if node.ID.Valid == false {
+	if !node.ID.Valid {
 		return
 	}
 	n, ver, rc, err := s.fs.OpenFile(r.Context(), node.ID)
@@ -351,8 +396,24 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rc.Close()
+
+	if disposition == "inline" {
+		disposition = inlineDisposition(ver.Mime)
+	}
+	cd := mime.FormatMediaType(disposition, map[string]string{"filename": n.Name})
+	if cd == "" { // unencodable filename — keep the disposition, drop the name
+		cd = disposition
+	}
 	w.Header().Set("Content-Type", ver.Mime)
-	w.Header().Set("Content-Disposition", "attachment; filename=\""+strconv.Quote(n.Name)+"\"")
+	w.Header().Set("Content-Disposition", cd)
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+
+	// ServeContent answers Range requests, which PDF viewers and <video> use to
+	// seek. The local blob store hands back an *os.File, so the assertion holds.
+	if rs, ok := rc.(io.ReadSeeker); ok {
+		http.ServeContent(w, r, n.Name, ver.CreatedAt.Time, rs)
+		return
+	}
 	w.Header().Set("Content-Length", strconv.FormatInt(ver.Size, 10))
 	_, _ = io.Copy(w, rc)
 }

@@ -45,6 +45,48 @@ export function openEditor(node: Node): void {
   window.open(`/edit/${node.id}`, "_blank");
 }
 
+/**
+ * URL for the file's own bytes, served inline so the browser renders them
+ * (PDF viewer, <img>, <video>) instead of downloading. Distinct from
+ * `/preview`, which serves the small blob the preview worker generated.
+ */
+export function contentUrl(node: Node): string {
+  return `/api/v1/nodes/${node.id}/content`;
+}
+
+/**
+ * MIME types the server is willing to serve inline. Anything absent here is
+ * forced to a download, so linking it as "open in a tab" would be a lie.
+ *
+ * Mirrors inlineMimes in apps/server/internal/httpapi/drive.go.
+ */
+const INLINE_MIMES = new Set([
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
+  "audio/mpeg",
+  "audio/mp4",
+  "audio/ogg",
+  "audio/wav",
+  "text/plain",
+]);
+
+/** File types the browser can display straight from `/content`. */
+export function canOpenInTab(node: Node): boolean {
+  if (node.kind !== "file" || !node.mime) return false;
+  return INLINE_MIMES.has(node.mime.split(";")[0]!.trim());
+}
+
+/** Open the file itself in a new browser tab (PDFs, images, video). */
+export function openInTab(node: Node): void {
+  window.open(contentUrl(node), "_blank", "noopener,noreferrer");
+}
+
 export type PreviewKind = "thumbnail" | "pdf" | "video" | "text";
 
 /**

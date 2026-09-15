@@ -3,6 +3,11 @@
 Background job workers generate a small preview blob per file version. The
 browser fetches it from `GET /api/v1/nodes/{id}/preview?kind=…`.
 
+Two of the four kinds are placeholders, so the client does **not** use them:
+PDFs and video render from the original bytes at
+`GET /api/v1/nodes/{id}/content` instead — see
+[Serving the original file](#serving-the-original-file).
+
 ## Flow
 
 1. `fs.PutFile` commits a new version and fires `fs.SetVersionHook`
@@ -60,10 +65,40 @@ The web client treats a 404 as a state, not an error: `PreviewContent`
 renders a message. It must not point an `<iframe>` straight at the endpoint —
 the browser would paint the raw problem+json body.
 
+## Serving the original file
+
+`GET /api/v1/nodes/{id}/content` streams the file's own bytes with
+`Content-Disposition: inline`, so the browser renders them in place. It is the
+same read path as `/download` (`serveBlob` in
+`apps/server/internal/httpapi/drive.go`) with three differences:
+
+- **Inline, not attachment** — no save dialog, so a PDF lands in the browser's
+  built-in viewer and a video plays in `<video>`.
+- **Allowlisted types only.** Blobs are served from the app's own origin, so
+  `inlineMimes` permits PDF, the raster image types, video, audio and
+  `text/plain`; everything else (HTML, SVG, scripts) is downgraded to
+  `attachment`. `X-Content-Type-Options: nosniff` is always set. The web mirror
+  is `INLINE_MIMES`/`canOpenInTab` in `apps/web/src/lib/api/utils.ts`, covered
+  by `apps/web/tests/inline-content.test.ts`.
+- **Range requests** — served through `http.ServeContent`, which PDF viewers
+  and `<video>` need in order to seek.
+
+The client uses it for the `pdf` and `video` kinds (`PreviewContent`), for the
+"Open in new tab" row action, and for the Open button in the preview modal.
+`thumbnail` and `text` still come from the generated preview blob — those are
+real output and far smaller than the file.
+
 ## Limitations
 
 `pdf` and `video` kinds are placeholders, not rendered output — `pdfFirstPage`
 returns a marker string and `videoProbe` a byte count
 (`apps/server/internal/preview/generators.go`). Real rasterization needs
-pdfium/pdftoppm and ffmpeg; both are post-M5. `handlePreview` serves every
+pdfium/pdftoppm and ffmpeg; both are post-M5, and until then nothing reads
+those two blobs — the UI goes to `/content` instead. They still matter for the
+MIME → kind contract above: `previewKind` must keep returning them so
+`canPreview` stays true for PDFs and video. `handlePreview` serves every
 non-thumbnail kind as `text/plain` today.
+
+A PDF therefore has no thumbnail in the details panel (it falls back to the
+file icon) and streams in full when previewed — fine for typical documents,
+worth revisiting for very large ones once rasterization exists.

@@ -1,19 +1,18 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "@tanstack/react-router";
-import { ChevronRight, Folder } from "lucide-react";
-import { Button } from "@workspace/ui/components/button";
+import { useState } from "react";
+import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
+import { ChevronRight, Folder, Loader2 } from "lucide-react";
 import { useTree } from "@/lib/queries";
+import { railRow } from "@/components/rail-item";
 import { cn } from "@workspace/ui/lib/utils";
 import type { TreeNode } from "@/lib/api";
 
 interface FolderTreeItemProps {
   node: TreeNode;
-  depth: number;
   currentDirId: string | undefined;
   spaceId: string;
 }
 
-function FolderTreeItem({ node, depth, currentDirId, spaceId }: FolderTreeItemProps) {
+function FolderTreeItem({ node, currentDirId, spaceId }: FolderTreeItemProps) {
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
   const { data: children, isLoading } = useTree(spaceId, expanded ? node.id : undefined);
@@ -23,63 +22,53 @@ function FolderTreeItem({ node, depth, currentDirId, spaceId }: FolderTreeItemPr
 
   return (
     <div>
-      <Button
-        variant="ghost"
-        size="sm"
-        className={cn(
-          "h-7 w-full justify-start gap-1 px-2 py-0 text-xs",
-          isActive && "bg-sidebar-accent font-medium",
-        )}
-        onClick={() => {
-          if (node.kind === "dir") {
-            setExpanded(!expanded);
-          }
-          if (spaceId) {
+      <div className={railRow(isActive, "cursor-pointer gap-1.5")}>
+        <button
+          type="button"
+          aria-label={expanded ? "Collapse" : "Expand"}
+          aria-expanded={expanded}
+          className="text-muted-foreground hover:text-foreground -ml-0.5 shrink-0"
+          onClick={(e) => {
+            e.stopPropagation();
+            setExpanded((v) => !v);
+          }}
+        >
+          <ChevronRight
+            className={cn(
+              "size-3.5 transition-transform",
+              expanded && "rotate-90",
+              !node.has_children && "invisible",
+            )}
+          />
+        </button>
+        <button
+          type="button"
+          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+          onClick={() =>
             void navigate({
               to: "/drive/$spaceId",
               params: { spaceId },
               search: { dir: node.id },
-            });
+            })
           }
-        }}
-      >
-        {node.kind === "dir" ? (
-          <ChevronRight
-            size={12}
-            className={cn("shrink-0 transition-transform", expanded && "rotate-90")}
+        >
+          <Folder
+            className={cn(
+              "size-3.5 shrink-0",
+              isActive ? "fill-primary text-primary" : "text-muted-foreground",
+            )}
           />
-        ) : (
-          <span className="w-3 shrink-0" />
-        )}
-        <Folder size={12} className="shrink-0 text-muted-foreground" />
-        <span className="truncate">{node.name}</span>
-        {isLoading && (
-          <span className="ml-auto shrink-0">
-            <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none">
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-              />
-            </svg>
-          </span>
-        )}
-      </Button>
+          <span className="truncate">{node.name}</span>
+        </button>
+        {isLoading && <Loader2 className="text-muted-foreground size-3 shrink-0 animate-spin" />}
+      </div>
+
       {expanded && dirs.length > 0 && (
-        <div style={{ paddingLeft: `${(depth + 1) * 12}px` }}>
+        <div className="mt-0.5 flex flex-col gap-0.5 pl-4">
           {dirs.map((child) => (
             <FolderTreeItem
               key={child.id}
               node={child}
-              depth={depth + 1}
               currentDirId={currentDirId}
               spaceId={spaceId}
             />
@@ -92,45 +81,27 @@ function FolderTreeItem({ node, depth, currentDirId, spaceId }: FolderTreeItemPr
 
 export function FolderTree() {
   const { spaceId } = useParams({ strict: false }) as { spaceId?: string };
-  const [currentDirId, setCurrentDirId] = useState<string | undefined>(undefined);
-
-  // Read dir from URL when component mounts and on popstate (back/forward navigation)
-  useEffect(() => {
-    const update = () => {
-      const params = new URLSearchParams(window.location.search);
-      setCurrentDirId(params.get("dir") || undefined);
-    };
-    update();
-    window.addEventListener("popstate", update);
-    return () => window.removeEventListener("popstate", update);
-  }, []);
-
-  if (!spaceId) {
-    return null;
-  }
-
+  // Read the open folder from the router rather than window.location: router
+  // navigations use pushState, which never fires popstate.
+  const { dir } = useSearch({ strict: false }) as { dir?: string };
   const { data: roots, isLoading } = useTree(spaceId);
 
+  if (!spaceId) return null;
+
   if (isLoading) {
-    return <p className="px-3 py-2 text-xs text-muted-foreground">Loading…</p>;
+    return <p className="text-muted-foreground px-2 py-1 text-xs">Loading…</p>;
   }
 
   const rootDirs = roots?.filter((n) => n.kind === "dir") ?? [];
 
   if (rootDirs.length === 0) {
-    return <p className="px-3 py-2 text-xs text-muted-foreground">No folders yet.</p>;
+    return <p className="text-muted-foreground px-2 py-1 text-xs">No folders yet.</p>;
   }
 
   return (
-    <div className="flex flex-col gap-0.5 py-1">
+    <div className="flex flex-col gap-0.5">
       {rootDirs.map((node) => (
-        <FolderTreeItem
-          key={node.id}
-          node={node}
-          depth={0}
-          currentDirId={currentDirId}
-          spaceId={spaceId}
-        />
+        <FolderTreeItem key={node.id} node={node} currentDirId={dir} spaceId={spaceId} />
       ))}
     </div>
   );

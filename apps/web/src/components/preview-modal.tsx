@@ -1,8 +1,8 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@workspace/ui/components/dialog";
 import { Button } from "@workspace/ui/components/button";
-import { Download } from "lucide-react";
+import { Download, ExternalLink } from "lucide-react";
 import { createModal } from "@buiducnhat/better-modal";
-import { fmtSize, type Node } from "@/lib/api";
+import { canOpenInTab, fmtSize, openInTab, type Node } from "@/lib/api";
 import { PreviewContent } from "./preview-content";
 
 type Props = { node: Node };
@@ -18,6 +18,17 @@ export const PreviewModal = createModal<Props, Result>("preview", ({ node, modal
           <DialogTitle className="flex-1 truncate text-sm font-medium" title={node.name}>
             {node.name}
           </DialogTitle>
+          {canOpenInTab(node) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1 text-xs"
+              onClick={() => openInTab(node)}
+            >
+              <ExternalLink className="size-3.5" />
+              Open
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"

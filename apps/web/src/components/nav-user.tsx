@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { LogOut } from "lucide-react";
+import { LogOut, MoreHorizontal, User } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import {
   DropdownMenu,
@@ -13,6 +13,10 @@ import {
 import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar";
 import { logout, meOptions } from "@/lib/queries";
 
+/**
+ * Bottom band of the left rail: who is signed in, with the account menu behind
+ * the trailing button rather than making the whole row a control.
+ */
 export function NavUser() {
   const navigate = useNavigate();
   const me = meOptions();
@@ -20,46 +24,47 @@ export function NavUser() {
   const initials = (me.data?.name || me.data?.email || "?").charAt(0).toUpperCase();
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            className="relative flex h-fit w-full items-center gap-2 px-2 py-1.5 text-sm"
-          />
-        }
-      >
-        <Avatar size="sm">
+    <div className="flex items-center justify-between gap-2">
+      <div className="flex min-w-0 items-center gap-2">
+        <Avatar size="sm" className="shrink-0">
           <AvatarFallback>{initials}</AvatarFallback>
         </Avatar>
-        <div className="flex min-w-0 flex-col text-left">
+        <div className="flex min-w-0 flex-col leading-tight">
           <span className="truncate text-xs font-medium">{me.data?.name || "User"}</span>
-          <span className="truncate text-[10px] text-muted-foreground">{me.data?.email}</span>
+          <span className="text-muted-foreground truncate text-[10px]">{me.data?.email}</span>
         </div>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" side="top" className="w-56">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel className="font-normal">
-            <div className="flex flex-col gap-1">
-              <p className="text-sm font-medium">{me.data?.name || "User"}</p>
-              <p className="text-xs text-muted-foreground">{me.data?.email}</p>
-            </div>
-          </DropdownMenuLabel>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem disabled>Manage account</DropdownMenuItem>
-        <DropdownMenuItem disabled>Settings</DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={async () => {
-            await logout();
-            void navigate({ to: "/login" });
-          }}
+      </div>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={<Button variant="ghost" size="icon-sm" aria-label="Account menu" />}
         >
-          <LogOut size={14} className="mr-2" />
-          Sign out
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          <MoreHorizontal />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" side="top" className="w-56">
+          <DropdownMenuGroup>
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col gap-0.5">
+                <p className="text-xs font-medium">{me.data?.name || "User"}</p>
+                <p className="text-muted-foreground text-[10px]">{me.data?.email}</p>
+              </div>
+            </DropdownMenuLabel>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => void navigate({ to: "/profile" })}>
+            <User /> Profile
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={async () => {
+              await logout();
+              void navigate({ to: "/login" });
+            }}
+          >
+            <LogOut /> Sign out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }

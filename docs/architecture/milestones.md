@@ -38,6 +38,8 @@ Each milestone ends in a working end-to-end state inside the compose stack.
 - `preview.Worker` claims with `FOR UPDATE SKIP LOCKED`, processes thumbnail (image/png,jpeg,gif,webp → PNG 256px), PDF (placeholder), video (probe placeholder), text (first 4KB).
 - Hook: `fs.SetVersionHook` enqueues a preview job after every `PutFile` commit.
 - `GET /api/v1/nodes/{id}/preview?kind=…` serves the preview blob (image/png or text/plain).
+- `GET /api/v1/nodes/{id}/content` streams the original bytes inline (allowlisted MIME only,
+  Range-capable) — how PDFs and video actually render, since their preview blobs are placeholders.
 - Website: 👁 button per file → inline preview (img for images, pre for text).
 - Verified E2E: upload PNG → thumbnail 200 (74B PNG); upload text → text preview 200 with content.
 - Deferred: real PDF rasterization (pdfium/pdftoppm) and video frame extraction (ffmpeg) — placeholders in place, job kinds registered.

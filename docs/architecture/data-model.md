@@ -66,4 +66,4 @@ jobs(id, kind, payload, status, run_at, attempts)        -- preview, quota, GC
 
 ## Quota
 
-`spaces.used_bytes` is maintained asynchronously by a quota job summing sizes of current versions per space. Uploads check against `quota_bytes` before committing a version.
+`spaces.used_bytes` is maintained asynchronously by a quota job summing sizes of current versions per space. Uploads check against `quota_bytes` before committing a version. Both fields are returned by `GET /api/v1/spaces` (`used_bytes`, `quota_bytes`) so the rail's storage meter can render a real ratio; `quota_bytes = 0` means unlimited, and the meter then shows the used figure with no bar.

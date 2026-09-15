@@ -20,6 +20,8 @@ export {
   useVersions,
   useRestoreVersion,
   useTree,
+  useTrash,
+  useShared,
 } from "./nodes";
 
 // Backward compat: old components call these as hooks returning query state
@@ -32,7 +34,7 @@ export const childrenOptions = (spaceId: string, parentId?: string) =>
 export const versionsOptions = (nodeId: string | null) => useVersions(nodeId);
 
 // Shares
-export { useCreateShare, useRevokeShare } from "./shares";
+export { useShares, useCreateShare, useRevokeShare } from "./shares";
 
 // Backward compat
 import { useShares, useShareInfo } from "./shares";
