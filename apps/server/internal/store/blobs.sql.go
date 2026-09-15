@@ -18,6 +18,17 @@ func (q *Queries) DecrBlobRef(ctx context.Context, hash string) error {
 	return err
 }
 
+const deleteBlob = `-- name: DeleteBlob :exec
+DELETE FROM blobs WHERE hash = $1 AND ref_count = 0
+`
+
+// Only removes the row if it is still unreferenced, so a blob that gained a
+// reference between the sweep's SELECT and its DELETE survives.
+func (q *Queries) DeleteBlob(ctx context.Context, hash string) error {
+	_, err := q.db.Exec(ctx, deleteBlob, hash)
+	return err
+}
+
 const getBlob = `-- name: GetBlob :one
 SELECT hash, size, ref_count, created_at FROM blobs WHERE hash = $1 LIMIT 1
 `

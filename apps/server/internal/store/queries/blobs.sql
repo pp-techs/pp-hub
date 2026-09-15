@@ -16,3 +16,8 @@ UPDATE blobs SET ref_count = ref_count - 1 WHERE hash = $1 AND ref_count > 0;
 SELECT * FROM blobs
 WHERE ref_count = 0 AND created_at < now() - INTERVAL '1 hour'
 LIMIT $1;
+
+-- name: DeleteBlob :exec
+-- Only removes the row if it is still unreferenced, so a blob that gained a
+-- reference between the sweep's SELECT and its DELETE survives.
+DELETE FROM blobs WHERE hash = $1 AND ref_count = 0;

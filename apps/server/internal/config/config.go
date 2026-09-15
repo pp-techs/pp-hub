@@ -27,14 +27,14 @@ func Load() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
- 	c := &Config{
- 		Addr:             env("PP_ADDR", ":8080"),
- 		DatabaseURL:      env("PP_DATABASE_URL", "postgres://pphub:pphub@localhost:5432/pphub?sslmode=disable"),
- 		OIDCIssuer:       env("PP_OIDC_ISSUER", "http://localhost:9080"),
- 		OIDCIssuerExt:    os.Getenv("PP_OIDC_ISSUER_EXTERNAL"),
- 		OIDCClientID:     env("PP_OIDC_CLIENT_ID", "pphub-server"),
- 		OIDCClientSecret: env("PP_OIDC_CLIENT_SECRET", "pphub-server-secret"),
- 		ExternalURL:      env("PP_EXTERNAL_URL", "http://localhost:8080"),
+	c := &Config{
+		Addr:             env("PP_ADDR", ":8080"),
+		DatabaseURL:      env("PP_DATABASE_URL", "postgres://pphub:pphub@localhost:5432/pphub?sslmode=disable"),
+		OIDCIssuer:       env("PP_OIDC_ISSUER", "http://localhost:9080"),
+		OIDCIssuerExt:    os.Getenv("PP_OIDC_ISSUER_EXTERNAL"),
+		OIDCClientID:     env("PP_OIDC_CLIENT_ID", "pphub-server"),
+		OIDCClientSecret: env("PP_OIDC_CLIENT_SECRET", "pphub-server-secret"),
+		ExternalURL:      env("PP_EXTERNAL_URL", "http://localhost:8080"),
 		SessionKey:       key,
 		BlobRoot:         env("PP_BLOB_ROOT", "./data/blobs"),
 		OnlyOfficeURL:    env("PP_ONLYOFFICE_URL", "http://localhost:9980"),

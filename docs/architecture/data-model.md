@@ -62,8 +62,38 @@ jobs(id, kind, payload, status, run_at, attempts)        -- preview, quota, GC
 
 - **List a folder**: `WHERE space_id AND parent_id AND deleted_at IS NULL` — single indexed query. No ltree/materialized path in MVP: move = update one row; recursive subtree listing is rare.
 - **Version history**: `WHERE node_id ORDER BY version_no DESC`.
+- **Search**: `nodes.name ILIKE '%…%'`, answered by the GIN trigram index `nodes_name_trgm` (migration `0007_search.sql`, partial on `deleted_at IS NULL`). A B-tree cannot serve an infix match, and people search for `forecast` expecting `Q1-forecast-final.xlsx`. The same index backs `similarity()` for ranking, and results are scoped by joining `space_members` — supported by `space_members_by_user`, since the table's `(space_id, user_id)` primary key cannot serve a user-first probe.
+- **Trash**: `WHERE space_id AND deleted_at IS NOT NULL`. `ListDeletedWithMeta` joins the current version and owner, and adds two derived columns — `location` (ancestor names joined with `" / "`, from a recursive CTE) and `child_count` (direct live children) — so a row can say where it came from and how much comes back with it.
 - **Effective permission**: (1) `space_members.role` for `node.space_id`; (2) nearest direct share on node/ancestor; (3) link token. MVP runs the 2-join lookup per request; no permission cache yet.
+
+## Trash Lifecycle
+
+`Delete` tombstones exactly one row — `deleted_at = now()` on the node it was given, never its subtree. Descendants stay live but unreachable, because every listing query filters on the parent chain. Restoring the folder therefore brings the whole subtree back with one `UPDATE`, and no bulk operation is needed for either direction.
+
+Two things can block a restore, and both are resolved rather than surfaced as errors:
+
+- **The original parent is itself in the trash.** There is no folder to return to, so the node is re-parented to the top level of its space and the response sets `relocated: true`.
+- **A live sibling has taken the name.** `nodes_name_uniq` is partial on `deleted_at IS NULL`, so the tombstoned row never conflicted while it sat in the trash — the collision only appears at the moment of restore. `fs.Restore` retries with `name (2)`, `name (3)`, … up to 50 and reports the original in `renamed_from`.
+
+`RestoreNode` sets `deleted_at`, `parent_id` and `name` in one statement so neither adjustment needs a second write.
+
+**Purge** is a hard `DELETE`. Descendants and versions follow through `ON DELETE CASCADE`; `shares` cascade from `node_id`. Before deleting, `ListSubtreeBlobHashes` collects one row per version in the subtree so `DecrBlobRef` can be called exactly as many times as `IncrBlobRef` was during upload. The delete and the decrements are not in one transaction — `fs.Service` holds a `*store.Queries`, not a pool — so they run in the order that fails safe: a crash between them leaves `ref_count` too **high**, which only delays garbage collection. The reverse order could drop a blob another node still points at.
+
+`EmptyTrash` purges each tombstone in turn and tolerates `ErrNotFound`, since a nested tombstone often disappears with its ancestor's cascade before its own turn comes.
+
+## Stars & Activity
+
+`node_stars` is keyed `(user_id, node_id)`: a star is one person's bookmark, not a property of the node, and the composite primary key makes starring idempotent via `ON CONFLICT DO NOTHING`.
+
+`activity_events` is the app's memory. Two deliberate choices:
+
+- `node_id` is nullable and `ON DELETE SET NULL`, while `node_name` is denormalised onto the row. Purging a file therefore does not erase the record that it once existed and was deleted — the feed keeps its own copy of the name for exactly that case.
+- `kind` is `TEXT`, not an enum, so adding a verb is a code change rather than a migration.
+
+Recording is best-effort: an event describes work that already succeeded, so a failed insert is logged and swallowed rather than failing the user's operation.
 
 ## Quota
 
-`spaces.used_bytes` is maintained asynchronously by a quota job summing sizes of current versions per space. Uploads check against `quota_bytes` before committing a version. Both fields are returned by `GET /api/v1/spaces` (`used_bytes`, `quota_bytes`) so the rail's storage meter can render a real ratio; `quota_bytes = 0` means unlimited, and the meter then shows the used figure with no bar.
+`spaces.used_bytes` is _intended_ to be maintained by a quota job summing the sizes of current versions per space, and `UpdateSpaceUsedBytes` exists for it — but nothing calls that query yet, and no upload checks `quota_bytes` before committing a version. Until a job is wired up, `used_bytes` stays at its default of `0`.
+
+Both fields are returned by `GET /api/v1/spaces`, and the rail's storage meter renders the ratio between them — `quota_bytes = 0` means unlimited and the meter shows only the used figure with no bar. The meter is therefore correct in shape and empty in practice; it will start reading true the moment a recount job lands, with no change on the web side.

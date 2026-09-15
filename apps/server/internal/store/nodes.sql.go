@@ -52,7 +52,7 @@ func (q *Queries) AddVersion(ctx context.Context, arg AddVersionParams) (NodeVer
 const createNode = `-- name: CreateNode :one
 INSERT INTO nodes (space_id, parent_id, kind, name, created_by)
 VALUES ($1, $2, $3, $4, $5)
-RETURNING id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, created_by, created_at
+RETURNING id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, created_by, created_at, deleted_by
 `
 
 type CreateNodeParams struct {
@@ -83,6 +83,7 @@ func (q *Queries) CreateNode(ctx context.Context, arg CreateNodeParams) (Node, e
 		&i.DeletedAt,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.DeletedBy,
 	)
 	return i, err
 }
@@ -111,7 +112,7 @@ func (q *Queries) GetCurrentVersion(ctx context.Context, id pgtype.UUID) (NodeVe
 }
 
 const getNode = `-- name: GetNode :one
-SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, created_by, created_at FROM nodes WHERE id = $1 AND deleted_at IS NULL LIMIT 1
+SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, created_by, created_at, deleted_by FROM nodes WHERE id = $1 AND deleted_at IS NULL LIMIT 1
 `
 
 func (q *Queries) GetNode(ctx context.Context, id pgtype.UUID) (Node, error) {
@@ -128,6 +129,32 @@ func (q *Queries) GetNode(ctx context.Context, id pgtype.UUID) (Node, error) {
 		&i.DeletedAt,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.DeletedBy,
+	)
+	return i, err
+}
+
+const getNodeAny = `-- name: GetNodeAny :one
+SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, created_by, created_at, deleted_by FROM nodes WHERE id = $1 LIMIT 1
+`
+
+// Like GetNode but does not filter out soft-deleted rows. Trash operations
+// need to resolve a node precisely because it is deleted.
+func (q *Queries) GetNodeAny(ctx context.Context, id pgtype.UUID) (Node, error) {
+	row := q.db.QueryRow(ctx, getNodeAny, id)
+	var i Node
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.SpaceID,
+		&i.ParentID,
+		&i.Kind,
+		&i.Name,
+		&i.CurrentVersionID,
+		&i.DeletedAt,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.DeletedBy,
 	)
 	return i, err
 }
@@ -144,7 +171,7 @@ func (q *Queries) GetNodeParent(ctx context.Context, id pgtype.UUID) (pgtype.UUI
 }
 
 const getSpaceRoot = `-- name: GetSpaceRoot :one
-SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, created_by, created_at FROM nodes
+SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, created_by, created_at, deleted_by FROM nodes
 WHERE space_id = $1 AND parent_id IS NULL AND deleted_at IS NULL
 ORDER BY created_at LIMIT 1
 `
@@ -163,6 +190,7 @@ func (q *Queries) GetSpaceRoot(ctx context.Context, spaceID pgtype.UUID) (Node, 
 		&i.DeletedAt,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.DeletedBy,
 	)
 	return i, err
 }
@@ -201,7 +229,7 @@ func (q *Queries) HasChildren(ctx context.Context, parentID pgtype.UUID) (int64,
 }
 
 const listChildren = `-- name: ListChildren :many
-SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, created_by, created_at FROM nodes
+SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, created_by, created_at, deleted_by FROM nodes
 WHERE space_id = $1
   AND parent_id IS NOT DISTINCT FROM $2
   AND deleted_at IS NULL
@@ -233,6 +261,7 @@ func (q *Queries) ListChildren(ctx context.Context, arg ListChildrenParams) ([]N
 			&i.DeletedAt,
 			&i.CreatedBy,
 			&i.CreatedAt,
+			&i.DeletedBy,
 		); err != nil {
 			return nil, err
 		}
@@ -329,7 +358,7 @@ func (q *Queries) ListChildrenWithMeta(ctx context.Context, arg ListChildrenWith
 }
 
 const listDeleted = `-- name: ListDeleted :many
-SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, created_by, created_at FROM nodes
+SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, created_by, created_at, deleted_by FROM nodes
 WHERE space_id = $1 AND deleted_at IS NOT NULL
 ORDER BY deleted_at DESC
 `
@@ -354,6 +383,7 @@ func (q *Queries) ListDeleted(ctx context.Context, spaceID pgtype.UUID) ([]Node,
 			&i.DeletedAt,
 			&i.CreatedBy,
 			&i.CreatedAt,
+			&i.DeletedBy,
 		); err != nil {
 			return nil, err
 		}
@@ -365,8 +395,179 @@ func (q *Queries) ListDeleted(ctx context.Context, spaceID pgtype.UUID) ([]Node,
 	return items, nil
 }
 
+const listDeletedIDs = `-- name: ListDeletedIDs :many
+SELECT id FROM nodes WHERE space_id = $1 AND deleted_at IS NOT NULL
+`
+
+func (q *Queries) ListDeletedIDs(ctx context.Context, spaceID pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, listDeletedIDs, spaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []pgtype.UUID
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDeletedWithMeta = `-- name: ListDeletedWithMeta :many
+WITH RECURSIVE anc AS (
+    SELECT n.id AS origin, n.parent_id, n.name, 0 AS depth
+    FROM nodes n
+    WHERE n.space_id = $1 AND n.deleted_at IS NOT NULL
+    UNION ALL
+    SELECT a.origin, p.parent_id, p.name, a.depth + 1
+    FROM anc a JOIN nodes p ON p.id = a.parent_id
+),
+loc AS (
+    SELECT origin, string_agg(name, ' / ' ORDER BY depth DESC) AS path
+    FROM anc WHERE depth > 0 GROUP BY origin
+)
+SELECT
+  n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at,
+  v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
+  u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email,
+  COALESCE(loc.path, '')::text AS location,
+  (SELECT COUNT(*) FROM nodes c WHERE c.parent_id = n.id AND c.deleted_at IS NULL) AS child_count,
+  COALESCE(d.display_name, d.name, d.email, '')::text AS deleted_by_name,
+  -- NULL when the space keeps its trash indefinitely.
+  (CASE WHEN sp.trash_retention_days > 0
+        THEN n.deleted_at + (sp.trash_retention_days * INTERVAL '1 day')
+   END)::timestamptz AS purges_at
+FROM nodes n
+JOIN spaces sp ON sp.id = n.space_id
+LEFT JOIN node_versions v ON v.id = n.current_version_id
+LEFT JOIN users u ON u.id = n.created_by
+LEFT JOIN users d ON d.id = n.deleted_by
+LEFT JOIN loc ON loc.origin = n.id
+WHERE n.space_id = $1 AND n.deleted_at IS NOT NULL
+ORDER BY n.deleted_at DESC
+`
+
+type ListDeletedWithMetaRow struct {
+	ID               pgtype.UUID        `json:"id"`
+	TenantID         string             `json:"tenant_id"`
+	SpaceID          pgtype.UUID        `json:"space_id"`
+	ParentID         pgtype.UUID        `json:"parent_id"`
+	Kind             NodeKind           `json:"kind"`
+	Name             string             `json:"name"`
+	CurrentVersionID pgtype.UUID        `json:"current_version_id"`
+	DeletedAt        pgtype.Timestamptz `json:"deleted_at"`
+	CreatedBy        pgtype.UUID        `json:"created_by"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	VID              pgtype.UUID        `json:"v_id"`
+	BlobHash         pgtype.Text        `json:"blob_hash"`
+	VSize            pgtype.Int8        `json:"v_size"`
+	Mime             pgtype.Text        `json:"mime"`
+	VersionNo        pgtype.Int4        `json:"version_no"`
+	VCreatedBy       pgtype.UUID        `json:"v_created_by"`
+	VCreatedAt       pgtype.Timestamptz `json:"v_created_at"`
+	OwnerUid         pgtype.UUID        `json:"owner_uid"`
+	OwnerName        pgtype.Text        `json:"owner_name"`
+	OwnerEmail       pgtype.Text        `json:"owner_email"`
+	Location         string             `json:"location"`
+	ChildCount       int64              `json:"child_count"`
+	DeletedByName    string             `json:"deleted_by_name"`
+	PurgesAt         pgtype.Timestamptz `json:"purges_at"`
+}
+
+// Trash listing: node + current version + owner, plus the original location
+// (ancestor names joined with " / ") and a direct-child count for folders.
+func (q *Queries) ListDeletedWithMeta(ctx context.Context, spaceID pgtype.UUID) ([]ListDeletedWithMetaRow, error) {
+	rows, err := q.db.Query(ctx, listDeletedWithMeta, spaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListDeletedWithMetaRow
+	for rows.Next() {
+		var i ListDeletedWithMetaRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.SpaceID,
+			&i.ParentID,
+			&i.Kind,
+			&i.Name,
+			&i.CurrentVersionID,
+			&i.DeletedAt,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.VID,
+			&i.BlobHash,
+			&i.VSize,
+			&i.Mime,
+			&i.VersionNo,
+			&i.VCreatedBy,
+			&i.VCreatedAt,
+			&i.OwnerUid,
+			&i.OwnerName,
+			&i.OwnerEmail,
+			&i.Location,
+			&i.ChildCount,
+			&i.DeletedByName,
+			&i.PurgesAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listExpiredTrash = `-- name: ListExpiredTrash :many
+SELECT n.id, n.space_id, n.name
+FROM nodes n
+JOIN spaces s ON s.id = n.space_id
+WHERE n.deleted_at IS NOT NULL
+  AND s.trash_retention_days > 0
+  AND n.deleted_at < now() - (s.trash_retention_days * INTERVAL '1 day')
+LIMIT $1
+`
+
+type ListExpiredTrashRow struct {
+	ID      pgtype.UUID `json:"id"`
+	SpaceID pgtype.UUID `json:"space_id"`
+	Name    string      `json:"name"`
+}
+
+// Tombstones past their space's retention window. A retention of 0 disables
+// automatic purging for that space, so those rows never appear here.
+func (q *Queries) ListExpiredTrash(ctx context.Context, limit int32) ([]ListExpiredTrashRow, error) {
+	rows, err := q.db.Query(ctx, listExpiredTrash, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListExpiredTrashRow
+	for rows.Next() {
+		var i ListExpiredTrashRow
+		if err := rows.Scan(&i.ID, &i.SpaceID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSharedWithMe = `-- name: ListSharedWithMe :many
-SELECT DISTINCT n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name, n.current_version_id, n.deleted_at, n.created_by, n.created_at FROM nodes n
+SELECT DISTINCT n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name, n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.deleted_by FROM nodes n
 JOIN spaces s ON s.id = n.space_id
 JOIN space_members m ON m.space_id = s.id
 WHERE m.user_id = $1
@@ -396,6 +597,7 @@ func (q *Queries) ListSharedWithMe(ctx context.Context, userID pgtype.UUID) ([]N
 			&i.DeletedAt,
 			&i.CreatedBy,
 			&i.CreatedAt,
+			&i.DeletedBy,
 		); err != nil {
 			return nil, err
 		}
@@ -407,8 +609,165 @@ func (q *Queries) ListSharedWithMe(ctx context.Context, userID pgtype.UUID) ([]N
 	return items, nil
 }
 
+const listStarredIDs = `-- name: ListStarredIDs :many
+SELECT node_id FROM node_stars WHERE user_id = $1 AND node_id = ANY($2::uuid[])
+`
+
+type ListStarredIDsParams struct {
+	UserID  pgtype.UUID   `json:"user_id"`
+	Column2 []pgtype.UUID `json:"column_2"`
+}
+
+// Which of these node ids the caller has starred, so a listing can render the
+// star state without one query per row.
+func (q *Queries) ListStarredIDs(ctx context.Context, arg ListStarredIDsParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, listStarredIDs, arg.UserID, arg.Column2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []pgtype.UUID
+	for rows.Next() {
+		var node_id pgtype.UUID
+		if err := rows.Scan(&node_id); err != nil {
+			return nil, err
+		}
+		items = append(items, node_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listStarredNodes = `-- name: ListStarredNodes :many
+SELECT
+  n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at,
+  v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
+  u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email,
+  s.name AS space_name,
+  COALESCE(p.name, '')::text AS parent_name
+FROM node_stars st
+JOIN nodes n ON n.id = st.node_id
+JOIN space_members m ON m.space_id = n.space_id AND m.user_id = st.user_id
+JOIN spaces s ON s.id = n.space_id
+LEFT JOIN node_versions v ON v.id = n.current_version_id
+LEFT JOIN users u ON u.id = n.created_by
+LEFT JOIN nodes p ON p.id = n.parent_id AND p.deleted_at IS NULL
+WHERE st.user_id = $1 AND n.deleted_at IS NULL
+ORDER BY st.created_at DESC
+LIMIT $2
+`
+
+type ListStarredNodesParams struct {
+	UserID pgtype.UUID `json:"user_id"`
+	Limit  int32       `json:"limit"`
+}
+
+type ListStarredNodesRow struct {
+	ID               pgtype.UUID        `json:"id"`
+	TenantID         string             `json:"tenant_id"`
+	SpaceID          pgtype.UUID        `json:"space_id"`
+	ParentID         pgtype.UUID        `json:"parent_id"`
+	Kind             NodeKind           `json:"kind"`
+	Name             string             `json:"name"`
+	CurrentVersionID pgtype.UUID        `json:"current_version_id"`
+	DeletedAt        pgtype.Timestamptz `json:"deleted_at"`
+	CreatedBy        pgtype.UUID        `json:"created_by"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	VID              pgtype.UUID        `json:"v_id"`
+	BlobHash         pgtype.Text        `json:"blob_hash"`
+	VSize            pgtype.Int8        `json:"v_size"`
+	Mime             pgtype.Text        `json:"mime"`
+	VersionNo        pgtype.Int4        `json:"version_no"`
+	VCreatedBy       pgtype.UUID        `json:"v_created_by"`
+	VCreatedAt       pgtype.Timestamptz `json:"v_created_at"`
+	OwnerUid         pgtype.UUID        `json:"owner_uid"`
+	OwnerName        pgtype.Text        `json:"owner_name"`
+	OwnerEmail       pgtype.Text        `json:"owner_email"`
+	SpaceName        string             `json:"space_name"`
+	ParentName       string             `json:"parent_name"`
+}
+
+// The caller's starred nodes, newest star first. Space membership is rechecked
+// here because a star survives losing access to the space that holds it.
+func (q *Queries) ListStarredNodes(ctx context.Context, arg ListStarredNodesParams) ([]ListStarredNodesRow, error) {
+	rows, err := q.db.Query(ctx, listStarredNodes, arg.UserID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListStarredNodesRow
+	for rows.Next() {
+		var i ListStarredNodesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.SpaceID,
+			&i.ParentID,
+			&i.Kind,
+			&i.Name,
+			&i.CurrentVersionID,
+			&i.DeletedAt,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.VID,
+			&i.BlobHash,
+			&i.VSize,
+			&i.Mime,
+			&i.VersionNo,
+			&i.VCreatedBy,
+			&i.VCreatedAt,
+			&i.OwnerUid,
+			&i.OwnerName,
+			&i.OwnerEmail,
+			&i.SpaceName,
+			&i.ParentName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSubtreeBlobHashes = `-- name: ListSubtreeBlobHashes :many
+WITH RECURSIVE sub(node_id) AS (
+    SELECT r.id FROM nodes r WHERE r.id = $1
+    UNION ALL
+    SELECT n.id FROM nodes n JOIN sub ON n.parent_id = sub.node_id
+)
+SELECT v.blob_hash FROM node_versions v JOIN sub ON v.node_id = sub.node_id
+`
+
+// Every blob referenced by the subtree rooted at $1, one row per version, so
+// a purge can decrement ref_count exactly as many times as it was incremented.
+func (q *Queries) ListSubtreeBlobHashes(ctx context.Context, id pgtype.UUID) ([]string, error) {
+	rows, err := q.db.Query(ctx, listSubtreeBlobHashes, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var blob_hash string
+		if err := rows.Scan(&blob_hash); err != nil {
+			return nil, err
+		}
+		items = append(items, blob_hash)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTree = `-- name: ListTree :many
-SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, created_by, created_at FROM nodes
+SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, created_by, created_at, deleted_by FROM nodes
 WHERE space_id = $1
   AND parent_id IS NOT DISTINCT FROM $2
   AND deleted_at IS NULL
@@ -440,6 +799,7 @@ func (q *Queries) ListTree(ctx context.Context, arg ListTreeParams) ([]Node, err
 			&i.DeletedAt,
 			&i.CreatedBy,
 			&i.CreatedAt,
+			&i.DeletedBy,
 		); err != nil {
 			return nil, err
 		}
@@ -499,6 +859,17 @@ func (q *Queries) MoveNode(ctx context.Context, arg MoveNodeParams) error {
 	return err
 }
 
+const purgeNode = `-- name: PurgeNode :exec
+DELETE FROM nodes WHERE id = $1 AND deleted_at IS NOT NULL
+`
+
+// Hard delete. Descendants and versions follow via ON DELETE CASCADE; blob
+// ref counts are decremented separately by the caller.
+func (q *Queries) PurgeNode(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, purgeNode, id)
+	return err
+}
+
 const renameNode = `-- name: RenameNode :exec
 UPDATE nodes SET name = $2
 WHERE id = $1 AND deleted_at IS NULL
@@ -512,6 +883,144 @@ type RenameNodeParams struct {
 func (q *Queries) RenameNode(ctx context.Context, arg RenameNodeParams) error {
 	_, err := q.db.Exec(ctx, renameNode, arg.ID, arg.Name)
 	return err
+}
+
+const restoreNode = `-- name: RestoreNode :exec
+UPDATE nodes SET deleted_at = NULL, parent_id = $2, name = $3
+WHERE id = $1 AND deleted_at IS NOT NULL
+`
+
+type RestoreNodeParams struct {
+	ID       pgtype.UUID `json:"id"`
+	ParentID pgtype.UUID `json:"parent_id"`
+	Name     string      `json:"name"`
+}
+
+// Clears the tombstone, and re-parents/renames in the same statement so a
+// restore that collides with a live sibling can land under a free name.
+func (q *Queries) RestoreNode(ctx context.Context, arg RestoreNodeParams) error {
+	_, err := q.db.Exec(ctx, restoreNode, arg.ID, arg.ParentID, arg.Name)
+	return err
+}
+
+const searchNodes = `-- name: SearchNodes :many
+SELECT
+  n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at,
+  v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
+  u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email,
+  s.name AS space_name,
+  COALESCE(p.name, '')::text AS parent_name
+FROM nodes n
+JOIN space_members m ON m.space_id = n.space_id AND m.user_id = $1
+JOIN spaces s ON s.id = n.space_id
+LEFT JOIN node_versions v ON v.id = n.current_version_id
+LEFT JOIN users u ON u.id = n.created_by
+LEFT JOIN nodes p ON p.id = n.parent_id AND p.deleted_at IS NULL
+WHERE n.deleted_at IS NULL
+  AND ($2::uuid IS NULL OR n.space_id = $2::uuid)
+  AND ($3::node_kind IS NULL OR n.kind = $3::node_kind)
+  AND ($4::uuid IS NULL OR n.created_by = $4::uuid)
+  -- Modified time is the current version's timestamp for a file and the
+  -- node's own for a folder, so the filter has to consider both.
+  AND ($5::timestamptz IS NULL
+       OR COALESCE(v.created_at, n.created_at) >= $5::timestamptz)
+  AND n.name ILIKE '%' || $6::text || '%'
+ORDER BY
+  (lower(n.name) LIKE lower($6::text) || '%') DESC,
+  similarity(n.name, $6::text) DESC,
+  n.kind,
+  n.name
+LIMIT $7
+`
+
+type SearchNodesParams struct {
+	UserID        pgtype.UUID        `json:"user_id"`
+	SpaceID       pgtype.UUID        `json:"space_id"`
+	Kind          NullNodeKind       `json:"kind"`
+	OwnerID       pgtype.UUID        `json:"owner_id"`
+	ModifiedAfter pgtype.Timestamptz `json:"modified_after"`
+	Query         string             `json:"query"`
+	ResultLimit   int32              `json:"result_limit"`
+}
+
+type SearchNodesRow struct {
+	ID               pgtype.UUID        `json:"id"`
+	TenantID         string             `json:"tenant_id"`
+	SpaceID          pgtype.UUID        `json:"space_id"`
+	ParentID         pgtype.UUID        `json:"parent_id"`
+	Kind             NodeKind           `json:"kind"`
+	Name             string             `json:"name"`
+	CurrentVersionID pgtype.UUID        `json:"current_version_id"`
+	DeletedAt        pgtype.Timestamptz `json:"deleted_at"`
+	CreatedBy        pgtype.UUID        `json:"created_by"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	VID              pgtype.UUID        `json:"v_id"`
+	BlobHash         pgtype.Text        `json:"blob_hash"`
+	VSize            pgtype.Int8        `json:"v_size"`
+	Mime             pgtype.Text        `json:"mime"`
+	VersionNo        pgtype.Int4        `json:"version_no"`
+	VCreatedBy       pgtype.UUID        `json:"v_created_by"`
+	VCreatedAt       pgtype.Timestamptz `json:"v_created_at"`
+	OwnerUid         pgtype.UUID        `json:"owner_uid"`
+	OwnerName        pgtype.Text        `json:"owner_name"`
+	OwnerEmail       pgtype.Text        `json:"owner_email"`
+	SpaceName        string             `json:"space_name"`
+	ParentName       string             `json:"parent_name"`
+}
+
+// Name search across every space the caller belongs to, or one space when
+// $2 is supplied. Ranked by trigram similarity so the closest name comes
+// first, with an exact prefix match promoted above a mid-string one.
+func (q *Queries) SearchNodes(ctx context.Context, arg SearchNodesParams) ([]SearchNodesRow, error) {
+	rows, err := q.db.Query(ctx, searchNodes,
+		arg.UserID,
+		arg.SpaceID,
+		arg.Kind,
+		arg.OwnerID,
+		arg.ModifiedAfter,
+		arg.Query,
+		arg.ResultLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchNodesRow
+	for rows.Next() {
+		var i SearchNodesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.SpaceID,
+			&i.ParentID,
+			&i.Kind,
+			&i.Name,
+			&i.CurrentVersionID,
+			&i.DeletedAt,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.VID,
+			&i.BlobHash,
+			&i.VSize,
+			&i.Mime,
+			&i.VersionNo,
+			&i.VCreatedBy,
+			&i.VCreatedAt,
+			&i.OwnerUid,
+			&i.OwnerName,
+			&i.OwnerEmail,
+			&i.SpaceName,
+			&i.ParentName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const setCurrentVersion = `-- name: SetCurrentVersion :exec
@@ -529,11 +1038,45 @@ func (q *Queries) SetCurrentVersion(ctx context.Context, arg SetCurrentVersionPa
 }
 
 const softDeleteNode = `-- name: SoftDeleteNode :exec
-UPDATE nodes SET deleted_at = now()
+UPDATE nodes SET deleted_at = now(), deleted_by = $2
 WHERE id = $1 AND deleted_at IS NULL
 `
 
-func (q *Queries) SoftDeleteNode(ctx context.Context, id pgtype.UUID) error {
-	_, err := q.db.Exec(ctx, softDeleteNode, id)
+type SoftDeleteNodeParams struct {
+	ID        pgtype.UUID `json:"id"`
+	DeletedBy pgtype.UUID `json:"deleted_by"`
+}
+
+func (q *Queries) SoftDeleteNode(ctx context.Context, arg SoftDeleteNodeParams) error {
+	_, err := q.db.Exec(ctx, softDeleteNode, arg.ID, arg.DeletedBy)
+	return err
+}
+
+const starNode = `-- name: StarNode :exec
+INSERT INTO node_stars (user_id, node_id) VALUES ($1, $2)
+ON CONFLICT (user_id, node_id) DO NOTHING
+`
+
+type StarNodeParams struct {
+	UserID pgtype.UUID `json:"user_id"`
+	NodeID pgtype.UUID `json:"node_id"`
+}
+
+func (q *Queries) StarNode(ctx context.Context, arg StarNodeParams) error {
+	_, err := q.db.Exec(ctx, starNode, arg.UserID, arg.NodeID)
+	return err
+}
+
+const unstarNode = `-- name: UnstarNode :exec
+DELETE FROM node_stars WHERE user_id = $1 AND node_id = $2
+`
+
+type UnstarNodeParams struct {
+	UserID pgtype.UUID `json:"user_id"`
+	NodeID pgtype.UUID `json:"node_id"`
+}
+
+func (q *Queries) UnstarNode(ctx context.Context, arg UnstarNodeParams) error {
+	_, err := q.db.Exec(ctx, unstarNode, arg.UserID, arg.NodeID)
 	return err
 }

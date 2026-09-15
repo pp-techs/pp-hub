@@ -1,12 +1,23 @@
-import { ArrowDown, ArrowUp, CloudUpload, FolderPlus, LayoutGrid, List } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronDown,
+  CloudUpload,
+  FolderPlus,
+  FolderUp,
+  LayoutGrid,
+  List,
+} from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
+import { ButtonGroup } from "@workspace/ui/components/button-group";
 import { cn } from "@workspace/ui/lib/utils";
 import type { NodeView, SortField, SortOrder } from "@/lib/api";
 
@@ -20,8 +31,10 @@ export interface DriveToolbarProps {
   sort: SortField;
   order: SortOrder;
   view: NodeView;
-  uploading: boolean;
-  onUpload: () => void;
+  /** Viewers get the sort and view controls but no way to add anything. */
+  canUpload: boolean;
+  onUploadFiles: () => void;
+  onUploadFolder: () => void;
   onNewFolder: () => void;
   onSortChange: (sort: SortField) => void;
   onOrderToggle: () => void;
@@ -36,8 +49,9 @@ export function DriveToolbar({
   sort,
   order,
   view,
-  uploading,
-  onUpload,
+  canUpload,
+  onUploadFiles,
+  onUploadFolder,
   onNewFolder,
   onSortChange,
   onOrderToggle,
@@ -46,13 +60,35 @@ export function DriveToolbar({
   return (
     <div className="border-border flex h-10 shrink-0 items-center justify-between gap-2 border-b px-4">
       <div className="flex items-center gap-2">
-        <Button onClick={onUpload} disabled={uploading}>
-          <CloudUpload data-icon="inline-start" />
-          {uploading ? "Uploading…" : "Upload"}
-        </Button>
-        <Button variant="outline" onClick={onNewFolder}>
-          <FolderPlus data-icon="inline-start" /> New folder
-        </Button>
+        {canUpload && (
+          <>
+            {/* Uploading a folder is rare enough to live behind the caret, but
+            common enough that it must not require zipping first. */}
+            <ButtonGroup>
+              <Button onClick={onUploadFiles}>
+                <CloudUpload data-icon="inline-start" /> Upload
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={<Button size="icon" aria-label="More upload options" />}
+                >
+                  <ChevronDown />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem onClick={onUploadFiles}>
+                    <CloudUpload data-icon="inline-start" /> Upload files
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={onUploadFolder}>
+                    <FolderUp data-icon="inline-start" /> Upload folder
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </ButtonGroup>
+            <Button variant="outline" onClick={onNewFolder}>
+              <FolderPlus data-icon="inline-start" /> New folder
+            </Button>
+          </>
+        )}
       </div>
 
       <div className="flex items-center gap-2">

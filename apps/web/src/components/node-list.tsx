@@ -21,6 +21,8 @@ import { NodeIcon } from "@/components/node-table";
 import { useUiStore } from "@/lib/ui-store";
 
 interface NodeListProps extends NodeActionHandlers {
+  /** Node ids the caller has starred, so each row can show its own state. */
+  starredIds: Set<string>;
   nodes: Node[];
   selectedIds: Set<string>;
   focusedId?: string;
@@ -37,6 +39,7 @@ interface NodeListProps extends NodeActionHandlers {
 export function NodeList({
   nodes,
   selectedIds,
+  starredIds,
   focusedId,
   onToggle,
   onToggleAll,
@@ -83,6 +86,7 @@ export function NodeList({
             key={node.id}
             node={node}
             selected={selectedIds.has(node.id)}
+            starred={starredIds.has(node.id)}
             focused={focusedId === node.id}
             onToggle={onToggle}
             onClick={onClick}
@@ -96,6 +100,7 @@ export function NodeList({
 }
 
 interface NodeListRowProps extends NodeActionHandlers {
+  starred: boolean;
   node: Node;
   selected: boolean;
   focused: boolean;
@@ -107,6 +112,7 @@ interface NodeListRowProps extends NodeActionHandlers {
 function NodeListRow({
   node,
   selected,
+  starred,
   focused,
   onToggle,
   onClick,
@@ -114,7 +120,7 @@ function NodeListRow({
   ...handlers
 }: NodeListRowProps) {
   const openPanel = useUiStore((s) => s.openPanel);
-  const actions = nodeActions(node, handlers, openPanel);
+  const actions = nodeActions(node, handlers, openPanel, starred);
 
   return (
     <ContextMenu>
@@ -180,6 +186,11 @@ function NodeListRow({
                     }}
                   >
                     <action.icon /> {action.label}
+                    {action.shortcut && (
+                      <span className="text-muted-foreground ml-auto pl-4 text-[10px]">
+                        {action.shortcut}
+                      </span>
+                    )}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -210,6 +221,9 @@ function ContextMenuItemWithSeparator({
         onClick={action.run}
       >
         <action.icon data-icon="inline-start" /> {action.label}
+        {action.shortcut && (
+          <span className="text-muted-foreground ml-auto pl-4 text-[10px]">{action.shortcut}</span>
+        )}
       </ContextMenuItem>
     </>
   );

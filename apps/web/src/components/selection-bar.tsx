@@ -1,4 +1,4 @@
-import { Download, Link2, Pencil, Trash2, X } from "lucide-react";
+import { Download, FolderInput, Link2, Pencil, Trash2, X } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import type { Node } from "@/lib/api";
 
@@ -8,16 +8,18 @@ interface SelectionBarProps {
   onDownload: (node: Node) => void;
   onShare: (node: Node) => void;
   onRename: (node: Node) => void;
+  onMove: (nodes: Node[]) => void;
   onDelete: (nodes: Node[]) => void;
 }
 
 /**
  * Floating action bar for a multi-row selection.
  *
- * The Stitch design also offers Move and Copy; the API has no endpoint for
- * either, so they are omitted rather than rendered as controls that no-op.
  * Download, Share and Rename act on a single node, so they appear only when
- * the selection is exactly one; Delete works on the whole selection.
+ * the selection is exactly one; Move and Delete work on the whole selection.
+ *
+ * The Stitch design also offers Copy, which has no endpoint, so it is omitted
+ * rather than rendered as a control that no-ops.
  */
 export function SelectionBar({
   selected,
@@ -25,6 +27,7 @@ export function SelectionBar({
   onDownload,
   onShare,
   onRename,
+  onMove,
   onDelete,
 }: SelectionBarProps) {
   if (selected.length === 0) return null;
@@ -56,6 +59,9 @@ export function SelectionBar({
             </Button>
           </>
         )}
+        <Button variant="ghost" size="sm" onClick={() => onMove(selected)}>
+          <FolderInput data-icon="inline-start" /> Move
+        </Button>
       </div>
 
       <span className="bg-border h-4 w-px" />

@@ -225,6 +225,18 @@ func (ns NullSharePerm) Value() (driver.Value, error) {
 	return string(ns.SharePerm), nil
 }
 
+type ActivityEvent struct {
+	ID        pgtype.UUID        `json:"id"`
+	TenantID  string             `json:"tenant_id"`
+	SpaceID   pgtype.UUID        `json:"space_id"`
+	ActorID   pgtype.UUID        `json:"actor_id"`
+	NodeID    pgtype.UUID        `json:"node_id"`
+	Kind      string             `json:"kind"`
+	NodeName  string             `json:"node_name"`
+	Detail    []byte             `json:"detail"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
 type Blob struct {
 	Hash      string             `json:"hash"`
 	Size      int64              `json:"size"`
@@ -262,6 +274,13 @@ type Node struct {
 	DeletedAt        pgtype.Timestamptz `json:"deleted_at"`
 	CreatedBy        pgtype.UUID        `json:"created_by"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	DeletedBy        pgtype.UUID        `json:"deleted_by"`
+}
+
+type NodeStar struct {
+	UserID    pgtype.UUID        `json:"user_id"`
+	NodeID    pgtype.UUID        `json:"node_id"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
 type NodeVersion struct {
@@ -296,12 +315,30 @@ type Share struct {
 }
 
 type Space struct {
+	ID                 pgtype.UUID        `json:"id"`
+	TenantID           string             `json:"tenant_id"`
+	Name               string             `json:"name"`
+	OwnerID            pgtype.UUID        `json:"owner_id"`
+	QuotaBytes         int64              `json:"quota_bytes"`
+	UsedBytes          int64              `json:"used_bytes"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	Slug               string             `json:"slug"`
+	Description        string             `json:"description"`
+	DefaultRole        MemberRole         `json:"default_role"`
+	ArchivedAt         pgtype.Timestamptz `json:"archived_at"`
+	TrashRetentionDays int32              `json:"trash_retention_days"`
+}
+
+type SpaceInvitation struct {
 	ID         pgtype.UUID        `json:"id"`
 	TenantID   string             `json:"tenant_id"`
-	Name       string             `json:"name"`
-	OwnerID    pgtype.UUID        `json:"owner_id"`
-	QuotaBytes int64              `json:"quota_bytes"`
-	UsedBytes  int64              `json:"used_bytes"`
+	SpaceID    pgtype.UUID        `json:"space_id"`
+	Email      string             `json:"email"`
+	Role       MemberRole         `json:"role"`
+	TokenHash  string             `json:"token_hash"`
+	InvitedBy  pgtype.UUID        `json:"invited_by"`
+	ExpiresAt  pgtype.Timestamptz `json:"expires_at"`
+	AcceptedAt pgtype.Timestamptz `json:"accepted_at"`
 	CreatedAt  pgtype.Timestamptz `json:"created_at"`
 }
 
@@ -342,4 +379,5 @@ type User struct {
 	IsAdmin     bool               `json:"is_admin"`
 	LastSeen    pgtype.Timestamptz `json:"last_seen"`
 	EmailHash   string             `json:"email_hash"`
+	SuspendedAt pgtype.Timestamptz `json:"suspended_at"`
 }

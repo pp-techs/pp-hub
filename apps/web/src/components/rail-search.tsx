@@ -1,27 +1,21 @@
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { Search } from "lucide-react";
 import { useUiStore } from "@/lib/ui-store";
 
 /**
- * Name filter for the current listing, mounted in the left rail. The ⌘K hint
- * is wired to a real shortcut so the badge reflects what the key does.
+ * Name filter for the open folder, mounted in the left rail.
+ *
+ * This is deliberately *not* the ⌘K search. The field narrows what is already
+ * on screen, instantly and without a request; ⌘K opens the palette, which
+ * searches every space on the server. The two answer different questions, so
+ * the chip is a real button through to the palette rather than a hint that
+ * this field is the thing ⌘K focuses.
  */
 export function RailSearch() {
   const query = useUiStore((s) => s.filterQuery);
   const setQuery = useUiStore((s) => s.setFilterQuery);
+  const setPaletteOpen = useUiStore((s) => s.setPaletteOpen);
   const ref = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === "k" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        ref.current?.focus();
-        ref.current?.select();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
 
   return (
     <div className="border-border bg-muted/30 focus-within:border-ring focus-within:bg-background flex h-7 items-center justify-between gap-1 rounded-md border px-2 transition-colors">
@@ -37,14 +31,20 @@ export function RailSearch() {
               ref.current?.blur();
             }
           }}
-          placeholder="Search files"
-          aria-label="Search files"
+          placeholder="Filter this folder"
+          aria-label="Filter the current folder by name"
           className="placeholder:text-muted-foreground w-full min-w-0 border-none bg-transparent p-0 text-xs leading-none outline-none"
         />
       </div>
-      <kbd className="border-border bg-background text-muted-foreground shrink-0 rounded-sm border px-1 py-0.5 text-[10px] leading-none">
+      <button
+        type="button"
+        title="Search every space"
+        aria-label="Search every space"
+        onClick={() => setPaletteOpen(true)}
+        className="border-border bg-background text-muted-foreground hover:text-foreground shrink-0 rounded-sm border px-1 py-0.5 text-[10px] leading-none transition-colors"
+      >
         ⌘K
-      </kbd>
+      </button>
     </div>
   );
 }

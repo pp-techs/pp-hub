@@ -17,6 +17,7 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/blob"
 	"github.com/nhatbui/pp-hub/apps/server/internal/config"
 	"github.com/nhatbui/pp-hub/apps/server/internal/fs"
+	"github.com/nhatbui/pp-hub/apps/server/internal/gc"
 	"github.com/nhatbui/pp-hub/apps/server/internal/httpapi"
 	"github.com/nhatbui/pp-hub/apps/server/internal/preview"
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
@@ -76,6 +77,14 @@ func run() error {
 		}
 	})
 	go previewWorker.Run(ctx)
+
+	// Reclaims disk from blobs nothing references any more. Without it, every
+	// permanent delete leaks its bytes forever.
+	go gc.NewWorker(queries, blobs).Run(ctx)
+
+	// Purges tombstones past their space's retention window. Retention
+	// defaults to 0 (never), so this is inert until a space opts in.
+	go gc.NewTrashWorker(fsSvc).Run(ctx)
 
 	// Sweep expired WOPI locks periodically.
 	go func() {

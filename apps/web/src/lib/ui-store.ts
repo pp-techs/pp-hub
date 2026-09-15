@@ -37,6 +37,12 @@ interface UiState {
   setLastSpaceId: (id: string) => void;
   newSpaceOpen: boolean;
   setNewSpaceOpen: (v: boolean) => void;
+  /**
+   * ⌘K palette. Lives here because the shortcut is bound by the drive shell
+   * but the palette is opened from the rail search field too.
+   */
+  paletteOpen: boolean;
+  setPaletteOpen: (v: boolean) => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -59,6 +65,8 @@ export const useUiStore = create<UiState>()(
       setLastSpaceId: (id) => set({ lastSpaceId: id }),
       newSpaceOpen: false,
       setNewSpaceOpen: (v) => set({ newSpaceOpen: v }),
+      paletteOpen: false,
+      setPaletteOpen: (v) => set({ paletteOpen: v }),
     }),
     {
       name: "pp-hub-ui",

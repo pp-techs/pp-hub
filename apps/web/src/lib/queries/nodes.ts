@@ -2,14 +2,20 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  copyNode,
   createFolder,
   deleteNode,
+  emptyTrash,
   getChildren,
+  getNode,
   getVersions,
   getTree,
   getTrash,
   getShared,
+  moveNode,
+  purgeNode,
   renameNode,
+  restoreNode,
   restoreVersion,
   uploadFile,
 } from "@/lib/api";
@@ -25,6 +31,15 @@ export function childrenOptions(spaceId: string, parentId?: string) {
 
 export function useChildren(spaceId: string, parentId?: string) {
   return useQuery(childrenOptions(spaceId, parentId));
+}
+
+/** A single node, for surfaces routed by node id alone (the editor page). */
+export function useNode(nodeId: string | undefined) {
+  return useQuery({
+    queryKey: keys.node(nodeId ?? ""),
+    queryFn: () => getNode(nodeId as string),
+    enabled: !!nodeId,
+  });
 }
 
 /** Invalidates the file listing for a space (root + every open folder). */
@@ -59,9 +74,43 @@ export function useRenameNode(spaceId: string) {
 
 export function useDeleteNode(spaceId: string) {
   const invalidate = useInvalidateChildren(spaceId);
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (nodeId: string) => deleteNode(nodeId),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      void invalidate();
+      // The node just became a trash row.
+      void qc.invalidateQueries({ queryKey: keys.trash(spaceId) });
+    },
+  });
+}
+
+export function useCopyNode(spaceId: string) {
+  const invalidate = useInvalidateChildren(spaceId);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ nodeId, parentId }: { nodeId: string; parentId?: string }) =>
+      copyNode(nodeId, parentId),
+    onSuccess: () => {
+      void invalidate();
+      void qc.invalidateQueries({ queryKey: ["tree", spaceId] });
+      // A copy adds references, so the space's usage moved.
+      void qc.invalidateQueries({ queryKey: keys.spaces });
+    },
+  });
+}
+
+export function useMoveNode(spaceId: string) {
+  const invalidate = useInvalidateChildren(spaceId);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ nodeId, parentId }: { nodeId: string; parentId?: string }) =>
+      moveNode(nodeId, parentId),
+    onSuccess: () => {
+      void invalidate();
+      // Both the source and destination folders changed shape.
+      void qc.invalidateQueries({ queryKey: ["tree", spaceId] });
+    },
   });
 }
 
@@ -110,14 +159,55 @@ export function useTree(spaceId: string | undefined, parentId?: string) {
 
 export function useTrash(spaceId: string) {
   return useQuery({
-    queryKey: ["trash", spaceId] as const,
+    queryKey: keys.trash(spaceId),
     queryFn: () => getTrash(spaceId),
   });
 }
 
 export function useShared() {
   return useQuery({
-    queryKey: ["shared"] as const,
+    queryKey: keys.shared,
     queryFn: getShared,
+  });
+}
+
+/**
+ * Lifting a node out of the trash. The listing, the tree and the trash panel
+ * all change, so all three are invalidated; the result says whether the node
+ * had to be relocated or renamed on the way back, which the caller reports.
+ */
+export function useRestoreNode(spaceId: string) {
+  const invalidate = useInvalidateChildren(spaceId);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (nodeId: string) => restoreNode(nodeId),
+    onSuccess: () => {
+      void invalidate();
+      void qc.invalidateQueries({ queryKey: keys.trash(spaceId) });
+      void qc.invalidateQueries({ queryKey: ["tree", spaceId] });
+    },
+  });
+}
+
+export function usePurgeNode(spaceId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (nodeId: string) => purgeNode(nodeId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: keys.trash(spaceId) });
+      // Storage is released, so the rail meter is stale.
+      void qc.invalidateQueries({ queryKey: keys.spaces });
+    },
+  });
+}
+
+export function useEmptyTrash(spaceId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => emptyTrash(spaceId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: keys.trash(spaceId) });
+      void qc.invalidateQueries({ queryKey: keys.spaces });
+    },
   });
 }

@@ -1,10 +1,17 @@
 import type { Node } from "./types";
 // Utilities shared across the app.
 
+const SIZE_UNITS = ["B", "KB", "MB", "GB", "TB", "PB"];
+
 export function fmtSize(n: number): string {
   if (n < 1024) return `${n} B`;
-  if (n < 1 << 20) return `${(n / 1024).toFixed(1)} KB`;
-  return `${(n / (1 << 20)).toFixed(1)} MB`;
+  let value = n;
+  let unit = 0;
+  while (value >= 1024 && unit < SIZE_UNITS.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${value.toFixed(1)} ${SIZE_UNITS[unit]}`;
 }
 
 const OFFICE_EXTS = new Set([
@@ -149,6 +156,33 @@ export function sortNodes(nodes: Node[], field: SortField, order: SortOrder): No
  * Format a relative-ish date string from an ISO timestamp.
  * Shows "Jan 2" for recent, "Dec 31, 2025" for older.
  */
+const RELATIVE_STEPS: [limit: number, unit: Intl.RelativeTimeFormatUnit, per: number][] = [
+  [60, "second", 1],
+  [3600, "minute", 60],
+  [86400, "hour", 3600],
+  [604800, "day", 86400],
+];
+
+/**
+ * "2 minutes ago" for anything inside the last week, falling back to an
+ * absolute date beyond it — past a few days "17 days ago" is harder to read
+ * than the date itself.
+ */
+export function fmtRelative(iso: string | undefined): string {
+  if (!iso) return "—";
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "—";
+  const elapsed = (Date.now() - then) / 1000;
+  if (elapsed < 45) return "just now";
+  if (elapsed >= 604800) return fmtDate(iso);
+
+  const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+  for (const [limit, unit, per] of RELATIVE_STEPS) {
+    if (elapsed < limit) return rtf.format(-Math.round(elapsed / per), unit);
+  }
+  return fmtDate(iso);
+}
+
 export function fmtDate(iso: string | undefined): string {
   if (!iso) return "—";
   const d = new Date(iso);

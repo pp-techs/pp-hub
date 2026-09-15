@@ -8,6 +8,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { FolderOpen } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import {
@@ -40,12 +41,19 @@ import {
   spacesOptions,
   useCreateFolder,
   useDeleteNode,
+  useCopyNode,
+  useMoveNode,
   useRenameNode,
-  useUpload,
+  useStarred,
+  useToggleStar,
 } from "@/lib/queries";
+import { useUploadStore } from "@/lib/upload-store";
+import { collectInputFiles } from "@/lib/drop-items";
 import { useUiStore } from "@/lib/ui-store";
 import { SpaceMembersPanel } from "@/components/space-members-panel";
-import { SharedPanel, TrashPanel } from "@/components/drive-panels";
+import { SharedPanel } from "@/components/drive-panels";
+import { TrashPanel } from "@/components/trash-panel";
+import { SpaceSettingsPanel } from "@/components/space-settings-panel";
 import { NodePanels } from "@/components/node-panels";
 import { PreviewModal } from "@/components/preview-modal";
 import { DetailsPanel } from "@/components/preview-panel";
@@ -55,6 +63,8 @@ import { DriveToolbar } from "@/components/drive-toolbar";
 import { NodeGrid } from "@/components/node-grid";
 import { NodeList } from "@/components/node-list";
 import { SelectionBar } from "@/components/selection-bar";
+import { MoveDialog } from "@/components/move-dialog";
+import { DropZone } from "@/components/drop-zone";
 import { downloadUrl } from "@/components/node-actions";
 
 export const Route = createFileRoute("/drive/$spaceId")({
@@ -76,7 +86,7 @@ export const Route = createFileRoute("/drive/$spaceId")({
       ? (search.order as SortOrder)
       : undefined,
     view: ["grid", "list"].includes(search.view as string) ? (search.view as NodeView) : undefined,
-    panel: ["members", "trash", "shared"].includes(search.panel as string)
+    panel: ["members", "trash", "shared", "settings"].includes(search.panel as string)
       ? (search.panel as DrivePanel)
       : undefined,
   }),
@@ -116,6 +126,7 @@ function FolderView() {
   const setLastSpaceId = useUiStore((s) => s.setLastSpaceId);
   const openPanel = useUiStore((s) => s.openPanel);
   const filterQuery = useUiStore((s) => s.filterQuery);
+  const dirs = useUiStore((s) => s.dirs);
 
   /** Rows ticked via checkbox — drives the floating action bar. */
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -130,9 +141,15 @@ function FolderView() {
   const [confirmNodes, setConfirmNodes] = useState<Node[] | null>(null);
 
   const fileRef = useRef<HTMLInputElement>(null);
-  const upload = useUpload(spaceId, dir);
+  const folderRef = useRef<HTMLInputElement>(null);
+  const enqueueUploads = useUploadStore((s) => s.enqueue);
   const mkdir = useCreateFolder(spaceId, dir);
   const rename = useRenameNode(spaceId);
+  const move = useMoveNode(spaceId);
+  const copy = useCopyNode(spaceId);
+  const toggleStar = useToggleStar();
+  // One request for the whole starred set beats one per visible row.
+  const starred = useStarred(200);
   const del = useDeleteNode(spaceId);
 
   const clickTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -201,10 +218,10 @@ function FolderView() {
       } else if (canEdit(node)) {
         openEditor(node);
       } else {
-        void PreviewModal.show({ node });
+        void PreviewModal.show({ node, siblings: sortedFiles });
       }
     },
-    [navigate, spaceId, rememberDir, sort, order, view],
+    [navigate, spaceId, rememberDir, sort, order, view, sortedFiles],
   );
 
   const handleToggle = useCallback((node: Node, checked: boolean) => {
@@ -226,11 +243,48 @@ function FolderView() {
     setRenameName(node.name);
   }, []);
 
-  const handlePreview = useCallback((node: Node) => {
-    void PreviewModal.show({ node });
-  }, []);
+  // Siblings let the modal page through the folder without closing.
+  const handlePreview = useCallback(
+    (node: Node) => {
+      void PreviewModal.show({ node, siblings: sortedFiles });
+    },
+    [sortedFiles],
+  );
 
   const handleDeleteRequest = useCallback((node: Node) => setConfirmNodes([node]), []);
+
+  /**
+   * Opens the destination picker and moves everything the user picked for.
+   * Each node moves independently, so one rejection (a name already taken in
+   * the destination) does not hold up the rest.
+   */
+  const handleMove = useCallback(
+    async (nodes: Node[]) => {
+      if (nodes.length === 0) return;
+      const spaceName = spaces.data?.find((s) => s.id === spaceId)?.name ?? "this space";
+      const target = await MoveDialog.show({ spaceId, spaceName, nodes });
+      if (target === null) return; // cancelled — undefined means the space root
+
+      let moved = 0;
+      await Promise.all(
+        nodes.map((node) =>
+          move
+            .mutateAsync({ nodeId: node.id, parentId: target })
+            .then(() => {
+              moved += 1;
+            })
+            .catch((e: Error) =>
+              toast.error(`Could not move “${node.name}”`, { description: e.message }),
+            ),
+        ),
+      );
+      if (moved > 0) {
+        toast.success(moved === 1 ? "Moved 1 item" : `Moved ${moved} items`);
+        setSelectedIds(new Set());
+      }
+    },
+    [move, spaceId, spaces.data],
+  );
 
   const handleDeleteConfirmed = useCallback(() => {
     for (const node of confirmNodes ?? []) del.mutate(node.id);
@@ -239,9 +293,25 @@ function FolderView() {
     if (focusedNode && removed.has(focusedNode.id)) setFocusedNode(null);
   }, [confirmNodes, del, focusedNode]);
 
+  const starredIds = useMemo(() => new Set((starred.data ?? []).map((n) => n.id)), [starred.data]);
+
   const nodeHandlers = {
     onPreview: handlePreview,
+    onCopy: (node: Node) =>
+      copy.mutate(
+        { nodeId: node.id, parentId: dir },
+        {
+          onSuccess: (made) => toast.success(`Copied as “${made.name}”`),
+          onError: (e) => toast.error(`Could not copy “${node.name}”`, { description: e.message }),
+        },
+      ),
+    onToggleStar: (node: Node, next: boolean) =>
+      toggleStar.mutate(
+        { nodeId: node.id, starred: next },
+        { onError: (e) => toast.error(e.message) },
+      ),
     onRename: handleRename,
+    onMove: (node: Node) => void handleMove([node]),
     onDeleteRequest: handleDeleteRequest,
   };
 
@@ -250,6 +320,15 @@ function FolderView() {
   }
 
   const showDetails = browsing && detailsOpen && activeFocused !== null;
+
+  const space = spaces.data?.find((s) => s.id === spaceId);
+  // Uploading needs editor rank; the server rejects a viewer, so the toolbar
+  // and the drop overlay stay out of their way entirely.
+  const canUpload = space?.role === "editor" || space?.role === "owner";
+  // Destination for the drop overlay: the space name plus the open folder.
+  const destination = [space?.name ?? "this space", dir ? dirs[dir]?.name : undefined]
+    .filter(Boolean)
+    .join(" / ");
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -273,8 +352,9 @@ function FolderView() {
           sort={sort}
           order={order}
           view={view}
-          uploading={upload.isPending}
-          onUpload={() => fileRef.current?.click()}
+          canUpload={canUpload}
+          onUploadFiles={() => fileRef.current?.click()}
+          onUploadFolder={() => folderRef.current?.click()}
           onNewFolder={() => setNewFolderOpen(true)}
           onSortChange={(s) => goTo({ sort: s })}
           onOrderToggle={() => goTo({ order: order === "asc" ? "desc" : "asc" })}
@@ -283,74 +363,86 @@ function FolderView() {
       )}
 
       <div className="flex min-h-0 flex-1">
-        <div className="relative min-h-0 flex-1 overflow-auto">
-          {panel === "members" ? (
-            <div className="p-4">
-              <SpaceMembersPanel
-                spaceId={spaceId}
-                currentUserRole={spaces.data?.find((s) => s.id === spaceId)?.role ?? "viewer"}
+        <DropZone
+          spaceId={spaceId}
+          parentId={dir}
+          destination={destination}
+          disabled={!browsing || !canUpload}
+        >
+          <div className="relative min-h-0 flex-1 overflow-auto">
+            {panel === "members" ? (
+              <div className="p-4">
+                <SpaceMembersPanel
+                  spaceId={spaceId}
+                  currentUserRole={spaces.data?.find((s) => s.id === spaceId)?.role ?? "viewer"}
+                />
+              </div>
+            ) : panel === "trash" ? (
+              <div className="p-4">
+                <TrashPanel spaceId={spaceId} />
+              </div>
+            ) : panel === "settings" ? (
+              <div className="p-4">{space && <SpaceSettingsPanel space={space} />}</div>
+            ) : panel === "shared" ? (
+              <div className="p-4">
+                <SharedPanel />
+              </div>
+            ) : children.isPending ? (
+              <p className="text-muted-foreground p-4 text-xs">Loading…</p>
+            ) : sorted.length === 0 ? (
+              <Empty className="py-12">
+                <EmptyHeader>
+                  <EmptyMedia>
+                    <FolderOpen className="text-muted-foreground size-10" />
+                  </EmptyMedia>
+                  <EmptyTitle>
+                    {filterQuery.trim() ? "No matching files or folders" : "This folder is empty"}
+                  </EmptyTitle>
+                  <EmptyDescription>
+                    {filterQuery.trim()
+                      ? "Try a different search."
+                      : "Upload a file or create a folder to get started."}
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            ) : view === "grid" ? (
+              <NodeGrid
+                dirs={sortedDirs}
+                files={sortedFiles}
+                selectedIds={selectedIds}
+                starredIds={starredIds}
+                focusedId={activeFocused?.id}
+                onClick={handleClick}
+                onDoubleClick={handleDoubleClick}
+                {...nodeHandlers}
               />
-            </div>
-          ) : panel === "trash" ? (
-            <div className="p-4">
-              <TrashPanel spaceId={spaceId} />
-            </div>
-          ) : panel === "shared" ? (
-            <div className="p-4">
-              <SharedPanel />
-            </div>
-          ) : children.isPending ? (
-            <p className="text-muted-foreground p-4 text-xs">Loading…</p>
-          ) : sorted.length === 0 ? (
-            <Empty className="py-12">
-              <EmptyHeader>
-                <EmptyMedia>
-                  <FolderOpen className="text-muted-foreground size-10" />
-                </EmptyMedia>
-                <EmptyTitle>
-                  {filterQuery.trim() ? "No matching files or folders" : "This folder is empty"}
-                </EmptyTitle>
-                <EmptyDescription>
-                  {filterQuery.trim()
-                    ? "Try a different search."
-                    : "Upload a file or create a folder to get started."}
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          ) : view === "grid" ? (
-            <NodeGrid
-              dirs={sortedDirs}
-              files={sortedFiles}
-              selectedIds={selectedIds}
-              focusedId={activeFocused?.id}
-              onClick={handleClick}
-              onDoubleClick={handleDoubleClick}
-              {...nodeHandlers}
-            />
-          ) : (
-            <NodeList
-              nodes={sorted}
-              selectedIds={selectedIds}
-              focusedId={activeFocused?.id}
-              onToggle={handleToggle}
-              onToggleAll={handleToggleAll}
-              onClick={handleClick}
-              onDoubleClick={handleDoubleClick}
-              {...nodeHandlers}
-            />
-          )}
+            ) : (
+              <NodeList
+                nodes={sorted}
+                selectedIds={selectedIds}
+                starredIds={starredIds}
+                focusedId={activeFocused?.id}
+                onToggle={handleToggle}
+                onToggleAll={handleToggleAll}
+                onClick={handleClick}
+                onDoubleClick={handleDoubleClick}
+                {...nodeHandlers}
+              />
+            )}
 
-          {browsing && (
-            <SelectionBar
-              selected={selectedNodes}
-              onClear={() => setSelectedIds(new Set())}
-              onDownload={(node) => window.open(downloadUrl(node), "_blank")}
-              onShare={(node) => openPanel("share", node)}
-              onRename={handleRename}
-              onDelete={(nodes) => setConfirmNodes(nodes)}
-            />
-          )}
-        </div>
+            {browsing && (
+              <SelectionBar
+                selected={selectedNodes}
+                onClear={() => setSelectedIds(new Set())}
+                onDownload={(node) => window.open(downloadUrl(node), "_blank")}
+                onShare={(node) => openPanel("share", node)}
+                onRename={handleRename}
+                onMove={(nodes) => void handleMove(nodes)}
+                onDelete={(nodes) => setConfirmNodes(nodes)}
+              />
+            )}
+          </div>
+        </DropZone>
 
         {showDetails && (
           <aside className="border-border w-80 shrink-0 border-l">
@@ -359,13 +451,28 @@ function FolderView() {
         )}
       </div>
 
+      {/* Two inputs rather than one: `webkitdirectory` is a property of the
+          element, not of the click, so picking files and picking a folder
+          cannot share a control. */}
       <input
         ref={fileRef}
         type="file"
+        multiple
         hidden
         onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) upload.mutate(f);
+          enqueueUploads(collectInputFiles(e.target.files), spaceId, dir);
+          e.target.value = "";
+        }}
+      />
+      <input
+        ref={folderRef}
+        type="file"
+        multiple
+        hidden
+        // @ts-expect-error — non-standard, but the only way to pick a folder.
+        webkitdirectory=""
+        onChange={(e) => {
+          enqueueUploads(collectInputFiles(e.target.files), spaceId, dir);
           e.target.value = "";
         }}
       />

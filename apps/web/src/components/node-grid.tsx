@@ -21,6 +21,8 @@ import { NodeIcon } from "@/components/node-table";
 import { useUiStore } from "@/lib/ui-store";
 
 interface NodeGridProps extends NodeActionHandlers {
+  /** Node ids the caller has starred, so each row can show its own state. */
+  starredIds: Set<string>;
   dirs: Node[];
   files: Node[];
   selectedIds: Set<string>;
@@ -44,6 +46,7 @@ export function NodeGrid({
   dirs,
   files,
   selectedIds,
+  starredIds,
   focusedId,
   onClick,
   onDoubleClick,
@@ -60,6 +63,7 @@ export function NodeGrid({
                 key={node.id}
                 node={node}
                 selected={selectedIds.has(node.id) || focusedId === node.id}
+                starred={starredIds.has(node.id)}
                 onClick={onClick}
                 onDoubleClick={onDoubleClick}
                 {...handlers}
@@ -78,6 +82,7 @@ export function NodeGrid({
                 key={node.id}
                 node={node}
                 selected={selectedIds.has(node.id) || focusedId === node.id}
+                starred={starredIds.has(node.id)}
                 onClick={onClick}
                 onDoubleClick={onDoubleClick}
                 {...handlers}
@@ -111,15 +116,16 @@ function Thumb({ node }: { node: Node }) {
 }
 
 interface NodeCardProps extends NodeActionHandlers {
+  starred: boolean;
   node: Node;
   selected: boolean;
   onClick: (node: Node) => void;
   onDoubleClick: (node: Node) => void;
 }
 
-function NodeCard({ node, selected, onClick, onDoubleClick, ...handlers }: NodeCardProps) {
+function NodeCard({ node, selected, starred, onClick, onDoubleClick, ...handlers }: NodeCardProps) {
   const openPanel = useUiStore((s) => s.openPanel);
-  const actions = nodeActions(node, handlers, openPanel);
+  const actions = nodeActions(node, handlers, openPanel, starred);
   const isDir = node.kind === "dir";
 
   const meta = isDir
@@ -199,6 +205,11 @@ function NodeCard({ node, selected, onClick, onDoubleClick, ...handlers }: NodeC
                     }}
                   >
                     <action.icon /> {action.label}
+                    {action.shortcut && (
+                      <span className="text-muted-foreground ml-auto pl-4 text-[10px]">
+                        {action.shortcut}
+                      </span>
+                    )}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -216,6 +227,11 @@ function NodeCard({ node, selected, onClick, onDoubleClick, ...handlers }: NodeC
               onClick={action.run}
             >
               <action.icon data-icon="inline-start" /> {action.label}
+              {action.shortcut && (
+                <span className="text-muted-foreground ml-auto pl-4 text-[10px]">
+                  {action.shortcut}
+                </span>
+              )}
             </ContextMenuItem>
           </span>
         ))}

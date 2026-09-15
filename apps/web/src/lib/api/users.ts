@@ -1,6 +1,6 @@
 // User management API endpoints.
 import { api, ApiError } from "./client";
-import type { SpaceMember, UserProfile, UserSearchResult } from "./types";
+import type { AdminUser, SpaceMember, UserProfile, UserSearchResult } from "./types";
 
 // ─── Profile ─────────────────────────────────────────────────────────────────
 
@@ -37,10 +37,15 @@ export async function searchUsers(q: string, limit = 20): Promise<UserSearchResu
 
 // ─── Admin: List Users ───────────────────────────────────────────────────────
 
+/**
+ * Admin-only listing. Returns the admin shape rather than the public profile:
+ * it carries the suspension flag and a space count, which a profile
+ * deliberately does not.
+ */
 export async function listUsers(
   limit = 50,
   offset = 0,
-): Promise<{ users: UserProfile[]; total: number }> {
+): Promise<{ users: AdminUser[]; total: number }> {
   const res = await api.get("api/v1/users", { searchParams: { limit, offset } });
   if (!res.ok) throw new ApiError(res.status, "Failed to list users");
   return res.json();

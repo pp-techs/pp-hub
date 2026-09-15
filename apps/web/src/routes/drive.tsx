@@ -1,8 +1,12 @@
 import { Outlet, createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { FolderPlus, Plus } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
+import { toast } from "sonner";
 import { Button } from "@workspace/ui/components/button";
+import { Label } from "@workspace/ui/components/label";
+import { Textarea } from "@workspace/ui/components/textarea";
+import { ToggleGroup, ToggleGroupItem } from "@workspace/ui/components/toggle-group";
 import { Input } from "@workspace/ui/components/input";
 import {
   Dialog,
@@ -13,6 +17,7 @@ import {
   DialogTitle,
 } from "@workspace/ui/components/dialog";
 import { requireAuth, useCreateSpace, useSpaces } from "@/lib/queries";
+import type { MemberRole } from "@/lib/api";
 import { useUiStore } from "@/lib/ui-store";
 import { SpaceSwitcher } from "@/components/space-switcher";
 import { NavUser } from "@/components/nav-user";
@@ -22,6 +27,8 @@ import { SpaceNav } from "@/components/space-nav";
 import { RailSearch } from "@/components/rail-search";
 import { StorageMeter } from "@/components/storage-meter";
 import { RailLabel } from "@/components/rail-item";
+import { TransferTray } from "@/components/transfer-tray";
+import { CommandPalette } from "@/components/command-palette";
 
 export const Route = createFileRoute("/drive")({
   head: () => ({ meta: [{ title: "Drive · pp-hub" }] }),
@@ -49,6 +56,20 @@ export const Route = createFileRoute("/drive")({
 function DriveLayout() {
   const spaces = useSpaces();
   const showLanding = spaces.data?.length === 0;
+  const setPaletteOpen = useUiStore((s) => s.setPaletteOpen);
+
+  // Bound once for the whole drive, so ⌘K works from the listing, a panel or
+  // the rail. The palette itself only handles keys while it is open.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === "k" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setPaletteOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [setPaletteOpen]);
 
   return (
     <div className="bg-background text-foreground flex h-svh overflow-hidden">
@@ -96,6 +117,9 @@ function DriveLayout() {
       </main>
 
       <NewSpaceDialog />
+      {/* Mounted by the shell so uploads survive navigating between folders. */}
+      <TransferTray />
+      <CommandPalette />
     </div>
   );
 }
@@ -120,38 +144,138 @@ function NewSpaceDialog() {
   const navigate = useNavigate();
   const open = useUiStore((s) => s.newSpaceOpen);
   const setOpen = useUiStore((s) => s.setNewSpaceOpen);
-  const [name, setName] = useState("");
   const create = useCreateSpace();
 
+  const [name, setName] = useState("");
+  const [slug, setSlug] = useState("");
+  const [description, setDescription] = useState("");
+  const [defaultRole, setDefaultRole] = useState<MemberRole>("viewer");
+  const [quotaGb, setQuotaGb] = useState("");
+
+  const reset = () => {
+    setName("");
+    setSlug("");
+    setDescription("");
+    setDefaultRole("viewer");
+    setQuotaGb("");
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (!v) reset();
+      }}
+    >
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>New space</DialogTitle>
-          <DialogDescription>Create a shared workspace.</DialogDescription>
+          <DialogTitle>Create a space</DialogTitle>
+          <DialogDescription>
+            Spaces are isolated file areas with their own members, permissions and storage.
+          </DialogDescription>
         </DialogHeader>
         <form
+          className="flex flex-col gap-3"
           onSubmit={(e: FormEvent) => {
             e.preventDefault();
-            create.mutate(name.trim(), {
-              onSuccess: (sp) => {
-                setOpen(false);
-                setName("");
-                void navigate({ to: "/drive/$spaceId", params: { spaceId: sp.id } });
+            create.mutate(
+              {
+                name: name.trim(),
+                // Only send what was filled in; the server applies its own
+                // defaults for the rest.
+                slug: slug.trim() || undefined,
+                description: description.trim() || undefined,
+                default_role: defaultRole,
+                quota_bytes: quotaGb.trim() ? Number(quotaGb) * 1024 ** 3 : undefined,
               },
-            });
+              {
+                onSuccess: (sp) => {
+                  setOpen(false);
+                  reset();
+                  void navigate({
+                    to: "/drive/$spaceId",
+                    params: { spaceId: sp.id },
+                    search: { dir: undefined },
+                  });
+                },
+                onError: (e) =>
+                  toast.error("Could not create the space", {
+                    description: e.message,
+                  }),
+              },
+            );
           }}
         >
-          <Input
-            autoFocus
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Space name"
-            required
-          />
-          <DialogFooter className="mt-4">
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="new-space-name">Name</Label>
+            <Input
+              id="new-space-name"
+              autoFocus
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Marketing"
+              required
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="new-space-slug">Slug</Label>
+            <Input
+              id="new-space-slug"
+              value={slug}
+              onChange={(e) => setSlug(e.target.value)}
+              placeholder="marketing"
+            />
+            <p className="text-muted-foreground text-[10px]">
+              Lowercase letters, numbers and dashes. Optional.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="new-space-description">Description</Label>
+            <Textarea
+              id="new-space-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="What lives in this space?"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <Label>Default member role</Label>
+            <ToggleGroup
+              value={[defaultRole]}
+              onValueChange={(v) => v[0] && setDefaultRole(v[0] as MemberRole)}
+            >
+              <ToggleGroupItem value="viewer">Viewer</ToggleGroupItem>
+              <ToggleGroupItem value="editor">Editor</ToggleGroupItem>
+              <ToggleGroupItem value="owner">Owner</ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="new-space-quota">Storage limit (GB)</Label>
+            <Input
+              id="new-space-quota"
+              type="number"
+              min={0}
+              value={quotaGb}
+              onChange={(e) => setQuotaGb(e.target.value)}
+              placeholder="Unlimited"
+              className="max-w-32"
+            />
+            <p className="text-muted-foreground text-[10px]">
+              Leave empty to share the server pool.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <span className="text-muted-foreground mr-auto text-[10px]">
+              You will be the owner.
+            </span>
             <Button type="submit" disabled={!name.trim() || create.isPending}>
-              Create
+              Create space
             </Button>
           </DialogFooter>
         </form>

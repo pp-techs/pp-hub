@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/nhatbui/pp-hub/apps/server/internal/activity"
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 )
@@ -79,6 +80,10 @@ func (s *Server) handleCreateShare(w http.ResponseWriter, r *http.Request) {
 			Error(w, r, err)
 			return
 		}
+		s.activity.Node(r.Context(), u.ID, node, activity.KindShared, map[string]any{
+			"share_kind": "link",
+			"perm":       string(perm),
+		})
 		writeJSON(w, http.StatusCreated, shareToDTO(sh, s.externalURL, token))
 	case "direct":
 		grantee, err := s.store.GetUserByEmail(r.Context(), body.Email)
@@ -97,6 +102,11 @@ func (s *Server) handleCreateShare(w http.ResponseWriter, r *http.Request) {
 		}
 		dto := shareToDTO(sh, s.externalURL, "")
 		dto.Grantee = grantee.Email
+		s.activity.Node(r.Context(), u.ID, node, activity.KindShared, map[string]any{
+			"share_kind": "direct",
+			"perm":       string(perm),
+			"grantee":    grantee.Email,
+		})
 		writeJSON(w, http.StatusCreated, dto)
 	default:
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "kind must be link|direct")
@@ -136,11 +146,11 @@ func (s *Server) handleRevokeShare(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid share id")
 		return
 	}
-	_ = node // ownership verified via node access above
 	if err := s.share.Revoke(r.Context(), shareID); err != nil {
 		Error(w, r, err)
 		return
 	}
+	s.activity.Node(r.Context(), u.ID, node, activity.KindUnshared, nil)
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -162,24 +172,6 @@ func (s *Server) resolveLinkNode(w http.ResponseWriter, r *http.Request) (store.
 	return sh, node
 }
 
-// handleShareInfo returns node metadata for the share landing page.
-func (s *Server) handleShareInfo(w http.ResponseWriter, r *http.Request) {
-	sh, node := s.resolveLinkNode(w, r)
-	if !sh.ID.Valid {
-		return
-	}
-	dto := nodeToDTO(node, nil)
-	if node.Kind == store.NodeKindFile {
-		if ver, err := s.store.GetCurrentVersion(r.Context(), node.ID); err == nil {
-			dto = nodeToDTO(node, &ver)
-		}
-	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"node": dto,
-		"perm": sh.Perm,
-	})
-}
-
 // handleShareDownload streams the shared file without authentication.
 func (s *Server) handleShareDownload(w http.ResponseWriter, r *http.Request) {
 	sh, node := s.resolveLinkNode(w, r)
@@ -197,8 +189,11 @@ func (s *Server) handleShareDownload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rc.Close()
+	// strconv.Quote already adds its own quotes, so the old hand-built header
+	// emitted filename=""name"" and browsers saved the file under the literal
+	// quotes. FormatMediaType escapes correctly and handles non-ASCII names.
 	w.Header().Set("Content-Type", ver.Mime)
-	w.Header().Set("Content-Disposition", "attachment; filename=\""+strconv.Quote(n.Name)+"\"")
+	w.Header().Set("Content-Disposition", contentDisposition("attachment", n.Name))
 	w.Header().Set("Content-Length", strconv.FormatInt(ver.Size, 10))
 	_, _ = io.Copy(w, rc)
 }

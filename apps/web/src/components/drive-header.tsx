@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ChevronRight, Info, Moon, Sun, Users } from "lucide-react";
+import { ChevronRight, Info, Moon, Settings, Sun, Users } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { spacesOptions } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
@@ -12,7 +12,7 @@ interface DriveHeaderProps {
   panel?: DrivePanel | "members";
   detailsOpen: boolean;
   onToggleDetails: () => void;
-  onTogglePanel: (panel: "members") => void;
+  onTogglePanel: (panel: "members" | "settings") => void;
 }
 
 /**
@@ -92,6 +92,16 @@ export function DriveHeader({
           onClick={() => onTogglePanel("members")}
         >
           <Users />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Space settings"
+          aria-pressed={panel === "settings"}
+          className={panel === "settings" ? "bg-accent text-foreground" : ""}
+          onClick={() => onTogglePanel("settings")}
+        >
+          <Settings />
         </Button>
         <Button
           variant="ghost"

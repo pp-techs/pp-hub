@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/nhatbui/pp-hub/apps/server/internal/activity"
 	"github.com/nhatbui/pp-hub/apps/server/internal/fs"
 	"github.com/nhatbui/pp-hub/apps/server/internal/spaces"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
@@ -27,6 +28,14 @@ type spaceDTO struct {
 	QuotaBytes int64  `json:"quota_bytes"` // 0 = unlimited
 	Role       string `json:"role,omitempty"`
 	CreatedAt  string `json:"created_at"`
+	// Settings fields. These must be emitted even when empty: the settings
+	// form reads the current values from here and PATCHes the whole set back,
+	// so omitting an empty slug would make the form clear it on the next save.
+	Slug        string `json:"slug"`
+	Description string `json:"description"`
+	DefaultRole string `json:"default_role"`
+	// Days to keep trashed items. 0 keeps them indefinitely.
+	TrashRetentionDays int32 `json:"trash_retention_days"`
 }
 
 type nodeDTO struct {
@@ -66,16 +75,21 @@ func uuidParam(r *http.Request, name string) (pgtype.UUID, error) {
 }
 
 func spaceToDTO(sp store.Space, role string) spaceDTO {
-	id, _ := sp.ID.Value()
-	owner, _ := sp.OwnerID.Value()
+	// uuidString rather than a bare type assertion: Value() returns nil for an
+	// invalid UUID, and nil.(string) panics. Reachable through any path that
+	// hands back a zero-value Space on an error it did not check.
 	return spaceDTO{
-		ID:         id.(string),
-		Name:       sp.Name,
-		OwnerID:    owner.(string),
-		UsedBytes:  sp.UsedBytes,
-		QuotaBytes: sp.QuotaBytes,
-		Role:       role,
-		CreatedAt:  sp.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
+		ID:                 uuidString(sp.ID),
+		Name:               sp.Name,
+		OwnerID:            uuidString(sp.OwnerID),
+		UsedBytes:          sp.UsedBytes,
+		QuotaBytes:         sp.QuotaBytes,
+		Role:               role,
+		CreatedAt:          sp.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
+		Slug:               sp.Slug,
+		Description:        sp.Description,
+		DefaultRole:        string(sp.DefaultRole),
+		TrashRetentionDays: sp.TrashRetentionDays,
 	}
 }
 
@@ -156,17 +170,46 @@ func (s *Server) handleCreateSpace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		Name string `json:"name"`
+		Name        string `json:"name"`
+		Slug        string `json:"slug"`
+		Description string `json:"description"`
+		DefaultRole string `json:"default_role"`
+		QuotaBytes  int64  `json:"quota_bytes"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Name == "" {
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || strings.TrimSpace(body.Name) == "" {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "name is required")
 		return
 	}
-	sp, err := s.spaces.Create(r.Context(), body.Name, u.ID)
+	sp, err := s.spaces.Create(r.Context(), strings.TrimSpace(body.Name), u.ID)
 	if err != nil {
 		Error(w, r, err)
 		return
 	}
+
+	// Creation takes the same optional settings the settings screen edits, but
+	// the space row has to exist before they can be applied — a slug collision
+	// should reject the settings, not lose the space. So they land as a second
+	// write, and a failure leaves a usable space with default settings.
+	if body.Slug != "" || body.Description != "" || body.DefaultRole != "" || body.QuotaBytes > 0 {
+		settings, problem := spaceSettingsFrom(sp, body.Slug, body.Description, body.DefaultRole, body.QuotaBytes)
+		if problem != "" {
+			writeProblem(w, http.StatusBadRequest, "Bad Request", problem)
+			return
+		}
+		if updated, err := s.store.UpdateSpaceSettings(r.Context(), settings); err == nil {
+			sp = updated
+		} else if isUniqueViolation(err) {
+			writeProblem(w, http.StatusConflict, "Conflict", "that slug is already taken")
+			return
+		} else {
+			Error(w, r, err)
+			return
+		}
+	}
+
+	s.activity.Record(r.Context(), activity.Event{
+		SpaceID: sp.ID, ActorID: u.ID, Kind: activity.KindCreated, NodeName: sp.Name,
+	})
 	writeJSON(w, http.StatusCreated, spaceToDTO(sp, string(spaces.RoleOwner)))
 }
 
@@ -208,15 +251,26 @@ func (s *Server) requireNodeAccess(w http.ResponseWriter, r *http.Request, minRa
 		s.nodeError(w, r, err)
 		return nil, store.Node{}
 	}
-	// Space role rank: viewer=1, editor=2, owner=3. Non-members get 0.
+	// Space role mapped onto the *permission* scale (view=1, download=2,
+	// edit=3), not onto a parallel role scale.
+	//
+	// Editor maps to edit, not to download. The earlier positional mapping
+	// (viewer=1, editor=2, owner=3) meant an editor's rank was 2 while every
+	// mutating route asks for 3 — so editors could upload (that route checks
+	// the space role directly) but could not rename, move or delete what they
+	// had just uploaded. The role reference in the settings screen states the
+	// intent plainly: "Editor — upload, edit, move, delete, share files,
+	// restore versions".
+	//
+	// Owner and editor are identical here on purpose. Owner-only powers —
+	// member management, space settings, permanent deletion — are gated by
+	// RequireRole(RoleOwner) at the space level, never through this scale.
 	roleRank := 0
 	if role, err := s.spaces.RoleOf(r.Context(), node.SpaceID, u.ID); err == nil {
 		switch role {
 		case spaces.RoleViewer:
 			roleRank = 1
-		case spaces.RoleEditor:
-			roleRank = 2
-		case spaces.RoleOwner:
+		case spaces.RoleEditor, spaces.RoleOwner:
 			roleRank = 3
 		}
 	}
@@ -299,6 +353,7 @@ func (s *Server) handleMkdir(w http.ResponseWriter, r *http.Request) {
 		s.nodeError(w, r, err)
 		return
 	}
+	s.activity.Node(r.Context(), u.ID, n, activity.KindCreated, nil)
 	writeJSON(w, http.StatusCreated, nodeToDTO(n, nil))
 }
 
@@ -340,6 +395,8 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 		s.nodeError(w, r, err)
 		return
 	}
+	s.activity.Node(r.Context(), u.ID, node, activity.KindUploaded, map[string]any{"size": ver.Size})
+	s.recount(r, spaceID)
 	writeJSON(w, http.StatusCreated, nodeToDTO(node, &ver))
 }
 
@@ -375,6 +432,16 @@ func inlineDisposition(mimeType string) string {
 }
 
 func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
+	// A folder has no blob of its own; downloading one means its contents,
+	// which is a streamed zip. Callers hit the same URL either way.
+	_, node := s.requireNodeAccess(w, r, 2)
+	if !node.ID.Valid {
+		return
+	}
+	if node.Kind == store.NodeKindDir {
+		s.streamZip(w, r, node)
+		return
+	}
 	s.serveBlob(w, r, "attachment")
 }
 
@@ -419,8 +486,8 @@ func (s *Server) serveBlob(w http.ResponseWriter, r *http.Request, disposition s
 }
 
 func (s *Server) handleRenameNode(w http.ResponseWriter, r *http.Request) {
-	_, node := s.requireNodeAccess(w, r, 3)
-	if !node.ID.Valid {
+	u, node := s.requireNodeAccess(w, r, 3)
+	if u == nil {
 		return
 	}
 	var body struct {
@@ -434,12 +501,15 @@ func (s *Server) handleRenameNode(w http.ResponseWriter, r *http.Request) {
 		s.nodeError(w, r, err)
 		return
 	}
+	renamed := node
+	renamed.Name = body.Name
+	s.activity.Node(r.Context(), u.ID, renamed, activity.KindRenamed, map[string]any{"from": node.Name})
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 func (s *Server) handleMoveNode(w http.ResponseWriter, r *http.Request) {
-	_, node := s.requireNodeAccess(w, r, 3)
-	if !node.ID.Valid {
+	u, node := s.requireNodeAccess(w, r, 3)
+	if u == nil {
 		return
 	}
 	var body struct {
@@ -460,19 +530,80 @@ func (s *Server) handleMoveNode(w http.ResponseWriter, r *http.Request) {
 		s.nodeError(w, r, err)
 		return
 	}
+	s.activity.Node(r.Context(), u.ID, node, activity.KindMoved, nil)
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-func (s *Server) handleDeleteNode(w http.ResponseWriter, r *http.Request) {
-	_, node := s.requireNodeAccess(w, r, 3)
-	if !node.ID.Valid {
+// handleCopyNode duplicates a node, optionally into another folder.
+func (s *Server) handleCopyNode(w http.ResponseWriter, r *http.Request) {
+	u, node := s.requireNodeAccess(w, r, 3)
+	if u == nil {
 		return
 	}
-	if err := s.fs.Delete(r.Context(), node.ID); err != nil {
+	var body struct {
+		ParentID string `json:"parent_id"` // empty = alongside the original
+	}
+	// An empty body is valid: copy in place.
+	_ = json.NewDecoder(r.Body).Decode(&body)
+
+	dest := node.ParentID
+	if body.ParentID != "" {
+		if err := dest.Scan(body.ParentID); err != nil {
+			writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid parent_id")
+			return
+		}
+	}
+
+	copied, err := s.fs.Copy(r.Context(), node.ID, dest, u.ID)
+	if err != nil {
 		s.nodeError(w, r, err)
 		return
 	}
+	s.activity.Node(r.Context(), u.ID, copied, activity.KindCreated,
+		map[string]any{"copied_from": node.Name})
+	s.recount(r, node.SpaceID)
+	writeJSON(w, http.StatusCreated, nodeToDTO(copied, nil))
+}
+
+func (s *Server) handleDeleteNode(w http.ResponseWriter, r *http.Request) {
+	u, node := s.requireNodeAccess(w, r, 3)
+	if u == nil {
+		return
+	}
+	if err := s.fs.Delete(r.Context(), node.ID, u.ID); err != nil {
+		s.nodeError(w, r, err)
+		return
+	}
+	s.activity.Node(r.Context(), u.ID, node, activity.KindTrashed, nil)
+	s.recount(r, node.SpaceID)
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleGetNode returns one node with its current version and owner.
+//
+// Added for the full-page editor, which is routed by node id alone and
+// otherwise has no way to learn the file's own name. The breadcrumb trail in
+// the drive header works around the same absence by recording folders as the
+// user walks them; that workaround can now be retired.
+func (s *Server) handleGetNode(w http.ResponseWriter, r *http.Request) {
+	_, node := s.requireNodeAccess(w, r, 1)
+	if !node.ID.Valid {
+		return
+	}
+	var ver *store.NodeVersion
+	if node.Kind == store.NodeKindFile {
+		if v, err := s.store.GetCurrentVersion(r.Context(), node.ID); err == nil {
+			ver = &v
+		}
+	}
+	dto := nodeToDTO(node, ver)
+	if u, err := s.store.GetUser(r.Context(), node.CreatedBy); err == nil {
+		dto.Owner = displayName(u)
+		if id, _ := u.ID.Value(); id != nil {
+			dto.OwnerID = id.(string)
+		}
+	}
+	writeJSON(w, http.StatusOK, dto)
 }
 
 func (s *Server) handleListVersions(w http.ResponseWriter, r *http.Request) {
@@ -500,8 +631,8 @@ func (s *Server) handleListVersions(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleRestoreVersion(w http.ResponseWriter, r *http.Request) {
-	_, node := s.requireNodeAccess(w, r, 3)
-	if !node.ID.Valid {
+	u, node := s.requireNodeAccess(w, r, 3)
+	if u == nil {
 		return
 	}
 	var versionID pgtype.UUID
@@ -513,6 +644,8 @@ func (s *Server) handleRestoreVersion(w http.ResponseWriter, r *http.Request) {
 		s.nodeError(w, r, err)
 		return
 	}
+	s.activity.Node(r.Context(), u.ID, node, activity.KindReverted, nil)
+	s.recount(r, node.SpaceID)
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
@@ -584,14 +717,14 @@ func (s *Server) handleListDeleted(w http.ResponseWriter, r *http.Request) {
 		s.spaceError(w, r, err)
 		return
 	}
-	nodes, err := s.fs.ListDeleted(r.Context(), spaceID)
+	rows, err := s.fs.ListDeletedWithMeta(r.Context(), spaceID)
 	if err != nil {
 		Error(w, r, err)
 		return
 	}
-	out := make([]nodeDTO, 0, len(nodes))
-	for _, n := range nodes {
-		out = append(out, nodeToDTO(n, nil))
+	out := make([]trashNodeDTO, 0, len(rows))
+	for _, n := range rows {
+		out = append(out, trashRowToDTO(n))
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -623,6 +756,8 @@ func (s *Server) nodeError(w http.ResponseWriter, r *http.Request, err error) {
 		writeProblem(w, http.StatusConflict, "Conflict", err.Error())
 	case errors.Is(err, fs.ErrCycle):
 		writeProblem(w, http.StatusConflict, "Conflict", err.Error())
+	case errors.Is(err, fs.ErrQuotaExceeded):
+		writeProblem(w, http.StatusRequestEntityTooLarge, "Quota Exceeded", err.Error())
 	case errors.Is(err, fs.ErrNotFile), errors.Is(err, fs.ErrNotDir):
 		writeProblem(w, http.StatusBadRequest, "Bad Request", err.Error())
 	default:

@@ -23,10 +23,13 @@
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.0",
     "@tanstack/router-plugin": "^1.160.0",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
     "@types/node": "^26.5.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^5.1.1",
+    "happy-dom": "^20.14.5",
     "shadcn": "^4.21.0",
     "tailwindcss": "^4.1.0",
     "typescript": "^7.0.2",

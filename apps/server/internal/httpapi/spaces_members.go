@@ -20,6 +20,10 @@ type spaceMemberDTO struct {
 	AvatarURL   string `json:"avatar_url"`
 	Role        string `json:"role"`
 	CreatedAt   string `json:"created_at"`
+	// Live files this member created in this space.
+	FilesOwned int64 `json:"files_owned"`
+	// Last sign-in, empty for a member who has never signed in.
+	LastSeen string `json:"last_seen,omitempty"`
 }
 
 type addMemberRequest struct {
@@ -31,18 +35,21 @@ type updateMemberRequest struct {
 	Role string `json:"role"`
 }
 
-func memberToDTO(r store.ListSpaceMembersRow) spaceMemberDTO {
-	uid, _ := r.UserID.Value()
-	created, _ := r.CreatedAt.Value()
-	return spaceMemberDTO{
-		UserID:      uid.(string),
+func memberToDTO(r store.ListSpaceMembersDetailedRow) spaceMemberDTO {
+	dto := spaceMemberDTO{
+		UserID:      uuidString(r.UserID),
 		Email:       r.Email,
 		Name:        r.UserName,
 		DisplayName: r.DisplayName,
 		AvatarURL:   r.AvatarUrl,
 		Role:        string(r.Role),
-		CreatedAt:   created.(string),
+		CreatedAt:   r.CreatedAt.Time.Format(timeLayout),
+		FilesOwned:  r.FilesOwned,
 	}
+	if r.LastSeen.Valid {
+		dto.LastSeen = r.LastSeen.Time.Format(timeLayout)
+	}
+	return dto
 }
 
 // handleListMembers returns all members of a space.
@@ -208,4 +215,3 @@ func (s *Server) handleRemoveMember(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "removed"})
 }
-

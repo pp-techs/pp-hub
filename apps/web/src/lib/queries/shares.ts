@@ -1,7 +1,7 @@
 // Share and WOPI hooks.
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createShare, getShareInfo, getShares, revokeShare } from "@/lib/api";
+import { createShare, getShareChildren, getShareInfo, getShares, revokeShare } from "@/lib/api";
 import { keys } from "./keys";
 
 export function sharesOptions(nodeId: string | null) {
@@ -46,4 +46,13 @@ export function shareInfoOptions(token: string) {
 
 export function useShareInfo(token: string) {
   return useQuery(shareInfoOptions(token));
+}
+
+/** Children of a folder inside a share link, for the anonymous browser. */
+export function useShareChildren(token: string, dir: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: ["share-children", token, dir ?? null] as const,
+    queryFn: () => getShareChildren(token, dir),
+    enabled,
+  });
 }

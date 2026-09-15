@@ -11,7 +11,11 @@ pp-hub/
 │   │       │   ├── api/            # ky client, types, endpoints, utils
 │   │       │   ├── queries/        # TanStack Query hooks (per-resource)
 │   │       │   ├── query-client.ts # shared QueryClient
-│   │       │   └── ui-store.ts     # zustand ephemeral UI state
+│   │       │   ├── ui-store.ts     # zustand ephemeral UI state
+│   │       │   ├── upload-store.ts # zustand upload queue (concurrency, retry, mkdir cache)
+│   │       │   ├── drop-items.ts   # flattens a drop / folder pick into upload items
+│   │       │   ├── use-debounced.ts # trailing-edge debounce for the palette query
+│   │       │   └── use-keyed-state.ts # state that resets when its subject changes
 │   │       ├── components/         # app-level UI panels
 │   │       │   ├── share-panel.tsx       # share dialog (direct + link)
 │   │       │   ├── space-members-panel.tsx # space member management
@@ -19,7 +23,18 @@ pp-hub/
 │   │       │   ├── user-avatar.tsx       # avatar with fallback
 │   │       │   ├── confirm-dialog.tsx    # confirmation modal
 │   │       │   ├── quick-access.tsx      # rail entries for the Trash / Shared panels
-│   │       │   ├── drive-panels.tsx      # Trash + Shared with me panels
+│   │       │   ├── drive-panels.tsx      # Shared with me panel
+│   │       │   ├── trash-panel.tsx       # Trash listing + restore / delete forever / empty
+│   │       │   ├── move-dialog.tsx       # "Move to…" folder picker (better-modal)
+│   │       │   ├── drop-zone.tsx         # drag-and-drop overlay over the listing
+│   │       │   ├── transfer-tray.tsx     # upload queue tray, mounted by the shell
+│   │       │   ├── command-palette.tsx   # ⌘K search across every space
+│   │       │   ├── continue-cards.tsx    # Home: the few files you were last in
+│   │       │   ├── space-settings-panel.tsx # General / Members / Danger zone tabs
+│   │       │   ├── cross-space-table.tsx # listings spanning spaces (Recent, Starred)
+│   │       │   ├── activity-feed.tsx     # the event timeline
+│   │       │   ├── storage-breakdown.tsx # usage by MIME family
+│   │       │   ├── version-list.tsx      # shared by the ⋯ dialog and preview tab
 │   │       │   ├── node-table.tsx        # read-only dense node listing + NodeIcon
 │   │       │   ├── space-switcher.tsx    # rail band 1: active space + space menu
 │   │       │   ├── rail-search.tsx       # rail name filter (⌘K), writes ui-store.filterQuery
@@ -34,13 +49,20 @@ pp-hub/
 │   │       │   └── ...                  # folder-tree, preview, nav, etc. (edit is a route, not a panel)
 │   │       └── routes/             # TanStack Router file-based routes
 │   │           ├── profile.tsx          # user profile page
-│   │           ├── admin.users.tsx      # admin: user management
+│   │           ├── admin.users.tsx      # server administration: stats, suspend, admin flag
+│   │           ├── invite/$token.tsx    # redeem a space invitation
+│   │           ├── s/$token.tsx         # anonymous share-link browser (no rail, no account)
+│   │           ├── drive/home.tsx       # cross-space dashboard
+│   │           ├── drive/recent.tsx     # files I last touched
+│   │           ├── drive/starred.tsx    # my bookmarks
 │   │           ├── edit/$nodeId.tsx     # full-page OnlyOffice editor (opened in a new tab)
 │   │           └── drive/$spaceId.tsx   # space drive view (leaf route — see Drive view note)
 │   └── server/                     # Go backend — own go.mod
 │       ├── cmd/server/             # entry point: config, PG pool, migrate, OIDC wait, http.Server
 │       └── internal/
+│           ├── activity/           # ✅ event recording: who did what, to what
 │           ├── auth/               # ✅ OIDC login/callback/logout, HMAC session cookies (go-oidc)
+│           ├── gc/                 # ✅ blob reclaim + trash retention sweeps
 │           ├── config/             # ✅ env-based config
 │           ├── httpapi/            # ✅ chi routes (/healthz, /auth/*, /api/v1/*), RFC 7807 errors
 │           │   ├── users.go        # user profile CRUD + search endpoints
@@ -73,7 +95,7 @@ pp-hub/
 - **Drive view is a single leaf route.** `drive/$spaceId.tsx` owns the shell, the
   toolbar and the listing, and renders no `<Outlet/>`. Secondary surfaces are
   selected by the `panel` search param rather than by child routes:
-  `?panel=members`, `?panel=trash`, `?panel=shared`; absent means the file
+  `?panel=members`, `?panel=trash`, `?panel=shared`, `?panel=settings`; absent means the file
   listing. Adding a child route under `drive/$spaceId/` will silently never
   render — add a `panel` value, or introduce an `<Outlet/>` first.
 - **Drive shell layout.** `routes/drive.tsx` owns the 256px left rail as three
@@ -85,13 +107,44 @@ pp-hub/
 - **Node menu actions have one definition.** `node-actions.tsx` builds the
   action list; the list view, grid view and their right-click menus all render
   from it. Add an action there, not in a menu.
-- **Search state is lifted.** The filter field sits in the rail (mounted by
-  `drive.tsx`) but filters the listing (owned by `drive/$spaceId.tsx`), so the
-  query lives in `ui-store.filterQuery` rather than in either component.
+- **Two searches, on purpose.** The rail field filters the _open folder_
+  locally — its query lives in `ui-store.filterQuery` because the field sits in
+  the rail (mounted by `drive.tsx`) while the listing it filters is owned by
+  `drive/$spaceId.tsx`. ⌘K is something else: a server search across every
+  space, in `command-palette.tsx`. The rail's `⌘K` chip is a button through to
+  the palette, not a hint that the chip focuses the field. Don't merge them.
 - **Design source.** The UI follows the Stitch project "pp-hub — Self-hosted
   Drive" (`11969748414038004354`); tokens and screen prompts are mirrored in
   `.stitch/DESIGN.md` and `.stitch/SCREEN-PROMPTS.md`. Where a designed element
-  has no API behind it (Recent, Starred, activity feed, move/copy), it is left
-  out rather than stubbed — see the comments in the component that drops it.
+  has no API behind it (comments, collaborator presence, per-space sharing
+  policy, integrations), it is left out rather than stubbed — see the comments
+  in the component that drops it.
+- **Web tests that need a DOM** declare it per file with
+  `// @vitest-environment happy-dom`; everything else stays in node, which is
+  faster. Testing Library's auto-cleanup only fires when the test framework
+  exposes globals, and this suite imports explicitly, so component test files
+  register `afterEach(cleanup)` themselves. `apps/web/tsconfig.json` includes
+  `tests` so JSX in a test type-checks.
+- **Two kinds of administration.** A _space owner_ administers one space
+  (`?panel=settings`); a _server admin_ administers the install
+  (`/admin/users`). Neither role implies the other, and the server enforces
+  that separately from what the UI renders.
+- **better-modal keeps a closed modal MOUNTED.** `modal.resolve()` only flips
+  `isOpen` to false; the entry stays in the store and `ModalContainer` goes on
+  rendering the component. So `useState` inside a modal initialises **once for
+  the life of the app**, and reopening for a different item leaves the previous
+  item's state in place. Any modal holding state about its subject must key
+  that state to the subject — use `useKeyedState` rather than a fresh
+  `useState`. This caused the preview modal to reopen on the last file viewed,
+  and the move dialog to keep a destination the user had not selected.
+- **Uploads do not live in TanStack Query.** A mutation models one request with
+  one result; the transfer tray needs a queue with per-file progress, retry and
+  cancellation, and it has to outlive the route that started it. So uploads run
+  through `lib/upload-store.ts` and `TransferTray` is mounted by `drive.tsx`,
+  not by the folder view. The store cannot reach the query client, so it
+  publishes completions through `onUploadSettled` and the tray invalidates.
+  `uploadFileWithProgress` is the one endpoint that uses `XMLHttpRequest`
+  rather than the shared `ky` client, because `fetch` reports no upload
+  progress.
 - The Go module lives inside the JS monorepo but is independent of bun workspaces.
 - The FE↔BE contract is currently hand-typed TS interfaces in `apps/web/src/lib/api/types.ts`; `openapi.yaml` codegen is deferred until the API surface justifies it.

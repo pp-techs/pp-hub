@@ -1,33 +1,6 @@
-import { Trash2, Users } from "lucide-react";
-import { useShared, useTrash } from "@/lib/queries";
+import { Users } from "lucide-react";
+import { useShared } from "@/lib/queries";
 import { NodeTable } from "@/components/node-table";
-
-/**
- * Items the user soft-deleted in this space. The API exposes the listing only;
- * restore and permanent delete are not wired to endpoints yet, so the panel
- * stays read-only rather than showing buttons that cannot work.
- */
-export function TrashPanel({ spaceId }: { spaceId: string }) {
-  const trash = useTrash(spaceId);
-
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-0.5">
-        <h2 className="font-heading text-sm font-medium">Trash</h2>
-        <p className="text-muted-foreground text-xs">
-          Items you deleted in this space. Deleted items still count toward storage.
-        </p>
-      </div>
-      <NodeTable
-        nodes={trash.data ?? []}
-        isPending={trash.isPending}
-        emptyIcon={<Trash2 className="text-muted-foreground size-10" />}
-        emptyTitle="Trash is empty"
-        emptyDescription="Items you move to trash show up here."
-      />
-    </div>
-  );
-}
 
 /**
  * Nodes shared with the signed-in user. This listing spans every space, so it

@@ -6,6 +6,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	"github.com/nhatbui/pp-hub/apps/server/internal/activity"
 	"github.com/nhatbui/pp-hub/apps/server/internal/auth"
 	"github.com/nhatbui/pp-hub/apps/server/internal/fs"
 	"github.com/nhatbui/pp-hub/apps/server/internal/preview"
@@ -24,6 +25,7 @@ type Server struct {
 	wopi          *wopi.Service
 	preview       *preview.Worker
 	users         *users.Service
+	activity      *activity.Service
 	store         *store.Queries
 	externalURL   string
 	onlyOfficeURL string
@@ -31,7 +33,7 @@ type Server struct {
 }
 
 func NewServer(a *auth.Service, sp *spaces.Service, f *fs.Service, sh *share.Service, wp *wopi.Service, pv *preview.Worker, us *users.Service, q *store.Queries, externalURL, onlyOfficeURL, wopiServerURL string) *Server {
-	return &Server{auth: a, spaces: sp, fs: f, share: sh, wopi: wp, preview: pv, users: us, store: q, externalURL: externalURL, onlyOfficeURL: onlyOfficeURL, wopiServerURL: wopiServerURL}
+	return &Server{auth: a, spaces: sp, fs: f, share: sh, wopi: wp, preview: pv, users: us, activity: activity.NewService(q), store: q, externalURL: externalURL, onlyOfficeURL: onlyOfficeURL, wopiServerURL: wopiServerURL}
 }
 
 func (s *Server) Router() http.Handler {
@@ -52,17 +54,31 @@ func (s *Server) Router() http.Handler {
 		r.Get("/users/me", s.handleGetMyProfile)
 		r.Put("/users/me", s.handleUpdateMyProfile)
 		r.Post("/users/me/avatar", s.handleUploadAvatar)
-		r.Get("/users", s.handleListUsers)       // admin only
+		r.Get("/search", s.handleSearch)         // name search across my spaces
+		r.Get("/activity", s.handleListActivity) // feed, all my spaces or one
+		r.Get("/recent", s.handleListRecent)     // files I last touched
+		r.Get("/starred", s.handleListStarred)   // my bookmarks
+		r.Get("/usage", s.handleUsage)           // storage by MIME family
+		r.Get("/shared", s.handleListShared)     // nodes shared with me, across spaces
+		r.Post("/invitations/accept", s.handleAcceptInvitation)
+		r.Get("/admin/stats", s.handleAdminStats) // admin only
+		r.Patch("/admin/users/{userID}", s.handleAdminUpdateUser)
+		r.Get("/users", s.handleListUsers)          // admin only
 		r.Get("/users/search", s.handleSearchUsers) // autocomplete
 
 		r.Route("/spaces", func(r chi.Router) {
 			r.Post("/", s.handleCreateSpace)
 			r.Get("/", s.handleListSpaces)
 			r.Route("/{spaceID}", func(r chi.Router) {
+				r.Patch("/", s.handleUpdateSpace)
+				r.Delete("/", s.handleDeleteSpace)
+				r.Get("/invitations", s.handleListInvitations)
+				r.Post("/invitations", s.handleCreateInvitation)
+				r.Delete("/invitations/{inviteID}", s.handleRevokeInvitation)
 				r.Get("/children", s.handleListChildren)
 				r.Get("/tree", s.handleListTree)
 				r.Get("/trash", s.handleListDeleted)
-				r.Get("/shared", s.handleListShared)
+				r.Post("/trash/empty", s.handleEmptyTrash)
 				r.Post("/dirs", s.handleMkdir)
 				r.Post("/files", s.handleUpload)
 				r.Route("/members", func(r chi.Router) {
@@ -77,15 +93,22 @@ func (s *Server) Router() http.Handler {
 		})
 
 		r.Route("/nodes/{nodeID}", func(r chi.Router) {
+			r.Get("/", s.handleGetNode)
 			r.Get("/download", s.handleDownload)
 			r.Get("/content", s.handleContent)
 			r.Patch("/rename", s.handleRenameNode)
 			r.Patch("/move", s.handleMoveNode)
+			r.Post("/copy", s.handleCopyNode)
 			r.Delete("/", s.handleDeleteNode)
 			r.Get("/versions", s.handleListVersions)
 			r.Post("/versions/{versionID}/restore", s.handleRestoreVersion)
+			r.Post("/star", s.handleStarNode)
+			r.Delete("/star", s.handleUnstarNode)
+			r.Post("/restore", s.handleRestoreNode)
+			r.Delete("/purge", s.handlePurgeNode)
 			r.Post("/shares", s.handleCreateShare)
 			r.Get("/shares", s.handleListShares)
+			r.Delete("/shares/{shareID}", s.handleRevokeShare)
 			r.Post("/edit-session", s.handleEditSession)
 			r.Get("/preview", s.handlePreview)
 		})
@@ -98,9 +121,15 @@ func (s *Server) Router() http.Handler {
 		r.Post("/", s.handleWopiLockOps)
 	})
 
+	// Anonymous link access. Every node id these accept is verified to sit
+	// inside the shared subtree before anything is served.
 	r.Route("/s/{token}", func(r chi.Router) {
 		r.Get("/", s.handleShareInfo)
 		r.Get("/download", s.handleShareDownload)
+		r.Get("/children", s.handleShareChildren)
+		r.Get("/content", s.handleShareNodeContent)
+		r.Get("/node-download", s.handleShareNodeDownload)
+		r.Get("/download-all", s.handleShareDownloadAll)
 	})
 	return r
 }
@@ -110,6 +139,13 @@ func (s *Server) requireUser(w http.ResponseWriter, r *http.Request) *store.User
 	u := s.auth.CurrentUser(r)
 	if u == nil {
 		writeProblem(w, http.StatusUnauthorized, "Unauthorized", "")
+		return nil
+	}
+	// Suspension is enforced here rather than at sign-in, so it takes effect
+	// on the next request instead of waiting for an existing session to
+	// expire. 403 and not 401: the credentials are fine, the account is not.
+	if u.SuspendedAt.Valid {
+		writeProblem(w, http.StatusForbidden, "Forbidden", "this account is suspended")
 		return nil
 	}
 	return u

@@ -27,7 +27,7 @@ UPDATE nodes SET parent_id = $2
 WHERE id = $1 AND deleted_at IS NULL;
 
 -- name: SoftDeleteNode :exec
-UPDATE nodes SET deleted_at = now()
+UPDATE nodes SET deleted_at = now(), deleted_by = $2
 WHERE id = $1 AND deleted_at IS NULL;
 
 -- name: GetNodeParent :one
@@ -95,3 +95,145 @@ WHERE m.user_id = $1
   AND n.parent_id IS NOT NULL
 ORDER BY n.kind, n.name
 LIMIT 50;
+
+-- name: GetNodeAny :one
+-- Like GetNode but does not filter out soft-deleted rows. Trash operations
+-- need to resolve a node precisely because it is deleted.
+SELECT * FROM nodes WHERE id = $1 LIMIT 1;
+
+-- name: RestoreNode :exec
+-- Clears the tombstone, and re-parents/renames in the same statement so a
+-- restore that collides with a live sibling can land under a free name.
+UPDATE nodes SET deleted_at = NULL, parent_id = $2, name = $3
+WHERE id = $1 AND deleted_at IS NOT NULL;
+
+-- name: PurgeNode :exec
+-- Hard delete. Descendants and versions follow via ON DELETE CASCADE; blob
+-- ref counts are decremented separately by the caller.
+DELETE FROM nodes WHERE id = $1 AND deleted_at IS NOT NULL;
+
+-- name: ListDeletedIDs :many
+SELECT id FROM nodes WHERE space_id = $1 AND deleted_at IS NOT NULL;
+
+-- name: ListSubtreeBlobHashes :many
+-- Every blob referenced by the subtree rooted at $1, one row per version, so
+-- a purge can decrement ref_count exactly as many times as it was incremented.
+WITH RECURSIVE sub(node_id) AS (
+    SELECT r.id FROM nodes r WHERE r.id = $1
+    UNION ALL
+    SELECT n.id FROM nodes n JOIN sub ON n.parent_id = sub.node_id
+)
+SELECT v.blob_hash FROM node_versions v JOIN sub ON v.node_id = sub.node_id;
+
+-- name: ListDeletedWithMeta :many
+-- Trash listing: node + current version + owner, plus the original location
+-- (ancestor names joined with " / ") and a direct-child count for folders.
+WITH RECURSIVE anc AS (
+    SELECT n.id AS origin, n.parent_id, n.name, 0 AS depth
+    FROM nodes n
+    WHERE n.space_id = $1 AND n.deleted_at IS NOT NULL
+    UNION ALL
+    SELECT a.origin, p.parent_id, p.name, a.depth + 1
+    FROM anc a JOIN nodes p ON p.id = a.parent_id
+),
+loc AS (
+    SELECT origin, string_agg(name, ' / ' ORDER BY depth DESC) AS path
+    FROM anc WHERE depth > 0 GROUP BY origin
+)
+SELECT
+  n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at,
+  v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
+  u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email,
+  COALESCE(loc.path, '')::text AS location,
+  (SELECT COUNT(*) FROM nodes c WHERE c.parent_id = n.id AND c.deleted_at IS NULL) AS child_count,
+  COALESCE(d.display_name, d.name, d.email, '')::text AS deleted_by_name,
+  -- NULL when the space keeps its trash indefinitely.
+  (CASE WHEN sp.trash_retention_days > 0
+        THEN n.deleted_at + (sp.trash_retention_days * INTERVAL '1 day')
+   END)::timestamptz AS purges_at
+FROM nodes n
+JOIN spaces sp ON sp.id = n.space_id
+LEFT JOIN node_versions v ON v.id = n.current_version_id
+LEFT JOIN users u ON u.id = n.created_by
+LEFT JOIN users d ON d.id = n.deleted_by
+LEFT JOIN loc ON loc.origin = n.id
+WHERE n.space_id = $1 AND n.deleted_at IS NOT NULL
+ORDER BY n.deleted_at DESC;
+
+-- name: SearchNodes :many
+-- Name search across every space the caller belongs to, or one space when
+-- $2 is supplied. Ranked by trigram similarity so the closest name comes
+-- first, with an exact prefix match promoted above a mid-string one.
+SELECT
+  n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at,
+  v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
+  u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email,
+  s.name AS space_name,
+  COALESCE(p.name, '')::text AS parent_name
+FROM nodes n
+JOIN space_members m ON m.space_id = n.space_id AND m.user_id = $1
+JOIN spaces s ON s.id = n.space_id
+LEFT JOIN node_versions v ON v.id = n.current_version_id
+LEFT JOIN users u ON u.id = n.created_by
+LEFT JOIN nodes p ON p.id = n.parent_id AND p.deleted_at IS NULL
+WHERE n.deleted_at IS NULL
+  AND (sqlc.narg('space_id')::uuid IS NULL OR n.space_id = sqlc.narg('space_id')::uuid)
+  AND (sqlc.narg('kind')::node_kind IS NULL OR n.kind = sqlc.narg('kind')::node_kind)
+  AND (sqlc.narg('owner_id')::uuid IS NULL OR n.created_by = sqlc.narg('owner_id')::uuid)
+  -- Modified time is the current version's timestamp for a file and the
+  -- node's own for a folder, so the filter has to consider both.
+  AND (sqlc.narg('modified_after')::timestamptz IS NULL
+       OR COALESCE(v.created_at, n.created_at) >= sqlc.narg('modified_after')::timestamptz)
+  AND n.name ILIKE '%' || sqlc.arg('query')::text || '%'
+ORDER BY
+  (lower(n.name) LIKE lower(sqlc.arg('query')::text) || '%') DESC,
+  similarity(n.name, sqlc.arg('query')::text) DESC,
+  n.kind,
+  n.name
+LIMIT sqlc.arg('result_limit');
+
+-- name: StarNode :exec
+INSERT INTO node_stars (user_id, node_id) VALUES ($1, $2)
+ON CONFLICT (user_id, node_id) DO NOTHING;
+
+-- name: UnstarNode :exec
+DELETE FROM node_stars WHERE user_id = $1 AND node_id = $2;
+
+-- name: ListStarredNodes :many
+-- The caller's starred nodes, newest star first. Space membership is rechecked
+-- here because a star survives losing access to the space that holds it.
+SELECT
+  n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at,
+  v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
+  u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email,
+  s.name AS space_name,
+  COALESCE(p.name, '')::text AS parent_name
+FROM node_stars st
+JOIN nodes n ON n.id = st.node_id
+JOIN space_members m ON m.space_id = n.space_id AND m.user_id = st.user_id
+JOIN spaces s ON s.id = n.space_id
+LEFT JOIN node_versions v ON v.id = n.current_version_id
+LEFT JOIN users u ON u.id = n.created_by
+LEFT JOIN nodes p ON p.id = n.parent_id AND p.deleted_at IS NULL
+WHERE st.user_id = $1 AND n.deleted_at IS NULL
+ORDER BY st.created_at DESC
+LIMIT $2;
+
+-- name: ListStarredIDs :many
+-- Which of these node ids the caller has starred, so a listing can render the
+-- star state without one query per row.
+SELECT node_id FROM node_stars WHERE user_id = $1 AND node_id = ANY($2::uuid[]);
+
+-- name: ListExpiredTrash :many
+-- Tombstones past their space's retention window. A retention of 0 disables
+-- automatic purging for that space, so those rows never appear here.
+SELECT n.id, n.space_id, n.name
+FROM nodes n
+JOIN spaces s ON s.id = n.space_id
+WHERE n.deleted_at IS NOT NULL
+  AND s.trash_retention_days > 0
+  AND n.deleted_at < now() - (s.trash_retention_days * INTERVAL '1 day')
+LIMIT $1;

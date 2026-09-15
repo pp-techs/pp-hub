@@ -1,7 +1,7 @@
 // Space-related hooks.
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createSpace, getSpaces } from "@/lib/api";
+import { createSpace, getSpaces, type SpaceSettings } from "@/lib/api";
 import { keys } from "./keys";
 
 export function useSpaces() {
@@ -14,7 +14,11 @@ export function useSpaces() {
 export function useCreateSpace() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (name: string) => createSpace(name),
+    mutationFn: ({
+      name,
+      ...settings
+    }: { name: string } & Omit<SpaceSettings, "name" | "trash_retention_days">) =>
+      createSpace(name, settings),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.spaces }),
   });
 }

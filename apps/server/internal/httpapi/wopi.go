@@ -254,19 +254,19 @@ func isOfficeMime(mime string) bool {
 	case
 		// Word processing
 		"application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
-		"application/msword",                                                  // .doc
-		"application/vnd.oasis.opendocument.text",          // .odt
-		"application/rtf",                                  // .rtf (registered in preview.init)
-		"application/epub+zip",                             // .epub (registered in preview.init)
+		"application/msword",                      // .doc
+		"application/vnd.oasis.opendocument.text", // .odt
+		"application/rtf",                         // .rtf (registered in preview.init)
+		"application/epub+zip",                    // .epub (registered in preview.init)
 		// Spreadsheets
 		"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
-		"application/vnd.ms-excel",                                           // .xls
-		"application/vnd.oasis.opendocument.spreadsheet",                     // .ods
+		"application/vnd.ms-excel",                       // .xls
+		"application/vnd.oasis.opendocument.spreadsheet", // .ods
 		"text/csv", // .csv
 		// Presentations
 		"application/vnd.openxmlformats-officedocument.presentationml.presentation", // .pptx
-		"application/vnd.ms-powerpoint",          // .ppt
-		"application/vnd.oasis.opendocument.presentation", // .odp
+		"application/vnd.ms-powerpoint",                                             // .ppt
+		"application/vnd.oasis.opendocument.presentation",                           // .odp
 		// Fallback: generic octet-stream for unknown extensions (shouldn't happen)
 		"application/octet-stream":
 		return true

@@ -14,11 +14,11 @@ type NodeWithMeta struct {
 	VerBlobHash  string             `json:"v_blob_hash"`
 	VerSize      int64              `json:"v_size"`
 	VerMime      string             `json:"v_mime"`
-	VerVersionNo int32             `json:"v_version_no"`
+	VerVersionNo int32              `json:"v_version_no"`
 	VerCreatedBy pgtype.UUID        `json:"v_created_by"`
 	VerCreatedAt pgtype.Timestamptz `json:"v_created_at"`
 	// Owner (user who created the node)
 	OwnerID    pgtype.UUID `json:"owner_id"`
-	OwnerName  string     `json:"owner_name"`
-	OwnerEmail string     `json:"owner_email"`
+	OwnerName  string      `json:"owner_name"`
+	OwnerEmail string      `json:"owner_email"`
 }

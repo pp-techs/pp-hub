@@ -12,11 +12,17 @@ export { useSpaces, useCreateSpace } from "./spaces";
 
 // Nodes
 export {
+  useNode,
   useInvalidateChildren,
   useCreateFolder,
   useUpload,
   useRenameNode,
   useDeleteNode,
+  useMoveNode,
+  useCopyNode,
+  useRestoreNode,
+  usePurgeNode,
+  useEmptyTrash,
   useVersions,
   useRestoreVersion,
   useTree,
@@ -33,8 +39,31 @@ export const childrenOptions = (spaceId: string, parentId?: string) =>
   useChildren(spaceId, parentId);
 export const versionsOptions = (nodeId: string | null) => useVersions(nodeId);
 
+// Search
+export { useNodeSearch, MIN_QUERY_LENGTH } from "./search";
+
+// Space settings + admin
+export {
+  useUpdateSpace,
+  useDeleteSpace,
+  useInvitations,
+  useCreateInvitation,
+  useRevokeInvitation,
+  useAdminStats,
+  useUpdateAdminUser,
+} from "./spaces-admin";
+
+// Home surfaces
+export { useRecent, useStarred, useActivity, useUsage, useToggleStar } from "./home";
+
 // Shares
-export { useShares, useCreateShare, useRevokeShare } from "./shares";
+export {
+  useShares,
+  useShareInfo,
+  useCreateShare,
+  useRevokeShare,
+  useShareChildren,
+} from "./shares";
 
 // Backward compat
 import { useShares, useShareInfo } from "./shares";

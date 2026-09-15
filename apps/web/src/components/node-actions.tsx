@@ -1,11 +1,15 @@
 import {
+  Copy,
   Download,
   ExternalLink,
   Eye,
+  FolderInput,
   History,
   Link2,
   Pencil,
   SquarePen,
+  Star,
+  StarOff,
   Trash2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -16,6 +20,9 @@ export interface NodeAction {
   key: string;
   label: string;
   icon: LucideIcon;
+  /** Rendered right-aligned in a menu. Display only — the shortcuts are bound
+   *  by the listing, which is what actually has keyboard focus. */
+  shortcut?: string;
   destructive?: boolean;
   /** Separator is drawn before this item when rendering a menu. */
   startsGroup?: boolean;
@@ -24,7 +31,10 @@ export interface NodeAction {
 
 export interface NodeActionHandlers {
   onPreview: (node: Node) => void;
+  onToggleStar: (node: Node, starred: boolean) => void;
   onRename: (node: Node) => void;
+  onMove: (node: Node) => void;
+  onCopy: (node: Node) => void;
   onDeleteRequest: (node: Node) => void;
 }
 
@@ -40,6 +50,7 @@ export function nodeActions(
   node: Node,
   handlers: NodeActionHandlers,
   openPanel: OpenPanel,
+  starred = false,
 ): NodeAction[] {
   const actions: NodeAction[] = [];
 
@@ -48,6 +59,7 @@ export function nodeActions(
       key: "preview",
       label: "Preview",
       icon: Eye,
+      shortcut: "Space",
       run: () => handlers.onPreview(node),
     });
     if (canOpenInTab(node)) {
@@ -55,6 +67,7 @@ export function nodeActions(
         key: "open-tab",
         label: "Open in new tab",
         icon: ExternalLink,
+        shortcut: "⌘↵",
         run: () => openInTab(node),
       });
     }
@@ -70,6 +83,7 @@ export function nodeActions(
       key: "download",
       label: "Download",
       icon: Download,
+      shortcut: "⌘D",
       run: () => window.open(downloadUrl(node), "_blank"),
     });
     actions.push({
@@ -81,22 +95,44 @@ export function nodeActions(
   }
 
   actions.push({
+    key: "star",
+    label: starred ? "Remove star" : "Add star",
+    icon: starred ? StarOff : Star,
+    startsGroup: node.kind === "file",
+    run: () => handlers.onToggleStar(node, !starred),
+  });
+  actions.push({
     key: "share",
     label: "Share",
     icon: Link2,
-    startsGroup: node.kind === "file",
+    shortcut: "⌘⇧S",
     run: () => openPanel("share", node),
   });
   actions.push({
     key: "rename",
     label: "Rename",
     icon: Pencil,
+    shortcut: "F2",
     run: () => handlers.onRename(node),
+  });
+  actions.push({
+    key: "move",
+    label: "Move to…",
+    icon: FolderInput,
+    run: () => handlers.onMove(node),
+  });
+  actions.push({
+    key: "copy",
+    label: "Make a copy",
+    icon: Copy,
+    shortcut: "⌘C",
+    run: () => handlers.onCopy(node),
   });
   actions.push({
     key: "trash",
     label: "Move to trash",
     icon: Trash2,
+    shortcut: "⌫",
     destructive: true,
     startsGroup: true,
     run: () => handlers.onDeleteRequest(node),

@@ -113,6 +113,8 @@ func (s *Service) RemoveMember(ctx context.Context, spaceID, userID pgtype.UUID)
 	return s.q.RemoveSpaceMember(ctx, store.RemoveSpaceMemberParams{SpaceID: spaceID, UserID: userID})
 }
 
-func (s *Service) Members(ctx context.Context, spaceID pgtype.UUID) ([]store.ListSpaceMembersRow, error) {
-	return s.q.ListSpaceMembers(ctx, spaceID)
+// Members lists a space's members with the per-member figures the settings
+// table shows — files owned here, and last sign-in.
+func (s *Service) Members(ctx context.Context, spaceID pgtype.UUID) ([]store.ListSpaceMembersDetailedRow, error) {
+	return s.q.ListSpaceMembersDetailed(ctx, spaceID)
 }

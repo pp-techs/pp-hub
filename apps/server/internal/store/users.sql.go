@@ -69,7 +69,7 @@ func (q *Queries) GetSpaceMembers(ctx context.Context, spaceID pgtype.UUID) ([]G
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, created_at, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash FROM users WHERE id = $1 LIMIT 1
+SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, created_at, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at FROM users WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetUser(ctx context.Context, id pgtype.UUID) (User, error) {
@@ -90,12 +90,13 @@ func (q *Queries) GetUser(ctx context.Context, id pgtype.UUID) (User, error) {
 		&i.IsAdmin,
 		&i.LastSeen,
 		&i.EmailHash,
+		&i.SuspendedAt,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, created_at, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash FROM users WHERE email = $1 LIMIT 1
+SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, created_at, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at FROM users WHERE email = $1 LIMIT 1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -116,6 +117,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.IsAdmin,
 		&i.LastSeen,
 		&i.EmailHash,
+		&i.SuspendedAt,
 	)
 	return i, err
 }
@@ -137,7 +139,7 @@ func (q *Queries) IsSpaceMember(ctx context.Context, arg IsSpaceMemberParams) (b
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, created_at, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash FROM users
+SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, created_at, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at FROM users
 WHERE tenant_id = $1
 ORDER BY created_at DESC
 LIMIT $2 OFFSET $3
@@ -173,6 +175,7 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 			&i.IsAdmin,
 			&i.LastSeen,
 			&i.EmailHash,
+			&i.SuspendedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -259,7 +262,7 @@ func (q *Queries) SetUserAdmin(ctx context.Context, arg SetUserAdminParams) erro
 }
 
 const setUserAvatar = `-- name: SetUserAvatar :one
-UPDATE users SET avatar_url = $2 WHERE id = $1 RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, created_at, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash
+UPDATE users SET avatar_url = $2 WHERE id = $1 RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, created_at, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at
 `
 
 type SetUserAvatarParams struct {
@@ -285,6 +288,7 @@ func (q *Queries) SetUserAvatar(ctx context.Context, arg SetUserAvatarParams) (U
 		&i.IsAdmin,
 		&i.LastSeen,
 		&i.EmailHash,
+		&i.SuspendedAt,
 	)
 	return i, err
 }
@@ -293,7 +297,7 @@ const updateUserProfile = `-- name: UpdateUserProfile :one
 UPDATE users
 SET display_name = $2, bio = $3, settings = COALESCE($4, settings)
 WHERE id = $1
-RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, created_at, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash
+RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, created_at, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at
 `
 
 type UpdateUserProfileParams struct {
@@ -326,6 +330,7 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		&i.IsAdmin,
 		&i.LastSeen,
 		&i.EmailHash,
+		&i.SuspendedAt,
 	)
 	return i, err
 }
@@ -335,7 +340,7 @@ INSERT INTO users (oidc_sub, oidc_iss, email, name)
 VALUES ($1, $2, $3, $4)
 ON CONFLICT (oidc_iss, oidc_sub)
 DO UPDATE SET email = EXCLUDED.email, name = EXCLUDED.name, last_seen = now()
-RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, created_at, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash
+RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, created_at, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at
 `
 
 type UpsertUserParams struct {
@@ -368,6 +373,7 @@ func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) (User, e
 		&i.IsAdmin,
 		&i.LastSeen,
 		&i.EmailHash,
+		&i.SuspendedAt,
 	)
 	return i, err
 }

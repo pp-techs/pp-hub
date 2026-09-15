@@ -31,7 +31,7 @@ func (q *Queries) AddSpaceMember(ctx context.Context, arg AddSpaceMemberParams) 
 const createSpace = `-- name: CreateSpace :one
 INSERT INTO spaces (name, owner_id)
 VALUES ($1, $2)
-RETURNING id, tenant_id, name, owner_id, quota_bytes, used_bytes, created_at
+RETURNING id, tenant_id, name, owner_id, quota_bytes, used_bytes, created_at, slug, description, default_role, archived_at, trash_retention_days
 `
 
 type CreateSpaceParams struct {
@@ -50,6 +50,11 @@ func (q *Queries) CreateSpace(ctx context.Context, arg CreateSpaceParams) (Space
 		&i.QuotaBytes,
 		&i.UsedBytes,
 		&i.CreatedAt,
+		&i.Slug,
+		&i.Description,
+		&i.DefaultRole,
+		&i.ArchivedAt,
+		&i.TrashRetentionDays,
 	)
 	return i, err
 }
@@ -71,7 +76,7 @@ func (q *Queries) GetMemberRole(ctx context.Context, arg GetMemberRoleParams) (M
 }
 
 const getSpace = `-- name: GetSpace :one
-SELECT id, tenant_id, name, owner_id, quota_bytes, used_bytes, created_at FROM spaces WHERE id = $1 LIMIT 1
+SELECT id, tenant_id, name, owner_id, quota_bytes, used_bytes, created_at, slug, description, default_role, archived_at, trash_retention_days FROM spaces WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetSpace(ctx context.Context, id pgtype.UUID) (Space, error) {
@@ -85,12 +90,17 @@ func (q *Queries) GetSpace(ctx context.Context, id pgtype.UUID) (Space, error) {
 		&i.QuotaBytes,
 		&i.UsedBytes,
 		&i.CreatedAt,
+		&i.Slug,
+		&i.Description,
+		&i.DefaultRole,
+		&i.ArchivedAt,
+		&i.TrashRetentionDays,
 	)
 	return i, err
 }
 
 const listMySpaces = `-- name: ListMySpaces :many
-SELECT s.id, s.tenant_id, s.name, s.owner_id, s.quota_bytes, s.used_bytes, s.created_at FROM spaces s
+SELECT s.id, s.tenant_id, s.name, s.owner_id, s.quota_bytes, s.used_bytes, s.created_at, s.slug, s.description, s.default_role, s.archived_at, s.trash_retention_days FROM spaces s
 JOIN space_members m ON m.space_id = s.id
 WHERE m.user_id = $1
 ORDER BY s.created_at
@@ -113,6 +123,11 @@ func (q *Queries) ListMySpaces(ctx context.Context, userID pgtype.UUID) ([]Space
 			&i.QuotaBytes,
 			&i.UsedBytes,
 			&i.CreatedAt,
+			&i.Slug,
+			&i.Description,
+			&i.DefaultRole,
+			&i.ArchivedAt,
+			&i.TrashRetentionDays,
 		); err != nil {
 			return nil, err
 		}
@@ -161,6 +176,65 @@ func (q *Queries) ListSpaceMembers(ctx context.Context, spaceID pgtype.UUID) ([]
 			&i.UserName,
 			&i.DisplayName,
 			&i.AvatarUrl,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSpaceMembersDetailed = `-- name: ListSpaceMembersDetailed :many
+SELECT
+  m.space_id, m.user_id, m.role, m.created_at,
+  u.email, u.name AS user_name, u.display_name, u.avatar_url, u.last_seen,
+  (SELECT COUNT(*) FROM nodes n
+    WHERE n.space_id = m.space_id AND n.created_by = m.user_id
+      AND n.deleted_at IS NULL AND n.kind = 'file')::bigint AS files_owned
+FROM space_members m
+JOIN users u ON u.id = m.user_id
+WHERE m.space_id = $1
+ORDER BY m.created_at
+`
+
+type ListSpaceMembersDetailedRow struct {
+	SpaceID     pgtype.UUID        `json:"space_id"`
+	UserID      pgtype.UUID        `json:"user_id"`
+	Role        MemberRole         `json:"role"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	Email       string             `json:"email"`
+	UserName    string             `json:"user_name"`
+	DisplayName string             `json:"display_name"`
+	AvatarUrl   string             `json:"avatar_url"`
+	LastSeen    pgtype.Timestamptz `json:"last_seen"`
+	FilesOwned  int64              `json:"files_owned"`
+}
+
+// Members with the two figures the settings table shows that a plain member
+// row cannot: how many live files they own here, and when they were last seen.
+func (q *Queries) ListSpaceMembersDetailed(ctx context.Context, spaceID pgtype.UUID) ([]ListSpaceMembersDetailedRow, error) {
+	rows, err := q.db.Query(ctx, listSpaceMembersDetailed, spaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListSpaceMembersDetailedRow
+	for rows.Next() {
+		var i ListSpaceMembersDetailedRow
+		if err := rows.Scan(
+			&i.SpaceID,
+			&i.UserID,
+			&i.Role,
+			&i.CreatedAt,
+			&i.Email,
+			&i.UserName,
+			&i.DisplayName,
+			&i.AvatarUrl,
+			&i.LastSeen,
+			&i.FilesOwned,
 		); err != nil {
 			return nil, err
 		}

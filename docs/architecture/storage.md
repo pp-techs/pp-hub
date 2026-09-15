@@ -43,3 +43,16 @@ blake3: much faster than SHA-256, collision resistance is sufficient for non-adv
 - `LOCK/UNLOCK/REFRESH_LOCK` via `POST /wopi/files/{id}` with `X-WOPI-Override`.
 - Locks expire; an OnlyOffice crash leaks a lock only until `expires_at`; a GC pass clears expired rows.
 - `PutFile` with a stale `Version` (concurrent direct upload) → 409; OnlyOffice re-merges.
+
+## Garbage Collection
+
+The write path is deliberately append-only: uploads add blobs and bump `ref_count`, deletes decrement it, and nothing removes bytes inline. That keeps the hot paths simple and makes a crash mid-delete safe — ref counts end up too high, never too low. The cost is that unreferenced blobs accumulate, which `internal/gc` sweeps every 15 minutes.
+
+Two orderings carry the safety:
+
+- **Only blobs unreferenced for over an hour are considered.** A blob is written and its `ref_count` incremented in two separate statements, so a brand-new blob sits at zero for a moment. The hour is the margin that stops an in-flight upload being collected out from under itself.
+- **The row is deleted before the file.** A crash between them leaves a file with no row — a disk leak, findable by an audit. The reverse would leave a row promising bytes that are gone, which reads as corruption to everything downstream.
+
+`DeleteBlob` re-checks `ref_count = 0` in its `WHERE`, so a blob that gained a reference between the sweep's `SELECT` and its `DELETE` survives.
+
+Copying a file adds a reference rather than bytes, so duplicating a large file is a single row — and the blob stays alive while either copy points at it.

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 	"github.com/nhatbui/pp-hub/apps/server/internal/users"
 )
 
@@ -149,14 +150,25 @@ func (s *Server) handleListUsers(w http.ResponseWriter, r *http.Request) {
 			offset = int32(v)
 		}
 	}
-	profiles, total, err := s.users.List(r.Context(), "default", limit, offset)
+	// Read the user rows directly rather than through users.Profile: the
+	// admin console needs the suspension flag, which a public-facing profile
+	// deliberately does not carry.
+	rows, err := s.store.ListUsers(r.Context(), store.ListUsersParams{
+		TenantID: "default", Limit: limit, Offset: offset,
+	})
 	if err != nil {
 		writeProblem(w, http.StatusInternalServerError, "Error", "list failed")
 		return
 	}
-	out := make([]userProfileDTO, 0, len(profiles))
-	for _, p := range profiles {
-		out = append(out, profileToDTO(p))
+	total, err := s.store.CountUsers(r.Context(), "default")
+	if err != nil {
+		writeProblem(w, http.StatusInternalServerError, "Error", "list failed")
+		return
+	}
+	out := make([]adminUserDTO, 0, len(rows))
+	for _, row := range rows {
+		count, _ := s.store.CountUserSpaces(r.Context(), row.ID)
+		out = append(out, adminUserToDTO(row, count))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"users": out,
