@@ -54,7 +54,11 @@ export function MemberPicker({
           {filtered.map((user) => (
             <DropdownMenuItem
               key={user.id}
-              onSelect={() => {
+              // base-ui's Menu.Item exposes onClick, not onSelect. An
+              // onSelect prop lands on the underlying div, where it means the
+              // text-selection event and never fires for a click — so picking
+              // a person silently did nothing, here and in the invite dialog.
+              onClick={() => {
                 onSelect(user);
                 setOpen(false);
                 setQuery("");

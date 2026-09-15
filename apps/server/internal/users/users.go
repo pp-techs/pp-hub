@@ -133,25 +133,29 @@ func (s *Service) SetAdmin(ctx context.Context, id pgtype.UUID, isAdmin bool) er
 }
 
 func toProfile(u store.User) Profile {
-	id, _ := u.ID.Value()
-	created, _ := u.CreatedAt.Value()
+	// pgtype.Timestamptz.Value() returns a time.Time, not a string, so the
+	// obvious .(string) assertion panics — and did, on every request to
+	// /api/v1/users/me once a user had a last_seen, taking the profile screen
+	// and the members tab down with a 500.
 	lastSeen := ""
 	if u.LastSeen.Valid {
-		ls, _ := u.LastSeen.Value()
-		lastSeen = ls.(string)
+		lastSeen = u.LastSeen.Time.Format(timeLayout)
 	}
 	return Profile{
-		ID:          id.(string),
+		ID:          uuidToString(u.ID),
 		Email:       u.Email,
 		Name:        u.Name,
 		DisplayName: u.DisplayName,
 		AvatarURL:   u.AvatarUrl,
 		Bio:         u.Bio,
 		IsAdmin:     u.IsAdmin,
-		CreatedAt:   created.(string),
+		CreatedAt:   u.CreatedAt.Time.Format(timeLayout),
 		LastSeen:    lastSeen,
 	}
 }
+
+// timeLayout matches the format every DTO in the API uses.
+const timeLayout = "2006-01-02T15:04:05Z07:00"
 
 func uuidToString(u pgtype.UUID) string {
 	v, _ := u.Value()

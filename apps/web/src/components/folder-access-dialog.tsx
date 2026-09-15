@@ -25,6 +25,15 @@ import { useKeyedState } from "@/lib/use-keyed-state";
 
 type Props = { node: Node; spaceId: string };
 
+// base-ui's SelectValue renders the raw value unless the Select is given an
+// `items` list to map value → label with, which is why every Select in this app
+// passes one. Without it the trigger showed a group's uuid.
+const PERM_ITEMS: { value: SharePerm; label: string }[] = [
+  { value: "view", label: "View" },
+  { value: "download", label: "Download" },
+  { value: "edit", label: "Edit" },
+];
+
 const PERMS: { value: SharePerm; label: string; blurb: string }[] = [
   { value: "view", label: "View", blurb: "Open and read what is inside" },
   { value: "download", label: "Download", blurb: "View, plus save copies to their machine" },
@@ -57,6 +66,7 @@ export const FolderAccessDialog = createModal<Props, null>(
 
     const granted = new Set(grants.map((g) => g.group_id));
     const available = groups.filter((g) => !granted.has(g.id));
+    const groupItems = available.map((g) => ({ label: g.name, value: g.id }));
 
     function add() {
       if (!groupId) return;
@@ -128,8 +138,12 @@ export const FolderAccessDialog = createModal<Props, null>(
             <div className="flex flex-col gap-1.5">
               <Label className="text-xs">Give a group access</Label>
               <div className="flex gap-2">
-                <Select value={groupId} onValueChange={(v) => setGroupId(v as string)}>
-                  <SelectTrigger size="sm" className="flex-1">
+                <Select
+                  value={groupId}
+                  items={groupItems}
+                  onValueChange={(v) => setGroupId(v as string)}
+                >
+                  <SelectTrigger size="sm" className="flex-1" aria-label="Group to give access to">
                     <SelectValue
                       placeholder={available.length ? "Choose a group…" : "No groups left"}
                     />
@@ -142,8 +156,12 @@ export const FolderAccessDialog = createModal<Props, null>(
                     ))}
                   </SelectContent>
                 </Select>
-                <Select value={perm} onValueChange={(v) => setPerm(v as SharePerm)}>
-                  <SelectTrigger size="sm" className="w-32">
+                <Select
+                  value={perm}
+                  items={PERM_ITEMS}
+                  onValueChange={(v) => setPerm(v as SharePerm)}
+                >
+                  <SelectTrigger size="sm" className="w-32" aria-label="Permission to give">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
