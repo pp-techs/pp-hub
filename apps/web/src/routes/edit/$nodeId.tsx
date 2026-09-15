@@ -6,7 +6,7 @@ import { createEditSession, fmtSize, type EditSession } from "@/lib/api";
 import { requireAuth, useNode } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
 import { NodePanels } from "@/components/node-panels";
-import { NodeIcon } from "@/components/node-table";
+import { NodeIcon } from "@/components/node-icon";
 
 export const Route = createFileRoute("/edit/$nodeId")({
   head: () => ({ meta: [{ title: "Editing · pp-hub" }] }),
@@ -64,9 +64,7 @@ function EditPage() {
           <ArrowLeft />
         </Button>
 
-        {node.data && (
-          <NodeIcon node={node.data} className="text-muted-foreground size-4 shrink-0" />
-        )}
+        {node.data && <NodeIcon node={node.data} className="size-4 shrink-0" />}
         <div className="flex min-w-0 flex-col">
           <span className="truncate text-sm font-medium">{node.data?.name ?? "Loading…"}</span>
           <span className="text-muted-foreground truncate text-[10px] tabular-nums">

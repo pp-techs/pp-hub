@@ -1,7 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { canEdit, fmtRelative, openEditor, type ActivityKind, type RecentNode } from "@/lib/api";
 import { PreviewModal } from "@/components/preview-modal";
-import { NodeIcon } from "@/components/node-table";
+import { NodeIcon } from "@/components/node-icon";
 
 /** Past-tense phrasing for the caller's own last touch. */
 const VERBS: Record<ActivityKind, string> = {
@@ -54,7 +54,7 @@ export function ContinueCards({ nodes }: { nodes: RecentNode[] }) {
           onClick={() => open(node)}
           className="border-border hover:bg-muted/50 flex items-center gap-2 rounded-lg border p-3 text-left transition-colors"
         >
-          <NodeIcon node={node} className="text-muted-foreground size-8 shrink-0" />
+          <NodeIcon node={node} className="size-8 shrink-0" />
           <div className="flex min-w-0 flex-col">
             <span className="truncate text-xs font-medium">{node.name}</span>
             <span className="text-muted-foreground truncate text-[10px]">

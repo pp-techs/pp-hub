@@ -8,7 +8,7 @@ import { MIN_QUERY_LENGTH, useNodeSearch, useSpaces } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
 import { useDebounced } from "@/lib/use-debounced";
 import { PreviewModal } from "@/components/preview-modal";
-import { NodeIcon } from "@/components/node-table";
+import { NodeIcon } from "@/components/node-icon";
 
 /** One selectable line. Sections are flattened so ↑/↓ crosses their headers. */
 interface Row {
@@ -105,7 +105,7 @@ export function CommandPalette() {
         section: "Files and folders",
         label: node.name,
         hint: [node.space_name, node.parent_name].filter(Boolean).join(" / "),
-        icon: <NodeIcon node={node} className="text-muted-foreground size-3.5 shrink-0" />,
+        icon: <NodeIcon node={node} className="size-3.5 shrink-0" />,
         run: () => openNode(node),
       });
     }

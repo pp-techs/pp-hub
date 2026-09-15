@@ -21,6 +21,9 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@iconify-json/vscode-icons": "^1.2.77",
+    "@svgr/core": "^8.1.0",
+    "@svgr/plugin-jsx": "^8.1.0",
     "@tailwindcss/vite": "^4.1.0",
     "@tanstack/router-plugin": "^1.160.0",
     "@testing-library/dom": "^10.4.2",
@@ -33,6 +36,7 @@
     "shadcn": "^4.21.0",
     "tailwindcss": "^4.1.0",
     "typescript": "^7.0.2",
+    "unplugin-icons": "^24.0.0",
     "vite-plus": "catalog:"
   }
 }

@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Node } from "@/lib/api";
 
-export type PanelKind = "share" | "versions" | "preview";
+export type PanelKind = "share" | "versions";
 
 export type OpenPanel = (kind: PanelKind, node: Node) => void;
 

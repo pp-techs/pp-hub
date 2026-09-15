@@ -27,7 +27,7 @@ import {
   type SharePerm,
 } from "@/lib/api";
 import { useShareChildren, useShareInfo } from "@/lib/queries";
-import { NodeIcon } from "@/components/node-table";
+import { NodeIcon } from "@/components/node-icon";
 
 export const Route = createFileRoute("/s/$token")({
   head: () => ({ meta: [{ title: "Shared · pp-hub" }] }),
@@ -70,7 +70,7 @@ function ShareLanding() {
         <Empty className="py-16">
           <EmptyHeader>
             <EmptyMedia>
-              <Shield className="text-muted-foreground size-10" />
+              <Shield className="size-10" />
             </EmptyMedia>
             <EmptyTitle>This link is not available</EmptyTitle>
             <EmptyDescription>
@@ -106,7 +106,7 @@ function ShareLanding() {
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex min-w-0 flex-col gap-1">
             <div className="flex items-center gap-2">
-              <NodeIcon node={root} className="text-muted-foreground size-5 shrink-0" />
+              <NodeIcon node={root} className="size-5 shrink-0" />
               <h1 className="truncate text-xl font-semibold tracking-tight">{root.name}</h1>
             </div>
             <p className="text-muted-foreground text-xs tabular-nums">
@@ -198,7 +198,7 @@ function ShareTable({ token, nodes, isPending, canDownload, onOpenFolder }: Shar
       <Empty className="py-12">
         <EmptyHeader>
           <EmptyMedia>
-            <NodeIcon node={{ kind: "dir" } as Node} className="text-muted-foreground size-10" />
+            <NodeIcon node={{ kind: "dir" } as Node} className="size-10" />
           </EmptyMedia>
           <EmptyTitle>This folder is empty</EmptyTitle>
           <EmptyDescription>There is nothing shared here yet.</EmptyDescription>

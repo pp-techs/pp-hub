@@ -3,12 +3,20 @@ import { fileURLToPath } from "node:url";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
+import Icons from "unplugin-icons/vite";
 import { defineConfig } from "vite-plus";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-  plugins: [tanstackRouter({ target: "react", autoCodeSplitting: true }), react(), tailwindcss()],
+  plugins: [
+    tanstackRouter({ target: "react", autoCodeSplitting: true }),
+    react(),
+    tailwindcss(),
+    // vscode-icons file glyphs, compiled to inline SVG components at build
+    // time so the drive never calls out to the Iconify API.
+    Icons({ compiler: "jsx", jsx: "react" }),
+  ],
   resolve: {
     alias: {
       "@": path.resolve(root, "./src"),

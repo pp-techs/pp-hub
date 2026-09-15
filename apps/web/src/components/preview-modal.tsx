@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/componen
 import { canOpenInTab, fmtDate, fmtSize, openInTab, type Node } from "@/lib/api";
 import { PreviewContent } from "@/components/preview-content";
 import { VersionList } from "@/components/version-list";
-import { NodeIcon } from "@/components/node-table";
+import { NodeIcon } from "@/components/node-icon";
 import { useKeyedState } from "@/lib/use-keyed-state";
 
 type Props = {
@@ -61,7 +61,7 @@ export const PreviewModal = createModal<Props, void>("preview", ({ node, sibling
           >
             <X />
           </Button>
-          <NodeIcon node={current} className="text-muted-foreground size-4 shrink-0" />
+          <NodeIcon node={current} className="size-4 shrink-0" />
           <div className="flex min-w-0 flex-col">
             <DialogTitle className="truncate text-sm font-medium" title={current.name}>
               {current.name}

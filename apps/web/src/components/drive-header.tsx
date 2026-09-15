@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ChevronRight, Info, Moon, Settings, Sun, Users } from "lucide-react";
+import { ChevronRight, Moon, Settings, Sun, Users } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { spacesOptions } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
@@ -10,8 +10,6 @@ interface DriveHeaderProps {
   spaceId: string;
   dir?: string;
   panel?: DrivePanel | "members";
-  detailsOpen: boolean;
-  onToggleDetails: () => void;
   onTogglePanel: (panel: "members" | "settings") => void;
 }
 
@@ -19,14 +17,7 @@ interface DriveHeaderProps {
  * Row 1 of the main column: where you are on the left, global toggles on the
  * right. Kept to 40px so it and the toolbar below read as one 80px band.
  */
-export function DriveHeader({
-  spaceId,
-  dir,
-  panel,
-  detailsOpen,
-  onToggleDetails,
-  onTogglePanel,
-}: DriveHeaderProps) {
+export function DriveHeader({ spaceId, dir, panel, onTogglePanel }: DriveHeaderProps) {
   const spaces = spacesOptions();
   const dirs = useUiStore((s) => s.dirs);
   const navigate = useNavigate();
@@ -102,16 +93,6 @@ export function DriveHeader({
           onClick={() => onTogglePanel("settings")}
         >
           <Settings />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Details"
-          aria-pressed={detailsOpen}
-          className={detailsOpen ? "bg-accent text-foreground" : ""}
-          onClick={onToggleDetails}
-        >
-          <Info />
         </Button>
         <Button
           variant="ghost"

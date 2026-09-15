@@ -5,6 +5,7 @@ import {
   CloudUpload,
   FolderPlus,
   FolderUp,
+  Info,
   LayoutGrid,
   List,
 } from "lucide-react";
@@ -31,6 +32,8 @@ export interface DriveToolbarProps {
   sort: SortField;
   order: SortOrder;
   view: NodeView;
+  /** Whether the right-hand details panel is showing. */
+  detailsOpen: boolean;
   /** Viewers get the sort and view controls but no way to add anything. */
   canUpload: boolean;
   onUploadFiles: () => void;
@@ -39,6 +42,7 @@ export interface DriveToolbarProps {
   onSortChange: (sort: SortField) => void;
   onOrderToggle: () => void;
   onViewChange: (view: NodeView) => void;
+  onToggleDetails: () => void;
 }
 
 /**
@@ -49,6 +53,7 @@ export function DriveToolbar({
   sort,
   order,
   view,
+  detailsOpen,
   canUpload,
   onUploadFiles,
   onUploadFolder,
@@ -56,6 +61,7 @@ export function DriveToolbar({
   onSortChange,
   onOrderToggle,
   onViewChange,
+  onToggleDetails,
 }: DriveToolbarProps) {
   return (
     <div className="border-border flex h-10 shrink-0 items-center justify-between gap-2 border-b px-4">
@@ -141,6 +147,19 @@ export function DriveToolbar({
             <List />
           </Button>
         </div>
+
+        {/* Details is a manual toggle, not a side effect of clicking a node,
+        so it sits with the other view controls. */}
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Details"
+          aria-pressed={detailsOpen}
+          className={cn(detailsOpen && "bg-accent text-foreground")}
+          onClick={onToggleDetails}
+        >
+          <Info />
+        </Button>
       </div>
     </div>
   );

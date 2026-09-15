@@ -1,6 +1,6 @@
+import type { MouseEvent } from "react";
 import { MoreHorizontal } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
-import { Checkbox } from "@workspace/ui/components/checkbox";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -16,8 +16,8 @@ import {
 } from "@workspace/ui/components/dropdown-menu";
 import { cn } from "@workspace/ui/lib/utils";
 import { fmtDate, fmtSize, type Node } from "@/lib/api";
-import { nodeActions, type NodeActionHandlers } from "@/components/node-actions";
-import { NodeIcon } from "@/components/node-table";
+import { nodeActions, type NodeAction, type NodeActionHandlers } from "@/components/node-actions";
+import { NodeIcon } from "@/components/node-icon";
 import { useUiStore } from "@/lib/ui-store";
 
 interface NodeListProps extends NodeActionHandlers {
@@ -25,45 +25,29 @@ interface NodeListProps extends NodeActionHandlers {
   starredIds: Set<string>;
   nodes: Node[];
   selectedIds: Set<string>;
-  focusedId?: string;
-  onToggle: (node: Node, checked: boolean) => void;
-  onToggleAll: (checked: boolean) => void;
-  onClick: (node: Node) => void;
+  /** Modifier keys decide replace / toggle / range — the caller reads them. */
+  onClick: (node: Node, event: MouseEvent) => void;
   onDoubleClick: (node: Node) => void;
 }
 
 /**
- * The dense listing: 36px rows, a checkbox gutter, right-aligned numeric
- * columns and an actions cell that only shows on hover or selection.
+ * The dense listing: 36px rows, right-aligned numeric columns and an actions
+ * cell that only shows on hover or selection. A click selects the row — there
+ * is no checkbox gutter, so selection reads as the row's own wash.
  */
 export function NodeList({
   nodes,
   selectedIds,
   starredIds,
-  focusedId,
-  onToggle,
-  onToggleAll,
   onClick,
   onDoubleClick,
   ...handlers
 }: NodeListProps) {
-  const allSelected = nodes.length > 0 && nodes.every((n) => selectedIds.has(n.id));
-  const someSelected = nodes.some((n) => selectedIds.has(n.id));
-
   return (
     <table className="w-full border-collapse text-left text-xs">
       <thead className="bg-background border-border text-muted-foreground sticky top-0 z-10 border-b text-[11px] tracking-wider uppercase">
         <tr className="h-9">
-          <th scope="col" className="w-8 px-3">
-            <Checkbox
-              checked={allSelected}
-              indeterminate={!allSelected && someSelected}
-              onCheckedChange={(checked) => onToggleAll(checked === true)}
-              aria-label="Select all"
-              className="size-3.5"
-            />
-          </th>
-          <th scope="col" className="min-w-60 px-2 font-medium">
+          <th scope="col" className="min-w-60 px-3 font-medium">
             Name
           </th>
           <th scope="col" className="w-36 px-2 text-right font-medium">
@@ -87,8 +71,6 @@ export function NodeList({
             node={node}
             selected={selectedIds.has(node.id)}
             starred={starredIds.has(node.id)}
-            focused={focusedId === node.id}
-            onToggle={onToggle}
             onClick={onClick}
             onDoubleClick={onDoubleClick}
             {...handlers}
@@ -103,9 +85,7 @@ interface NodeListRowProps extends NodeActionHandlers {
   starred: boolean;
   node: Node;
   selected: boolean;
-  focused: boolean;
-  onToggle: (node: Node, checked: boolean) => void;
-  onClick: (node: Node) => void;
+  onClick: (node: Node, event: MouseEvent) => void;
   onDoubleClick: (node: Node) => void;
 }
 
@@ -113,8 +93,6 @@ function NodeListRow({
   node,
   selected,
   starred,
-  focused,
-  onToggle,
   onClick,
   onDoubleClick,
   ...handlers
@@ -126,23 +104,16 @@ function NodeListRow({
     <ContextMenu>
       <ContextMenuTrigger className="contents">
         <tr
+          data-node-id={node.id}
           className={cn(
-            "group hover:bg-muted/40 h-9 transition-colors",
-            (selected || focused) && "bg-muted/60",
+            "group hover:bg-muted/40 h-9 cursor-pointer transition-colors",
+            // Soft wash rather than a border, to match the grid's cards.
+            selected && "bg-primary/10 hover:bg-primary/15",
           )}
-          onClick={() => onClick(node)}
+          onClick={(e) => onClick(node, e)}
           onDoubleClick={() => onDoubleClick(node)}
         >
-          <td className="w-8 px-3">
-            <Checkbox
-              checked={selected}
-              onCheckedChange={(checked) => onToggle(node, checked === true)}
-              onClick={(e) => e.stopPropagation()}
-              aria-label={`Select ${node.name}`}
-              className="size-3.5"
-            />
-          </td>
-          <td className="px-2">
+          <td className="px-3">
             <div className="flex min-w-0 items-center gap-2">
               <NodeIcon node={node} />
               <span className="truncate font-medium" title={node.name}>
@@ -208,11 +179,7 @@ function NodeListRow({
   );
 }
 
-function ContextMenuItemWithSeparator({
-  action,
-}: {
-  action: ReturnType<typeof nodeActions>[number];
-}) {
+function ContextMenuItemWithSeparator({ action }: { action: NodeAction }) {
   return (
     <>
       {action.startsGroup && <ContextMenuSeparator />}

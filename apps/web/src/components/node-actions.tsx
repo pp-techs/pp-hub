@@ -5,6 +5,7 @@ import {
   Eye,
   FolderInput,
   History,
+  Info,
   Link2,
   Pencil,
   SquarePen,
@@ -32,6 +33,8 @@ export interface NodeAction {
 
 export interface NodeActionHandlers {
   onPreview: (node: Node) => void;
+  /** Selects this node alone and opens the details panel on it. */
+  onShowDetails: (node: Node) => void;
   onToggleStar: (node: Node, starred: boolean) => void;
   onRename: (node: Node) => void;
   onMove: (node: Node) => void;
@@ -98,10 +101,16 @@ export function nodeActions(
   }
 
   actions.push({
+    key: "details",
+    label: "Information",
+    icon: Info,
+    startsGroup: node.kind === "file",
+    run: () => handlers.onShowDetails(node),
+  });
+  actions.push({
     key: "star",
     label: starred ? "Remove star" : "Add star",
     icon: starred ? StarOff : Star,
-    startsGroup: node.kind === "file",
     run: () => handlers.onToggleStar(node, !starred),
   });
   actions.push({

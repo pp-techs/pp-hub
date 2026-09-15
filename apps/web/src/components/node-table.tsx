@@ -1,4 +1,3 @@
-import { FileSpreadsheet, FileText, Folder } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -14,14 +13,8 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@workspace/ui/components/empty";
-import { fmtDate, fmtSize, isOfficeFile, type Node } from "@/lib/api";
-
-export function NodeIcon({ node, className }: { node: Node; className?: string }) {
-  const cls = className ?? "text-muted-foreground size-4 shrink-0";
-  if (node.kind === "dir") return <Folder className={cls} />;
-  if (isOfficeFile(node.name)) return <FileSpreadsheet className={cls} />;
-  return <FileText className={cls} />;
-}
+import { fmtDate, fmtSize, type Node } from "@/lib/api";
+import { NodeIcon } from "@/components/node-icon";
 
 interface NodeTableProps {
   nodes: Node[];

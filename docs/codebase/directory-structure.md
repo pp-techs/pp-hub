@@ -12,6 +12,8 @@ pp-hub/
 │   │       │   ├── queries/        # TanStack Query hooks (per-resource)
 │   │       │   ├── query-client.ts # shared QueryClient
 │   │       │   ├── ui-store.ts     # zustand ephemeral UI state
+│   │       │   ├── selection.ts    # click → selection (replace / ⌘ toggle / ⇧ range)
+│   │       │   ├── use-marquee-selection.ts # drag a band over the listing to select
 │   │       │   ├── upload-store.ts # zustand upload queue (concurrency, retry, mkdir cache)
 │   │       │   ├── drop-items.ts   # flattens a drop / folder pick into upload items
 │   │       │   ├── use-debounced.ts # trailing-edge debounce for the palette query
@@ -37,15 +39,16 @@ pp-hub/
 │   │       │   ├── activity-feed.tsx     # the event timeline
 │   │       │   ├── storage-breakdown.tsx # usage by MIME family
 │   │       │   ├── version-list.tsx      # shared by the ⋯ dialog and preview tab
-│   │       │   ├── node-table.tsx        # read-only dense node listing + NodeIcon
+│   │       │   ├── node-table.tsx        # read-only dense node listing
+│   │       │   ├── node-icon.tsx         # NodeIcon: vscode-icons glyph per extension
 │   │       │   ├── space-switcher.tsx    # rail band 1: active space + space menu
 │   │       │   ├── rail-search.tsx       # rail name filter (⌘K), writes ui-store.filterQuery
 │   │       │   ├── rail-item.tsx         # shared rail row geometry + section label
 │   │       │   ├── storage-meter.tsx     # rail band 3: used/quota for the active space
 │   │       │   ├── drive-header.tsx      # main column row 1: breadcrumbs + global toggles
-│   │       │   ├── drive-toolbar.tsx     # main column row 2: create actions, sort, view
-│   │       │   ├── node-list.tsx         # dense list view with checkbox multi-select
-│   │       │   ├── node-grid.tsx         # grid view, grouped Folders / Files, multi-select
+│   │       │   ├── drive-toolbar.tsx     # main column row 2: create, sort, view, details (i)
+│   │       │   ├── node-list.tsx         # dense list view, click-to-select rows
+│   │       │   ├── node-grid.tsx         # card grid, grouped Folders / Files, always-on thumbnails
 │   │       │   ├── node-actions.tsx      # single source for a node's menu actions
 │   │       │   ├── selection-bar.tsx     # floating bar for a multi-row selection
 │   │       │   └── ...                  # folder-tree, preview, nav, etc. (edit is a route, not a panel)
@@ -107,11 +110,45 @@ pp-hub/
   `drive/$spaceId.tsx` owns the main column as two 40px rows (`drive-header`,
   `drive-toolbar`) above the listing. Row geometry for the rail lives in
   `rail-item.tsx`; use `railRow()` rather than re-deriving row classes.
-- **Selection and focus are two different things.** A ticked checkbox feeds the
-  bulk `selection-bar`; the last single-clicked row feeds the details panel.
-  `node-list.tsx` and `node-grid.tsx` both take `selectedIds` _and_ `focusedId`
-  and style them apart — collapsing them back into one flag is what made the
-  grid unable to multi-select.
+- **Clicking a node only selects it.** There is no checkbox: a plain click
+  replaces the selection, ⌘/Ctrl toggles one node and Shift takes the range
+  from the last plain click, all of it decided by `nextSelection`
+  (`lib/selection.ts`) so the grid and the list cannot drift. Selected nodes
+  get a soft `bg-primary/10` wash, never an outline.
+- **The listing's background is a marquee.** `useMarqueeSelection`
+  (`lib/use-marquee-selection.ts`) is mounted on the scrolling listing in
+  `drive/$spaceId.tsx`: a press bands every node box it overlaps, holding
+  ⌘/Ctrl/Shift adds to whatever was selected when the drag began, and a press
+  that never travels 4px reports an empty band — which is what clears the
+  selection on a plain background click. A press is only background if it is
+  outside `[data-node-id]` (a card or row) and `[data-keeps-selection]` (the
+  selection bar); anything new that floats over the listing and acts on the
+  selection needs that second attribute, or pressing it will clear first. The
+  band is held in the container's content coordinates, so a mid-drag scroll
+  leaves it over the nodes it was drawn across.
+- **The details panel never opens by itself.** It is the toolbar's (i) toggle
+  next to the view switch, or a node's "Information" action, which selects that
+  node alone and opens the panel. It then follows the selection: one node shows
+  the full sheet, several show "x folders and y files selected"
+  (`describeSelection`), none shows a prompt. Selection also feeds the bulk
+  `selection-bar` — one piece of state for both, so clicking a node cannot
+  silently fetch shares and versions for it.
+- **File glyphs come from `vscode-icons`, keyed by extension.** `node-icon.tsx`
+  maps an extension to one `~icons/vscode-icons/*` component; `unplugin-icons`
+  (wired in `apps/web/vite.config.ts`, typed by the `unplugin-icons/types/react`
+  entry in `tsconfig.json`) inlines the SVG at build time, so nothing calls the
+  Iconify API at runtime. The glyphs carry their own colours — size them, never
+  tint them. New file type: add one import plus one `BY_EXT` row.
+- **Grid cards always show the thumbnail frame.** A file card is a header row
+  (glyph, name, ⋯) above a fixed 144px frame holding
+  `/preview?kind=thumbnail`. A file the preview worker never rendered one for —
+  anything but a raster image, see
+  [preview-pipeline.md](../architecture/preview-pipeline.md) — shows the frame
+  empty rather than an enlarged icon, as does a thumbnail that fails to load.
+  Size and date live in the card's tooltip; the list view and details panel are
+  where numbers belong. Column count comes from a container query on the grid
+  itself (2→5 columns), so opening the details panel drops 5 columns to 4
+  without the route passing anything down.
 - **Members and invitations render as one table.** `space-members-panel.tsx`
   owns both, plus the role reference and the invite dialog; `space-settings-panel.tsx`
   only mounts it. Listing invitations is owner-gated server-side, so the query

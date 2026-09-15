@@ -38,6 +38,9 @@ export function SelectionBar({
     <div
       role="toolbar"
       aria-label="Selection actions"
+      // The bar acts on the selection, so a click inside it must not count as
+      // a click on the listing's background, which clears it.
+      data-keeps-selection=""
       className="border-border bg-popover absolute bottom-6 left-1/2 z-30 flex h-10 -translate-x-1/2 items-center gap-2 rounded-lg border px-3 shadow-sm"
     >
       <span className="text-xs font-medium whitespace-nowrap">{selected.length} selected</span>

@@ -17,7 +17,7 @@ import {
 } from "@workspace/ui/components/empty";
 import { canEdit, fmtRelative, fmtSize, openEditor, type SearchResult } from "@/lib/api";
 import { PreviewModal } from "@/components/preview-modal";
-import { NodeIcon } from "@/components/node-table";
+import { NodeIcon } from "@/components/node-icon";
 
 interface CrossSpaceTableProps {
   nodes: SearchResult[];

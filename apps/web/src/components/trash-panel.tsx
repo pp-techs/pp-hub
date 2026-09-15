@@ -22,7 +22,7 @@ import {
 import { fmtRelative, fmtSize, type TrashNode } from "@/lib/api";
 import { useEmptyTrash, usePurgeNode, useRestoreNode, useSpaces, useTrash } from "@/lib/queries";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { NodeIcon } from "@/components/node-table";
+import { NodeIcon } from "@/components/node-icon";
 
 interface TrashPanelProps {
   spaceId: string;

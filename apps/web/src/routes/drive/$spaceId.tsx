@@ -6,7 +6,7 @@ import {
   useSearch,
 } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { FormEvent } from "react";
+import type { FormEvent, MouseEvent } from "react";
 import { FolderOpen } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@workspace/ui/components/button";
@@ -49,6 +49,8 @@ import {
 } from "@/lib/queries";
 import { useUploadStore } from "@/lib/upload-store";
 import { collectInputFiles } from "@/lib/drop-items";
+import { nextSelection } from "@/lib/selection";
+import { useMarqueeSelection } from "@/lib/use-marquee-selection";
 import { useUiStore } from "@/lib/ui-store";
 import { SpaceMembersPanel } from "@/components/space-members-panel";
 import { SharedPanel } from "@/components/drive-panels";
@@ -129,11 +131,11 @@ function FolderView() {
   const filterQuery = useUiStore((s) => s.filterQuery);
   const dirs = useUiStore((s) => s.dirs);
 
-  /** Rows ticked via checkbox — drives the floating action bar. */
+  /** The clicked nodes — drives the action bar and the details panel alike. */
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  /** Row last clicked — drives the details panel. */
-  const [focusedNode, setFocusedNode] = useState<Node | null>(null);
-  const [detailsOpen, setDetailsOpen] = useState(true);
+  /** Anchor for shift-click ranges: the last node clicked without a modifier. */
+  const anchorId = useRef<string | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
@@ -143,6 +145,8 @@ function FolderView() {
 
   const fileRef = useRef<HTMLInputElement>(null);
   const folderRef = useRef<HTMLInputElement>(null);
+  /** The scrolling listing, which the marquee bands over. */
+  const listingRef = useRef<HTMLDivElement>(null);
   const enqueueUploads = useUploadStore((s) => s.enqueue);
   const mkdir = useCreateFolder(spaceId, dir);
   const rename = useRenameNode(spaceId);
@@ -153,19 +157,15 @@ function FolderView() {
   const starred = useStarred(200);
   const del = useDeleteNode(spaceId);
 
-  const clickTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-
   useEffect(() => {
     setLastSpaceId(spaceId);
   }, [spaceId, setLastSpaceId]);
 
-  // Moving to another folder or space invalidates both kinds of selection.
+  // Moving to another folder or space invalidates the selection.
   useEffect(() => {
-    setFocusedNode(null);
     setSelectedIds(new Set());
+    anchorId.current = null;
   }, [spaceId, dir]);
-
-  useEffect(() => () => clearTimeout(clickTimer.current), []);
 
   const children = childrenOptions(spaceId, dir);
 
@@ -179,11 +179,8 @@ function FolderView() {
   const sortedDirs = useMemo(() => sorted.filter((n) => n.kind === "dir"), [sorted]);
   const sortedFiles = useMemo(() => sorted.filter((n) => n.kind === "file"), [sorted]);
 
-  // Re-read the focused node from the listing so it reflects renames.
-  const activeFocused = focusedNode
-    ? (children.data?.find((n) => n.id === focusedNode.id) ?? focusedNode)
-    : null;
-
+  // The listing is the flat order the grid and list both draw from, so it is
+  // also what a shift-click range walks.
   const selectedNodes = useMemo(
     () => sorted.filter((n) => selectedIds.has(n.id)),
     [sorted, selectedIds],
@@ -199,16 +196,47 @@ function FolderView() {
     [navigate, spaceId, dir, sort, order, view, panel],
   );
 
-  // Single click focuses — delayed so a double-click doesn't flash the panel.
-  const handleClick = useCallback((node: Node) => {
-    clearTimeout(clickTimer.current);
-    clickTimer.current = setTimeout(() => setFocusedNode(node), 250);
-  }, []);
+  /**
+   * A click only ever changes the selection — the details panel is opened by
+   * hand, from the toolbar's (i) or the node's Information action.
+   */
+  const handleClick = useCallback(
+    (node: Node, event: MouseEvent) => {
+      const next = nextSelection(
+        sorted,
+        { ids: selectedIds, anchorId: anchorId.current },
+        node.id,
+        { toggle: event.metaKey || event.ctrlKey, range: event.shiftKey },
+      );
+      anchorId.current = next.anchorId;
+      setSelectedIds(next.ids);
+    },
+    [sorted, selectedIds],
+  );
+
+  /**
+   * Dragging across the listing bands nodes in; a press that never moves is
+   * an ordinary background click, which arrives here as an empty band and so
+   * clears the selection. Holding ⌘/Ctrl/Shift adds to what was already
+   * selected when the drag began.
+   */
+  const dragBase = useRef<Set<string>>(new Set());
+  const marquee = useMarqueeSelection(listingRef, {
+    enabled: browsing,
+    onStart: () => {
+      dragBase.current = selectedIds;
+    },
+    onChange: (ids, additive) => {
+      anchorId.current = null;
+      setSelectedIds((prev) => {
+        const next = additive ? new Set([...dragBase.current, ...ids]) : ids;
+        return prev.size === 0 && next.size === 0 ? prev : next;
+      });
+    },
+  });
 
   const handleDoubleClick = useCallback(
     (node: Node) => {
-      clearTimeout(clickTimer.current);
-      clickTimer.current = undefined;
       if (node.kind === "dir") {
         rememberDir(node);
         void navigate({
@@ -225,19 +253,12 @@ function FolderView() {
     [navigate, spaceId, rememberDir, sort, order, view, sortedFiles],
   );
 
-  const handleToggle = useCallback((node: Node, checked: boolean) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (checked) next.add(node.id);
-      else next.delete(node.id);
-      return next;
-    });
+  /** The node's Information action: select it alone, then show the panel. */
+  const handleShowDetails = useCallback((node: Node) => {
+    setSelectedIds(new Set([node.id]));
+    anchorId.current = node.id;
+    setDetailsOpen(true);
   }, []);
-
-  const handleToggleAll = useCallback(
-    (checked: boolean) => setSelectedIds(checked ? new Set(sorted.map((n) => n.id)) : new Set()),
-    [sorted],
-  );
 
   const handleRename = useCallback((node: Node) => {
     setRenameNode(node);
@@ -291,8 +312,7 @@ function FolderView() {
     for (const node of confirmNodes ?? []) del.mutate(node.id);
     const removed = new Set((confirmNodes ?? []).map((n) => n.id));
     setSelectedIds((prev) => new Set([...prev].filter((id) => !removed.has(id))));
-    if (focusedNode && removed.has(focusedNode.id)) setFocusedNode(null);
-  }, [confirmNodes, del, focusedNode]);
+  }, [confirmNodes, del]);
 
   const starredIds = useMemo(() => new Set((starred.data ?? []).map((n) => n.id)), [starred.data]);
 
@@ -300,6 +320,7 @@ function FolderView() {
 
   const nodeHandlers = {
     onPreview: handlePreview,
+    onShowDetails: handleShowDetails,
     onCopy: (node: Node) =>
       copy.mutate(
         { nodeId: node.id, parentId: dir },
@@ -329,7 +350,7 @@ function FolderView() {
     throw notFound();
   }
 
-  const showDetails = browsing && detailsOpen && activeFocused !== null;
+  const showDetails = browsing && detailsOpen;
 
   // Whether you may write is now a property of the folder you are in, not of
   // your role, and the client cannot know it without asking. So this is only
@@ -347,8 +368,6 @@ function FolderView() {
         spaceId={spaceId}
         dir={dir}
         panel={panel}
-        detailsOpen={detailsOpen}
-        onToggleDetails={() => setDetailsOpen((v) => !v)}
         onTogglePanel={(next) =>
           void navigate({
             to: "/drive/$spaceId",
@@ -370,6 +389,8 @@ function FolderView() {
           onSortChange={(s) => goTo({ sort: s })}
           onOrderToggle={() => goTo({ order: order === "asc" ? "desc" : "asc" })}
           onViewChange={(v) => goTo({ view: v })}
+          detailsOpen={detailsOpen}
+          onToggleDetails={() => setDetailsOpen((v) => !v)}
         />
       )}
 
@@ -380,7 +401,11 @@ function FolderView() {
           destination={destination}
           disabled={!browsing || !canUpload}
         >
-          <div className="relative min-h-0 flex-1 overflow-auto">
+          <div
+            ref={listingRef}
+            className="relative min-h-0 flex-1 overflow-auto"
+            onMouseDown={marquee.onMouseDown}
+          >
             {panel === "members" ? (
               <div className="p-4">
                 <SpaceMembersPanel
@@ -422,8 +447,6 @@ function FolderView() {
                 files={sortedFiles}
                 selectedIds={selectedIds}
                 starredIds={starredIds}
-                focusedId={activeFocused?.id}
-                onToggle={handleToggle}
                 onClick={handleClick}
                 onDoubleClick={handleDoubleClick}
                 {...nodeHandlers}
@@ -433,12 +456,17 @@ function FolderView() {
                 nodes={sorted}
                 selectedIds={selectedIds}
                 starredIds={starredIds}
-                focusedId={activeFocused?.id}
-                onToggle={handleToggle}
-                onToggleAll={handleToggleAll}
                 onClick={handleClick}
                 onDoubleClick={handleDoubleClick}
                 {...nodeHandlers}
+              />
+            )}
+
+            {marquee.rect && (
+              <div
+                aria-hidden
+                className="border-primary/50 bg-primary/10 pointer-events-none absolute z-20 rounded-xs border"
+                style={marquee.rect}
               />
             )}
 
@@ -458,7 +486,7 @@ function FolderView() {
 
         {showDetails && (
           <aside className="border-border w-80 shrink-0 border-l">
-            <DetailsPanel node={activeFocused} onClose={() => setFocusedNode(null)} />
+            <DetailsPanel nodes={selectedNodes} onClose={() => setDetailsOpen(false)} />
           </aside>
         )}
       </div>
