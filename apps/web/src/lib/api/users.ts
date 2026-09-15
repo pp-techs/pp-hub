@@ -1,6 +1,6 @@
 // User management API endpoints.
 import { api, ApiError } from "./client";
-import type { AdminUser, SpaceMember, UserProfile, UserSearchResult } from "./types";
+import type { AdminUser, MemberRole, SpaceMember, UserProfile, UserSearchResult } from "./types";
 
 // ─── Profile ─────────────────────────────────────────────────────────────────
 
@@ -61,7 +61,7 @@ export async function getSpaceMembers(spaceId: string): Promise<SpaceMember[]> {
 
 export async function addSpaceMember(
   spaceId: string,
-  body: { user_id: string; role: "viewer" | "editor" | "owner" },
+  body: { user_id: string; role: MemberRole },
 ): Promise<void> {
   const res = await api.post(`api/v1/spaces/${spaceId}/members`, { json: body });
   if (!res.ok) {
@@ -73,7 +73,7 @@ export async function addSpaceMember(
 export async function updateMemberRole(
   spaceId: string,
   userId: string,
-  role: "viewer" | "editor" | "owner",
+  role: MemberRole,
 ): Promise<void> {
   const res = await api.patch(`api/v1/spaces/${spaceId}/members/${userId}`, { json: { role } });
   if (!res.ok) throw new ApiError(res.status, "Failed to update role");

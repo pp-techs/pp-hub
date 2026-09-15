@@ -210,19 +210,13 @@ func (s *Server) handleEditSession(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "file type not supported by editor")
 		return
 	}
-	// Resolve effective rank for token claims.
-	roleRank := 0
-	if role, err := s.spaces.RoleOf(r.Context(), node.SpaceID, u.ID); err == nil {
-		switch role {
-		case "viewer":
-			roleRank = 1
-		case "editor":
-			roleRank = 2
-		case "owner":
-			roleRank = 3
-		}
-	}
-	eff, err := s.share.EffectivePerm(r.Context(), node, u.ID, roleRank)
+	// Resolve effective rank for token claims. This goes through the shared
+	// helper rather than a local switch: the local one mapped editor to 2 while
+	// requireNodeAccess mapped it to 3, so a user who had just passed the rank-3
+	// gate above was handed a token that share.CanWrite (rank >= 3) rejected —
+	// an editor got a read-only editing session. Switching on raw role strings
+	// is what let the two drift without the compiler noticing.
+	eff, err := s.share.EffectivePerm(r.Context(), node, u.ID, s.spaceRoleRank(r, node.SpaceID, u.ID))
 	if err != nil {
 		Error(w, r, err)
 		return

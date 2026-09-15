@@ -56,16 +56,16 @@ interface SpaceMembersPanelProps {
 
 const ROLES: { value: MemberRole; label: string; blurb: string }[] = [
   {
-    value: "owner",
-    label: "Owner",
-    blurb: "Manage members and settings, delete the space, everything an editor can do",
+    value: "admin",
+    label: "Admin",
+    blurb: "Manage members, groups and settings, delete the space, and open every folder in it",
   },
   {
-    value: "editor",
-    label: "Editor",
-    blurb: "Upload, edit, move, delete and share files, restore versions",
+    value: "member",
+    label: "Member",
+    blurb:
+      "Opens only what their groups have been given access to — a role on its own grants nothing",
   },
-  { value: "viewer", label: "Viewer", blurb: "View and download files, nothing else" },
 ];
 
 const ROLE_ITEMS = ROLES.map((r) => ({ label: r.label, value: r.value }));
@@ -95,10 +95,10 @@ const STATUS_FILTERS = [
  */
 export function SpaceMembersPanel({ spaceId, currentUserRole }: SpaceMembersPanelProps) {
   const { data: members = [], isLoading } = useSpaceMembers(spaceId);
-  const isOwner = currentUserRole === "owner";
-  // Listing invitations is owner-gated on the server, so asking as an editor
+  const isAdmin = currentUserRole === "admin";
+  // Listing invitations is admin-gated on the server, so asking as a member
   // would only produce a 403 in the console.
-  const invitations = useInvitations(spaceId, isOwner);
+  const invitations = useInvitations(spaceId, isAdmin);
   const { data: me } = useMyProfile();
 
   const updateRole = useUpdateMemberRole();
@@ -154,7 +154,7 @@ export function SpaceMembersPanel({ spaceId, currentUserRole }: SpaceMembersPane
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          {isOwner && (
+          {isAdmin && (
             <Button onClick={() => setInviteOpen(true)}>
               <UserPlus data-icon="inline-start" /> Invite people
             </Button>
@@ -202,7 +202,7 @@ export function SpaceMembersPanel({ spaceId, currentUserRole }: SpaceMembersPane
             <TableHead className="w-28">Joined</TableHead>
             <TableHead className="w-28">Last active</TableHead>
             <TableHead className="w-24 text-right">Files owned</TableHead>
-            {isOwner && <TableHead className="w-32" />}
+            {isAdmin && <TableHead className="w-32" />}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -212,7 +212,7 @@ export function SpaceMembersPanel({ spaceId, currentUserRole }: SpaceMembersPane
               member={member}
               isSelf={member.user_id === me?.id}
               external={isExternal(member.email, me?.email)}
-              canManage={isOwner}
+              canManage={isAdmin}
               onRoleChange={(role) =>
                 updateRole.mutate(
                   { spaceId, userId: member.user_id, role },
@@ -236,7 +236,7 @@ export function SpaceMembersPanel({ spaceId, currentUserRole }: SpaceMembersPane
               key={inv.id}
               invitation={inv}
               external={isExternal(inv.email, me?.email)}
-              canManage={isOwner}
+              canManage={isAdmin}
               busy={invite.isPending || revokeInvite.isPending}
               onResend={() =>
                 invite.mutate(
@@ -265,7 +265,7 @@ export function SpaceMembersPanel({ spaceId, currentUserRole }: SpaceMembersPane
 
           {shown === 0 && (
             <TableRow>
-              <TableCell colSpan={isOwner ? 6 : 5} className="text-muted-foreground py-6 text-xs">
+              <TableCell colSpan={isAdmin ? 6 : 5} className="text-muted-foreground py-6 text-xs">
                 No one matches these filters.
               </TableCell>
             </TableRow>
@@ -285,7 +285,7 @@ export function SpaceMembersPanel({ spaceId, currentUserRole }: SpaceMembersPane
         </dl>
       </div>
 
-      {isOwner && (
+      {isAdmin && (
         <InviteDialog
           spaceId={spaceId}
           open={inviteOpen}
@@ -533,7 +533,7 @@ function InviteDialog({
   const addMember = useAddSpaceMember();
   const invite = useCreateInvitation(spaceId);
 
-  const [role, setRole] = useState<MemberRole>("viewer");
+  const [role, setRole] = useState<MemberRole>("member");
   const [picked, setPicked] = useState<UserSearchResult | null>(null);
   const [email, setEmail] = useState("");
 
@@ -541,7 +541,7 @@ function InviteDialog({
     onOpenChange(false);
     setPicked(null);
     setEmail("");
-    setRole("viewer");
+    setRole("member");
   };
 
   return (

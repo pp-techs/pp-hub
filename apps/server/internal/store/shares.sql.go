@@ -14,7 +14,7 @@ import (
 const createShare = `-- name: CreateShare :one
 INSERT INTO shares (node_id, kind, token_hash, grantee_user_id, perm, expires_at, created_by)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, tenant_id, node_id, kind, token_hash, grantee_user_id, perm, expires_at, created_by, created_at
+RETURNING id, tenant_id, node_id, kind, token_hash, grantee_user_id, perm, expires_at, created_by, created_at, grantee_group_id
 `
 
 type CreateShareParams struct {
@@ -49,6 +49,7 @@ func (q *Queries) CreateShare(ctx context.Context, arg CreateShareParams) (Share
 		&i.ExpiresAt,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.GranteeGroupID,
 	)
 	return i, err
 }
@@ -62,54 +63,8 @@ func (q *Queries) DeleteShare(ctx context.Context, id pgtype.UUID) error {
 	return err
 }
 
-const findDirectSharesForUser = `-- name: FindDirectSharesForUser :many
-SELECT id, tenant_id, node_id, kind, token_hash, grantee_user_id, perm, expires_at, created_by, created_at FROM shares
-WHERE kind = 'direct'
-  AND grantee_user_id = $2
-  AND node_id = ANY($1::uuid[])
-  AND (expires_at IS NULL OR expires_at > now())
-`
-
-type FindDirectSharesForUserParams struct {
-	Column1       []pgtype.UUID `json:"column_1"`
-	GranteeUserID pgtype.UUID   `json:"grantee_user_id"`
-}
-
-// Direct shares granted to $2 (user) on $1 (node) or any of its ancestors
-// (ancestors resolved in Go; this query takes a list of node ids).
-func (q *Queries) FindDirectSharesForUser(ctx context.Context, arg FindDirectSharesForUserParams) ([]Share, error) {
-	rows, err := q.db.Query(ctx, findDirectSharesForUser, arg.Column1, arg.GranteeUserID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Share
-	for rows.Next() {
-		var i Share
-		if err := rows.Scan(
-			&i.ID,
-			&i.TenantID,
-			&i.NodeID,
-			&i.Kind,
-			&i.TokenHash,
-			&i.GranteeUserID,
-			&i.Perm,
-			&i.ExpiresAt,
-			&i.CreatedBy,
-			&i.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getDirectShare = `-- name: GetDirectShare :one
-SELECT id, tenant_id, node_id, kind, token_hash, grantee_user_id, perm, expires_at, created_by, created_at FROM shares
+SELECT id, tenant_id, node_id, kind, token_hash, grantee_user_id, perm, expires_at, created_by, created_at, grantee_group_id FROM shares
 WHERE kind = 'direct' AND node_id = $1 AND grantee_user_id = $2
   AND (expires_at IS NULL OR expires_at > now())
 LIMIT 1
@@ -134,12 +89,13 @@ func (q *Queries) GetDirectShare(ctx context.Context, arg GetDirectShareParams) 
 		&i.ExpiresAt,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.GranteeGroupID,
 	)
 	return i, err
 }
 
 const getShareByToken = `-- name: GetShareByToken :one
-SELECT id, tenant_id, node_id, kind, token_hash, grantee_user_id, perm, expires_at, created_by, created_at FROM shares
+SELECT id, tenant_id, node_id, kind, token_hash, grantee_user_id, perm, expires_at, created_by, created_at, grantee_group_id FROM shares
 WHERE token_hash = $1
   AND (expires_at IS NULL OR expires_at > now())
 LIMIT 1
@@ -159,12 +115,13 @@ func (q *Queries) GetShareByToken(ctx context.Context, tokenHash pgtype.Text) (S
 		&i.ExpiresAt,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.GranteeGroupID,
 	)
 	return i, err
 }
 
 const listSharesForNode = `-- name: ListSharesForNode :many
-SELECT id, tenant_id, node_id, kind, token_hash, grantee_user_id, perm, expires_at, created_by, created_at FROM shares WHERE node_id = $1 ORDER BY created_at DESC
+SELECT id, tenant_id, node_id, kind, token_hash, grantee_user_id, perm, expires_at, created_by, created_at, grantee_group_id FROM shares WHERE node_id = $1 ORDER BY created_at DESC
 `
 
 func (q *Queries) ListSharesForNode(ctx context.Context, nodeID pgtype.UUID) ([]Share, error) {
@@ -187,7 +144,67 @@ func (q *Queries) ListSharesForNode(ctx context.Context, nodeID pgtype.UUID) ([]
 			&i.ExpiresAt,
 			&i.CreatedBy,
 			&i.CreatedAt,
+			&i.GranteeGroupID,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const nodeAccessRanks = `-- name: NodeAccessRanks :many
+WITH RECURSIVE anc(origin, id, parent_id) AS (
+    SELECT n.id, n.id, n.parent_id FROM nodes n WHERE n.id = ANY($2::uuid[])
+  UNION ALL
+    SELECT a.origin, p.id, p.parent_id FROM anc a JOIN nodes p ON p.id = a.parent_id
+)
+SELECT anc.origin AS node_id,
+       MAX(CASE s.perm WHEN 'edit' THEN 3 WHEN 'download' THEN 2 WHEN 'view' THEN 1 ELSE 0 END)::int AS rank
+FROM anc
+JOIN shares s ON s.node_id = anc.id
+WHERE (s.expires_at IS NULL OR s.expires_at > now())
+  AND ( (s.kind = 'direct' AND s.grantee_user_id = $1)
+     OR (s.kind = 'group'  AND s.grantee_group_id IN (
+            SELECT gm.group_id FROM group_members gm WHERE gm.user_id = $1)) )
+GROUP BY anc.origin
+`
+
+type NodeAccessRanksParams struct {
+	UserID  pgtype.UUID   `json:"user_id"`
+	NodeIds []pgtype.UUID `json:"node_ids"`
+}
+
+type NodeAccessRanksRow struct {
+	NodeID pgtype.UUID `json:"node_id"`
+	Rank   int32       `json:"rank"`
+}
+
+// The highest permission $2 holds on each node in $1, granted either directly
+// to them or to a group they belong to, on the node itself or on any ancestor.
+// Nodes with no grant are absent from the result rather than returned as 0.
+//
+// This replaces an ancestor walk that issued one GetNodeParent round-trip per
+// level, per node, and silently stopped widening at depth 100. Permission is
+// now resolved for a whole listing in one query.
+//
+// The recursive join deliberately does NOT filter deleted_at. GetNodeParent
+// does, which truncates the chain at the first trashed ancestor and loses the
+// grant above it — the reason trash could not use share resolution at all.
+// ListDeletedWithMeta walks the same way for the same reason.
+func (q *Queries) NodeAccessRanks(ctx context.Context, arg NodeAccessRanksParams) ([]NodeAccessRanksRow, error) {
+	rows, err := q.db.Query(ctx, nodeAccessRanks, arg.UserID, arg.NodeIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []NodeAccessRanksRow
+	for rows.Next() {
+		var i NodeAccessRanksRow
+		if err := rows.Scan(&i.NodeID, &i.Rank); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

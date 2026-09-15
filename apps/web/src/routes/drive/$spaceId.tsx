@@ -324,7 +324,11 @@ function FolderView() {
   const space = spaces.data?.find((s) => s.id === spaceId);
   // Uploading needs editor rank; the server rejects a viewer, so the toolbar
   // and the drop overlay stay out of their way entirely.
-  const canUpload = space?.role === "editor" || space?.role === "owner";
+  // Whether you may write is now a property of the folder you are in, not of
+  // your role, and the client cannot know it without asking. So this is only
+  // "are you in this space at all" — the server authorises the target folder on
+  // every upload and rejects what the grants do not allow.
+  const canUpload = Boolean(space?.role);
   // Destination for the drop overlay: the space name plus the open folder.
   const destination = [space?.name ?? "this space", dir ? dirs[dir]?.name : undefined]
     .filter(Boolean)
@@ -374,7 +378,7 @@ function FolderView() {
               <div className="p-4">
                 <SpaceMembersPanel
                   spaceId={spaceId}
-                  currentUserRole={spaces.data?.find((s) => s.id === spaceId)?.role ?? "viewer"}
+                  currentUserRole={spaces.data?.find((s) => s.id === spaceId)?.role ?? "member"}
                 />
               </div>
             ) : panel === "trash" ? (

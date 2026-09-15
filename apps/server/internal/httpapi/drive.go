@@ -210,7 +210,7 @@ func (s *Server) handleCreateSpace(w http.ResponseWriter, r *http.Request) {
 	s.activity.Record(r.Context(), activity.Event{
 		SpaceID: sp.ID, ActorID: u.ID, Kind: activity.KindCreated, NodeName: sp.Name,
 	})
-	writeJSON(w, http.StatusCreated, spaceToDTO(sp, string(spaces.RoleOwner)))
+	writeJSON(w, http.StatusCreated, spaceToDTO(sp, string(spaces.RoleAdmin)))
 }
 
 func (s *Server) handleListSpaces(w http.ResponseWriter, r *http.Request) {
@@ -233,9 +233,90 @@ func (s *Server) handleListSpaces(w http.ResponseWriter, r *http.Request) {
 
 // --- Node handlers ---
 
+// spaceRoleRank maps a space role onto the *permission* scale
+// (view=1, download=2, edit=3) — not onto the role scale, which is a separate
+// comparison used only by spaces.RequireRole.
+//
+// admin → 3: an admin holds edit everywhere in the space they administer.
+// member → 0: belonging to the company grants no access to any file. A
+// member's permission comes entirely from group grants and direct shares, so
+// this returns the floor and share.EffectivePerm supplies the rest.
+//
+// This is the single seam where "is a member" could be turned back into
+// implicit access. It is deliberately the only copy: the WOPI handler used to
+// keep its own switch on raw role strings, which silently drifted and minted
+// read-only tokens for users who could write.
+func (s *Server) spaceRoleRank(r *http.Request, spaceID, userID pgtype.UUID) int {
+	// A non-member resolves to 0 and falls through to the share lookup, which
+	// is correct: a direct share can name someone outside the space.
+	role, err := s.spaces.RoleOf(r.Context(), spaceID, userID)
+	if err != nil {
+		return 0
+	}
+	return roleFloor(role)
+}
+
+// roleFloor is the pure half of spaceRoleRank, split out so the mapping can be
+// tested without a database.
+func roleFloor(role spaces.Role) int {
+	if role == spaces.RoleAdmin {
+		return 3
+	}
+	return 0
+}
+
+// requireParentWrite authorises creating something inside parentID.
+//
+// The space-keyed create routes (POST /spaces/{spaceID}/dirs and .../files)
+// take parent_id from the request body, and until this existed nothing checked
+// it: not that it belonged to spaceID, not that the caller could write there.
+// That was harmless only while an editor could write anywhere in their space.
+// Now that a member's access comes from individual grants, an unchecked
+// parent_id would let anyone holding one grant write into any folder of any
+// company.
+//
+// A parent in another space answers 404, not 403 — confirming that a node
+// exists is already more than the caller should learn, the same rule anonymous
+// share browsing follows.
+//
+// A nil parent means the space root, which nobody holds a grant on, so it is
+// admin-only.
+func (s *Server) requireParentWrite(w http.ResponseWriter, r *http.Request, spaceID, parentID pgtype.UUID, u *store.User) bool {
+	if !parentID.Valid {
+		if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleAdmin); err != nil {
+			writeProblem(w, http.StatusForbidden, "Forbidden", "only an admin can create items at the top level of a space")
+			return false
+		}
+		return true
+	}
+	parent, err := s.fs.Get(r.Context(), parentID)
+	if err != nil {
+		s.nodeError(w, r, err)
+		return false
+	}
+	if parent.SpaceID != spaceID {
+		writeProblem(w, http.StatusNotFound, "Not Found", "no such folder")
+		return false
+	}
+	if parent.Kind != store.NodeKindDir {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "parent_id is not a folder")
+		return false
+	}
+	eff, err := s.share.EffectivePerm(r.Context(), parent, u.ID, s.spaceRoleRank(r, spaceID, u.ID))
+	if err != nil {
+		Error(w, r, err)
+		return false
+	}
+	if eff < 3 {
+		writeProblem(w, http.StatusForbidden, "Forbidden", "insufficient permission")
+		return false
+	}
+	return true
+}
+
 // requireNodeAccess resolves the node and enforces the effective permission:
-// space role widened by direct shares on the node or its ancestors.
-// minRank: 1=view, 2=download, 3=edit.
+// the space-role floor widened by group grants and direct shares on the node
+// or its ancestors. minRank: 1=view, 2=download, 3=edit.
 func (s *Server) requireNodeAccess(w http.ResponseWriter, r *http.Request, minRank int) (*store.User, store.Node) {
 	u := s.requireUser(w, r)
 	if u == nil {
@@ -251,30 +332,7 @@ func (s *Server) requireNodeAccess(w http.ResponseWriter, r *http.Request, minRa
 		s.nodeError(w, r, err)
 		return nil, store.Node{}
 	}
-	// Space role mapped onto the *permission* scale (view=1, download=2,
-	// edit=3), not onto a parallel role scale.
-	//
-	// Editor maps to edit, not to download. The earlier positional mapping
-	// (viewer=1, editor=2, owner=3) meant an editor's rank was 2 while every
-	// mutating route asks for 3 — so editors could upload (that route checks
-	// the space role directly) but could not rename, move or delete what they
-	// had just uploaded. The role reference in the settings screen states the
-	// intent plainly: "Editor — upload, edit, move, delete, share files,
-	// restore versions".
-	//
-	// Owner and editor are identical here on purpose. Owner-only powers —
-	// member management, space settings, permanent deletion — are gated by
-	// RequireRole(RoleOwner) at the space level, never through this scale.
-	roleRank := 0
-	if role, err := s.spaces.RoleOf(r.Context(), node.SpaceID, u.ID); err == nil {
-		switch role {
-		case spaces.RoleViewer:
-			roleRank = 1
-		case spaces.RoleEditor, spaces.RoleOwner:
-			roleRank = 3
-		}
-	}
-	eff, err := s.share.EffectivePerm(r.Context(), node, u.ID, roleRank)
+	eff, err := s.share.EffectivePerm(r.Context(), node, u.ID, s.spaceRoleRank(r, node.SpaceID, u.ID))
 	if err != nil {
 		Error(w, r, err)
 		return nil, store.Node{}
@@ -296,7 +354,7 @@ func (s *Server) handleListChildren(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
 		return
 	}
-	if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleViewer); err != nil {
+	if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleMember); err != nil {
 		s.spaceError(w, r, err)
 		return
 	}
@@ -329,7 +387,7 @@ func (s *Server) handleMkdir(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
 		return
 	}
-	if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleEditor); err != nil {
+	if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleMember); err != nil {
 		s.spaceError(w, r, err)
 		return
 	}
@@ -347,6 +405,9 @@ func (s *Server) handleMkdir(w http.ResponseWriter, r *http.Request) {
 			writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid parent_id")
 			return
 		}
+	}
+	if !s.requireParentWrite(w, r, spaceID, parentID, u) {
+		return
 	}
 	n, err := s.fs.Mkdir(r.Context(), spaceID, parentID, body.Name, u.ID)
 	if err != nil {
@@ -367,7 +428,7 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
 		return
 	}
-	if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleEditor); err != nil {
+	if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleMember); err != nil {
 		s.spaceError(w, r, err)
 		return
 	}
@@ -382,6 +443,9 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 			writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid parent_id")
 			return
 		}
+	}
+	if !s.requireParentWrite(w, r, spaceID, parentID, u) {
+		return
 	}
 	f, hdr, err := r.FormFile("file")
 	if err != nil {
@@ -661,7 +725,7 @@ func (s *Server) handleListTree(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
 		return
 	}
-	if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleViewer); err != nil {
+	if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleMember); err != nil {
 		s.spaceError(w, r, err)
 		return
 	}
@@ -713,7 +777,7 @@ func (s *Server) handleListDeleted(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
 		return
 	}
-	if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleViewer); err != nil {
+	if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleMember); err != nil {
 		s.spaceError(w, r, err)
 		return
 	}

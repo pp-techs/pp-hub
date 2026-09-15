@@ -91,10 +91,10 @@ func (s *Server) handleUpdateSpace(w http.ResponseWriter, r *http.Request) {
 	if body.DefaultRole != nil {
 		role := store.MemberRole(*body.DefaultRole)
 		switch role {
-		case store.MemberRoleViewer, store.MemberRoleEditor, store.MemberRoleOwner:
+		case store.MemberRoleMember, store.MemberRoleAdmin:
 			next.DefaultRole = role
 		default:
-			writeProblem(w, http.StatusBadRequest, "Bad Request", "default_role must be viewer|editor|owner")
+			writeProblem(w, http.StatusBadRequest, "Bad Request", "default_role must be admin|member")
 			return
 		}
 	}
@@ -123,7 +123,7 @@ func (s *Server) handleUpdateSpace(w http.ResponseWriter, r *http.Request) {
 		Error(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, spaceToDTO(updated, string(spaces.RoleOwner)))
+	writeJSON(w, http.StatusOK, spaceToDTO(updated, string(spaces.RoleAdmin)))
 	_ = u
 }
 
@@ -155,10 +155,10 @@ func spaceSettingsFrom(sp store.Space, slug, description, defaultRole string, qu
 	if defaultRole != "" {
 		role := store.MemberRole(defaultRole)
 		switch role {
-		case store.MemberRoleViewer, store.MemberRoleEditor, store.MemberRoleOwner:
+		case store.MemberRoleMember, store.MemberRoleAdmin:
 			next.DefaultRole = role
 		default:
-			return next, "default_role must be viewer|editor|owner"
+			return next, "default_role must be admin|member"
 		}
 	}
 	if quota < 0 {
@@ -238,11 +238,11 @@ func (s *Server) handleCreateInvitation(w http.ResponseWriter, r *http.Request) 
 	}
 	role := store.MemberRole(body.Role)
 	switch role {
-	case store.MemberRoleViewer, store.MemberRoleEditor, store.MemberRoleOwner:
+	case store.MemberRoleMember, store.MemberRoleAdmin:
 	case "":
 		role = space.DefaultRole
 	default:
-		writeProblem(w, http.StatusBadRequest, "Bad Request", "role must be viewer|editor|owner")
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "role must be admin|member")
 		return
 	}
 
@@ -371,7 +371,7 @@ func (s *Server) requireSpaceOwner(w http.ResponseWriter, r *http.Request) (*sto
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
 		return nil, store.Space{}, false
 	}
-	if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleOwner); err != nil {
+	if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleAdmin); err != nil {
 		s.spaceError(w, r, err)
 		return nil, store.Space{}, false
 	}

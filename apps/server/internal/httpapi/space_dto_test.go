@@ -19,22 +19,22 @@ func TestSpaceDTOCarriesSettingsFields(t *testing.T) {
 	space.Name = "Acme Core"
 	space.Slug = "acme-core"
 	space.Description = "Everything the core team works on"
-	space.DefaultRole = store.MemberRoleEditor
+	space.DefaultRole = store.MemberRoleMember
 	space.QuotaBytes = 1 << 30
 
-	dto := spaceToDTO(space, "owner")
+	dto := spaceToDTO(space, "admin")
 	if dto.Slug != "acme-core" {
 		t.Errorf("slug = %q, want acme-core", dto.Slug)
 	}
 	if dto.Description != "Everything the core team works on" {
 		t.Errorf("description = %q", dto.Description)
 	}
-	if dto.DefaultRole != "editor" {
-		t.Errorf("default_role = %q, want editor", dto.DefaultRole)
+	if dto.DefaultRole != "member" {
+		t.Errorf("default_role = %q, want member", dto.DefaultRole)
 	}
 
 	// Present-when-empty is the part that actually prevents the data loss.
-	raw, err := json.Marshal(spaceToDTO(store.Space{}, "owner"))
+	raw, err := json.Marshal(spaceToDTO(store.Space{}, "admin"))
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}

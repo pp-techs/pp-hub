@@ -109,47 +109,52 @@ func (s *Service) ResolveLink(ctx context.Context, token string) (store.Share, e
 
 // --- Permission resolution ---
 
-// EffectivePerm computes the highest permission a user has on a node,
-// combining space role with direct shares on the node or its ancestors.
-// Returns rank 0 (none) when the user has no access at all.
+// EffectivePerm computes the highest permission a user has on one node: the
+// space-role floor, widened by any grant on the node or an ancestor. Returns
+// rank 0 (none) when the user has no access at all.
 //
-// roleRank: viewer=1, editor=2, owner=3 (space roles)
-// permRank: view=1, download=2, edit=3 (share perms)
-// We treat role editor/owner as ≥ edit for node access purposes.
+// spaceRoleRank comes from the caller on the *permission* scale — admin=3,
+// member=0 — so for a member this reduces to "what have they been granted".
+// Grants only ever widen; they never narrow what the role already gives.
 func (s *Service) EffectivePerm(ctx context.Context, node store.Node, userID pgtype.UUID, spaceRoleRank int) (int, error) {
-	best := spaceRoleRank // viewer=1 → view, editor/owner=2/3 → download/edit
-	if best > 3 {
-		best = 3
+	ranks, err := s.AccessRanks(ctx, []pgtype.UUID{node.ID}, userID)
+	if err != nil {
+		return clampRank(spaceRoleRank), err
 	}
+	return max(clampRank(spaceRoleRank), ranks[node.ID]), nil
+}
 
-	// Collect ancestor chain (self + parents) for direct share lookup.
-	ids := []pgtype.UUID{node.ID}
-	cur := node.ParentID
-	for depth := 0; depth < 100 && cur.Valid; depth++ {
-		ids = append(ids, cur)
-		next, err := s.q.GetNodeParent(ctx, cur)
-		if errors.Is(err, pgx.ErrNoRows) {
-			break
-		}
-		if err != nil {
-			return best, err
-		}
-		cur = next
+// AccessRanks resolves grants for many nodes at once, returning the rank each
+// one carries for this user. Nodes with no grant are absent from the map.
+//
+// One query covers every node and every ancestor chain, which is what lets a
+// listing filter itself without a per-row permission check.
+func (s *Service) AccessRanks(ctx context.Context, nodeIDs []pgtype.UUID, userID pgtype.UUID) (map[pgtype.UUID]int, error) {
+	out := make(map[pgtype.UUID]int, len(nodeIDs))
+	if len(nodeIDs) == 0 {
+		return out, nil
 	}
-
-	shares, err := s.q.FindDirectSharesForUser(ctx, store.FindDirectSharesForUserParams{
-		Column1:       ids,
-		GranteeUserID: userID,
+	rows, err := s.q.NodeAccessRanks(ctx, store.NodeAccessRanksParams{
+		NodeIds: nodeIDs,
+		UserID:  userID,
 	})
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-		return best, err
+		return out, err
 	}
-	for _, sh := range shares {
-		if r := permRank(sh.Perm); r > best {
-			best = r
-		}
+	for _, row := range rows {
+		out[row.NodeID] = int(row.Rank)
 	}
-	return best, nil
+	return out, nil
+}
+
+func clampRank(r int) int {
+	if r > 3 {
+		return 3
+	}
+	if r < 0 {
+		return 0
+	}
+	return r
 }
 
 // CanRead / CanWrite map the effective rank onto common checks.

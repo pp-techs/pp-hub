@@ -54,7 +54,12 @@ export interface Space {
   trash_retention_days?: number;
 }
 
-export type MemberRole = "viewer" | "editor" | "owner";
+/**
+ * A space is a company, and a role says how you relate to that company — not
+ * what you can open. `member` grants no access to any file on its own; what a
+ * member can reach comes from group grants and direct shares on folders.
+ */
+export type MemberRole = "admin" | "member";
 
 /**
  * A promise of membership to an email address that may not have an account

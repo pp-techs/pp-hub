@@ -149,14 +149,14 @@ function NewSpaceDialog() {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
-  const [defaultRole, setDefaultRole] = useState<MemberRole>("viewer");
+  const [defaultRole, setDefaultRole] = useState<MemberRole>("member");
   const [quotaGb, setQuotaGb] = useState("");
 
   const reset = () => {
     setName("");
     setSlug("");
     setDescription("");
-    setDefaultRole("viewer");
+    setDefaultRole("member");
     setQuotaGb("");
   };
 
@@ -248,9 +248,8 @@ function NewSpaceDialog() {
               value={[defaultRole]}
               onValueChange={(v) => v[0] && setDefaultRole(v[0] as MemberRole)}
             >
-              <ToggleGroupItem value="viewer">Viewer</ToggleGroupItem>
-              <ToggleGroupItem value="editor">Editor</ToggleGroupItem>
-              <ToggleGroupItem value="owner">Owner</ToggleGroupItem>
+              <ToggleGroupItem value="member">Member</ToggleGroupItem>
+              <ToggleGroupItem value="admin">Admin</ToggleGroupItem>
             </ToggleGroup>
           </div>
 

@@ -22,9 +22,9 @@ import { SpaceMembersPanel } from "@/components/space-members-panel";
  * off rather than shipped as empty panes.
  */
 export function SpaceSettingsPanel({ space }: { space: Space }) {
-  const isOwner = space.role === "owner";
+  const isAdmin = space.role === "admin";
 
-  if (!isOwner) {
+  if (!isAdmin) {
     return (
       <div className="flex flex-col gap-1">
         <h2 className="font-heading text-sm font-medium">Settings</h2>
@@ -61,7 +61,7 @@ function GeneralTab({ space }: { space: Space }) {
   const [name, setName] = useState(space.name);
   const [slug, setSlug] = useState(space.slug ?? "");
   const [description, setDescription] = useState(space.description ?? "");
-  const [defaultRole, setDefaultRole] = useState<MemberRole>(space.default_role ?? "viewer");
+  const [defaultRole, setDefaultRole] = useState<MemberRole>(space.default_role ?? "member");
   // Held as a string so the field can be emptied without becoming 0, which
   // means "unlimited" and is a very different thing from "not yet typed".
   const [quotaGb, setQuotaGb] = useState(
@@ -90,7 +90,7 @@ function GeneralTab({ space }: { space: Space }) {
     if (description.trim() !== (space.description ?? "")) {
       changed.description = description.trim();
     }
-    if (defaultRole !== (space.default_role ?? "viewer")) changed.default_role = defaultRole;
+    if (defaultRole !== (space.default_role ?? "member")) changed.default_role = defaultRole;
     if (quota !== space.quota_bytes) changed.quota_bytes = quota;
     const retention = retentionDays.trim() ? Number(retentionDays) : 0;
     if (retention !== (space.trash_retention_days ?? 0)) {
@@ -150,9 +150,8 @@ function GeneralTab({ space }: { space: Space }) {
           value={[defaultRole]}
           onValueChange={(v) => v[0] && setDefaultRole(v[0] as MemberRole)}
         >
-          <ToggleGroupItem value="viewer">Viewer</ToggleGroupItem>
-          <ToggleGroupItem value="editor">Editor</ToggleGroupItem>
-          <ToggleGroupItem value="owner">Owner</ToggleGroupItem>
+          <ToggleGroupItem value="member">Member</ToggleGroupItem>
+          <ToggleGroupItem value="admin">Admin</ToggleGroupItem>
         </ToggleGroup>
       </div>
 

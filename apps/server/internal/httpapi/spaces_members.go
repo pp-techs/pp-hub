@@ -64,7 +64,7 @@ func (s *Server) handleListMembers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Check access: any member can list members
-	if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleViewer); err != nil {
+	if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleMember); err != nil {
 		writeProblem(w, http.StatusForbidden, "Error", "not a space member")
 		return
 	}
@@ -91,9 +91,9 @@ func (s *Server) handleAddMember(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Error", "invalid space id")
 		return
 	}
-	// Owner only
-	if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleOwner); err != nil {
-		writeProblem(w, http.StatusForbidden, "Error", "owner required")
+	// Admin only
+	if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleAdmin); err != nil {
+		writeProblem(w, http.StatusForbidden, "Error", "admin required")
 		return
 	}
 	var req addMemberRequest
@@ -107,7 +107,7 @@ func (s *Server) handleAddMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	role := spaces.Role(req.Role)
-	if role != spaces.RoleViewer && role != spaces.RoleEditor && role != spaces.RoleOwner {
+	if role != spaces.RoleMember && role != spaces.RoleAdmin {
 		writeProblem(w, http.StatusBadRequest, "Error", "invalid role")
 		return
 	}
@@ -134,9 +134,9 @@ func (s *Server) handleUpdateMemberRole(w http.ResponseWriter, r *http.Request) 
 		writeProblem(w, http.StatusBadRequest, "Error", "invalid user id")
 		return
 	}
-	// Owner only
-	if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleOwner); err != nil {
-		writeProblem(w, http.StatusForbidden, "Error", "owner required")
+	// Admin only
+	if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleAdmin); err != nil {
+		writeProblem(w, http.StatusForbidden, "Error", "admin required")
 		return
 	}
 	var req updateMemberRequest
@@ -145,23 +145,23 @@ func (s *Server) handleUpdateMemberRole(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	role := spaces.Role(req.Role)
-	if role != spaces.RoleViewer && role != spaces.RoleEditor && role != spaces.RoleOwner {
+	if role != spaces.RoleMember && role != spaces.RoleAdmin {
 		writeProblem(w, http.StatusBadRequest, "Error", "invalid role")
 		return
 	}
-	// Prevent removing last owner
-	if role != spaces.RoleOwner {
+	// Prevent removing the last admin
+	if role != spaces.RoleAdmin {
 		members, err := s.spaces.Members(r.Context(), spaceID)
 		if err == nil {
-			ownerCount := 0
+			adminCount := 0
 			for _, m := range members {
-				if m.Role == spaces.RoleOwner {
-					ownerCount++
+				if m.Role == spaces.RoleAdmin {
+					adminCount++
 				}
 			}
-			isTargetOwner, _ := s.spaces.RoleOf(r.Context(), spaceID, userID)
-			if ownerCount <= 1 && isTargetOwner == spaces.RoleOwner {
-				writeProblem(w, http.StatusConflict, "Error", "cannot remove last owner")
+			targetRole, _ := s.spaces.RoleOf(r.Context(), spaceID, userID)
+			if adminCount <= 1 && targetRole == spaces.RoleAdmin {
+				writeProblem(w, http.StatusConflict, "Error", "cannot remove the last admin")
 				return
 			}
 		}
@@ -189,23 +189,23 @@ func (s *Server) handleRemoveMember(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Error", "invalid user id")
 		return
 	}
-	// Owner only
-	if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleOwner); err != nil {
-		writeProblem(w, http.StatusForbidden, "Error", "owner required")
+	// Admin only
+	if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleAdmin); err != nil {
+		writeProblem(w, http.StatusForbidden, "Error", "admin required")
 		return
 	}
-	// Prevent removing last owner
+	// Prevent removing the last admin
 	members, err := s.spaces.Members(r.Context(), spaceID)
 	if err == nil {
-		ownerCount := 0
+		adminCount := 0
 		for _, m := range members {
-			if m.Role == spaces.RoleOwner {
-				ownerCount++
+			if m.Role == spaces.RoleAdmin {
+				adminCount++
 			}
 		}
-		isTargetOwner, _ := s.spaces.RoleOf(r.Context(), spaceID, userID)
-		if ownerCount <= 1 && isTargetOwner == spaces.RoleOwner {
-			writeProblem(w, http.StatusConflict, "Error", "cannot remove last owner")
+		targetRole, _ := s.spaces.RoleOf(r.Context(), spaceID, userID)
+		if adminCount <= 1 && targetRole == spaces.RoleAdmin {
+			writeProblem(w, http.StatusConflict, "Error", "cannot remove the last admin")
 			return
 		}
 	}

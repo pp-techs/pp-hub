@@ -72,7 +72,7 @@ func (s *Server) handleListActivity(w http.ResponseWriter, r *http.Request) {
 			writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
 			return
 		}
-		if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleViewer); err != nil {
+		if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleMember); err != nil {
 			s.spaceError(w, r, err)
 			return
 		}
@@ -186,7 +186,7 @@ func (s *Server) handleUsage(w http.ResponseWriter, r *http.Request) {
 			writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
 			return
 		}
-		if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleViewer); err != nil {
+		if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleMember); err != nil {
 			s.spaceError(w, r, err)
 			return
 		}

@@ -2,36 +2,129 @@
 
 ## Model
 
-Two layers, deliberately minimal:
+A space **is a company**. One instance hosts several, a person can belong to
+more than one, and a space owns exactly one file tree.
 
-1. **Space roles** — every node inherits from its space: `viewer` (read/download), `editor` (read/write/upload/edit), `owner` (editor + member management + space settings).
-2. **Per-node shares** — `direct` (to a specific user) or `link` (anonymous token). Permission values: `view` | `download` | `edit`.
+Three layers:
 
-A full per-node ACL system was rejected: query complexity and cache invalidation cost are too high for the MVP value.
+1. **Space roles** — `admin` (manage members, groups and settings; holds edit
+   everywhere in the space) and `member`. A `member` role grants **no access to
+   any file**: it says you belong to the company, nothing more.
+2. **Groups** — named sets of users inside one space. Every space has an
+   automatic `Everyone` group (`groups.is_everyone`) holding every member; the
+   server maintains its membership and it cannot be deleted. It is how someone
+   who has been granted nothing individually gets any access at all.
+3. **Per-node grants** — a row in `shares`, of kind `group` (to a group),
+   `direct` (to one user) or `link` (anonymous token). Permission values:
+   `view` | `download` | `edit`.
+
+Access is granted **group → folder**, and inherits down the subtree. A full
+per-node ACL was still rejected: a grant names a folder, resolution walks
+ancestors, and there is no per-node matrix to invalidate.
+
+## ⚠️ Not Yet Enforced On Listings
+
+The resolver below is live on every **node-addressed** route
+(`/api/v1/nodes/{id}/…`), on create-into-a-folder, and on trash restore/purge.
+It is **not yet** applied to the surfaces that list many nodes at once:
+
+| Surface                                           | Still gated by                 |
+| :------------------------------------------------ | :----------------------------- |
+| `GET /spaces/{id}/children`, `/tree`, `/trash`    | `RequireRole(RoleMember)` only |
+| `GET /search`, `/starred`, `/recent`, `/activity` | a `JOIN space_members`         |
+| `GET /shared`                                     | not a share query at all       |
+
+While the `Everyone` grant from `0011` is intact those listings are _correct_ —
+every member really can reach everything, so showing everything matches the
+resolver. **The gap opens the moment an admin narrows a grant**: the node routes
+will refuse, but the folder will still appear in listings and search.
+
+So the group-grant management API is deliberately **not shipped yet**. It lands
+together with the re-scoping, as one change, because shipping the ability to
+tighten before listings honour it would be a permission model that is true on
+paper and false on screen.
 
 ## Resolution Order
 
 Effective permission for a user on a node:
 
-1. `space_members.role` for `node.space_id` → base permission.
-2. Direct share on the node or its nearest ancestor → raises the effective permission. **Shares only widen, never narrow.**
-3. Link share token (no authenticated user) → link permission, restricted to read paths (`view`/`download`). Edit-via-link is post-MVP.
+1. The **space-role floor**: `admin` → 3 (edit), `member` → **0**.
+2. The highest grant on the node **or any ancestor**, whether granted directly
+   to the user or to a group they belong to, ignoring expired rows.
+   **Grants only widen, never narrow.**
+3. Link share token (no authenticated user) → link permission, clamped to the
+   read paths (`view`/`download`). Edit-via-link is post-MVP.
+
+Steps 1 and 2 combine with `max`. For a member, step 1 contributes nothing, so
+their permission is entirely whatever has been granted.
+
+`share.AccessRanks` resolves step 2 for **many nodes in one query**
+(`NodeAccessRanks`), so a listing can filter itself without a per-row check.
+This replaced an ancestor walk that issued one `GetNodeParent` round trip per
+level per node and silently stopped widening at depth 100.
+
+That query's recursive join deliberately does **not** filter `deleted_at`.
+`GetNodeParent` does, which truncated the chain at the first trashed ancestor
+and lost whatever grant sat above it — the reason trash could not use share
+resolution at all and fell back to a weaker space-role check. A tombstone now
+resolves exactly like a live node.
 
 ## Rank Mapping
 
-`requireNodeAccess(minRank)` compares an _effective rank_ against the rank a route asks for, on the share scale: `view=1`, `download=2`, `edit=3`. Space roles map **onto that same scale**, not onto a parallel role scale:
+`requireNodeAccess(minRank)` compares an _effective rank_ against the rank a
+route asks for, on the share scale: `view=1`, `download=2`, `edit=3`. The space
+role maps onto that same scale through `roleFloor`:
 
-| Space role | Effective rank |
-| :--------- | :------------- |
-| viewer     | 1 (view)       |
-| editor     | 3 (edit)       |
-| owner      | 3 (edit)       |
+| Space role | Floor rank |
+| :--------- | :--------- |
+| admin      | 3 (edit)   |
+| member     | 0 (none)   |
 
-Editor and owner are identical here on purpose. Owner-only powers — member management, space settings, permanent deletion, emptying the trash — are gated by `RequireRole(RoleOwner)` at the space level and never travel through this scale.
+This is the **single seam** where "is a member" could become implicit access,
+and it is deliberately the only copy of it. The WOPI handler used to keep its
+own switch on raw role strings, which drifted to `editor → 2` while
+`requireNodeAccess` used `editor → 3`: a user passed the rank-3 gate and was
+then handed a token that `share.CanWrite` (rank ≥ 3) rejected, so an editor got
+a read-only editing session. Switching on role strings is what let the two
+diverge without the compiler noticing.
 
-This was previously a positional mapping (viewer=1, editor=2, owner=3), which meant an editor's rank was 2 while every mutating route asks for 3. The effect was that editors could upload — `handleUpload` checks the space role directly — but could not rename, move or delete what they had just uploaded. The role reference in the settings screen states the intent plainly: _"Editor — upload, edit, move, delete, share files, restore versions."_
+`spaces.roleRank` is a **different, positional** scale (member 1 < admin 2) used
+only by `RequireRole` for role-vs-role comparison. Keep the two apart.
 
-Direct shares still only ever widen: a share grants rank to someone whose space role gives them less, never less than their role already gives.
+Admin-only powers — member management, space settings, permanent deletion,
+emptying the trash — are gated by `RequireRole(RoleAdmin)` at the space level
+and never travel through the permission scale.
+
+## Writing Into a Folder
+
+`POST /spaces/{spaceID}/dirs` and `POST /spaces/{spaceID}/files` are keyed by
+space, and take `parent_id` from the request body. Nothing used to check it —
+not that it belonged to `spaceID`, not that the caller could write there — which
+was harmless only while a space editor could write anywhere in their space.
+
+`requireParentWrite` now resolves the parent and demands rank 3 on it. A parent
+in another space answers **404, not 403**: confirming that a node exists is
+already more than the caller should learn, the same rule anonymous share
+browsing follows. A nil parent means the space root, which nobody holds a grant
+on, so creating at the top level is admin-only.
+
+## Migrating From the Old Role Scale
+
+Migration `0011_groups.sql` collapses `owner|editor|viewer` to `admin|member`
+and hands the lost access back as explicit grants, so that **every user's
+effective permission on every node is unchanged** by the migration. Per space it
+creates:
+
+- `Everyone` (`is_everyone`) holding every non-owner member, granted **`view`**
+  on every root node.
+- `Editors (migrated)` holding the former editors, granted **`edit`** on every
+  root node. Only created where the space actually had editors.
+
+Two groups, not one, and that is the point: a single `Everyone` group carrying
+`edit` would have handed former _viewers_ edit — an escalation, not a
+migration. `Editors (migrated)` is safe to delete once real groups are set up.
+
+Tombstoned roots get their grants too, so a restore brings access back with it.
 
 ## Suspension
 
@@ -52,9 +145,23 @@ An invitation names an email address; membership names an account. That gap is t
 
 A link grants a subtree, not a database. Every node id an anonymous caller supplies is walked back up to the share root before anything is served; a node outside the share answers **404 rather than 403**, because confirming that a node exists but sits outside the share is itself more than the visitor should learn. Owner names are stripped from share responses so the page cannot leak who works at the organisation.
 
+## Group Membership Invariants
+
+Enforced in `spaces.Service`, not by the database:
+
+- **Creating a space creates its `Everyone` group.** `groups_everyone_uniq`
+  assumes one exists; migration `0011` created one for every pre-existing space
+  and `spaces.Create` keeps new spaces at parity.
+- **Adding a member adds them to `Everyone`.**
+- **Removing a member removes them from every group in that space.**
+  `group_members` references `users`, not `spaces`, so nothing cascades when the
+  `space_members` row goes. Skipping this leaves someone who is no longer in the
+  company still holding live access through their old groups — the easiest
+  invariant here to forget and the most damaging to miss.
+
 ## Implementation Notes
 
-- Resolution is a 2-join lookup per request; no permission cache in MVP. If profiling shows it hot, add a request-scoped cache first, then an invalidated cache keyed by `(user, node)`.
+- Resolution is one recursive query per request (`NodeAccessRanks`), batched across nodes; no permission cache in MVP. If profiling shows it hot, add a request-scoped cache first, then an invalidated cache keyed by `(user, node)`.
 - Share tokens: only `token_hash` (sha256) is stored; the plaintext is displayed once at creation. Revocation = row delete. Optional `expires_at`.
 - WOPI access tokens encode the resolved permission at session-open time; changing space role mid-session does not retroactively change an open editor session (acceptable; tokens expire).
 

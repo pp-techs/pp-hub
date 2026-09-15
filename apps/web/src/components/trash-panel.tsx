@@ -40,7 +40,7 @@ interface TrashPanelProps {
 export function TrashPanel({ spaceId }: TrashPanelProps) {
   const trash = useTrash(spaceId);
   const spaces = useSpaces();
-  const isOwner = spaces.data?.find((s) => s.id === spaceId)?.role === "owner";
+  const isAdmin = spaces.data?.find((s) => s.id === spaceId)?.role === "admin";
 
   const restore = useRestoreNode(spaceId);
   const purge = usePurgeNode(spaceId);
@@ -116,7 +116,7 @@ export function TrashPanel({ spaceId }: TrashPanelProps) {
           </p>
         </div>
 
-        {isOwner && (trash.data?.length ?? 0) > 0 && (
+        {isAdmin && (trash.data?.length ?? 0) > 0 && (
           <div className="flex shrink-0 items-center gap-2">
             {selected.length > 0 && (
               <Button
@@ -166,7 +166,7 @@ export function TrashPanel({ spaceId }: TrashPanelProps) {
         <Table className="text-xs">
           <TableHeader>
             <TableRow>
-              {isOwner && (
+              {isAdmin && (
                 <TableHead className="w-8">
                   <Checkbox
                     checked={allChecked}
@@ -185,13 +185,13 @@ export function TrashPanel({ spaceId }: TrashPanelProps) {
               <TableHead className="w-28">Deleted</TableHead>
               <TableHead className="w-28">Purges in</TableHead>
               <TableHead className="w-24">Size</TableHead>
-              {isOwner && <TableHead className="w-40" />}
+              {isAdmin && <TableHead className="w-40" />}
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.map((n) => (
               <TableRow key={n.id}>
-                {isOwner && (
+                {isAdmin && (
                   <TableCell>
                     <Checkbox
                       checked={selectedIds.has(n.id)}
@@ -227,7 +227,7 @@ export function TrashPanel({ spaceId }: TrashPanelProps) {
                 <TableCell className="text-muted-foreground tabular-nums">
                   {n.kind === "file" && n.size != null ? fmtSize(n.size) : "—"}
                 </TableCell>
-                {isOwner && (
+                {isAdmin && (
                   <TableCell>
                     <div className="flex items-center justify-end gap-1">
                       <Button

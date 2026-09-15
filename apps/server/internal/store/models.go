@@ -58,9 +58,8 @@ func (ns NullJobStatus) Value() (driver.Value, error) {
 type MemberRole string
 
 const (
-	MemberRoleOwner  MemberRole = "owner"
-	MemberRoleEditor MemberRole = "editor"
-	MemberRoleViewer MemberRole = "viewer"
+	MemberRoleAdmin  MemberRole = "admin"
+	MemberRoleMember MemberRole = "member"
 )
 
 func (e *MemberRole) Scan(src interface{}) error {
@@ -145,6 +144,7 @@ type ShareKind string
 const (
 	ShareKindLink   ShareKind = "link"
 	ShareKindDirect ShareKind = "direct"
+	ShareKindGroup  ShareKind = "group"
 )
 
 func (e *ShareKind) Scan(src interface{}) error {
@@ -251,6 +251,23 @@ type FileLock struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
+type Group struct {
+	ID          pgtype.UUID        `json:"id"`
+	TenantID    string             `json:"tenant_id"`
+	SpaceID     pgtype.UUID        `json:"space_id"`
+	Name        string             `json:"name"`
+	Description string             `json:"description"`
+	IsEveryone  bool               `json:"is_everyone"`
+	CreatedBy   pgtype.UUID        `json:"created_by"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
+type GroupMember struct {
+	GroupID pgtype.UUID        `json:"group_id"`
+	UserID  pgtype.UUID        `json:"user_id"`
+	AddedAt pgtype.Timestamptz `json:"added_at"`
+}
+
 type Job struct {
 	ID        pgtype.UUID        `json:"id"`
 	TenantID  string             `json:"tenant_id"`
@@ -302,16 +319,17 @@ type Preview struct {
 }
 
 type Share struct {
-	ID            pgtype.UUID        `json:"id"`
-	TenantID      string             `json:"tenant_id"`
-	NodeID        pgtype.UUID        `json:"node_id"`
-	Kind          ShareKind          `json:"kind"`
-	TokenHash     pgtype.Text        `json:"token_hash"`
-	GranteeUserID pgtype.UUID        `json:"grantee_user_id"`
-	Perm          SharePerm          `json:"perm"`
-	ExpiresAt     pgtype.Timestamptz `json:"expires_at"`
-	CreatedBy     pgtype.UUID        `json:"created_by"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	ID             pgtype.UUID        `json:"id"`
+	TenantID       string             `json:"tenant_id"`
+	NodeID         pgtype.UUID        `json:"node_id"`
+	Kind           ShareKind          `json:"kind"`
+	TokenHash      pgtype.Text        `json:"token_hash"`
+	GranteeUserID  pgtype.UUID        `json:"grantee_user_id"`
+	Perm           SharePerm          `json:"perm"`
+	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
+	CreatedBy      pgtype.UUID        `json:"created_by"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	GranteeGroupID pgtype.UUID        `json:"grantee_group_id"`
 }
 
 type Space struct {
@@ -327,6 +345,7 @@ type Space struct {
 	DefaultRole        MemberRole         `json:"default_role"`
 	ArchivedAt         pgtype.Timestamptz `json:"archived_at"`
 	TrashRetentionDays int32              `json:"trash_retention_days"`
+	PersonalRootID     pgtype.UUID        `json:"personal_root_id"`
 }
 
 type SpaceInvitation struct {

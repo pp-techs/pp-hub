@@ -61,7 +61,7 @@ func (s *Server) requireTrashAccess(w http.ResponseWriter, r *http.Request) (*st
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
 		return nil, pgtype.UUID{}
 	}
-	if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleOwner); err != nil {
+	if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleAdmin); err != nil {
 		s.spaceError(w, r, err)
 		return nil, pgtype.UUID{}
 	}
@@ -69,12 +69,17 @@ func (s *Server) requireTrashAccess(w http.ResponseWriter, r *http.Request) (*st
 }
 
 // requireTrashedNode resolves a node by id even though it is soft-deleted, then
-// checks the caller against the node's own space at `min`.
+// enforces minRank on it using the ordinary permission resolver.
 //
-// Restoring takes editor, matching delete: whoever can put something in the
-// trash must be able to take it back out, or the bin becomes a one-way door.
-// Purging takes owner, because it is irreversible.
-func (s *Server) requireTrashedNode(w http.ResponseWriter, r *http.Request, min spaces.Role) (*store.User, store.Node) {
+// Restoring takes edit, matching delete: whoever can put something in the trash
+// must be able to take it back out, or the bin becomes a one-way door.
+//
+// This used to be a space-role check, because the old ancestor walk followed
+// GetNodeParent, which filters deleted_at IS NULL and so stopped at the first
+// trashed ancestor — losing whatever grant sat above it. NodeAccessRanks walks
+// every row regardless of deleted_at, so a tombstone now resolves the same way
+// a live node does and trash no longer needs its own weaker rule.
+func (s *Server) requireTrashedNode(w http.ResponseWriter, r *http.Request, minRank int) (*store.User, store.Node) {
 	u := s.requireUser(w, r)
 	if u == nil {
 		return nil, store.Node{}
@@ -89,15 +94,20 @@ func (s *Server) requireTrashedNode(w http.ResponseWriter, r *http.Request, min 
 		s.nodeError(w, r, err)
 		return nil, store.Node{}
 	}
-	if err := s.spaces.RequireRole(r.Context(), node.SpaceID, u.ID, min); err != nil {
-		s.spaceError(w, r, err)
+	eff, err := s.share.EffectivePerm(r.Context(), node, u.ID, s.spaceRoleRank(r, node.SpaceID, u.ID))
+	if err != nil {
+		Error(w, r, err)
+		return nil, store.Node{}
+	}
+	if eff < minRank {
+		writeProblem(w, http.StatusForbidden, "Forbidden", "insufficient permission")
 		return nil, store.Node{}
 	}
 	return u, node
 }
 
 func (s *Server) handleRestoreNode(w http.ResponseWriter, r *http.Request) {
-	u, node := s.requireTrashedNode(w, r, spaces.RoleEditor)
+	u, node := s.requireTrashedNode(w, r, 3)
 	if u == nil {
 		return
 	}
@@ -116,8 +126,14 @@ func (s *Server) handleRestoreNode(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handlePurgeNode(w http.ResponseWriter, r *http.Request) {
-	u, node := s.requireTrashedNode(w, r, spaces.RoleOwner)
+	// Purging is irreversible, so it stays with the space admin rather than
+	// with anyone holding edit on the node.
+	u, node := s.requireTrashedNode(w, r, 3)
 	if u == nil {
+		return
+	}
+	if err := s.spaces.RequireRole(r.Context(), node.SpaceID, u.ID, spaces.RoleAdmin); err != nil {
+		s.spaceError(w, r, err)
 		return
 	}
 	if err := s.fs.Purge(r.Context(), node.ID); err != nil {

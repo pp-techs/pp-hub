@@ -17,10 +17,21 @@ Profile fields (`display_name`, `avatar_url`, `bio`, `settings`, `is_admin`, `la
 ## Core Tables
 
 ```sql
-spaces(id, tenant_id, name, owner_id, quota_bytes, used_bytes, created_at)
+spaces(id, tenant_id, name, owner_id, quota_bytes, used_bytes, created_at,
+       personal_root_id)                        -- folder holding per-member personal dirs
 
-space_members(space_id, user_id, role)          -- owner | editor | viewer
+space_members(space_id, user_id, role)          -- admin | member
   PRIMARY KEY (space_id, user_id)
+  -- A space IS a company. `member` grants no file access at all; see
+  -- permissions.md. Was owner|editor|viewer before migration 0011.
+
+groups(id, tenant_id, space_id, name, description, is_everyone, created_by, created_at)
+  UNIQUE (space_id, lower(name))
+  UNIQUE (space_id) WHERE is_everyone           -- exactly one auto group per space
+
+group_members(group_id, user_id, added_at)
+  PRIMARY KEY (group_id, user_id)
+  INDEX (user_id)                               -- resolution probes user-first
 
 nodes(id, tenant_id, space_id, parent_id,       -- NULL parent = space root
       kind,                                     -- dir | file
@@ -38,11 +49,15 @@ blobs(hash, size, ref_count, created_at)        -- blake3 hash = PK
 file_locks(node_id, lock_token, expires_at)     -- WOPI locks
 
 shares(id, tenant_id, node_id,                  -- file or folder
-       kind,                                    -- link | direct
+       kind,                                    -- link | direct | group
        token_hash,                              -- sha256, link only; plaintext never stored
        grantee_user_id,                         -- direct only
+       grantee_group_id,                        -- group only
        perm,                                    -- view | download | edit
        expires_at, created_by)
+  UNIQUE (node_id, grantee_group_id) WHERE kind = 'group'
+  -- One grant per (folder, group): re-granting updates rather than stacking a
+  -- second row that would then have to be resolved against the first.
 
 previews(node_version_id, kind, blob_hash)      -- kind: thumbnail | pdf | video | text
 
@@ -64,7 +79,9 @@ jobs(id, kind, payload, status, run_at, attempts)        -- preview, quota, GC
 - **Version history**: `WHERE node_id ORDER BY version_no DESC`.
 - **Search**: `nodes.name ILIKE '%…%'`, answered by the GIN trigram index `nodes_name_trgm` (migration `0007_search.sql`, partial on `deleted_at IS NULL`). A B-tree cannot serve an infix match, and people search for `forecast` expecting `Q1-forecast-final.xlsx`. The same index backs `similarity()` for ranking, and results are scoped by joining `space_members` — supported by `space_members_by_user`, since the table's `(space_id, user_id)` primary key cannot serve a user-first probe.
 - **Trash**: `WHERE space_id AND deleted_at IS NOT NULL`. `ListDeletedWithMeta` joins the current version and owner, and adds two derived columns — `location` (ancestor names joined with `" / "`, from a recursive CTE) and `child_count` (direct live children) — so a row can say where it came from and how much comes back with it.
-- **Effective permission**: (1) `space_members.role` for `node.space_id`; (2) nearest direct share on node/ancestor; (3) link token. MVP runs the 2-join lookup per request; no permission cache yet.
+- **Effective permission**: `NodeAccessRanks` (`queries/shares.sql`) — one recursive CTE that takes an array of node ids and returns the highest rank the caller holds on each, via a direct share or a group grant on the node **or any ancestor**. Batched on purpose: a listing resolves every row in one query instead of one walk per row. It replaced a loop issuing one `GetNodeParent` per tree level per node, which also stopped widening at depth 100.
+
+  The recursive join deliberately omits `deleted_at IS NULL`, unlike `GetNodeParent`. Filtering it truncates the chain at the first trashed ancestor and loses the grant above it — which is why trash used to bypass share resolution entirely. `ListDeletedWithMeta` walks the same way for the same reason.
 
 ## Trash Lifecycle
 
