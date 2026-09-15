@@ -38,6 +38,18 @@ var clientRoutes = []string{
 	"GET /api/v1/spaces/{spaceID}/invitations",
 	"POST /api/v1/spaces/{spaceID}/invitations",
 	"DELETE /api/v1/spaces/{spaceID}/invitations/{inviteID}",
+
+	// Groups and the grants that give them access to folders.
+	"GET /api/v1/spaces/{spaceID}/groups/",
+	"POST /api/v1/spaces/{spaceID}/groups/",
+	"PATCH /api/v1/spaces/{spaceID}/groups/{groupID}/",
+	"DELETE /api/v1/spaces/{spaceID}/groups/{groupID}/",
+	"GET /api/v1/spaces/{spaceID}/groups/{groupID}/members",
+	"POST /api/v1/spaces/{spaceID}/groups/{groupID}/members",
+	"DELETE /api/v1/spaces/{spaceID}/groups/{groupID}/members/{userID}",
+	"GET /api/v1/nodes/{nodeID}/grants",
+	"PUT /api/v1/nodes/{nodeID}/grants",
+	"DELETE /api/v1/nodes/{nodeID}/grants/{groupID}",
 	"GET /api/v1/spaces/{spaceID}/children",
 	"GET /api/v1/spaces/{spaceID}/tree",
 	"GET /api/v1/spaces/{spaceID}/trash",

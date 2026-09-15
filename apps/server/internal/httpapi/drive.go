@@ -365,7 +365,7 @@ func (s *Server) handleListChildren(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	children, err := s.fs.ListWithMeta(r.Context(), spaceID, parentID)
+	children, err := s.listVisibleChildren(r, spaceID, parentID, u)
 	if err != nil {
 		Error(w, r, err)
 		return
@@ -375,6 +375,38 @@ func (s *Server) handleListChildren(w http.ResponseWriter, r *http.Request) {
 		out = append(out, nodeToDTOMeta(n))
 	}
 	writeJSON(w, http.StatusOK, out)
+}
+
+// listVisibleChildren returns the children of parentID the caller may see.
+//
+// Permission inherits downward, so this needs ONE rank check rather than one
+// per row: if the caller can reach the parent at all they can reach everything
+// under it, and the whole listing is theirs. Only when the parent resolves to 0
+// — a member at the space root, or in a folder nobody granted them — does the
+// listing narrow to the children they hold a grant on directly.
+//
+// At the space root that narrowing is the feature: it turns the top level into
+// the list of places the member's access actually starts, instead of the
+// company's entire filing cabinet.
+func (s *Server) listVisibleChildren(r *http.Request, spaceID, parentID pgtype.UUID, u *store.User) ([]store.NodeWithMeta, error) {
+	floor := s.spaceRoleRank(r, spaceID, u.ID)
+	if floor >= 1 {
+		return s.fs.ListWithMeta(r.Context(), spaceID, parentID)
+	}
+	if parentID.Valid {
+		parent, err := s.fs.Get(r.Context(), parentID)
+		if err != nil {
+			return nil, err
+		}
+		rank, err := s.share.EffectivePerm(r.Context(), parent, u.ID, floor)
+		if err != nil {
+			return nil, err
+		}
+		if rank >= 1 {
+			return s.fs.ListWithMeta(r.Context(), spaceID, parentID)
+		}
+	}
+	return s.fs.ListGrantedWithMeta(r.Context(), spaceID, parentID, u.ID)
 }
 
 func (s *Server) handleMkdir(w http.ResponseWriter, r *http.Request) {
@@ -736,10 +768,17 @@ func (s *Server) handleListTree(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	nodes, err := s.fs.List(r.Context(), spaceID, parentID)
+	// The rail tree obeys the same rule as the listing: one rank check on the
+	// parent, narrowed to granted children only when the caller cannot reach
+	// the parent at all.
+	withMeta, err := s.listVisibleChildren(r, spaceID, parentID, u)
 	if err != nil {
 		Error(w, r, err)
 		return
+	}
+	nodes := make([]store.Node, 0, len(withMeta))
+	for _, n := range withMeta {
+		nodes = append(nodes, n.Node)
 	}
 	out := make([]treeNodeDTO, 0, len(nodes))
 	for _, n := range nodes {
@@ -782,6 +821,21 @@ func (s *Server) handleListDeleted(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rows, err := s.fs.ListDeletedWithMeta(r.Context(), spaceID)
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+	// Every member used to see every tombstone in the space — and each row
+	// carries `location`, the full original path — so the trash disclosed the
+	// shape of folders the viewer had never been able to open.
+	//
+	// Filtering it needs permission resolution that survives a tombstone, which
+	// NodeAccessRanks now provides: its ancestor walk does not filter
+	// deleted_at, so a deleted file inside a deleted folder still resolves
+	// against the grant above it.
+	rows, err = reachableRows(r.Context(), s, u.ID, rows,
+		func(n store.ListDeletedWithMetaRow) pgtype.UUID { return n.ID },
+		func(n store.ListDeletedWithMetaRow) pgtype.UUID { return n.SpaceID })
 	if err != nil {
 		Error(w, r, err)
 		return

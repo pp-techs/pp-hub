@@ -27,6 +27,17 @@ func (q *Queries) AddGroupMember(ctx context.Context, arg AddGroupMemberParams) 
 	return err
 }
 
+const countGrantsForGroup = `-- name: CountGrantsForGroup :one
+SELECT COUNT(*)::int FROM shares WHERE kind = 'group' AND grantee_group_id = $1
+`
+
+func (q *Queries) CountGrantsForGroup(ctx context.Context, granteeGroupID pgtype.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, countGrantsForGroup, granteeGroupID)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const createGroup = `-- name: CreateGroup :one
 INSERT INTO groups (space_id, name, description, is_everyone, created_by)
 VALUES ($1, $2, $3, $4, $5)
@@ -63,6 +74,30 @@ func (q *Queries) CreateGroup(ctx context.Context, arg CreateGroupParams) (Group
 	return i, err
 }
 
+const deleteGroup = `-- name: DeleteGroup :exec
+DELETE FROM groups WHERE id = $1
+`
+
+func (q *Queries) DeleteGroup(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteGroup, id)
+	return err
+}
+
+const deleteGroupGrant = `-- name: DeleteGroupGrant :exec
+DELETE FROM shares
+WHERE kind = 'group' AND node_id = $1 AND grantee_group_id = $2
+`
+
+type DeleteGroupGrantParams struct {
+	NodeID         pgtype.UUID `json:"node_id"`
+	GranteeGroupID pgtype.UUID `json:"grantee_group_id"`
+}
+
+func (q *Queries) DeleteGroupGrant(ctx context.Context, arg DeleteGroupGrantParams) error {
+	_, err := q.db.Exec(ctx, deleteGroupGrant, arg.NodeID, arg.GranteeGroupID)
+	return err
+}
+
 const getEveryoneGroup = `-- name: GetEveryoneGroup :one
 SELECT id, tenant_id, space_id, name, description, is_everyone, created_by, created_at FROM groups WHERE space_id = $1 AND is_everyone LIMIT 1
 `
@@ -84,6 +119,389 @@ func (q *Queries) GetEveryoneGroup(ctx context.Context, spaceID pgtype.UUID) (Gr
 	return i, err
 }
 
+const getGroup = `-- name: GetGroup :one
+SELECT id, tenant_id, space_id, name, description, is_everyone, created_by, created_at FROM groups WHERE id = $1 LIMIT 1
+`
+
+func (q *Queries) GetGroup(ctx context.Context, id pgtype.UUID) (Group, error) {
+	row := q.db.QueryRow(ctx, getGroup, id)
+	var i Group
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.SpaceID,
+		&i.Name,
+		&i.Description,
+		&i.IsEveryone,
+		&i.CreatedBy,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const isGroupMember = `-- name: IsGroupMember :one
+SELECT EXISTS (
+  SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2
+)::bool
+`
+
+type IsGroupMemberParams struct {
+	GroupID pgtype.UUID `json:"group_id"`
+	UserID  pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) IsGroupMember(ctx context.Context, arg IsGroupMemberParams) (bool, error) {
+	row := q.db.QueryRow(ctx, isGroupMember, arg.GroupID, arg.UserID)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const listEntryPoints = `-- name: ListEntryPoints :many
+WITH RECURSIVE granted AS (
+    SELECT DISTINCT s.node_id
+    FROM shares s
+    WHERE (s.expires_at IS NULL OR s.expires_at > now())
+      AND ( (s.kind = 'direct' AND s.grantee_user_id = $1)
+         OR (s.kind = 'group'  AND s.grantee_group_id IN (
+                SELECT gm.group_id FROM group_members gm WHERE gm.user_id = $1)) )
+),
+walk(origin, id, parent_id, depth) AS (
+    SELECT g.node_id, g.node_id, n.parent_id, 0
+    FROM granted g JOIN nodes n ON n.id = g.node_id
+  UNION ALL
+    SELECT w.origin, p.id, p.parent_id, w.depth + 1
+    FROM walk w JOIN nodes p ON p.id = w.parent_id
+)
+SELECT n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
+       n.current_version_id, n.deleted_at, n.created_by, n.created_at
+FROM granted g
+JOIN nodes n ON n.id = g.node_id
+WHERE n.deleted_at IS NULL
+  AND NOT EXISTS (
+      SELECT 1 FROM walk w
+      JOIN granted g2 ON g2.node_id = w.id
+      WHERE w.origin = g.node_id AND w.depth > 0
+  )
+ORDER BY n.kind, n.name
+LIMIT 200
+`
+
+type ListEntryPointsRow struct {
+	ID               pgtype.UUID        `json:"id"`
+	TenantID         string             `json:"tenant_id"`
+	SpaceID          pgtype.UUID        `json:"space_id"`
+	ParentID         pgtype.UUID        `json:"parent_id"`
+	Kind             NodeKind           `json:"kind"`
+	Name             string             `json:"name"`
+	CurrentVersionID pgtype.UUID        `json:"current_version_id"`
+	DeletedAt        pgtype.Timestamptz `json:"deleted_at"`
+	CreatedBy        pgtype.UUID        `json:"created_by"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+}
+
+// The topmost nodes the caller holds a grant on, across every space they
+// belong to. This is what "Shared with me" means: the places their access
+// starts. A node whose ancestor is also granted is excluded — it would be
+// reachable by walking down from the ancestor, so listing it as a separate
+// entry point is noise.
+// WITH RECURSIVE must lead the statement; a nested one inside a plain CTE is
+// valid Postgres but sqlc cannot parse it.
+// Every strict ancestor of each granted node, so the ones sitting underneath
+// another grant can be dropped.
+func (q *Queries) ListEntryPoints(ctx context.Context, userID pgtype.UUID) ([]ListEntryPointsRow, error) {
+	rows, err := q.db.Query(ctx, listEntryPoints, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListEntryPointsRow
+	for rows.Next() {
+		var i ListEntryPointsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.SpaceID,
+			&i.ParentID,
+			&i.Kind,
+			&i.Name,
+			&i.CurrentVersionID,
+			&i.DeletedAt,
+			&i.CreatedBy,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listGrantedChildrenWithMeta = `-- name: ListGrantedChildrenWithMeta :many
+
+SELECT
+  n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at,
+  v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
+  u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email
+FROM nodes n
+LEFT JOIN node_versions v ON v.id = n.current_version_id
+LEFT JOIN users u ON u.id = n.created_by
+WHERE n.space_id = $1
+  AND n.parent_id IS NOT DISTINCT FROM $2
+  AND n.deleted_at IS NULL
+  AND EXISTS (
+    SELECT 1 FROM shares s
+    WHERE s.node_id = n.id
+      AND (s.expires_at IS NULL OR s.expires_at > now())
+      AND ( (s.kind = 'direct' AND s.grantee_user_id = $3)
+         OR (s.kind = 'group'  AND s.grantee_group_id IN (
+                SELECT gm.group_id FROM group_members gm WHERE gm.user_id = $3)) )
+  )
+ORDER BY n.kind, n.name
+`
+
+type ListGrantedChildrenWithMetaParams struct {
+	SpaceID  pgtype.UUID `json:"space_id"`
+	ParentID pgtype.UUID `json:"parent_id"`
+	UserID   pgtype.UUID `json:"user_id"`
+}
+
+type ListGrantedChildrenWithMetaRow struct {
+	ID               pgtype.UUID        `json:"id"`
+	TenantID         string             `json:"tenant_id"`
+	SpaceID          pgtype.UUID        `json:"space_id"`
+	ParentID         pgtype.UUID        `json:"parent_id"`
+	Kind             NodeKind           `json:"kind"`
+	Name             string             `json:"name"`
+	CurrentVersionID pgtype.UUID        `json:"current_version_id"`
+	DeletedAt        pgtype.Timestamptz `json:"deleted_at"`
+	CreatedBy        pgtype.UUID        `json:"created_by"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	VID              pgtype.UUID        `json:"v_id"`
+	BlobHash         pgtype.Text        `json:"blob_hash"`
+	VSize            pgtype.Int8        `json:"v_size"`
+	Mime             pgtype.Text        `json:"mime"`
+	VersionNo        pgtype.Int4        `json:"version_no"`
+	VCreatedBy       pgtype.UUID        `json:"v_created_by"`
+	VCreatedAt       pgtype.Timestamptz `json:"v_created_at"`
+	OwnerUid         pgtype.UUID        `json:"owner_uid"`
+	OwnerName        pgtype.Text        `json:"owner_name"`
+	OwnerEmail       pgtype.Text        `json:"owner_email"`
+}
+
+// ------------------------------------------------- grant-scoped listings ---
+// Children of $2 that the caller holds a grant on *directly*.
+//
+// Only correct when the caller has no access to the parent itself: access
+// inherits downward, so if any ancestor were granted the whole listing would be
+// visible and the caller would use ListChildrenWithMeta instead. Callers must
+// check the parent's rank first.
+func (q *Queries) ListGrantedChildrenWithMeta(ctx context.Context, arg ListGrantedChildrenWithMetaParams) ([]ListGrantedChildrenWithMetaRow, error) {
+	rows, err := q.db.Query(ctx, listGrantedChildrenWithMeta, arg.SpaceID, arg.ParentID, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListGrantedChildrenWithMetaRow
+	for rows.Next() {
+		var i ListGrantedChildrenWithMetaRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.SpaceID,
+			&i.ParentID,
+			&i.Kind,
+			&i.Name,
+			&i.CurrentVersionID,
+			&i.DeletedAt,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.VID,
+			&i.BlobHash,
+			&i.VSize,
+			&i.Mime,
+			&i.VersionNo,
+			&i.VCreatedBy,
+			&i.VCreatedAt,
+			&i.OwnerUid,
+			&i.OwnerName,
+			&i.OwnerEmail,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listGrantsForNode = `-- name: ListGrantsForNode :many
+SELECT s.id, s.perm, s.expires_at, s.created_at,
+       g.id AS group_id, g.name AS group_name, g.is_everyone
+FROM shares s
+JOIN groups g ON g.id = s.grantee_group_id
+WHERE s.kind = 'group' AND s.node_id = $1
+ORDER BY g.is_everyone DESC, lower(g.name)
+`
+
+type ListGrantsForNodeRow struct {
+	ID         pgtype.UUID        `json:"id"`
+	Perm       SharePerm          `json:"perm"`
+	ExpiresAt  pgtype.Timestamptz `json:"expires_at"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	GroupID    pgtype.UUID        `json:"group_id"`
+	GroupName  string             `json:"group_name"`
+	IsEveryone bool               `json:"is_everyone"`
+}
+
+// Group grants on one node, with the group named so the UI need not join.
+func (q *Queries) ListGrantsForNode(ctx context.Context, nodeID pgtype.UUID) ([]ListGrantsForNodeRow, error) {
+	rows, err := q.db.Query(ctx, listGrantsForNode, nodeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListGrantsForNodeRow
+	for rows.Next() {
+		var i ListGrantsForNodeRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Perm,
+			&i.ExpiresAt,
+			&i.CreatedAt,
+			&i.GroupID,
+			&i.GroupName,
+			&i.IsEveryone,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listGroupMembers = `-- name: ListGroupMembers :many
+SELECT u.id, u.email, u.name, u.display_name, u.avatar_url, gm.added_at
+FROM group_members gm
+JOIN users u ON u.id = gm.user_id
+WHERE gm.group_id = $1
+ORDER BY lower(COALESCE(NULLIF(u.display_name, ''), u.name, u.email))
+`
+
+type ListGroupMembersRow struct {
+	ID          pgtype.UUID        `json:"id"`
+	Email       string             `json:"email"`
+	Name        string             `json:"name"`
+	DisplayName string             `json:"display_name"`
+	AvatarUrl   string             `json:"avatar_url"`
+	AddedAt     pgtype.Timestamptz `json:"added_at"`
+}
+
+func (q *Queries) ListGroupMembers(ctx context.Context, groupID pgtype.UUID) ([]ListGroupMembersRow, error) {
+	rows, err := q.db.Query(ctx, listGroupMembers, groupID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListGroupMembersRow
+	for rows.Next() {
+		var i ListGroupMembersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.Name,
+			&i.DisplayName,
+			&i.AvatarUrl,
+			&i.AddedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listGroups = `-- name: ListGroups :many
+SELECT g.id, g.tenant_id, g.space_id, g.name, g.description, g.is_everyone, g.created_by, g.created_at,
+       (SELECT COUNT(*) FROM group_members gm WHERE gm.group_id = g.id)::int AS member_count,
+       (SELECT COUNT(*) FROM shares s
+          WHERE s.grantee_group_id = g.id AND s.kind = 'group')::int AS grant_count
+FROM groups g
+WHERE g.space_id = $1
+ORDER BY g.is_everyone DESC, lower(g.name)
+`
+
+type ListGroupsRow struct {
+	ID          pgtype.UUID        `json:"id"`
+	TenantID    string             `json:"tenant_id"`
+	SpaceID     pgtype.UUID        `json:"space_id"`
+	Name        string             `json:"name"`
+	Description string             `json:"description"`
+	IsEveryone  bool               `json:"is_everyone"`
+	CreatedBy   pgtype.UUID        `json:"created_by"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	MemberCount int32              `json:"member_count"`
+	GrantCount  int32              `json:"grant_count"`
+}
+
+// The automatic group sorts first; it is the one an admin reaches for most.
+func (q *Queries) ListGroups(ctx context.Context, spaceID pgtype.UUID) ([]ListGroupsRow, error) {
+	rows, err := q.db.Query(ctx, listGroups, spaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListGroupsRow
+	for rows.Next() {
+		var i ListGroupsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.SpaceID,
+			&i.Name,
+			&i.Description,
+			&i.IsEveryone,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.MemberCount,
+			&i.GrantCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const removeGroupMember = `-- name: RemoveGroupMember :exec
+DELETE FROM group_members WHERE group_id = $1 AND user_id = $2
+`
+
+type RemoveGroupMemberParams struct {
+	GroupID pgtype.UUID `json:"group_id"`
+	UserID  pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) RemoveGroupMember(ctx context.Context, arg RemoveGroupMemberParams) error {
+	_, err := q.db.Exec(ctx, removeGroupMember, arg.GroupID, arg.UserID)
+	return err
+}
+
 const removeUserFromSpaceGroups = `-- name: RemoveUserFromSpaceGroups :exec
 DELETE FROM group_members gm
 USING groups g
@@ -103,4 +521,72 @@ type RemoveUserFromSpaceGroupsParams struct {
 func (q *Queries) RemoveUserFromSpaceGroups(ctx context.Context, arg RemoveUserFromSpaceGroupsParams) error {
 	_, err := q.db.Exec(ctx, removeUserFromSpaceGroups, arg.SpaceID, arg.UserID)
 	return err
+}
+
+const updateGroup = `-- name: UpdateGroup :one
+UPDATE groups SET name = $2, description = $3 WHERE id = $1 RETURNING id, tenant_id, space_id, name, description, is_everyone, created_by, created_at
+`
+
+type UpdateGroupParams struct {
+	ID          pgtype.UUID `json:"id"`
+	Name        string      `json:"name"`
+	Description string      `json:"description"`
+}
+
+func (q *Queries) UpdateGroup(ctx context.Context, arg UpdateGroupParams) (Group, error) {
+	row := q.db.QueryRow(ctx, updateGroup, arg.ID, arg.Name, arg.Description)
+	var i Group
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.SpaceID,
+		&i.Name,
+		&i.Description,
+		&i.IsEveryone,
+		&i.CreatedBy,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const upsertGroupGrant = `-- name: UpsertGroupGrant :one
+
+INSERT INTO shares (node_id, kind, perm, grantee_group_id, created_by)
+VALUES ($1, 'group', $2, $3, $4)
+ON CONFLICT (node_id, grantee_group_id) WHERE kind = 'group'
+DO UPDATE SET perm = EXCLUDED.perm, created_by = EXCLUDED.created_by
+RETURNING id, tenant_id, node_id, kind, token_hash, grantee_user_id, perm, expires_at, created_by, created_at, grantee_group_id
+`
+
+type UpsertGroupGrantParams struct {
+	NodeID         pgtype.UUID `json:"node_id"`
+	Perm           SharePerm   `json:"perm"`
+	GranteeGroupID pgtype.UUID `json:"grantee_group_id"`
+	CreatedBy      pgtype.UUID `json:"created_by"`
+}
+
+// ----------------------------------------------------------------- grants ---
+// shares_group_uniq makes re-granting an update rather than a second row.
+func (q *Queries) UpsertGroupGrant(ctx context.Context, arg UpsertGroupGrantParams) (Share, error) {
+	row := q.db.QueryRow(ctx, upsertGroupGrant,
+		arg.NodeID,
+		arg.Perm,
+		arg.GranteeGroupID,
+		arg.CreatedBy,
+	)
+	var i Share
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.NodeID,
+		&i.Kind,
+		&i.TokenHash,
+		&i.GranteeUserID,
+		&i.Perm,
+		&i.ExpiresAt,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.GranteeGroupID,
+	)
+	return i, err
 }

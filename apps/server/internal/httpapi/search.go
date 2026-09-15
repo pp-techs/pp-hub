@@ -115,6 +115,14 @@ func parseSearchQuery(v url.Values) (searchQuery, error) {
 // is never fetched in the first place. Direct shares do not widen search:
 // a shared node is reachable through "Shared with me", and widening here would
 // mean walking every ancestor chain per candidate row.
+// searchOverfetch is how many candidates to pull per requested result before
+// permission filtering. A member whose grants cover a small part of a large
+// space would otherwise get a short page for a term that matches plenty they
+// can see. It is a heuristic, not a guarantee: a page can still come back
+// short, which is correct — the alternative is looping until it fills, and
+// paying an unbounded number of queries to hide that.
+const searchOverfetch = 5
+
 func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	u := s.requireUser(w, r)
 	if u == nil {
@@ -131,6 +139,13 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Over-fetch, then narrow to what the caller can actually reach.
+	//
+	// The query's space_members join only scopes results to the caller's
+	// companies; inside one, a member sees only what their grants open. Pushing
+	// that into the SQL would mean an ancestor walk per candidate row, so the
+	// filter runs afterwards in one batch — which is why the limit has to be
+	// applied after filtering, not by the database.
 	rows, err := s.fs.Search(r.Context(), store.SearchNodesParams{
 		UserID:        u.ID,
 		SpaceID:       q.spaceID,
@@ -138,11 +153,21 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 		OwnerID:       q.ownerID,
 		ModifiedAfter: q.modifiedAfter,
 		Query:         q.query,
-		ResultLimit:   q.limit,
+		ResultLimit:   q.limit * searchOverfetch,
 	})
 	if err != nil {
 		Error(w, r, err)
 		return
+	}
+	rows, err = reachableRows(r.Context(), s, u.ID, rows,
+		func(n store.SearchNodesRow) pgtype.UUID { return n.ID },
+		func(n store.SearchNodesRow) pgtype.UUID { return n.SpaceID })
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+	if len(rows) > int(q.limit) {
+		rows = rows[:q.limit]
 	}
 
 	out := make([]searchResultDTO, 0, len(rows))

@@ -224,6 +224,36 @@ func (s *Service) ListWithMeta(ctx context.Context, spaceID, parentID pgtype.UUI
 	if err != nil {
 		return nil, err
 	}
+	return childRowsToMeta(rows), nil
+}
+
+// ListGrantedWithMeta returns only the children of parentID that userID holds a
+// grant on directly.
+//
+// This is the listing a member sees in a folder they have no access to
+// themselves — most importantly the space root, where it becomes the list of
+// the places their access starts. Callers must check the parent's rank first:
+// access inherits downward, so anyone with a grant on an ancestor should get
+// the full ListWithMeta instead.
+func (s *Service) ListGrantedWithMeta(ctx context.Context, spaceID, parentID, userID pgtype.UUID) ([]store.NodeWithMeta, error) {
+	rows, err := s.q.ListGrantedChildrenWithMeta(ctx, store.ListGrantedChildrenWithMetaParams{
+		SpaceID:  spaceID,
+		ParentID: parentID,
+		UserID:   userID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	// The two queries select the same columns, so sqlc generates structurally
+	// identical rows and one mapper serves both.
+	plain := make([]store.ListChildrenWithMetaRow, len(rows))
+	for i, r := range rows {
+		plain[i] = store.ListChildrenWithMetaRow(r)
+	}
+	return childRowsToMeta(plain), nil
+}
+
+func childRowsToMeta(rows []store.ListChildrenWithMetaRow) []store.NodeWithMeta {
 	out := make([]store.NodeWithMeta, len(rows))
 	for i, r := range rows {
 		ownerID := pgtype.UUID{}
@@ -263,7 +293,7 @@ func (s *Service) ListWithMeta(ctx context.Context, spaceID, parentID pgtype.UUI
 			OwnerEmail:   ownerEmail,
 		}
 	}
-	return out, nil
+	return out
 }
 
 func (s *Service) Get(ctx context.Context, nodeID pgtype.UUID) (store.Node, error) {
@@ -574,8 +604,36 @@ func (s *Service) Search(ctx context.Context, arg store.SearchNodesParams) ([]st
 }
 
 // ListShared returns nodes in spaces the user is a member of.
+// ListShared returns the topmost nodes the caller holds a grant on, across
+// every space — the places their access starts.
+//
+// This used to run ListSharedWithMe, which never touched the shares table at
+// all: it returned every non-root node in every space the caller belonged to,
+// capped at 50 and sorted alphabetically. It was not a list of things shared
+// with you, it was a slice of the filing cabinet. Now that a member's access is
+// exactly the set of grants they hold, this is the surface that tells them what
+// those are, so it has to mean what its name says.
 func (s *Service) ListShared(ctx context.Context, userID pgtype.UUID) ([]store.Node, error) {
-	return s.q.ListSharedWithMe(ctx, userID)
+	rows, err := s.q.ListEntryPoints(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]store.Node, len(rows))
+	for i, r := range rows {
+		out[i] = store.Node{
+			ID:               r.ID,
+			TenantID:         r.TenantID,
+			SpaceID:          r.SpaceID,
+			ParentID:         r.ParentID,
+			Kind:             store.NodeKind(r.Kind),
+			Name:             r.Name,
+			CurrentVersionID: r.CurrentVersionID,
+			DeletedAt:        r.DeletedAt,
+			CreatedBy:        r.CreatedBy,
+			CreatedAt:        r.CreatedAt,
+		}
+	}
+	return out, nil
 }
 
 // HasChildren reports whether a node has any child nodes.

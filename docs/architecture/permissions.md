@@ -22,27 +22,36 @@ Access is granted **group → folder**, and inherits down the subtree. A full
 per-node ACL was still rejected: a grant names a folder, resolution walks
 ancestors, and there is no per-node matrix to invalidate.
 
-## ⚠️ Not Yet Enforced On Listings
+## Where It Is Enforced
 
-The resolver below is live on every **node-addressed** route
-(`/api/v1/nodes/{id}/…`), on create-into-a-folder, and on trash restore/purge.
-It is **not yet** applied to the surfaces that list many nodes at once:
+Every node-addressed route (`/api/v1/nodes/{id}/…`), creating into a folder, and
+trash restore/purge resolve through `requireNodeAccess` / `requireParentWrite`.
 
-| Surface                                           | Still gated by                 |
-| :------------------------------------------------ | :----------------------------- |
-| `GET /spaces/{id}/children`, `/tree`, `/trash`    | `RequireRole(RoleMember)` only |
-| `GET /search`, `/starred`, `/recent`, `/activity` | a `JOIN space_members`         |
-| `GET /shared`                                     | not a share query at all       |
+The surfaces that list many nodes at once cannot use a per-row check without one
+recursive walk per result, so they over-fetch and narrow in one batch —
+`reachability` in `internal/httpapi/reachability.go`, backed by a single
+`NodeAccessRanks` call plus one role lookup per distinct space:
 
-While the `Everyone` grant from `0011` is intact those listings are _correct_ —
-every member really can reach everything, so showing everything matches the
-resolver. **The gap opens the moment an admin narrows a grant**: the node routes
-will refuse, but the folder will still appear in listings and search.
+| Surface                              | How it narrows                                           |
+| :----------------------------------- | :------------------------------------------------------- |
+| `GET /spaces/{id}/children`, `/tree` | one rank check on the **parent**; see below              |
+| `GET /search`                        | over-fetch `limit × searchOverfetch`, filter, then limit |
+| `GET /starred`, `/recent`            | batch filter                                             |
+| `GET /activity`                      | batch filter with its own rule for purged nodes          |
+| `GET /spaces/{id}/trash`             | batch filter — the resolver survives tombstones          |
+| `GET /shared`                        | `ListEntryPoints`: the grants themselves                 |
 
-So the group-grant management API is deliberately **not shipped yet**. It lands
-together with the re-scoping, as one change, because shipping the ability to
-tighten before listings honour it would be a permission model that is true on
-paper and false on screen.
+**Folder listings need one check, not one per row.** Permission inherits
+downward, so if the caller can reach the parent at all, the whole listing is
+theirs. Only when the parent resolves to 0 — a member at the space root, or in a
+folder nobody granted them — does it narrow to the children they hold a grant on
+directly (`ListGrantedChildrenWithMeta`). At the space root that narrowing is
+the feature: the top level becomes the list of places their access starts,
+rather than the company's entire filing cabinet.
+
+`GET /usage` is deliberately **not** narrowed. It is an aggregate of bytes per
+MIME family, names nothing, and the rail already shows the space quota beside
+it.
 
 ## Resolution Order
 

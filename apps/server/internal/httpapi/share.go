@@ -13,6 +13,7 @@ import (
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/activity"
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
+	"github.com/nhatbui/pp-hub/apps/server/internal/spaces"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 )
 
@@ -89,6 +90,20 @@ func (s *Server) handleCreateShare(w http.ResponseWriter, r *http.Request) {
 		grantee, err := s.store.GetUserByEmail(r.Context(), body.Email)
 		if err != nil {
 			writeProblem(w, http.StatusNotFound, "Not Found", "no user with that email")
+			return
+		}
+		// A direct share names someone inside the company. Allowing one to
+		// point at a person in a different space would quietly reopen the
+		// boundary that every other rule here exists to hold: a single share
+		// row, and a company's file is standing in someone else's drive with
+		// no membership, no group and no audit of how they got there.
+		//
+		// Sharing outward is still possible — by link, exactly as for someone
+		// with no account at all. That path is deliberately the visible one:
+		// it expires, it can be revoked, and it never confers standing access.
+		if err := s.spaces.RequireRole(r.Context(), node.SpaceID, grantee.ID, spaces.RoleMember); err != nil {
+			writeProblem(w, http.StatusUnprocessableEntity, "Unprocessable",
+				"that person is not a member of this space — share a link instead")
 			return
 		}
 		sh, err := s.share.CreateDirect(r.Context(), node.ID, grantee.ID, perm, expires, u.ID)

@@ -9,6 +9,7 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/activity"
 	"github.com/nhatbui/pp-hub/apps/server/internal/auth"
 	"github.com/nhatbui/pp-hub/apps/server/internal/fs"
+	"github.com/nhatbui/pp-hub/apps/server/internal/groups"
 	"github.com/nhatbui/pp-hub/apps/server/internal/preview"
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 	"github.com/nhatbui/pp-hub/apps/server/internal/spaces"
@@ -20,6 +21,7 @@ import (
 type Server struct {
 	auth          *auth.Service
 	spaces        *spaces.Service
+	groups        *groups.Service
 	fs            *fs.Service
 	share         *share.Service
 	wopi          *wopi.Service
@@ -33,7 +35,7 @@ type Server struct {
 }
 
 func NewServer(a *auth.Service, sp *spaces.Service, f *fs.Service, sh *share.Service, wp *wopi.Service, pv *preview.Worker, us *users.Service, q *store.Queries, externalURL, onlyOfficeURL, wopiServerURL string) *Server {
-	return &Server{auth: a, spaces: sp, fs: f, share: sh, wopi: wp, preview: pv, users: us, activity: activity.NewService(q), store: q, externalURL: externalURL, onlyOfficeURL: onlyOfficeURL, wopiServerURL: wopiServerURL}
+	return &Server{auth: a, spaces: sp, groups: groups.NewService(q), fs: f, share: sh, wopi: wp, preview: pv, users: us, activity: activity.NewService(q), store: q, externalURL: externalURL, onlyOfficeURL: onlyOfficeURL, wopiServerURL: wopiServerURL}
 }
 
 func (s *Server) Router() http.Handler {
@@ -81,6 +83,17 @@ func (s *Server) Router() http.Handler {
 				r.Post("/trash/empty", s.handleEmptyTrash)
 				r.Post("/dirs", s.handleMkdir)
 				r.Post("/files", s.handleUpload)
+				r.Route("/groups", func(r chi.Router) {
+					r.Get("/", s.handleListGroups)
+					r.Post("/", s.handleCreateGroup)
+					r.Route("/{groupID}", func(r chi.Router) {
+						r.Patch("/", s.handleUpdateGroup)
+						r.Delete("/", s.handleDeleteGroup)
+						r.Get("/members", s.handleListGroupMembers)
+						r.Post("/members", s.handleAddGroupMember)
+						r.Delete("/members/{userID}", s.handleRemoveGroupMember)
+					})
+				})
 				r.Route("/members", func(r chi.Router) {
 					r.Get("/", s.handleListMembers)
 					r.Post("/", s.handleAddMember)
@@ -111,6 +124,9 @@ func (s *Server) Router() http.Handler {
 			r.Delete("/shares/{shareID}", s.handleRevokeShare)
 			r.Post("/edit-session", s.handleEditSession)
 			r.Get("/preview", s.handlePreview)
+			r.Get("/grants", s.handleListGrants)
+			r.Put("/grants", s.handleUpsertGrant)
+			r.Delete("/grants/{groupID}", s.handleRevokeGrant)
 		})
 	})
 

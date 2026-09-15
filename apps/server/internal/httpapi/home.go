@@ -64,8 +64,9 @@ func (s *Server) handleListActivity(w http.ResponseWriter, r *http.Request) {
 	}
 	limit := feedLimit(r)
 
-	// Scoped to one space: the caller must be a member of it. Unscoped: the
-	// query itself joins membership, so no extra check is needed.
+	// Membership decides which feed you may ask for; the grants decide which
+	// events in it you may see. Both branches filter — the space_members join
+	// in ListMyActivity only narrows to the caller's companies.
 	if raw := r.URL.Query().Get("space"); raw != "" {
 		var spaceID pgtype.UUID
 		if err := spaceID.Scan(raw); err != nil {
@@ -81,6 +82,14 @@ func (s *Server) handleListActivity(w http.ResponseWriter, r *http.Request) {
 			Error(w, r, err)
 			return
 		}
+		rows, err = reachableActivity(r.Context(), s, u.ID, rows,
+			func(a store.ListSpaceActivityRow) pgtype.UUID { return a.NodeID },
+			func(a store.ListSpaceActivityRow) pgtype.UUID { return a.SpaceID },
+			func(a store.ListSpaceActivityRow) pgtype.UUID { return a.ActorID })
+		if err != nil {
+			Error(w, r, err)
+			return
+		}
 		out := make([]activityDTO, 0, len(rows))
 		for _, a := range rows {
 			out = append(out, spaceActivityToDTO(a))
@@ -90,6 +99,14 @@ func (s *Server) handleListActivity(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := s.activity.ForUser(r.Context(), u.ID, limit)
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+	rows, err = reachableActivity(r.Context(), s, u.ID, rows,
+		func(a store.ListMyActivityRow) pgtype.UUID { return a.NodeID },
+		func(a store.ListMyActivityRow) pgtype.UUID { return a.SpaceID },
+		func(a store.ListMyActivityRow) pgtype.UUID { return a.ActorID })
 	if err != nil {
 		Error(w, r, err)
 		return
@@ -109,6 +126,16 @@ func (s *Server) handleListRecent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rows, err := s.activity.Recent(r.Context(), u.ID)
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+	// Scoped by membership in SQL, which only narrows to the caller's
+	// companies. Losing access to a folder must also drop its files out of
+	// "recent", so the grants decide here.
+	rows, err = reachableRows(r.Context(), s, u.ID, rows,
+		func(n store.ListRecentNodesRow) pgtype.UUID { return n.ID },
+		func(n store.ListRecentNodesRow) pgtype.UUID { return n.SpaceID })
 	if err != nil {
 		Error(w, r, err)
 		return
@@ -136,6 +163,17 @@ func (s *Server) handleListStarred(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rows, err := s.fs.Starred(r.Context(), u.ID, feedLimit(r))
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+	// A star outlives access, which is why the query rechecks membership. That
+	// recheck now has to be a grant check: starring already went through
+	// requireNodeAccess, so a node reachable only by grant could be starred and
+	// then never appear here.
+	rows, err = reachableRows(r.Context(), s, u.ID, rows,
+		func(n store.ListStarredNodesRow) pgtype.UUID { return n.ID },
+		func(n store.ListStarredNodesRow) pgtype.UUID { return n.SpaceID })
 	if err != nil {
 		Error(w, r, err)
 		return
