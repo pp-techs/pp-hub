@@ -18,7 +18,7 @@ Profile fields (`display_name`, `avatar_url`, `bio`, `settings`, `is_admin`, `la
 
 ```sql
 spaces(id, tenant_id, name, owner_id, quota_bytes, used_bytes, created_at,
-       personal_root_id)                        -- folder holding per-member personal dirs
+       personal_root_id)                        -- the "Personal" folder; each member has a subfolder in it
 
 space_members(space_id, user_id, role)          -- admin | member
   PRIMARY KEY (space_id, user_id)

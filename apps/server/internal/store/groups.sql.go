@@ -98,6 +98,42 @@ func (q *Queries) DeleteGroupGrant(ctx context.Context, arg DeleteGroupGrantPara
 	return err
 }
 
+const findPersonalFolder = `-- name: FindPersonalFolder :one
+SELECT n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name, n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.deleted_by FROM nodes n
+JOIN spaces s ON s.id = n.space_id
+WHERE n.space_id = $1
+  AND s.personal_root_id IS NOT NULL
+  AND n.parent_id = s.personal_root_id
+  AND n.created_by = $2
+  AND n.deleted_at IS NULL
+LIMIT 1
+`
+
+type FindPersonalFolderParams struct {
+	SpaceID   pgtype.UUID `json:"space_id"`
+	CreatedBy pgtype.UUID `json:"created_by"`
+}
+
+// The caller's own folder under a space's Personal root, if they have one.
+func (q *Queries) FindPersonalFolder(ctx context.Context, arg FindPersonalFolderParams) (Node, error) {
+	row := q.db.QueryRow(ctx, findPersonalFolder, arg.SpaceID, arg.CreatedBy)
+	var i Node
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.SpaceID,
+		&i.ParentID,
+		&i.Kind,
+		&i.Name,
+		&i.CurrentVersionID,
+		&i.DeletedAt,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.DeletedBy,
+	)
+	return i, err
+}
+
 const getEveryoneGroup = `-- name: GetEveryoneGroup :one
 SELECT id, tenant_id, space_id, name, description, is_everyone, created_by, created_at FROM groups WHERE space_id = $1 AND is_everyone LIMIT 1
 `
@@ -162,9 +198,9 @@ WITH RECURSIVE granted AS (
     SELECT DISTINCT s.node_id
     FROM shares s
     WHERE (s.expires_at IS NULL OR s.expires_at > now())
-      AND ( (s.kind = 'direct' AND s.grantee_user_id = $1)
+      AND ( (s.kind = 'direct' AND s.grantee_user_id = $2)
          OR (s.kind = 'group'  AND s.grantee_group_id IN (
-                SELECT gm.group_id FROM group_members gm WHERE gm.user_id = $1)) )
+                SELECT gm.group_id FROM group_members gm WHERE gm.user_id = $2)) )
 ),
 walk(origin, id, parent_id, depth) AS (
     SELECT g.node_id, g.node_id, n.parent_id, 0
@@ -173,11 +209,17 @@ walk(origin, id, parent_id, depth) AS (
     SELECT w.origin, p.id, p.parent_id, w.depth + 1
     FROM walk w JOIN nodes p ON p.id = w.parent_id
 )
-SELECT n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
-       n.current_version_id, n.deleted_at, n.created_by, n.created_at
+SELECT
+  n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at,
+  v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
+  u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email
 FROM granted g
 JOIN nodes n ON n.id = g.node_id
+LEFT JOIN node_versions v ON v.id = n.current_version_id
+LEFT JOIN users u ON u.id = n.created_by
 WHERE n.deleted_at IS NULL
+  AND ($1::uuid IS NULL OR n.space_id = $1::uuid)
   AND NOT EXISTS (
       SELECT 1 FROM walk w
       JOIN granted g2 ON g2.node_id = w.id
@@ -186,6 +228,11 @@ WHERE n.deleted_at IS NULL
 ORDER BY n.kind, n.name
 LIMIT 200
 `
+
+type ListEntryPointsParams struct {
+	SpaceID pgtype.UUID `json:"space_id"`
+	UserID  pgtype.UUID `json:"user_id"`
+}
 
 type ListEntryPointsRow struct {
 	ID               pgtype.UUID        `json:"id"`
@@ -198,19 +245,34 @@ type ListEntryPointsRow struct {
 	DeletedAt        pgtype.Timestamptz `json:"deleted_at"`
 	CreatedBy        pgtype.UUID        `json:"created_by"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	VID              pgtype.UUID        `json:"v_id"`
+	BlobHash         pgtype.Text        `json:"blob_hash"`
+	VSize            pgtype.Int8        `json:"v_size"`
+	Mime             pgtype.Text        `json:"mime"`
+	VersionNo        pgtype.Int4        `json:"version_no"`
+	VCreatedBy       pgtype.UUID        `json:"v_created_by"`
+	VCreatedAt       pgtype.Timestamptz `json:"v_created_at"`
+	OwnerUid         pgtype.UUID        `json:"owner_uid"`
+	OwnerName        pgtype.Text        `json:"owner_name"`
+	OwnerEmail       pgtype.Text        `json:"owner_email"`
 }
 
-// The topmost nodes the caller holds a grant on, across every space they
-// belong to. This is what "Shared with me" means: the places their access
-// starts. A node whose ancestor is also granted is excluded — it would be
-// reachable by walking down from the ancestor, so listing it as a separate
-// entry point is noise.
+// The topmost nodes the caller holds a grant on — the places their access
+// starts. A node whose ancestor is also granted is excluded: it is reachable by
+// walking down from that ancestor, so listing it separately is noise.
+//
+// Two callers. Unscoped (@space_id NULL) it is "Shared with me", across every
+// space. Scoped to one space it is what a MEMBER sees at that space's top
+// level, which is not the same as the granted root folders: a member's own
+// personal folder lives inside "Personal", a folder they hold no grant on, so
+// listing only granted root children would hide it behind a door they cannot
+// open. Entry points surface it where they expect it.
 // WITH RECURSIVE must lead the statement; a nested one inside a plain CTE is
 // valid Postgres but sqlc cannot parse it.
 // Every strict ancestor of each granted node, so the ones sitting underneath
 // another grant can be dropped.
-func (q *Queries) ListEntryPoints(ctx context.Context, userID pgtype.UUID) ([]ListEntryPointsRow, error) {
-	rows, err := q.db.Query(ctx, listEntryPoints, userID)
+func (q *Queries) ListEntryPoints(ctx context.Context, arg ListEntryPointsParams) ([]ListEntryPointsRow, error) {
+	rows, err := q.db.Query(ctx, listEntryPoints, arg.SpaceID, arg.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -229,6 +291,16 @@ func (q *Queries) ListEntryPoints(ctx context.Context, userID pgtype.UUID) ([]Li
 			&i.DeletedAt,
 			&i.CreatedBy,
 			&i.CreatedAt,
+			&i.VID,
+			&i.BlobHash,
+			&i.VSize,
+			&i.Mime,
+			&i.VersionNo,
+			&i.VCreatedBy,
+			&i.VCreatedAt,
+			&i.OwnerUid,
+			&i.OwnerName,
+			&i.OwnerEmail,
 		); err != nil {
 			return nil, err
 		}
@@ -520,6 +592,22 @@ type RemoveUserFromSpaceGroupsParams struct {
 // on: without this the person keeps live access through their old groups.
 func (q *Queries) RemoveUserFromSpaceGroups(ctx context.Context, arg RemoveUserFromSpaceGroupsParams) error {
 	_, err := q.db.Exec(ctx, removeUserFromSpaceGroups, arg.SpaceID, arg.UserID)
+	return err
+}
+
+const setPersonalRoot = `-- name: SetPersonalRoot :exec
+
+UPDATE spaces SET personal_root_id = $2 WHERE id = $1
+`
+
+type SetPersonalRootParams struct {
+	ID             pgtype.UUID `json:"id"`
+	PersonalRootID pgtype.UUID `json:"personal_root_id"`
+}
+
+// ------------------------------------------------------ personal folders ---
+func (q *Queries) SetPersonalRoot(ctx context.Context, arg SetPersonalRootParams) error {
+	_, err := q.db.Exec(ctx, setPersonalRoot, arg.ID, arg.PersonalRootID)
 	return err
 }
 

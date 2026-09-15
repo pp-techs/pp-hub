@@ -406,6 +406,14 @@ func (s *Server) listVisibleChildren(r *http.Request, spaceID, parentID pgtype.U
 			return s.fs.ListWithMeta(r.Context(), spaceID, parentID)
 		}
 	}
+	if !parentID.Valid {
+		// The space's top level for a member. Not simply the granted root
+		// folders: their own personal folder lives inside "Personal", which
+		// they hold no grant on, so listing granted root children alone would
+		// hide it behind a door they cannot open. Entry points put every place
+		// their access starts where they expect to find it.
+		return s.fs.EntryPointsWithMeta(r.Context(), u.ID, spaceID)
+	}
 	return s.fs.ListGrantedWithMeta(r.Context(), spaceID, parentID, u.ID)
 }
 
@@ -859,7 +867,7 @@ func (s *Server) handleListShared(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]nodeDTO, 0, len(nodes))
 	for _, n := range nodes {
-		out = append(out, nodeToDTO(n, nil))
+		out = append(out, nodeToDTOMeta(n))
 	}
 	writeJSON(w, http.StatusOK, out)
 }

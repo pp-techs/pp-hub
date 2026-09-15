@@ -135,6 +135,43 @@ migration. `Editors (migrated)` is safe to delete once real groups are set up.
 
 Tombstoned roots get their grants too, so a restore brings access back with it.
 
+## Personal Folders
+
+Every member gets a folder of their own in each space they belong to, granted
+to them with an ordinary `direct` / `edit` share. Nothing about it is a special
+case in resolution — it appears in the grants list like anything else.
+
+Each space has one `Personal` folder (`spaces.personal_root_id`) and each
+member a subfolder inside it, named from their display name, then name, then
+the local part of their email. Two colleagues can share a display name, so
+collisions get the `Name (2)` suffix `fs.Restore` already uses rather than a
+uuid fragment on a folder someone has to look at daily.
+
+`spaces.AddMember` creates it, rather than the four call sites that add a
+member (added by an admin, invited by email, accepting an invitation, and the
+role update that reuses AddMember as an upsert), so no join path can forget.
+`EnsurePersonalFolder` is idempotent, which is what makes that safe.
+
+**Why a member's top level is entry points, not granted root folders.** The
+personal folder lives inside `Personal`, which the member holds no grant on.
+Listing only the granted children of the space root would therefore hide their
+own folder behind a door they cannot open. So for a member the top level is
+`ListEntryPoints` scoped to the space — every place their access starts,
+wherever it sits in the tree. An admin still sees the real root.
+
+Granting the member `view` on `Personal` instead would have been wrong twice
+over: access inherits downward, so they would get view on every colleague's
+folder, and `/content` serves whole files at rank 1.
+
+Two consequences, stated rather than engineered around:
+
+- An admin holds rank 3 everywhere, so **an admin can read every personal
+  folder**. That is the right default for a company drive, but it should be
+  known rather than discovered.
+- **Removing a member keeps the folder and revokes the grant.** The files are
+  company property; an admin can re-grant or move them. Deleting the subtree on
+  removal would be silent data loss.
+
 ## Suspension
 
 `users.suspended_at` blocks a user without deleting their files or their authorship of anything. It is enforced in `requireUser`, on every request, rather than at sign-in — so suspending takes effect immediately instead of waiting for an open session to expire. The response is **403, not 401**: the credentials are valid, the account is not, and a 401 would send the client into a pointless re-authentication loop.

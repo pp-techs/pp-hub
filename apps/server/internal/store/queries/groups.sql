@@ -113,11 +113,16 @@ WHERE n.space_id = @space_id
 ORDER BY n.kind, n.name;
 
 -- name: ListEntryPoints :many
--- The topmost nodes the caller holds a grant on, across every space they
--- belong to. This is what "Shared with me" means: the places their access
--- starts. A node whose ancestor is also granted is excluded — it would be
--- reachable by walking down from the ancestor, so listing it as a separate
--- entry point is noise.
+-- The topmost nodes the caller holds a grant on — the places their access
+-- starts. A node whose ancestor is also granted is excluded: it is reachable by
+-- walking down from that ancestor, so listing it separately is noise.
+--
+-- Two callers. Unscoped (@space_id NULL) it is "Shared with me", across every
+-- space. Scoped to one space it is what a MEMBER sees at that space's top
+-- level, which is not the same as the granted root folders: a member's own
+-- personal folder lives inside "Personal", a folder they hold no grant on, so
+-- listing only granted root children would hide it behind a door they cannot
+-- open. Entry points surface it where they expect it.
 -- WITH RECURSIVE must lead the statement; a nested one inside a plain CTE is
 -- valid Postgres but sqlc cannot parse it.
 WITH RECURSIVE granted AS (
@@ -137,11 +142,17 @@ walk(origin, id, parent_id, depth) AS (
     SELECT w.origin, p.id, p.parent_id, w.depth + 1
     FROM walk w JOIN nodes p ON p.id = w.parent_id
 )
-SELECT n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
-       n.current_version_id, n.deleted_at, n.created_by, n.created_at
+SELECT
+  n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at,
+  v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
+  u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email
 FROM granted g
 JOIN nodes n ON n.id = g.node_id
+LEFT JOIN node_versions v ON v.id = n.current_version_id
+LEFT JOIN users u ON u.id = n.created_by
 WHERE n.deleted_at IS NULL
+  AND (sqlc.narg('space_id')::uuid IS NULL OR n.space_id = sqlc.narg('space_id')::uuid)
   AND NOT EXISTS (
       SELECT 1 FROM walk w
       JOIN granted g2 ON g2.node_id = w.id
@@ -149,3 +160,19 @@ WHERE n.deleted_at IS NULL
   )
 ORDER BY n.kind, n.name
 LIMIT 200;
+
+-- ------------------------------------------------------ personal folders ---
+
+-- name: SetPersonalRoot :exec
+UPDATE spaces SET personal_root_id = $2 WHERE id = $1;
+
+-- name: FindPersonalFolder :one
+-- The caller's own folder under a space's Personal root, if they have one.
+SELECT n.* FROM nodes n
+JOIN spaces s ON s.id = n.space_id
+WHERE n.space_id = $1
+  AND s.personal_root_id IS NOT NULL
+  AND n.parent_id = s.personal_root_id
+  AND n.created_by = $2
+  AND n.deleted_at IS NULL
+LIMIT 1;

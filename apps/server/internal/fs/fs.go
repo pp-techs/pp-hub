@@ -613,27 +613,28 @@ func (s *Service) Search(ctx context.Context, arg store.SearchNodesParams) ([]st
 // with you, it was a slice of the filing cabinet. Now that a member's access is
 // exactly the set of grants they hold, this is the surface that tells them what
 // those are, so it has to mean what its name says.
-func (s *Service) ListShared(ctx context.Context, userID pgtype.UUID) ([]store.Node, error) {
-	rows, err := s.q.ListEntryPoints(ctx, userID)
+func (s *Service) ListShared(ctx context.Context, userID pgtype.UUID) ([]store.NodeWithMeta, error) {
+	return s.EntryPointsWithMeta(ctx, userID, pgtype.UUID{})
+}
+
+// EntryPointsWithMeta returns the topmost nodes the caller holds a grant on. A
+// zero spaceID spans every space; a set one scopes to that space, which is what
+// a member sees at its top level.
+func (s *Service) EntryPointsWithMeta(ctx context.Context, userID, spaceID pgtype.UUID) ([]store.NodeWithMeta, error) {
+	rows, err := s.q.ListEntryPoints(ctx, store.ListEntryPointsParams{
+		UserID:  userID,
+		SpaceID: spaceID,
+	})
 	if err != nil {
 		return nil, err
 	}
-	out := make([]store.Node, len(rows))
+	// Selects the same columns as ListChildrenWithMeta, so one mapper serves
+	// both and an entry point renders with the size and owner a listing shows.
+	plain := make([]store.ListChildrenWithMetaRow, len(rows))
 	for i, r := range rows {
-		out[i] = store.Node{
-			ID:               r.ID,
-			TenantID:         r.TenantID,
-			SpaceID:          r.SpaceID,
-			ParentID:         r.ParentID,
-			Kind:             store.NodeKind(r.Kind),
-			Name:             r.Name,
-			CurrentVersionID: r.CurrentVersionID,
-			DeletedAt:        r.DeletedAt,
-			CreatedBy:        r.CreatedBy,
-			CreatedAt:        r.CreatedAt,
-		}
+		plain[i] = store.ListChildrenWithMetaRow(r)
 	}
-	return out, nil
+	return childRowsToMeta(plain), nil
 }
 
 // HasChildren reports whether a node has any child nodes.
