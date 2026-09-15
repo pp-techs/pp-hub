@@ -412,6 +412,7 @@ function FolderView() {
                 selectedIds={selectedIds}
                 starredIds={starredIds}
                 focusedId={activeFocused?.id}
+                onToggle={handleToggle}
                 onClick={handleClick}
                 onDoubleClick={handleDoubleClick}
                 {...nodeHandlers}

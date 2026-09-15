@@ -1,31 +1,17 @@
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { Mail, Trash2, UserPlus } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 import { Textarea } from "@workspace/ui/components/textarea";
-import { Badge } from "@workspace/ui/components/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@workspace/ui/components/toggle-group";
-import { fmtRelative, fmtSize, type MemberRole, type Space, type SpaceSettings } from "@/lib/api";
-import {
-  useCreateInvitation,
-  useDeleteSpace,
-  useInvitations,
-  useRevokeInvitation,
-  useUpdateSpace,
-} from "@/lib/queries";
+import { fmtSize, type MemberRole, type Space, type SpaceSettings } from "@/lib/api";
+import { useDeleteSpace, useUpdateSpace } from "@/lib/queries";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { SpaceMembersPanel } from "@/components/space-members-panel";
-import { RailLabel } from "@/components/rail-item";
-
-const ROLES: { value: MemberRole; label: string; blurb: string }[] = [
-  { value: "owner", label: "Owner", blurb: "Manage members and settings, delete the space" },
-  { value: "editor", label: "Editor", blurb: "Upload, edit, move and share files" },
-  { value: "viewer", label: "Viewer", blurb: "View and download files, nothing else" },
-];
 
 /**
  * Space settings, reached from the rail as `?panel=settings`.
@@ -208,114 +194,12 @@ function GeneralTab({ space }: { space: Space }) {
           Save changes
         </Button>
       </div>
-
-      <div>
-        <RailLabel>Role reference</RailLabel>
-        <dl className="border-border divide-border grid divide-y rounded-lg border">
-          {ROLES.map((r) => (
-            <div key={r.value} className="flex flex-col gap-0.5 p-2">
-              <dt className="text-xs font-medium">{r.label}</dt>
-              <dd className="text-muted-foreground text-xs">{r.blurb}</dd>
-            </div>
-          ))}
-        </dl>
-      </div>
     </form>
   );
 }
 
 function MembersTab({ space }: { space: Space }) {
-  const invitations = useInvitations(space.id);
-  const invite = useCreateInvitation(space.id);
-  const revoke = useRevokeInvitation(space.id);
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState<MemberRole>("viewer");
-
-  return (
-    <div className="flex flex-col gap-6">
-      <SpaceMembersPanel spaceId={space.id} currentUserRole={space.role} />
-
-      <div className="flex flex-col gap-2">
-        <RailLabel>Invite by email</RailLabel>
-        <form
-          className="flex flex-wrap items-end gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            invite.mutate(
-              { email: email.trim(), role },
-              {
-                onSuccess: (result) => {
-                  setEmail("");
-                  if (result.added_member) {
-                    toast.success(`${result.email} already has an account`, {
-                      description: "They were added to the space directly.",
-                    });
-                  } else if (result.url) {
-                    void navigator.clipboard?.writeText(result.url);
-                    toast.success("Invitation created", {
-                      description: "The link is on your clipboard — send it to them.",
-                    });
-                  }
-                },
-                onError: (e) => toast.error("Could not invite", { description: e.message }),
-              },
-            );
-          }}
-        >
-          <Input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="name@example.com"
-            aria-label="Email to invite"
-            className="max-w-64"
-            required
-          />
-          <ToggleGroup value={[role]} onValueChange={(v) => v[0] && setRole(v[0] as MemberRole)}>
-            <ToggleGroupItem value="viewer">Viewer</ToggleGroupItem>
-            <ToggleGroupItem value="editor">Editor</ToggleGroupItem>
-          </ToggleGroup>
-          <Button type="submit" disabled={invite.isPending || !email.trim()}>
-            <UserPlus data-icon="inline-start" /> Invite
-          </Button>
-        </form>
-        <p className="text-muted-foreground text-[10px]">
-          pp-hub does not send mail yet. The invitation link is copied to your clipboard so you can
-          send it yourself; it expires in 14 days.
-        </p>
-      </div>
-
-      {(invitations.data?.length ?? 0) > 0 && (
-        <div className="flex flex-col gap-2">
-          <RailLabel>Pending invitations</RailLabel>
-          <ul className="border-border divide-border divide-y rounded-lg border">
-            {invitations.data?.map((i) => (
-              <li key={i.id} className="flex items-center gap-2 p-2">
-                <Mail className="text-muted-foreground size-3.5 shrink-0" />
-                <span className="min-w-0 flex-1 truncate text-xs italic">{i.email}</span>
-                <Badge>{i.role}</Badge>
-                <span className="text-muted-foreground shrink-0 text-[10px] tabular-nums">
-                  invited {fmtRelative(i.created_at)}
-                </span>
-                <Button
-                  variant="destructive"
-                  size="xs"
-                  disabled={revoke.isPending}
-                  onClick={() =>
-                    revoke.mutate(i.id, {
-                      onError: (e) => toast.error(e.message),
-                    })
-                  }
-                >
-                  Revoke
-                </Button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
-  );
+  return <SpaceMembersPanel spaceId={space.id} currentUserRole={space.role} />;
 }
 
 function DangerTab({ space }: { space: Space }) {

@@ -18,7 +18,7 @@ pp-hub/
 │   │       │   └── use-keyed-state.ts # state that resets when its subject changes
 │   │       ├── components/         # app-level UI panels
 │   │       │   ├── share-panel.tsx       # share dialog (direct + link)
-│   │       │   ├── space-members-panel.tsx # space member management
+│   │       │   ├── space-members-panel.tsx # members + pending invites in one table
 │   │       │   ├── member-picker.tsx     # user search + member add
 │   │       │   ├── user-avatar.tsx       # avatar with fallback
 │   │       │   ├── confirm-dialog.tsx    # confirmation modal
@@ -43,7 +43,7 @@ pp-hub/
 │   │       │   ├── drive-header.tsx      # main column row 1: breadcrumbs + global toggles
 │   │       │   ├── drive-toolbar.tsx     # main column row 2: create actions, sort, view
 │   │       │   ├── node-list.tsx         # dense list view with checkbox multi-select
-│   │       │   ├── node-grid.tsx         # grid view, grouped Folders / Files
+│   │       │   ├── node-grid.tsx         # grid view, grouped Folders / Files, multi-select
 │   │       │   ├── node-actions.tsx      # single source for a node's menu actions
 │   │       │   ├── selection-bar.tsx     # floating bar for a multi-row selection
 │   │       │   └── ...                  # folder-tree, preview, nav, etc. (edit is a route, not a panel)
@@ -104,6 +104,15 @@ pp-hub/
   `drive/$spaceId.tsx` owns the main column as two 40px rows (`drive-header`,
   `drive-toolbar`) above the listing. Row geometry for the rail lives in
   `rail-item.tsx`; use `railRow()` rather than re-deriving row classes.
+- **Selection and focus are two different things.** A ticked checkbox feeds the
+  bulk `selection-bar`; the last single-clicked row feeds the details panel.
+  `node-list.tsx` and `node-grid.tsx` both take `selectedIds` _and_ `focusedId`
+  and style them apart — collapsing them back into one flag is what made the
+  grid unable to multi-select.
+- **Members and invitations render as one table.** `space-members-panel.tsx`
+  owns both, plus the role reference and the invite dialog; `space-settings-panel.tsx`
+  only mounts it. Listing invitations is owner-gated server-side, so the query
+  is `enabled` on the owner check rather than firing and 403-ing.
 - **Node menu actions have one definition.** `node-actions.tsx` builds the
   action list; the list view, grid view and their right-click menus all render
   from it. Add an action there, not in a menu.
