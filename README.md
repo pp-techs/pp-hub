@@ -45,7 +45,7 @@ set -a && source .env && set +a && go run ./cmd/server
 vp run dev                                # web, http://localhost:5173
 ```
 
-Identity provider: Logto — create a free Cloud tenant at <https://cloud.logto.io> (Traditional Web app, redirect URI `http://localhost:8080/auth/callback`) or self-host with `--profile idp`. OnlyOffice on :9980, API server on <http://localhost:8080>.
+Identity provider: Logto — create a free Cloud tenant at <https://cloud.logto.io> (Traditional Web app, redirect URI `http://localhost:5173/auth/callback`) or self-host with `--profile idp` (admin console on <http://localhost:3002>). OnlyOffice on :9980, API server on <http://localhost:8080>.
 
 Deploying to a server or Dokploy: [docs/deployment.md](docs/deployment.md).
 

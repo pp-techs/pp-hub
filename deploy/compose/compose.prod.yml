@@ -5,8 +5,12 @@
 # binding 80/443 here would collide with it. For a plain VPS with your own
 # reverse proxy, uncomment the `ports:` blocks marked PLAIN VPS.
 #
-#   cp deploy/compose/.env.prod.example .env      # then fill it in
-#   docker compose -f deploy/compose/compose.prod.yml up -d --build
+#   cp deploy/compose/.env.prod.example deploy/compose/.env.prod   # then fill it in
+#   docker compose -f deploy/compose/compose.prod.yml \
+#     --env-file deploy/compose/.env.prod up -d --build
+#
+# --env-file is REQUIRED: without it compose auto-loads `.env` from this
+# directory, which is the development file. See .env.prod.example.
 #
 # Dokploy: paste this file, leave it unlabelled, and assign domains in the
 # Domains tab — Dokploy injects the Traefik labels and network itself.
@@ -81,7 +85,7 @@ services:
     volumes:
       - blob_data:/data/blobs
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/healthz || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -155,7 +159,10 @@ services:
       retries: 10
 
   onlyoffice:
-    image: onlyoffice/documentserver:latest
+    # Pinned: `latest` has shipped WOPI-breaking changes before, and the editor
+    # is the one service whose upgrade is not a restart — it migrates its own
+    # cache. 9.4.0 is the build this stack is verified against.
+    image: onlyoffice/documentserver:9.4.0
     restart: unless-stopped
     expose:
       - "80"
@@ -170,12 +177,20 @@ services:
       - ONLYOFFICE_HTTPS_ENABLED=false
       # 9.x needs this to serve /hosting/discovery and /hosting/wopi/*/edit.
       - WOPI_ENABLED=true
+      # PP_WOPI_SERVER_URL resolves to `server`'s container IP, which sits in
+      # a private (172.16.0.0/12) range. OnlyOffice's request-filtering-agent
+      # blocks fetches to private/meta addresses by default, so without these
+      # every conversion fails with the opaque {"error":-4} and every editor
+      # session with a WOPI CheckFileInfo error — nothing else in this stack
+      # crosses a private address, so this does not relax anything else.
+      - ALLOW_META_IP_ADDRESS=true
+      - ALLOW_PRIVATE_IP_ADDRESS=true
     volumes:
       - onlyoffice_data:/var/www/onlyoffice/Data
       - onlyoffice_logs:/var/log/onlyoffice
       - onlyoffice_cache:/var/lib/onlyoffice/documentserver/App_Data/cache/files
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost/healthcheck || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1/healthcheck || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
@@ -187,30 +202,45 @@ services:
   # an external provider. Opt-in: PP_BLOB_BACKEND defaults to local disk.
   # Switching to it is also what allows more than one `server` replica.
   #
-  #   docker compose -f compose.prod.yml --profile s3 up -d
+  #   docker compose -f compose.prod.yml --env-file .env.prod --profile s3 up -d
   #
-  # Then set in .env:
+  # Then set in .env.prod:
   #   PP_BLOB_BACKEND=s3
   #   PP_S3_ENDPOINT=http://seaweedfs:8333
   #   PP_S3_BUCKET=pphub
+  #   PP_S3_ACCESS_KEY_ID / PP_S3_SECRET_ACCESS_KEY
+  #
+  # It reads the same PP_S3_* credentials the server and worker use rather than
+  # a second SEAWEEDFS_* pair: two variables that "must match" are two
+  # variables that eventually will not. They are optional at interpolation
+  # time — the default local-disk stack must not require credentials for a
+  # service it never starts — so the entrypoint below refuses to boot without
+  # them instead.
   #
   # No published ports: only the server and worker talk to it.
   seaweedfs:
     profiles: ["s3"]
     image: chrislusf/seaweedfs:3.97
     restart: unless-stopped
-    command: server -dir=/data -s3 -s3.config=/etc/seaweedfs/s3.json
     expose:
       - "8333"
     environment:
-      SEAWEEDFS_ACCESS_KEY: "${SEAWEEDFS_ACCESS_KEY:?set in .env}"
-      SEAWEEDFS_SECRET_KEY: "${SEAWEEDFS_SECRET_KEY:?set in .env}"
+      PP_S3_ACCESS_KEY_ID: "${PP_S3_ACCESS_KEY_ID:-}"
+      PP_S3_SECRET_ACCESS_KEY: "${PP_S3_SECRET_ACCESS_KEY:-}"
     # The committed s3.json carries development credentials, so production
     # writes its own from the environment at startup rather than shipping a
     # secret in the repo.
-    entrypoint: >
-      sh -c "printf '{\"identities\":[{\"name\":\"pphub\",\"credentials\":[{\"accessKey\":\"%s\",\"secretKey\":\"%s\"}],\"actions\":[\"Admin\",\"Read\",\"Write\",\"List\",\"Tagging\"]}]}' \"$$SEAWEEDFS_ACCESS_KEY\" \"$$SEAWEEDFS_SECRET_KEY\" > /etc/seaweedfs/s3.json &&
-             exec weed server -dir=/data -s3 -s3.config=/etc/seaweedfs/s3.json"
+    entrypoint:
+      - sh
+      - -c
+      - |
+        if [ -z "$$PP_S3_ACCESS_KEY_ID" ] || [ -z "$$PP_S3_SECRET_ACCESS_KEY" ]; then
+          echo "seaweedfs: set PP_S3_ACCESS_KEY_ID and PP_S3_SECRET_ACCESS_KEY in .env.prod" >&2
+          exit 1
+        fi
+        printf '{"identities":[{"name":"pphub","credentials":[{"accessKey":"%s","secretKey":"%s"}],"actions":["Admin","Read","Write","List","Tagging"]}]}' \
+          "$$PP_S3_ACCESS_KEY_ID" "$$PP_S3_SECRET_ACCESS_KEY" > /etc/seaweedfs/s3.json
+        exec weed server -dir=/data -s3 -s3.config=/etc/seaweedfs/s3.json
     volumes:
       - seaweed_data:/data
     healthcheck:

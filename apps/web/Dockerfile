@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # The web app: Vite build, served by nginx.
 #
 # Build context is the REPO ROOT, not apps/web — the app depends on
@@ -22,7 +23,8 @@ COPY packages/utils/package.json packages/utils/
 # --ignore-scripts skips the root "prepare" hook (vp config), which sets up
 # git hooks for developers and needs a git binary this image has no reason to
 # carry.
-RUN bun install --frozen-lockfile --ignore-scripts
+RUN --mount=type=cache,target=/root/.bun/install/cache \
+    bun install --frozen-lockfile --ignore-scripts
 
 COPY . .
 RUN cd apps/web && bun run build
@@ -31,5 +33,8 @@ FROM nginx:1.27-alpine AS web
 COPY --from=build /src/apps/web/dist /usr/share/nginx/html
 COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
+# 127.0.0.1, not localhost: busybox wget tries ::1 first, and a v4-only
+# `listen 80` answers nothing there. nginx.conf listens dual-stack now, so this
+# is belt and braces — but the check should not depend on that.
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s \
-    CMD wget -qO- http://localhost/nginx-health || exit 1
+    CMD wget -qO- http://127.0.0.1/nginx-health || exit 1

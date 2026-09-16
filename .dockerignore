@@ -3,3 +3,19 @@ node_modules
 **/dist
 .git
 apps/server/data
+
+# Agent/tooling scratch. Excluded for build-cache reasons more than size:
+# these change on every session, and `COPY . .` in apps/web/Dockerfile would
+# otherwise invalidate the Vite build layer each time.
+.agents
+.claude
+.plans
+.stitch
+.vite-hooks
+.vscode
+
+# Never ship secrets into a build context.
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.*.example

@@ -113,14 +113,31 @@ func run() error {
 	}
 }
 
-// waitForOIDC retries discovery until the IdP is up (Keycloak import takes a while).
+// waitForOIDC retries discovery until the IdP is up (a cold Logto or Keycloak
+// takes a while to migrate its own schema).
+//
+// It logs the first failure and then every tenth attempt. Silence here used to
+// mean a container that is "running", never healthy, and says nothing for two
+// minutes — and the cause is almost always one of two mundane things the error
+// names precisely: the issuer is unreachable from inside the container, or the
+// `issuer` in its discovery document does not match PP_OIDC_ISSUER (what
+// PP_OIDC_ISSUER_EXTERNAL exists to resolve).
 func waitForOIDC(ctx context.Context, cfg *config.Config, q *store.Queries) (*auth.Service, error) {
+	const maxAttempts = 60
 	for attempt := 1; ; attempt++ {
 		svc, err := auth.NewService(ctx, cfg, q)
 		if err == nil {
+			if attempt > 1 {
+				slog.Info("oidc discovery succeeded", "attempts", attempt)
+			}
 			return svc, nil
-		} else if attempt >= 60 {
+		} else if attempt >= maxAttempts {
 			return nil, fmt.Errorf("oidc not ready after %d attempts: %w", attempt, err)
+		}
+		if attempt == 1 || attempt%10 == 0 {
+			slog.Warn("oidc discovery failed, retrying",
+				"attempt", attempt, "of", maxAttempts,
+				"issuer", cfg.OIDCIssuerExt, "err", err)
 		}
 		select {
 		case <-ctx.Done():

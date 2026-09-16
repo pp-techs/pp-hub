@@ -20,6 +20,7 @@
 #   --profile idp      + self-hosted Logto, instead of Logto Cloud
 #
 # Combine freely:  docker compose -f compose.dev.yml --profile worker up -d
+name: pp-hub-dev
 
 services:
   postgres:
@@ -33,7 +34,10 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      # Override when 5432 is already taken on the host (another local
+      # Postgres): set PP_POSTGRES_PORT in deploy/compose/.env and keep
+      # PP_DATABASE_URL in apps/server/.env pointing at the same port.
+      - "${PP_POSTGRES_PORT:-5432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U pphub -d pphub"]
       interval: 5s
@@ -41,13 +45,22 @@ services:
       retries: 10
 
   onlyoffice:
-    image: onlyoffice/documentserver:latest
+    # Same pin as compose.prod.yml: developing against a different editor
+    # build than production ships is how WOPI regressions get missed.
+    image: onlyoffice/documentserver:9.4.0
     container_name: pphub-onlyoffice
     restart: unless-stopped
     environment:
       - JWT_ENABLED=false
       - ONLYOFFICE_HTTPS_ENABLED=false
       - WOPI_ENABLED=true
+      # host.docker.internal resolves to a link-local-ish gateway address
+      # (OrbStack: 0.250.250.254). OnlyOffice's request-filtering-agent
+      # blocks that as a "meta" IP by default, so the conversion API and the
+      # editor iframe can never fetch /wopi/... from the host-run server
+      # without these — fails with {"error":-4} and no other explanation.
+      - ALLOW_META_IP_ADDRESS=true
+      - ALLOW_PRIVATE_IP_ADDRESS=true
     volumes:
       - onlyoffice_data:/var/www/onlyoffice/Data
       - onlyoffice_logs:/var/log/onlyoffice
@@ -57,7 +70,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost/healthcheck || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1/healthcheck || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
@@ -88,6 +101,16 @@ services:
       # Must match the server's key. PP_DEV_INSECURE=1 gives both processes the
       # same fixed development key, which is what apps/server/.env sets.
       PP_DEV_INSECURE: ${PP_DEV_INSECURE:-1}
+      # The worker reads and writes the same blobs as the server, so it has to
+      # use the same backend. With `--profile s3` set PP_BLOB_BACKEND=s3 in
+      # this directory's .env; the endpoint differs per side — the host server
+      # reaches SeaweedFS on localhost:8333, the worker on the compose network.
+      PP_BLOB_BACKEND: ${PP_BLOB_BACKEND:-local}
+      PP_S3_BUCKET: ${PP_S3_BUCKET:-pphub}
+      PP_S3_ENDPOINT: ${PP_S3_ENDPOINT_INTERNAL:-http://seaweedfs:8333}
+      PP_S3_ACCESS_KEY_ID: ${PP_S3_ACCESS_KEY_ID:-pphub}
+      PP_S3_SECRET_ACCESS_KEY: ${PP_S3_SECRET_ACCESS_KEY:-pphub-dev-secret}
+      PP_S3_PATH_STYLE: ${PP_S3_PATH_STYLE:-1}
     volumes:
       - ../../apps/server/data/blobs:/data/blobs
     extra_hosts:

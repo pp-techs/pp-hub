@@ -1,10 +1,36 @@
-FROM golang:1.26-alpine AS build
+# syntax=docker/dockerfile:1
+#
+# Two independent images from one Go module:
+#
+#   docker build --target server .   API server (default)
+#   docker build --target worker .   preview worker
+#
+# The compile stages are split per binary on purpose: a `--target server` build
+# must not spend time linking the worker, and vice versa. Both share the `deps`
+# stage, so the module download happens once.
+
+FROM golang:1.26-alpine AS deps
 WORKDIR /src
 COPY go.mod go.sum ./
-RUN go mod download
+# A cache mount instead of a layer: the module cache survives a go.sum change
+# and is not baked into the image.
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
+
+# -trimpath strips local filesystem paths out of the binary, and -s -w drops
+# the symbol and DWARF tables — nothing reads them in production, and they are
+# roughly a third of the binary.
+FROM deps AS build-server
 COPY . .
-RUN CGO_ENABLED=0 go build -o /out/server ./cmd/server
-RUN CGO_ENABLED=0 go build -o /out/worker ./cmd/worker
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/server ./cmd/server
+
+FROM deps AS build-worker
+COPY . .
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/worker ./cmd/worker
 
 # The preview worker: build with --target worker.
 #
@@ -20,14 +46,23 @@ FROM alpine:3.21 AS worker
 RUN apk add --no-cache poppler-utils ffmpeg \
     && adduser -D app && mkdir -p /data/blobs && chown -R app:app /data
 USER app
-COPY --from=build /out/worker /usr/local/bin/worker
+COPY --from=build-worker /out/worker /usr/local/bin/worker
 ENTRYPOINT ["worker"]
 
 # The API server. Deliberately last, so a bare `docker build` still produces
 # the server it always did. Stays free of media tooling; see the worker above.
+#
+# alpine already carries ca-certificates-bundle, which the OIDC and S3 clients
+# need — do not swap the base for `scratch` without adding it back.
 FROM alpine:3.21 AS server
 RUN adduser -D app && mkdir -p /data/blobs && chown -R app:app /data
 USER app
-COPY --from=build /out/server /usr/local/bin/server
+COPY --from=build-server /out/server /usr/local/bin/server
 EXPOSE 8080
+# Mirrors the compose healthcheck so the image is also correct when run by
+# something that has no compose file (a bare `docker run`, Kubernetes).
+# 127.0.0.1, not localhost: busybox wget resolves ::1 first, and a listener
+# that is not dual-stack answers nothing there.
+HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=10 \
+    CMD wget -qO- http://127.0.0.1:8080/healthz || exit 1
 ENTRYPOINT ["server"]
