@@ -44,9 +44,29 @@ Mounted under `/wopi`:
 - Same file → same WOPI `FileId` → OnlyOffice merges concurrent edits in realtime.
 - Save produces one `PutFile` with merged content; a `Version` mismatch → HTTP 409 → OnlyOffice reloads/re-merges.
 
-## Conversion API (optional)
+## Conversion API
 
-Preview generation may use OnlyOffice's conversion endpoint (office → PDF) as one `preview` job kind; not required for MVP previews of PDF/image/video/text.
+`cmd/worker` uses `POST {PP_ONLYOFFICE_INTERNAL_URL}/converter` to turn office
+documents into PDF, then rasterizes the first page into a thumbnail. Request:
+`{async:false, url, filetype, outputtype:"pdf", key, title}` with
+`Accept: application/json` — without that header the service answers in XML.
+
+The service **fetches the document by URL** rather than accepting an upload, so
+the worker signs a 5-minute view-only WOPI token and hands over
+`{PP_WOPI_SERVER_URL}/wopi/files/{id}/contents?access_token=…`. That means
+`PP_SESSION_KEY` must be the same in the worker and the API server: the worker
+signs, the server verifies. The worker refuses to register the office renderer
+when the key was generated rather than supplied.
+
+Failures come back as HTTP 200 with a negative `error` code in the body, so the
+status alone is not enough to tell success from failure. `preview.convertError`
+translates the codes — `-4` is the source URL being unreachable from the
+OnlyOffice container, `-8` is JWT being enabled while this request is unsigned.
+
+**JWT signing is not implemented**, here or anywhere else in the integration;
+the compose stack sets `JWT_ENABLED=false`.
+
+See [preview-pipeline.md](preview-pipeline.md).
 
 ## Resource Note
 

@@ -16,7 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
 import { cn } from "@workspace/ui/lib/utils";
-import { fmtDate, fmtSize, previewKind, type Node } from "@/lib/api";
+import { fmtDate, fmtSize, hasThumbnail, previewUrl, thumbnailFit, type Node } from "@/lib/api";
 import { nodeActions, type NodeActionHandlers } from "@/components/node-actions";
 import { NodeIcon } from "@/components/node-icon";
 import { useUiStore } from "@/lib/ui-store";
@@ -103,24 +103,37 @@ export function NodeGrid({
 }
 
 /**
- * The card body. Every file shows its thumbnail; a file the preview worker
- * never rendered one for (anything but a raster image) shows the empty frame
- * rather than a stand-in, so the wall of cards stays quiet.
+ * The card body: the rendered thumbnail, or the file-type icon.
+ *
+ * Falling back to the icon rather than an empty frame matters most for the
+ * cases that are not errors — a text file or an archive never gets a thumbnail
+ * at all, and a PDF has none until the worker renders it (or at all, if no
+ * worker is deployed). A blank card reads as broken in every one of those,
+ * while the icon still says what the file is. Matches the details panel, which
+ * has always fallen back this way.
  */
 function Thumb({ node }: { node: Node }) {
   const [failed, setFailed] = useState(false);
-  const hasThumb = previewKind(node.mime) === "thumbnail" && !failed;
+  const hasThumb = hasThumbnail(node) && !failed;
 
   return (
-    <div className="bg-background border-border h-36 w-full overflow-hidden rounded-xl border">
-      {hasThumb && (
+    <div className="bg-background flex h-36 w-full items-center justify-center overflow-hidden rounded-xl">
+      {hasThumb ? (
         <img
-          src={`/api/v1/nodes/${node.id}/preview?kind=thumbnail`}
+          src={previewUrl(node)}
           alt=""
           loading="lazy"
-          className="size-full object-cover"
+          // Pictures crop to fill, pages letterbox — see thumbnailFit. The
+          // classes are spelled out because Tailwind cannot see a name built
+          // at runtime.
+          className={cn(
+            "size-full",
+            thumbnailFit(node) === "cover" ? "object-cover" : "object-contain",
+          )}
           onError={() => setFailed(true)}
         />
+      ) : (
+        <NodeIcon node={node} className="size-12" />
       )}
     </div>
   );

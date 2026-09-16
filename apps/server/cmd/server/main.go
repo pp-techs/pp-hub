@@ -53,7 +53,11 @@ func run() error {
 	spacesSvc := spaces.NewService(queries)
 	shareSvc := share.NewService(queries)
 	wopiSvc := wopi.NewService(queries, cfg.SessionKey)
-	previewWorker := preview.NewWorker(queries, blobs)
+	// Only the pure-Go renderers run in-process. PDF and video need poppler
+	// and ffmpeg, which live in cmd/worker; jobs for those kinds stay pending
+	// until such a worker exists, and are never claimed-and-failed here.
+	previewWorker := preview.NewWorker(queries, blobs,
+		preview.ImageRenderer{}, preview.TextRenderer{})
 	fsSvc.SetVersionHook(func(ctx context.Context, ver store.NodeVersion, name string) {
 		if err := previewWorker.Enqueue(ctx, ver, name); err != nil {
 			slog.Warn("enqueue preview", "err", err)
