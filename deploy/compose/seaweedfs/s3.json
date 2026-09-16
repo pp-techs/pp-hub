@@ -1,0 +1,14 @@
+{
+  "identities": [
+    {
+      "name": "pphub",
+      "credentials": [
+        {
+          "accessKey": "pphub",
+          "secretKey": "pphub-dev-secret"
+        }
+      ],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    }
+  ]
+}

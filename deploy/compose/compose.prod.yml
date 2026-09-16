@@ -1,0 +1,240 @@
+# pp-hub — full production stack for a VPS or Dokploy.
+#
+# Everything the app needs, built from this repo. Deliberately publishes no
+# host ports: Dokploy's Traefik routes to containers over its own network, and
+# binding 80/443 here would collide with it. For a plain VPS with your own
+# reverse proxy, uncomment the `ports:` blocks marked PLAIN VPS.
+#
+#   cp deploy/compose/.env.prod.example .env      # then fill it in
+#   docker compose -f deploy/compose/compose.prod.yml up -d --build
+#
+# Dokploy: paste this file, leave it unlabelled, and assign domains in the
+# Domains tab — Dokploy injects the Traefik labels and network itself.
+# Two domains are needed:
+#
+#   web         → port 80    e.g. drive.example.com
+#   onlyoffice  → port 80    e.g. office.example.com
+#
+# OnlyOffice needs its own hostname because the browser loads the editor from
+# it directly, in an iframe. See docs/deployment.md.
+
+services:
+  # The public entry point: serves the SPA and proxies the API on one origin.
+  # Same-origin is required — the session cookie is host-only with
+  # SameSite=Lax, so a split hostname means nobody can log in.
+  web:
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    expose:
+      - "80"
+    # PLAIN VPS (no Traefik): publish and point your own proxy here.
+    # ports:
+    #   - "127.0.0.1:8090:80"
+    #
+    # Start order only, deliberately NOT condition: service_healthy. The server
+    # blocks on OIDC discovery for up to two minutes before it reports healthy,
+    # so gating on that means an IdP hiccup at deploy time takes the whole
+    # site down — static bundle included. nginx resolves the API lazily, so it
+    # comes up regardless and answers 502 until the server is back.
+    depends_on:
+      - server
+
+  server:
+    build:
+      context: ../../apps/server
+      target: server
+    restart: unless-stopped
+    expose:
+      - "8080"
+    environment:
+      PP_ADDR: ":8080"
+      # The public URL of `web`. This is the OIDC redirect base and the
+      # post-logout target, so it must be the address users actually type.
+      PP_EXTERNAL_URL: "${PP_EXTERNAL_URL:?set in .env}"
+      PP_DATABASE_URL: postgres://pphub:${POSTGRES_PASSWORD:?set in .env}@postgres:5432/pphub?sslmode=disable
+
+      PP_OIDC_ISSUER: "${PP_OIDC_ISSUER:?set in .env}"
+      PP_OIDC_ISSUER_EXTERNAL: "${PP_OIDC_ISSUER_EXTERNAL:-}"
+      PP_OIDC_CLIENT_ID: "${PP_OIDC_CLIENT_ID:?set in .env}"
+      PP_OIDC_CLIENT_SECRET: "${PP_OIDC_CLIENT_SECRET:?set in .env}"
+
+      # Shared with the worker: it signs conversion tokens this server
+      # verifies. Also what keeps sessions alive across restarts.
+      PP_SESSION_KEY: "${PP_SESSION_KEY:?set in .env - generate with openssl rand -base64 32}"
+
+      # Browser-facing OnlyOffice URL — goes into the editor iframe src.
+      PP_ONLYOFFICE_URL: "${PP_ONLYOFFICE_URL:?set in .env}"
+      # How OnlyOffice reaches this server. Inside the compose network that is
+      # the service name, so WOPI never leaves the host.
+      PP_WOPI_SERVER_URL: http://server:8080
+
+      PP_BLOB_BACKEND: "${PP_BLOB_BACKEND:-local}"
+      PP_BLOB_ROOT: /data/blobs
+      PP_S3_BUCKET: "${PP_S3_BUCKET:-}"
+      PP_S3_ENDPOINT: "${PP_S3_ENDPOINT:-}"
+      PP_S3_REGION: "${PP_S3_REGION:-}"
+      PP_S3_ACCESS_KEY_ID: "${PP_S3_ACCESS_KEY_ID:-}"
+      PP_S3_SECRET_ACCESS_KEY: "${PP_S3_SECRET_ACCESS_KEY:-}"
+      PP_S3_PATH_STYLE: "${PP_S3_PATH_STYLE:-1}"
+    volumes:
+      - blob_data:/data/blobs
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Preview worker — optional. Remove this service and the app still works:
+  # render:pdf/video/office jobs stay pending instead of failing, because
+  # ClaimJobs filters on the kinds a process has renderers for.
+  #
+  # After first deploy, sweep files that predate it:
+  #   docker compose -f compose.prod.yml run --rm worker --backfill
+  worker:
+    build:
+      context: ../../apps/server
+      target: worker
+    restart: unless-stopped
+    environment:
+      PP_DATABASE_URL: postgres://pphub:${POSTGRES_PASSWORD:?set in .env}@postgres:5432/pphub?sslmode=disable
+      PP_BLOB_ROOT: /data/blobs
+      PP_BLOB_BACKEND: "${PP_BLOB_BACKEND:-local}"
+      PP_S3_BUCKET: "${PP_S3_BUCKET:-}"
+      PP_S3_ENDPOINT: "${PP_S3_ENDPOINT:-}"
+      PP_S3_REGION: "${PP_S3_REGION:-}"
+      PP_S3_ACCESS_KEY_ID: "${PP_S3_ACCESS_KEY_ID:-}"
+      PP_S3_SECRET_ACCESS_KEY: "${PP_S3_SECRET_ACCESS_KEY:-}"
+      PP_S3_PATH_STYLE: "${PP_S3_PATH_STYLE:-1}"
+      # MUST equal the server's, or office conversion tokens are rejected.
+      # When unset the worker declines office rendering rather than failing
+      # those jobs — check its logs if office thumbnails never appear.
+      PP_SESSION_KEY: "${PP_SESSION_KEY:?set in .env - generate with openssl rand -base64 32}"
+      PP_ONLYOFFICE_INTERNAL_URL: http://onlyoffice
+      PP_WOPI_SERVER_URL: http://server:8080
+    volumes:
+      - blob_data:/data/blobs
+    # Runs pdftoppm and ffmpeg over user-supplied files — memory-unsafe
+    # parsers with a long CVE history. No ports, no writable root, no
+    # capabilities it can regain.
+    read_only: true
+    tmpfs:
+      - /tmp:size=4g,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # Postgres, not the server: cmd/server applies migrations *before* it waits
+    # on OIDC, and the worker's store.AwaitSchema polls until they land. Gating
+    # on the server being healthy would idle the worker through an OIDC outage
+    # for no reason.
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pphub
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?set in .env}"
+      POSTGRES_DB: pphub
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    # No published port: nothing outside this network needs Postgres, and
+    # exposing 5432 on a public VPS is how databases get found.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pphub -d pphub"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  onlyoffice:
+    image: onlyoffice/documentserver:latest
+    restart: unless-stopped
+    expose:
+      - "80"
+    # PLAIN VPS: publish and give it a hostname in your own proxy.
+    # ports:
+    #   - "127.0.0.1:9980:80"
+    environment:
+      # JWT_ENABLED=false matches the WOPI integration and the preview
+      # worker's conversion calls, neither of which signs requests. Turning it
+      # on breaks both — office thumbnails fail with error -8.
+      - JWT_ENABLED=false
+      - ONLYOFFICE_HTTPS_ENABLED=false
+      # 9.x needs this to serve /hosting/discovery and /hosting/wopi/*/edit.
+      - WOPI_ENABLED=true
+    volumes:
+      - onlyoffice_data:/var/www/onlyoffice/Data
+      - onlyoffice_logs:/var/log/onlyoffice
+      - onlyoffice_cache:/var/lib/onlyoffice/documentserver/App_Data/cache/files
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost/healthcheck || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  # --profile s3
+  #
+  # Self-hosted object storage, for keeping blobs off the app container without
+  # an external provider. Opt-in: PP_BLOB_BACKEND defaults to local disk.
+  # Switching to it is also what allows more than one `server` replica.
+  #
+  #   docker compose -f compose.prod.yml --profile s3 up -d
+  #
+  # Then set in .env:
+  #   PP_BLOB_BACKEND=s3
+  #   PP_S3_ENDPOINT=http://seaweedfs:8333
+  #   PP_S3_BUCKET=pphub
+  #
+  # No published ports: only the server and worker talk to it.
+  seaweedfs:
+    profiles: ["s3"]
+    image: chrislusf/seaweedfs:3.97
+    restart: unless-stopped
+    command: server -dir=/data -s3 -s3.config=/etc/seaweedfs/s3.json
+    expose:
+      - "8333"
+    environment:
+      SEAWEEDFS_ACCESS_KEY: "${SEAWEEDFS_ACCESS_KEY:?set in .env}"
+      SEAWEEDFS_SECRET_KEY: "${SEAWEEDFS_SECRET_KEY:?set in .env}"
+    # The committed s3.json carries development credentials, so production
+    # writes its own from the environment at startup rather than shipping a
+    # secret in the repo.
+    entrypoint: >
+      sh -c "printf '{\"identities\":[{\"name\":\"pphub\",\"credentials\":[{\"accessKey\":\"%s\",\"secretKey\":\"%s\"}],\"actions\":[\"Admin\",\"Read\",\"Write\",\"List\",\"Tagging\"]}]}' \"$$SEAWEEDFS_ACCESS_KEY\" \"$$SEAWEEDFS_SECRET_KEY\" > /etc/seaweedfs/s3.json &&
+             exec weed server -dir=/data -s3 -s3.config=/etc/seaweedfs/s3.json"
+    volumes:
+      - seaweed_data:/data
+    healthcheck:
+      # weed binds the master to the container's IP, not loopback, so
+      # http://localhost:9333 is refused and this check would never pass.
+      test: ["CMD-SHELL", "wget -qO- http://$$(hostname -i):9333/cluster/status || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  seaweedfs-init:
+    profiles: ["s3"]
+    image: chrislusf/seaweedfs:3.97
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "echo 's3.bucket.create -name ${PP_S3_BUCKET:-pphub}' | weed shell -master=seaweedfs:9333"
+    restart: "no"
+
+volumes:
+  pg_data:
+  blob_data:
+  seaweed_data:
+  onlyoffice_data:
+  onlyoffice_logs:
+  onlyoffice_cache:
