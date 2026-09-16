@@ -68,13 +68,32 @@ func New(ctx context.Context, opt Options) (*Deps, func(), error) {
 		return nil, nil, fmt.Errorf("await schema: %w", err)
 	}
 
-	blobs, err := blob.NewLocalStore(cfg.BlobRoot)
+	blobs, err := openBlobStore(ctx, cfg)
 	if err != nil {
 		pool.Close()
 		return nil, nil, fmt.Errorf("blob store: %w", err)
 	}
 
 	return &Deps{Cfg: cfg, Pool: pool, Queries: store.New(pool), Blobs: blobs}, closeFn, nil
+}
+
+// openBlobStore picks the backend named by PP_BLOB_BACKEND. Config validated
+// the combination already, so an unknown value here is a programming error.
+func openBlobStore(ctx context.Context, cfg *config.Config) (blob.Store, error) {
+	switch cfg.BlobBackend {
+	case "s3":
+		slog.Info("blob store: s3", "bucket", cfg.S3.Bucket, "endpoint", cfg.S3.Endpoint)
+		return blob.NewS3Store(ctx, blob.S3Config{
+			Bucket:    cfg.S3.Bucket,
+			Region:    cfg.S3.Region,
+			Endpoint:  cfg.S3.Endpoint,
+			AccessKey: cfg.S3.AccessKey,
+			SecretKey: cfg.S3.SecretKey,
+			PathStyle: cfg.S3.PathStyle,
+		})
+	default:
+		return blob.NewLocalStore(cfg.BlobRoot)
+	}
 }
 
 // waitForPostgres retries until Postgres accepts pings (compose startup order).
