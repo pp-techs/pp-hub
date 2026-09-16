@@ -3,69 +3,265 @@
 Background job workers generate a small preview blob per file version. The
 browser fetches it from `GET /api/v1/nodes/{id}/preview?kind=…`.
 
-Only `text` is read outright. PDFs and video have placeholder blobs, and the
-`thumbnail` blob is too small for a full-size viewer, so all three render from
-the original bytes at `GET /api/v1/nodes/{id}/content` instead — see
-[Serving the original file](#serving-the-original-file). The thumbnail is still
-what the details panel shows, and the fallback when an image's own bytes won't
-load.
+Images, PDFs, video and office documents all get a real rasterized
+`thumbnail`; text files get a `text` snippet. The thumbnail is what the grid
+cards and the details panel show — both fall back to the file-type icon
+(`NodeIcon`) when there is none, since a blank frame reads as broken whether
+the file simply has no thumbnail (text, archives) or the job has not run yet.
+
+How a thumbnail fills its frame is decided by `thumbnailFit`: pictures
+(`image/*`, `video/*`) crop to fill, pages (PDF, office) letterbox. PDFs sit
+with the pages even though they render through the same rasterizer as images —
+cropping a portrait A4 to a landscape card shows a horizontal strip of its
+middle, which is the part that identifies a document least. It is capped at 256px, so it is far too small for the full-size viewer —
+that renders the original bytes from `GET /api/v1/nodes/{id}/content` instead,
+see [Serving the original file](#serving-the-original-file).
+
+## Two kinds, deliberately separate
+
+The pipeline used to call both of these "kind", which forced the Go worker and
+the TypeScript client to maintain identical maps or every request 404'd. They
+are now distinct:
+
+```
+jobs.kind = how to render        │  previews.kind = what was produced
+  render:image   ─┐              │
+  render:pdf     ─┼──────────────────> thumbnail   (PNG, longest side ≤ 256px)
+  render:video   ─┤              │
+  render:office  ─┘              │
+  snippet:text   ────────────────────> text        (first 4KB, verbatim)
+```
+
+- A **job kind** is a routing key. It decides which process may claim the work,
+  and nothing outside `internal/preview` needs to know it exists.
+- A **preview kind** is the artifact the browser asks for. Everything that
+  rasterizes produces the same one.
+
+`kindForMime` picks the job kind; `previewKindFor` maps that to the artifact.
+The client's `previewKind` (`apps/web/src/lib/api/utils.ts`) answers the second
+question only, so it no longer mirrors anything on the server.
+
+| MIME                                                              | job kind        | preview kind |
+| ----------------------------------------------------------------- | --------------- | ------------ |
+| `image/png`, `image/jpeg`, `image/gif`, `image/webp`              | `render:image`  | `thumbnail`  |
+| `application/pdf`                                                 | `render:pdf`    | `thumbnail`  |
+| `video/mp4`, `video/webm`, `video/quicktime`                      | `render:video`  | `thumbnail`  |
+| `.docx` `.doc` `.odt` `.xlsx` `.xls` `.ods` `.pptx` `.ppt` `.odp` | `render:office` | `thumbnail`  |
+| `application/rtf`, `text/*`                                       | `snippet:text`  | `text`       |
+| anything else                                                     | —               | none         |
+
+Both sides strip MIME parameters (`; charset=utf-8`) before matching.
+
+The office set is deliberately narrower than `httpapi.isOfficeMime`, which
+decides what the _editor_ opens: that list includes `application/octet-stream`
+as a fallback and `text/csv`, neither of which should have a document
+speculatively rendered. `.epub` is a zip the editor handles but a rendered
+"cover" would misrepresent, and `.rtf` keeps its text snippet.
 
 ## Flow
 
 1. `fs.PutFile` commits a new version and fires `fs.SetVersionHook`
    (wired in `apps/server/cmd/server/main.go`).
 2. `preview.Worker.Enqueue` maps the version's MIME to a job kind via
-   `kindForMime`. **An unmapped MIME enqueues nothing** — that version will
-   never have a preview.
-3. `preview.Worker.Run` ticks every 3s, claims jobs with
-   `FOR UPDATE SKIP LOCKED`, generates the blob, and upserts a `previews` row
-   keyed by `(node_version_id, kind)`.
-4. `handlePreview` looks up that exact `(current_version_id, kind)` pair.
+   `kindForMime`. **An unmapped MIME enqueues nothing.**
+3. A worker that registered a matching `Renderer` claims the job with
+   `FOR UPDATE SKIP LOCKED`, renders it, and upserts a `previews` row keyed by
+   `(node_version_id, preview_kind)`.
+4. `handlePreview` looks up that `(current_version_id, kind)` pair.
 
-## The MIME → kind contract
+## Where rendering happens
 
-`previews` rows are keyed by the kind the **worker** chose, and the endpoint
-looks up the kind the **client** asked for. The two maps must agree exactly or
-every request 404s with `{"title":"Not Found","detail":"preview not ready"}`.
+Two binaries share the `jobs` table. `internal/bootstrap` builds the config,
+pool, queries and blob store for both, so the entrypoints cannot drift.
 
-| MIME                                                 | kind        | Generated blob                     |
-| ---------------------------------------------------- | ----------- | ---------------------------------- |
-| `application/pdf`                                    | `pdf`       | placeholder text (see Limitations) |
-| `image/png`, `image/jpeg`, `image/gif`, `image/webp` | `thumbnail` | PNG, longest side ≤ 256px          |
-| `video/mp4`, `video/webm`, `video/quicktime`         | `video`     | placeholder text (see Limitations) |
-| `application/rtf`, `text/*`                          | `text`      | first 4KB, verbatim                |
-| anything else                                        | —           | none; no job is enqueued           |
+```
+┌─ cmd/server ─────────────┐        ┌─ cmd/worker (optional) ───────┐
+│ HTTP API                 │        │ no HTTP listener              │
+│ renderers:               │        │ renderers:                    │
+│   render:image  (pure Go)│        │   render:pdf    → pdftoppm    │
+│   snippet:text  (pure Go)│        │   render:video  → ffmpeg      │
+│ owns migrations          │        │   render:office → OnlyOffice  │
+│                          │        │ waits for schema              │
+└──────────┬───────────────┘        └───────────┬───────────────────┘
+           └──────────────┬─────────────────────┘
+                          ▼
+             jobs table — ClaimJobs(kinds[], n)
+```
 
-Both sides strip MIME parameters (`; charset=utf-8`) before matching.
+`pdftoppm` and `ffmpeg` parse hostile documents in memory-unsafe C with a long
+CVE history. In-process, that parsing would sit beside the session key and the
+connection pool; in `cmd/worker` it sits in a container with no listener, no
+capabilities and a read-only root. That containment — not the smaller API
+image — is why the split exists.
 
-Defined in two places that **must be kept in sync**:
+Only `cmd/server` runs migrations. `cmd/worker` calls `store.AwaitSchema`,
+because two processes racing DDL on a cold start can both read
+`schema_migrations` as empty and apply the same file.
 
-- `kindForMime` — `apps/server/internal/preview/preview.go`
-- `previewKind` — `apps/web/src/lib/api/utils.ts` (returns `null` for "no
-  preview"; `canPreview` is derived from it)
+## Why the worker is optional
 
-Office formats without a preview (`.docx`, `.epub`, …) are not a gap — the UI
-routes them to the OnlyOffice editor instead. See
-[office-integration.md](office-integration.md). `.epub` in particular is a zip,
-so a raw byte snippet would be garbage; it deliberately gets no preview.
+`ClaimJobs` filters on the kinds the calling process registered renderers for:
+
+```sql
+WHERE status = 'pending' AND run_at <= now() AND kind = ANY(@kinds::text[])
+```
+
+An install with no worker never claims a `render:pdf`, so it never fails one
+either — the job stays `pending` indefinitely and drains whenever a worker
+appears. Without this filter the API server would claim the job, fail it five
+times and mark it `failed` permanently, since `Enqueue` only ever fires on
+upload.
+
+The kinds set is **derived, not configured**: `NewWorker` takes renderers and
+computes `Kinds()` from them, and each renderer's constructor returns `nil`
+when its binary is missing. A worker image built without ffmpeg therefore
+advertises no `render:video` and leaves that work for one that has it. The SQL
+half is asserted by `TestClaimJobsFiltersByKind`, the Go half by
+`TestWorkerKindsAreDerivedFromRenderers`.
+
+## Recovering abandoned jobs
+
+`ClaimJobs` flips a row to `running`, and only the worker holding it ever moves
+it again. Lose that worker — OOM, container stop, a deploy mid-render — and the
+job is stranded in `running` forever: never retried, never failed, invisible in
+every listing. `Worker.reap` runs at the top of each tick and is the only thing
+that puts those rows back.
+
+A job is stale once it has been `running` for longer than `jobLease` (10
+minutes), which cannot race a live worker: `renderTimeout` bounds the external
+binaries at 30s and the rest is just spooling bytes. Jobs that have already
+burned `maxAttempts` go to `failed` rather than being reclaimed forever, and
+`last_error` records why.
+
+This is why `ClaimJobs` also sets `run_at = now()`: for a `running` row that
+column means _claimed at_. Without it a backfilled job whose `run_at` is hours
+old would look stale the instant it was claimed, and a second worker could
+start rendering it alongside the first.
+
+Reaping is deliberately **not** filtered by the worker's kinds — a stranded
+`render:pdf` must be recoverable by a process that cannot render PDFs, or
+losing the only capable worker also loses the ability to notice.
+
+## Renderers
+
+Both external renderers spool to a temp file first — `pdftoppm` reads the
+trailer to find the page tree, and `ffmpeg`'s fast seek needs random access —
+and both funnel their output through `imageThumbnail`, so the 256px cap and the
+PNG encoding are defined exactly once.
+
+|        | PDF                                                                  | Video                                                       |
+| ------ | -------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Probe  | —                                                                    | `ffprobe -show_entries format=duration`                     |
+| Render | `pdftoppm -png -f 1 -l 1 -singlefile -scale-to-x 512 -scale-to-y -1` | `ffmpeg -ss <t> -i … -frames:v 1 -c:v png -f image2pipe -`  |
+| Seek   | n/a                                                                  | `min(duration × 0.10, 10s)` — frame 0 is often a black fade |
+| Retry  | none                                                                 | once at `t=0`, in case the duration probe overshot          |
+
+Every exec goes through `internal/preview/exec.go`: a 30s `CommandContext`
+deadline, a 16MB cap on captured output, a 512MB cap on spooled input, and a
+per-job temp dir removed on return.
+
+### Office
+
+Office documents convert to PDF through OnlyOffice and then take the PDF path,
+so the rasterizer is shared rather than duplicated.
+
+The awkward part is structural: OnlyOffice's conversion API **fetches the
+document by URL** rather than accepting an upload, and `cmd/worker` has no
+listener to serve one from. So the worker signs a short-lived, view-only WOPI
+token and points OnlyOffice at the API server's existing route:
+
+```
+worker ──POST /converter {url: <api>/wopi/files/<id>/contents?access_token=…}──> OnlyOffice
+                                                                                     │
+worker <──────────────────── {endConvert: true, fileUrl: …pdf} ──────────────────────┘
+   └── GET fileUrl → PDF bytes → pdftoppm → imageThumbnail
+```
+
+Three consequences worth knowing:
+
+- **`PP_SESSION_KEY` must be identical in the server and the worker.** The
+  worker signs the token; the _server_ verifies it. When the variable is unset
+  each process generates its own key at startup, so every conversion would fail
+  with an opaque "invalid or expired WOPI token" after five retries. The worker
+  detects this (`config.SessionKeyShared`) and **declines to register the office
+  renderer**, leaving those jobs pending and logging what to fix.
+- **Two URLs, two directions.** `PP_ONLYOFFICE_INTERNAL_URL` is OnlyOffice as
+  the worker reaches it (container network, not the browser-facing
+  `PP_ONLYOFFICE_URL`). `PP_WOPI_SERVER_URL` is the API server as _OnlyOffice_
+  reaches it — the same address the WOPI editor already needs.
+- **The cache key is the blob hash.** Content-addressed, so the same document
+  converts once ever, however many times it is enqueued.
+
+The token is view-only (rank 1) with a 5-minute TTL, signed for the nil-UUID
+system subject — nothing here acts on a user's behalf, and
+`handleWopiGetFile` authorizes on the token alone.
+
+**JWT is not implemented.** If OnlyOffice runs with `JWT_ENABLED=true`, the
+conversion request is rejected with error `-8`, which `convertError` spells out
+in `jobs.last_error`. The compose stack sets `JWT_ENABLED=false`, matching the
+existing WOPI integration.
+
+## Caching
+
+```
+GET /api/v1/nodes/{id}/preview?kind=thumbnail&v={node.version}
+
+ETag: "<blob_hash>"
+Cache-Control: private, max-age=31536000, immutable
+If-None-Match match → 304
+```
+
+Two details are load-bearing:
+
+- **`private`** — the response is only reached through `requireNodeAccess`, so
+  a shared proxy caching it would serve one company's thumbnail to a member of
+  another, straight past the grants in [permissions.md](permissions.md).
+- **`&v=`** — `immutable` tells the browser never to revalidate, so the URL has
+  to change when the file does. `previewUrl` in `apps/web/src/lib/api/utils.ts`
+  appends `node.version`; without it an edited file's old thumbnail stays
+  pinned in every viewer's cache for a year.
+
+The ETag is the blob hash: previews are content-addressed, so an exact
+validator costs nothing.
 
 ## Why a preview can be missing
 
-`preview not ready` means no `previews` row for that version and kind:
+A 404 with `{"title":"Not Found","detail":"preview not ready"}` means no
+`previews` row for that version and kind:
 
 - **The MIME isn't mapped** — no job was ever enqueued.
-- **The version predates the mapping.** `Enqueue` only runs on upload; there is
-  no backfill, so widening `kindForMime` does not generate previews for files
-  already in the drive.
-- **The job hasn't run yet.** The worker ticks every 3s, so a fresh upload 404s
+- **No worker can render it.** `render:pdf` and `render:video` need
+  `cmd/worker`; without it those jobs stay pending. This is a supported
+  configuration, not a fault.
+- **The job hasn't run yet.** Workers tick every 3s, so a fresh upload 404s
   briefly.
-- **The job failed 5×** (`maxAttempts`) and was marked `failed` — check the
-  `jobs` table's `last_error`.
+- **The version predates the pipeline.** `Enqueue` only runs on upload; run
+  `worker --backfill` (below).
+- **The job failed 5×** (`maxAttempts`) — check `jobs.last_error`.
 
-The web client treats a 404 as a state, not an error: `PreviewContent`
+The web client treats a 404 as a state, not an error. `PreviewContent`
 (`apps/web/src/components/preview-content.tsx`) fetches the blob itself and
-renders a message. It must not point an `<iframe>` straight at the endpoint —
-the browser would paint the raw problem+json body.
+renders a message; it must not point an `<iframe>` straight at the endpoint, or
+the browser paints the raw problem+json body.
+
+## Backfill
+
+`Enqueue` only fires on upload, so deploying the worker gives thumbnails to new
+files only — every PDF already in the drive stays blank, which reads as a
+broken feature rather than a missing sweep.
+
+```
+docker compose -f deploy/compose/compose.prod.yml run --rm worker --backfill
+```
+
+`preview.Backfill` scans current versions of live files that have no preview
+and no in-flight job, keyset-paginated, 200 at a time with a 250ms pause. Only
+_current_ versions are considered — `handlePreview` serves
+`nodes.current_version_id`, so rendering superseded versions would burn CPU on
+blobs no endpoint can reach. Safe to re-run.
+
+Known gap: there is no priority lane, so on a large install fresh uploads queue
+behind the backlog. The fix is a `run_at` offset on backfilled jobs.
 
 ## Serving the original file
 
@@ -85,28 +281,30 @@ same read path as `/download` (`serveBlob` in
 - **Range requests** — served through `http.ServeContent`, which PDF viewers
   and `<video>` need in order to seek.
 
-The client uses it for the `pdf`, `video` and `thumbnail` kinds
-(`PreviewContent`), for the "Open in new tab" row action, and for the Open
-button in the preview modal. Only `text` comes from the generated preview blob
-in the viewer — a 4KB head is all the viewer shows, so fetching the whole file
-would buy nothing.
+`PreviewBody` dispatches on **MIME**, not on preview kind. Since images, PDFs
+and video all store one `thumbnail`, the preview kind can no longer distinguish
+`<img>` from `<object>` from `<video>` — and "what can the browser render
+inline" was always a property of the MIME type anyway. Only `text` reads the
+generated blob outright; a 4KB head is all the viewer shows.
 
-Images are the case worth spelling out: the generated thumbnail caps the
-longest side at 256px, which is right for the details panel's 4:3 box but
-renders as a stamp in a 90vw modal, so `ImagePreview` points at `/content` and
-falls back to the thumbnail only if those bytes fail to load.
+Images are the case worth spelling out: `ImagePreview` points at `/content` and
+falls back to the 256px thumbnail only if those bytes fail to load.
 
-## Limitations
+## Still to come
 
-`pdf` and `video` kinds are placeholders, not rendered output — `pdfFirstPage`
-returns a marker string and `videoProbe` a byte count
-(`apps/server/internal/preview/generators.go`). Real rasterization needs
-pdfium/pdftoppm and ffmpeg; both are post-M5, and until then nothing reads
-those two blobs — the UI goes to `/content` instead. They still matter for the
-MIME → kind contract above: `previewKind` must keep returning them so
-`canPreview` stays true for PDFs and video. `handlePreview` serves every
-non-thumbnail kind as `text/plain` today.
+All three phases are delivered:
 
-A PDF therefore has no thumbnail in the details panel (it falls back to the
-file icon) and streams in full when previewed — fine for typical documents,
-worth revisiting for very large ones once rasterization exists.
+| Phase | Scope                                                                     | Status |
+| ----- | ------------------------------------------------------------------------- | ------ |
+| 1     | Contract split, optional worker, PDF + video renderers, caching, backfill | done   |
+| 2     | `S3Store` + `PP_BLOB_BACKEND` (see [storage.md](storage.md))              | done   |
+| 3     | Office thumbnails via OnlyOffice `POST /converter` → PDF → rasterizer     | done   |
+
+Still open:
+
+- **Backfill has no priority lane** — on a large install, fresh uploads queue
+  behind the sweep. Fix is a `run_at` offset on backfilled jobs.
+- **No JWT signing** for the OnlyOffice conversion request, so office
+  thumbnails need `JWT_ENABLED=false`.
+- **`previews` rows are never reaped when a version is superseded.** Blob GC
+  collects the bytes once nothing references them, but the row itself lingers.

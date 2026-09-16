@@ -7,7 +7,7 @@ Each milestone ends in a working end-to-end state inside the compose stack.
 - `apps/server` boots; chi router; OIDC login against **Logto** (cloud or self-hosted in compose); `GET /me`.
 - Website calls the API (same-origin via Vite proxy; OpenAPI-generated TS client deferred until the API surface grows in M2).
 - Verified: `go test ./...` (session cookie unit tests), `vp check`, OIDC discovery and login flow.
-- IdP note: Logto là IdP (Cloud tenant mặc định cho dev, hoặc self-host qua `compose.logto.yml`); backend dùng standard OIDC. Setup steps and compose file variants live in [deploy/compose/README.md](../../deploy/compose/README.md) (main dev stack: `compose.pg-oo.yml`).
+- IdP note: Logto là IdP (Cloud tenant mặc định cho dev, hoặc self-host qua `--profile idp`); backend dùng standard OIDC. Setup steps live in [deployment.md](../deployment.md) (dev stack: `compose.dev.yml`).
 
 ## M2 — Drive Core ✅ done
 
@@ -35,14 +35,14 @@ Each milestone ends in a working end-to-end state inside the compose stack.
 ## M5 — Previews & Jobs ✅ done
 
 - `jobs` (kind/payload/status/attempts/backoff) + `previews` (version+kind→blob_hash) tables.
-- `preview.Worker` claims with `FOR UPDATE SKIP LOCKED`, processes thumbnail (image/png,jpeg,gif,webp → PNG 256px), PDF (placeholder), video (probe placeholder), text (first 4KB).
+- `preview.Worker` claims with `FOR UPDATE SKIP LOCKED`, filtered to the job kinds it registered renderers for. Images (png/jpeg/gif/webp), PDFs and video all render to a 256px PNG thumbnail; text takes the first 4KB. See [preview-pipeline.md](preview-pipeline.md).
 - Hook: `fs.SetVersionHook` enqueues a preview job after every `PutFile` commit.
 - `GET /api/v1/nodes/{id}/preview?kind=…` serves the preview blob (image/png or text/plain).
 - `GET /api/v1/nodes/{id}/content` streams the original bytes inline (allowlisted MIME only,
-  Range-capable) — how PDFs and video actually render, since their preview blobs are placeholders.
+  Range-capable) — how PDFs and video render at full size, since the generated thumbnail is only 256px.
 - Website: 👁 button per file → inline preview (img for images, pre for text).
 - Verified E2E: upload PNG → thumbnail 200 (74B PNG); upload text → text preview 200 with content.
-- Deferred: real PDF rasterization (pdfium/pdftoppm) and video frame extraction (ffmpeg) — placeholders in place, job kinds registered.
+- Delivered post-M5: real PDF rasterization (pdftoppm) and video frame extraction (ffmpeg), in an optional `cmd/worker` container. Office thumbnails via the OnlyOffice conversion API remain deferred.
 - Expired-lock sweep runs every 5m in-process.
 
 ## M6 — Trash, Move & Upload Queue ✅ done
@@ -159,6 +159,6 @@ Migrations `0010_trash_retention.sql`.
 
 ## Rollout / Operations
 
-- Compose files live in `deploy/compose/` — main dev stack (pg+onlyoffice, use with Logto Cloud), self-hosted Logto variant, onlyoffice-only; configuration via env vars (`.env.example`, `server.env`).
+- Two compose files in `deploy/compose/`: `compose.dev.yml` (services only, app runs from source) and `compose.prod.yml` (everything, for a VPS or Dokploy). Config via `.env`, templated by `.env.example` in each location.
 - Persistent state: `data/` volume (blobs) + Postgres volume.
 - Backup: `pg_dump` + rsync of `data/blobs`.

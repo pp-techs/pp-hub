@@ -1,0 +1,194 @@
+# pp-hub — everything EXCEPT the app itself.
+#
+# For local development, where you run the Go server and the Vite dev server
+# from source rather than from images:
+#
+#   docker compose -f deploy/compose/compose.dev.yml up -d
+#   cd apps/server && cp .env.example .env   # once
+#   cd apps/server && set -a && source .env && set +a && go run ./cmd/server
+#   vp run dev                                   # from the repo root
+#
+# Unlike compose.prod.yml, every service here publishes a host port, because
+# the processes connecting to them run on your machine rather than on a
+# container network.
+#
+# Profiles keep the heavy optional pieces out of the default `up`:
+#
+#   (default)          postgres + onlyoffice
+#   --profile worker   + preview worker (PDF/video/office thumbnails)
+#   --profile s3       + SeaweedFS, for developing against the S3 blob backend
+#   --profile idp      + self-hosted Logto, instead of Logto Cloud
+#
+# Combine freely:  docker compose -f compose.dev.yml --profile worker up -d
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pphub-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pphub
+      POSTGRES_PASSWORD: pphub
+      POSTGRES_DB: pphub
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pphub -d pphub"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  onlyoffice:
+    image: onlyoffice/documentserver:latest
+    container_name: pphub-onlyoffice
+    restart: unless-stopped
+    environment:
+      - JWT_ENABLED=false
+      - ONLYOFFICE_HTTPS_ENABLED=false
+      - WOPI_ENABLED=true
+    volumes:
+      - onlyoffice_data:/var/www/onlyoffice/Data
+      - onlyoffice_logs:/var/log/onlyoffice
+    ports:
+      - "9980:80"
+    # Reaches your Go server, which runs on the host rather than in compose.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost/healthcheck || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  # --profile worker
+  #
+  # Runs in Docker even in development, because the renderers need pdftoppm
+  # and ffmpeg. A worker built from source on a machine without poppler simply
+  # would not register render:pdf, and PDFs would silently never thumbnail.
+  #
+  # PP_BLOB_ROOT is bind-mounted to the *host* directory your local server
+  # writes to, so both see one blob store. Get this wrong and thumbnails
+  # generate somewhere the server cannot read them.
+  worker:
+    profiles: ["worker"]
+    build:
+      context: ../../apps/server
+      target: worker
+    container_name: pphub-worker
+    restart: unless-stopped
+    environment:
+      PP_DATABASE_URL: postgres://pphub:pphub@postgres:5432/pphub?sslmode=disable
+      PP_BLOB_ROOT: /data/blobs
+      PP_ONLYOFFICE_INTERNAL_URL: http://onlyoffice
+      # Your host-run server, as OnlyOffice must reach it.
+      PP_WOPI_SERVER_URL: ${PP_WOPI_SERVER_URL:-http://host.docker.internal:8080}
+      # Must match the server's key. PP_DEV_INSECURE=1 gives both processes the
+      # same fixed development key, which is what apps/server/.env sets.
+      PP_DEV_INSECURE: ${PP_DEV_INSECURE:-1}
+    volumes:
+      - ../../apps/server/data/blobs:/data/blobs
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    read_only: true
+    tmpfs:
+      - /tmp:size=2g,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # --profile s3
+  #
+  # SeaweedFS with its S3 gateway, for developing against the object-storage
+  # backend. Credentials come from seaweedfs/s3.json, which is committed
+  # because these are fixed development values.
+  seaweedfs:
+    profiles: ["s3"]
+    image: chrislusf/seaweedfs:latest
+    container_name: pphub-seaweedfs
+    restart: unless-stopped
+    command: server -dir=/data -s3 -s3.config=/etc/seaweedfs/s3.json
+    volumes:
+      - seaweed_data:/data
+      - ./seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
+    ports:
+      - "8333:8333" # S3 API      → PP_S3_ENDPOINT=http://localhost:8333
+      - "9333:9333" # master UI
+      - "8888:8888" # filer
+    healthcheck:
+      # weed binds the master to the container's IP, not loopback, so
+      # http://localhost:9333 is refused and this check would never pass.
+      test: ["CMD-SHELL", "wget -qO- http://$$(hostname -i):9333/cluster/status || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Creates the bucket and exits. The app never creates buckets — that would
+  # need broader credentials than reading and writing objects.
+  seaweedfs-init:
+    profiles: ["s3"]
+    image: chrislusf/seaweedfs:latest
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "echo 's3.bucket.create -name pphub' | weed shell -master=seaweedfs:9333"
+    restart: "no"
+
+  # --profile idp
+  #
+  # Self-hosted Logto, for working offline or without a Logto Cloud tenant.
+  # Its own database, separate from the app's. First start takes ~30s while
+  # Logto migrates.
+  logto-db:
+    profiles: ["idp"]
+    image: postgres:16-alpine
+    container_name: pphub-logto-pg
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: logto
+    volumes:
+      - logto_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  logto:
+    profiles: ["idp"]
+    image: svhd/logto:latest
+    container_name: pphub-logto
+    restart: unless-stopped
+    entrypoint: ["sh", "-c", "npm run cli db seed -- --swe && npm start"]
+    environment:
+      TRUST_PROXY_HEADER: "true"
+      DB_URL: postgres://postgres:postgres@logto-db:5432/logto
+      ENDPOINT: http://localhost:3001
+      ADMIN_ENDPOINT: http://localhost:3002
+    ports:
+      - "3001:3001" # OIDC issuer / API → PP_OIDC_ISSUER=http://localhost:3001/oidc
+      - "3002:3002" # admin console
+    depends_on:
+      logto-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/api/status || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  pg_data:
+  onlyoffice_data:
+  onlyoffice_logs:
+  seaweed_data:
+  logto_pg_data:

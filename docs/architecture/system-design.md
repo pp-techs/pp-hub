@@ -2,18 +2,18 @@
 
 ## Chosen Architecture: Modular Monolith (Approach A)
 
-A single Go binary with strict internal module boundaries communicating through interfaces. Background jobs (previews, thumbnails, quota, blob GC) run in-process against a Postgres job table.
+A single Go binary with strict internal module boundaries communicating through interfaces. Background jobs (previews, thumbnails, quota, blob GC) run against a Postgres job table — in-process by default, with the media renderers split into an optional `cmd/worker` that shares the same table.
 
 Rationale:
 
 - Self-host all-in-one requires one deployable unit, minimal ops burden.
 - Avoids the ocis failure mode (many microservices before the product exists).
-- Scale path is preserved: the blob interface swaps local disk → S3/MinIO; any module can be extracted into a service when a real reason appears.
+- Scale path is preserved: the blob interface swaps local disk → S3 (implemented; SeaweedFS ships in the compose files); any module can be extracted into a service when a real reason appears.
 
 Alternatives considered and rejected:
 
 - **Fork/strip ocis**: inherits CS3/REVA debt and a forced microservices topology; contradicts "minimal".
-- **Monolith + separate worker from day one**: adds a deploy unit and job contract before preview workload justifies it. Can be split later without architectural change.
+- **Monolith + separate worker from day one**: adds a deploy unit and job contract before preview workload justifies it. Can be split later without architectural change — and was, once PDF/video rendering arrived. The trigger was not load but blast radius: `pdftoppm` and `ffmpeg` parse hostile input in memory-unsafe code and should not sit beside the session key. `ClaimJobs` filtering on capability is what kept the split optional rather than mandatory. See [preview-pipeline.md](preview-pipeline.md).
 
 ## Component Map
 

@@ -12,20 +12,36 @@ import (
 )
 
 const claimJobs = `-- name: ClaimJobs :many
-UPDATE jobs SET status = 'running', attempts = attempts + 1
+UPDATE jobs SET status = 'running', attempts = attempts + 1, run_at = now()
 WHERE id IN (
     SELECT id FROM jobs
     WHERE status = 'pending' AND run_at <= now()
+      AND kind = ANY($1::text[])
     ORDER BY run_at
-    LIMIT $1
+    LIMIT $2
     FOR UPDATE SKIP LOCKED
 )
 RETURNING id, tenant_id, kind, payload, status, run_at, attempts, last_error, created_at
 `
 
-// Atomically claim up to $1 pending jobs for processing.
-func (q *Queries) ClaimJobs(ctx context.Context, limit int32) ([]Job, error) {
-	rows, err := q.db.Query(ctx, claimJobs, limit)
+type ClaimJobsParams struct {
+	Kinds []string `json:"kinds"`
+	Lim   int32    `json:"lim"`
+}
+
+// Atomically claim up to @lim pending jobs whose kind this process can handle.
+//
+// The kinds filter is what makes cmd/worker optional: a server built without
+// the rasterizers never claims a render:pdf, so the job stays pending instead
+// of burning its five attempts and landing in 'failed' permanently. Deploy the
+// worker later and the backlog drains on the next tick.
+//
+// run_at is also set to now(), so for a 'running' row it means "claimed at".
+// ReapStuckJobs needs that: without it a backfilled job whose run_at is hours
+// old would look stale the instant it was claimed, and a second worker could
+// pick it up while the first is still rendering.
+func (q *Queries) ClaimJobs(ctx context.Context, arg ClaimJobsParams) ([]Job, error) {
+	rows, err := q.db.Query(ctx, claimJobs, arg.Kinds, arg.Lim)
 	if err != nil {
 		return nil, err
 	}
@@ -128,6 +144,42 @@ func (q *Queries) GetPreview(ctx context.Context, arg GetPreviewParams) (Preview
 	return i, err
 }
 
+const reapStuckJobs = `-- name: ReapStuckJobs :execrows
+UPDATE jobs
+SET status = CASE
+        WHEN attempts >= $1::int THEN 'failed'::job_status
+        ELSE 'pending'::job_status
+    END,
+    last_error = 'worker stopped before finishing; job reclaimed',
+    run_at = now()
+WHERE status = 'running'
+  AND run_at < now() - make_interval(secs => $2::int)
+`
+
+type ReapStuckJobsParams struct {
+	MaxAttempts  int32 `json:"max_attempts"`
+	LeaseSeconds int32 `json:"lease_seconds"`
+}
+
+// Recover jobs whose worker died mid-flight.
+//
+// ClaimJobs flips a row to 'running' and nothing else ever moves it. A worker
+// killed by OOM, a container stop or a deploy therefore strands its jobs in
+// 'running' forever: never retried, never failed, invisible. This is the only
+// thing that puts them back.
+//
+// A row is stale when it has been running far longer than any render can take
+// (renderTimeout is 30s), so this cannot race a worker that is still busy.
+// Jobs that have already burned their attempts go to 'failed' rather than
+// looping, and last_error says why.
+func (q *Queries) ReapStuckJobs(ctx context.Context, arg ReapStuckJobsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, reapStuckJobs, arg.MaxAttempts, arg.LeaseSeconds)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const requeueJob = `-- name: RequeueJob :exec
 UPDATE jobs SET status = 'pending', last_error = $2,
     run_at = now() + (INTERVAL '1 minute' * attempts)
@@ -160,4 +212,72 @@ type UpsertPreviewParams struct {
 func (q *Queries) UpsertPreview(ctx context.Context, arg UpsertPreviewParams) error {
 	_, err := q.db.Exec(ctx, upsertPreview, arg.NodeVersionID, arg.Kind, arg.BlobHash)
 	return err
+}
+
+const versionsMissingPreview = `-- name: VersionsMissingPreview :many
+SELECT v.id, v.node_id, v.blob_hash, v.mime, n.name
+FROM nodes n
+JOIN node_versions v ON v.id = n.current_version_id
+LEFT JOIN previews p ON p.node_version_id = v.id AND p.kind = $1
+WHERE n.kind = 'file'
+  AND n.deleted_at IS NULL
+  AND p.node_version_id IS NULL
+  AND v.id > $2
+  AND NOT EXISTS (
+      SELECT 1 FROM jobs j
+      WHERE j.payload->>'node_version_id' = v.id::text
+        AND j.status IN ('pending', 'running')
+  )
+ORDER BY v.id
+LIMIT $3
+`
+
+type VersionsMissingPreviewParams struct {
+	PreviewKind string      `json:"preview_kind"`
+	After       pgtype.UUID `json:"after"`
+	Lim         int32       `json:"lim"`
+}
+
+type VersionsMissingPreviewRow struct {
+	ID       pgtype.UUID `json:"id"`
+	NodeID   pgtype.UUID `json:"node_id"`
+	BlobHash string      `json:"blob_hash"`
+	Mime     string      `json:"mime"`
+	Name     string      `json:"name"`
+}
+
+// Current versions of live files that have no preview of the given kind and no
+// job already in flight for them. Backfill only — see cmd/worker --backfill.
+//
+// Only current versions are considered: handlePreview serves
+// nodes.current_version_id, so rendering superseded versions would burn CPU on
+// blobs no endpoint can reach.
+//
+// Keyset-paginated on v.id; pass the last id returned as @after (all-zero UUID
+// to start). The NOT EXISTS scans jobs, which is acceptable for a one-shot
+// admin sweep but is why this is not on any hot path.
+func (q *Queries) VersionsMissingPreview(ctx context.Context, arg VersionsMissingPreviewParams) ([]VersionsMissingPreviewRow, error) {
+	rows, err := q.db.Query(ctx, versionsMissingPreview, arg.PreviewKind, arg.After, arg.Lim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []VersionsMissingPreviewRow
+	for rows.Next() {
+		var i VersionsMissingPreviewRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.NodeID,
+			&i.BlobHash,
+			&i.Mime,
+			&i.Name,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

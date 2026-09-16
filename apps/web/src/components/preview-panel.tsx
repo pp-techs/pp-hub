@@ -2,13 +2,16 @@ import { Download, Eye, History, Link2, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar";
+import { cn } from "@workspace/ui/lib/utils";
 import {
   canPreview,
   fmtDate,
   fmtSize,
   isOfficeFile,
   openEditor,
-  previewKind,
+  hasThumbnail,
+  previewUrl,
+  thumbnailFit,
   type Node,
 } from "@/lib/api";
 import { useShares, useVersions } from "@/lib/queries";
@@ -106,17 +109,20 @@ function NodeDetails({ node }: { node: Node }) {
   const versions = useVersions(node.kind === "file" ? node.id : null);
 
   const isFile = node.kind === "file";
-  const hasThumb = isFile && previewKind(node.mime) === "thumbnail";
+  const hasThumb = hasThumbnail(node);
 
   return (
     <div className="flex flex-col gap-4 p-3">
       {/* Thumbnail */}
-      <div className="bg-muted/50 border-border flex aspect-[4/3] items-center justify-center overflow-hidden rounded-md border">
+      <div className="bg-muted/50 flex aspect-[4/3] items-center justify-center overflow-hidden rounded-md">
         {hasThumb ? (
           <img
-            src={`/api/v1/nodes/${node.id}/preview?kind=thumbnail`}
+            src={previewUrl(node)}
             alt=""
-            className="size-full object-contain"
+            className={cn(
+              "size-full",
+              thumbnailFit(node) === "cover" ? "object-cover" : "object-contain",
+            )}
           />
         ) : (
           <NodeIcon node={node} className="size-10" />

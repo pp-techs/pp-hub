@@ -10,11 +10,50 @@ type Store interface {
 }
 ```
 
-## Local Implementation (MVP)
+Two implementations: `LocalStore` (disk) and `S3Store`. `PP_BLOB_BACKEND`
+picks one — `local` (default) or `s3` — and `bootstrap.openBlobStore` is the
+only place that branches. Every caller (`fs`, `gc`, quotas, the preview worker)
+holds the interface and cannot tell them apart.
+
+Both are held to one `runStoreConformance` suite in
+`internal/blob/conformance_test.go`, run against local always and against S3
+when `PP_TEST_S3_ENDPOINT` points at one (SeaweedFS ships in both compose files; MinIO and AWS work too). A behavioural difference between
+the backends would otherwise surface as a bug far away from the storage layer.
+
+## Local Implementation
 
 - Layout: `data/blobs/<2-hex-prefix>/<blake3-hash>`.
 - Write path: stream to temp file → compute hash → atomic `rename`. Partial writes never appear under a content address.
 - Consistency: blob is written before metadata commit; orphans (`ref_count=0` past grace period) are reaped by the GC job.
+
+## S3 Implementation
+
+Same `<2-hex>/<hash>` key layout as disk. That is not cosmetic: migrating an
+existing install is `aws s3 sync data/blobs s3://bucket/` (or `mc mirror`) with
+no key translation, and an operator reads either backend with one mental model.
+
+`Put` spools to a temp file while hashing, then uploads. The spool is
+unavoidable rather than lazy — the object key _is_ the content hash, so it is
+unknown until the last byte is read, and S3 needs a seekable body to sign and
+retry. It mirrors `LocalStore`, which also writes a temp file before renaming
+into place, so both backends fail the same way when a disk fills mid-upload.
+`HeadObject` before `PutObject` makes dedup skip the upload entirely.
+
+`Get` maps `NoSuchKey` **and** a bare `404 NotFound` to `blob.ErrNotExist` —
+implementations differ on which they return, and callers distinguish "gone"
+from "broken" by that error alone. `Delete` treats missing as success, because
+a GC sweep can race another delete and both have to finish.
+
+Configuration is `PP_S3_BUCKET` / `PP_S3_ENDPOINT` / `PP_S3_REGION` /
+`PP_S3_ACCESS_KEY_ID` / `PP_S3_SECRET_ACCESS_KEY` / `PP_S3_PATH_STYLE`.
+Omitting the keys falls back to the AWS default credential chain, so a real AWS
+deployment can use an instance or IRSA role instead of long-lived secrets.
+Path-style addressing defaults **on**, since the self-host target is SeaweedFS.
+
+`PP_BLOB_BACKEND=s3` with no bucket, or an unrecognised backend name, fails at
+startup. Falling back to local disk would be the worst outcome: the server
+would start, accept uploads and write them somewhere the operator believes is
+empty, with no error until a restart loses them.
 
 ## Why Content-Addressed
 
@@ -34,7 +73,7 @@ blake3: much faster than SHA-256, collision resistance is sufficient for non-adv
 | Crash between blob write and metadata commit | Orphan blob with `ref_count=0` → GC after grace period                   |
 | `ref_count` drift                            | Periodic recount job recomputes from `node_versions`                     |
 | Disk full during upload                      | Temp-file write fails before commit; quota check precedes version commit |
-| Future move to S3/MinIO                      | `s3Store` implements the same `Store` interface; no caller changes       |
+| Move to S3 object storage                    | `S3Store` implements the same `Store` interface; no caller changes       |
 
 ## WOPI Locking
 

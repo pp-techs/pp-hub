@@ -68,6 +68,10 @@
 
 ### UC-10: Preview without download
 
-1. On upload, a background job generates a preview (image thumbnail, PDF first page, video probe/screenshot, text snippet).
+1. On upload, a background job generates a preview: a 256px thumbnail for images, PDFs, video and office documents, or a 4KB snippet for text.
 2. Preview is stored as a normal blob, mapped in `previews(node_version_id, kind, blob_hash)`.
-3. UI requests the preview blob; full file is never transferred.
+3. UI requests the preview blob; full file is never transferred. Cached for a
+   year against a version-keyed URL, so a thumbnail is fetched once per version.
+4. PDF, video and office rendering needs poppler/ffmpeg/OnlyOffice and runs in
+   an optional worker. Without it those files fall back to their type icon
+   rather than erroring — deploying the worker later backfills them.

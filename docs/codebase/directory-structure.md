@@ -6,6 +6,8 @@ Monorepo managed with bun workspaces + Vite+ (`vp`). Workspaces: `packages/*`, `
 pp-hub/
 ├── apps/
 │   ├── web/                        # React SPA
+│   │   ├── Dockerfile              # Vite build → nginx; the public entry point in prod
+│   │   ├── nginx.conf              # serves the bundle, proxies the API on one origin
 │   │   └── src/
 │   │       ├── lib/
 │   │       │   ├── api/            # ky client, types, endpoints, utils
@@ -63,8 +65,12 @@ pp-hub/
 │   │           ├── edit/$nodeId.tsx     # full-page OnlyOffice editor (opened in a new tab)
 │   │           └── drive/$spaceId.tsx   # space drive view (leaf route — see Drive view note)
 │   └── server/                     # Go backend — own go.mod
-│       ├── cmd/server/             # entry point: config, PG pool, migrate, OIDC wait, http.Server
+│       ├── cmd/server/             # entry point: OIDC wait, http.Server; owns migrations
+│       ├── cmd/worker/             # optional preview worker (pdftoppm/ffmpeg); --backfill
+│       ├── Dockerfile              # targets: worker (poppler+ffmpeg), server (slim, default)
+│       ├── .env.example            # → .env (git-ignored), sourced for local dev
 │       └── internal/
+│           ├── bootstrap/          # ✅ shared wiring for both entry points: config, pool, blobs
 │           ├── activity/           # ✅ event recording: who did what, to what
 │           ├── auth/               # ✅ OIDC login/callback/logout, HMAC session cookies (go-oidc)
 │           ├── gc/                 # ✅ blob reclaim + trash retention sweeps
@@ -80,12 +86,16 @@ pp-hub/
 │           ├── blob/               # CAS Store interface + local impl (S3 impl later)
 │           ├── share/              # share links, direct grants
 │           ├── wopi/               # WOPI host endpoints, access tokens
-│           └── preview/            # job workers: thumbnail, pdf, video, text
+│           └── preview/            # renderers + job loop; jobs.kind routes, previews.kind is the artifact
 ├── packages/
 │   ├── ui/                         # @workspace/ui — shadcn/ui preset components + design tokens (globals.css)
 │   └── utils/                      # shared TS utils (template package, dist via vp pack)
 ├── deploy/
-│   └── compose/                    # docker-compose variants + env templates + README (dev workflows)
+│   └── compose/
+│       ├── compose.dev.yml         # services only — app runs from source; profiles: worker, s3, idp
+│       ├── compose.prod.yml        # everything, for a VPS / Dokploy; profile: s3
+│       ├── .env.example            # → .env (git-ignored), production values
+│       └── seaweedfs/s3.json       # dev credentials for the S3 profile
 ├── docs/                           # this documentation
 └── package.json                    # bun workspaces, Vite+ catalog
 ```
@@ -93,8 +103,8 @@ pp-hub/
 ## Entry Points
 
 - Web dev: `vp run web#dev` (root `vp run dev`); Vite proxies `/api`, `/auth`, `/s` → `localhost:8080`.
-- Server local: `cp deploy/compose/server.env apps/server/.env` (fill `PP_OIDC_*` from Logto) then `go run apps/server/cmd/server` (needs postgres + IdP).
-- IdP/dev stack: `docker compose -f deploy/compose/compose.pg-oo.yml up -d` — postgres + OnlyOffice at :9980; IdP is Logto Cloud (default) or self-host via `compose.logto.yml` (admin console at :3002). Full setup steps: [deploy/compose/README.md](../../deploy/compose/README.md).
+- Server local: `cp apps/server/.env.example apps/server/.env` (fill `PP_OIDC_*`), then `set -a && source .env && set +a && go run ./cmd/server` from `apps/server`. The binary has no dotenv loader, so the file must be sourced.
+- Dev stack: `docker compose -f deploy/compose/compose.dev.yml up -d` — postgres + OnlyOffice at :9980. Profiles add the worker, SeaweedFS and a self-hosted Logto. Full setup: [docs/deployment.md](../deployment.md).
 
 ## Notes
 

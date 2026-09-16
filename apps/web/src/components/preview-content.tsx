@@ -2,7 +2,14 @@ import { useEffect, useState } from "react";
 import { ExternalLink } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import type { Node } from "@/lib/api";
-import { contentUrl, isOfficeFile, openEditor, openInTab, previewKind } from "@/lib/api";
+import {
+  contentUrl,
+  isOfficeFile,
+  openEditor,
+  openInTab,
+  previewKind,
+  previewUrl,
+} from "@/lib/api";
 
 // ── Fetching ──────────────────────────────────────────────────────────────────
 
@@ -88,9 +95,9 @@ function ImagePreview({ node, thumbUrl }: { node: Node; thumbUrl: string }) {
 
 /**
  * PDFs render from `/content` — the file's own bytes — rather than from
- * `/preview`. The worker's `pdf` blob is a placeholder marker, not a rendered
- * page (docs/architecture/preview-pipeline.md), so the browser's built-in
- * viewer is both the fastest and the only real option today.
+ * `/preview`. The generated blob is a 256px thumbnail, right for a grid card
+ * and useless as a document viewer, so the browser's built-in viewer reads the
+ * original (docs/architecture/preview-pipeline.md).
  *
  * <object> rather than <iframe>: browsers with no PDF plugin render the
  * children instead of a blank frame.
@@ -177,12 +184,22 @@ export function PreviewContent({ node }: { node: Node }) {
 }
 
 function PreviewBody({ node }: { node: Node }) {
-  const kind = previewKind(node.mime);
+  const mime = node.mime?.split(";")[0]?.trim() ?? "";
 
-  if (kind === null) {
-    if (!isOfficeFile(node.name)) {
-      return <Message>No preview available — use Download to view this file.</Message>;
-    }
+  // Dispatch on MIME, not on preview kind. The preview kind says what the
+  // worker *stored* — and it stores one thumbnail for images, PDFs and video
+  // alike — which is not enough to choose between <img>, <object> and <video>.
+  // What the browser can render inline is a property of the MIME type.
+  if (mime === "application/pdf") return <PdfPreview node={node} />;
+  if (mime.startsWith("video/")) return <VideoPreview node={node} />;
+  if (mime.startsWith("image/")) {
+    return <ImagePreview node={node} thumbUrl={previewUrl(node)} />;
+  }
+  if (previewKind(node.mime) === "text") {
+    return <TextPreview url={previewUrl(node, "text")} />;
+  }
+
+  if (isOfficeFile(node.name)) {
     return (
       <Message>
         <span>This file opens in the office editor.</span>
@@ -193,19 +210,5 @@ function PreviewBody({ node }: { node: Node }) {
       </Message>
     );
   }
-
-  // Only `text` reads the generated blob outright. Images stream the original
-  // and keep this as a fallback; pdf/video ignore it, their blob being a
-  // placeholder marker rather than rendered output.
-  const url = `/api/v1/nodes/${node.id}/preview?kind=${kind}`;
-  switch (kind) {
-    case "thumbnail":
-      return <ImagePreview node={node} thumbUrl={url} />;
-    case "pdf":
-      return <PdfPreview node={node} />;
-    case "video":
-      return <VideoPreview node={node} />;
-    case "text":
-      return <TextPreview url={url} />;
-  }
+  return <Message>No preview available — use Download to view this file.</Message>;
 }

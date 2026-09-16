@@ -94,27 +94,82 @@ export function openInTab(node: Node): void {
   window.open(contentUrl(node), "_blank", "noopener,noreferrer");
 }
 
-export type PreviewKind = "thumbnail" | "pdf" | "video" | "text";
+export type PreviewKind = "thumbnail" | "text";
 
 /**
- * Returns the preview kind the server generated for a MIME type, or null when
- * no preview exists for it.
+ * Returns the preview *artifact* the server stores for a MIME type, or null
+ * when it stores none.
  *
- * This MUST mirror kindForMime in apps/server/internal/preview/preview.go —
- * the worker stores blobs under the kind it picks, and GET
- * /nodes/:id/preview?kind=... 404s ("preview not ready") on any mismatch.
+ * This is deliberately not a mirror of kindForMime in
+ * apps/server/internal/preview/preview.go. That function picks a *job* kind —
+ * how the file gets rendered, which is the worker's business. PDFs, videos and
+ * images all rasterize to the same artifact, so they all answer "thumbnail"
+ * here. See docs/architecture/preview-pipeline.md.
  */
+const THUMBNAIL_MIMES = new Set([
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
+  // Office documents, rendered via OnlyOffice conversion. Narrower than the
+  // set the editor opens: no octet-stream fallback, no .csv and no .epub.
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/msword",
+  "application/vnd.oasis.opendocument.text",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-excel",
+  "application/vnd.oasis.opendocument.spreadsheet",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.oasis.opendocument.presentation",
+]);
+
 export function previewKind(mime?: string): PreviewKind | null {
   if (!mime) return null;
   // Strip parameters, e.g. "text/plain; charset=utf-8".
   const m = mime.split(";")[0]!.trim();
-  if (m === "application/pdf") return "pdf";
-  if (m === "image/png" || m === "image/jpeg" || m === "image/gif" || m === "image/webp") {
-    return "thumbnail";
-  }
-  if (m === "video/mp4" || m === "video/webm" || m === "video/quicktime") return "video";
+  if (THUMBNAIL_MIMES.has(m)) return "thumbnail";
   if (m === "application/rtf" || m.startsWith("text/")) return "text";
   return null;
+}
+
+/**
+ * URL for a node's generated preview.
+ *
+ * The version is part of the URL because the response is cached `immutable`
+ * for a year: editing a file has to change the URL, or every viewer keeps the
+ * superseded thumbnail until their cache expires.
+ */
+export function previewUrl(node: Node, kind: PreviewKind = "thumbnail"): string {
+  const v = node.version ?? 0;
+  return `/api/v1/nodes/${node.id}/preview?kind=${kind}&v=${v}`;
+}
+
+/** Files the server renders a thumbnail for — the grid and details panel. */
+export function hasThumbnail(node: Node): boolean {
+  return node.kind === "file" && previewKind(node.mime) === "thumbnail";
+}
+
+/**
+ * How a thumbnail should fill its frame: pictures crop, pages letterbox.
+ *
+ * A photo or a video poster frame is recognizable from any part of it, so
+ * filling the frame looks deliberate and the wall of cards stays even. A page
+ * is not: a portrait A4 cropped to a landscape box shows a horizontal strip of
+ * its middle, which is the part that identifies a document least. PDFs sit
+ * with office files here rather than with images — what matters is that it is
+ * a page, not how it was rendered.
+ *
+ * Returns the semantic fit; callers map it to a literal class, since Tailwind
+ * cannot see a class name assembled at runtime.
+ */
+export function thumbnailFit(node: Node): "cover" | "contain" {
+  const m = node.mime?.split(";")[0]?.trim() ?? "";
+  return m.startsWith("image/") || m.startsWith("video/") ? "cover" : "contain";
 }
 
 /** File types that open in OnlyOffice on double-click. */
@@ -122,9 +177,13 @@ export function canEdit(node: Node): boolean {
   return node.kind === "file" && isOfficeFile(node.name);
 }
 
-/** File types the server can render a preview for. */
+/**
+ * File types the preview modal can show something for — either the browser
+ * renders the original inline, or the server stored a blob we can display.
+ */
 export function canPreview(node: Node): boolean {
-  return node.kind === "file" && previewKind(node.mime) !== null;
+  if (node.kind !== "file") return false;
+  return canOpenInTab(node) || previewKind(node.mime) !== null;
 }
 
 export type SortField = "name" | "modified" | "size";
