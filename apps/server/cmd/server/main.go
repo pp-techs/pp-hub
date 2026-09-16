@@ -11,10 +11,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
-
 	"github.com/nhatbui/pp-hub/apps/server/internal/auth"
-	"github.com/nhatbui/pp-hub/apps/server/internal/blob"
+	"github.com/nhatbui/pp-hub/apps/server/internal/bootstrap"
 	"github.com/nhatbui/pp-hub/apps/server/internal/config"
 	"github.com/nhatbui/pp-hub/apps/server/internal/fs"
 	"github.com/nhatbui/pp-hub/apps/server/internal/gc"
@@ -38,34 +36,19 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	cfg, err := config.Load()
+	// The server owns migrations; cmd/worker waits for them.
+	deps, closeDeps, err := bootstrap.New(ctx, bootstrap.Options{Migrate: true})
 	if err != nil {
 		return err
 	}
+	defer closeDeps()
+	cfg, queries, blobs := deps.Cfg, deps.Queries, deps.Blobs
 
-	pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
-	if err != nil {
-		return fmt.Errorf("connect postgres: %w", err)
-	}
-	defer pool.Close()
-
-	if err := waitForPostgres(ctx, pool); err != nil {
-		return err
-	}
-	if err := store.Migrate(ctx, pool); err != nil {
-		return fmt.Errorf("migrate: %w", err)
-	}
-
-	queries := store.New(pool)
 	authSvc, err := waitForOIDC(ctx, cfg, queries)
 	if err != nil {
 		return err
 	}
 
-	blobs, err := blob.NewLocalStore(cfg.BlobRoot)
-	if err != nil {
-		return fmt.Errorf("blob store: %w", err)
-	}
 	fsSvc := fs.NewService(queries, blobs)
 	spacesSvc := spaces.NewService(queries)
 	shareSvc := share.NewService(queries)
@@ -123,22 +106,6 @@ func run() error {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		return srv.Shutdown(shutdownCtx)
-	}
-}
-
-// waitForPostgres retries until Postgres accepts pings (compose startup order).
-func waitForPostgres(ctx context.Context, pool *pgxpool.Pool) error {
-	for attempt := 1; ; attempt++ {
-		if err := pool.Ping(ctx); err == nil {
-			return nil
-		} else if attempt >= 30 {
-			return fmt.Errorf("postgres not ready after %d attempts: %w", attempt, err)
-		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(time.Second):
-		}
 	}
 }
 
