@@ -30,13 +30,24 @@ vp run -r build
 vp run dev
 ```
 
-## Full Stack (M1)
+## Full Stack
 
 ```bash
+# Services the app talks to: postgres + OnlyOffice.
+# Profiles add more: --profile worker (PDF/video/office thumbnails),
+#                    --profile s3 (SeaweedFS), --profile idp (self-hosted Logto)
 docker compose -f deploy/compose/compose.dev.yml up -d
+
+# API server, from source. It reads real env vars, so .env must be sourced.
+cd apps/server && cp .env.example .env    # once, then fill in PP_OIDC_*
+set -a && source .env && set +a && go run ./cmd/server
+
+vp run dev                                # web, http://localhost:5173
 ```
 
-Identity provider: Logto — create a free Cloud tenant at <https://cloud.logto.io> (Traditional Web app, redirect URI `http://localhost:8080/auth/callback`) or self-host with `--profile idp`. OnlyOffice on :9980, API server on <http://localhost:8080>. Setup steps: [docs/deployment.md](docs/deployment.md). Then run `vp run dev` and open <http://localhost:5173> to sign in.
+Identity provider: Logto — create a free Cloud tenant at <https://cloud.logto.io> (Traditional Web app, redirect URI `http://localhost:8080/auth/callback`) or self-host with `--profile idp`. OnlyOffice on :9980, API server on <http://localhost:8080>.
+
+Deploying to a server or Dokploy: [docs/deployment.md](docs/deployment.md).
 
 ## Documentation
 

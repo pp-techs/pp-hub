@@ -59,11 +59,12 @@ shares(id, tenant_id, node_id,                  -- file or folder
   -- One grant per (folder, group): re-granting updates rather than stacking a
   -- second row that would then have to be resolved against the first.
 
-previews(node_version_id, kind, blob_hash)      -- kind: thumbnail | pdf | video | text
+previews(node_version_id, kind, blob_hash)      -- kind: thumbnail | text (the artifact)
 
 uploads(id, node_target, temp_path, offset, expires_at)  -- tus resumable state
 
-jobs(id, kind, payload, status, run_at, attempts)        -- preview, quota, GC
+jobs(id, kind, payload, status, run_at, attempts)        -- kind routes to a worker;
+                                                         -- run_at = claimed-at while running
 ```
 
 ## Invariants

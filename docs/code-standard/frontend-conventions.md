@@ -13,6 +13,8 @@ Three layers, one direction only — components never call `api` directly:
 - Workspace layout: `apps/*`, `packages/*`, `tools/*` (see root `package.json`).
 - Use Vite+ built-ins: `vp dev`, `vp build`, `vp check`, `vp test`. Scripts cannot shadow built-ins — check `package.json` / `vite.config.ts` and use `vp run <name>` for project scripts/tasks.
 - After pulling remote changes: `vp install`. Before pushing: `vp check` + `vp test`.
+- A package with tests needs a `test` script in its `package.json`, or
+  `vp run -r test` skips it silently and the gate means nothing.
 - Dependency versions shared across workspaces go through the `catalog` in root `package.json`.
 
 ## Validation Workflow
@@ -20,6 +22,22 @@ Three layers, one direction only — components never call `api` directly:
 ```bash
 vp run ready    # vp check && tests && build for the whole monorepo
 ```
+
+## Preview URLs
+
+- Ask for a preview **kind** (`thumbnail` / `text`) — the artifact — never the
+  job kind the server used to produce it. `previewKind` no longer mirrors
+  anything in Go; images, PDFs, video and office documents all answer
+  `thumbnail`.
+- Choose a viewer by **MIME**, not preview kind. The preview kind cannot tell
+  `<img>` from `<object>` from `<video>`, because all three store a thumbnail.
+- Always build preview URLs with `previewUrl(node)`. The response is cached
+  `immutable` for a year, so the version in the query string is the only thing
+  that busts it; a hand-written URL pins a stale thumbnail in every viewer's
+  cache after an edit.
+- `hasThumbnail` gates the image; fall back to `NodeIcon`, never a blank frame.
+  A missing thumbnail is an ordinary state — the file may have no renderer, or
+  no worker may be deployed.
 
 ## API Contract
 

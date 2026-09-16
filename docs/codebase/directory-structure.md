@@ -6,6 +6,8 @@ Monorepo managed with bun workspaces + Vite+ (`vp`). Workspaces: `packages/*`, `
 pp-hub/
 ├── apps/
 │   ├── web/                        # React SPA
+│   │   ├── Dockerfile              # Vite build → nginx; the public entry point in prod
+│   │   ├── nginx.conf              # serves the bundle, proxies the API on one origin
 │   │   └── src/
 │   │       ├── lib/
 │   │       │   ├── api/            # ky client, types, endpoints, utils
@@ -65,6 +67,8 @@ pp-hub/
 │   └── server/                     # Go backend — own go.mod
 │       ├── cmd/server/             # entry point: OIDC wait, http.Server; owns migrations
 │       ├── cmd/worker/             # optional preview worker (pdftoppm/ffmpeg); --backfill
+│       ├── Dockerfile              # targets: worker (poppler+ffmpeg), server (slim, default)
+│       ├── .env.example            # → .env (git-ignored), sourced for local dev
 │       └── internal/
 │           ├── bootstrap/          # ✅ shared wiring for both entry points: config, pool, blobs
 │           ├── activity/           # ✅ event recording: who did what, to what
@@ -87,7 +91,11 @@ pp-hub/
 │   ├── ui/                         # @workspace/ui — shadcn/ui preset components + design tokens (globals.css)
 │   └── utils/                      # shared TS utils (template package, dist via vp pack)
 ├── deploy/
-│   └── compose/                    # docker-compose variants + env templates + README (dev workflows)
+│   └── compose/
+│       ├── compose.dev.yml         # services only — app runs from source; profiles: worker, s3, idp
+│       ├── compose.prod.yml        # everything, for a VPS / Dokploy; profile: s3
+│       ├── .env.example            # → .env (git-ignored), production values
+│       └── seaweedfs/s3.json       # dev credentials for the S3 profile
 ├── docs/                           # this documentation
 └── package.json                    # bun workspaces, Vite+ catalog
 ```
