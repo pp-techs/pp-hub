@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/activity"
 	"github.com/nhatbui/pp-hub/apps/server/internal/fs"
+	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 	"github.com/nhatbui/pp-hub/apps/server/internal/spaces"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 )
@@ -26,31 +28,37 @@ type spaceDTO struct {
 	OwnerID    string `json:"owner_id"`
 	UsedBytes  int64  `json:"used_bytes"`
 	QuotaBytes int64  `json:"quota_bytes"` // 0 = unlimited
-	Role       string `json:"role,omitempty"`
-	CreatedAt  string `json:"created_at"`
+	// IsAdmin: the caller is in the space's Admin group — the only thing
+	// "admin" means anymore (M15).
+	IsAdmin bool `json:"is_admin"`
+	// ArchiveRootID is where departed members' content lands; admins browse
+	// it there. Empty only on a space whose creation failed partway.
+	ArchiveRootID string `json:"archive_root_id,omitempty"`
+	CreatedAt     string `json:"created_at"`
 	// Settings fields. These must be emitted even when empty: the settings
-	// form reads the current values from here and PATCHes the whole set back,
-	// so omitting an empty slug would make the form clear it on the next save.
-	Slug        string `json:"slug"`
-	Description string `json:"description"`
-	DefaultRole string `json:"default_role"`
-	// Days to keep trashed items. 0 keeps them indefinitely.
-	TrashRetentionDays int32 `json:"trash_retention_days"`
+	// form reads the current values from here and PATCHes the whole set back.
+	Slug               string `json:"slug"`
+	Description        string `json:"description"`
+	DefaultAsAdmin     bool   `json:"default_as_admin"`
+	TrashRetentionDays int32  `json:"trash_retention_days"`
 }
 
 type nodeDTO struct {
-	ID         string `json:"id"`
-	SpaceID    string `json:"space_id"`
-	ParentID   string `json:"parent_id,omitempty"`
-	Kind       string `json:"kind"`
-	Name       string `json:"name"`
-	Size       int64  `json:"size,omitempty"`
-	Mime       string `json:"mime,omitempty"`
-	Version    int32  `json:"version,omitempty"`
-	ModifiedAt string `json:"modified_at,omitempty"` // latest version.CreatedAt (file) or node.CreatedAt (folder)
-	Owner      string `json:"owner,omitempty"`
-	OwnerID    string `json:"owner_id,omitempty"`
-	CreatedAt  string `json:"created_at"`
+	ID         string      `json:"id"`
+	SpaceID    string      `json:"space_id"`
+	ParentID   string      `json:"parent_id,omitempty"`
+	Kind       string      `json:"kind"`
+	Name       string      `json:"name"`
+	Size       int64       `json:"size,omitempty"`
+	Mime       string      `json:"mime,omitempty"`
+	Version    int32       `json:"version,omitempty"`
+	ModifiedAt string      `json:"modified_at,omitempty"`
+	Owner      string      `json:"owner,omitempty"`
+	OwnerID    string      `json:"owner_id,omitempty"`
+	CreatedAt  string      `json:"created_at"`
+	// Caps is the caller's resolved capability set on this node — what the
+	// node menu enables. Set on listings and single-node GETs.
+	Caps *share.Caps `json:"caps,omitempty"`
 }
 
 type versionDTO struct {
@@ -74,22 +82,20 @@ func uuidParam(r *http.Request, name string) (pgtype.UUID, error) {
 	return id, id.Scan(chi.URLParam(r, name))
 }
 
-func spaceToDTO(sp store.Space, role string) spaceDTO {
-	// uuidString rather than a bare type assertion: Value() returns nil for an
-	// invalid UUID, and nil.(string) panics. Reachable through any path that
-	// hands back a zero-value Space on an error it did not check.
+func spaceToDTO(sp store.Space, isAdmin bool) spaceDTO {
 	return spaceDTO{
 		ID:                 uuidString(sp.ID),
 		Name:               sp.Name,
 		OwnerID:            uuidString(sp.OwnerID),
 		UsedBytes:          sp.UsedBytes,
 		QuotaBytes:         sp.QuotaBytes,
-		Role:               role,
-		CreatedAt:          sp.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
+		IsAdmin:            isAdmin,
+		CreatedAt:         sp.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
 		Slug:               sp.Slug,
 		Description:        sp.Description,
-		DefaultRole:        string(sp.DefaultRole),
+		DefaultAsAdmin:     sp.DefaultAsAdmin,
 		TrashRetentionDays: sp.TrashRetentionDays,
+		ArchiveRootID:      uuidString(sp.ArchiveRootID),
 	}
 }
 
@@ -116,7 +122,14 @@ func nodeToDTO(n store.Node, ver *store.NodeVersion) nodeDTO {
 	return dto
 }
 
-// nodeToDTOMeta builds a nodeDTO from a NodeWithMeta row (includes modified_at + owner).
+// withCaps stamps a DTO with capabilities the caller already knows without a
+// query — creating a node makes you its owner, so the resolution is a constant.
+// Every node DTO carries caps; a client should never have to guess at one.
+func (d nodeDTO) withCaps(c share.Caps) nodeDTO {
+	d.Caps = &c
+	return d
+}
+
 func nodeToDTOMeta(n store.NodeWithMeta) nodeDTO {
 	id, _ := n.ID.Value()
 	sid, _ := n.SpaceID.Value()
@@ -132,24 +145,20 @@ func nodeToDTOMeta(n store.NodeWithMeta) nodeDTO {
 			dto.ParentID = p.(string)
 		}
 	}
-	// Populate version fields from the joined latest version row.
 	if n.VerID.Valid {
 		dto.Size = n.VerSize
 		dto.Mime = n.VerMime
 		dto.Version = n.VerVersionNo
 		dto.ModifiedAt = n.VerCreatedAt.Time.Format("2006-01-02T15:04:05Z07:00")
 	}
-	// For dirs with no version, modified_at = node.CreatedAt.
 	if n.Kind == store.NodeKindDir && dto.ModifiedAt == "" {
 		dto.ModifiedAt = n.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00")
 	}
-	// Owner = node creator's display name (from LEFT JOIN users).
 	if n.OwnerName != "" {
 		dto.Owner = n.OwnerName
 	} else if n.OwnerEmail != "" {
 		dto.Owner = n.OwnerEmail
 	}
-	// OwnerID: use node.created_by (always set).
 	if n.OwnerID.Valid {
 		if oid, _ := n.OwnerID.Value(); oid != nil {
 			dto.OwnerID = oid.(string)
@@ -170,11 +179,11 @@ func (s *Server) handleCreateSpace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		Name        string `json:"name"`
-		Slug        string `json:"slug"`
-		Description string `json:"description"`
-		DefaultRole string `json:"default_role"`
-		QuotaBytes  int64  `json:"quota_bytes"`
+		Name          string `json:"name"`
+		Slug          string `json:"slug"`
+		Description   string `json:"description"`
+		DefaultAsAdmin bool   `json:"default_as_admin"`
+		QuotaBytes    int64  `json:"quota_bytes"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || strings.TrimSpace(body.Name) == "" {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "name is required")
@@ -185,13 +194,9 @@ func (s *Server) handleCreateSpace(w http.ResponseWriter, r *http.Request) {
 		Error(w, r, err)
 		return
 	}
-
-	// Creation takes the same optional settings the settings screen edits, but
-	// the space row has to exist before they can be applied — a slug collision
-	// should reject the settings, not lose the space. So they land as a second
-	// write, and a failure leaves a usable space with default settings.
-	if body.Slug != "" || body.Description != "" || body.DefaultRole != "" || body.QuotaBytes > 0 {
-		settings, problem := spaceSettingsFrom(sp, body.Slug, body.Description, body.DefaultRole, body.QuotaBytes)
+	// Creation takes the same optional settings the settings screen edits.
+	if body.Slug != "" || body.Description != "" || body.DefaultAsAdmin || body.QuotaBytes > 0 {
+		settings, problem := spaceSettingsFrom(sp, body.Slug, body.Description, body.DefaultAsAdmin, body.QuotaBytes)
 		if problem != "" {
 			writeProblem(w, http.StatusBadRequest, "Bad Request", problem)
 			return
@@ -206,11 +211,10 @@ func (s *Server) handleCreateSpace(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-
 	s.activity.Record(r.Context(), activity.Event{
 		SpaceID: sp.ID, ActorID: u.ID, Kind: activity.KindCreated, NodeName: sp.Name,
 	})
-	writeJSON(w, http.StatusCreated, spaceToDTO(sp, string(spaces.RoleAdmin)))
+	writeJSON(w, http.StatusCreated, spaceToDTO(sp, true)) // creator is admin of the space they create
 }
 
 func (s *Server) handleListSpaces(w http.ResponseWriter, r *http.Request) {
@@ -225,66 +229,25 @@ func (s *Server) handleListSpaces(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]spaceDTO, 0, len(list))
 	for _, sp := range list {
-		role, _ := s.spaces.RoleOf(r.Context(), sp.ID, u.ID)
-		out = append(out, spaceToDTO(sp, string(role)))
+		out = append(out, spaceToDTO(sp, s.spaces.IsAdmin(r.Context(), sp.ID, u.ID)))
 	}
 	writeJSON(w, http.StatusOK, out)
 }
 
-// --- Node handlers ---
-
-// spaceRoleRank maps a space role onto the *permission* scale
-// (view=1, download=2, edit=3) — not onto the role scale, which is a separate
-// comparison used only by spaces.RequireRole.
-//
-// admin → 3: an admin holds edit everywhere in the space they administer.
-// member → 0: belonging to the company grants no access to any file. A
-// member's permission comes entirely from group grants and direct shares, so
-// this returns the floor and share.EffectivePerm supplies the rest.
-//
-// This is the single seam where "is a member" could be turned back into
-// implicit access. It is deliberately the only copy: the WOPI handler used to
-// keep its own switch on raw role strings, which silently drifted and minted
-// read-only tokens for users who could write.
-func (s *Server) spaceRoleRank(r *http.Request, spaceID, userID pgtype.UUID) int {
-	// A non-member resolves to 0 and falls through to the share lookup, which
-	// is correct: a direct share can name someone outside the space.
-	role, err := s.spaces.RoleOf(r.Context(), spaceID, userID)
-	if err != nil {
-		return 0
-	}
-	return roleFloor(role)
-}
-
-// roleFloor is the pure half of spaceRoleRank, split out so the mapping can be
-// tested without a database.
-func roleFloor(role spaces.Role) int {
-	if role == spaces.RoleAdmin {
-		return 3
-	}
-	return 0
-}
+// --- Node permission helpers ---
 
 // requireParentWrite authorises creating something inside parentID.
-//
-// The space-keyed create routes (POST /spaces/{spaceID}/dirs and .../files)
-// take parent_id from the request body, and until this existed nothing checked
-// it: not that it belonged to spaceID, not that the caller could write there.
-// That was harmless only while an editor could write anywhere in their space.
-// Now that a member's access comes from individual grants, an unchecked
-// parent_id would let anyone holding one grant write into any folder of any
-// company.
 //
 // A parent in another space answers 404, not 403 — confirming that a node
 // exists is already more than the caller should learn, the same rule anonymous
 // share browsing follows.
 //
-// A nil parent means the space root, which nobody holds a grant on, so it is
-// admin-only.
+// A nil parent means the space root, where any member may create: root items
+// are private to their creator until shared (M15).
 func (s *Server) requireParentWrite(w http.ResponseWriter, r *http.Request, spaceID, parentID pgtype.UUID, u *store.User) bool {
 	if !parentID.Valid {
-		if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleAdmin); err != nil {
-			writeProblem(w, http.StatusForbidden, "Forbidden", "only an admin can create items at the top level of a space")
+		if err := s.spaces.RequireMember(r.Context(), spaceID, u.ID); err != nil {
+			s.spaceError(w, r, err)
 			return false
 		}
 		return true
@@ -302,47 +265,85 @@ func (s *Server) requireParentWrite(w http.ResponseWriter, r *http.Request, spac
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "parent_id is not a folder")
 		return false
 	}
-	eff, err := s.share.EffectivePerm(r.Context(), parent, u.ID, s.spaceRoleRank(r, spaceID, u.ID))
+	caps, err := s.share.EffectiveCapsForNode(r.Context(), parent, u.ID)
 	if err != nil {
 		Error(w, r, err)
 		return false
 	}
-	if eff < 3 {
+	if !caps.Has(share.CapEdit) {
 		writeProblem(w, http.StatusForbidden, "Forbidden", "insufficient permission")
 		return false
 	}
 	return true
 }
 
-// requireNodeAccess resolves the node and enforces the effective permission:
-// the space-role floor widened by group grants and direct shares on the node
-// or its ancestors. minRank: 1=view, 2=download, 3=edit.
-func (s *Server) requireNodeAccess(w http.ResponseWriter, r *http.Request, minRank int) (*store.User, store.Node) {
+// requireNodeCaps resolves the node and enforces that the caller holds the
+// named capability on it. There is no role floor — an admin with neither
+// ownership nor a grant resolves to nothing, like anyone else.
+func (s *Server) requireNodeCaps(w http.ResponseWriter, r *http.Request, need share.Cap) (*store.User, store.Node, share.Caps) {
 	u := s.requireUser(w, r)
 	if u == nil {
-		return nil, store.Node{}
+		return nil, store.Node{}, share.Caps{}
 	}
 	nodeID, err := uuidParam(r, "nodeID")
 	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid node id")
-		return nil, store.Node{}
+		return nil, store.Node{}, share.Caps{}
 	}
 	node, err := s.fs.Get(r.Context(), nodeID)
 	if err != nil {
 		s.nodeError(w, r, err)
-		return nil, store.Node{}
+		return nil, store.Node{}, share.Caps{}
 	}
-	eff, err := s.share.EffectivePerm(r.Context(), node, u.ID, s.spaceRoleRank(r, node.SpaceID, u.ID))
+	caps, err := s.share.EffectiveCapsForNode(r.Context(), node, u.ID)
 	if err != nil {
 		Error(w, r, err)
-		return nil, store.Node{}
+		return nil, store.Node{}, share.Caps{}
 	}
-	if eff < minRank {
+	if !caps.Has(need) {
 		writeProblem(w, http.StatusForbidden, "Forbidden", "insufficient permission")
-		return nil, store.Node{}
+		return nil, store.Node{}, share.Caps{}
 	}
-	return u, node
+	return u, node, caps
 }
+
+// attachCaps fills each DTO's Caps in one batched resolution.
+func (s *Server) attachCaps(ctx context.Context, userID pgtype.UUID, nodes []nodeDTO) {
+	if len(nodes) == 0 {
+		return
+	}
+	ids := make([]pgtype.UUID, 0, len(nodes))
+	for _, n := range nodes {
+		var id pgtype.UUID
+		if err := id.Scan(n.ID); err == nil {
+			ids = append(ids, id)
+		}
+	}
+	res, err := s.share.AccessCaps(ctx, ids, userID)
+	if err != nil {
+		return // presentation detail
+	}
+	for i := range nodes {
+		var id pgtype.UUID
+		if err := id.Scan(nodes[i].ID); err != nil {
+			continue
+		}
+		caps := share.EffectiveCaps(res[id])
+		nodes[i].Caps = &caps
+	}
+}
+
+// isArchiveRoot reports whether the node is its space's archive root.
+// The archive has a fixed place and cannot be renamed, moved or trashed.
+func (s *Server) isArchiveRoot(ctx context.Context, node store.Node) bool {
+	if node.Kind != store.NodeKindDir || node.ParentID.Valid {
+		return false
+	}
+	sp, err := s.spaces.Get(ctx, node.SpaceID)
+	return err == nil && sp.ArchiveRootID.Valid && sp.ArchiveRootID == node.ID
+}
+
+// --- Node handlers ---
 
 func (s *Server) handleListChildren(w http.ResponseWriter, r *http.Request) {
 	u := s.requireUser(w, r)
@@ -354,7 +355,7 @@ func (s *Server) handleListChildren(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
 		return
 	}
-	if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleMember); err != nil {
+	if err := s.spaces.RequireMember(r.Context(), spaceID, u.ID); err != nil {
 		s.spaceError(w, r, err)
 		return
 	}
@@ -374,45 +375,32 @@ func (s *Server) handleListChildren(w http.ResponseWriter, r *http.Request) {
 	for _, n := range children {
 		out = append(out, nodeToDTOMeta(n))
 	}
+	s.attachCaps(r.Context(), u.ID, out)
 	writeJSON(w, http.StatusOK, out)
 }
 
 // listVisibleChildren returns the children of parentID the caller may see.
 //
-// Permission inherits downward, so this needs ONE rank check rather than one
-// per row: if the caller can reach the parent at all they can reach everything
-// under it, and the whole listing is theirs. Only when the parent resolves to 0
-// — a member at the space root, or in a folder nobody granted them — does the
-// listing narrow to the children they hold a grant on directly.
+// Access inherits downward: if the caller can view the parent they can view
+// everything under it. Only when the parent is unreachable does the listing
+// narrow to the children they own or hold a grant on directly.
 //
-// At the space root that narrowing is the feature: it turns the top level into
-// the list of places the member's access actually starts, instead of the
-// company's entire filing cabinet.
+// A nil parent is the space's top level: entry points — the caller's own items
+// plus the places shared with them. Nobody, admin included, sees the whole tree.
 func (s *Server) listVisibleChildren(r *http.Request, spaceID, parentID pgtype.UUID, u *store.User) ([]store.NodeWithMeta, error) {
-	floor := s.spaceRoleRank(r, spaceID, u.ID)
-	if floor >= 1 {
-		return s.fs.ListWithMeta(r.Context(), spaceID, parentID)
-	}
-	if parentID.Valid {
-		parent, err := s.fs.Get(r.Context(), parentID)
-		if err != nil {
-			return nil, err
-		}
-		rank, err := s.share.EffectivePerm(r.Context(), parent, u.ID, floor)
-		if err != nil {
-			return nil, err
-		}
-		if rank >= 1 {
-			return s.fs.ListWithMeta(r.Context(), spaceID, parentID)
-		}
-	}
 	if !parentID.Valid {
-		// The space's top level for a member. Not simply the granted root
-		// folders: their own personal folder lives inside "Personal", which
-		// they hold no grant on, so listing granted root children alone would
-		// hide it behind a door they cannot open. Entry points put every place
-		// their access starts where they expect to find it.
-		return s.fs.EntryPointsWithMeta(r.Context(), u.ID, spaceID)
+		return s.fs.EntryPointsWithMeta(r.Context(), u.ID, spaceID, true)
+	}
+	parent, err := s.fs.Get(r.Context(), parentID)
+	if err != nil {
+		return nil, err
+	}
+	caps, err := s.share.EffectiveCapsForNode(r.Context(), parent, u.ID)
+	if err != nil {
+		return nil, err
+	}
+	if caps.Has(share.CapView) {
+		return s.fs.ListWithMeta(r.Context(), spaceID, parentID)
 	}
 	return s.fs.ListGrantedWithMeta(r.Context(), spaceID, parentID, u.ID)
 }
@@ -427,7 +415,7 @@ func (s *Server) handleMkdir(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
 		return
 	}
-	if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleMember); err != nil {
+	if err := s.spaces.RequireMember(r.Context(), spaceID, u.ID); err != nil {
 		s.spaceError(w, r, err)
 		return
 	}
@@ -455,7 +443,7 @@ func (s *Server) handleMkdir(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.activity.Node(r.Context(), u.ID, n, activity.KindCreated, nil)
-	writeJSON(w, http.StatusCreated, nodeToDTO(n, nil))
+	writeJSON(w, http.StatusCreated, nodeToDTO(n, nil).withCaps(share.CapsOwner))
 }
 
 func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
@@ -468,11 +456,10 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
 		return
 	}
-	if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleMember); err != nil {
+	if err := s.spaces.RequireMember(r.Context(), spaceID, u.ID); err != nil {
 		s.spaceError(w, r, err)
 		return
 	}
-	// multipart: fields parent_id (optional), file
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid multipart form")
 		return
@@ -500,34 +487,23 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.activity.Node(r.Context(), u.ID, node, activity.KindUploaded, map[string]any{"size": ver.Size})
-	s.recount(r, spaceID)
-	writeJSON(w, http.StatusCreated, nodeToDTO(node, &ver))
+	// Recount used bytes for the space.
+	if used, err := s.store.SumSpaceUsage(r.Context(), spaceID); err == nil {
+		_ = s.store.UpdateSpaceUsedBytes(r.Context(), store.UpdateSpaceUsedBytesParams{ID: spaceID, UsedBytes: used})
+	}
+	writeJSON(w, http.StatusCreated, nodeToDTO(node, &ver).withCaps(share.CapsOwner))
 }
 
 // inlineMimes are the types /content may hand the browser to render in place.
-// Blobs are served from the app's own origin, so anything that can execute
-// there (HTML, SVG, scripts) is deliberately absent and falls back to a
-// download. Mirrored by INLINE_MIMES in apps/web/src/lib/api/utils.ts.
 var inlineMimes = map[string]bool{
-	"application/pdf": true,
-	"image/png":       true,
-	"image/jpeg":      true,
-	"image/gif":       true,
-	"image/webp":      true,
-	"video/mp4":       true,
-	"video/webm":      true,
-	"video/quicktime": true,
-	"audio/mpeg":      true,
-	"audio/mp4":       true,
-	"audio/ogg":       true,
-	"audio/wav":       true,
-	"text/plain":      true,
+	"application/pdf": true, "image/png": true, "image/jpeg": true,
+	"image/gif": true, "image/webp": true, "video/mp4": true,
+	"video/webm": true, "video/quicktime": true, "audio/mpeg": true,
+	"audio/mp4": true, "audio/ogg": true, "audio/wav": true,
+	"text/plain": true,
 }
 
-// inlineDisposition reports how mimeType may be served: "inline" for the
-// allowlisted types, "attachment" for everything else.
 func inlineDisposition(mimeType string) string {
-	// Strip parameters ("text/plain; charset=utf-8") before matching.
 	base, _, _ := strings.Cut(mimeType, ";")
 	if inlineMimes[strings.TrimSpace(strings.ToLower(base))] {
 		return "inline"
@@ -536,9 +512,7 @@ func inlineDisposition(mimeType string) string {
 }
 
 func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
-	// A folder has no blob of its own; downloading one means its contents,
-	// which is a streamed zip. Callers hit the same URL either way.
-	_, node := s.requireNodeAccess(w, r, 2)
+	_, node, _ := s.requireNodeCaps(w, r, share.CapDownload)
 	if !node.ID.Valid {
 		return
 	}
@@ -549,15 +523,12 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 	s.serveBlob(w, r, "attachment")
 }
 
-// handleContent streams the file's own bytes for in-browser viewing: the PDF
-// viewer, <img>, <video>. Distinct from /preview, which serves the small blob
-// the worker generated, and from /download, which forces a save dialog.
 func (s *Server) handleContent(w http.ResponseWriter, r *http.Request) {
 	s.serveBlob(w, r, "inline")
 }
 
 func (s *Server) serveBlob(w http.ResponseWriter, r *http.Request, disposition string) {
-	_, node := s.requireNodeAccess(w, r, 1)
+	_, node, _ := s.requireNodeCaps(w, r, share.CapView)
 	if !node.ID.Valid {
 		return
 	}
@@ -572,15 +543,13 @@ func (s *Server) serveBlob(w http.ResponseWriter, r *http.Request, disposition s
 		disposition = inlineDisposition(ver.Mime)
 	}
 	cd := mime.FormatMediaType(disposition, map[string]string{"filename": n.Name})
-	if cd == "" { // unencodable filename — keep the disposition, drop the name
+	if cd == "" {
 		cd = disposition
 	}
 	w.Header().Set("Content-Type", ver.Mime)
 	w.Header().Set("Content-Disposition", cd)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 
-	// ServeContent answers Range requests, which PDF viewers and <video> use to
-	// seek. The local blob store hands back an *os.File, so the assertion holds.
 	if rs, ok := rc.(io.ReadSeeker); ok {
 		http.ServeContent(w, r, n.Name, ver.CreatedAt.Time, rs)
 		return
@@ -589,8 +558,22 @@ func (s *Server) serveBlob(w http.ResponseWriter, r *http.Request, disposition s
 	_, _ = io.Copy(w, rc)
 }
 
+// requireMovableNode authorises moving, renaming or trashing a node. The archive
+// root itself cannot be moved, renamed or trashed.
+func (s *Server) requireMovableNode(w http.ResponseWriter, r *http.Request) (*store.User, store.Node) {
+	u, node, _ := s.requireNodeCaps(w, r, share.CapEdit)
+	if !node.ID.Valid {
+		return nil, store.Node{}
+	}
+	if s.isArchiveRoot(r.Context(), node) {
+		writeProblem(w, http.StatusForbidden, "Forbidden", "the archive has a fixed place and cannot be moved, renamed or trashed")
+		return nil, store.Node{}
+	}
+	return u, node
+}
+
 func (s *Server) handleRenameNode(w http.ResponseWriter, r *http.Request) {
-	u, node := s.requireNodeAccess(w, r, 3)
+	u, node := s.requireMovableNode(w, r)
 	if u == nil {
 		return
 	}
@@ -612,7 +595,7 @@ func (s *Server) handleRenameNode(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleMoveNode(w http.ResponseWriter, r *http.Request) {
-	u, node := s.requireNodeAccess(w, r, 3)
+	u, node := s.requireMovableNode(w, r)
 	if u == nil {
 		return
 	}
@@ -630,6 +613,9 @@ func (s *Server) handleMoveNode(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if !s.requireParentWrite(w, r, node.SpaceID, parentID, u) {
+		return
+	}
 	if err := s.fs.Move(r.Context(), node.ID, parentID); err != nil {
 		s.nodeError(w, r, err)
 		return
@@ -638,16 +624,24 @@ func (s *Server) handleMoveNode(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-// handleCopyNode duplicates a node, optionally into another folder.
 func (s *Server) handleCopyNode(w http.ResponseWriter, r *http.Request) {
-	u, node := s.requireNodeAccess(w, r, 3)
+	u, _, _ := s.requireNodeCaps(w, r, share.CapEdit)
 	if u == nil {
 		return
 	}
-	var body struct {
-		ParentID string `json:"parent_id"` // empty = alongside the original
+	nodeID, err := uuidParam(r, "nodeID")
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid node id")
+		return
 	}
-	// An empty body is valid: copy in place.
+	node, err := s.fs.Get(r.Context(), nodeID)
+	if err != nil {
+		s.nodeError(w, r, err)
+		return
+	}
+	var body struct {
+		ParentID string `json:"parent_id"`
+	}
 	_ = json.NewDecoder(r.Body).Decode(&body)
 
 	dest := node.ParentID
@@ -657,20 +651,22 @@ func (s *Server) handleCopyNode(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-
+	if !s.requireParentWrite(w, r, node.SpaceID, dest, u) {
+		return
+	}
 	copied, err := s.fs.Copy(r.Context(), node.ID, dest, u.ID)
 	if err != nil {
 		s.nodeError(w, r, err)
 		return
 	}
-	s.activity.Node(r.Context(), u.ID, copied, activity.KindCreated,
-		map[string]any{"copied_from": node.Name})
-	s.recount(r, node.SpaceID)
-	writeJSON(w, http.StatusCreated, nodeToDTO(copied, nil))
+	s.activity.Node(r.Context(), u.ID, copied, activity.KindCreated, map[string]any{"copied_from": node.Name})
+	if used, err := s.store.SumSpaceUsage(r.Context(), node.SpaceID); err == nil {
+		_ = s.store.UpdateSpaceUsedBytes(r.Context(), store.UpdateSpaceUsedBytesParams{ID: node.SpaceID, UsedBytes: used})
+	}
+	writeJSON(w, http.StatusCreated, nodeToDTO(copied, nil).withCaps(share.CapsOwner))
 }
-
 func (s *Server) handleDeleteNode(w http.ResponseWriter, r *http.Request) {
-	u, node := s.requireNodeAccess(w, r, 3)
+	u, node := s.requireMovableNode(w, r)
 	if u == nil {
 		return
 	}
@@ -679,19 +675,14 @@ func (s *Server) handleDeleteNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.activity.Node(r.Context(), u.ID, node, activity.KindTrashed, nil)
-	s.recount(r, node.SpaceID)
+	if used, err := s.store.SumSpaceUsage(r.Context(), node.SpaceID); err == nil {
+		_ = s.store.UpdateSpaceUsedBytes(r.Context(), store.UpdateSpaceUsedBytesParams{ID: node.SpaceID, UsedBytes: used})
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
-
-// handleGetNode returns one node with its current version and owner.
-//
-// Added for the full-page editor, which is routed by node id alone and
-// otherwise has no way to learn the file's own name. The breadcrumb trail in
-// the drive header works around the same absence by recording folders as the
-// user walks them; that workaround can now be retired.
 func (s *Server) handleGetNode(w http.ResponseWriter, r *http.Request) {
-	_, node := s.requireNodeAccess(w, r, 1)
-	if !node.ID.Valid {
+	u, node, caps := s.requireNodeCaps(w, r, share.CapView)
+	if u == nil {
 		return
 	}
 	var ver *store.NodeVersion
@@ -707,11 +698,12 @@ func (s *Server) handleGetNode(w http.ResponseWriter, r *http.Request) {
 			dto.OwnerID = id.(string)
 		}
 	}
+	dto.Caps = &caps
 	writeJSON(w, http.StatusOK, dto)
 }
 
 func (s *Server) handleListVersions(w http.ResponseWriter, r *http.Request) {
-	_, node := s.requireNodeAccess(w, r, 1)
+	_, node, _ := s.requireNodeCaps(w, r, share.CapView)
 	if !node.ID.Valid {
 		return
 	}
@@ -735,7 +727,7 @@ func (s *Server) handleListVersions(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleRestoreVersion(w http.ResponseWriter, r *http.Request) {
-	u, node := s.requireNodeAccess(w, r, 3)
+	u, node := s.requireMovableNode(w, r)
 	if u == nil {
 		return
 	}
@@ -749,10 +741,11 @@ func (s *Server) handleRestoreVersion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.activity.Node(r.Context(), u.ID, node, activity.KindReverted, nil)
-	s.recount(r, node.SpaceID)
+	if used, err := s.store.SumSpaceUsage(r.Context(), node.SpaceID); err == nil {
+		_ = s.store.UpdateSpaceUsedBytes(r.Context(), store.UpdateSpaceUsedBytesParams{ID: node.SpaceID, UsedBytes: used})
+	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
-
 // --- Sidebar handlers ---
 
 func (s *Server) handleListTree(w http.ResponseWriter, r *http.Request) {
@@ -765,7 +758,7 @@ func (s *Server) handleListTree(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
 		return
 	}
-	if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleMember); err != nil {
+	if err := s.spaces.RequireMember(r.Context(), spaceID, u.ID); err != nil {
 		s.spaceError(w, r, err)
 		return
 	}
@@ -776,9 +769,6 @@ func (s *Server) handleListTree(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	// The rail tree obeys the same rule as the listing: one rank check on the
-	// parent, narrowed to granted children only when the caller cannot reach
-	// the parent at all.
 	withMeta, err := s.listVisibleChildren(r, spaceID, parentID, u)
 	if err != nil {
 		Error(w, r, err)
@@ -803,8 +793,9 @@ func (s *Server) handleListTree(w http.ResponseWriter, r *http.Request) {
 				hasChildren = count > 0
 			}
 		}
+		id, _ := n.ID.Value()
 		out = append(out, treeNodeDTO{
-			ID:          func() string { id, _ := n.ID.Value(); return id.(string) }(),
+			ID:          id.(string),
 			ParentID:    parentStr,
 			Kind:        string(n.Kind),
 			Name:        n.Name,
@@ -824,7 +815,7 @@ func (s *Server) handleListDeleted(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
 		return
 	}
-	if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleMember); err != nil {
+	if err := s.spaces.RequireMember(r.Context(), spaceID, u.ID); err != nil {
 		s.spaceError(w, r, err)
 		return
 	}
@@ -833,24 +824,26 @@ func (s *Server) handleListDeleted(w http.ResponseWriter, r *http.Request) {
 		Error(w, r, err)
 		return
 	}
-	// Every member used to see every tombstone in the space — and each row
-	// carries `location`, the full original path — so the trash disclosed the
-	// shape of folders the viewer had never been able to open.
-	//
-	// Filtering it needs permission resolution that survives a tombstone, which
-	// NodeAccessRanks now provides: its ancestor walk does not filter
-	// deleted_at, so a deleted file inside a deleted folder still resolves
-	// against the grant above it.
+	// Filter by reachability: the ancestor walk does not filter deleted_at, so
+	// a deleted file inside a deleted folder still resolves against the grant
+	// above it.
 	rows, err = reachableRows(r.Context(), s, u.ID, rows,
 		func(n store.ListDeletedWithMetaRow) pgtype.UUID { return n.ID },
 		func(n store.ListDeletedWithMetaRow) pgtype.UUID { return n.SpaceID })
 	if err != nil {
-		Error(w, r, err)
 		return
 	}
 	out := make([]trashNodeDTO, 0, len(rows))
 	for _, n := range rows {
-		out = append(out, trashRowToDTO(n))
+		out = append(out, trashNodeDTO{
+			ID:         uuidString(n.ID),
+			SpaceID:    uuidString(n.SpaceID),
+			Kind:       string(n.Kind),
+			Name:       n.Name,
+			ModifiedAt: n.VCreatedAt.Time.Format(timeLayout),
+			DeletedAt:  n.DeletedAt.Time.Format(timeLayout),
+			PurgesAt:   n.PurgesAt.Time.Format(timeLayout),
+		})
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -869,6 +862,7 @@ func (s *Server) handleListShared(w http.ResponseWriter, r *http.Request) {
 	for _, n := range nodes {
 		out = append(out, nodeToDTOMeta(n))
 	}
+	s.attachCaps(r.Context(), u.ID, out)
 	writeJSON(w, http.StatusOK, out)
 }
 
@@ -897,6 +891,8 @@ func (s *Server) spaceError(w http.ResponseWriter, r *http.Request, err error) {
 		writeProblem(w, http.StatusNotFound, "Not Found", "space not found")
 	case errors.Is(err, spaces.ErrNotMember), errors.Is(err, spaces.ErrForbidden):
 		writeProblem(w, http.StatusForbidden, "Forbidden", err.Error())
+	case errors.Is(err, spaces.ErrLastAdmin):
+		writeProblem(w, http.StatusConflict, "Conflict", err.Error())
 	default:
 		Error(w, r, err)
 	}

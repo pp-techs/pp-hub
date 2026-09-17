@@ -4,8 +4,7 @@ import (
 	"context"
 
 	"github.com/jackc/pgx/v5/pgtype"
-
-	"github.com/nhatbui/pp-hub/apps/server/internal/store"
+	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 )
 
 // reachability answers "may this user see this node" for a whole page of rows.
@@ -17,41 +16,39 @@ import (
 // a folder an admin had just closed off would keep surfacing in search.
 //
 // Resolving each row on its own would mean one recursive walk per result. This
-// does it in two queries for the whole page instead: one NodeAccessRanks call
-// covering every node id at once, and one role lookup per distinct space.
+// does it in two queries for the whole page instead: one AccessCaps call covering
+// every node id at once, and one IsAdmin check per distinct space.
 type reachability struct {
-	ranks   map[pgtype.UUID]int
-	adminIn map[pgtype.UUID]bool
+	resolved map[pgtype.UUID]share.Resolved
+	adminIn  map[pgtype.UUID]bool
+	userID   pgtype.UUID
 }
 
 // newReachability resolves a page of (node, space) pairs for one user.
 func (s *Server) newReachability(ctx context.Context, userID pgtype.UUID, nodeIDs, spaceIDs []pgtype.UUID) (*reachability, error) {
-	rc := &reachability{adminIn: make(map[pgtype.UUID]bool)}
+	rc := &reachability{adminIn: make(map[pgtype.UUID]bool), userID: userID}
 
-	ranks, err := s.share.AccessRanks(ctx, dedupe(nodeIDs), userID)
+	resolved, err := s.share.AccessCaps(ctx, dedupe(nodeIDs), userID)
 	if err != nil {
 		return nil, err
 	}
-	rc.ranks = ranks
+	rc.resolved = resolved
 
-	// An admin reaches everything in the space they administer, and holds no
-	// grants saying so, so the role has to be consulted separately.
+	// Admin group membership gives space-administration powers (member management,
+	// settings) but no implicit file access. For reachability purposes, we still
+	// record it here so that admins can be distinguished from plain members in
+	// feeds — but it does NOT set a permission floor for can().
 	for _, spaceID := range dedupe(spaceIDs) {
-		role, err := s.spaces.RoleOf(ctx, spaceID, userID)
-		if err != nil {
-			continue // not a member: no floor, grants alone decide
-		}
-		rc.adminIn[spaceID] = roleFloor(role) >= 1
+		rc.adminIn[spaceID] = s.spaces.IsAdmin(ctx, spaceID, userID)
 	}
 	return rc, nil
 }
 
-// can reports whether the user may see a node at all (rank >= 1).
+// can reports whether the user may see a node at all: they own it or hold a
+// grant on it or an ancestor. There is no role floor.
 func (rc *reachability) can(nodeID, spaceID pgtype.UUID) bool {
-	if rc.adminIn[spaceID] {
-		return true
-	}
-	return rc.ranks[nodeID] >= 1
+	res := rc.resolved[nodeID]
+	return share.EffectiveCaps(res).Has(share.CapView)
 }
 
 // filterRows keeps only the rows the user can reach. The accessors pull the
@@ -101,14 +98,10 @@ func dedupe(ids []pgtype.UUID) []pgtype.UUID {
 	return out
 }
 
-// isSpaceAdmin is the single-space form, for handlers that already know which
-// space they are in.
+// isSpaceAdmin reports whether the user is in the space's Admin group.
 func (s *Server) isSpaceAdmin(ctx context.Context, spaceID, userID pgtype.UUID) bool {
-	role, err := s.spaces.RoleOf(ctx, spaceID, userID)
-	return err == nil && role == adminRole
+	return s.spaces.IsAdmin(ctx, spaceID, userID)
 }
-
-const adminRole = store.MemberRoleAdmin
 
 // reachableActivity filters an activity feed.
 //
@@ -150,15 +143,19 @@ func reachableActivity[T any](
 }
 
 // activityVisible is the rule itself, split out so it can be tested directly.
+//
+// An admin sees their space's entire feed. Otherwise: visible if the node is
+// reachable, or the actor is the current user (you always see your own actions,
+// even on nodes since purged).
 func activityVisible(rc *reachability, userID, nodeID, spaceID, actorID pgtype.UUID) bool {
 	switch {
-	case rc.adminIn[spaceID]:
-		return true
 	case actorID == userID:
-		// You may always see what you yourself did, including to a file that
-		// has since been purged and can no longer be resolved.
 		return true
+	case nodeID.Valid:
+		return rc.can(nodeID, spaceID)
 	default:
-		return nodeID.Valid && rc.ranks[nodeID] >= 1
+		// A purged row: node_id is NULL by ON DELETE SET NULL. Only an admin
+		// of this space can see it — they see the whole feed anyway.
+		return rc.adminIn[spaceID]
 	}
 }

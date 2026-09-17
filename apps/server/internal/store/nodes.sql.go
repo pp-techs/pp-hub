@@ -52,7 +52,7 @@ func (q *Queries) AddVersion(ctx context.Context, arg AddVersionParams) (NodeVer
 const createNode = `-- name: CreateNode :one
 INSERT INTO nodes (space_id, parent_id, kind, name, created_by)
 VALUES ($1, $2, $3, $4, $5)
-RETURNING id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, created_by, created_at, deleted_by
+RETURNING id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, deleted_by, created_by, created_at
 `
 
 type CreateNodeParams struct {
@@ -81,9 +81,9 @@ func (q *Queries) CreateNode(ctx context.Context, arg CreateNodeParams) (Node, e
 		&i.Name,
 		&i.CurrentVersionID,
 		&i.DeletedAt,
+		&i.DeletedBy,
 		&i.CreatedBy,
 		&i.CreatedAt,
-		&i.DeletedBy,
 	)
 	return i, err
 }
@@ -112,7 +112,7 @@ func (q *Queries) GetCurrentVersion(ctx context.Context, id pgtype.UUID) (NodeVe
 }
 
 const getNode = `-- name: GetNode :one
-SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, created_by, created_at, deleted_by FROM nodes WHERE id = $1 AND deleted_at IS NULL LIMIT 1
+SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, deleted_by, created_by, created_at FROM nodes WHERE id = $1 AND deleted_at IS NULL LIMIT 1
 `
 
 func (q *Queries) GetNode(ctx context.Context, id pgtype.UUID) (Node, error) {
@@ -127,15 +127,15 @@ func (q *Queries) GetNode(ctx context.Context, id pgtype.UUID) (Node, error) {
 		&i.Name,
 		&i.CurrentVersionID,
 		&i.DeletedAt,
+		&i.DeletedBy,
 		&i.CreatedBy,
 		&i.CreatedAt,
-		&i.DeletedBy,
 	)
 	return i, err
 }
 
 const getNodeAny = `-- name: GetNodeAny :one
-SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, created_by, created_at, deleted_by FROM nodes WHERE id = $1 LIMIT 1
+SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, deleted_by, created_by, created_at FROM nodes WHERE id = $1 LIMIT 1
 `
 
 // Like GetNode but does not filter out soft-deleted rows. Trash operations
@@ -152,9 +152,9 @@ func (q *Queries) GetNodeAny(ctx context.Context, id pgtype.UUID) (Node, error) 
 		&i.Name,
 		&i.CurrentVersionID,
 		&i.DeletedAt,
+		&i.DeletedBy,
 		&i.CreatedBy,
 		&i.CreatedAt,
-		&i.DeletedBy,
 	)
 	return i, err
 }
@@ -171,7 +171,7 @@ func (q *Queries) GetNodeParent(ctx context.Context, id pgtype.UUID) (pgtype.UUI
 }
 
 const getSpaceRoot = `-- name: GetSpaceRoot :one
-SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, created_by, created_at, deleted_by FROM nodes
+SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, deleted_by, created_by, created_at FROM nodes
 WHERE space_id = $1 AND parent_id IS NULL AND deleted_at IS NULL
 ORDER BY created_at LIMIT 1
 `
@@ -188,9 +188,9 @@ func (q *Queries) GetSpaceRoot(ctx context.Context, spaceID pgtype.UUID) (Node, 
 		&i.Name,
 		&i.CurrentVersionID,
 		&i.DeletedAt,
+		&i.DeletedBy,
 		&i.CreatedBy,
 		&i.CreatedAt,
-		&i.DeletedBy,
 	)
 	return i, err
 }
@@ -228,8 +228,41 @@ func (q *Queries) HasChildren(ctx context.Context, parentID pgtype.UUID) (int64,
 	return count, err
 }
 
+const listArchiveRoots = `-- name: ListArchiveRoots :many
+SELECT id FROM nodes
+WHERE space_id = $1 AND created_by = $2 AND parent_id IS NULL
+`
+
+type ListArchiveRootsParams struct {
+	SpaceID   pgtype.UUID `json:"space_id"`
+	CreatedBy pgtype.UUID `json:"created_by"`
+}
+
+// Topmost nodes in $1 still created by $2 after TransferNestedOwnership:
+// roots. Every chain that never left the departed member's ownership tops
+// out at one of these, so moving each moves everything they owned.
+func (q *Queries) ListArchiveRoots(ctx context.Context, arg ListArchiveRootsParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, listArchiveRoots, arg.SpaceID, arg.CreatedBy)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []pgtype.UUID
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listChildren = `-- name: ListChildren :many
-SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, created_by, created_at, deleted_by FROM nodes
+SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, deleted_by, created_by, created_at FROM nodes
 WHERE space_id = $1
   AND parent_id IS NOT DISTINCT FROM $2
   AND deleted_at IS NULL
@@ -259,9 +292,9 @@ func (q *Queries) ListChildren(ctx context.Context, arg ListChildrenParams) ([]N
 			&i.Name,
 			&i.CurrentVersionID,
 			&i.DeletedAt,
+			&i.DeletedBy,
 			&i.CreatedBy,
 			&i.CreatedAt,
-			&i.DeletedBy,
 		); err != nil {
 			return nil, err
 		}
@@ -358,7 +391,7 @@ func (q *Queries) ListChildrenWithMeta(ctx context.Context, arg ListChildrenWith
 }
 
 const listDeleted = `-- name: ListDeleted :many
-SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, created_by, created_at, deleted_by FROM nodes
+SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, deleted_by, created_by, created_at FROM nodes
 WHERE space_id = $1 AND deleted_at IS NOT NULL
 ORDER BY deleted_at DESC
 `
@@ -381,9 +414,9 @@ func (q *Queries) ListDeleted(ctx context.Context, spaceID pgtype.UUID) ([]Node,
 			&i.Name,
 			&i.CurrentVersionID,
 			&i.DeletedAt,
+			&i.DeletedBy,
 			&i.CreatedBy,
 			&i.CreatedAt,
-			&i.DeletedBy,
 		); err != nil {
 			return nil, err
 		}
@@ -567,7 +600,7 @@ func (q *Queries) ListExpiredTrash(ctx context.Context, limit int32) ([]ListExpi
 }
 
 const listSharedWithMe = `-- name: ListSharedWithMe :many
-SELECT DISTINCT n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name, n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.deleted_by FROM nodes n
+SELECT DISTINCT n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name, n.current_version_id, n.deleted_at, n.deleted_by, n.created_by, n.created_at FROM nodes n
 JOIN spaces s ON s.id = n.space_id
 JOIN space_members m ON m.space_id = s.id
 WHERE m.user_id = $1
@@ -595,9 +628,9 @@ func (q *Queries) ListSharedWithMe(ctx context.Context, userID pgtype.UUID) ([]N
 			&i.Name,
 			&i.CurrentVersionID,
 			&i.DeletedAt,
+			&i.DeletedBy,
 			&i.CreatedBy,
 			&i.CreatedAt,
-			&i.DeletedBy,
 		); err != nil {
 			return nil, err
 		}
@@ -767,7 +800,7 @@ func (q *Queries) ListSubtreeBlobHashes(ctx context.Context, id pgtype.UUID) ([]
 }
 
 const listTree = `-- name: ListTree :many
-SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, created_by, created_at, deleted_by FROM nodes
+SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, deleted_by, created_by, created_at FROM nodes
 WHERE space_id = $1
   AND parent_id IS NOT DISTINCT FROM $2
   AND deleted_at IS NULL
@@ -797,9 +830,9 @@ func (q *Queries) ListTree(ctx context.Context, arg ListTreeParams) ([]Node, err
 			&i.Name,
 			&i.CurrentVersionID,
 			&i.DeletedAt,
+			&i.DeletedBy,
 			&i.CreatedBy,
 			&i.CreatedAt,
-			&i.DeletedBy,
 		); err != nil {
 			return nil, err
 		}
@@ -856,6 +889,22 @@ type MoveNodeParams struct {
 
 func (q *Queries) MoveNode(ctx context.Context, arg MoveNodeParams) error {
 	_, err := q.db.Exec(ctx, moveNode, arg.ID, arg.ParentID)
+	return err
+}
+
+const moveUnderArchiveRoot = `-- name: MoveUnderArchiveRoot :exec
+UPDATE nodes SET parent_id = $2 WHERE id = $1
+`
+
+type MoveUnderArchiveRootParams struct {
+	ID       pgtype.UUID `json:"id"`
+	ParentID pgtype.UUID `json:"parent_id"`
+}
+
+// Reparent without the live-only filter MoveNode has: a departed member's
+// trashed roots move too, so no node in the space keeps a gone owner.
+func (q *Queries) MoveUnderArchiveRoot(ctx context.Context, arg MoveUnderArchiveRootParams) error {
+	_, err := q.db.Exec(ctx, moveUnderArchiveRoot, arg.ID, arg.ParentID)
 	return err
 }
 
@@ -1064,6 +1113,41 @@ type StarNodeParams struct {
 
 func (q *Queries) StarNode(ctx context.Context, arg StarNodeParams) error {
 	_, err := q.db.Exec(ctx, starNode, arg.UserID, arg.NodeID)
+	return err
+}
+
+const transferNestedOwnership = `-- name: TransferNestedOwnership :exec
+WITH RECURSIVE up(origin, id, parent_id, created_by, depth) AS (
+    SELECT n.id, n.id, n.parent_id, n.created_by, 0
+    FROM nodes n
+    WHERE n.space_id = $1 AND n.created_by = $2
+  UNION ALL
+    SELECT u.origin, p.id, p.parent_id, p.created_by, u.depth + 1
+    FROM up u JOIN nodes p ON p.id = u.parent_id
+    WHERE u.created_by = $2
+),
+new_owner(origin, owner) AS (
+    SELECT DISTINCT ON (origin) origin, created_by
+    FROM up WHERE created_by <> $2
+    ORDER BY origin, depth
+)
+UPDATE nodes n SET created_by = o.owner
+FROM new_owner o
+WHERE n.id = o.origin
+`
+
+type TransferNestedOwnershipParams struct {
+	SpaceID pgtype.UUID `json:"space_id"`
+	UserID  pgtype.UUID `json:"user_id"`
+}
+
+// Nodes in $1 created by $2 that sit under somebody else's folder: ownership
+// climbs to the nearest ancestor's creator, so the content stays where it is
+// instead of moving to the archive. RemoveMember runs this before collecting
+// orphaned roots. Tombstones walk and transfer like live nodes, matching the
+// resolver's unfiltered recursive join.
+func (q *Queries) TransferNestedOwnership(ctx context.Context, arg TransferNestedOwnershipParams) error {
+	_, err := q.db.Exec(ctx, transferNestedOwnership, arg.SpaceID, arg.UserID)
 	return err
 }
 

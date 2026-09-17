@@ -237,3 +237,39 @@ WHERE n.deleted_at IS NOT NULL
   AND s.trash_retention_days > 0
   AND n.deleted_at < now() - (s.trash_retention_days * INTERVAL '1 day')
 LIMIT $1;
+
+-- name: TransferNestedOwnership :exec
+-- Nodes in $1 created by $2 that sit under somebody else's folder: ownership
+-- climbs to the nearest ancestor's creator, so the content stays where it is
+-- instead of moving to the archive. RemoveMember runs this before collecting
+-- orphaned roots. Tombstones walk and transfer like live nodes, matching the
+-- resolver's unfiltered recursive join.
+WITH RECURSIVE up(origin, id, parent_id, created_by, depth) AS (
+    SELECT n.id, n.id, n.parent_id, n.created_by, 0
+    FROM nodes n
+    WHERE n.space_id = @space_id AND n.created_by = @user_id
+  UNION ALL
+    SELECT u.origin, p.id, p.parent_id, p.created_by, u.depth + 1
+    FROM up u JOIN nodes p ON p.id = u.parent_id
+    WHERE u.created_by = @user_id
+),
+new_owner(origin, owner) AS (
+    SELECT DISTINCT ON (origin) origin, created_by
+    FROM up WHERE created_by <> @user_id
+    ORDER BY origin, depth
+)
+UPDATE nodes n SET created_by = o.owner
+FROM new_owner o
+WHERE n.id = o.origin;
+
+-- name: ListArchiveRoots :many
+-- Topmost nodes in $1 still created by $2 after TransferNestedOwnership:
+-- roots. Every chain that never left the departed member's ownership tops
+-- out at one of these, so moving each moves everything they owned.
+SELECT id FROM nodes
+WHERE space_id = $1 AND created_by = $2 AND parent_id IS NULL;
+
+-- name: MoveUnderArchiveRoot :exec
+-- Reparent without the live-only filter MoveNode has: a departed member's
+-- trashed roots move too, so no node in the space keeps a gone owner.
+UPDATE nodes SET parent_id = $2 WHERE id = $1;

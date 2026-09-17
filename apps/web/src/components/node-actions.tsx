@@ -120,7 +120,9 @@ export function nodeActions(
     shortcut: "⌘⇧S",
     run: () => openPanel("share", node),
   });
-  if (node.kind === "dir" && handlers.onManageAccess) {
+  // Standing group access is offered to whoever may share this folder: its
+  // owner, or anyone a grant handed the share capability to.
+  if (node.kind === "dir" && node.caps?.share && handlers.onManageAccess) {
     actions.push({
       key: "access",
       label: "Who can open this…",
@@ -157,6 +159,5 @@ export function nodeActions(
     startsGroup: true,
     run: () => handlers.onDeleteRequest(node),
   });
-
   return actions;
 }

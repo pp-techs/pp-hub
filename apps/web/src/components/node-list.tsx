@@ -116,8 +116,11 @@ function NodeListRow({
           <td className="px-3">
             <div className="flex min-w-0 items-center gap-2">
               <NodeIcon node={node} />
-              <span className="truncate font-medium" title={node.name}>
-                {node.name}
+              <span
+                className="flex min-w-0 items-center gap-1.5 truncate font-medium"
+                title={node.name}
+              >
+                <span className="truncate">{node.name}</span>
               </span>
             </div>
           </td>

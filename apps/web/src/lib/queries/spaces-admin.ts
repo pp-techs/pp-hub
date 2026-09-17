@@ -9,7 +9,6 @@ import {
   revokeInvitation,
   updateAdminUser,
   updateSpace,
-  type MemberRole,
   type SpaceSettings,
 } from "@/lib/api";
 import { keys } from "./keys";
@@ -42,8 +41,8 @@ export function useInvitations(spaceId: string, enabled = true) {
 export function useCreateInvitation(spaceId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ email, role }: { email: string; role: MemberRole }) =>
-      createInvitation(spaceId, email, role),
+    mutationFn: ({ email, as_admin }: { email: string; as_admin: boolean }) =>
+      createInvitation(spaceId, email, as_admin),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: keys.invitations(spaceId) });
       // An existing account is added straight to the member list.

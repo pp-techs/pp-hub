@@ -1,6 +1,6 @@
 // User management API endpoints.
 import { api, ApiError } from "./client";
-import type { AdminUser, MemberRole, SpaceMember, UserProfile, UserSearchResult } from "./types";
+import type { AdminUser, SpaceMember, UserProfile, UserSearchResult } from "./types";
 
 // ─── Profile ─────────────────────────────────────────────────────────────────
 
@@ -61,7 +61,7 @@ export async function getSpaceMembers(spaceId: string): Promise<SpaceMember[]> {
 
 export async function addSpaceMember(
   spaceId: string,
-  body: { user_id: string; role: MemberRole },
+  body: { user_id: string; as_admin: boolean },
 ): Promise<void> {
   const res = await api.post(`api/v1/spaces/${spaceId}/members`, { json: body });
   if (!res.ok) {
@@ -70,13 +70,15 @@ export async function addSpaceMember(
   }
 }
 
-export async function updateMemberRole(
+export async function setMemberAdmin(
   spaceId: string,
   userId: string,
-  role: MemberRole,
+  as_admin: boolean,
 ): Promise<void> {
-  const res = await api.patch(`api/v1/spaces/${spaceId}/members/${userId}`, { json: { role } });
-  if (!res.ok) throw new ApiError(res.status, "Failed to update role");
+  const res = await api.post(`api/v1/spaces/${spaceId}/members/${userId}/set-admin`, {
+    json: { as_admin },
+  });
+  if (!res.ok) throw new ApiError(res.status, "Failed to update admin status");
 }
 
 export async function removeSpaceMember(spaceId: string, userId: string): Promise<void> {

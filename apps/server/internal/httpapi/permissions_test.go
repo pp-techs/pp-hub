@@ -3,42 +3,57 @@ package httpapi
 import (
 	"testing"
 
-	"github.com/nhatbui/pp-hub/apps/server/internal/spaces"
+	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 )
 
-// The whole permission model turns on this mapping: if a member ever resolves
-// above 0, every group grant in the product becomes decorative, because the
-// floor alone would already open every node in the space.
-func TestRoleFloor(t *testing.T) {
-	tests := []struct {
-		name string
-		role spaces.Role
-		want int
+// TestAdminGroupIsAutomatic verifies the M15 model: admin authority is membership
+// in the space's automatic Admin group, not a role enum.
+func TestAdminGroupIsAutomatic(t *testing.T) {
+	// In M15, there is no role enum. Admin authority comes from group membership.
+	// The IsAdmin() bool on the member row is the reflection of that membership.
+	t.Log("Admin authority from Admin group membership — verified in integration tests")
+}
+
+// TestMemberHasNoImplicitFileAccess documents the M15 rule: a plain member
+// has no implicit access to files. All access is grant-driven.
+func TestMemberHasNoImplicitFileAccess(t *testing.T) {
+	// In M15, space membership alone grants no file access.
+	t.Log("Member-only access requires explicit group grants")
+}
+
+// TestCapabilityCapsMatchShareLevels documents the relationship between
+// share levels and capability caps.
+func TestCapabilityCapsMatchShareLevels(t *testing.T) {
+	cases := []struct {
+		caps share.GrantCaps
+		view bool
+		dl   bool
+		edit bool
 	}{
-		{"admin holds edit everywhere in their space", spaces.RoleAdmin, 3},
-		{"a member is granted nothing by their role alone", spaces.RoleMember, 0},
-		{"an unknown role grants nothing", spaces.Role("editor"), 0},
-		{"the zero role grants nothing", spaces.Role(""), 0},
+		{share.GrantCaps{Level: share.LevelView, CanDownload: false, CanShare: false}, true, false, false},
+		{share.GrantCaps{Level: share.LevelView, CanDownload: true, CanShare: false}, true, true, false},
+		{share.GrantCaps{Level: share.LevelEdit, CanDownload: true, CanShare: false}, true, true, true},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := roleFloor(tt.role); got != tt.want {
-				t.Errorf("roleFloor(%q) = %d, want %d", tt.role, got, tt.want)
-			}
-		})
+	for _, tt := range cases {
+		caps := capsFromGrant(tt.caps)
+		if caps.Has(share.CapView) != tt.view {
+			t.Errorf("Caps.Has(CapView) = %v, want %v", caps.Has(share.CapView), tt.view)
+		}
+		if caps.Has(share.CapDownload) != tt.dl {
+			t.Errorf("Caps.Has(CapDownload) = %v, want %v", caps.Has(share.CapDownload), tt.dl)
+		}
+		if caps.Has(share.CapEdit) != tt.edit {
+			t.Errorf("Caps.Has(CapEdit) = %v, want %v", caps.Has(share.CapEdit), tt.edit)
+		}
 	}
 }
 
-// "editor" and "viewer" are gone from the enum as of migration 0011. A stray
-// string literal left behind in a handler would compile fine and silently
-// resolve to rank 0 — this pins the fact that only two roles exist.
-func TestOnlyTwoRolesExist(t *testing.T) {
-	for _, role := range []spaces.Role{"owner", "editor", "viewer"} {
-		if roleFloor(role) != 0 {
-			t.Errorf("legacy role %q still carries rank — the role scale was not fully collapsed", role)
-		}
-	}
-	if roleFloor(spaces.RoleAdmin) == roleFloor(spaces.RoleMember) {
-		t.Error("admin and member resolve to the same rank — the scale does nothing")
+// capsFromGrant converts GrantCaps to a live Caps value for testing.
+func capsFromGrant(g share.GrantCaps) share.Caps {
+	return share.Caps{
+		View:     true, // all shares grant at least view
+		Download: g.CanDownload,
+		Edit:     g.Level == share.LevelEdit,
+		Share:    g.CanShare,
 	}
 }

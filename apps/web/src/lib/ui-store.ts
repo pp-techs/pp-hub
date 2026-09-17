@@ -59,7 +59,10 @@ export const useUiStore = create<UiState>()(
         const cur = get().dirs[node.id];
         if (cur && cur.name === node.name && cur.parent === node.parent_id) return;
         set((s) => ({
-          dirs: { ...s.dirs, [node.id]: { name: node.name, parent: node.parent_id } },
+          dirs: {
+            ...s.dirs,
+            [node.id]: { name: node.name, parent: node.parent_id },
+          },
         }));
       },
       setLastSpaceId: (id) => set({ lastSpaceId: id }),

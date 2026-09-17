@@ -23,7 +23,11 @@ func (q *Queries) CountUsers(ctx context.Context, tenantID string) (int64, error
 }
 
 const getSpaceMembers = `-- name: GetSpaceMembers :many
-SELECT m.user_id, m.role, m.created_at, u.email, u.name, u.display_name, u.avatar_url
+SELECT m.user_id, m.created_at, u.email, u.name, u.display_name, u.avatar_url,
+  EXISTS (
+    SELECT 1 FROM group_members gm JOIN groups g ON g.id = gm.group_id
+    WHERE g.space_id = m.space_id AND g.is_admin AND gm.user_id = m.user_id
+  ) AS is_admin
 FROM space_members m
 JOIN users u ON u.id = m.user_id
 WHERE m.space_id = $1
@@ -32,12 +36,12 @@ ORDER BY m.created_at
 
 type GetSpaceMembersRow struct {
 	UserID      pgtype.UUID        `json:"user_id"`
-	Role        MemberRole         `json:"role"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 	Email       string             `json:"email"`
 	Name        string             `json:"name"`
 	DisplayName string             `json:"display_name"`
 	AvatarUrl   string             `json:"avatar_url"`
+	IsAdmin     bool               `json:"is_admin"`
 }
 
 func (q *Queries) GetSpaceMembers(ctx context.Context, spaceID pgtype.UUID) ([]GetSpaceMembersRow, error) {
@@ -51,12 +55,12 @@ func (q *Queries) GetSpaceMembers(ctx context.Context, spaceID pgtype.UUID) ([]G
 		var i GetSpaceMembersRow
 		if err := rows.Scan(
 			&i.UserID,
-			&i.Role,
 			&i.CreatedAt,
 			&i.Email,
 			&i.Name,
 			&i.DisplayName,
 			&i.AvatarUrl,
+			&i.IsAdmin,
 		); err != nil {
 			return nil, err
 		}
@@ -69,7 +73,7 @@ func (q *Queries) GetSpaceMembers(ctx context.Context, spaceID pgtype.UUID) ([]G
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, created_at, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at FROM users WHERE id = $1 LIMIT 1
+SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at FROM users WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetUser(ctx context.Context, id pgtype.UUID) (User, error) {
@@ -82,7 +86,6 @@ func (q *Queries) GetUser(ctx context.Context, id pgtype.UUID) (User, error) {
 		&i.OidcIss,
 		&i.Email,
 		&i.Name,
-		&i.CreatedAt,
 		&i.DisplayName,
 		&i.AvatarUrl,
 		&i.Bio,
@@ -91,12 +94,13 @@ func (q *Queries) GetUser(ctx context.Context, id pgtype.UUID) (User, error) {
 		&i.LastSeen,
 		&i.EmailHash,
 		&i.SuspendedAt,
+		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, created_at, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at FROM users WHERE email = $1 LIMIT 1
+SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at FROM users WHERE email = $1 LIMIT 1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -109,7 +113,6 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.OidcIss,
 		&i.Email,
 		&i.Name,
-		&i.CreatedAt,
 		&i.DisplayName,
 		&i.AvatarUrl,
 		&i.Bio,
@@ -118,6 +121,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.LastSeen,
 		&i.EmailHash,
 		&i.SuspendedAt,
+		&i.CreatedAt,
 	)
 	return i, err
 }
@@ -139,7 +143,7 @@ func (q *Queries) IsSpaceMember(ctx context.Context, arg IsSpaceMemberParams) (b
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, created_at, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at FROM users
+SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at FROM users
 WHERE tenant_id = $1
 ORDER BY created_at DESC
 LIMIT $2 OFFSET $3
@@ -167,7 +171,6 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 			&i.OidcIss,
 			&i.Email,
 			&i.Name,
-			&i.CreatedAt,
 			&i.DisplayName,
 			&i.AvatarUrl,
 			&i.Bio,
@@ -176,6 +179,7 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 			&i.LastSeen,
 			&i.EmailHash,
 			&i.SuspendedAt,
+			&i.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -262,7 +266,7 @@ func (q *Queries) SetUserAdmin(ctx context.Context, arg SetUserAdminParams) erro
 }
 
 const setUserAvatar = `-- name: SetUserAvatar :one
-UPDATE users SET avatar_url = $2 WHERE id = $1 RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, created_at, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at
+UPDATE users SET avatar_url = $2 WHERE id = $1 RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at
 `
 
 type SetUserAvatarParams struct {
@@ -280,7 +284,6 @@ func (q *Queries) SetUserAvatar(ctx context.Context, arg SetUserAvatarParams) (U
 		&i.OidcIss,
 		&i.Email,
 		&i.Name,
-		&i.CreatedAt,
 		&i.DisplayName,
 		&i.AvatarUrl,
 		&i.Bio,
@@ -289,6 +292,7 @@ func (q *Queries) SetUserAvatar(ctx context.Context, arg SetUserAvatarParams) (U
 		&i.LastSeen,
 		&i.EmailHash,
 		&i.SuspendedAt,
+		&i.CreatedAt,
 	)
 	return i, err
 }
@@ -297,7 +301,7 @@ const updateUserProfile = `-- name: UpdateUserProfile :one
 UPDATE users
 SET display_name = $2, bio = $3, settings = COALESCE($4, settings)
 WHERE id = $1
-RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, created_at, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at
+RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at
 `
 
 type UpdateUserProfileParams struct {
@@ -322,7 +326,6 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		&i.OidcIss,
 		&i.Email,
 		&i.Name,
-		&i.CreatedAt,
 		&i.DisplayName,
 		&i.AvatarUrl,
 		&i.Bio,
@@ -331,6 +334,7 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		&i.LastSeen,
 		&i.EmailHash,
 		&i.SuspendedAt,
+		&i.CreatedAt,
 	)
 	return i, err
 }
@@ -340,7 +344,7 @@ INSERT INTO users (oidc_sub, oidc_iss, email, name)
 VALUES ($1, $2, $3, $4)
 ON CONFLICT (oidc_iss, oidc_sub)
 DO UPDATE SET email = EXCLUDED.email, name = EXCLUDED.name, last_seen = now()
-RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, created_at, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at
+RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at
 `
 
 type UpsertUserParams struct {
@@ -365,7 +369,6 @@ func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) (User, e
 		&i.OidcIss,
 		&i.Email,
 		&i.Name,
-		&i.CreatedAt,
 		&i.DisplayName,
 		&i.AvatarUrl,
 		&i.Bio,
@@ -374,6 +377,7 @@ func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) (User, e
 		&i.LastSeen,
 		&i.EmailHash,
 		&i.SuspendedAt,
+		&i.CreatedAt,
 	)
 	return i, err
 }

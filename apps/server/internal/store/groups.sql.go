@@ -38,10 +38,25 @@ func (q *Queries) CountGrantsForGroup(ctx context.Context, granteeGroupID pgtype
 	return column_1, err
 }
 
+const countSpaceAdmins = `-- name: CountSpaceAdmins :one
+SELECT COUNT(*)::int FROM group_members gm
+JOIN groups g ON g.id = gm.group_id
+WHERE g.space_id = $1 AND g.is_admin
+`
+
+// The last-admin guard: removing or demoting the final Admin-group member
+// would leave the space unadministrable.
+func (q *Queries) CountSpaceAdmins(ctx context.Context, spaceID pgtype.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, countSpaceAdmins, spaceID)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const createGroup = `-- name: CreateGroup :one
-INSERT INTO groups (space_id, name, description, is_everyone, created_by)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING id, tenant_id, space_id, name, description, is_everyone, created_by, created_at
+INSERT INTO groups (space_id, name, description, is_everyone, is_admin, created_by)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, tenant_id, space_id, name, description, is_everyone, is_admin, created_by, created_at
 `
 
 type CreateGroupParams struct {
@@ -49,6 +64,7 @@ type CreateGroupParams struct {
 	Name        string      `json:"name"`
 	Description string      `json:"description"`
 	IsEveryone  bool        `json:"is_everyone"`
+	IsAdmin     bool        `json:"is_admin"`
 	CreatedBy   pgtype.UUID `json:"created_by"`
 }
 
@@ -58,6 +74,7 @@ func (q *Queries) CreateGroup(ctx context.Context, arg CreateGroupParams) (Group
 		arg.Name,
 		arg.Description,
 		arg.IsEveryone,
+		arg.IsAdmin,
 		arg.CreatedBy,
 	)
 	var i Group
@@ -68,6 +85,7 @@ func (q *Queries) CreateGroup(ctx context.Context, arg CreateGroupParams) (Group
 		&i.Name,
 		&i.Description,
 		&i.IsEveryone,
+		&i.IsAdmin,
 		&i.CreatedBy,
 		&i.CreatedAt,
 	)
@@ -98,44 +116,66 @@ func (q *Queries) DeleteGroupGrant(ctx context.Context, arg DeleteGroupGrantPara
 	return err
 }
 
-const findPersonalFolder = `-- name: FindPersonalFolder :one
-SELECT n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name, n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.deleted_by FROM nodes n
-JOIN spaces s ON s.id = n.space_id
-WHERE n.space_id = $1
-  AND s.personal_root_id IS NOT NULL
-  AND n.parent_id = s.personal_root_id
-  AND n.created_by = $2
-  AND n.deleted_at IS NULL
-LIMIT 1
+const deleteSharesByCreatorInSpace = `-- name: DeleteSharesByCreatorInSpace :exec
+DELETE FROM shares s USING nodes n
+WHERE s.node_id = n.id AND n.space_id = $1 AND s.created_by = $2
 `
 
-type FindPersonalFolderParams struct {
+type DeleteSharesByCreatorInSpaceParams struct {
 	SpaceID   pgtype.UUID `json:"space_id"`
 	CreatedBy pgtype.UUID `json:"created_by"`
 }
 
-// The caller's own folder under a space's Personal root, if they have one.
-func (q *Queries) FindPersonalFolder(ctx context.Context, arg FindPersonalFolderParams) (Node, error) {
-	row := q.db.QueryRow(ctx, findPersonalFolder, arg.SpaceID, arg.CreatedBy)
-	var i Node
+// Every grant the departed member made, links included: their sharing
+// decisions leave with them. Admins recover content — and re-share it — from
+// the archive rather than inheriting the departed member's grants.
+func (q *Queries) DeleteSharesByCreatorInSpace(ctx context.Context, arg DeleteSharesByCreatorInSpaceParams) error {
+	_, err := q.db.Exec(ctx, deleteSharesByCreatorInSpace, arg.SpaceID, arg.CreatedBy)
+	return err
+}
+
+const deleteSharesByGranteeInSpace = `-- name: DeleteSharesByGranteeInSpace :exec
+DELETE FROM shares s USING nodes n
+WHERE s.node_id = n.id AND n.space_id = $1 AND s.grantee_user_id = $2
+`
+
+type DeleteSharesByGranteeInSpaceParams struct {
+	SpaceID       pgtype.UUID `json:"space_id"`
+	GranteeUserID pgtype.UUID `json:"grantee_user_id"`
+}
+
+// Every direct grant naming the departed member: inbound access dies with
+// membership.
+func (q *Queries) DeleteSharesByGranteeInSpace(ctx context.Context, arg DeleteSharesByGranteeInSpaceParams) error {
+	_, err := q.db.Exec(ctx, deleteSharesByGranteeInSpace, arg.SpaceID, arg.GranteeUserID)
+	return err
+}
+
+const getAdminGroup = `-- name: GetAdminGroup :one
+SELECT id, tenant_id, space_id, name, description, is_everyone, is_admin, created_by, created_at FROM groups WHERE space_id = $1 AND is_admin LIMIT 1
+`
+
+// Every space has exactly one, enforced by groups_admin_uniq. Membership in it
+// IS the admin role — there is no role column anymore (M15).
+func (q *Queries) GetAdminGroup(ctx context.Context, spaceID pgtype.UUID) (Group, error) {
+	row := q.db.QueryRow(ctx, getAdminGroup, spaceID)
+	var i Group
 	err := row.Scan(
 		&i.ID,
 		&i.TenantID,
 		&i.SpaceID,
-		&i.ParentID,
-		&i.Kind,
 		&i.Name,
-		&i.CurrentVersionID,
-		&i.DeletedAt,
+		&i.Description,
+		&i.IsEveryone,
+		&i.IsAdmin,
 		&i.CreatedBy,
 		&i.CreatedAt,
-		&i.DeletedBy,
 	)
 	return i, err
 }
 
 const getEveryoneGroup = `-- name: GetEveryoneGroup :one
-SELECT id, tenant_id, space_id, name, description, is_everyone, created_by, created_at FROM groups WHERE space_id = $1 AND is_everyone LIMIT 1
+SELECT id, tenant_id, space_id, name, description, is_everyone, is_admin, created_by, created_at FROM groups WHERE space_id = $1 AND is_everyone LIMIT 1
 `
 
 // Every space has exactly one, enforced by groups_everyone_uniq.
@@ -149,6 +189,7 @@ func (q *Queries) GetEveryoneGroup(ctx context.Context, spaceID pgtype.UUID) (Gr
 		&i.Name,
 		&i.Description,
 		&i.IsEveryone,
+		&i.IsAdmin,
 		&i.CreatedBy,
 		&i.CreatedAt,
 	)
@@ -156,7 +197,7 @@ func (q *Queries) GetEveryoneGroup(ctx context.Context, spaceID pgtype.UUID) (Gr
 }
 
 const getGroup = `-- name: GetGroup :one
-SELECT id, tenant_id, space_id, name, description, is_everyone, created_by, created_at FROM groups WHERE id = $1 LIMIT 1
+SELECT id, tenant_id, space_id, name, description, is_everyone, is_admin, created_by, created_at FROM groups WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetGroup(ctx context.Context, id pgtype.UUID) (Group, error) {
@@ -169,6 +210,7 @@ func (q *Queries) GetGroup(ctx context.Context, id pgtype.UUID) (Group, error) {
 		&i.Name,
 		&i.Description,
 		&i.IsEveryone,
+		&i.IsAdmin,
 		&i.CreatedBy,
 		&i.CreatedAt,
 	)
@@ -193,45 +235,79 @@ func (q *Queries) IsGroupMember(ctx context.Context, arg IsGroupMemberParams) (b
 	return column_1, err
 }
 
+const isSpaceAdmin = `-- name: IsSpaceAdmin :one
+SELECT EXISTS (
+  SELECT 1 FROM group_members gm
+  JOIN groups g ON g.id = gm.group_id
+  WHERE g.space_id = $1 AND g.is_admin AND gm.user_id = $2
+)::bool
+`
+
+type IsSpaceAdminParams struct {
+	SpaceID pgtype.UUID `json:"space_id"`
+	UserID  pgtype.UUID `json:"user_id"`
+}
+
+// Admin authority is Admin-group membership. This is the only query that
+// answers "is this user an admin of the space".
+func (q *Queries) IsSpaceAdmin(ctx context.Context, arg IsSpaceAdminParams) (bool, error) {
+	row := q.db.QueryRow(ctx, isSpaceAdmin, arg.SpaceID, arg.UserID)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const listEntryPoints = `-- name: ListEntryPoints :many
-WITH RECURSIVE granted AS (
+WITH RECURSIVE entry(id) AS (
     SELECT DISTINCT s.node_id
     FROM shares s
     WHERE (s.expires_at IS NULL OR s.expires_at > now())
-      AND ( (s.kind = 'direct' AND s.grantee_user_id = $2)
+      AND ( (s.kind = 'direct' AND s.grantee_user_id = $3)
          OR (s.kind = 'group'  AND s.grantee_group_id IN (
-                SELECT gm.group_id FROM group_members gm WHERE gm.user_id = $2)) )
+                SELECT gm.group_id FROM group_members gm WHERE gm.user_id = $3)) )
+    UNION
+    -- Owned, but only inside a space the caller still belongs to: leaving ends
+    -- the reach, and a departed member's roots live in the archive now.
+    SELECT n.id FROM nodes n
+    WHERE $2::bool AND n.created_by = $3
+      AND ($1::uuid IS NULL OR n.space_id = $1::uuid)
+      AND EXISTS (
+          SELECT 1 FROM space_members sm
+          WHERE sm.space_id = n.space_id AND sm.user_id = $3
+      )
 ),
-walk(origin, id, parent_id, depth) AS (
-    SELECT g.node_id, g.node_id, n.parent_id, 0
-    FROM granted g JOIN nodes n ON n.id = g.node_id
+walk(origin, id, depth) AS (
+    SELECT e.id, n.parent_id, 0
+    FROM entry e JOIN nodes n ON n.id = e.id
   UNION ALL
-    SELECT w.origin, p.id, p.parent_id, w.depth + 1
-    FROM walk w JOIN nodes p ON p.id = w.parent_id
+    SELECT w.origin, p.id, w.depth + 1
+    FROM walk w JOIN nodes p ON p.id = w.id
 )
 SELECT
   n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
   n.current_version_id, n.deleted_at, n.created_by, n.created_at,
   v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
   u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email
-FROM granted g
-JOIN nodes n ON n.id = g.node_id
+FROM entry e
+JOIN nodes n ON n.id = e.id
 LEFT JOIN node_versions v ON v.id = n.current_version_id
 LEFT JOIN users u ON u.id = n.created_by
 WHERE n.deleted_at IS NULL
   AND ($1::uuid IS NULL OR n.space_id = $1::uuid)
+  AND ($2::bool OR n.created_by <> $3)
   AND NOT EXISTS (
       SELECT 1 FROM walk w
-      JOIN granted g2 ON g2.node_id = w.id
-      WHERE w.origin = g.node_id AND w.depth > 0
+      JOIN entry e2 ON e2.id = w.id
+      WHERE w.origin = e.id AND w.depth > 0
   )
 ORDER BY n.kind, n.name
 LIMIT 200
 `
 
 type ListEntryPointsParams struct {
-	SpaceID pgtype.UUID `json:"space_id"`
-	UserID  pgtype.UUID `json:"user_id"`
+	SpaceID      pgtype.UUID `json:"space_id"`
+	IncludeOwned bool        `json:"include_owned"`
+	UserID       pgtype.UUID `json:"user_id"`
 }
 
 type ListEntryPointsRow struct {
@@ -257,22 +333,20 @@ type ListEntryPointsRow struct {
 	OwnerEmail       pgtype.Text        `json:"owner_email"`
 }
 
-// The topmost nodes the caller holds a grant on — the places their access
-// starts. A node whose ancestor is also granted is excluded: it is reachable by
-// walking down from that ancestor, so listing it separately is noise.
+// The topmost nodes the caller can reach — the places their access starts.
+// Reachable means granted (directly or via a group) or owned outright
+// (created_by, only when @include_owned — a space's home view). "Shared with
+// me" passes include_owned = false and also drops granted rows the caller
+// owns: your own file is not something shared with you.
 //
-// Two callers. Unscoped (@space_id NULL) it is "Shared with me", across every
-// space. Scoped to one space it is what a MEMBER sees at that space's top
-// level, which is not the same as the granted root folders: a member's own
-// personal folder lives inside "Personal", a folder they hold no grant on, so
-// listing only granted root children would hide it behind a door they cannot
-// open. Entry points surface it where they expect it.
+// A node sitting under another reachable node is excluded: it is found by
+// walking down from that ancestor, so listing it separately is noise.
 // WITH RECURSIVE must lead the statement; a nested one inside a plain CTE is
 // valid Postgres but sqlc cannot parse it.
-// Every strict ancestor of each granted node, so the ones sitting underneath
-// another grant can be dropped.
+// Every strict ancestor of each entry, so the ones sitting underneath
+// another entry can be dropped.
 func (q *Queries) ListEntryPoints(ctx context.Context, arg ListEntryPointsParams) ([]ListEntryPointsRow, error) {
-	rows, err := q.db.Query(ctx, listEntryPoints, arg.SpaceID, arg.UserID)
+	rows, err := q.db.Query(ctx, listEntryPoints, arg.SpaceID, arg.IncludeOwned, arg.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -325,14 +399,15 @@ LEFT JOIN users u ON u.id = n.created_by
 WHERE n.space_id = $1
   AND n.parent_id IS NOT DISTINCT FROM $2
   AND n.deleted_at IS NULL
-  AND EXISTS (
-    SELECT 1 FROM shares s
-    WHERE s.node_id = n.id
-      AND (s.expires_at IS NULL OR s.expires_at > now())
-      AND ( (s.kind = 'direct' AND s.grantee_user_id = $3)
-         OR (s.kind = 'group'  AND s.grantee_group_id IN (
-                SELECT gm.group_id FROM group_members gm WHERE gm.user_id = $3)) )
-  )
+  AND ( n.created_by = $3
+     OR EXISTS (
+        SELECT 1 FROM shares s
+        WHERE s.node_id = n.id
+          AND (s.expires_at IS NULL OR s.expires_at > now())
+          AND ( (s.kind = 'direct' AND s.grantee_user_id = $3)
+             OR (s.kind = 'group'  AND s.grantee_group_id IN (
+                    SELECT gm.group_id FROM group_members gm WHERE gm.user_id = $3)) )
+  )   )
 ORDER BY n.kind, n.name
 `
 
@@ -366,12 +441,13 @@ type ListGrantedChildrenWithMetaRow struct {
 }
 
 // ------------------------------------------------- grant-scoped listings ---
-// Children of $2 that the caller holds a grant on *directly*.
+// Children of $2 that the caller can reach *directly*: they own them
+// (created_by) or hold a grant on them.
 //
 // Only correct when the caller has no access to the parent itself: access
-// inherits downward, so if any ancestor were granted the whole listing would be
-// visible and the caller would use ListChildrenWithMeta instead. Callers must
-// check the parent's rank first.
+// inherits downward, so if any ancestor were reachable the whole listing
+// would be visible and the caller would use ListChildrenWithMeta instead.
+// Callers must check the parent's capabilities first.
 func (q *Queries) ListGrantedChildrenWithMeta(ctx context.Context, arg ListGrantedChildrenWithMetaParams) ([]ListGrantedChildrenWithMetaRow, error) {
 	rows, err := q.db.Query(ctx, listGrantedChildrenWithMeta, arg.SpaceID, arg.ParentID, arg.UserID)
 	if err != nil {
@@ -414,22 +490,25 @@ func (q *Queries) ListGrantedChildrenWithMeta(ctx context.Context, arg ListGrant
 }
 
 const listGrantsForNode = `-- name: ListGrantsForNode :many
-SELECT s.id, s.perm, s.expires_at, s.created_at,
-       g.id AS group_id, g.name AS group_name, g.is_everyone
+SELECT s.id, s.level, s.can_download, s.can_share, s.expires_at, s.created_at,
+       g.id AS group_id, g.name AS group_name, g.is_everyone, g.is_admin
 FROM shares s
 JOIN groups g ON g.id = s.grantee_group_id
 WHERE s.kind = 'group' AND s.node_id = $1
-ORDER BY g.is_everyone DESC, lower(g.name)
+ORDER BY g.is_everyone DESC, g.is_admin DESC, lower(g.name)
 `
 
 type ListGrantsForNodeRow struct {
-	ID         pgtype.UUID        `json:"id"`
-	Perm       SharePerm          `json:"perm"`
-	ExpiresAt  pgtype.Timestamptz `json:"expires_at"`
-	CreatedAt  pgtype.Timestamptz `json:"created_at"`
-	GroupID    pgtype.UUID        `json:"group_id"`
-	GroupName  string             `json:"group_name"`
-	IsEveryone bool               `json:"is_everyone"`
+	ID          pgtype.UUID        `json:"id"`
+	Level       ShareLevel         `json:"level"`
+	CanDownload bool               `json:"can_download"`
+	CanShare    bool               `json:"can_share"`
+	ExpiresAt   pgtype.Timestamptz `json:"expires_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	GroupID     pgtype.UUID        `json:"group_id"`
+	GroupName   string             `json:"group_name"`
+	IsEveryone  bool               `json:"is_everyone"`
+	IsAdmin     bool               `json:"is_admin"`
 }
 
 // Group grants on one node, with the group named so the UI need not join.
@@ -444,12 +523,15 @@ func (q *Queries) ListGrantsForNode(ctx context.Context, nodeID pgtype.UUID) ([]
 		var i ListGrantsForNodeRow
 		if err := rows.Scan(
 			&i.ID,
-			&i.Perm,
+			&i.Level,
+			&i.CanDownload,
+			&i.CanShare,
 			&i.ExpiresAt,
 			&i.CreatedAt,
 			&i.GroupID,
 			&i.GroupName,
 			&i.IsEveryone,
+			&i.IsAdmin,
 		); err != nil {
 			return nil, err
 		}
@@ -506,13 +588,13 @@ func (q *Queries) ListGroupMembers(ctx context.Context, groupID pgtype.UUID) ([]
 }
 
 const listGroups = `-- name: ListGroups :many
-SELECT g.id, g.tenant_id, g.space_id, g.name, g.description, g.is_everyone, g.created_by, g.created_at,
+SELECT g.id, g.tenant_id, g.space_id, g.name, g.description, g.is_everyone, g.is_admin, g.created_by, g.created_at,
        (SELECT COUNT(*) FROM group_members gm WHERE gm.group_id = g.id)::int AS member_count,
        (SELECT COUNT(*) FROM shares s
           WHERE s.grantee_group_id = g.id AND s.kind = 'group')::int AS grant_count
 FROM groups g
 WHERE g.space_id = $1
-ORDER BY g.is_everyone DESC, lower(g.name)
+ORDER BY g.is_everyone DESC, g.is_admin DESC, lower(g.name)
 `
 
 type ListGroupsRow struct {
@@ -522,13 +604,14 @@ type ListGroupsRow struct {
 	Name        string             `json:"name"`
 	Description string             `json:"description"`
 	IsEveryone  bool               `json:"is_everyone"`
+	IsAdmin     bool               `json:"is_admin"`
 	CreatedBy   pgtype.UUID        `json:"created_by"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 	MemberCount int32              `json:"member_count"`
 	GrantCount  int32              `json:"grant_count"`
 }
 
-// The automatic group sorts first; it is the one an admin reaches for most.
+// The automatic groups sort first; they are the ones reached for most.
 func (q *Queries) ListGroups(ctx context.Context, spaceID pgtype.UUID) ([]ListGroupsRow, error) {
 	rows, err := q.db.Query(ctx, listGroups, spaceID)
 	if err != nil {
@@ -545,6 +628,7 @@ func (q *Queries) ListGroups(ctx context.Context, spaceID pgtype.UUID) ([]ListGr
 			&i.Name,
 			&i.Description,
 			&i.IsEveryone,
+			&i.IsAdmin,
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.MemberCount,
@@ -595,24 +679,8 @@ func (q *Queries) RemoveUserFromSpaceGroups(ctx context.Context, arg RemoveUserF
 	return err
 }
 
-const setPersonalRoot = `-- name: SetPersonalRoot :exec
-
-UPDATE spaces SET personal_root_id = $2 WHERE id = $1
-`
-
-type SetPersonalRootParams struct {
-	ID             pgtype.UUID `json:"id"`
-	PersonalRootID pgtype.UUID `json:"personal_root_id"`
-}
-
-// ------------------------------------------------------ personal folders ---
-func (q *Queries) SetPersonalRoot(ctx context.Context, arg SetPersonalRootParams) error {
-	_, err := q.db.Exec(ctx, setPersonalRoot, arg.ID, arg.PersonalRootID)
-	return err
-}
-
 const updateGroup = `-- name: UpdateGroup :one
-UPDATE groups SET name = $2, description = $3 WHERE id = $1 RETURNING id, tenant_id, space_id, name, description, is_everyone, created_by, created_at
+UPDATE groups SET name = $2, description = $3 WHERE id = $1 RETURNING id, tenant_id, space_id, name, description, is_everyone, is_admin, created_by, created_at
 `
 
 type UpdateGroupParams struct {
@@ -631,6 +699,7 @@ func (q *Queries) UpdateGroup(ctx context.Context, arg UpdateGroupParams) (Group
 		&i.Name,
 		&i.Description,
 		&i.IsEveryone,
+		&i.IsAdmin,
 		&i.CreatedBy,
 		&i.CreatedAt,
 	)
@@ -639,16 +708,19 @@ func (q *Queries) UpdateGroup(ctx context.Context, arg UpdateGroupParams) (Group
 
 const upsertGroupGrant = `-- name: UpsertGroupGrant :one
 
-INSERT INTO shares (node_id, kind, perm, grantee_group_id, created_by)
-VALUES ($1, 'group', $2, $3, $4)
+INSERT INTO shares (node_id, kind, level, can_download, can_share, grantee_group_id, created_by)
+VALUES ($1, 'group', $2, $3, $4, $5, $6)
 ON CONFLICT (node_id, grantee_group_id) WHERE kind = 'group'
-DO UPDATE SET perm = EXCLUDED.perm, created_by = EXCLUDED.created_by
-RETURNING id, tenant_id, node_id, kind, token_hash, grantee_user_id, perm, expires_at, created_by, created_at, grantee_group_id
+DO UPDATE SET level = EXCLUDED.level, can_download = EXCLUDED.can_download,
+              can_share = EXCLUDED.can_share, created_by = EXCLUDED.created_by
+RETURNING id, tenant_id, node_id, kind, token_hash, grantee_user_id, grantee_group_id, level, can_download, can_share, expires_at, created_by, created_at
 `
 
 type UpsertGroupGrantParams struct {
 	NodeID         pgtype.UUID `json:"node_id"`
-	Perm           SharePerm   `json:"perm"`
+	Level          ShareLevel  `json:"level"`
+	CanDownload    bool        `json:"can_download"`
+	CanShare       bool        `json:"can_share"`
 	GranteeGroupID pgtype.UUID `json:"grantee_group_id"`
 	CreatedBy      pgtype.UUID `json:"created_by"`
 }
@@ -658,7 +730,9 @@ type UpsertGroupGrantParams struct {
 func (q *Queries) UpsertGroupGrant(ctx context.Context, arg UpsertGroupGrantParams) (Share, error) {
 	row := q.db.QueryRow(ctx, upsertGroupGrant,
 		arg.NodeID,
-		arg.Perm,
+		arg.Level,
+		arg.CanDownload,
+		arg.CanShare,
 		arg.GranteeGroupID,
 		arg.CreatedBy,
 	)
@@ -670,11 +744,13 @@ func (q *Queries) UpsertGroupGrant(ctx context.Context, arg UpsertGroupGrantPara
 		&i.Kind,
 		&i.TokenHash,
 		&i.GranteeUserID,
-		&i.Perm,
+		&i.GranteeGroupID,
+		&i.Level,
+		&i.CanDownload,
+		&i.CanShare,
 		&i.ExpiresAt,
 		&i.CreatedBy,
 		&i.CreatedAt,
-		&i.GranteeGroupID,
 	)
 	return i, err
 }

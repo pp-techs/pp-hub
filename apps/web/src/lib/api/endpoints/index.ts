@@ -8,7 +8,6 @@ import type {
   AdminUser,
   Invitation,
   InviteResult,
-  MemberRole,
   EditSession,
   Me,
   Node,
@@ -55,7 +54,7 @@ export interface SpaceSettings {
   name?: string;
   slug?: string;
   description?: string;
-  default_role?: MemberRole;
+  default_as_admin?: boolean;
   quota_bytes?: number;
   /** Days to keep trashed items. 0 keeps them indefinitely. */
   trash_retention_days?: number;
@@ -89,9 +88,9 @@ export async function getInvitations(spaceId: string): Promise<Invitation[]> {
 export async function createInvitation(
   spaceId: string,
   email: string,
-  role: MemberRole,
+  as_admin: boolean,
 ): Promise<InviteResult> {
-  const res = await api.post(`api/v1/spaces/${spaceId}/invitations`, { json: { email, role } });
+  const res = await api.post(`api/v1/spaces/${spaceId}/invitations`, { json: { email, as_admin } });
   if (!res.ok) throw new ApiError(res.status, await res.text());
   return res.json() as Promise<InviteResult>;
 }

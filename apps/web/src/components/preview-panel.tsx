@@ -188,7 +188,11 @@ function NodeDetails({ node }: { node: Node }) {
                     {share.grantee_email ?? "Anyone with the link"}
                   </span>
                   <span className="text-muted-foreground shrink-0 text-[10px] uppercase">
-                    {share.perm}
+                    {share.level}
+                  </span>
+                  <span className="flex items-center gap-0.5 text-muted-foreground text-[10px]">
+                    {share.can_download && <span title="Can download">↓</span>}
+                    {share.can_share && <span title="Can share">↗</span>}
                   </span>
                 </div>
               ))}

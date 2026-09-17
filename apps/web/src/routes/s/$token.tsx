@@ -24,7 +24,6 @@ import {
   shareNodeContentUrl,
   shareNodeDownloadUrl,
   type Node,
-  type SharePerm,
 } from "@/lib/api";
 import { useShareChildren, useShareInfo } from "@/lib/queries";
 import { NodeIcon } from "@/components/node-icon";
@@ -83,8 +82,7 @@ function ShareLanding() {
     );
   }
 
-  const perm = info.data.perm;
-  const canDownload = perm === "download" || perm === "edit";
+  const canDownload = info.data.can_download;
   const crumbs: Crumb[] = [{ name: root.name }, ...trail];
 
   return (
@@ -93,7 +91,7 @@ function ShareLanding() {
         <Info className="text-muted-foreground size-3.5 shrink-0" />
         <span className="truncate">
           {info.data.shared_by ? `${info.data.shared_by} shared this` : "Shared with you"}{" "}
-          {root.kind === "dir" ? "folder" : "file"} · {describePerm(perm)}
+          {root.kind === "dir" ? "folder" : "file"} · {describeLink(canDownload)}
         </span>
         {info.data.expires_at && (
           <span className="text-muted-foreground ml-auto shrink-0 text-[10px] tabular-nums">
@@ -303,6 +301,6 @@ function Shell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function describePerm(perm: SharePerm): string {
-  return perm === "view" ? "view only" : "view and download only";
+function describeLink(canDownload: boolean): string {
+  return canDownload ? "view and download only" : "view only";
 }

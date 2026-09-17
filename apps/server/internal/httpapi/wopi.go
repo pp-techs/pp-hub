@@ -12,6 +12,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 	"github.com/nhatbui/pp-hub/apps/server/internal/wopi"
 )
@@ -28,7 +29,6 @@ func (s *Server) wopiClaims(w http.ResponseWriter, r *http.Request) (wopi.TokenC
 		writeProblem(w, http.StatusUnauthorized, "Unauthorized", "invalid token")
 		return wopi.TokenClaims{}, false
 	}
-	// Token's node must match the URL node.
 	urlNode, err := uuidParam(r, "nodeID")
 	if err != nil || urlNode != c.NodeID {
 		writeProblem(w, http.StatusForbidden, "Forbidden", "token does not match file")
@@ -63,14 +63,14 @@ func (s *Server) handleWopiCheckFileInfo(w http.ResponseWriter, r *http.Request)
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"BaseFileName":               node.Name,
-		"Size":                       ver.Size,
-		"OwnerId":                    oid.(string),
-		"UserId":                     uid.(string),
+		"Size":                      ver.Size,
+		"OwnerId":                   oid.(string),
+		"UserId":                    uid.(string),
 		"UserFriendlyName":           user.Name,
-		"UserCanWrite":               c.PermRank >= 3,
-		"Version":                    strconv.Itoa(int(ver.VersionNo)),
-		"SupportsUpdate":             true,
-		"SupportsLocks":              true,
+		"UserCanWrite":               c.PermRank >= 3, // token holds effective rank at mint time
+		"Version":                   strconv.Itoa(int(ver.VersionNo)),
+		"SupportsUpdate":            true,
+		"SupportsLocks":             true,
 		"SupportsExtendedLockLength": true,
 	})
 }
@@ -107,7 +107,6 @@ func (s *Server) handleWopiPutFile(w http.ResponseWriter, r *http.Request) {
 		s.nodeError(w, r, err)
 		return
 	}
-	// Lock check: if a lock exists, X-WOPI-Lock header must match.
 	if lockToken, err := s.wopi.CurrentLock(r.Context(), node.ID); err == nil && lockToken != "" {
 		hdr := r.Header.Get("X-WOPI-Lock")
 		if hdr != lockToken {
@@ -116,7 +115,6 @@ func (s *Server) handleWopiPutFile(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	// Version check (optimistic concurrency): X-WOPI-ExpectedVersion if provided.
 	if expected := r.Header.Get("X-WOPI-ExpectedVersion"); expected != "" {
 		cur, _ := s.store.GetCurrentVersion(r.Context(), node.ID)
 		if strconv.Itoa(int(cur.VersionNo)) != expected {
@@ -192,7 +190,7 @@ func (s *Server) wopiLockError(w http.ResponseWriter, r *http.Request, err error
 // --- Editor session (authenticated, called by the SPA) ---
 
 func (s *Server) handleEditSession(w http.ResponseWriter, r *http.Request) {
-	u, node := s.requireNodeAccess(w, r, 3)
+	u, node, caps := s.requireNodeCaps(w, r, share.CapEdit)
 	if u == nil {
 		return
 	}
@@ -200,7 +198,6 @@ func (s *Server) handleEditSession(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "not a file")
 		return
 	}
-	// Get MIME from the current version (node has no mime field).
 	ver, err := s.store.GetCurrentVersion(r.Context(), node.ID)
 	if err != nil {
 		Error(w, r, err)
@@ -210,35 +207,25 @@ func (s *Server) handleEditSession(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "file type not supported by editor")
 		return
 	}
-	// Resolve effective rank for token claims. This goes through the shared
-	// helper rather than a local switch: the local one mapped editor to 2 while
-	// requireNodeAccess mapped it to 3, so a user who had just passed the rank-3
-	// gate above was handed a token that share.CanWrite (rank >= 3) rejected —
-	// an editor got a read-only editing session. Switching on raw role strings
-	// is what let the two drift without the compiler noticing.
-	eff, err := s.share.EffectivePerm(r.Context(), node, u.ID, s.spaceRoleRank(r, node.SpaceID, u.ID))
+	// M15: effective caps computed by requireNodeCaps above. Token encodes a
+	// permission rank for WOPI compatibility (w1 format): rank 3 = edit, 1 = view.
+	permRank := 1
+	if caps.Has(share.CapEdit) {
+		permRank = 3
+	}
+	token, err := s.wopi.SignToken(u.ID, node.ID, permRank)
 	if err != nil {
 		Error(w, r, err)
 		return
 	}
-	token, err := s.wopi.SignToken(u.ID, node.ID, eff)
-	if err != nil {
-		Error(w, r, err)
-		return
-	}
-	// OnlyOffice Document Server editor URL. wopiSrc must be reachable from the
-	// OnlyOffice container (PP_WOPI_SERVER_URL), the browser loads editor from
-	// PP_ONLYOFFICE_URL. OnlyOffice 9.x serves the WOPI editor at
-	// /hosting/wopi/{documentType}/edit (see /hosting/discovery); it expects a
-	// POST form with access_token (+ttl) in the body, not query params.
-	nodeID, _ := node.ID.Value()
-	wopiSrc := s.wopiServerURL + "/wopi/files/" + nodeID.(string)
+	nodeIDStr, _ := node.ID.Value()
+	wopiSrc := s.wopiServerURL + "/wopi/files/" + nodeIDStr.(string)
 	editorURL := s.onlyOfficeURL + "/hosting/wopi/" + wopiDocumentType(node.Name) + "/edit?WOPISrc=" + url.QueryEscape(wopiSrc)
 	writeJSON(w, http.StatusOK, map[string]any{
-		"editor_url":       editorURL,
-		"wopi_src":         wopiSrc,
-		"token":            token,
-		"access_token_ttl": time.Now().Add(wopi.TokenTTL).UnixMilli(),
+		"editor_url":        editorURL,
+		"wopi_src":          wopiSrc,
+		"token":             token,
+		"access_token_ttl":  time.Now().Add(wopi.TokenTTL).UnixMilli(),
 	})
 }
 
@@ -246,22 +233,18 @@ func (s *Server) handleEditSession(w http.ResponseWriter, r *http.Request) {
 func isOfficeMime(mime string) bool {
 	switch strings.TrimSpace(strings.SplitN(mime, ";", 2)[0]) {
 	case
-		// Word processing
-		"application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
-		"application/msword",                      // .doc
-		"application/vnd.oasis.opendocument.text", // .odt
-		"application/rtf",                         // .rtf (registered in preview.init)
-		"application/epub+zip",                    // .epub (registered in preview.init)
-		// Spreadsheets
-		"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
-		"application/vnd.ms-excel",                       // .xls
-		"application/vnd.oasis.opendocument.spreadsheet", // .ods
-		"text/csv", // .csv
-		// Presentations
-		"application/vnd.openxmlformats-officedocument.presentationml.presentation", // .pptx
-		"application/vnd.ms-powerpoint",                                             // .ppt
-		"application/vnd.oasis.opendocument.presentation",                           // .odp
-		// Fallback: generic octet-stream for unknown extensions (shouldn't happen)
+		"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+		"application/msword",
+		"application/vnd.oasis.opendocument.text",
+		"application/rtf",
+		"application/epub+zip",
+		"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+		"application/vnd.ms-excel",
+		"application/vnd.oasis.opendocument.spreadsheet",
+		"text/csv",
+		"application/vnd.openxmlformats-officedocument.presentationml.presentation",
+		"application/vnd.ms-powerpoint",
+		"application/vnd.oasis.opendocument.presentation",
 		"application/octet-stream":
 		return true
 	default:
@@ -270,15 +253,13 @@ func isOfficeMime(mime string) bool {
 }
 
 // wopiDocumentType maps a file name to the OnlyOffice WOPI document type
-// (word/cell/slide) used in the /hosting/wopi/{type}/edit route.
+// (word/cell/slide).
 func wopiDocumentType(name string) string {
 	switch strings.ToLower(path.Ext(name)) {
 	case ".xlsx", ".xls", ".xlsm", ".xlt", ".xltx", ".xltm", ".ods", ".fods", ".ots", ".csv":
 		return "cell"
 	case ".pptx", ".ppt", ".odp", ".fodp", ".otp", ".ppsx", ".pps", ".ppsm", ".pot", ".potx", ".potm":
 		return "slide"
-	case ".rtf", ".epub":
-		return "word"
 	default:
 		return "word"
 	}

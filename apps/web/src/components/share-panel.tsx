@@ -6,6 +6,7 @@ import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 import { Badge } from "@workspace/ui/components/badge";
+import { Checkbox } from "@workspace/ui/components/checkbox";
 import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar";
 import { ToggleGroup, ToggleGroupItem } from "@workspace/ui/components/toggle-group";
 import {
@@ -15,13 +16,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@workspace/ui/components/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@workspace/ui/components/select";
 import { Separator } from "@workspace/ui/components/separator";
 import type { Node, Share } from "@/lib/api";
 import { sharesOptions, useCreateShare, useRevokeShare } from "@/lib/queries";
@@ -34,17 +28,23 @@ export function SharePanel({ node }: { node: Node }) {
   const revoke = useRevokeShare();
 
   const [email, setEmail] = useState("");
-  const [directPerm, setDirectPerm] = useState("download");
-  const [linkPerm, setLinkPerm] = useState("download");
+  const [directLevel, setDirectLevel] = useState<"view" | "edit">("edit");
+  const [directCanDownload, setDirectCanDownload] = useState(true);
+  const [directCanShare, setDirectCanShare] = useState(true);
+  const [linkCanDownload, setLinkCanDownload] = useState(false);
   const [expires, setExpires] = useState("0");
 
   const fail = (e: unknown) => toast.error(String((e as Error).message ?? e));
+
+  // For direct shares: edit implies download and share
+  const effectiveCanDownload = directLevel === "edit" ? true : directCanDownload;
+  const effectiveCanShare = directLevel === "edit" ? true : directCanShare;
 
   return (
     <Dialog open onOpenChange={(v) => !v && close()}>
       <DialogContent className="max-h-[85svh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Share “{node.name}”</DialogTitle>
+          <DialogTitle>Share "{node.name}"</DialogTitle>
           <DialogDescription>
             Choose who can access this item and what they can do with it.
           </DialogDescription>
@@ -68,7 +68,13 @@ export function SharePanel({ node }: { node: Node }) {
               create.mutate(
                 {
                   nodeId: node.id,
-                  body: { kind: "direct", perm: directPerm, email: email.trim() },
+                  body: {
+                    kind: "direct",
+                    level: directLevel,
+                    can_download: effectiveCanDownload,
+                    can_share: effectiveCanShare,
+                    email: email.trim(),
+                  },
                 },
                 {
                   onSuccess: () => {
@@ -91,21 +97,56 @@ export function SharePanel({ node }: { node: Node }) {
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="direct-permission">Permission</Label>
+              <div className="grid gap-2">
+                <Label id="direct-level-label">Access level</Label>
                 <ToggleGroup
-                  id="direct-permission"
+                  aria-labelledby="direct-level-label"
                   size="sm"
                   variant="outline"
-                  value={[directPerm]}
+                  value={[directLevel]}
                   onValueChange={(val) => {
-                    if (val.length > 0) setDirectPerm(val[0]);
+                    if (val.length > 0) {
+                      setDirectLevel(val[0] as "view" | "edit");
+                      // When switching to edit, enable sharing
+                      if (val[0] === "edit") {
+                        setDirectCanShare(true);
+                      }
+                    }
                   }}
                 >
-                  <ToggleGroupItem value="view">Viewer</ToggleGroupItem>
-                  <ToggleGroupItem value="download">Download</ToggleGroupItem>
-                  <ToggleGroupItem value="edit">Editor</ToggleGroupItem>
+                  <ToggleGroupItem value="view">Can view</ToggleGroupItem>
+                  <ToggleGroupItem value="edit">Can edit</ToggleGroupItem>
                 </ToggleGroup>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 pl-4">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="direct-download"
+                  checked={directLevel === "edit" ? true : directCanDownload}
+                  disabled={directLevel === "edit"}
+                  onCheckedChange={(v) => setDirectCanDownload(Boolean(v))}
+                />
+                <Label htmlFor="direct-download" className="text-sm font-normal">
+                  Allow download
+                  {directLevel === "edit" && (
+                    <span className="text-muted-foreground ml-1 text-xs">(included with edit)</span>
+                  )}
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="direct-share"
+                  checked={directLevel === "edit" ? true : directCanShare}
+                  disabled={directLevel === "edit"}
+                  onCheckedChange={(v) => setDirectCanShare(Boolean(v))}
+                />
+                <Label htmlFor="direct-share" className="text-sm font-normal">
+                  Allow sharing
+                  {directLevel === "edit" && (
+                    <span className="text-muted-foreground ml-1 text-xs">(included with edit)</span>
+                  )}
+                </Label>
               </div>
             </div>
             <Button type="submit" className="self-start" disabled={create.isPending}>
@@ -120,7 +161,8 @@ export function SharePanel({ node }: { node: Node }) {
           <div className="mb-4">
             <h3 className="text-sm font-semibold">Public link</h3>
             <p className="text-muted-foreground mt-1 text-xs">
-              Anyone with this link can access the item using the selected permission.
+              Anyone holding the link can view this item without signing in. A link never carries
+              editing, and nobody can re-share it onward — download is the one choice it offers.
             </p>
           </div>
           <form
@@ -130,7 +172,13 @@ export function SharePanel({ node }: { node: Node }) {
               create.mutate(
                 {
                   nodeId: node.id,
-                  body: { kind: "link", perm: linkPerm, expires_in: Number(expires) || 0 },
+                  body: {
+                    kind: "link",
+                    level: "view",
+                    can_download: linkCanDownload,
+                    can_share: false,
+                    expires_in: Number(expires) || 0,
+                  },
                 },
                 {
                   onSuccess: (sh: Share) => {
@@ -150,8 +198,17 @@ export function SharePanel({ node }: { node: Node }) {
           >
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="grid gap-1.5">
-                <Label htmlFor="link-permission">Permission</Label>
-                <PermSelect value={linkPerm} onChange={setLinkPerm} />
+                <Label htmlFor="link-download-toggle">Access</Label>
+                <div className="flex items-center gap-2 pt-1.5">
+                  <Checkbox
+                    id="link-download-toggle"
+                    checked={linkCanDownload}
+                    onCheckedChange={(v) => setLinkCanDownload(Boolean(v))}
+                  />
+                  <Label htmlFor="link-download-toggle" className="text-sm font-normal">
+                    Allow download
+                  </Label>
+                </div>
               </div>
               <div className="grid gap-1.5">
                 <Label htmlFor="link-expiry">Expiration</Label>
@@ -211,13 +268,27 @@ export function SharePanel({ node }: { node: Node }) {
                       <p className="truncate font-medium">
                         {s.grantee_email || (s.kind === "link" ? "Anyone with the link" : s.kind)}
                       </p>
-                      <p className="text-muted-foreground text-xs">
-                        {s.kind === "link" ? "Public link" : "Direct invitation"}
+                      <p className="text-muted-foreground flex items-center gap-2 text-xs">
+                        <span className="text-muted-foreground text-[10px] uppercase">
+                          {s.kind === "link" ? "Public link" : "Direct invitation"}
+                        </span>
                       </p>
                     </div>
                     <Badge variant="outline" className="shrink-0 capitalize">
-                      {s.perm}
+                      {s.level}
                     </Badge>
+                    <div className="flex items-center gap-1">
+                      {s.can_download && (
+                        <span className="text-muted-foreground text-xs" title="Can download">
+                          ↓
+                        </span>
+                      )}
+                      {s.can_share && (
+                        <span className="text-muted-foreground text-xs" title="Can share">
+                          ↗
+                        </span>
+                      )}
+                    </div>
                     {s.url ? (
                       <a
                         href={s.url}
@@ -250,35 +321,5 @@ export function SharePanel({ node }: { node: Node }) {
         </section>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function PermSelect({
-  value,
-  onChange,
-  allowEdit = false,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  allowEdit?: boolean;
-}) {
-  const permItems = [
-    { label: "view", value: "view" },
-    { label: "download", value: "download" },
-    ...(allowEdit ? [{ label: "edit", value: "edit" }] : []),
-  ];
-  return (
-    <Select value={value} items={permItems} onValueChange={(v) => onChange(v ?? value)}>
-      <SelectTrigger size="sm" className="w-28">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {permItems.map((item) => (
-          <SelectItem key={item.value} value={item.value}>
-            {item.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
   );
 }

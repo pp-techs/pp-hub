@@ -77,14 +77,18 @@ pp-hub/
 │           ├── config/             # ✅ env-based config
 │           ├── httpapi/            # ✅ chi routes (/healthz, /auth/*, /api/v1/*), RFC 7807 errors
 │           │   ├── users.go        # user profile CRUD + search endpoints
-│           │   └── spaces_members.go # space members API (list/add/update/remove)
+│           │   ├── groups.go       # groups API + the folder-grant endpoints
+│           │   └── spaces_members.go # space members API (list/add/remove, set-admin)
 │           ├── store/              # ✅ sqlc queries, embedded migrations runner
+│           │   └── migrations/     # the whole schema as one baseline: 0001_init.sql
 │           ├── users/              # user service layer (profile, search)
-│           ├── spaces/             # space CRUD, member roles, personal folders
+│           ├── spaces/             # space CRUD, membership, the Admin group, leaving a space
+│           │   ├── spaces.go       # RequireAdmin/SetAdmin/AddMember; RemoveMember archives what a leaver owned
+│           │   └── permissions_db_test.go # DB-backed; skipped unless PP_TEST_DATABASE_URL is set
 │           ├── groups/             # groups + the grants that open folders
 │           ├── fs/                 # file tree, versioning, move/copy/rename
 │           ├── blob/               # CAS Store interface + local impl (S3 impl later)
-│           ├── share/              # share links, direct grants
+│           ├── share/              # grants — user, group, link — and the caps they resolve to
 │           ├── wopi/               # WOPI host endpoints, access tokens
 │           └── preview/            # renderers + job loop; jobs.kind routes, previews.kind is the artifact
 ├── packages/
@@ -94,7 +98,8 @@ pp-hub/
 │   └── compose/
 │       ├── compose.dev.yml         # services only — app runs from source; profiles: worker, s3, idp
 │       ├── compose.prod.yml        # everything, for a VPS / Dokploy; profile: s3
-│       ├── .env.example            # → .env (git-ignored), production values
+│       ├── .env.dev.example        # → .env (git-ignored), dev values
+│       ├── .env.prod.example       # → .env (git-ignored), production values
 │       └── seaweedfs/s3.json       # dev credentials for the S3 profile
 ├── docs/                           # this documentation
 └── package.json                    # bun workspaces, Vite+ catalog
@@ -116,7 +121,7 @@ pp-hub/
   render — add a `panel` value, or introduce an `<Outlet/>` first.
 - **Drive shell layout.** `routes/drive.tsx` owns the 256px left rail as three
   bands — `space-switcher` (48px), the scrolling nav (search, Quick access,
-  My Drive tree, Spaces), and a pinned footer (`storage-meter` + `nav-user`).
+  the Files tree, Spaces), and a pinned footer (`storage-meter` + `nav-user`).
   `drive/$spaceId.tsx` owns the main column as two 40px rows (`drive-header`,
   `drive-toolbar`) above the listing. Row geometry for the rail lives in
   `rail-item.tsx`; use `railRow()` rather than re-deriving row classes.
@@ -160,9 +165,9 @@ pp-hub/
   itself (2→5 columns), so opening the details panel drops 5 columns to 4
   without the route passing anything down.
 - **Members and invitations render as one table.** `space-members-panel.tsx`
-  owns both, plus the role reference and the invite dialog; `space-settings-panel.tsx`
-  only mounts it. Listing invitations is owner-gated server-side, so the query
-  is `enabled` on the owner check rather than firing and 403-ing.
+  owns both, plus the admin toggle and the invite dialog; `space-settings-panel.tsx`
+  only mounts it. Listing invitations is admin-gated server-side, so the query
+  is `enabled` on the admin check rather than firing and 403-ing.
 - **Node menu actions have one definition.** `node-actions.tsx` builds the
   action list; the list view, grid view and their right-click menus all render
   from it. Add an action there, not in a menu.
@@ -184,10 +189,12 @@ pp-hub/
   exposes globals, and this suite imports explicitly, so component test files
   register `afterEach(cleanup)` themselves. `apps/web/tsconfig.json` includes
   `tests` so JSX in a test type-checks.
-- **Two kinds of administration.** A _space owner_ administers one space
-  (`?panel=settings`); a _server admin_ administers the install
-  (`/admin/users`). Neither role implies the other, and the server enforces
-  that separately from what the UI renders.
+- **Two kinds of administration.** A _space admin_ — a member of that space's
+  automatic `Admin` group — administers one space (`?panel=settings`); a
+  _server admin_ administers the install (`/admin/users`). Neither implies the
+  other, and neither carries file access: an admin reads a colleague's file
+  only through a grant. The server enforces that separately from what the UI
+  renders.
 - **better-modal keeps a closed modal MOUNTED.** `modal.resolve()` only flips
   `isOpen` to false; the entry stays in the store and `ModalContainer` goes on
   rendering the component. So `useState` inside a modal initialises **once for

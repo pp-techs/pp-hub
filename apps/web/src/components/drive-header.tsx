@@ -32,8 +32,9 @@ export function DriveHeader({ spaceId, dir, panel, onTogglePanel }: DriveHeaderP
   const guard = new Set<string>();
   while (cursor && dirs[cursor] && !guard.has(cursor)) {
     guard.add(cursor);
-    trail.unshift({ id: cursor, name: dirs[cursor].name });
-    cursor = dirs[cursor].parent;
+    const entry = dirs[cursor];
+    trail.unshift({ id: cursor, name: entry.name });
+    cursor = entry.parent;
   }
 
   return (

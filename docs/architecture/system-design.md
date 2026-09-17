@@ -73,8 +73,8 @@ flowchart LR
 
 ### Share resolution
 
-- Effective permission = space role (base), widened by the nearest direct share on the node or an ancestor. Shares never narrow.
-- Link shares resolve without a user and allow read paths (view/download) only.
+- Effective capabilities = ownership (`nodes.created_by` on the node or any ancestor → everything) OR the union of every grant reachable on the node or an ancestor, direct or through a group. Grants only widen; space membership by itself grants nothing.
+- Link shares resolve without a user and allow read paths only (view, plus download when the link says so).
 
 ## Multi-Tenancy Posture
 

@@ -45,7 +45,7 @@ export function SpaceSwitcher() {
           <span className="truncate text-xs font-medium">{current?.name ?? "Select a space"}</span>
           {current ? (
             <span className="text-muted-foreground mt-0.5 text-[10px] tracking-wider uppercase">
-              {current.role}
+              {current.is_admin}
             </span>
           ) : null}
         </div>
@@ -76,7 +76,7 @@ export function SpaceSwitcher() {
               >
                 <span className="truncate">{space.name}</span>
                 <span className="text-muted-foreground ml-auto text-[10px] uppercase">
-                  {space.role}
+                  {space.is_admin}
                 </span>
               </DropdownMenuItem>
             ))}

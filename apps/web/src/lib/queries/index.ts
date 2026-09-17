@@ -93,6 +93,6 @@ export {
   useUsers,
   useSpaceMembers,
   useAddSpaceMember,
-  useUpdateMemberRole,
+  useSetMemberAdmin,
   useRemoveSpaceMember,
 } from "./users";

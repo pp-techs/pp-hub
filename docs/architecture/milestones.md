@@ -150,9 +150,66 @@ Migrations `0010_trash_retention.sql`.
 
 **Still not done:** comments (a whole subsystem — table, endpoints, two UIs), mail delivery for invitations (needs SMTP configuration), real PDF rasterisation and video thumbnails (need pdfium/ffmpeg in the image), collaborator presence and save status in the editor (need an OnlyOffice callback), resumable chunked upload (the `uploads` table is still unused, so the tray's pause stops the queue rather than a transfer in flight), and the Sharing/Storage/Integrations settings tabs (no defined requirements).
 
+## M15 — Owner-Anchored Permissions ✅ done
+
+Schema consolidated into a single baseline, `0001_init.sql`, replacing fifteen
+incremental files. Acceptable exactly once, pre-production, and stated as such:
+from here new changes are new numbered files on top of it.
+
+**The model shrank to two mechanisms.** Access is ownership or a grant, and
+nothing else. Ownership is `nodes.created_by`, inherited down the subtree and
+resolved in the same recursive query as the grants — so it is not a row anyone
+can revoke, and a user cannot lock themselves out of their own work. Everything
+a person creates is private to them until they share it.
+
+**Admin stopped meaning access.** The role scale is gone: no
+`space_members.role`, no `spaces.default_role`, no `member_role` enum, no
+`roleRank`, no `RequireRole`. Admin is membership in the space's automatic
+`Admin` group, it gates space administration through `spaces.RequireAdmin`, and
+it gates **no file at all**. An admin who opens a colleague's folder sees
+nothing, because nothing granted it to them. This was the point of the
+milestone: the previous model gave every admin an edit floor over the entire
+company tree, which is not a permission model, it is a disclaimer.
+
+**Grants became level + flags.** `shares.perm` (a three-step rank) became
+`level` (`view` | `edit`) plus independent `can_download` and `can_share`
+booleans, because a rank cannot express "editor who may not re-share" or
+"viewer who may pass it on" — both of which people actually ask for. Two DB
+CHECKs keep it honest: an editor can always download what it edits, and a link
+is always view-only and never re-shareable, so link chains cannot form.
+`Caps.Covers` is enforced on create and upsert, so no one hands out more than
+they hold (**403**, `share.ErrEscalation`).
+
+**Departure has an answer.** Every space gets an `Archive` folder
+(`spaces.archive_root_id`) with one server-made grant: edit+download+share to
+the `Admin` group — the single place an admin reads content they do not own.
+`RemoveMember` revokes the leaver's grants in both directions, climbs nested
+`created_by` to the nearest ancestor owner so work stays with the folder it was
+done in, moves their remaining roots under the Archive, then drops their group
+rows. Losing the last admin is refused (**409**). Nothing is deleted, and no
+live folder silently changes hands.
+
+**Personal folders retired.** `personal_folders`, `spaces.personal_root_id` and
+the pinned "My files" carve-out are gone. Ownership does that job for every
+node instead of one mapped folder per member, and a member's top level is now
+`ListEntryPoints` — the topmost nodes they own or were granted. This also fixed
+the bug the old model created: a member could not create a folder at their own
+top level, because the space root was admin-only.
+
+Node DTOs now carry `caps`, so the web UI enables the actions the caller
+actually holds rather than inferring them from a role it no longer has.
+
+**Tested where it lives.** The invariants are SQL, so
+`internal/spaces/permissions_db_test.go` asserts them against a real Postgres
+(`PP_TEST_DATABASE_URL`, skipped when unset): an admin resolves to nothing on a
+member's folder, ownership inherits down a subtree, promote/demote both take
+effect with a last-admin floor, and a departure archives roots while revoking
+grants.
+
 ## Testing Strategy
 
-- **Unit**: permission resolver matrix (role × share × ancestor), blob CAS (put/get/dedup/gc), tree ops (move-cycle rejection, rename conflicts).
+- **Unit**: capability resolver matrix (ownership × grant × ancestor × link), blob CAS (put/get/dedup/gc), tree ops (move-cycle rejection, rename conflicts).
+- **Database-backed**: the invariants that live in SQL — owner inheritance, admin-has-no-access, member lifecycle — run against a real Postgres and skip without `PP_TEST_DATABASE_URL`.
 - **Integration** (compose test profile): upload→download byte-identical roundtrip; WOPI flow against real OnlyOffice (open → PutFile → version increments); link share access without auth.
 - **Contract**: hand-typed TS interfaces in `apps/web/src/lib/api/types.ts` mirror the Go handlers; OpenAPI codegen deferred until the surface grows.
 - **Load sanity**: k6 — 100 concurrent uploads, 5-user co-edit; pass = no errors, no performance target yet.

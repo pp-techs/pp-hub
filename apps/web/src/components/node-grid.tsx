@@ -161,7 +161,8 @@ function NodeCard({ node, selected, starred, onClick, onDoubleClick, ...handlers
         node.size != null ? fmtSize(node.size) : null,
         node.modified_at ? fmtDate(node.modified_at) : null,
       ];
-  const title = [node.name, ...meta.filter(Boolean)].join("\n");
+  const label = node.name;
+  const title = [label, ...meta.filter(Boolean)].join("\n");
 
   const kebab = (
     <DropdownMenu>
@@ -201,8 +202,8 @@ function NodeCard({ node, selected, starred, onClick, onDoubleClick, ...handlers
   );
 
   const name = (
-    <span className="truncate text-xs font-medium" title={title}>
-      {node.name}
+    <span className="flex min-w-0 items-center gap-1.5 truncate text-xs font-medium" title={title}>
+      <span className="truncate">{label}</span>
     </span>
   );
 

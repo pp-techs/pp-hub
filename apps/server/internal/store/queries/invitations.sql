@@ -1,10 +1,10 @@
 -- name: CreateInvitation :one
 -- Re-inviting the same address replaces the pending row rather than stacking
 -- a second one, so the token in the newest email is the only one that works.
-INSERT INTO space_invitations (space_id, email, role, token_hash, invited_by, expires_at)
+INSERT INTO space_invitations (space_id, email, as_admin, token_hash, invited_by, expires_at)
 VALUES ($1, $2, $3, $4, $5, $6)
 ON CONFLICT (space_id, lower(email)) WHERE accepted_at IS NULL
-DO UPDATE SET role = EXCLUDED.role, token_hash = EXCLUDED.token_hash,
+DO UPDATE SET as_admin = EXCLUDED.as_admin, token_hash = EXCLUDED.token_hash,
               invited_by = EXCLUDED.invited_by, expires_at = EXCLUDED.expires_at,
               created_at = now()
 RETURNING *;
@@ -30,7 +30,7 @@ DELETE FROM space_invitations WHERE id = $1 AND space_id = $2;
 
 -- name: UpdateSpaceSettings :one
 UPDATE spaces
-SET name = $2, slug = $3, description = $4, default_role = $5, quota_bytes = $6,
+SET name = $2, slug = $3, description = $4, default_as_admin = $5, quota_bytes = $6,
     trash_retention_days = $7
 WHERE id = $1
 RETURNING *;

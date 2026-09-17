@@ -40,6 +40,7 @@ import {
   childrenOptions,
   spacesOptions,
   useCreateFolder,
+  useNode,
   useDeleteNode,
   useCopyNode,
   useMoveNode,
@@ -148,7 +149,6 @@ function FolderView() {
   /** The scrolling listing, which the marquee bands over. */
   const listingRef = useRef<HTMLDivElement>(null);
   const enqueueUploads = useUploadStore((s) => s.enqueue);
-  const mkdir = useCreateFolder(spaceId, dir);
   const rename = useRenameNode(spaceId);
   const move = useMoveNode(spaceId);
   const copy = useCopyNode(spaceId);
@@ -169,6 +169,13 @@ function FolderView() {
 
   const children = childrenOptions(spaceId, dir);
 
+  const space = spaces.data?.find((s) => s.id === spaceId);
+  // In M15, any member can create files/folders at the root (dir === undefined),
+  // and every item created is private to them. Inside a folder, permission
+  // requires edit capability on that folder.
+  const writeDir = dir;
+  const mkdir = useCreateFolder(spaceId, writeDir);
+  const currentFolder = useNode(dir);
   const sorted = useMemo(() => {
     const q = filterQuery.trim().toLowerCase();
     const base = children.data ?? [];
@@ -316,8 +323,6 @@ function FolderView() {
 
   const starredIds = useMemo(() => new Set((starred.data ?? []).map((n) => n.id)), [starred.data]);
 
-  const space = spaces.data?.find((s) => s.id === spaceId);
-
   const nodeHandlers = {
     onPreview: handlePreview,
     onShowDetails: handleShowDetails,
@@ -336,13 +341,8 @@ function FolderView() {
       ),
     onRename: handleRename,
     onMove: (node: Node) => void handleMove([node]),
-    // Only offered to admins: granting a group standing access is
-    // administration of the company, so the server refuses it from anyone
-    // else and showing the item would be a dead end.
-    onManageAccess:
-      space?.role === "admin"
-        ? (node: Node) => void FolderAccessDialog.show({ node, spaceId })
-        : undefined,
+    // node-actions decides whether to offer this, from the node's own caps.
+    onManageAccess: (node: Node) => void FolderAccessDialog.show({ node, spaceId }),
     onDeleteRequest: handleDeleteRequest,
   };
 
@@ -352,13 +352,16 @@ function FolderView() {
 
   const showDetails = browsing && detailsOpen;
 
-  // Whether you may write is now a property of the folder you are in, not of
-  // your role, and the client cannot know it without asking. So this is only
-  // "are you in this space at all" — the server authorises the target folder on
-  // every upload and rejects what the grants do not allow.
-  const canUpload = Boolean(space?.role);
-  // Destination for the drop overlay: the space name plus the open folder.
-  const destination = [space?.name ?? "this space", dir ? dirs[dir]?.name : undefined]
+  // Can write if:
+  // - At root (dir === undefined): every space member can create items at root.
+  // - Inside a folder (dir !== undefined): user must have edit capability on that folder.
+  const canUpload =
+    Boolean(space) && (dir === undefined || Boolean(currentFolder.data?.caps?.edit));
+  // Destination for the drop overlay: the space name plus where the write lands.
+  const destination = [
+    space?.name ?? "this space",
+    dir ? (dirs[dir]?.name ?? "this folder") : undefined,
+  ]
     .filter(Boolean)
     .join(" / ");
 
@@ -397,7 +400,7 @@ function FolderView() {
       <div className="flex min-h-0 flex-1">
         <DropZone
           spaceId={spaceId}
-          parentId={dir}
+          parentId={writeDir}
           destination={destination}
           disabled={!browsing || !canUpload}
         >
@@ -410,7 +413,7 @@ function FolderView() {
               <div className="p-4">
                 <SpaceMembersPanel
                   spaceId={spaceId}
-                  currentUserRole={spaces.data?.find((s) => s.id === spaceId)?.role ?? "member"}
+                  isAdmin={spaces.data?.find((s) => s.id === spaceId)?.is_admin}
                 />
               </div>
             ) : panel === "trash" ? (
@@ -500,7 +503,7 @@ function FolderView() {
         multiple
         hidden
         onChange={(e) => {
-          enqueueUploads(collectInputFiles(e.target.files), spaceId, dir);
+          enqueueUploads(collectInputFiles(e.target.files), spaceId, writeDir);
           e.target.value = "";
         }}
       />
@@ -512,7 +515,7 @@ function FolderView() {
         // @ts-expect-error — non-standard, but the only way to pick a folder.
         webkitdirectory=""
         onChange={(e) => {
-          enqueueUploads(collectInputFiles(e.target.files), spaceId, dir);
+          enqueueUploads(collectInputFiles(e.target.files), spaceId, writeDir);
           e.target.value = "";
         }}
       />

@@ -12,9 +12,9 @@ import (
 )
 
 const createShare = `-- name: CreateShare :one
-INSERT INTO shares (node_id, kind, token_hash, grantee_user_id, perm, expires_at, created_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, tenant_id, node_id, kind, token_hash, grantee_user_id, perm, expires_at, created_by, created_at, grantee_group_id
+INSERT INTO shares (node_id, kind, token_hash, grantee_user_id, level, can_download, can_share, expires_at, created_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING id, tenant_id, node_id, kind, token_hash, grantee_user_id, grantee_group_id, level, can_download, can_share, expires_at, created_by, created_at
 `
 
 type CreateShareParams struct {
@@ -22,7 +22,9 @@ type CreateShareParams struct {
 	Kind          ShareKind          `json:"kind"`
 	TokenHash     pgtype.Text        `json:"token_hash"`
 	GranteeUserID pgtype.UUID        `json:"grantee_user_id"`
-	Perm          SharePerm          `json:"perm"`
+	Level         ShareLevel         `json:"level"`
+	CanDownload   bool               `json:"can_download"`
+	CanShare      bool               `json:"can_share"`
 	ExpiresAt     pgtype.Timestamptz `json:"expires_at"`
 	CreatedBy     pgtype.UUID        `json:"created_by"`
 }
@@ -33,7 +35,9 @@ func (q *Queries) CreateShare(ctx context.Context, arg CreateShareParams) (Share
 		arg.Kind,
 		arg.TokenHash,
 		arg.GranteeUserID,
-		arg.Perm,
+		arg.Level,
+		arg.CanDownload,
+		arg.CanShare,
 		arg.ExpiresAt,
 		arg.CreatedBy,
 	)
@@ -45,11 +49,13 @@ func (q *Queries) CreateShare(ctx context.Context, arg CreateShareParams) (Share
 		&i.Kind,
 		&i.TokenHash,
 		&i.GranteeUserID,
-		&i.Perm,
+		&i.GranteeGroupID,
+		&i.Level,
+		&i.CanDownload,
+		&i.CanShare,
 		&i.ExpiresAt,
 		&i.CreatedBy,
 		&i.CreatedAt,
-		&i.GranteeGroupID,
 	)
 	return i, err
 }
@@ -64,7 +70,7 @@ func (q *Queries) DeleteShare(ctx context.Context, id pgtype.UUID) error {
 }
 
 const getDirectShare = `-- name: GetDirectShare :one
-SELECT id, tenant_id, node_id, kind, token_hash, grantee_user_id, perm, expires_at, created_by, created_at, grantee_group_id FROM shares
+SELECT id, tenant_id, node_id, kind, token_hash, grantee_user_id, grantee_group_id, level, can_download, can_share, expires_at, created_by, created_at FROM shares
 WHERE kind = 'direct' AND node_id = $1 AND grantee_user_id = $2
   AND (expires_at IS NULL OR expires_at > now())
 LIMIT 1
@@ -85,17 +91,19 @@ func (q *Queries) GetDirectShare(ctx context.Context, arg GetDirectShareParams) 
 		&i.Kind,
 		&i.TokenHash,
 		&i.GranteeUserID,
-		&i.Perm,
+		&i.GranteeGroupID,
+		&i.Level,
+		&i.CanDownload,
+		&i.CanShare,
 		&i.ExpiresAt,
 		&i.CreatedBy,
 		&i.CreatedAt,
-		&i.GranteeGroupID,
 	)
 	return i, err
 }
 
 const getShareByToken = `-- name: GetShareByToken :one
-SELECT id, tenant_id, node_id, kind, token_hash, grantee_user_id, perm, expires_at, created_by, created_at, grantee_group_id FROM shares
+SELECT id, tenant_id, node_id, kind, token_hash, grantee_user_id, grantee_group_id, level, can_download, can_share, expires_at, created_by, created_at FROM shares
 WHERE token_hash = $1
   AND (expires_at IS NULL OR expires_at > now())
 LIMIT 1
@@ -111,17 +119,19 @@ func (q *Queries) GetShareByToken(ctx context.Context, tokenHash pgtype.Text) (S
 		&i.Kind,
 		&i.TokenHash,
 		&i.GranteeUserID,
-		&i.Perm,
+		&i.GranteeGroupID,
+		&i.Level,
+		&i.CanDownload,
+		&i.CanShare,
 		&i.ExpiresAt,
 		&i.CreatedBy,
 		&i.CreatedAt,
-		&i.GranteeGroupID,
 	)
 	return i, err
 }
 
 const listSharesForNode = `-- name: ListSharesForNode :many
-SELECT id, tenant_id, node_id, kind, token_hash, grantee_user_id, perm, expires_at, created_by, created_at, grantee_group_id FROM shares WHERE node_id = $1 ORDER BY created_at DESC
+SELECT id, tenant_id, node_id, kind, token_hash, grantee_user_id, grantee_group_id, level, can_download, can_share, expires_at, created_by, created_at FROM shares WHERE node_id = $1 ORDER BY created_at DESC
 `
 
 func (q *Queries) ListSharesForNode(ctx context.Context, nodeID pgtype.UUID) ([]Share, error) {
@@ -140,11 +150,13 @@ func (q *Queries) ListSharesForNode(ctx context.Context, nodeID pgtype.UUID) ([]
 			&i.Kind,
 			&i.TokenHash,
 			&i.GranteeUserID,
-			&i.Perm,
+			&i.GranteeGroupID,
+			&i.Level,
+			&i.CanDownload,
+			&i.CanShare,
 			&i.ExpiresAt,
 			&i.CreatedBy,
 			&i.CreatedAt,
-			&i.GranteeGroupID,
 		); err != nil {
 			return nil, err
 		}
@@ -156,55 +168,98 @@ func (q *Queries) ListSharesForNode(ctx context.Context, nodeID pgtype.UUID) ([]
 	return items, nil
 }
 
-const nodeAccessRanks = `-- name: NodeAccessRanks :many
+const nodeAccessCaps = `-- name: NodeAccessCaps :many
 WITH RECURSIVE anc(origin, id, parent_id) AS (
-    SELECT n.id, n.id, n.parent_id FROM nodes n WHERE n.id = ANY($2::uuid[])
+    SELECT n.id, n.id, n.parent_id
+    FROM nodes n
+    WHERE n.id = ANY($1::uuid[])
+      AND EXISTS (
+          SELECT 1 FROM space_members sm
+          WHERE sm.space_id = n.space_id AND sm.user_id = $2
+      )
   UNION ALL
     SELECT a.origin, p.id, p.parent_id FROM anc a JOIN nodes p ON p.id = a.parent_id
+),
+grants AS (
+    SELECT anc.origin AS node_id,
+           COUNT(*) > 0              AS view,
+           BOOL_OR(s.can_download)   AS download,
+           BOOL_OR(s.can_share)      AS share,
+           BOOL_OR(s.level = 'edit') AS edit
+    FROM anc
+    JOIN shares s ON s.node_id = anc.id
+    WHERE (s.expires_at IS NULL OR s.expires_at > now())
+      AND ( (s.kind = 'direct' AND s.grantee_user_id = $2)
+         OR (s.kind = 'group'  AND s.grantee_group_id IN (
+                SELECT gm.group_id FROM group_members gm WHERE gm.user_id = $2)) )
+    GROUP BY anc.origin
+),
+owners AS (
+    SELECT DISTINCT a.origin AS node_id
+    FROM anc a JOIN nodes n2 ON n2.id = a.id
+    WHERE n2.created_by = $2
 )
-SELECT anc.origin AS node_id,
-       MAX(CASE s.perm WHEN 'edit' THEN 3 WHEN 'download' THEN 2 WHEN 'view' THEN 1 ELSE 0 END)::int AS rank
-FROM anc
-JOIN shares s ON s.node_id = anc.id
-WHERE (s.expires_at IS NULL OR s.expires_at > now())
-  AND ( (s.kind = 'direct' AND s.grantee_user_id = $1)
-     OR (s.kind = 'group'  AND s.grantee_group_id IN (
-            SELECT gm.group_id FROM group_members gm WHERE gm.user_id = $1)) )
-GROUP BY anc.origin
+SELECT n.id AS node_id,
+       COALESCE(g.view, false)     AS view,
+       COALESCE(g.download, false) AS download,
+       COALESCE(g.share, false)    AS share,
+       COALESCE(g.edit, false)     AS edit,
+       (o.node_id IS NOT NULL)::bool AS owner
+FROM nodes n
+LEFT JOIN grants g ON g.node_id = n.id
+LEFT JOIN owners o ON o.node_id = n.id
+WHERE n.id = ANY($1::uuid[])
 `
 
-type NodeAccessRanksParams struct {
-	UserID  pgtype.UUID   `json:"user_id"`
+type NodeAccessCapsParams struct {
 	NodeIds []pgtype.UUID `json:"node_ids"`
+	UserID  pgtype.UUID   `json:"user_id"`
 }
 
-type NodeAccessRanksRow struct {
-	NodeID pgtype.UUID `json:"node_id"`
-	Rank   int32       `json:"rank"`
+type NodeAccessCapsRow struct {
+	NodeID   pgtype.UUID `json:"node_id"`
+	View     bool        `json:"view"`
+	Download bool        `json:"download"`
+	Share    bool        `json:"share"`
+	Edit     bool        `json:"edit"`
+	Owner    bool        `json:"owner"`
 }
 
-// The highest permission $2 holds on each node in $1, granted either directly
-// to them or to a group they belong to, on the node itself or on any ancestor.
-// Nodes with no grant are absent from the result rather than returned as 0.
+// For each node in $1: the capabilities $2 holds via grants — direct or via a
+// group — on the node itself or any ancestor, plus whether $2 OWNS the node
+// or any ancestor (created_by). Ownership is intrinsic full access, so the
+// owner flag must survive the no-grant case: one row per requested node.
 //
-// This replaces an ancestor walk that issued one GetNodeParent round-trip per
-// level, per node, and silently stopped widening at depth 100. Permission is
-// now resolved for a whole listing in one query.
+// There is no role floor anymore (M15): an admin who owns nothing and was
+// granted nothing resolves to no capabilities, like anyone else.
+//
+// Everything is gated on current space membership. Ownership is intrinsic but
+// not perpetual: leaving a company ends the caller's reach into its tree, and
+// their `created_by` rows stay only so the archive keeps an author. Without
+// this, RemoveMember would file someone's work in the archive while leaving
+// them able to read and edit it.
 //
 // The recursive join deliberately does NOT filter deleted_at. GetNodeParent
 // does, which truncates the chain at the first trashed ancestor and loses the
-// grant above it — the reason trash could not use share resolution at all.
+// grant above it — the reason trash resolves exactly like the live tree.
 // ListDeletedWithMeta walks the same way for the same reason.
-func (q *Queries) NodeAccessRanks(ctx context.Context, arg NodeAccessRanksParams) ([]NodeAccessRanksRow, error) {
-	rows, err := q.db.Query(ctx, nodeAccessRanks, arg.UserID, arg.NodeIds)
+func (q *Queries) NodeAccessCaps(ctx context.Context, arg NodeAccessCapsParams) ([]NodeAccessCapsRow, error) {
+	rows, err := q.db.Query(ctx, nodeAccessCaps, arg.NodeIds, arg.UserID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []NodeAccessRanksRow
+	var items []NodeAccessCapsRow
 	for rows.Next() {
-		var i NodeAccessRanksRow
-		if err := rows.Scan(&i.NodeID, &i.Rank); err != nil {
+		var i NodeAccessCapsRow
+		if err := rows.Scan(
+			&i.NodeID,
+			&i.View,
+			&i.Download,
+			&i.Share,
+			&i.Edit,
+			&i.Owner,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

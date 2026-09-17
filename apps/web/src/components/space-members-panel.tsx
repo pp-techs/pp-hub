@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Download, Mail, MoreHorizontal, Trash2, UserPlus } from "lucide-react";
+import { Download, Mail, Trash2, UserPlus, Shield, ShieldCheck } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import { Badge } from "@workspace/ui/components/badge";
+import { Checkbox } from "@workspace/ui/components/checkbox";
+import { Label } from "@workspace/ui/components/label";
 import {
   Dialog,
   DialogContent,
@@ -11,12 +13,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@workspace/ui/components/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@workspace/ui/components/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -32,9 +28,8 @@ import {
   TableHeader,
   TableRow,
 } from "@workspace/ui/components/table";
-import { ToggleGroup, ToggleGroupItem } from "@workspace/ui/components/toggle-group";
 import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/avatar";
-import { fmtDate, fmtRelative, type MemberRole } from "@/lib/api";
+import { fmtDate, fmtRelative } from "@/lib/api";
 import type { Invitation, SpaceMember, UserSearchResult } from "@/lib/api/types";
 import {
   useAddSpaceMember,
@@ -44,35 +39,20 @@ import {
   useRemoveSpaceMember,
   useRevokeInvitation,
   useSpaceMembers,
-  useUpdateMemberRole,
+  useSetMemberAdmin,
 } from "@/lib/queries";
 import { MemberPicker } from "@/components/member-picker";
 import { RailLabel } from "@/components/rail-item";
 
 interface SpaceMembersPanelProps {
   spaceId: string;
-  currentUserRole: string;
+  isAdmin?: boolean;
 }
 
-const ROLES: { value: MemberRole; label: string; blurb: string }[] = [
-  {
-    value: "admin",
-    label: "Admin",
-    blurb: "Manage members, groups and settings, delete the space, and open every folder in it",
-  },
-  {
-    value: "member",
-    label: "Member",
-    blurb:
-      "Opens only what their groups have been given access to — a role on its own grants nothing",
-  },
-];
-
-const ROLE_ITEMS = ROLES.map((r) => ({ label: r.label, value: r.value }));
-
-const ROLE_FILTERS = [
-  { label: "Role: All", value: "all" },
-  ...ROLES.map((r) => ({ label: `Role: ${r.label}`, value: r.value })),
+const ADMIN_FILTERS = [
+  { label: "All members", value: "all" },
+  { label: "Admins only", value: "admin" },
+  { label: "Members only", value: "member" },
 ];
 
 const STATUS_FILTERS = [
@@ -93,22 +73,22 @@ const STATUS_FILTERS = [
  * The server already returns `files_owned`, `created_at` and `last_seen` per
  * member, so those columns cost nothing extra to render.
  */
-export function SpaceMembersPanel({ spaceId, currentUserRole }: SpaceMembersPanelProps) {
+export function SpaceMembersPanel({ spaceId, isAdmin }: SpaceMembersPanelProps) {
   const { data: members = [], isLoading } = useSpaceMembers(spaceId);
-  const isAdmin = currentUserRole === "admin";
+  const admin = isAdmin ?? false;
   // Listing invitations is admin-gated on the server, so asking as a member
   // would only produce a 403 in the console.
-  const invitations = useInvitations(spaceId, isAdmin);
+  const invitations = useInvitations(spaceId, admin);
   const { data: me } = useMyProfile();
 
-  const updateRole = useUpdateMemberRole();
+  const setAdmin = useSetMemberAdmin();
   const removeMember = useRemoveSpaceMember();
   const invite = useCreateInvitation(spaceId);
   const revokeInvite = useRevokeInvitation(spaceId);
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState("all");
+  const [adminFilter, setAdminFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
   const pending = invitations.data ?? [];
@@ -117,23 +97,25 @@ export function SpaceMembersPanel({ spaceId, currentUserRole }: SpaceMembersPane
     const q = query.trim().toLowerCase();
     return members.filter((m) => {
       if (statusFilter === "pending") return false;
-      if (roleFilter !== "all" && m.role !== roleFilter) return false;
+      if (adminFilter === "admin" && !m.is_admin) return false;
+      if (adminFilter === "member" && m.is_admin) return false;
       if (!q) return true;
       return (
         m.email.toLowerCase().includes(q) ||
         (m.display_name || m.name || "").toLowerCase().includes(q)
       );
     });
-  }, [members, query, roleFilter, statusFilter]);
+  }, [members, query, adminFilter, statusFilter]);
 
   const visiblePending = useMemo(() => {
     const q = query.trim().toLowerCase();
     return pending.filter((i) => {
       if (statusFilter === "active") return false;
-      if (roleFilter !== "all" && i.role !== roleFilter) return false;
+      if (adminFilter === "admin" && !i.as_admin) return false;
+      if (adminFilter === "member" && i.as_admin) return false;
       return !q || i.email.toLowerCase().includes(q);
     });
-  }, [pending, query, roleFilter, statusFilter]);
+  }, [pending, query, adminFilter, statusFilter]);
 
   const shown = visibleMembers.length + visiblePending.length;
   const total = members.length + pending.length;
@@ -178,10 +160,10 @@ export function SpaceMembersPanel({ spaceId, currentUserRole }: SpaceMembersPane
           className="max-w-64"
         />
         <FilterSelect
-          value={roleFilter}
-          onChange={setRoleFilter}
-          items={ROLE_FILTERS}
-          label="Filter by role"
+          value={adminFilter}
+          onChange={setAdminFilter}
+          items={ADMIN_FILTERS}
+          label="Filter by admin status"
         />
         <FilterSelect
           value={statusFilter}
@@ -198,11 +180,11 @@ export function SpaceMembersPanel({ spaceId, currentUserRole }: SpaceMembersPane
         <TableHeader>
           <TableRow>
             <TableHead>Member</TableHead>
-            <TableHead className="w-28">Role</TableHead>
+            <TableHead className="w-24">Admin</TableHead>
             <TableHead className="w-28">Joined</TableHead>
             <TableHead className="w-28">Last active</TableHead>
             <TableHead className="w-24 text-right">Files owned</TableHead>
-            {isAdmin && <TableHead className="w-32" />}
+            {isAdmin && <TableHead className="w-16" />}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -212,10 +194,10 @@ export function SpaceMembersPanel({ spaceId, currentUserRole }: SpaceMembersPane
               member={member}
               isSelf={member.user_id === me?.id}
               external={isExternal(member.email, me?.email)}
-              canManage={isAdmin}
-              onRoleChange={(role) =>
-                updateRole.mutate(
-                  { spaceId, userId: member.user_id, role },
+              canManage={!!isAdmin}
+              onAdminToggle={(as_admin) =>
+                setAdmin.mutate(
+                  { spaceId, userId: member.user_id, as_admin },
                   { onError: (e) => toast.error(e.message) },
                 )
               }
@@ -236,11 +218,11 @@ export function SpaceMembersPanel({ spaceId, currentUserRole }: SpaceMembersPane
               key={inv.id}
               invitation={inv}
               external={isExternal(inv.email, me?.email)}
-              canManage={isAdmin}
-              busy={invite.isPending || revokeInvite.isPending}
+              canManage={!!isAdmin}
+              busy={invite.isPending}
               onResend={() =>
                 invite.mutate(
-                  { email: inv.email, role: inv.role },
+                  { email: inv.email, as_admin: inv.as_admin },
                   {
                     onSuccess: (result) => {
                       if (result.url) {
@@ -272,18 +254,6 @@ export function SpaceMembersPanel({ spaceId, currentUserRole }: SpaceMembersPane
           )}
         </TableBody>
       </Table>
-
-      <div>
-        <RailLabel>Role reference</RailLabel>
-        <dl className="border-border divide-border grid gap-0 divide-y rounded-lg border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-          {ROLES.map((r) => (
-            <div key={r.value} className="flex flex-col gap-0.5 p-2">
-              <dt className="text-xs font-medium">{r.label}</dt>
-              <dd className="text-muted-foreground text-xs">{r.blurb}</dd>
-            </div>
-          ))}
-        </dl>
-      </div>
 
       {isAdmin && (
         <InviteDialog
@@ -329,7 +299,7 @@ interface MemberRowProps {
   isSelf: boolean;
   external: boolean;
   canManage: boolean;
-  onRoleChange: (role: MemberRole) => void;
+  onAdminToggle: (as_admin: boolean) => void;
   onRemove: () => void;
 }
 
@@ -338,7 +308,7 @@ function MemberRow({
   isSelf,
   external,
   canManage,
-  onRoleChange,
+  onAdminToggle,
   onRemove,
 }: MemberRowProps) {
   const name = member.display_name || member.name || member.email;
@@ -363,28 +333,13 @@ function MemberRow({
       </TableCell>
 
       <TableCell>
-        {/* A space must keep an owner, and the server refuses an owner
-            demoting themselves — so that row is plain text, not a control
-            that only fails. */}
-        {canManage && !isSelf ? (
-          <Select
-            value={member.role}
-            items={ROLE_ITEMS}
-            onValueChange={(v) => v && onRoleChange(v as MemberRole)}
-          >
-            <SelectTrigger size="sm" aria-label={`Role for ${name}`}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {ROLE_ITEMS.map((item) => (
-                <SelectItem key={item.value} value={item.value}>
-                  {item.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {member.is_admin ? (
+          <Badge variant="default" className="gap-1">
+            <ShieldCheck className="h-3 w-3" />
+            Admin
+          </Badge>
         ) : (
-          <span className="text-muted-foreground capitalize">{member.role}</span>
+          <span className="text-muted-foreground">Member</span>
         )}
       </TableCell>
 
@@ -400,26 +355,31 @@ function MemberRow({
 
       {canManage && (
         <TableCell>
-          <div className="flex items-center justify-end">
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={`Actions for ${name}`}
-                    disabled={isSelf}
-                  />
-                }
+          <div className="flex items-center justify-end gap-1">
+            {/* Only allow admin toggle for non-self members */}
+            {!isSelf && (
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={() => onAdminToggle(!member.is_admin)}
+                title={member.is_admin ? "Remove admin access" : "Make admin"}
               >
-                <MoreHorizontal />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem variant="destructive" onClick={onRemove}>
-                  <Trash2 data-icon="inline-start" /> Remove from space
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                {member.is_admin ? (
+                  <>
+                    <Shield className="h-3 w-3" />
+                    Remove
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="h-3 w-3" />
+                    Make admin
+                  </>
+                )}
+              </Button>
+            )}
+            <Button variant="ghost" size="icon-xs" onClick={onRemove} title="Remove from space">
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
           </div>
         </TableCell>
       )}
@@ -463,7 +423,16 @@ function PendingRow({
           </span>
         </div>
       </TableCell>
-      <TableCell className="text-muted-foreground capitalize">{invitation.role}</TableCell>
+      <TableCell>
+        {invitation.as_admin ? (
+          <Badge variant="default" className="gap-1">
+            <ShieldCheck className="h-3 w-3" />
+            Admin
+          </Badge>
+        ) : (
+          <span className="text-muted-foreground">Member</span>
+        )}
+      </TableCell>
       <TableCell className="text-muted-foreground tabular-nums">
         Invited {fmtDate(invitation.created_at)}
       </TableCell>
@@ -515,9 +484,6 @@ function isExternal(email: string, myEmail?: string): boolean {
 /**
  * Adds someone to the space — by picking an existing account, or by emailing
  * an address that has none.
- *
- * Both paths end at the same place, so they share one dialog and one role
- * control rather than being two disconnected forms in the settings page.
  */
 function InviteDialog({
   spaceId,
@@ -533,7 +499,7 @@ function InviteDialog({
   const addMember = useAddSpaceMember();
   const invite = useCreateInvitation(spaceId);
 
-  const [role, setRole] = useState<MemberRole>("member");
+  const [asAdmin, setAsAdmin] = useState(false);
   const [picked, setPicked] = useState<UserSearchResult | null>(null);
   const [email, setEmail] = useState("");
 
@@ -541,7 +507,7 @@ function InviteDialog({
     onOpenChange(false);
     setPicked(null);
     setEmail("");
-    setRole("member");
+    setAsAdmin(false);
   };
 
   return (
@@ -555,15 +521,15 @@ function InviteDialog({
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1">
-            <RailLabel>Role</RailLabel>
-            <ToggleGroup value={[role]} onValueChange={(v) => v[0] && setRole(v[0] as MemberRole)}>
-              {ROLES.map((r) => (
-                <ToggleGroupItem key={r.value} value={r.value}>
-                  {r.label}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="make-admin"
+              checked={asAdmin}
+              onCheckedChange={(checked) => setAsAdmin(checked === true)}
+            />
+            <Label htmlFor="make-admin" className="text-sm font-normal cursor-pointer">
+              Make admin
+            </Label>
           </div>
 
           <div className="flex flex-col gap-1">
@@ -581,7 +547,7 @@ function InviteDialog({
                 onClick={() =>
                   picked &&
                   addMember.mutate(
-                    { spaceId, user_id: picked.id, role },
+                    { spaceId, user_id: picked.id, as_admin: asAdmin },
                     {
                       onSuccess: () => {
                         toast.success(`Added ${picked.display_name || picked.name}`);
@@ -602,7 +568,7 @@ function InviteDialog({
             onSubmit={(e) => {
               e.preventDefault();
               invite.mutate(
-                { email: email.trim(), role },
+                { email: email.trim(), as_admin: asAdmin },
                 {
                   onSuccess: (result) => {
                     if (result.added_member) {
@@ -650,18 +616,26 @@ function InviteDialog({
 
 /** Downloads the rows currently on screen, filters included. */
 function exportCsv(members: SpaceMember[], pending: Invitation[]) {
-  const header = ["Name", "Email", "Role", "Status", "Joined", "Last active", "Files owned"];
+  const header = ["Name", "Email", "Admin", "Status", "Joined", "Last active", "Files owned"];
   const rows = [
     ...members.map((m) => [
       m.display_name || m.name || "",
       m.email,
-      m.role,
+      m.is_admin ? "Yes" : "No",
       "active",
       m.created_at,
       m.last_seen ?? "",
       String(m.files_owned),
     ]),
-    ...pending.map((i) => [" ", i.email, i.role, "pending", i.created_at, "", "0"]),
+    ...pending.map((i) => [
+      " ",
+      i.email,
+      i.as_admin ? "Yes" : "No",
+      "pending",
+      i.created_at,
+      "",
+      "0",
+    ]),
   ];
 
   const csv = [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");

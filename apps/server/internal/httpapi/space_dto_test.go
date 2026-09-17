@@ -19,22 +19,19 @@ func TestSpaceDTOCarriesSettingsFields(t *testing.T) {
 	space.Name = "Acme Core"
 	space.Slug = "acme-core"
 	space.Description = "Everything the core team works on"
-	space.DefaultRole = store.MemberRoleMember
+	space.DefaultAsAdmin = false
 	space.QuotaBytes = 1 << 30
 
-	dto := spaceToDTO(space, "admin")
+	dto := spaceToDTO(space, true)
 	if dto.Slug != "acme-core" {
 		t.Errorf("slug = %q, want acme-core", dto.Slug)
 	}
 	if dto.Description != "Everything the core team works on" {
 		t.Errorf("description = %q", dto.Description)
 	}
-	if dto.DefaultRole != "member" {
-		t.Errorf("default_role = %q, want member", dto.DefaultRole)
-	}
 
-	// Present-when-empty is the part that actually prevents the data loss.
-	raw, err := json.Marshal(spaceToDTO(store.Space{}, "admin"))
+	// Present-when-empty is the part that actually prevents data loss.
+	raw, err := json.Marshal(spaceToDTO(store.Space{}, false))
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
@@ -42,7 +39,7 @@ func TestSpaceDTOCarriesSettingsFields(t *testing.T) {
 	if err := json.Unmarshal(raw, &fields); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	for _, key := range []string{"slug", "description", "default_role"} {
+	for _, key := range []string{"slug", "description"} {
 		if _, ok := fields[key]; !ok {
 			t.Errorf("%q missing from the JSON of an empty space — the settings form would clear it", key)
 		}

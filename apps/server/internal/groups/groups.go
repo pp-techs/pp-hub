@@ -1,9 +1,9 @@
 // Package groups implements named sets of users inside a space and the grants
 // that give those sets access to folders.
 //
-// See docs/architecture/permissions.md. A space is a company; a `member` role
-// grants no file access on its own, so a group grant is how anyone other than
-// an admin reaches anything.
+// See docs/architecture/permissions.md. Every space has two automatic,
+// immutable groups: Everyone (membership mirrors space membership) and Admin
+// (membership IS the admin role). Everything else is user-created.
 package groups
 
 import (
@@ -14,18 +14,18 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 )
 
 var (
 	ErrNotFound = errors.New("group not found")
-	// ErrEveryoneImmutable guards the automatic group. Its membership mirrors
-	// space membership and is maintained by spaces.Service; letting it be
-	// edited or deleted by hand would leave a space with no way for a new
-	// member to reach anything.
-	ErrEveryoneImmutable = errors.New("the Everyone group is maintained automatically")
-	ErrNameTaken         = errors.New("a group with that name already exists in this space")
-	ErrNameEmpty         = errors.New("group name is required")
+	// ErrSystemGroupImmutable guards the automatic groups. Everyone's
+	// membership mirrors space membership and Admin's IS the admin role; both
+	// are maintained by spaces.Service, never edited by hand.
+	ErrSystemGroupImmutable = errors.New("this group is maintained automatically")
+	ErrNameTaken            = errors.New("a group with that name already exists in this space")
+	ErrNameEmpty            = errors.New("group name is required")
 	// ErrCrossSpace is the isolation boundary: a grant may only name a group
 	// from the same space as the node.
 	ErrCrossSpace = errors.New("group and node belong to different spaces")
@@ -59,6 +59,7 @@ func (s *Service) Create(ctx context.Context, spaceID pgtype.UUID, name, descrip
 		Name:        name,
 		Description: strings.TrimSpace(description),
 		IsEveryone:  false,
+		IsAdmin:     false,
 		CreatedBy:   createdBy,
 	})
 	if isUniqueViolation(err) {
@@ -72,8 +73,8 @@ func (s *Service) Update(ctx context.Context, id pgtype.UUID, name, description 
 	if err != nil {
 		return store.Group{}, err
 	}
-	if g.IsEveryone {
-		return store.Group{}, ErrEveryoneImmutable
+	if g.IsEveryone || g.IsAdmin {
+		return store.Group{}, ErrSystemGroupImmutable
 	}
 	name = strings.TrimSpace(name)
 	if name == "" {
@@ -97,8 +98,8 @@ func (s *Service) Delete(ctx context.Context, id pgtype.UUID) error {
 	if err != nil {
 		return err
 	}
-	if g.IsEveryone {
-		return ErrEveryoneImmutable
+	if g.IsEveryone || g.IsAdmin {
+		return ErrSystemGroupImmutable
 	}
 	return s.q.DeleteGroup(ctx, id)
 }
@@ -120,8 +121,10 @@ func (s *Service) AddMember(ctx context.Context, groupID, userID pgtype.UUID) er
 	if err != nil {
 		return err
 	}
-	if g.IsEveryone {
-		return ErrEveryoneImmutable
+	// Everyone's membership mirrors space membership; Admin's is the admin
+	// role. Both change only through spaces.Service.
+	if g.IsEveryone || g.IsAdmin {
+		return ErrSystemGroupImmutable
 	}
 	return s.q.AddGroupMember(ctx, store.AddGroupMemberParams{GroupID: groupID, UserID: userID})
 }
@@ -131,18 +134,18 @@ func (s *Service) RemoveMember(ctx context.Context, groupID, userID pgtype.UUID)
 	if err != nil {
 		return err
 	}
-	if g.IsEveryone {
-		return ErrEveryoneImmutable
+	if g.IsEveryone || g.IsAdmin {
+		return ErrSystemGroupImmutable
 	}
 	return s.q.RemoveGroupMember(ctx, store.RemoveGroupMemberParams{GroupID: groupID, UserID: userID})
 }
 
 // --- Grants ---
 
-// Grant gives a group a permission on a node. node and group must share a
+// Grant gives a group capabilities on a node. node and group must share a
 // space; otherwise a grant would punch a hole straight through the company
 // boundary.
-func (s *Service) Grant(ctx context.Context, node store.Node, groupID pgtype.UUID, perm store.SharePerm, createdBy pgtype.UUID) (store.Share, error) {
+func (s *Service) Grant(ctx context.Context, node store.Node, groupID pgtype.UUID, caps share.GrantCaps, createdBy pgtype.UUID) (store.Share, error) {
 	g, err := s.Get(ctx, groupID)
 	if err != nil {
 		return store.Share{}, err
@@ -150,9 +153,12 @@ func (s *Service) Grant(ctx context.Context, node store.Node, groupID pgtype.UUI
 	if g.SpaceID != node.SpaceID {
 		return store.Share{}, ErrCrossSpace
 	}
+	caps = caps.Normalized()
 	return s.q.UpsertGroupGrant(ctx, store.UpsertGroupGrantParams{
 		NodeID:         node.ID,
-		Perm:           perm,
+		Level:          caps.Level,
+		CanDownload:    caps.CanDownload,
+		CanShare:       caps.CanShare,
 		GranteeGroupID: groupID,
 		CreatedBy:      createdBy,
 	})

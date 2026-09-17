@@ -12,14 +12,10 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
-
 	"github.com/nhatbui/pp-hub/apps/server/internal/activity"
-	"github.com/nhatbui/pp-hub/apps/server/internal/spaces"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 )
 
-// slugPattern matches what the settings form promises: lowercase letters,
-// digits and dashes, not starting or ending with a dash.
 var slugPattern = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 
 const invitationTTL = 14 * 24 * time.Hour
@@ -28,44 +24,36 @@ type invitationDTO struct {
 	ID        string `json:"id"`
 	SpaceID   string `json:"space_id"`
 	Email     string `json:"email"`
-	Role      string `json:"role"`
+	AsAdmin   bool   `json:"as_admin"`
 	InvitedBy string `json:"invited_by"`
 	ExpiresAt string `json:"expires_at,omitempty"`
 	CreatedAt string `json:"created_at"`
-	// URL is returned once, at creation. There is no mail transport in the
-	// MVP, so the inviter copies this and sends it themselves.
-	URL string `json:"url,omitempty"`
+	URL       string `json:"url,omitempty"`
 }
 
-// handleUpdateSpace edits a space's own settings. Owner only.
 func (s *Server) handleUpdateSpace(w http.ResponseWriter, r *http.Request) {
-	u, space, ok := s.requireSpaceOwner(w, r)
+	u, space, ok := s.requireSpaceAdmin(w, r)
 	if !ok {
 		return
 	}
-
 	var body struct {
-		Name        *string `json:"name"`
-		Slug        *string `json:"slug"`
-		Description *string `json:"description"`
-		DefaultRole *string `json:"default_role"`
-		QuotaBytes  *int64  `json:"quota_bytes"`
-		// Days to keep trashed items. 0 keeps them indefinitely.
+		Name               *string `json:"name"`
+		Slug              *string `json:"slug"`
+		Description       *string `json:"description"`
+		DefaultAsAdmin   *bool   `json:"default_as_admin"`
+		QuotaBytes       *int64  `json:"quota_bytes"`
 		TrashRetentionDays *int32 `json:"trash_retention_days"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid body")
 		return
 	}
-
-	// Absent fields keep their current value, so the form can PATCH one field
-	// without having to round-trip the rest.
 	next := store.UpdateSpaceSettingsParams{
-		ID:                 space.ID,
-		Name:               space.Name,
-		Slug:               space.Slug,
-		Description:        space.Description,
-		DefaultRole:        space.DefaultRole,
+		ID:                  space.ID,
+		Name:                space.Name,
+		Slug:                space.Slug,
+		Description:         space.Description,
+		DefaultAsAdmin:     space.DefaultAsAdmin,
 		QuotaBytes:         space.QuotaBytes,
 		TrashRetentionDays: space.TrashRetentionDays,
 	}
@@ -88,15 +76,8 @@ func (s *Server) handleUpdateSpace(w http.ResponseWriter, r *http.Request) {
 	if body.Description != nil {
 		next.Description = strings.TrimSpace(*body.Description)
 	}
-	if body.DefaultRole != nil {
-		role := store.MemberRole(*body.DefaultRole)
-		switch role {
-		case store.MemberRoleMember, store.MemberRoleAdmin:
-			next.DefaultRole = role
-		default:
-			writeProblem(w, http.StatusBadRequest, "Bad Request", "default_role must be admin|member")
-			return
-		}
+	if body.DefaultAsAdmin != nil {
+		next.DefaultAsAdmin = *body.DefaultAsAdmin
 	}
 	if body.QuotaBytes != nil {
 		if *body.QuotaBytes < 0 {
@@ -107,13 +88,11 @@ func (s *Server) handleUpdateSpace(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.TrashRetentionDays != nil {
 		if *body.TrashRetentionDays < 0 {
-			writeProblem(w, http.StatusBadRequest, "Bad Request",
-				"trash_retention_days cannot be negative")
+			writeProblem(w, http.StatusBadRequest, "Bad Request", "trash_retention_days cannot be negative")
 			return
 		}
 		next.TrashRetentionDays = *body.TrashRetentionDays
 	}
-
 	updated, err := s.store.UpdateSpaceSettings(r.Context(), next)
 	if err != nil {
 		if isUniqueViolation(err) {
@@ -123,25 +102,20 @@ func (s *Server) handleUpdateSpace(w http.ResponseWriter, r *http.Request) {
 		Error(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, spaceToDTO(updated, string(spaces.RoleAdmin)))
+	writeJSON(w, http.StatusOK, spaceToDTO(updated, true))
 	_ = u
 }
 
-// spaceSettingsFrom validates the optional settings supplied at creation and
-// folds them onto the space's current values. Returns a problem detail string
-// when something is invalid, so the caller can answer 400 without repeating
-// the rules that handleUpdateSpace already enforces.
-func spaceSettingsFrom(sp store.Space, slug, description, defaultRole string, quota int64) (store.UpdateSpaceSettingsParams, string) {
+func spaceSettingsFrom(sp store.Space, slug, description string, defaultAsAdmin bool, quota int64) (store.UpdateSpaceSettingsParams, string) {
 	next := store.UpdateSpaceSettingsParams{
-		ID:                 sp.ID,
-		Name:               sp.Name,
-		Slug:               sp.Slug,
-		Description:        sp.Description,
-		DefaultRole:        sp.DefaultRole,
+		ID:                  sp.ID,
+		Name:                sp.Name,
+		Slug:                sp.Slug,
+		Description:         sp.Description,
+		DefaultAsAdmin:     sp.DefaultAsAdmin,
 		QuotaBytes:         sp.QuotaBytes,
 		TrashRetentionDays: sp.TrashRetentionDays,
 	}
-
 	if slug != "" {
 		normalised := strings.TrimSpace(strings.ToLower(slug))
 		if !slugPattern.MatchString(normalised) {
@@ -152,15 +126,7 @@ func spaceSettingsFrom(sp store.Space, slug, description, defaultRole string, qu
 	if description != "" {
 		next.Description = strings.TrimSpace(description)
 	}
-	if defaultRole != "" {
-		role := store.MemberRole(defaultRole)
-		switch role {
-		case store.MemberRoleMember, store.MemberRoleAdmin:
-			next.DefaultRole = role
-		default:
-			return next, "default_role must be admin|member"
-		}
-	}
+	next.DefaultAsAdmin = defaultAsAdmin
 	if quota < 0 {
 		return next, "quota_bytes cannot be negative"
 	}
@@ -170,29 +136,34 @@ func spaceSettingsFrom(sp store.Space, slug, description, defaultRole string, qu
 	return next, ""
 }
 
-// handleDeleteSpace removes a space and everything in it. Owner only.
-//
-// The cascade is wide — nodes, versions, shares, members, activity — so the
-// client is expected to confirm by name before calling this.
 func (s *Server) handleDeleteSpace(w http.ResponseWriter, r *http.Request) {
-	_, space, ok := s.requireSpaceOwner(w, r)
+	_, _, ok := s.requireSpaceAdmin(w, r)
 	if !ok {
 		return
 	}
-	if err := s.store.DeleteSpace(r.Context(), space.ID); err != nil {
+	spaceID, err := uuidParam(r, "spaceID")
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
+		return
+	}
+	if err := s.store.DeleteSpace(r.Context(), spaceID); err != nil {
 		Error(w, r, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// handleListInvitations returns the space's pending invitations.
 func (s *Server) handleListInvitations(w http.ResponseWriter, r *http.Request) {
-	_, space, ok := s.requireSpaceOwner(w, r)
+	_, _, ok := s.requireSpaceAdmin(w, r)
 	if !ok {
 		return
 	}
-	rows, err := s.store.ListSpaceInvitations(r.Context(), space.ID)
+	spaceID, err := uuidParam(r, "spaceID")
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
+		return
+	}
+	rows, err := s.store.ListSpaceInvitations(r.Context(), spaceID)
 	if err != nil {
 		Error(w, r, err)
 		return
@@ -203,7 +174,7 @@ func (s *Server) handleListInvitations(w http.ResponseWriter, r *http.Request) {
 			ID:        uuidString(i.ID),
 			SpaceID:   uuidString(i.SpaceID),
 			Email:     i.Email,
-			Role:      string(i.Role),
+			AsAdmin:   i.AsAdmin,
 			InvitedBy: actorName(i.InviterDisplayName, i.InviterName, i.InviterEmail),
 			ExpiresAt: optionalTime(i.ExpiresAt),
 			CreatedAt: i.CreatedAt.Time.Format(timeLayout),
@@ -212,20 +183,15 @@ func (s *Server) handleListInvitations(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// handleCreateInvitation invites an email address that may not have an account.
-//
-// If the address already belongs to a user, they are added as a member
-// directly — an invitation would be a pointless extra step for someone who can
-// already sign in.
 func (s *Server) handleCreateInvitation(w http.ResponseWriter, r *http.Request) {
-	u, space, ok := s.requireSpaceOwner(w, r)
+	u, space, ok := s.requireSpaceAdmin(w, r)
 	if !ok {
 		return
 	}
-
 	var body struct {
-		Email string `json:"email"`
-		Role  string `json:"role"`
+		Email   string `json:"email"`
+		AsAdmin bool   `json:"as_admin"`
+		Role    string `json:"role"` // deprecated: "admin"|"member" → as_admin
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid body")
@@ -236,24 +202,32 @@ func (s *Server) handleCreateInvitation(w http.ResponseWriter, r *http.Request) 
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "a valid email is required")
 		return
 	}
-	role := store.MemberRole(body.Role)
-	switch role {
-	case store.MemberRoleMember, store.MemberRoleAdmin:
-	case "":
-		role = space.DefaultRole
-	default:
+
+	asAdmin := body.AsAdmin
+	if body.Role == "admin" {
+		asAdmin = true
+	} else if body.Role == "member" {
+		asAdmin = false
+	} else if body.Role != "" {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "role must be admin|member")
 		return
 	}
+	if !body.AsAdmin && body.Role == "" {
+		asAdmin = space.DefaultAsAdmin
+	}
 
 	if existing, err := s.store.GetUserByEmail(r.Context(), email); err == nil {
-		if err := s.spaces.AddMember(r.Context(), space.ID, existing.ID, spaces.Role(role)); err != nil {
+		if err := s.spaces.AddMember(r.Context(), space.ID, existing.ID, asAdmin); err != nil {
 			Error(w, r, err)
 			return
 		}
+		roleStr := "member"
+		if asAdmin {
+			roleStr = "admin"
+		}
 		s.activity.Record(r.Context(), activity.Event{
 			SpaceID: space.ID, ActorID: u.ID, Kind: activity.KindJoined,
-			NodeName: existing.Email, Detail: map[string]any{"role": string(role)},
+			NodeName: existing.Email, Detail: map[string]any{"role": roleStr},
 		})
 		writeJSON(w, http.StatusOK, map[string]any{"added_member": true, "email": existing.Email})
 		return
@@ -267,7 +241,7 @@ func (s *Server) handleCreateInvitation(w http.ResponseWriter, r *http.Request) 
 	inv, err := s.store.CreateInvitation(r.Context(), store.CreateInvitationParams{
 		SpaceID:   space.ID,
 		Email:     email,
-		Role:      role,
+		AsAdmin:   asAdmin,
 		TokenHash: hash,
 		InvitedBy: u.ID,
 		ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(invitationTTL), Valid: true},
@@ -276,27 +250,33 @@ func (s *Server) handleCreateInvitation(w http.ResponseWriter, r *http.Request) 
 		Error(w, r, err)
 		return
 	}
+	roleStr := "member"
+	if asAdmin {
+		roleStr = "admin"
+	}
 	s.activity.Record(r.Context(), activity.Event{
 		SpaceID: space.ID, ActorID: u.ID, Kind: activity.KindInvited,
-		NodeName: email, Detail: map[string]any{"role": string(role)},
+		NodeName: email, Detail: map[string]any{"role": roleStr},
 	})
-
 	writeJSON(w, http.StatusCreated, invitationDTO{
 		ID:        uuidString(inv.ID),
 		SpaceID:   uuidString(inv.SpaceID),
 		Email:     inv.Email,
-		Role:      string(inv.Role),
+		AsAdmin:   inv.AsAdmin,
 		ExpiresAt: optionalTime(inv.ExpiresAt),
 		CreatedAt: inv.CreatedAt.Time.Format(timeLayout),
-		// Shown once. There is no mail transport yet, so the inviter sends it.
-		URL: s.externalURL + "/invite/" + token,
+		URL:       s.externalURL + "/invite/" + token,
 	})
 }
 
-// handleRevokeInvitation withdraws a pending invitation.
 func (s *Server) handleRevokeInvitation(w http.ResponseWriter, r *http.Request) {
-	_, space, ok := s.requireSpaceOwner(w, r)
+	_, _, ok := s.requireSpaceAdmin(w, r)
 	if !ok {
+		return
+	}
+	spaceID, err := uuidParam(r, "spaceID")
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
 		return
 	}
 	inviteID, err := uuidParam(r, "inviteID")
@@ -305,7 +285,7 @@ func (s *Server) handleRevokeInvitation(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if err := s.store.DeleteInvitation(r.Context(), store.DeleteInvitationParams{
-		ID: inviteID, SpaceID: space.ID,
+		ID: inviteID, SpaceID: spaceID,
 	}); err != nil {
 		Error(w, r, err)
 		return
@@ -313,8 +293,6 @@ func (s *Server) handleRevokeInvitation(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// handleAcceptInvitation redeems a token for membership. Requires a signed-in
-// user: the invitation names an address, but membership names an account.
 func (s *Server) handleAcceptInvitation(w http.ResponseWriter, r *http.Request) {
 	u := s.requireUser(w, r)
 	if u == nil {
@@ -327,20 +305,17 @@ func (s *Server) handleAcceptInvitation(w http.ResponseWriter, r *http.Request) 
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "token is required")
 		return
 	}
-
 	inv, err := s.store.GetInvitationByToken(r.Context(), hashToken(body.Token))
 	if err != nil {
 		writeProblem(w, http.StatusNotFound, "Not Found", "invalid or expired invitation")
 		return
 	}
-	// The invitation is addressed to an email, not to whoever holds the link.
 	if !strings.EqualFold(inv.Email, u.Email) {
 		writeProblem(w, http.StatusForbidden, "Forbidden",
 			"this invitation was sent to a different address")
 		return
 	}
-
-	if err := s.spaces.AddMember(r.Context(), inv.SpaceID, u.ID, spaces.Role(inv.Role)); err != nil {
+	if err := s.spaces.AddMember(r.Context(), inv.SpaceID, u.ID, inv.AsAdmin); err != nil {
 		Error(w, r, err)
 		return
 	}
@@ -351,40 +326,15 @@ func (s *Server) handleAcceptInvitation(w http.ResponseWriter, r *http.Request) 
 	s.activity.Record(r.Context(), activity.Event{
 		SpaceID: inv.SpaceID, ActorID: u.ID, Kind: activity.KindJoined, NodeName: u.Email,
 	})
-
 	space, err := s.spaces.Get(r.Context(), inv.SpaceID)
 	if err != nil {
 		Error(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, spaceToDTO(space, string(inv.Role)))
+	writeJSON(w, http.StatusOK, spaceToDTO(space, inv.AsAdmin))
 }
 
-// requireSpaceOwner resolves {spaceID} and demands the owner role.
-func (s *Server) requireSpaceOwner(w http.ResponseWriter, r *http.Request) (*store.User, store.Space, bool) {
-	u := s.requireUser(w, r)
-	if u == nil {
-		return nil, store.Space{}, false
-	}
-	spaceID, err := uuidParam(r, "spaceID")
-	if err != nil {
-		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
-		return nil, store.Space{}, false
-	}
-	if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleAdmin); err != nil {
-		s.spaceError(w, r, err)
-		return nil, store.Space{}, false
-	}
-	space, err := s.spaces.Get(r.Context(), spaceID)
-	if err != nil {
-		s.spaceError(w, r, err)
-		return nil, store.Space{}, false
-	}
-	return u, space, true
-}
 
-// newInviteToken returns the plaintext token and the hash to store. Only the
-// hash is persisted, so a database leak does not hand out memberships.
 func newInviteToken() (token, hash string, err error) {
 	raw := make([]byte, 32)
 	if _, err := rand.Read(raw); err != nil {
@@ -415,8 +365,7 @@ func optionalTime(t pgtype.Timestamptz) string {
 	return t.Time.Format(timeLayout)
 }
 
-// isUniqueViolation mirrors fs.isUniqueViolation for the handlers that talk to
-// the store directly.
+
 func isUniqueViolation(err error) bool {
 	var pgErr interface{ SQLState() string }
 	if errors.As(err, &pgErr) {

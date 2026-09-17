@@ -9,12 +9,10 @@ import {
   listUsers,
   getSpaceMembers,
   addSpaceMember,
-  updateMemberRole,
+  setMemberAdmin,
   removeSpaceMember,
 } from "@/lib/api/users";
-import type { SpaceMember } from "@/lib/api/types";
 import { keys } from "./keys";
-
 // ─── Profile ─────────────────────────────────────────────────────────────────
 
 export function useMyProfile() {
@@ -69,34 +67,27 @@ export function useSpaceMembers(spaceId: string | null) {
     enabled: !!spaceId,
   });
 }
-
 export function useAddSpaceMember() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      spaceId,
-      ...body
-    }: {
-      spaceId: string;
-      user_id: string;
-      role: SpaceMember["role"];
-    }) => addSpaceMember(spaceId, body),
+    mutationFn: ({ spaceId, ...body }: { spaceId: string; user_id: string; as_admin: boolean }) =>
+      addSpaceMember(spaceId, body),
     onSuccess: (_, vars) => qc.invalidateQueries({ queryKey: keys.members(vars.spaceId) }),
   });
 }
 
-export function useUpdateMemberRole() {
+export function useSetMemberAdmin() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({
       spaceId,
       userId,
-      role,
+      as_admin,
     }: {
       spaceId: string;
       userId: string;
-      role: SpaceMember["role"];
-    }) => updateMemberRole(spaceId, userId, role),
+      as_admin: boolean;
+    }) => setMemberAdmin(spaceId, userId, as_admin),
     onSuccess: (_, vars) => qc.invalidateQueries({ queryKey: keys.members(vars.spaceId) }),
   });
 }

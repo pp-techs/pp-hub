@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { Lock, ShieldCheck, Users, X } from "lucide-react";
 import { Badge } from "@workspace/ui/components/badge";
 import { Button } from "@workspace/ui/components/button";
+import { Checkbox } from "@workspace/ui/components/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -19,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select";
-import { ApiError, type Node, type SharePerm } from "@/lib/api";
+import { ApiError, type Node } from "@/lib/api";
 import { useGrants, useGroups, useRevokeGrant, useUpsertGrant } from "@/lib/queries";
 import { useKeyedState } from "@/lib/use-keyed-state";
 
@@ -28,16 +29,9 @@ type Props = { node: Node; spaceId: string };
 // base-ui's SelectValue renders the raw value unless the Select is given an
 // `items` list to map value → label with, which is why every Select in this app
 // passes one. Without it the trigger showed a group's uuid.
-const PERM_ITEMS: { value: SharePerm; label: string }[] = [
+const LEVEL_ITEMS: { value: "view" | "edit"; label: string }[] = [
   { value: "view", label: "View" },
-  { value: "download", label: "Download" },
   { value: "edit", label: "Edit" },
-];
-
-const PERMS: { value: SharePerm; label: string; blurb: string }[] = [
-  { value: "view", label: "View", blurb: "Open and read what is inside" },
-  { value: "download", label: "Download", blurb: "View, plus save copies to their machine" },
-  { value: "edit", label: "Edit", blurb: "Add, change, move and delete things inside" },
 ];
 
 /**
@@ -48,7 +42,8 @@ const PERMS: { value: SharePerm; label: string; blurb: string }[] = [
  * groups is that access is legible — every line here is one grant row.
  *
  * Access inherits downward, so a grant made here also opens everything inside.
- * Grants are admin-only; a member with edit can still share a link.
+ * Granting needs the share capability on this folder — its owner has it, and so
+ * does anyone a grant handed it to. Being a space admin does not.
  */
 export const FolderAccessDialog = createModal<Props, null>(
   "folder-access",
@@ -62,7 +57,9 @@ export const FolderAccessDialog = createModal<Props, null>(
     // useState would carry the previous folder's picks into the next opening
     // and could grant a group access to something nobody chose.
     const [groupId, setGroupId] = useKeyedState<string, string>(node.id, "");
-    const [perm, setPerm] = useKeyedState<string, SharePerm>(node.id, "view");
+    const [level, setLevel] = useKeyedState<string, "view" | "edit">(node.id, "view");
+    const [canDownload, setCanDownload] = useKeyedState<string, boolean>(node.id, false);
+    const [canShare, setCanShare] = useKeyedState<string, boolean>(node.id, false);
 
     const granted = new Set(grants.map((g) => g.group_id));
     const available = groups.filter((g) => !granted.has(g.id));
@@ -70,12 +67,20 @@ export const FolderAccessDialog = createModal<Props, null>(
 
     function add() {
       if (!groupId) return;
+      // An editor can always download what it edits — the database says so,
+      // and sending a contradiction would just come back as a constraint
+      // violation.
+      const caps = {
+        level,
+        can_download: level === "edit" ? true : canDownload,
+        can_share: canShare,
+      };
       grant.mutate(
-        { groupId, perm },
+        { groupId, caps },
         {
           onSuccess: () => {
             const name = groups.find((g) => g.id === groupId)?.name ?? "group";
-            toast.success(`${name} can now ${perm} "${node.name}"`);
+            toast.success(`${name} can now ${level} “${node.name}”`);
             setGroupId("");
           },
           onError: (e) => toast.error(e instanceof ApiError ? e.message : "Could not grant access"),
@@ -100,7 +105,8 @@ export const FolderAccessDialog = createModal<Props, null>(
                 {isLoading && <p className="text-muted-foreground p-3 text-xs">Loading access…</p>}
                 {!isLoading && grants.length === 0 && (
                   <p className="text-muted-foreground p-3 text-xs">
-                    No group opens this folder. Only space admins can see it.
+                    No group opens this folder — only you and anyone you shared it with directly can
+                    see it.
                   </p>
                 )}
                 {grants.map((g) => (
@@ -113,9 +119,11 @@ export const FolderAccessDialog = createModal<Props, null>(
                         Everyone
                       </Badge>
                     )}
-                    <Badge variant="outline" className="ml-auto font-normal capitalize">
-                      {g.perm}
-                    </Badge>
+                    <span className="text-muted-foreground ml-auto text-xs whitespace-nowrap">
+                      {[g.level, g.can_download && "download", g.can_share && "re-share"]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
                     <Button
                       variant="ghost"
                       size="icon-sm"
@@ -157,15 +165,15 @@ export const FolderAccessDialog = createModal<Props, null>(
                   </SelectContent>
                 </Select>
                 <Select
-                  value={perm}
-                  items={PERM_ITEMS}
-                  onValueChange={(v) => setPerm(v as SharePerm)}
+                  value={level}
+                  items={LEVEL_ITEMS}
+                  onValueChange={(v) => setLevel(v as "view" | "edit")}
                 >
-                  <SelectTrigger size="sm" className="w-32" aria-label="Permission to give">
+                  <SelectTrigger size="sm" className="w-28" aria-label="Access level to give">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {PERMS.map((p) => (
+                    {LEVEL_ITEMS.map((p) => (
                       <SelectItem key={p.value} value={p.value}>
                         {p.label}
                       </SelectItem>
@@ -176,14 +184,38 @@ export const FolderAccessDialog = createModal<Props, null>(
                   Give access
                 </Button>
               </div>
-              <p className="text-muted-foreground text-xs">
-                {PERMS.find((p) => p.value === perm)?.blurb}
-              </p>
+              <div className="flex flex-wrap items-center gap-4 pt-1">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="grant-download"
+                    checked={level === "edit" ? true : canDownload}
+                    disabled={level === "edit"}
+                    onCheckedChange={(v) => setCanDownload(Boolean(v))}
+                  />
+                  <Label htmlFor="grant-download" className="text-xs font-normal">
+                    Allow download
+                    {level === "edit" && (
+                      <span className="text-muted-foreground ml-1">(included with edit)</span>
+                    )}
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="grant-share"
+                    checked={canShare}
+                    onCheckedChange={(v) => setCanShare(Boolean(v))}
+                  />
+                  <Label htmlFor="grant-share" className="text-xs font-normal">
+                    Allow re-sharing
+                  </Label>
+                </div>
+              </div>
             </div>
 
             <p className="text-muted-foreground flex items-start gap-2 text-xs">
               <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              Space admins can open every folder here, whether or not a group grants it.
+              Nobody else reaches this folder — not even a space admin — unless a grant here, or a
+              share you made, says so.
             </p>
           </div>
 

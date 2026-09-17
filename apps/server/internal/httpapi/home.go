@@ -8,7 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/nhatbui/pp-hub/apps/server/internal/spaces"
+	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 )
 
@@ -73,7 +73,7 @@ func (s *Server) handleListActivity(w http.ResponseWriter, r *http.Request) {
 			writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
 			return
 		}
-		if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleMember); err != nil {
+		if err := s.spaces.RequireMember(r.Context(), spaceID, u.ID); err != nil {
 			s.spaceError(w, r, err)
 			return
 		}
@@ -169,7 +169,7 @@ func (s *Server) handleListStarred(w http.ResponseWriter, r *http.Request) {
 	}
 	// A star outlives access, which is why the query rechecks membership. That
 	// recheck now has to be a grant check: starring already went through
-	// requireNodeAccess, so a node reachable only by grant could be starred and
+	// requireNodeCaps, so a node reachable only by grant could be starred and
 	// then never appear here.
 	rows, err = reachableRows(r.Context(), s, u.ID, rows,
 		func(n store.ListStarredNodesRow) pgtype.UUID { return n.ID },
@@ -189,7 +189,7 @@ func (s *Server) handleListStarred(w http.ResponseWriter, r *http.Request) {
 // needs only read access — it is the user's private note about the node, not a
 // change to it.
 func (s *Server) handleStarNode(w http.ResponseWriter, r *http.Request) {
-	u, node := s.requireNodeAccess(w, r, 1)
+	u, node, _ := s.requireNodeCaps(w, r, share.CapView)
 	if u == nil {
 		return
 	}
@@ -201,7 +201,7 @@ func (s *Server) handleStarNode(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleUnstarNode(w http.ResponseWriter, r *http.Request) {
-	u, node := s.requireNodeAccess(w, r, 1)
+	u, node, _ := s.requireNodeCaps(w, r, share.CapView)
 	if u == nil {
 		return
 	}
@@ -224,7 +224,7 @@ func (s *Server) handleUsage(w http.ResponseWriter, r *http.Request) {
 			writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
 			return
 		}
-		if err := s.spaces.RequireRole(r.Context(), spaceID, u.ID, spaces.RoleMember); err != nil {
+		if err := s.spaces.RequireMember(r.Context(), spaceID, u.ID); err != nil {
 			s.spaceError(w, r, err)
 			return
 		}

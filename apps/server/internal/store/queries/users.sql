@@ -50,9 +50,12 @@ SELECT COUNT(*) FROM users WHERE tenant_id = $1;
 
 -- name: SetUserAdmin :exec
 UPDATE users SET is_admin = $2 WHERE id = $1;
-
 -- name: GetSpaceMembers :many
-SELECT m.user_id, m.role, m.created_at, u.email, u.name, u.display_name, u.avatar_url
+SELECT m.user_id, m.created_at, u.email, u.name, u.display_name, u.avatar_url,
+  EXISTS (
+    SELECT 1 FROM group_members gm JOIN groups g ON g.id = gm.group_id
+    WHERE g.space_id = m.space_id AND g.is_admin AND gm.user_id = m.user_id
+  ) AS is_admin
 FROM space_members m
 JOIN users u ON u.id = m.user_id
 WHERE m.space_id = $1

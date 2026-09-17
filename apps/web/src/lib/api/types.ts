@@ -30,9 +30,10 @@ export interface SpaceMember {
   user_id: string;
   email: string;
   name: string;
-  display_name: string;
+  display_name?: string;
   avatar_url: string;
-  role: MemberRole;
+  /** Whether this member is a space admin (member of the Admin group). */
+  is_admin: boolean;
   created_at: string;
   /** Live files this member created in this space. */
   files_owned: number;
@@ -42,24 +43,19 @@ export interface SpaceMember {
 export interface Space {
   id: string;
   name: string;
-  role: string;
+  is_admin: boolean;
   used_bytes: number;
   /** Byte allowance for the space. 0 means unlimited. */
   quota_bytes: number;
   slug?: string;
   description?: string;
-  /** Role given to someone who joins without one being specified. */
-  default_role?: MemberRole;
+  /** Promote new members to admin by default. */
+  default_as_admin: boolean;
+  /** ID of the archive folder root, if one exists. */
+  archive_root_id?: string;
   /** Days to keep trashed items. 0 keeps them indefinitely. */
   trash_retention_days?: number;
 }
-
-/**
- * A space is a company, and a role says how you relate to that company — not
- * what you can open. `member` grants no access to any file on its own; what a
- * member can reach comes from group grants and direct shares on folders.
- */
-export type MemberRole = "admin" | "member";
 
 /**
  * A promise of membership to an email address that may not have an account
@@ -69,21 +65,21 @@ export interface Invitation {
   id: string;
   space_id: string;
   email: string;
-  role: MemberRole;
+  /** Whether this invitation grants admin membership. */
+  as_admin: boolean;
   invited_by: string;
   expires_at?: string;
   created_at: string;
   /** Returned once, at creation. There is no mail transport yet. */
   url?: string;
 }
-
 /** Creating an invitation for an existing account adds them directly. */
 export interface InviteResult {
   added_member?: boolean;
   email?: string;
   id?: string;
   url?: string;
-  role?: MemberRole;
+  as_admin?: boolean;
 }
 
 export interface AdminStats {
@@ -122,6 +118,8 @@ export interface Node {
   modified_at?: string; // ISO timestamp: latest version.CreatedAt (file) or node.CreatedAt (folder)
   owner?: string; // display name of creator
   owner_id?: string; // user id for avatar initials
+  /** Access capabilities for the current user on this node. */
+  caps?: { view: boolean; download: boolean; share: boolean; edit: boolean; owner: boolean };
 }
 
 /**
@@ -221,7 +219,6 @@ export interface TreeNode {
   name: string;
   has_children: boolean;
 }
-
 export interface Version {
   id: string;
   version_no: number;
@@ -232,10 +229,15 @@ export interface Version {
 
 export interface Share {
   id: string;
+  node_id?: string;
   kind: string;
-  perm: string;
+  level: "view" | "edit";
+  can_download: boolean;
+  can_share: boolean;
   grantee_email?: string;
   url?: string;
+  expires_at?: string;
+  created_at?: string;
 }
 
 export interface EditSession {
@@ -244,16 +246,32 @@ export interface EditSession {
   access_token_ttl: number;
 }
 
+/**
+ * What an anonymous visitor is told about the link itself. A link is always
+ * view level (edit-via-link is post-MVP); `can_download` is the only choice
+ * the sharer makes.
+ */
 export interface ShareInfo {
   node: Node;
-  perm: SharePerm;
+  level: "view";
+  can_download: boolean;
   /** Display name of whoever created the link. */
   shared_by?: string;
   expires_at?: string;
 }
 
-/** Links are clamped read-only, so `edit` never reaches an anonymous visitor. */
-export type SharePerm = "view" | "download" | "edit";
+/**
+ * What a share or a grant hands over, exactly as the server stores it: a level
+ * plus two independent flags. `can_download` is a choice on a viewer and is
+ * implied by `edit` (the database requires it — an editor can always fetch what
+ * it edits); `can_share` is independent of level, so a viewer may be allowed to
+ * pass their view on and an editor may be denied re-sharing.
+ */
+export interface GrantCaps {
+  level: "view" | "edit";
+  can_download: boolean;
+  can_share: boolean;
+}
 
 // Re-export ApiError for convenience
 export { ApiError } from "./client";
@@ -264,6 +282,9 @@ export { ApiError } from "./client";
  * `is_everyone` marks the automatic group holding every member: the server
  * maintains its membership, and it cannot be renamed, deleted, or edited by
  * hand. It is how someone granted nothing individually reaches anything.
+ *
+ * `is_admin` marks the automatic group holding space admins: membership is
+ * managed via the members panel, not here.
  */
 export interface Group {
   id: string;
@@ -271,6 +292,7 @@ export interface Group {
   name: string;
   description: string;
   is_everyone: boolean;
+  is_admin: boolean;
   member_count: number;
   /** How many folders this group opens — what deleting it would take away. */
   grant_count: number;
@@ -286,12 +308,20 @@ export interface GroupMember {
   added_at: string;
 }
 
-/** A group's standing access to one folder. */
+/**
+ * A group's standing access to one folder.
+ *
+ * `level` is the access tier. `can_download` and `can_share` are optional flags.
+ * `can_download` is only meaningful with level="view".
+ * `can_share` is only meaningful with level="edit".
+ */
 export interface Grant {
   id: string;
   group_id: string;
   group_name: string;
+  is_admin: boolean;
   is_everyone: boolean;
-  perm: SharePerm;
-  created_at: string;
+  level: "view" | "edit";
+  can_download: boolean;
+  can_share: boolean;
 }

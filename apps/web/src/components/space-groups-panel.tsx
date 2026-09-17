@@ -90,6 +90,9 @@ function GroupRow({
   const [confirming, setConfirming] = useState(false);
   const del = useDeleteGroup(space.id);
 
+  // Automatic groups (Everyone and Admin) cannot be deleted or renamed
+  const isAutomatic = group.is_everyone || group.is_admin;
+
   return (
     <div className="bg-background">
       <div className="hover:bg-muted/40 flex items-center gap-3 px-3 py-2.5">
@@ -105,7 +108,7 @@ function GroupRow({
           <div className="flex min-w-0 flex-col">
             <span className="flex items-center gap-2 text-sm font-medium">
               {group.name}
-              {group.is_everyone && (
+              {isAutomatic && (
                 <Badge variant="secondary" className="gap-1 font-normal">
                   <Lock className="h-3 w-3" />
                   Automatic
@@ -130,7 +133,7 @@ function GroupRow({
           {group.grant_count}
         </span>
 
-        {!group.is_everyone && (
+        {!isAutomatic && (
           <Button
             variant="ghost"
             size="icon-sm"
@@ -178,12 +181,19 @@ function GroupMembers({ space, group }: { space: Space; group: Group }) {
   const add = useAddGroupMember(space.id);
   const remove = useRemoveGroupMember(space.id);
 
+  // Automatic groups (Everyone and Admin) have read-only membership
+  const isAutomatic = group.is_everyone || group.is_admin;
+
   return (
     <div className="bg-muted/30 border-t px-3 py-3 pl-10">
       {group.is_everyone ? (
         <p className="text-muted-foreground text-xs">
           Everyone in this space belongs to this group, and it updates itself as people join and
           leave. Give it access to the folders the whole company should see.
+        </p>
+      ) : group.is_admin ? (
+        <p className="text-muted-foreground text-xs">
+          Admin membership is managed in the Members tab. This group contains all space admins.
         </p>
       ) : (
         <div className="mb-3 max-w-xs">
@@ -223,7 +233,7 @@ function GroupMembers({ space, group }: { space: Space; group: Group }) {
             </Avatar>
             <span className="text-sm">{m.display_name || m.name || m.email}</span>
             <span className="text-muted-foreground truncate text-xs">{m.email}</span>
-            {!group.is_everyone && (
+            {!isAutomatic && (
               <Button
                 variant="ghost"
                 size="icon-sm"

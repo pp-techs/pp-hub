@@ -56,17 +56,17 @@ func (s *Server) Router() http.Handler {
 		r.Get("/users/me", s.handleGetMyProfile)
 		r.Put("/users/me", s.handleUpdateMyProfile)
 		r.Post("/users/me/avatar", s.handleUploadAvatar)
-		r.Get("/search", s.handleSearch)         // name search across my spaces
-		r.Get("/activity", s.handleListActivity) // feed, all my spaces or one
-		r.Get("/recent", s.handleListRecent)     // files I last touched
-		r.Get("/starred", s.handleListStarred)   // my bookmarks
-		r.Get("/usage", s.handleUsage)           // storage by MIME family
-		r.Get("/shared", s.handleListShared)     // nodes shared with me, across spaces
+		r.Get("/search", s.handleSearch)
+		r.Get("/activity", s.handleListActivity)
+		r.Get("/recent", s.handleListRecent)
+		r.Get("/starred", s.handleListStarred)
+		r.Get("/usage", s.handleUsage)
+		r.Get("/shared", s.handleListShared)
 		r.Post("/invitations/accept", s.handleAcceptInvitation)
-		r.Get("/admin/stats", s.handleAdminStats) // admin only
+		r.Get("/admin/stats", s.handleAdminStats)
 		r.Patch("/admin/users/{userID}", s.handleAdminUpdateUser)
-		r.Get("/users", s.handleListUsers)          // admin only
-		r.Get("/users/search", s.handleSearchUsers) // autocomplete
+		r.Get("/users", s.handleListUsers)
+		r.Get("/users/search", s.handleSearchUsers)
 
 		r.Route("/spaces", func(r chi.Router) {
 			r.Post("/", s.handleCreateSpace)
@@ -98,13 +98,13 @@ func (s *Server) Router() http.Handler {
 					r.Get("/", s.handleListMembers)
 					r.Post("/", s.handleAddMember)
 					r.Route("/{userID}", func(r chi.Router) {
-						r.Patch("/", s.handleUpdateMemberRole)
+						r.Patch("/", s.handleSetMemberAdmin)
+						r.Post("/set-admin", s.handleSetMemberAdmin)
 						r.Delete("/", s.handleRemoveMember)
 					})
 				})
 			})
 		})
-
 		r.Route("/nodes/{nodeID}", func(r chi.Router) {
 			r.Get("/", s.handleGetNode)
 			r.Get("/download", s.handleDownload)
@@ -137,8 +137,6 @@ func (s *Server) Router() http.Handler {
 		r.Post("/", s.handleWopiLockOps)
 	})
 
-	// Anonymous link access. Every node id these accept is verified to sit
-	// inside the shared subtree before anything is served.
 	r.Route("/s/{token}", func(r chi.Router) {
 		r.Get("/", s.handleShareInfo)
 		r.Get("/download", s.handleShareDownload)
@@ -157,9 +155,6 @@ func (s *Server) requireUser(w http.ResponseWriter, r *http.Request) *store.User
 		writeProblem(w, http.StatusUnauthorized, "Unauthorized", "")
 		return nil
 	}
-	// Suspension is enforced here rather than at sign-in, so it takes effect
-	// on the next request instead of waiting for an existing session to
-	// expire. 403 and not 401: the credentials are fine, the account is not.
 	if u.SuspendedAt.Valid {
 		writeProblem(w, http.StatusForbidden, "Forbidden", "this account is suspended")
 		return nil

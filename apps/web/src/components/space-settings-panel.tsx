@@ -7,8 +7,7 @@ import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 import { Textarea } from "@workspace/ui/components/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs";
-import { ToggleGroup, ToggleGroupItem } from "@workspace/ui/components/toggle-group";
-import { fmtSize, type MemberRole, type Space, type SpaceSettings } from "@/lib/api";
+import { fmtSize, type Space, type SpaceSettings } from "@/lib/api";
 import { useDeleteSpace, useUpdateSpace } from "@/lib/queries";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { SpaceMembersPanel } from "@/components/space-members-panel";
@@ -23,7 +22,7 @@ import { SpaceGroupsPanel } from "@/components/space-groups-panel";
  * off rather than shipped as empty panes.
  */
 export function SpaceSettingsPanel({ space }: { space: Space }) {
-  const isAdmin = space.role === "admin";
+  const isAdmin = space.is_admin;
 
   if (!isAdmin) {
     return (
@@ -66,13 +65,13 @@ function GeneralTab({ space }: { space: Space }) {
   const [name, setName] = useState(space.name);
   const [slug, setSlug] = useState(space.slug ?? "");
   const [description, setDescription] = useState(space.description ?? "");
-  const [defaultRole, setDefaultRole] = useState<MemberRole>(space.default_role ?? "member");
-  // Held as a string so the field can be emptied without becoming 0, which
+  const [defaultAsAdmin, setDefaultAsAdmin] = useState(space.default_as_admin ?? false);
+  // Held as a String so the field can be emptied without becoming 0, which
   // means "unlimited" and is a very different thing from "not yet typed".
   const [quotaGb, setQuotaGb] = useState(
     space.quota_bytes > 0 ? String(Math.round(space.quota_bytes / 1024 ** 3)) : "",
   );
-  // Same string-not-number reasoning as the quota: empty means "keep forever",
+  // Same String-not-number reasoning as the quota: empty means "keep forever",
   // which is a different thing from a typed 0.
   const [retentionDays, setRetentionDays] = useState(
     space.trash_retention_days ? String(space.trash_retention_days) : "",
@@ -84,7 +83,7 @@ function GeneralTab({ space }: { space: Space }) {
    * The server treats an absent field as "leave it alone", so a partial patch
    * is safe. Sending the whole set is not: if the form ever initialises from a
    * response that is missing a field, it holds "" for it and the next save
-   * writes that empty string over real data. Diffing removes that failure mode
+   * writes that empty String over real data. Diffing removes that failure mode
    * rather than relying on every read being complete.
    */
   const save = () => {
@@ -95,7 +94,9 @@ function GeneralTab({ space }: { space: Space }) {
     if (description.trim() !== (space.description ?? "")) {
       changed.description = description.trim();
     }
-    if (defaultRole !== (space.default_role ?? "member")) changed.default_role = defaultRole;
+    if (defaultAsAdmin !== (space.default_as_admin ?? false)) {
+      changed.default_as_admin = defaultAsAdmin;
+    }
     if (quota !== space.quota_bytes) changed.quota_bytes = quota;
     const retention = retentionDays.trim() ? Number(retentionDays) : 0;
     if (retention !== (space.trash_retention_days ?? 0)) {
@@ -150,14 +151,19 @@ function GeneralTab({ space }: { space: Space }) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <Label>Default member role</Label>
-        <ToggleGroup
-          value={[defaultRole]}
-          onValueChange={(v) => v[0] && setDefaultRole(v[0] as MemberRole)}
-        >
-          <ToggleGroupItem value="member">Member</ToggleGroupItem>
-          <ToggleGroupItem value="admin">Admin</ToggleGroupItem>
-        </ToggleGroup>
+        <Label>New members are admins by default</Label>
+        <p className="text-muted-foreground text-[10px]">
+          When turned on, everyone you invite joins as an admin. You can change this per-member in
+          the Members tab.
+        </p>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={defaultAsAdmin}
+            onChange={(e) => setDefaultAsAdmin(e.target.checked)}
+          />
+          <span className="text-sm">Make new members admins</span>
+        </label>
       </div>
 
       <div className="flex flex-col gap-1">
@@ -203,7 +209,7 @@ function GeneralTab({ space }: { space: Space }) {
 }
 
 function MembersTab({ space }: { space: Space }) {
-  return <SpaceMembersPanel spaceId={space.id} currentUserRole={space.role} />;
+  return <SpaceMembersPanel spaceId={space.id} />;
 }
 
 function DangerTab({ space }: { space: Space }) {
@@ -216,7 +222,7 @@ function DangerTab({ space }: { space: Space }) {
     <div className="border-destructive/30 flex max-w-lg flex-col gap-2 rounded-lg border p-3">
       <h3 className="text-destructive text-xs font-medium">Delete this space</h3>
       <p className="text-muted-foreground text-xs">
-        Removes “{space.name}” and everything in it — every file, version, share and member. The
+        Removes "{space.name}" and everything in it — every file, version, share and member. The
         blobs are released and cannot be recovered.
       </p>
       <div className="flex flex-col gap-1">
@@ -243,13 +249,13 @@ function DangerTab({ space }: { space: Space }) {
         open={confirming}
         onOpenChange={setConfirming}
         title="Delete space"
-        description={`Permanently delete “${space.name}” and all of its contents? This cannot be undone.`}
+        description={`Permanently delete "${space.name}" and all of its contents? This cannot be undone.`}
         confirmLabel="Delete space"
         confirmVariant="destructive"
         onConfirm={() =>
           remove.mutate(space.id, {
             onSuccess: () => {
-              toast.success(`Deleted “${space.name}”`);
+              toast.success(`Deleted "${space.name}"`);
               void navigate({ to: "/drive" });
             },
             onError: (e) => toast.error("Could not delete", { description: e.message }),

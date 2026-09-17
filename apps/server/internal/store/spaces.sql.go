@@ -12,26 +12,26 @@ import (
 )
 
 const addSpaceMember = `-- name: AddSpaceMember :exec
-INSERT INTO space_members (space_id, user_id, role)
-VALUES ($1, $2, $3)
-ON CONFLICT (space_id, user_id) DO UPDATE SET role = EXCLUDED.role
+INSERT INTO space_members (space_id, user_id) VALUES ($1, $2)
+ON CONFLICT (space_id, user_id) DO NOTHING
 `
 
 type AddSpaceMemberParams struct {
 	SpaceID pgtype.UUID `json:"space_id"`
 	UserID  pgtype.UUID `json:"user_id"`
-	Role    MemberRole  `json:"role"`
 }
 
+// Membership only: there is no role column anymore (M15). Admin authority is
+// Admin-group membership, maintained separately.
 func (q *Queries) AddSpaceMember(ctx context.Context, arg AddSpaceMemberParams) error {
-	_, err := q.db.Exec(ctx, addSpaceMember, arg.SpaceID, arg.UserID, arg.Role)
+	_, err := q.db.Exec(ctx, addSpaceMember, arg.SpaceID, arg.UserID)
 	return err
 }
 
 const createSpace = `-- name: CreateSpace :one
 INSERT INTO spaces (name, owner_id)
 VALUES ($1, $2)
-RETURNING id, tenant_id, name, owner_id, quota_bytes, used_bytes, created_at, slug, description, default_role, archived_at, trash_retention_days, personal_root_id
+RETURNING id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at
 `
 
 type CreateSpaceParams struct {
@@ -49,35 +49,19 @@ func (q *Queries) CreateSpace(ctx context.Context, arg CreateSpaceParams) (Space
 		&i.OwnerID,
 		&i.QuotaBytes,
 		&i.UsedBytes,
-		&i.CreatedAt,
 		&i.Slug,
 		&i.Description,
-		&i.DefaultRole,
 		&i.ArchivedAt,
 		&i.TrashRetentionDays,
-		&i.PersonalRootID,
+		&i.ArchiveRootID,
+		&i.DefaultAsAdmin,
+		&i.CreatedAt,
 	)
 	return i, err
 }
 
-const getMemberRole = `-- name: GetMemberRole :one
-SELECT role FROM space_members WHERE space_id = $1 AND user_id = $2 LIMIT 1
-`
-
-type GetMemberRoleParams struct {
-	SpaceID pgtype.UUID `json:"space_id"`
-	UserID  pgtype.UUID `json:"user_id"`
-}
-
-func (q *Queries) GetMemberRole(ctx context.Context, arg GetMemberRoleParams) (MemberRole, error) {
-	row := q.db.QueryRow(ctx, getMemberRole, arg.SpaceID, arg.UserID)
-	var role MemberRole
-	err := row.Scan(&role)
-	return role, err
-}
-
 const getSpace = `-- name: GetSpace :one
-SELECT id, tenant_id, name, owner_id, quota_bytes, used_bytes, created_at, slug, description, default_role, archived_at, trash_retention_days, personal_root_id FROM spaces WHERE id = $1 LIMIT 1
+SELECT id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at FROM spaces WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetSpace(ctx context.Context, id pgtype.UUID) (Space, error) {
@@ -90,19 +74,19 @@ func (q *Queries) GetSpace(ctx context.Context, id pgtype.UUID) (Space, error) {
 		&i.OwnerID,
 		&i.QuotaBytes,
 		&i.UsedBytes,
-		&i.CreatedAt,
 		&i.Slug,
 		&i.Description,
-		&i.DefaultRole,
 		&i.ArchivedAt,
 		&i.TrashRetentionDays,
-		&i.PersonalRootID,
+		&i.ArchiveRootID,
+		&i.DefaultAsAdmin,
+		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const listMySpaces = `-- name: ListMySpaces :many
-SELECT s.id, s.tenant_id, s.name, s.owner_id, s.quota_bytes, s.used_bytes, s.created_at, s.slug, s.description, s.default_role, s.archived_at, s.trash_retention_days, s.personal_root_id FROM spaces s
+SELECT s.id, s.tenant_id, s.name, s.owner_id, s.quota_bytes, s.used_bytes, s.slug, s.description, s.archived_at, s.trash_retention_days, s.archive_root_id, s.default_as_admin, s.created_at FROM spaces s
 JOIN space_members m ON m.space_id = s.id
 WHERE m.user_id = $1
 ORDER BY s.created_at
@@ -124,13 +108,13 @@ func (q *Queries) ListMySpaces(ctx context.Context, userID pgtype.UUID) ([]Space
 			&i.OwnerID,
 			&i.QuotaBytes,
 			&i.UsedBytes,
-			&i.CreatedAt,
 			&i.Slug,
 			&i.Description,
-			&i.DefaultRole,
 			&i.ArchivedAt,
 			&i.TrashRetentionDays,
-			&i.PersonalRootID,
+			&i.ArchiveRootID,
+			&i.DefaultAsAdmin,
+			&i.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -143,7 +127,11 @@ func (q *Queries) ListMySpaces(ctx context.Context, userID pgtype.UUID) ([]Space
 }
 
 const listSpaceMembers = `-- name: ListSpaceMembers :many
-SELECT m.space_id, m.user_id, m.role, m.created_at, u.email, u.name AS user_name, u.display_name, u.avatar_url
+SELECT m.space_id, m.user_id, m.created_at, u.email, u.name AS user_name, u.display_name, u.avatar_url,
+  EXISTS (
+    SELECT 1 FROM group_members gm JOIN groups g ON g.id = gm.group_id
+    WHERE g.space_id = m.space_id AND g.is_admin AND gm.user_id = m.user_id
+  ) AS is_admin
 FROM space_members m
 JOIN users u ON u.id = m.user_id
 WHERE m.space_id = $1
@@ -153,12 +141,12 @@ ORDER BY m.created_at
 type ListSpaceMembersRow struct {
 	SpaceID     pgtype.UUID        `json:"space_id"`
 	UserID      pgtype.UUID        `json:"user_id"`
-	Role        MemberRole         `json:"role"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 	Email       string             `json:"email"`
 	UserName    string             `json:"user_name"`
 	DisplayName string             `json:"display_name"`
 	AvatarUrl   string             `json:"avatar_url"`
+	IsAdmin     bool               `json:"is_admin"`
 }
 
 func (q *Queries) ListSpaceMembers(ctx context.Context, spaceID pgtype.UUID) ([]ListSpaceMembersRow, error) {
@@ -173,12 +161,12 @@ func (q *Queries) ListSpaceMembers(ctx context.Context, spaceID pgtype.UUID) ([]
 		if err := rows.Scan(
 			&i.SpaceID,
 			&i.UserID,
-			&i.Role,
 			&i.CreatedAt,
 			&i.Email,
 			&i.UserName,
 			&i.DisplayName,
 			&i.AvatarUrl,
+			&i.IsAdmin,
 		); err != nil {
 			return nil, err
 		}
@@ -192,11 +180,15 @@ func (q *Queries) ListSpaceMembers(ctx context.Context, spaceID pgtype.UUID) ([]
 
 const listSpaceMembersDetailed = `-- name: ListSpaceMembersDetailed :many
 SELECT
-  m.space_id, m.user_id, m.role, m.created_at,
+  m.space_id, m.user_id, m.created_at,
   u.email, u.name AS user_name, u.display_name, u.avatar_url, u.last_seen,
   (SELECT COUNT(*) FROM nodes n
     WHERE n.space_id = m.space_id AND n.created_by = m.user_id
-      AND n.deleted_at IS NULL AND n.kind = 'file')::bigint AS files_owned
+      AND n.deleted_at IS NULL AND n.kind = 'file')::bigint AS files_owned,
+  EXISTS (
+    SELECT 1 FROM group_members gm JOIN groups g ON g.id = gm.group_id
+    WHERE g.space_id = m.space_id AND g.is_admin AND gm.user_id = m.user_id
+  ) AS is_admin
 FROM space_members m
 JOIN users u ON u.id = m.user_id
 WHERE m.space_id = $1
@@ -206,7 +198,6 @@ ORDER BY m.created_at
 type ListSpaceMembersDetailedRow struct {
 	SpaceID     pgtype.UUID        `json:"space_id"`
 	UserID      pgtype.UUID        `json:"user_id"`
-	Role        MemberRole         `json:"role"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 	Email       string             `json:"email"`
 	UserName    string             `json:"user_name"`
@@ -214,6 +205,7 @@ type ListSpaceMembersDetailedRow struct {
 	AvatarUrl   string             `json:"avatar_url"`
 	LastSeen    pgtype.Timestamptz `json:"last_seen"`
 	FilesOwned  int64              `json:"files_owned"`
+	IsAdmin     bool               `json:"is_admin"`
 }
 
 // Members with the two figures the settings table shows that a plain member
@@ -230,7 +222,6 @@ func (q *Queries) ListSpaceMembersDetailed(ctx context.Context, spaceID pgtype.U
 		if err := rows.Scan(
 			&i.SpaceID,
 			&i.UserID,
-			&i.Role,
 			&i.CreatedAt,
 			&i.Email,
 			&i.UserName,
@@ -238,6 +229,7 @@ func (q *Queries) ListSpaceMembersDetailed(ctx context.Context, spaceID pgtype.U
 			&i.AvatarUrl,
 			&i.LastSeen,
 			&i.FilesOwned,
+			&i.IsAdmin,
 		); err != nil {
 			return nil, err
 		}
@@ -260,6 +252,22 @@ type RemoveSpaceMemberParams struct {
 
 func (q *Queries) RemoveSpaceMember(ctx context.Context, arg RemoveSpaceMemberParams) error {
 	_, err := q.db.Exec(ctx, removeSpaceMember, arg.SpaceID, arg.UserID)
+	return err
+}
+
+const setArchiveRoot = `-- name: SetArchiveRoot :exec
+UPDATE spaces SET archive_root_id = $2 WHERE id = $1
+`
+
+type SetArchiveRootParams struct {
+	ID            pgtype.UUID `json:"id"`
+	ArchiveRootID pgtype.UUID `json:"archive_root_id"`
+}
+
+// Where a departed member's content lands. Created at space creation, like
+// the Everyone/Admin groups.
+func (q *Queries) SetArchiveRoot(ctx context.Context, arg SetArchiveRootParams) error {
+	_, err := q.db.Exec(ctx, setArchiveRoot, arg.ID, arg.ArchiveRootID)
 	return err
 }
 

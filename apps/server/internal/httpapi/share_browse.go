@@ -23,10 +23,11 @@ var errOutsideShare = errors.New("node is not inside this share")
 // The banner needs to say who shared, what they granted, and when it lapses;
 // without those the page cannot explain why some actions are missing.
 type shareInfoDTO struct {
-	Node      nodeDTO `json:"node"`
-	Perm      string  `json:"perm"`
-	SharedBy  string  `json:"shared_by,omitempty"`
-	ExpiresAt string  `json:"expires_at,omitempty"`
+	Node     nodeDTO `json:"node"`
+	Level    string  `json:"level"`
+	CanDownload bool  `json:"can_download"`
+	SharedBy  string `json:"shared_by,omitempty"`
+	ExpiresAt string `json:"expires_at,omitempty"`
 }
 
 // resolveShareNode returns a node inside the shared subtree, or errOutsideShare.
@@ -125,23 +126,25 @@ func (s *Server) handleShareChildren(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// handleShareNodeContent serves a file inside the share, inline where the MIME
-// allowlist permits it, so the visitor can preview without downloading.
+// handleShareNodeContent serves a file inside the share inline, so a view-only
+// link can still preview what it points at. It needs view, not download — the
+// same split the authenticated routes use, where /content is CapView and only
+// /download is CapDownload.
 func (s *Server) handleShareNodeContent(w http.ResponseWriter, r *http.Request) {
-	s.serveShareFile(w, r, "inline")
+	s.serveShareFile(w, r, "inline", false)
 }
 
 // handleShareNodeDownload forces a download of a file inside the share.
 func (s *Server) handleShareNodeDownload(w http.ResponseWriter, r *http.Request) {
-	s.serveShareFile(w, r, "attachment")
+	s.serveShareFile(w, r, "attachment", true)
 }
 
-func (s *Server) serveShareFile(w http.ResponseWriter, r *http.Request, disposition string) {
+func (s *Server) serveShareFile(w http.ResponseWriter, r *http.Request, disposition string, needDownload bool) {
 	sh, node, ok := s.shareScope(w, r, "node")
 	if !ok {
 		return
 	}
-	if !linkAllowsDownload(w, sh) {
+	if needDownload && !linkAllowsDownload(w, sh) {
 		return
 	}
 	if node.Kind != store.NodeKindFile {
@@ -190,8 +193,8 @@ func (s *Server) handleShareDownloadAll(w http.ResponseWriter, r *http.Request) 
 // linkAllowsDownload reports whether the link grants at least download,
 // writing 403 when it does not.
 func linkAllowsDownload(w http.ResponseWriter, sh store.Share) bool {
-	rank, err := share.LinkPerm(sh)
-	if err != nil || rank < 2 {
+	caps, err := share.LinkCaps(sh)
+	if err != nil || !caps.Download {
 		writeProblem(w, http.StatusForbidden, "Forbidden", "this link does not allow downloads")
 		return false
 	}
@@ -259,7 +262,8 @@ func (s *Server) handleShareInfo(w http.ResponseWriter, r *http.Request) {
 	dto.Owner = ""
 	dto.OwnerID = ""
 
-	out := shareInfoDTO{Node: dto, Perm: string(sh.Perm)}
+	caps, _ := share.LinkCaps(sh)
+	out := shareInfoDTO{Node: dto, Level: string(sh.Level), CanDownload: caps.Download}
 	if sh.ExpiresAt.Valid {
 		out.ExpiresAt = sh.ExpiresAt.Time.Format(timeLayout)
 	}

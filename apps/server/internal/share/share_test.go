@@ -2,54 +2,81 @@ package share
 
 import (
 	"testing"
-
-	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 )
 
-func TestPermRank(t *testing.T) {
-	tests := []struct {
-		perm Perm
-		want int
+func TestCapsHas(t *testing.T) {
+	cases := []struct {
+		caps Caps
+		cap  Cap
+		want bool
 	}{
-		{PermView, 1},
-		{PermDownload, 2},
-		{PermEdit, 3},
-		{Perm(""), 0},
+		{Caps{View: true}, CapView, true},
+		{Caps{View: true}, CapDownload, false},
+		{Caps{View: true, Download: true}, CapDownload, true},
+		{Caps{View: true, Download: true, Share: true}, CapShare, true},
+		{Caps{}, CapView, false},
 	}
-	for _, tt := range tests {
-		if got := permRank(tt.perm); got != tt.want {
-			t.Errorf("permRank(%q) = %d, want %d", tt.perm, got, tt.want)
+	for _, tt := range cases {
+		if got := tt.caps.Has(tt.cap); got != tt.want {
+			t.Errorf("caps.Has(%v) = %v, want %v", tt.cap, got, tt.want)
 		}
 	}
 }
 
-// clampRank guards the join between the two scales: the caller supplies a
-// space-role floor, and nothing downstream should ever see a rank outside
-// 0..3, whatever it passes.
-func TestClampRank(t *testing.T) {
-	tests := []struct{ in, want int }{
-		{-1, 0}, {0, 0}, {1, 1}, {3, 3}, {4, 3}, {99, 3},
+func TestCapsOwner(t *testing.T) {
+	if !CapsOwner.Has(CapView) {
+		t.Error("CapsOwner should have CapView")
 	}
-	for _, tt := range tests {
-		if got := clampRank(tt.in); got != tt.want {
-			t.Errorf("clampRank(%d) = %d, want %d", tt.in, got, tt.want)
+	if !CapsOwner.Has(CapDownload) {
+		t.Error("CapsOwner should have CapDownload")
+	}
+	if !CapsOwner.Has(CapEdit) {
+		t.Error("CapsOwner should have CapEdit")
+	}
+	if !CapsOwner.Has(CapShare) {
+		t.Error("CapsOwner should have CapShare")
+	}
+}
+
+func TestGrantCapsNormalized(t *testing.T) {
+	cases := []struct {
+		in   GrantCaps
+		want GrantCaps
+	}{
+		{GrantCaps{Level: LevelEdit, CanDownload: false, CanShare: false},
+			GrantCaps{Level: LevelEdit, CanDownload: true, CanShare: false}},
+		{GrantCaps{Level: LevelEdit, CanDownload: true, CanShare: true},
+			GrantCaps{Level: LevelEdit, CanDownload: true, CanShare: true}},
+		{GrantCaps{Level: LevelView, CanDownload: false, CanShare: false},
+			GrantCaps{Level: LevelView, CanDownload: false, CanShare: false}},
+		{GrantCaps{Level: LevelView, CanDownload: true, CanShare: false},
+			GrantCaps{Level: LevelView, CanDownload: true, CanShare: false}},
+	}
+	for _, tt := range cases {
+		if got := tt.in.Normalized(); got != tt.want {
+			t.Errorf("GrantCaps(%+v).Normalized() = %+v, want %+v", tt.in, got, tt.want)
 		}
 	}
 }
 
-// A link never carries edit, however the share row was written. Edit-via-link
-// is post-MVP, and a link is handed to whoever holds the URL.
-func TestLinkPermClampsToDownload(t *testing.T) {
-	for _, perm := range []Perm{PermView, PermDownload, PermEdit} {
-		rank, err := LinkPerm(store.Share{Kind: store.ShareKindLink, Perm: perm})
-		if err != nil {
-			t.Fatalf("LinkPerm(%q): %v", perm, err)
-		}
-		if rank > 2 {
-			t.Errorf("LinkPerm(%q) = %d — a link must never grant edit", perm, rank)
-		}
+func TestCapsCovers(t *testing.T) {
+	cases := []struct {
+		caps Caps
+		want GrantCaps
+		ok   bool
+	}{
+		{CapsOwner, GrantCaps{Level: LevelEdit, CanDownload: true, CanShare: true}, true},
+		{Caps{View: true}, GrantCaps{Level: LevelEdit, CanDownload: true, CanShare: true}, false},
+		{Caps{View: true}, GrantCaps{Level: LevelView, CanDownload: false, CanShare: false}, true},
+		{Caps{View: true, Download: true}, GrantCaps{Level: LevelView, CanDownload: true, CanShare: false}, true},
+		{Caps{View: true, Download: true}, GrantCaps{Level: LevelView, CanDownload: false, CanShare: false}, true},
+		{Caps{View: true, Download: true, Edit: true, Share: true}, GrantCaps{Level: LevelEdit, CanDownload: true, CanShare: true}, true},
+		// Download is required but not held → denied
+		{Caps{View: true, Edit: true, Share: true}, GrantCaps{Level: LevelEdit, CanDownload: true, CanShare: true}, false},
 	}
-	if _, err := LinkPerm(store.Share{Kind: store.ShareKindGroup, Perm: PermEdit}); err == nil {
-		t.Error("LinkPerm accepted a group grant; it is only defined for link shares")
+	for _, tt := range cases {
+		if got := tt.caps.Covers(tt.want); got != tt.ok {
+			t.Errorf("Caps(%+v).Covers(%+v) = %v, want %v", tt.caps, tt.want, got, tt.ok)
+		}
 	}
 }

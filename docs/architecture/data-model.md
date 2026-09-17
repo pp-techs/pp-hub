@@ -16,18 +16,30 @@ Profile fields (`display_name`, `avatar_url`, `bio`, `settings`, `is_admin`, `la
 
 ## Core Tables
 
+The development-phase migrations were consolidated into one baseline,
+`migrations/0001_init.sql`, so the schema reads as a single document. It is the
+authority; the sketches below are a map of it.
+
 ```sql
-spaces(id, tenant_id, name, owner_id, quota_bytes, used_bytes, created_at,
-       personal_root_id)                        -- the "Personal" folder; each member has a subfolder in it
+spaces(id, tenant_id, name, owner_id, quota_bytes, used_bytes,
+       slug, description, archived_at, trash_retention_days,
+       archive_root_id,                         -- the space's Archive folder
+       default_as_admin,                        -- do new members land in Admin?
+       created_at)
 
-space_members(space_id, user_id, role)          -- admin | member
+space_members(space_id, user_id, created_at)
   PRIMARY KEY (space_id, user_id)
-  -- A space IS a company. `member` grants no file access at all; see
-  -- permissions.md. Was owner|editor|viewer before migration 0011.
+  INDEX (user_id)                               -- search/listing probes user-first
+  -- No role column. A space IS a company; membership grants no file access at
+  -- all, and admin status is membership in the space's Admin group. See
+  -- permissions.md.
 
-groups(id, tenant_id, space_id, name, description, is_everyone, created_by, created_at)
+groups(id, tenant_id, space_id, name, description,
+       is_everyone, is_admin,                   -- the two automatic groups
+       created_by, created_at)
   UNIQUE (space_id, lower(name))
-  UNIQUE (space_id) WHERE is_everyone           -- exactly one auto group per space
+  UNIQUE (space_id) WHERE is_everyone           -- groups_everyone_uniq
+  UNIQUE (space_id) WHERE is_admin              -- groups_admin_uniq
 
 group_members(group_id, user_id, added_at)
   PRIMARY KEY (group_id, user_id)
@@ -38,7 +50,10 @@ nodes(id, tenant_id, space_id, parent_id,       -- NULL parent = space root
       name,
       current_version_id,
       deleted_at,                               -- soft delete (trash)
-      created_by, created_at)
+      created_by,                               -- THE OWNER: full access here
+                                                -- and everywhere beneath, no
+                                                -- grant row involved
+      created_at)
   UNIQUE (parent_id, name) WHERE deleted_at IS NULL
 
 node_versions(id, node_id, blob_hash, size, mime,
@@ -48,16 +63,22 @@ blobs(hash, size, ref_count, created_at)        -- blake3 hash = PK
 
 file_locks(node_id, lock_token, expires_at)     -- WOPI locks
 
-shares(id, tenant_id, node_id,                  -- file or folder
+shares(id, tenant_id, node_id,                  -- file or folder; inherits down
        kind,                                    -- link | direct | group
        token_hash,                              -- sha256, link only; plaintext never stored
        grantee_user_id,                         -- direct only
        grantee_group_id,                        -- group only
-       perm,                                    -- view | download | edit
-       expires_at, created_by)
+       level,                                   -- view | edit
+       can_download,                            -- raw bytes
+       can_share,                               -- may re-grant on this subtree
+       expires_at, created_by, created_at)
   UNIQUE (node_id, grantee_group_id) WHERE kind = 'group'
+  CHECK (level <> 'edit' OR can_download)       -- an editor can fetch what it edits
+  CHECK (kind <> 'link' OR (level = 'view' AND NOT can_share))
   -- One grant per (folder, group): re-granting updates rather than stacking a
   -- second row that would then have to be resolved against the first.
+  -- Level + flags, not a rank: "editor who cannot re-share" and "viewer who
+  -- may pass it on" are both expressible. Links never edit and never chain.
 
 previews(node_version_id, kind, blob_hash)      -- kind: thumbnail | text (the artifact)
 
@@ -73,14 +94,17 @@ jobs(id, kind, payload, status, run_at, attempts)        -- kind routes to a wor
 - Every `blob_hash` referenced by a version exists in `blobs`; `ref_count` tracks references (counter + periodic recount job — counter drift is a known, tolerated risk).
 - A file node always has at least one version.
 - CAS dedup: identical content across files/spaces shares one blob row.
+- Every node has an owner: `nodes.created_by` is NOT NULL, and it is the only unconditional access path in the system. Ownership inherits down the subtree, so a node inside somebody else's folder is reachable by both creators.
+- Every space has an `Everyone` group, an `Admin` group and an `archive_root_id`. `spaces.Service` provisions all three at creation; the uniqueness indices assume they exist.
 
 ## Query Patterns
 
 - **List a folder**: `WHERE space_id AND parent_id AND deleted_at IS NULL` — single indexed query. No ltree/materialized path in MVP: move = update one row; recursive subtree listing is rare.
 - **Version history**: `WHERE node_id ORDER BY version_no DESC`.
-- **Search**: `nodes.name ILIKE '%…%'`, answered by the GIN trigram index `nodes_name_trgm` (migration `0007_search.sql`, partial on `deleted_at IS NULL`). A B-tree cannot serve an infix match, and people search for `forecast` expecting `Q1-forecast-final.xlsx`. The same index backs `similarity()` for ranking, and results are scoped by joining `space_members` — supported by `space_members_by_user`, since the table's `(space_id, user_id)` primary key cannot serve a user-first probe.
+- **Search**: `nodes.name ILIKE '%…%'`, answered by the GIN trigram index `nodes_name_trgm` (partial on `deleted_at IS NULL`). A B-tree cannot serve an infix match, and people search for `forecast` expecting `Q1-forecast-final.xlsx`. The same index backs `similarity()` for ranking, and results are scoped by joining `space_members` — supported by `space_members_by_user`, since the table's `(space_id, user_id)` primary key cannot serve a user-first probe.
 - **Trash**: `WHERE space_id AND deleted_at IS NOT NULL`. `ListDeletedWithMeta` joins the current version and owner, and adds two derived columns — `location` (ancestor names joined with `" / "`, from a recursive CTE) and `child_count` (direct live children) — so a row can say where it came from and how much comes back with it.
-- **Effective permission**: `NodeAccessRanks` (`queries/shares.sql`) — one recursive CTE that takes an array of node ids and returns the highest rank the caller holds on each, via a direct share or a group grant on the node **or any ancestor**. Batched on purpose: a listing resolves every row in one query instead of one walk per row. It replaced a loop issuing one `GetNodeParent` per tree level per node, which also stopped widening at depth 100.
+- **Effective capabilities**: `NodeAccessCaps` (`queries/shares.sql`) — one recursive CTE that takes an array of node ids and returns, per node, whether the caller owns it (`nodes.created_by` anywhere up the chain) plus the `BOOL_OR` of every grant flag reachable on the node **or any ancestor**, via a direct share or a group they belong to. Batched on purpose: a listing resolves every row in one query instead of one walk per row. It replaced a loop issuing one `GetNodeParent` per tree level per node, which also stopped widening at depth 100.
+- **Entry points**: `ListEntryPoints` returns the topmost nodes a caller can reach — owned (`include_owned`) or granted — dropping any row that sits beneath another reachable one. It backs both a member's top level and "Shared with me", which is the same query with `include_owned = false`.
 
   The recursive join deliberately omits `deleted_at IS NULL`, unlike `GetNodeParent`. Filtering it truncates the chain at the first trashed ancestor and loses the grant above it — which is why trash used to bypass share resolution entirely. `ListDeletedWithMeta` walks the same way for the same reason.
 
@@ -112,6 +136,8 @@ Recording is best-effort: an event describes work that already succeeded, so a f
 
 ## Quota
 
-`spaces.used_bytes` is _intended_ to be maintained by a quota job summing the sizes of current versions per space, and `UpdateSpaceUsedBytes` exists for it — but nothing calls that query yet, and no upload checks `quota_bytes` before committing a version. Until a job is wired up, `used_bytes` stays at its default of `0`.
+`fs.checkQuota` rejects an upload that would push a space past `quota_bytes`, answering **413** with `fs.ErrQuotaExceeded`. It measures the delta a new version introduces, not the file's full size, so replacing a 10 MB file with a 11 MB one costs 1 MB. A space with `quota_bytes = 0` is unmetered.
 
-Both fields are returned by `GET /api/v1/spaces`, and the rail's storage meter renders the ratio between them — `quota_bytes = 0` means unlimited and the meter shows only the used figure with no bar. The meter is therefore correct in shape and empty in practice; it will start reading true the moment a recount job lands, with no change on the web side.
+`spaces.used_bytes` is recomputed by `fs.RecountUsage` — one `SUM` over the current versions of live files — after any mutation that can change the total (commit, delete, restore, purge, empty-trash). A recount is cheap at this scale and cannot drift, unlike an incremental counter.
+
+Both fields are returned by `GET /api/v1/spaces`, and the rail's storage meter renders the ratio between them; `quota_bytes = 0` shows the used figure with no bar.

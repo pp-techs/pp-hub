@@ -1,6 +1,6 @@
 // Groups and the grants that give them access to folders.
 import { api, ApiError } from "./client";
-import type { Grant, Group, GroupMember, SharePerm } from "./types";
+import type { Grant, GrantCaps, Group, GroupMember } from "./types";
 
 async function problem(res: Response, fallback: string): Promise<never> {
   // The server answers RFC 7807, and its `detail` is the sentence worth
@@ -83,9 +83,9 @@ export async function getGrants(nodeId: string): Promise<Grant[]> {
   return res.json();
 }
 
-export async function upsertGrant(nodeId: string, groupId: string, perm: SharePerm): Promise<void> {
+export async function upsertGrant(nodeId: string, groupId: string, caps: GrantCaps): Promise<void> {
   const res = await api.put(`api/v1/nodes/${nodeId}/grants`, {
-    json: { group_id: groupId, perm },
+    json: { group_id: groupId, ...caps },
   });
   if (!res.ok) await problem(res, "Could not grant access");
 }

@@ -71,19 +71,19 @@ func (q *Queries) CountUserSpaces(ctx context.Context, userID pgtype.UUID) (int6
 }
 
 const createInvitation = `-- name: CreateInvitation :one
-INSERT INTO space_invitations (space_id, email, role, token_hash, invited_by, expires_at)
+INSERT INTO space_invitations (space_id, email, as_admin, token_hash, invited_by, expires_at)
 VALUES ($1, $2, $3, $4, $5, $6)
 ON CONFLICT (space_id, lower(email)) WHERE accepted_at IS NULL
-DO UPDATE SET role = EXCLUDED.role, token_hash = EXCLUDED.token_hash,
+DO UPDATE SET as_admin = EXCLUDED.as_admin, token_hash = EXCLUDED.token_hash,
               invited_by = EXCLUDED.invited_by, expires_at = EXCLUDED.expires_at,
               created_at = now()
-RETURNING id, tenant_id, space_id, email, role, token_hash, invited_by, expires_at, accepted_at, created_at
+RETURNING id, tenant_id, space_id, email, token_hash, invited_by, as_admin, expires_at, accepted_at, created_at
 `
 
 type CreateInvitationParams struct {
 	SpaceID   pgtype.UUID        `json:"space_id"`
 	Email     string             `json:"email"`
-	Role      MemberRole         `json:"role"`
+	AsAdmin   bool               `json:"as_admin"`
 	TokenHash string             `json:"token_hash"`
 	InvitedBy pgtype.UUID        `json:"invited_by"`
 	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
@@ -95,7 +95,7 @@ func (q *Queries) CreateInvitation(ctx context.Context, arg CreateInvitationPara
 	row := q.db.QueryRow(ctx, createInvitation,
 		arg.SpaceID,
 		arg.Email,
-		arg.Role,
+		arg.AsAdmin,
 		arg.TokenHash,
 		arg.InvitedBy,
 		arg.ExpiresAt,
@@ -106,9 +106,9 @@ func (q *Queries) CreateInvitation(ctx context.Context, arg CreateInvitationPara
 		&i.TenantID,
 		&i.SpaceID,
 		&i.Email,
-		&i.Role,
 		&i.TokenHash,
 		&i.InvitedBy,
+		&i.AsAdmin,
 		&i.ExpiresAt,
 		&i.AcceptedAt,
 		&i.CreatedAt,
@@ -140,7 +140,7 @@ func (q *Queries) DeleteSpace(ctx context.Context, id pgtype.UUID) error {
 }
 
 const getInvitationByToken = `-- name: GetInvitationByToken :one
-SELECT id, tenant_id, space_id, email, role, token_hash, invited_by, expires_at, accepted_at, created_at FROM space_invitations
+SELECT id, tenant_id, space_id, email, token_hash, invited_by, as_admin, expires_at, accepted_at, created_at FROM space_invitations
 WHERE token_hash = $1 AND accepted_at IS NULL
   AND (expires_at IS NULL OR expires_at > now())
 LIMIT 1
@@ -154,9 +154,9 @@ func (q *Queries) GetInvitationByToken(ctx context.Context, tokenHash string) (S
 		&i.TenantID,
 		&i.SpaceID,
 		&i.Email,
-		&i.Role,
 		&i.TokenHash,
 		&i.InvitedBy,
+		&i.AsAdmin,
 		&i.ExpiresAt,
 		&i.AcceptedAt,
 		&i.CreatedAt,
@@ -165,7 +165,7 @@ func (q *Queries) GetInvitationByToken(ctx context.Context, tokenHash string) (S
 }
 
 const listSpaceInvitations = `-- name: ListSpaceInvitations :many
-SELECT i.id, i.tenant_id, i.space_id, i.email, i.role, i.token_hash, i.invited_by, i.expires_at, i.accepted_at, i.created_at, u.name AS inviter_name, u.display_name AS inviter_display_name, u.email AS inviter_email
+SELECT i.id, i.tenant_id, i.space_id, i.email, i.token_hash, i.invited_by, i.as_admin, i.expires_at, i.accepted_at, i.created_at, u.name AS inviter_name, u.display_name AS inviter_display_name, u.email AS inviter_email
 FROM space_invitations i
 JOIN users u ON u.id = i.invited_by
 WHERE i.space_id = $1 AND i.accepted_at IS NULL
@@ -177,9 +177,9 @@ type ListSpaceInvitationsRow struct {
 	TenantID           string             `json:"tenant_id"`
 	SpaceID            pgtype.UUID        `json:"space_id"`
 	Email              string             `json:"email"`
-	Role               MemberRole         `json:"role"`
 	TokenHash          string             `json:"token_hash"`
 	InvitedBy          pgtype.UUID        `json:"invited_by"`
+	AsAdmin            bool               `json:"as_admin"`
 	ExpiresAt          pgtype.Timestamptz `json:"expires_at"`
 	AcceptedAt         pgtype.Timestamptz `json:"accepted_at"`
 	CreatedAt          pgtype.Timestamptz `json:"created_at"`
@@ -202,9 +202,9 @@ func (q *Queries) ListSpaceInvitations(ctx context.Context, spaceID pgtype.UUID)
 			&i.TenantID,
 			&i.SpaceID,
 			&i.Email,
-			&i.Role,
 			&i.TokenHash,
 			&i.InvitedBy,
+			&i.AsAdmin,
 			&i.ExpiresAt,
 			&i.AcceptedAt,
 			&i.CreatedAt,
@@ -238,10 +238,10 @@ func (q *Queries) SetUserSuspended(ctx context.Context, arg SetUserSuspendedPara
 
 const updateSpaceSettings = `-- name: UpdateSpaceSettings :one
 UPDATE spaces
-SET name = $2, slug = $3, description = $4, default_role = $5, quota_bytes = $6,
+SET name = $2, slug = $3, description = $4, default_as_admin = $5, quota_bytes = $6,
     trash_retention_days = $7
 WHERE id = $1
-RETURNING id, tenant_id, name, owner_id, quota_bytes, used_bytes, created_at, slug, description, default_role, archived_at, trash_retention_days, personal_root_id
+RETURNING id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at
 `
 
 type UpdateSpaceSettingsParams struct {
@@ -249,7 +249,7 @@ type UpdateSpaceSettingsParams struct {
 	Name               string      `json:"name"`
 	Slug               string      `json:"slug"`
 	Description        string      `json:"description"`
-	DefaultRole        MemberRole  `json:"default_role"`
+	DefaultAsAdmin     bool        `json:"default_as_admin"`
 	QuotaBytes         int64       `json:"quota_bytes"`
 	TrashRetentionDays int32       `json:"trash_retention_days"`
 }
@@ -260,7 +260,7 @@ func (q *Queries) UpdateSpaceSettings(ctx context.Context, arg UpdateSpaceSettin
 		arg.Name,
 		arg.Slug,
 		arg.Description,
-		arg.DefaultRole,
+		arg.DefaultAsAdmin,
 		arg.QuotaBytes,
 		arg.TrashRetentionDays,
 	)
@@ -272,13 +272,13 @@ func (q *Queries) UpdateSpaceSettings(ctx context.Context, arg UpdateSpaceSettin
 		&i.OwnerID,
 		&i.QuotaBytes,
 		&i.UsedBytes,
-		&i.CreatedAt,
 		&i.Slug,
 		&i.Description,
-		&i.DefaultRole,
 		&i.ArchivedAt,
 		&i.TrashRetentionDays,
-		&i.PersonalRootID,
+		&i.ArchiveRootID,
+		&i.DefaultAsAdmin,
+		&i.CreatedAt,
 	)
 	return i, err
 }

@@ -213,7 +213,7 @@ If-None-Match match → 304
 
 Two details are load-bearing:
 
-- **`private`** — the response is only reached through `requireNodeAccess`, so
+- **`private`** — the response is only reached through `requireNodeCaps`, so
   a shared proxy caching it would serve one company's thumbnail to a member of
   another, straight past the grants in [permissions.md](permissions.md).
 - **`&v=`** — `immutable` tells the browser never to revalidate, so the URL has

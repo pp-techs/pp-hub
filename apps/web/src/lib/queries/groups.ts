@@ -11,7 +11,7 @@ import {
   updateGroup,
   upsertGrant,
 } from "@/lib/api/groups";
-import type { SharePerm } from "@/lib/api";
+import type { GrantCaps } from "@/lib/api";
 import { keys } from "./keys";
 
 export function useGroups(spaceId: string | null) {
@@ -99,7 +99,7 @@ export function useGrants(nodeId: string | null) {
 export function useUpsertGrant(nodeId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: { groupId: string; perm: SharePerm }) => upsertGrant(nodeId, v.groupId, v.perm),
+    mutationFn: (v: { groupId: string; caps: GrantCaps }) => upsertGrant(nodeId, v.groupId, v.caps),
     onSuccess: () => qc.invalidateQueries(),
   });
 }

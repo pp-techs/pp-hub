@@ -1,5 +1,10 @@
-// Package share implements direct and link sharing plus permission resolution.
-// See docs/architecture/permissions.md.
+// Package share implements direct, group and link sharing plus permission
+// resolution. See docs/architecture/permissions.md.
+//
+// M15 model: content access is ownership (nodes.created_by, inherited down
+// the subtree) plus explicit grants. There is no role floor — an admin who
+// owns nothing and was granted nothing resolves to no capabilities, exactly
+// like anyone else.
 package share
 
 import (
@@ -23,28 +28,85 @@ var (
 	ErrInvalidToken = errors.New("invalid or expired share link")
 	ErrUserNotFound = errors.New("grantee user not found")
 	ErrSelfShare    = errors.New("cannot share with yourself")
+	ErrEscalation   = errors.New("cannot grant capabilities you do not hold")
 )
 
-// Perm is the permission a share grants. Order: view < download < edit.
-type Perm = store.SharePerm
+// Level is the tier a grant confers. edit implies view and download
+// (shares_edit_download_ck); view is a preview unless can_download is set.
+type Level = store.ShareLevel
 
 const (
-	PermView     = store.SharePermView
-	PermDownload = store.SharePermDownload
-	PermEdit     = store.SharePermEdit
+	LevelView = store.ShareLevelView
+	LevelEdit = store.ShareLevelEdit
 )
 
-func permRank(p Perm) int {
-	switch p {
-	case PermEdit:
-		return 3
-	case PermDownload:
-		return 2
-	case PermView:
-		return 1
-	default:
-		return 0
+// GrantCaps is the input side of a grant: a level plus the two flags.
+type GrantCaps struct {
+	Level       Level
+	CanDownload bool
+	CanShare    bool
+}
+
+// Normalized enforces the edit-implies-download rule before insert.
+func (g GrantCaps) Normalized() GrantCaps {
+	if g.Level == LevelEdit {
+		g.CanDownload = true
 	}
+	return g
+}
+
+// Cap identifies one capability for route gating.
+type Cap int
+
+const (
+	CapView Cap = iota
+	CapDownload
+	CapShare
+	CapEdit
+)
+
+// Has reports whether the set includes the capability.
+func (c Caps) Has(cap Cap) bool {
+	switch cap {
+	case CapView:
+		return c.View
+	case CapDownload:
+		return c.Download
+	case CapShare:
+		return c.Share
+	case CapEdit:
+		return c.Edit
+	}
+	return false
+}
+
+// Caps is the resolved set of capabilities a user holds on one node.
+type Caps struct {
+	View     bool `json:"view"`
+	Download bool `json:"download"`
+	Share    bool `json:"share"`
+	Edit     bool `json:"edit"`
+	// Owner: the user created this node or an ancestor. Owner is not a grant
+	// and cannot be revoked — it is what makes self-lockout impossible.
+	Owner bool `json:"owner"`
+}
+
+// CapsOwner is the full set ownership confers.
+var CapsOwner = Caps{View: true, Download: true, Share: true, Edit: true, Owner: true}
+
+// Covers reports whether c can grant want — the monotonicity rule: you can
+// only hand out capabilities you hold yourself.
+func (c Caps) Covers(want GrantCaps) bool {
+	if want.Level == LevelEdit && !c.Edit {
+		return false
+	}
+	if want.CanDownload && !c.Download {
+		return false
+	}
+	if want.CanShare && !c.Share {
+		return false
+	}
+	return true
 }
 
 type Service struct {
@@ -55,8 +117,10 @@ func NewService(q *store.Queries) *Service {
 	return &Service{q: q}
 }
 
-// CreateLink generates a random token, stores its sha256, returns plaintext once.
-func (s *Service) CreateLink(ctx context.Context, nodeID pgtype.UUID, perm Perm, expiresAt pgtype.Timestamptz, creator pgtype.UUID) (store.Share, string, error) {
+// CreateLink generates a random token, stores its sha256, returns plaintext
+// once. Links are view-level and never re-share (shares_link_ck); the only
+// choice is whether raw download is allowed.
+func (s *Service) CreateLink(ctx context.Context, nodeID pgtype.UUID, canDownload bool, expiresAt pgtype.Timestamptz, creator pgtype.UUID) (store.Share, string, error) {
 	raw := make([]byte, 32)
 	if _, err := rand.Read(raw); err != nil {
 		return store.Share{}, "", err
@@ -64,26 +128,31 @@ func (s *Service) CreateLink(ctx context.Context, nodeID pgtype.UUID, perm Perm,
 	token := base64.RawURLEncoding.EncodeToString(raw)
 	sum := sha256.Sum256([]byte(token))
 	sh, err := s.q.CreateShare(ctx, store.CreateShareParams{
-		NodeID:    nodeID,
-		Kind:      store.ShareKindLink,
-		TokenHash: pgtype.Text{String: hex.EncodeToString(sum[:]), Valid: true},
-		Perm:      perm,
-		ExpiresAt: expiresAt,
-		CreatedBy: creator,
+		NodeID:      nodeID,
+		Kind:        store.ShareKindLink,
+		TokenHash:   pgtype.Text{String: hex.EncodeToString(sum[:]), Valid: true},
+		Level:       LevelView,
+		CanDownload: canDownload,
+		CanShare:    false,
+		ExpiresAt:   expiresAt,
+		CreatedBy:   creator,
 	})
 	return sh, token, err
 }
 
 // CreateDirect grants a user access to a node.
-func (s *Service) CreateDirect(ctx context.Context, nodeID, granteeID pgtype.UUID, perm Perm, expiresAt pgtype.Timestamptz, creator pgtype.UUID) (store.Share, error) {
+func (s *Service) CreateDirect(ctx context.Context, nodeID, granteeID pgtype.UUID, caps GrantCaps, expiresAt pgtype.Timestamptz, creator pgtype.UUID) (store.Share, error) {
 	if granteeID == creator {
 		return store.Share{}, ErrSelfShare
 	}
+	caps = caps.Normalized()
 	return s.q.CreateShare(ctx, store.CreateShareParams{
 		NodeID:        nodeID,
 		Kind:          store.ShareKindDirect,
 		GranteeUserID: granteeID,
-		Perm:          perm,
+		Level:         caps.Level,
+		CanDownload:   caps.CanDownload,
+		CanShare:      caps.CanShare,
 		ExpiresAt:     expiresAt,
 		CreatedBy:     creator,
 	})
@@ -109,32 +178,55 @@ func (s *Service) ResolveLink(ctx context.Context, token string) (store.Share, e
 
 // --- Permission resolution ---
 
-// EffectivePerm computes the highest permission a user has on one node: the
-// space-role floor, widened by any grant on the node or an ancestor. Returns
-// rank 0 (none) when the user has no access at all.
-//
-// spaceRoleRank comes from the caller on the *permission* scale — admin=3,
-// member=0 — so for a member this reduces to "what have they been granted".
-// Grants only ever widen; they never narrow what the role already gives.
-func (s *Service) EffectivePerm(ctx context.Context, node store.Node, userID pgtype.UUID, spaceRoleRank int) (int, error) {
-	ranks, err := s.AccessRanks(ctx, []pgtype.UUID{node.ID}, userID)
-	if err != nil {
-		return clampRank(spaceRoleRank), err
-	}
-	return max(clampRank(spaceRoleRank), ranks[node.ID]), nil
+// Resolved is what AccessCaps knows about one node: the grant-derived
+// capabilities, and whether the user owns the node or any ancestor.
+type Resolved struct {
+	View     bool
+	Download bool
+	Share    bool
+	Edit     bool
+	Owner    bool
 }
 
-// AccessRanks resolves grants for many nodes at once, returning the rank each
-// one carries for this user. Nodes with no grant are absent from the map.
+// EffectiveCaps folds a Resolved row into the caller's capabilities: FULL for
+// an owner, otherwise exactly what the grants give. Grants only ever widen;
+// nothing narrows.
+func EffectiveCaps(res Resolved) Caps {
+	if res.Owner {
+		return CapsOwner
+	}
+	edit := res.Edit
+	return Caps{
+		View:     res.View || edit,
+		Download: res.Download || edit, // edit implies download, belt and braces
+		Share:    res.Share,
+		Edit:     edit,
+	}
+}
+
+// EffectiveCapsForNode resolves one node. Callers with a batch of nodes should
+// use AccessCaps once instead of looping this.
+func (s *Service) EffectiveCapsForNode(ctx context.Context, node store.Node, userID pgtype.UUID) (Caps, error) {
+	res, err := s.AccessCaps(ctx, []pgtype.UUID{node.ID}, userID)
+	if err != nil {
+		return Caps{}, err
+	}
+	return EffectiveCaps(res[node.ID]), nil
+}
+
+// AccessCaps resolves every requested node in one query, returning the
+// grant-derived capabilities and ownership of each. Every requested node is
+// present in the map — the owner flag must survive the no-grant case, since
+// an owner typically holds no grant on their own files.
 //
 // One query covers every node and every ancestor chain, which is what lets a
 // listing filter itself without a per-row permission check.
-func (s *Service) AccessRanks(ctx context.Context, nodeIDs []pgtype.UUID, userID pgtype.UUID) (map[pgtype.UUID]int, error) {
-	out := make(map[pgtype.UUID]int, len(nodeIDs))
+func (s *Service) AccessCaps(ctx context.Context, nodeIDs []pgtype.UUID, userID pgtype.UUID) (map[pgtype.UUID]Resolved, error) {
+	out := make(map[pgtype.UUID]Resolved, len(nodeIDs))
 	if len(nodeIDs) == 0 {
 		return out, nil
 	}
-	rows, err := s.q.NodeAccessRanks(ctx, store.NodeAccessRanksParams{
+	rows, err := s.q.NodeAccessCaps(ctx, store.NodeAccessCapsParams{
 		NodeIds: nodeIDs,
 		UserID:  userID,
 	})
@@ -142,35 +234,24 @@ func (s *Service) AccessRanks(ctx context.Context, nodeIDs []pgtype.UUID, userID
 		return out, err
 	}
 	for _, row := range rows {
-		out[row.NodeID] = int(row.Rank)
+		out[row.NodeID] = Resolved{
+			View:     row.View,
+			Download: row.Download,
+			Share:    row.Share,
+			Edit:     row.Edit,
+			Owner:    row.Owner,
+		}
 	}
 	return out, nil
 }
 
-func clampRank(r int) int {
-	if r > 3 {
-		return 3
-	}
-	if r < 0 {
-		return 0
-	}
-	return r
-}
-
-// CanRead / CanWrite map the effective rank onto common checks.
-func CanRead(rank int) bool  { return rank >= 1 }
-func CanWrite(rank int) bool { return rank >= 3 }
-
-// LinkPerm returns the read-path permission a link token grants (never edit).
-func LinkPerm(sh store.Share) (int, error) {
+// LinkCaps returns the capabilities a link token grants: view, and download
+// only if the link allows it. Never edit, never share.
+func LinkCaps(sh store.Share) (Caps, error) {
 	if sh.Kind != store.ShareKindLink {
-		return 0, fmt.Errorf("not a link share")
+		return Caps{}, fmt.Errorf("not a link share")
 	}
-	r := permRank(sh.Perm)
-	if r > permRank(PermDownload) {
-		r = permRank(PermDownload) // clamp: links are read-only in MVP
-	}
-	return r, nil
+	return Caps{View: true, Download: sh.CanDownload}, nil
 }
 
 // TokenExpiry builds an optional expiry timestamp from a duration string.

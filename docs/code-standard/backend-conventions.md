@@ -11,16 +11,19 @@ Stack: Go, chi (HTTP router), sqlc + pgx (Postgres), go-oidc (OIDC), blake3 (con
 
 - All SQL lives in sqlc query files; generated code lands in `internal/store`. Hand-written SQL in handlers is prohibited.
 - One transaction per write use case (e.g., blob commit + version insert). Long work (hashing, streaming) happens outside transactions.
+- **Schema changes are numbered files in `internal/store/migrations`.** `store.Migrate` applies them in filename order, one transaction per file, and records the filename in `schema_migrations`; sqlc reads the same directory as its schema, so a migration is also what regenerates `internal/store`.
+- **The baseline is frozen.** The development-phase increments were squashed into one file, `0001_init.sql`, so the schema reads as a single document rather than fifteen deltas. That was acceptable exactly once, pre-production, with no deployed database to preserve — it is not a tool that comes out again. Every change after it is a new numbered file on top of it, never an edit to the baseline: `Migrate` skips a version already present in `schema_migrations`, so an edit is a no-op on every machine that has already applied it and the two schemas diverge with nothing to say so.
+- **Invariants that live in SQL are tested against a real Postgres.** A recursive CTE or a CHECK constraint cannot be asserted against a fake, so those tests read `PP_TEST_DATABASE_URL`, call `store.Migrate` on it, and `t.Skip` when the variable is empty — `go test ./...` stays green without a database, and a missing database skips loudly instead of quietly proving nothing. Run them with `PP_TEST_DATABASE_URL=postgres://... go test ./internal/spaces/`. `internal/spaces/permissions_db_test.go` and `internal/preview/jobs_db_test.go` are the pattern to copy.
 
 ## HTTP API
 
 - Routes in `internal/httpapi` only; business logic stays in modules.
-- Errors are returned as RFC 7807 `problem+json`. Typed errors: `ErrNotFound` (404), `ErrPermission` (403), `ErrQuota` (413), `ErrLocked` (409, WOPI lock conflict), `ErrVersionConflict` (409).
+- Errors are returned as RFC 7807 `problem+json`. Each module owns its error values and the edge maps them: `nodeError` (`fs.ErrNotFound` → 404, `fs.ErrNameConflict` / `fs.ErrCycle` → 409, `fs.ErrQuotaExceeded` → 413, `fs.ErrNotFile` / `fs.ErrNotDir` → 400), `spaceError` (`spaces.ErrNotMember` / `spaces.ErrForbidden` → 403, `spaces.ErrLastAdmin` → 409), `wopiLockError` (`wopi.ErrLockConflict` → 409 plus the current `X-WOPI-Lock` header, `wopi.ErrNotLocked` → 404). `httpapi.Error` is the fallback: it answers 500 with an empty detail and logs the cause, so an unmapped error cannot leak internals to a caller.
 - The FE↔BE contract is currently hand-typed TS interfaces in `apps/web/src/lib/api/types.ts`; `openapi.yaml` codegen (oapi-codegen + TS client) is deferred until the API surface justifies it. Keep interfaces in sync with the Go handlers.
 
 ## Naming & Style
 
-- Standard Go conventions (effective go / gofmt). `zap` or `slog` for structured logging — pick once at M1, log with module field.
+- Standard Go conventions (effective go / gofmt). `log/slog` is the logger — one logging library per binary, or logs stop being filterable as a set. Log with a module field.
 - Context is first param everywhere; no goroutine without an owner and a shutdown path.
 
 ## Background Jobs

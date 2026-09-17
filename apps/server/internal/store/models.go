@@ -55,48 +55,6 @@ func (ns NullJobStatus) Value() (driver.Value, error) {
 	return string(ns.JobStatus), nil
 }
 
-type MemberRole string
-
-const (
-	MemberRoleAdmin  MemberRole = "admin"
-	MemberRoleMember MemberRole = "member"
-)
-
-func (e *MemberRole) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = MemberRole(s)
-	case string:
-		*e = MemberRole(s)
-	default:
-		return fmt.Errorf("unsupported scan type for MemberRole: %T", src)
-	}
-	return nil
-}
-
-type NullMemberRole struct {
-	MemberRole MemberRole `json:"member_role"`
-	Valid      bool       `json:"valid"` // Valid is true if MemberRole is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullMemberRole) Scan(value interface{}) error {
-	if value == nil {
-		ns.MemberRole, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.MemberRole.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullMemberRole) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.MemberRole), nil
-}
-
 type NodeKind string
 
 const (
@@ -182,47 +140,46 @@ func (ns NullShareKind) Value() (driver.Value, error) {
 	return string(ns.ShareKind), nil
 }
 
-type SharePerm string
+type ShareLevel string
 
 const (
-	SharePermView     SharePerm = "view"
-	SharePermDownload SharePerm = "download"
-	SharePermEdit     SharePerm = "edit"
+	ShareLevelView ShareLevel = "view"
+	ShareLevelEdit ShareLevel = "edit"
 )
 
-func (e *SharePerm) Scan(src interface{}) error {
+func (e *ShareLevel) Scan(src interface{}) error {
 	switch s := src.(type) {
 	case []byte:
-		*e = SharePerm(s)
+		*e = ShareLevel(s)
 	case string:
-		*e = SharePerm(s)
+		*e = ShareLevel(s)
 	default:
-		return fmt.Errorf("unsupported scan type for SharePerm: %T", src)
+		return fmt.Errorf("unsupported scan type for ShareLevel: %T", src)
 	}
 	return nil
 }
 
-type NullSharePerm struct {
-	SharePerm SharePerm `json:"share_perm"`
-	Valid     bool      `json:"valid"` // Valid is true if SharePerm is not NULL
+type NullShareLevel struct {
+	ShareLevel ShareLevel `json:"share_level"`
+	Valid      bool       `json:"valid"` // Valid is true if ShareLevel is not NULL
 }
 
 // Scan implements the Scanner interface.
-func (ns *NullSharePerm) Scan(value interface{}) error {
+func (ns *NullShareLevel) Scan(value interface{}) error {
 	if value == nil {
-		ns.SharePerm, ns.Valid = "", false
+		ns.ShareLevel, ns.Valid = "", false
 		return nil
 	}
 	ns.Valid = true
-	return ns.SharePerm.Scan(value)
+	return ns.ShareLevel.Scan(value)
 }
 
 // Value implements the driver Valuer interface.
-func (ns NullSharePerm) Value() (driver.Value, error) {
+func (ns NullShareLevel) Value() (driver.Value, error) {
 	if !ns.Valid {
 		return nil, nil
 	}
-	return string(ns.SharePerm), nil
+	return string(ns.ShareLevel), nil
 }
 
 type ActivityEvent struct {
@@ -258,6 +215,7 @@ type Group struct {
 	Name        string             `json:"name"`
 	Description string             `json:"description"`
 	IsEveryone  bool               `json:"is_everyone"`
+	IsAdmin     bool               `json:"is_admin"`
 	CreatedBy   pgtype.UUID        `json:"created_by"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
@@ -289,9 +247,9 @@ type Node struct {
 	Name             string             `json:"name"`
 	CurrentVersionID pgtype.UUID        `json:"current_version_id"`
 	DeletedAt        pgtype.Timestamptz `json:"deleted_at"`
+	DeletedBy        pgtype.UUID        `json:"deleted_by"`
 	CreatedBy        pgtype.UUID        `json:"created_by"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
-	DeletedBy        pgtype.UUID        `json:"deleted_by"`
 }
 
 type NodeStar struct {
@@ -325,11 +283,13 @@ type Share struct {
 	Kind           ShareKind          `json:"kind"`
 	TokenHash      pgtype.Text        `json:"token_hash"`
 	GranteeUserID  pgtype.UUID        `json:"grantee_user_id"`
-	Perm           SharePerm          `json:"perm"`
+	GranteeGroupID pgtype.UUID        `json:"grantee_group_id"`
+	Level          ShareLevel         `json:"level"`
+	CanDownload    bool               `json:"can_download"`
+	CanShare       bool               `json:"can_share"`
 	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
 	CreatedBy      pgtype.UUID        `json:"created_by"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
-	GranteeGroupID pgtype.UUID        `json:"grantee_group_id"`
 }
 
 type Space struct {
@@ -339,13 +299,13 @@ type Space struct {
 	OwnerID            pgtype.UUID        `json:"owner_id"`
 	QuotaBytes         int64              `json:"quota_bytes"`
 	UsedBytes          int64              `json:"used_bytes"`
-	CreatedAt          pgtype.Timestamptz `json:"created_at"`
 	Slug               string             `json:"slug"`
 	Description        string             `json:"description"`
-	DefaultRole        MemberRole         `json:"default_role"`
 	ArchivedAt         pgtype.Timestamptz `json:"archived_at"`
 	TrashRetentionDays int32              `json:"trash_retention_days"`
-	PersonalRootID     pgtype.UUID        `json:"personal_root_id"`
+	ArchiveRootID      pgtype.UUID        `json:"archive_root_id"`
+	DefaultAsAdmin     bool               `json:"default_as_admin"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
 }
 
 type SpaceInvitation struct {
@@ -353,9 +313,9 @@ type SpaceInvitation struct {
 	TenantID   string             `json:"tenant_id"`
 	SpaceID    pgtype.UUID        `json:"space_id"`
 	Email      string             `json:"email"`
-	Role       MemberRole         `json:"role"`
 	TokenHash  string             `json:"token_hash"`
 	InvitedBy  pgtype.UUID        `json:"invited_by"`
+	AsAdmin    bool               `json:"as_admin"`
 	ExpiresAt  pgtype.Timestamptz `json:"expires_at"`
 	AcceptedAt pgtype.Timestamptz `json:"accepted_at"`
 	CreatedAt  pgtype.Timestamptz `json:"created_at"`
@@ -364,7 +324,6 @@ type SpaceInvitation struct {
 type SpaceMember struct {
 	SpaceID   pgtype.UUID        `json:"space_id"`
 	UserID    pgtype.UUID        `json:"user_id"`
-	Role      MemberRole         `json:"role"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
@@ -378,8 +337,8 @@ type Upload struct {
 	TotalSize pgtype.Int8        `json:"total_size"`
 	Uploaded  int64              `json:"uploaded"`
 	TempPath  string             `json:"temp_path"`
-	CreatedBy pgtype.UUID        `json:"created_by"`
 	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
+	CreatedBy pgtype.UUID        `json:"created_by"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
@@ -390,7 +349,6 @@ type User struct {
 	OidcIss     string             `json:"oidc_iss"`
 	Email       string             `json:"email"`
 	Name        string             `json:"name"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 	DisplayName string             `json:"display_name"`
 	AvatarUrl   string             `json:"avatar_url"`
 	Bio         string             `json:"bio"`
@@ -399,4 +357,5 @@ type User struct {
 	LastSeen    pgtype.Timestamptz `json:"last_seen"`
 	EmailHash   string             `json:"email_hash"`
 	SuspendedAt pgtype.Timestamptz `json:"suspended_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }

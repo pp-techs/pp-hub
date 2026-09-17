@@ -607,23 +607,21 @@ func (s *Service) Search(ctx context.Context, arg store.SearchNodesParams) ([]st
 // ListShared returns the topmost nodes the caller holds a grant on, across
 // every space — the places their access starts.
 //
-// This used to run ListSharedWithMe, which never touched the shares table at
-// all: it returned every non-root node in every space the caller belonged to,
-// capped at 50 and sorted alphabetically. It was not a list of things shared
-// with you, it was a slice of the filing cabinet. Now that a member's access is
-// exactly the set of grants they hold, this is the surface that tells them what
-// those are, so it has to mean what its name says.
+// ListShared returns the places shared with the caller across every space.
+// A nil space scopes it; includeOwned is always false here so own items are
+// excluded — your own folder is not something shared with you.
 func (s *Service) ListShared(ctx context.Context, userID pgtype.UUID) ([]store.NodeWithMeta, error) {
-	return s.EntryPointsWithMeta(ctx, userID, pgtype.UUID{})
+	return s.EntryPointsWithMeta(ctx, userID, pgtype.UUID{}, false)
 }
 
-// EntryPointsWithMeta returns the topmost nodes the caller holds a grant on. A
-// zero spaceID spans every space; a set one scopes to that space, which is what
-// a member sees at its top level.
-func (s *Service) EntryPointsWithMeta(ctx context.Context, userID, spaceID pgtype.UUID) ([]store.NodeWithMeta, error) {
+// EntryPointsWithMeta returns the topmost nodes the caller can reach. includeOwned
+// adds their own created items (nodes where created_by = user). A zero spaceID
+// spans every space; a set one scopes to that space — the member's top level.
+func (s *Service) EntryPointsWithMeta(ctx context.Context, userID, spaceID pgtype.UUID, includeOwned bool) ([]store.NodeWithMeta, error) {
 	rows, err := s.q.ListEntryPoints(ctx, store.ListEntryPointsParams{
-		UserID:  userID,
-		SpaceID: spaceID,
+		UserID:        userID,
+		SpaceID:       spaceID,
+		IncludeOwned:  includeOwned,
 	})
 	if err != nil {
 		return nil, err

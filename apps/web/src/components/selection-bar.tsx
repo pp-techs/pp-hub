@@ -33,7 +33,6 @@ export function SelectionBar({
   if (selected.length === 0) return null;
 
   const only = selected.length === 1 ? selected[0] : null;
-
   return (
     <div
       role="toolbar"

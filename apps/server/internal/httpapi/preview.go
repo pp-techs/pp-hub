@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/preview"
+	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 )
 
 // previewCacheControl caches for a year, and privately.
@@ -17,7 +18,7 @@ import (
 // than the bytes behind it, so a cached copy can never go stale.
 //
 // "private" is load-bearing rather than cautious: this response is only
-// reached through requireNodeAccess, so a shared proxy that cached it would
+// reached through requireNodeCaps, so a shared proxy that cached it would
 // serve one company's thumbnail to a member of another — straight past the
 // folder grants in docs/architecture/permissions.md.
 const previewCacheControl = "private, max-age=31536000, immutable"
@@ -47,7 +48,7 @@ func etagMatches(header, etag string) bool {
 // handlePreview serves a generated preview blob for a node's current version.
 // ?kind=thumbnail|text — default thumbnail.
 func (s *Server) handlePreview(w http.ResponseWriter, r *http.Request) {
-	_, node := s.requireNodeAccess(w, r, 1)
+	_, node, _ := s.requireNodeCaps(w, r, share.CapView)
 	if !node.ID.Valid {
 		return
 	}

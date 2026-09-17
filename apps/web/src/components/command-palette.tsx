@@ -92,7 +92,7 @@ export function CommandPalette() {
           key: `space:${space.id}`,
           section: "Spaces",
           label: space.name,
-          hint: space.role,
+          hint: space.is_admin ? "Admin" : "Member",
           icon: <Users className="text-muted-foreground size-3.5 shrink-0" />,
           run: () => openSpace(space),
         });

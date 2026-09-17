@@ -21,7 +21,7 @@ A minimal, self-hosted Google Workspace alternative: Drive, collaborative office
 
 1. **Drive core** — upload/download, folder tree, move/copy/rename/delete, per-space organization.
 2. **Multiple spaces** — isolated file areas per team/project with independent membership.
-3. **Permissions** — space-scoped roles (owner/editor/viewer) + per-file/per-folder sharing (direct share + share link).
+3. **Permissions** — everything is private to whoever created it; access is given per file/per folder to a person, a group, or a public link, and carries `view` or `edit` plus independent download and re-share flags. Space admins run membership, groups and settings; that grants them no access to anyone's files.
 4. **Collaborative office** — edit and realtime co-edit docx/xlsx/pptx in browser via OnlyOffice Document Server (WOPI protocol).
 5. **Version history** — list and restore previous versions of a file.
 6. **Previews** — PDF, image, video, common text formats without download.

@@ -25,7 +25,7 @@ export function SpaceNav() {
         >
           <span className="truncate">{s.name}</span>
           <span className="text-muted-foreground shrink-0 text-[10px] tracking-wider uppercase">
-            {s.role}
+            {s.is_admin}
           </span>
         </Link>
       ))}

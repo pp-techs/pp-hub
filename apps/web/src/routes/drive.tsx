@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { Button } from "@workspace/ui/components/button";
 import { Label } from "@workspace/ui/components/label";
 import { Textarea } from "@workspace/ui/components/textarea";
-import { ToggleGroup, ToggleGroupItem } from "@workspace/ui/components/toggle-group";
 import { Input } from "@workspace/ui/components/input";
 import {
   Dialog,
@@ -17,7 +16,6 @@ import {
   DialogTitle,
 } from "@workspace/ui/components/dialog";
 import { requireAuth, useCreateSpace, useSpaces } from "@/lib/queries";
-import type { MemberRole } from "@/lib/api";
 import { useUiStore } from "@/lib/ui-store";
 import { SpaceSwitcher } from "@/components/space-switcher";
 import { NavUser } from "@/components/nav-user";
@@ -87,7 +85,7 @@ function DriveLayout() {
           </div>
 
           <div>
-            <RailLabel>My Drive</RailLabel>
+            <RailLabel>Files</RailLabel>
             <FolderTree />
           </div>
 
@@ -149,14 +147,14 @@ function NewSpaceDialog() {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
-  const [defaultRole, setDefaultRole] = useState<MemberRole>("member");
+  const [defaultAsAdmin, setDefaultAsAdmin] = useState(false);
   const [quotaGb, setQuotaGb] = useState("");
 
   const reset = () => {
     setName("");
     setSlug("");
     setDescription("");
-    setDefaultRole("member");
+    setDefaultAsAdmin(false);
     setQuotaGb("");
   };
 
@@ -186,7 +184,7 @@ function NewSpaceDialog() {
                 // defaults for the rest.
                 slug: slug.trim() || undefined,
                 description: description.trim() || undefined,
-                default_role: defaultRole,
+                default_as_admin: defaultAsAdmin,
                 quota_bytes: quotaGb.trim() ? Number(quotaGb) * 1024 ** 3 : undefined,
               },
               {
@@ -243,14 +241,18 @@ function NewSpaceDialog() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <Label>Default member role</Label>
-            <ToggleGroup
-              value={[defaultRole]}
-              onValueChange={(v) => v[0] && setDefaultRole(v[0] as MemberRole)}
-            >
-              <ToggleGroupItem value="member">Member</ToggleGroupItem>
-              <ToggleGroupItem value="admin">Admin</ToggleGroupItem>
-            </ToggleGroup>
+            <Label>New members are admins by default</Label>
+            <p className="text-muted-foreground text-[10px]">
+              When turned on, everyone you invite joins as an admin.
+            </p>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={defaultAsAdmin}
+                onChange={(e) => setDefaultAsAdmin(e.target.checked)}
+              />
+              <span className="text-sm">Make new members admins</span>
+            </label>
           </div>
 
           <div className="flex flex-col gap-1">

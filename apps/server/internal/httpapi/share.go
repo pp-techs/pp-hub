@@ -13,30 +13,33 @@ import (
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/activity"
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
-	"github.com/nhatbui/pp-hub/apps/server/internal/spaces"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 )
 
 type shareDTO struct {
-	ID        string `json:"id"`
-	NodeID    string `json:"node_id"`
-	Kind      string `json:"kind"`
-	Perm      string `json:"perm"`
-	Grantee   string `json:"grantee_email,omitempty"`
-	URL       string `json:"url,omitempty"` // link only, only at creation
-	ExpiresAt string `json:"expires_at,omitempty"`
-	CreatedAt string `json:"created_at"`
+	ID          string `json:"id"`
+	NodeID      string `json:"node_id"`
+	Kind        string `json:"kind"`
+	Level       string `json:"level"`
+	CanDownload bool   `json:"can_download"`
+	CanShare    bool   `json:"can_share"`
+	Grantee     string `json:"grantee_email,omitempty"`
+	URL         string `json:"url,omitempty"`
+	ExpiresAt   string `json:"expires_at,omitempty"`
+	CreatedAt   string `json:"created_at"`
 }
 
 func shareToDTO(sh store.Share, externalURL, token string) shareDTO {
 	id, _ := sh.ID.Value()
 	nid, _ := sh.NodeID.Value()
 	d := shareDTO{
-		ID:        id.(string),
-		NodeID:    nid.(string),
-		Kind:      string(sh.Kind),
-		Perm:      string(sh.Perm),
-		CreatedAt: sh.CreatedAt.Time.Format(time.RFC3339),
+		ID:          id.(string),
+		NodeID:     nid.(string),
+		Kind:       string(sh.Kind),
+		Level:      string(sh.Level),
+		CanDownload: sh.CanDownload,
+		CanShare:   sh.CanShare,
+		CreatedAt:  sh.CreatedAt.Time.Format(time.RFC3339),
 	}
 	if sh.ExpiresAt.Valid {
 		d.ExpiresAt = sh.ExpiresAt.Time.Format(time.RFC3339)
@@ -48,25 +51,37 @@ func shareToDTO(sh store.Share, externalURL, token string) shareDTO {
 }
 
 // handleCreateShare creates a direct or link share on a node.
-// Caller must hold edit (editor role or edit share) on the node.
+//
+// The wire carries the storage model directly — level plus the two flags —
+// because a single ranked word cannot say "may view and pass on, but not
+// download", which is exactly what the share dialog offers.
 func (s *Server) handleCreateShare(w http.ResponseWriter, r *http.Request) {
-	u, node := s.requireNodeAccess(w, r, 3) // edit rank
+	u, node, callerCaps := s.requireNodeCaps(w, r, share.CapShare)
 	if u == nil {
 		return
 	}
 	var body struct {
-		Kind      string `json:"kind"`       // "link" | "direct"
-		Perm      string `json:"perm"`       // "view" | "download" | "edit"
-		Email     string `json:"email"`      // direct only
-		ExpiresIn int64  `json:"expires_in"` // seconds, 0 = never
+		Kind        string `json:"kind"`
+		Level       string `json:"level"`
+		CanDownload bool   `json:"can_download"`
+		CanShare    bool   `json:"can_share"`
+		Email       string `json:"email"`
+		ExpiresIn   int64  `json:"expires_in"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid body")
 		return
 	}
-	perm := store.SharePerm(body.Perm)
-	if perm != share.PermView && perm != share.PermDownload && perm != share.PermEdit {
-		writeProblem(w, http.StatusBadRequest, "Bad Request", "perm must be view|download|edit")
+	want, ok := grantCapsFromBody(body.Level, body.CanDownload, body.CanShare)
+	if !ok {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "level must be view|edit")
+		return
+	}
+	// Monotonicity: a grantee who only holds download must not be able to mint
+	// an editor. A link never carries edit, so it is checked against the
+	// view/download half only.
+	if !callerCaps.Covers(want) {
+		writeProblem(w, http.StatusForbidden, "Forbidden", share.ErrEscalation.Error())
 		return
 	}
 	var expires pgtype.Timestamptz
@@ -76,14 +91,15 @@ func (s *Server) handleCreateShare(w http.ResponseWriter, r *http.Request) {
 
 	switch body.Kind {
 	case "link":
-		sh, token, err := s.share.CreateLink(r.Context(), node.ID, perm, expires, u.ID)
+		sh, token, err := s.share.CreateLink(r.Context(), node.ID, want.CanDownload, expires, u.ID)
 		if err != nil {
 			Error(w, r, err)
 			return
 		}
 		s.activity.Node(r.Context(), u.ID, node, activity.KindShared, map[string]any{
-			"share_kind": "link",
-			"perm":       string(perm),
+			"share_kind":   "link",
+			"level":        string(sh.Level),
+			"can_download": sh.CanDownload,
 		})
 		writeJSON(w, http.StatusCreated, shareToDTO(sh, s.externalURL, token))
 	case "direct":
@@ -92,21 +108,12 @@ func (s *Server) handleCreateShare(w http.ResponseWriter, r *http.Request) {
 			writeProblem(w, http.StatusNotFound, "Not Found", "no user with that email")
 			return
 		}
-		// A direct share names someone inside the company. Allowing one to
-		// point at a person in a different space would quietly reopen the
-		// boundary that every other rule here exists to hold: a single share
-		// row, and a company's file is standing in someone else's drive with
-		// no membership, no group and no audit of how they got there.
-		//
-		// Sharing outward is still possible — by link, exactly as for someone
-		// with no account at all. That path is deliberately the visible one:
-		// it expires, it can be revoked, and it never confers standing access.
-		if err := s.spaces.RequireRole(r.Context(), node.SpaceID, grantee.ID, spaces.RoleMember); err != nil {
+		if err := s.spaces.RequireMember(r.Context(), node.SpaceID, grantee.ID); err != nil {
 			writeProblem(w, http.StatusUnprocessableEntity, "Unprocessable",
 				"that person is not a member of this space — share a link instead")
 			return
 		}
-		sh, err := s.share.CreateDirect(r.Context(), node.ID, grantee.ID, perm, expires, u.ID)
+		sh, err := s.share.CreateDirect(r.Context(), node.ID, grantee.ID, want, expires, u.ID)
 		if err != nil {
 			if errors.Is(err, share.ErrSelfShare) {
 				writeProblem(w, http.StatusBadRequest, "Bad Request", err.Error())
@@ -118,9 +125,11 @@ func (s *Server) handleCreateShare(w http.ResponseWriter, r *http.Request) {
 		dto := shareToDTO(sh, s.externalURL, "")
 		dto.Grantee = grantee.Email
 		s.activity.Node(r.Context(), u.ID, node, activity.KindShared, map[string]any{
-			"share_kind": "direct",
-			"perm":       string(perm),
-			"grantee":    grantee.Email,
+			"share_kind":   "direct",
+			"level":        string(sh.Level),
+			"can_download": sh.CanDownload,
+			"can_share":    sh.CanShare,
+			"grantee":      grantee.Email,
 		})
 		writeJSON(w, http.StatusCreated, dto)
 	default:
@@ -129,8 +138,8 @@ func (s *Server) handleCreateShare(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleListShares(w http.ResponseWriter, r *http.Request) {
-	u, node := s.requireNodeAccess(w, r, 1)
-	if u == nil {
+	_, node, _ := s.requireNodeCaps(w, r, share.CapShare)
+	if !node.ID.Valid {
 		return
 	}
 	shares, err := s.share.ListForNode(r.Context(), node.ID)
@@ -152,7 +161,7 @@ func (s *Server) handleListShares(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleRevokeShare(w http.ResponseWriter, r *http.Request) {
-	u, node := s.requireNodeAccess(w, r, 3)
+	u, node, _ := s.requireNodeCaps(w, r, share.CapShare)
 	if u == nil {
 		return
 	}
@@ -171,7 +180,6 @@ func (s *Server) handleRevokeShare(w http.ResponseWriter, r *http.Request) {
 
 // --- anonymous link access ---
 
-// resolveLinkNode validates the token and returns node + share, or writes error.
 func (s *Server) resolveLinkNode(w http.ResponseWriter, r *http.Request) (store.Share, store.Node) {
 	token := chi.URLParam(r, "token")
 	sh, err := s.share.ResolveLink(r.Context(), token)
@@ -187,15 +195,14 @@ func (s *Server) resolveLinkNode(w http.ResponseWriter, r *http.Request) (store.
 	return sh, node
 }
 
-// handleShareDownload streams the shared file without authentication.
 func (s *Server) handleShareDownload(w http.ResponseWriter, r *http.Request) {
 	sh, node := s.resolveLinkNode(w, r)
 	if !sh.ID.Valid {
 		return
 	}
-	rank, _ := share.LinkPerm(sh)
-	if rank < 2 { // need at least download
-		writeProblem(w, http.StatusForbidden, "Forbidden", "link does not allow download")
+	caps, err := share.LinkCaps(sh)
+	if err != nil || !caps.Download {
+		writeProblem(w, http.StatusForbidden, "Forbidden", "this link does not allow downloads")
 		return
 	}
 	n, ver, rc, err := s.fs.OpenFile(r.Context(), node.ID)
@@ -204,9 +211,6 @@ func (s *Server) handleShareDownload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rc.Close()
-	// strconv.Quote already adds its own quotes, so the old hand-built header
-	// emitted filename=""name"" and browsers saved the file under the literal
-	// quotes. FormatMediaType escapes correctly and handles non-ASCII names.
 	w.Header().Set("Content-Type", ver.Mime)
 	w.Header().Set("Content-Disposition", contentDisposition("attachment", n.Name))
 	w.Header().Set("Content-Length", strconv.FormatInt(ver.Size, 10))

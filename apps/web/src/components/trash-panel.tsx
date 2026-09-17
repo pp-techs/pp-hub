@@ -40,7 +40,7 @@ interface TrashPanelProps {
 export function TrashPanel({ spaceId }: TrashPanelProps) {
   const trash = useTrash(spaceId);
   const spaces = useSpaces();
-  const isAdmin = spaces.data?.find((s) => s.id === spaceId)?.role === "admin";
+  const isAdmin = spaces.data?.find((s) => s.id === spaceId)?.is_admin;
 
   const restore = useRestoreNode(spaceId);
   const purge = usePurgeNode(spaceId);
