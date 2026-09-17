@@ -40,6 +40,9 @@ dist-ssr
 *.gen.ts
 .tanstack/
 
+# Stitch screen renders pulled down for reference, not sources
+.stitch/out/
+
 .agents/
 .claude/
 skills-lock.json

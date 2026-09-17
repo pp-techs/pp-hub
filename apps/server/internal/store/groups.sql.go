@@ -276,12 +276,14 @@ WITH RECURSIVE entry(id) AS (
           WHERE sm.space_id = n.space_id AND sm.user_id = $3
       )
 ),
-walk(origin, id, depth) AS (
-    SELECT e.id, n.parent_id, 0
+walk(origin, id) AS (
+    SELECT e.id, n.parent_id
     FROM entry e JOIN nodes n ON n.id = e.id
-  UNION ALL
-    SELECT w.origin, p.id, w.depth + 1
+    WHERE n.parent_id IS NOT NULL
+  UNION
+    SELECT w.origin, p.parent_id
     FROM walk w JOIN nodes p ON p.id = w.id
+    WHERE p.parent_id IS NOT NULL
 )
 SELECT
   n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
@@ -295,10 +297,12 @@ LEFT JOIN users u ON u.id = n.created_by
 WHERE n.deleted_at IS NULL
   AND ($1::uuid IS NULL OR n.space_id = $1::uuid)
   AND ($2::bool OR n.created_by <> $3)
+  -- Every walk row is already a strict ancestor — the base step starts at the
+  -- parent — so there is no depth to filter on here.
   AND NOT EXISTS (
       SELECT 1 FROM walk w
       JOIN entry e2 ON e2.id = w.id
-      WHERE w.origin = e.id AND w.depth > 0
+      WHERE w.origin = e.id
   )
 ORDER BY n.kind, n.name
 LIMIT 200
@@ -345,6 +349,12 @@ type ListEntryPointsRow struct {
 // valid Postgres but sqlc cannot parse it.
 // Every strict ancestor of each entry, so the ones sitting underneath
 // another entry can be dropped.
+//
+// The recursive step climbs to the *parent* of the row it joins. Selecting
+// `p.id` there instead re-emitted the same node forever: with UNION ALL the
+// CTE never terminated, so the first nested owned node made the root listing
+// and the folder tree spin until the client gave up. `UNION` is the belt to
+// that brace — a parent_id cycle can then only produce finitely many pairs.
 func (q *Queries) ListEntryPoints(ctx context.Context, arg ListEntryPointsParams) ([]ListEntryPointsRow, error) {
 	rows, err := q.db.Query(ctx, listEntryPoints, arg.SpaceID, arg.IncludeOwned, arg.UserID)
 	if err != nil {

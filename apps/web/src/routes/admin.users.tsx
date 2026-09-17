@@ -27,8 +27,8 @@ import { RailLabel } from "@/components/rail-item";
 
 export const Route = createFileRoute("/admin/users")({
   head: () => ({ meta: [{ title: "Server administration · pp-hub" }] }),
-  beforeLoad: async ({ context }) => {
-    await requireAuth(context.queryClient);
+  beforeLoad: async ({ context, location }) => {
+    await requireAuth(context.queryClient, location.href);
   },
   component: AdminPage,
 });

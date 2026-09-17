@@ -10,8 +10,8 @@ import { NodeIcon } from "@/components/node-icon";
 
 export const Route = createFileRoute("/edit/$nodeId")({
   head: () => ({ meta: [{ title: "Editing · pp-hub" }] }),
-  beforeLoad: async ({ context }) => {
-    await requireAuth(context.queryClient);
+  beforeLoad: async ({ context, location }) => {
+    await requireAuth(context.queryClient, location.href);
   },
   component: EditPage,
 });

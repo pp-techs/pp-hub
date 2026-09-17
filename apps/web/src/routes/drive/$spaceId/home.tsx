@@ -1,15 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Clock, Star, Users } from "lucide-react";
+import { Clock, Star } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { RailLabel } from "@/components/rail-item";
-import { CrossSpaceTable } from "@/components/cross-space-table";
+import { SpaceNodeTable } from "@/components/space-node-table";
 import { ActivityFeed } from "@/components/activity-feed";
 import { StorageBreakdown } from "@/components/storage-breakdown";
 import { ContinueCards } from "@/components/continue-cards";
-import { useActivity, useRecent, useShared, useStarred, useUsage } from "@/lib/queries";
+import { useActivity, useRecent, useSpace, useStarred, useUsage } from "@/lib/queries";
 import type { ActivityKind, SearchResult } from "@/lib/api";
 
-export const Route = createFileRoute("/drive/home")({
+export const Route = createFileRoute("/drive/$spaceId/home")({
   head: () => ({ meta: [{ title: "Home · pp-hub" }] }),
   component: HomePage,
 });
@@ -31,24 +31,37 @@ const ACTIONS: Record<ActivityKind, string> = {
 };
 
 /**
- * A working dashboard across every space, not a welcome page.
+ * A working dashboard for one space, not a welcome page.
  *
- * Reached from Home in the rail. `/drive` still redirects to the last space
- * opened, so this does not change where the app lands on sign-in — making it
- * the landing surface is a one-line change to the redirect in `drive.tsx`.
+ * Everything on it belongs to the space in the URL — there is no all-spaces
+ * mode, because a row from a space the rail is not showing cannot be opened
+ * without silently switching space underneath the user.
  */
 function HomePage() {
-  const recent = useRecent(10);
-  const starred = useStarred(10);
-  const shared = useShared();
-  const activity = useActivity(undefined, 12);
-  const usage = useUsage();
+  const { spaceId } = Route.useParams();
+  const space = useSpace(spaceId);
+  const recent = useRecent(spaceId, 10);
+  const starred = useStarred(spaceId, 10);
+  const activity = useActivity(spaceId, 12);
+  const usage = useUsage(spaceId);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="border-border flex h-10 shrink-0 items-center border-b px-4">
-        <span className="text-xs font-medium">Home</span>
-      </header>
+      <div className="border-border flex h-10 shrink-0 items-center justify-between gap-2 border-b px-4">
+        <div className="flex min-w-0 items-baseline gap-2">
+          <span className="text-sm font-medium">Home</span>
+          <span className="text-muted-foreground truncate text-[10px]">
+            Everything in {space?.name ?? "this space"}
+          </span>
+        </div>
+        <Button
+          variant="outline"
+          size="xs"
+          render={<Link to="/drive/$spaceId" params={{ spaceId }} search={{ dir: undefined }} />}
+        >
+          Browse files
+        </Button>
+      </div>
 
       <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-auto p-4">
         {(recent.data?.length ?? 0) > 0 && (
@@ -61,16 +74,20 @@ function HomePage() {
         <section>
           <div className="flex items-center justify-between">
             <RailLabel>Recent</RailLabel>
-            <Button variant="ghost" size="xs" render={<Link to="/drive/recent" />}>
+            <Button
+              variant="ghost"
+              size="xs"
+              render={<Link to="/drive/$spaceId/recent" params={{ spaceId }} />}
+            >
               View all
             </Button>
           </div>
-          <CrossSpaceTable
+          <SpaceNodeTable
             nodes={recent.data ?? []}
             isPending={recent.isPending}
             emptyIcon={<Clock className="text-muted-foreground size-10" />}
             emptyTitle="Nothing recent yet"
-            emptyDescription="Files you upload or edit show up here."
+            emptyDescription="Files you upload or edit in this space show up here."
             extraColumn={{
               header: "Action",
               cell: (n) => ACTIONS[(n as SearchResult & { last_action: ActivityKind }).last_action],
@@ -82,11 +99,15 @@ function HomePage() {
           <section>
             <div className="flex items-center justify-between">
               <RailLabel>Starred</RailLabel>
-              <Button variant="ghost" size="xs" render={<Link to="/drive/starred" />}>
+              <Button
+                variant="ghost"
+                size="xs"
+                render={<Link to="/drive/$spaceId/starred" params={{ spaceId }} />}
+              >
                 View all
               </Button>
             </div>
-            <CrossSpaceTable
+            <SpaceNodeTable
               nodes={starred.data ?? []}
               isPending={starred.isPending}
               emptyIcon={<Star className="text-muted-foreground size-10" />}
@@ -115,17 +136,6 @@ function HomePage() {
             </section>
           </div>
         </div>
-
-        <section>
-          <RailLabel>Shared with me</RailLabel>
-          <CrossSpaceTable
-            nodes={(shared.data ?? []) as SearchResult[]}
-            isPending={shared.isPending}
-            emptyIcon={<Users className="text-muted-foreground size-10" />}
-            emptyTitle="Nothing shared with you yet"
-            emptyDescription="When someone shares a file or folder, it appears here."
-          />
-        </section>
       </div>
     </div>
   );

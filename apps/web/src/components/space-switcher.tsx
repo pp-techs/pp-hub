@@ -1,5 +1,5 @@
-import { useNavigate, useParams } from "@tanstack/react-router";
-import { ChevronsUpDown, Plus } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { ChevronsUpDown, Plus, Settings, Users } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import {
   DropdownMenu,
@@ -24,12 +24,15 @@ function monogram(name: string) {
 
 /**
  * Top band of the left rail: the active space as a monogram tile with its
- * name and role, opening the space list. Fixed 48px to line up with the
- * header and toolbar rows in the main column.
+ * name, opening the space list. Fixed 48px to line up with the header and
+ * toolbar rows in the main column.
+ *
+ * `spaceId` is passed in rather than read from the route: the rail is mounted
+ * above `/drive/$spaceId` and also renders on `/drive/account`, where the
+ * space is the one the user will go back to.
  */
-export function SpaceSwitcher() {
+export function SpaceSwitcher({ spaceId }: { spaceId: string | undefined }) {
   const spaces = useSpaces();
-  const { spaceId } = useParams({ strict: false }) as { spaceId?: string };
   const navigate = useNavigate();
   const setNewSpaceOpen = useUiStore((s) => s.setNewSpaceOpen);
 
@@ -43,11 +46,11 @@ export function SpaceSwitcher() {
         </div>
         <div className="flex min-w-0 flex-col leading-none">
           <span className="truncate text-xs font-medium">{current?.name ?? "Select a space"}</span>
-          {current ? (
+          {current?.is_admin && (
             <span className="text-muted-foreground mt-0.5 text-[10px] tracking-wider uppercase">
-              {current.is_admin}
+              Admin
             </span>
-          ) : null}
+          )}
         </div>
       </div>
 
@@ -75,12 +78,41 @@ export function SpaceSwitcher() {
                 }
               >
                 <span className="truncate">{space.name}</span>
-                <span className="text-muted-foreground ml-auto text-[10px] uppercase">
-                  {space.is_admin}
-                </span>
+                {space.is_admin && (
+                  <span className="text-muted-foreground ml-auto text-[10px] uppercase">Admin</span>
+                )}
               </DropdownMenuItem>
             ))}
           </DropdownMenuGroup>
+          {current?.is_admin && (
+            <>
+              <DropdownMenuSeparator />
+              {/* The only way into space settings. It used to be a gear in the
+                  main header, which sat next to a Members icon that opened a
+                  second, competing copy of the same screen. */}
+              <DropdownMenuItem
+                onClick={() =>
+                  void navigate({
+                    to: "/drive/$spaceId/settings/general",
+                    params: { spaceId: current.id },
+                  })
+                }
+              >
+                <Settings /> Space settings
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() =>
+                  void navigate({
+                    to: "/drive/$spaceId/settings/people",
+                    params: { spaceId: current.id },
+                    search: { group: undefined },
+                  })
+                }
+              >
+                <Users /> People
+              </DropdownMenuItem>
+            </>
+          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => setNewSpaceOpen(true)}>
             <Plus /> Create new space

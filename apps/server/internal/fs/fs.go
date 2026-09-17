@@ -555,9 +555,10 @@ func (s *Service) Unstar(ctx context.Context, userID, nodeID pgtype.UUID) error 
 	return s.q.UnstarNode(ctx, store.UnstarNodeParams{UserID: userID, NodeID: nodeID})
 }
 
-// Starred lists a user's bookmarked nodes, newest star first.
-func (s *Service) Starred(ctx context.Context, userID pgtype.UUID, limit int32) ([]store.ListStarredNodesRow, error) {
-	return s.q.ListStarredNodes(ctx, store.ListStarredNodesParams{UserID: userID, Limit: limit})
+// Starred lists a user's bookmarked nodes, newest star first. An invalid
+// spaceID spans every space; a set one scopes the listing to that space.
+func (s *Service) Starred(ctx context.Context, userID, spaceID pgtype.UUID, limit int32) ([]store.ListStarredNodesRow, error) {
+	return s.q.ListStarredNodes(ctx, store.ListStarredNodesParams{UserID: userID, SpaceID: spaceID, Limit: limit})
 }
 
 // StarredAmong reports which of the given nodes the user has starred, so a
@@ -603,15 +604,12 @@ func (s *Service) Search(ctx context.Context, arg store.SearchNodesParams) ([]st
 	return s.q.SearchNodes(ctx, arg)
 }
 
-// ListShared returns nodes in spaces the user is a member of.
-// ListShared returns the topmost nodes the caller holds a grant on, across
-// every space — the places their access starts.
-//
-// ListShared returns the places shared with the caller across every space.
-// A nil space scopes it; includeOwned is always false here so own items are
-// excluded — your own folder is not something shared with you.
-func (s *Service) ListShared(ctx context.Context, userID pgtype.UUID) ([]store.NodeWithMeta, error) {
-	return s.EntryPointsWithMeta(ctx, userID, pgtype.UUID{}, false)
+// ListShared returns the places shared with the caller — the topmost nodes
+// they hold a grant on. An invalid spaceID spans every space; a set one scopes
+// the listing to that space. includeOwned is always false here, so own items
+// are excluded — your own folder is not something shared with you.
+func (s *Service) ListShared(ctx context.Context, userID, spaceID pgtype.UUID) ([]store.NodeWithMeta, error) {
+	return s.EntryPointsWithMeta(ctx, userID, spaceID, false)
 }
 
 // EntryPointsWithMeta returns the topmost nodes the caller can reach. includeOwned

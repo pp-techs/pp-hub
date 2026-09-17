@@ -15,13 +15,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@workspace/ui/components/dialog";
-import { requireAuth, useCreateSpace, useSpaces } from "@/lib/queries";
+import { fetchSpaces, requireAuth, useCreateSpace, useSpaces } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
+import { useActiveSpaceId } from "@/lib/use-active-space";
 import { SpaceSwitcher } from "@/components/space-switcher";
 import { NavUser } from "@/components/nav-user";
 import { FolderTree } from "@/components/folder-tree";
 import { QuickAccess } from "@/components/quick-access";
-import { SpaceNav } from "@/components/space-nav";
 import { RailSearch } from "@/components/rail-search";
 import { StorageMeter } from "@/components/storage-meter";
 import { RailLabel } from "@/components/rail-item";
@@ -30,16 +30,14 @@ import { CommandPalette } from "@/components/command-palette";
 
 export const Route = createFileRoute("/drive")({
   head: () => ({ meta: [{ title: "Drive · pp-hub" }] }),
-  beforeLoad: async ({ context }) => {
-    await requireAuth(context.queryClient);
+  beforeLoad: async ({ context, location }) => {
+    await requireAuth(context.queryClient, location.href);
     if (/^\/drive\/?$/.test(location.pathname)) {
-      const spaces = await context.queryClient.ensureQueryData({
-        queryKey: ["spaces"],
-        queryFn: () => import("@/lib/api").then((m) => m.getSpaces()),
-      });
+      const spaces = await fetchSpaces(context.queryClient);
       if (spaces.length > 0) {
         const last = useUiStore.getState().lastSpaceId;
-        const target = last ?? spaces[0].id;
+        // The remembered space may have been deleted since it was recorded.
+        const target = spaces.find((s) => s.id === last)?.id ?? spaces[0].id;
         throw redirect({
           to: "/drive/$spaceId",
           params: { spaceId: target },
@@ -54,6 +52,7 @@ export const Route = createFileRoute("/drive")({
 function DriveLayout() {
   const spaces = useSpaces();
   const showLanding = spaces.data?.length === 0;
+  const spaceId = useActiveSpaceId();
   const setPaletteOpen = useUiStore((s) => s.setPaletteOpen);
 
   // Bound once for the whole drive, so ⌘K works from the listing, a panel or
@@ -73,26 +72,28 @@ function DriveLayout() {
     <div className="bg-background text-foreground flex h-svh overflow-hidden">
       <aside className="bg-sidebar text-sidebar-foreground border-border flex w-64 shrink-0 flex-col justify-between border-r">
         {/* Band 1 — active space */}
-        <SpaceSwitcher />
+        <SpaceSwitcher spaceId={spaceId} />
 
         {/* Band 2 — search and navigation */}
         <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-2 py-3">
           <RailSearch />
 
-          <div>
-            <RailLabel>Quick access</RailLabel>
-            <QuickAccess />
-          </div>
+          {/* Both bands are about one space, so they wait for one rather than
+              rendering an empty frame. Only true before the first space is
+              created. */}
+          {spaceId && (
+            <>
+              <div>
+                <RailLabel>Quick access</RailLabel>
+                <QuickAccess spaceId={spaceId} />
+              </div>
 
-          <div>
-            <RailLabel>Files</RailLabel>
-            <FolderTree />
-          </div>
-
-          <div>
-            <RailLabel>Spaces</RailLabel>
-            <SpaceNav />
-          </div>
+              <div>
+                <RailLabel>Files</RailLabel>
+                <FolderTree spaceId={spaceId} />
+              </div>
+            </>
+          )}
         </div>
 
         {/* Band 3 — storage and account */}

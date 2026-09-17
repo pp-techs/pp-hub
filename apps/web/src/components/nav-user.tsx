@@ -51,8 +51,8 @@ export function NavUser() {
             </DropdownMenuLabel>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => void navigate({ to: "/profile" })}>
-            <User /> Profile
+          <DropdownMenuItem onClick={() => void navigate({ to: "/drive/account/profile" })}>
+            <User /> Account
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem

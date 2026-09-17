@@ -203,7 +203,8 @@ DELETE FROM node_stars WHERE user_id = $1 AND node_id = $2;
 
 -- name: ListStarredNodes :many
 -- The caller's starred nodes, newest star first. Space membership is rechecked
--- here because a star survives losing access to the space that holds it.
+-- here because a star survives losing access to the space that holds it. A
+-- null space_id spans every space; a set one scopes the listing to it.
 SELECT
   n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
   n.current_version_id, n.deleted_at, n.created_by, n.created_at,
@@ -219,6 +220,7 @@ LEFT JOIN node_versions v ON v.id = n.current_version_id
 LEFT JOIN users u ON u.id = n.created_by
 LEFT JOIN nodes p ON p.id = n.parent_id AND p.deleted_at IS NULL
 WHERE st.user_id = $1 AND n.deleted_at IS NULL
+  AND (sqlc.narg('space_id')::uuid IS NULL OR n.space_id = sqlc.narg('space_id')::uuid)
 ORDER BY st.created_at DESC
 LIMIT $2;
 

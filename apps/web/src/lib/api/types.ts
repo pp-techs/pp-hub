@@ -209,8 +209,6 @@ export interface UsageCategory {
 export type SearchKind = "dir" | "file";
 
 export type NodeView = "grid" | "list";
-/** Which secondary surface replaces the file listing in the space view. */
-export type DrivePanel = "members" | "trash" | "shared" | "settings";
 
 export interface TreeNode {
   id: string;

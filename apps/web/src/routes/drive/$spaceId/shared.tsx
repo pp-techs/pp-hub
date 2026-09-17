@@ -1,31 +1,38 @@
+import { createFileRoute } from "@tanstack/react-router";
 import { Users } from "lucide-react";
 import { useShared } from "@/lib/queries";
 import { NodeTable } from "@/components/node-table";
 
+export const Route = createFileRoute("/drive/$spaceId/shared")({
+  head: () => ({ meta: [{ title: "Shared with me · pp-hub" }] }),
+  component: SharedPage,
+});
+
 /**
- * Where the signed-in user's access starts, across every space — so it is not
- * filtered by the space open in the rail.
+ * Where the caller's access to this space starts.
  *
  * Each row is one grant: a folder a group they belong to was given, or one
  * shared with them directly. A folder sitting under another granted folder is
- * left out, since walking down from the parent already reaches it.
+ * left out, since walking down from the parent already reaches it — which is
+ * also why the rows need no location column, they *are* the entry points.
  */
-export function SharedPanel() {
-  const shared = useShared();
+function SharedPage() {
+  const { spaceId } = Route.useParams();
+  const shared = useShared(spaceId);
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-0.5">
+    <div className="min-h-0 flex-1 overflow-auto p-4">
+      <div className="mb-3 flex flex-col gap-0.5">
         <h2 className="font-heading text-sm font-medium">Shared with me</h2>
         <p className="text-muted-foreground text-xs">
-          Everywhere your access begins, across every space. Open one to see what is inside.
+          Everywhere your access to this space begins. Open one to see what is inside.
         </p>
       </div>
       <NodeTable
         nodes={shared.data ?? []}
         isPending={shared.isPending}
         emptyIcon={<Users className="text-muted-foreground size-10" />}
-        emptyTitle="Nothing shared with you yet"
+        emptyTitle="Nothing shared with you here"
         emptyDescription="When a group you are in is given a folder, or someone shares one with you, it appears here."
       />
     </div>

@@ -22,22 +22,22 @@ pp-hub/
 │   │       │   └── use-keyed-state.ts # state that resets when its subject changes
 │   │       ├── components/         # app-level UI panels
 │   │       │   ├── share-panel.tsx       # share dialog (direct + link)
-│   │       │   ├── space-members-panel.tsx # members + pending invites in one table
-│   │       │   ├── space-groups-panel.tsx  # Groups tab: groups, their people, what they open
+│   │       │   ├── people-table.tsx      # space membership: admin switch, groups, pending invites
+│   │       │   ├── group-drawer.tsx      # People page drawer: groups and who is in them
+│   │       │   ├── invite-modal.tsx      # the one way into a space (better-modal)
 │   │       │   ├── folder-access-dialog.tsx # who can open a folder (better-modal, admin only)
 │   │       │   ├── member-picker.tsx     # user search + member add
 │   │       │   ├── user-avatar.tsx       # avatar with fallback
 │   │       │   ├── confirm-dialog.tsx    # confirmation modal
-│   │       │   ├── quick-access.tsx      # rail entries for the Trash / Shared panels
-│   │       │   ├── drive-panels.tsx      # Shared with me panel
+│   │       │   ├── quick-access.tsx      # rail links to the space's own surfaces
 │   │       │   ├── trash-panel.tsx       # Trash listing + restore / delete forever / empty
 │   │       │   ├── move-dialog.tsx       # "Move to…" folder picker (better-modal)
 │   │       │   ├── drop-zone.tsx         # drag-and-drop overlay over the listing
 │   │       │   ├── transfer-tray.tsx     # upload queue tray, mounted by the shell
 │   │       │   ├── command-palette.tsx   # ⌘K search across every space
 │   │       │   ├── continue-cards.tsx    # Home: the few files you were last in
-│   │       │   ├── space-settings-panel.tsx # General / Members / Groups / Danger zone tabs
-│   │       │   ├── cross-space-table.tsx # listings spanning spaces (Recent, Starred)
+│   │       │   ├── settings-tabs.tsx     # link-based tab strip for every settings page
+│   │       │   ├── space-node-table.tsx  # flat listings within a space (Recent, Starred)
 │   │       │   ├── activity-feed.tsx     # the event timeline
 │   │       │   ├── storage-breakdown.tsx # usage by MIME family
 │   │       │   ├── version-list.tsx      # shared by the ⋯ dialog and preview tab
@@ -55,15 +55,16 @@ pp-hub/
 │   │       │   ├── selection-bar.tsx     # floating bar for a multi-row selection
 │   │       │   └── ...                  # folder-tree, preview, nav, etc. (edit is a route, not a panel)
 │   │       └── routes/             # TanStack Router file-based routes
-│   │           ├── profile.tsx          # user profile page
+│   │           ├── login.tsx            # OIDC hand-off; ?redirect= survives the round trip
 │   │           ├── admin.users.tsx      # server administration: stats, suspend, admin flag
 │   │           ├── invite/$token.tsx    # redeem a space invitation
 │   │           ├── s/$token.tsx         # anonymous share-link browser (no rail, no account)
-│   │           ├── drive/home.tsx       # cross-space dashboard
-│   │           ├── drive/recent.tsx     # files I last touched
-│   │           ├── drive/starred.tsx    # my bookmarks
 │   │           ├── edit/$nodeId.tsx     # full-page OnlyOffice editor (opened in a new tab)
-│   │           └── drive/$spaceId.tsx   # space drive view (leaf route — see Drive view note)
+│   │           ├── drive.tsx            # drive shell: left rail + <Outlet/>
+│   │           ├── drive/account/       # route.tsx (tabs) + profile.tsx + preferences.tsx
+│   │           └── drive/$spaceId/      # route.tsx (layout) + index.tsx (listing)
+│   │               │                    #   + home / recent / starred / shared / trash
+│   │               └── settings/        # route.tsx (tabs) + general / people / danger
 │   └── server/                     # Go backend — own go.mod
 │       ├── cmd/server/             # entry point: OIDC wait, http.Server; owns migrations
 │       ├── cmd/worker/             # optional preview worker (pdftoppm/ffmpeg); --backfill
@@ -113,18 +114,48 @@ pp-hub/
 
 ## Notes
 
-- **Drive view is a single leaf route.** `drive/$spaceId.tsx` owns the shell, the
-  toolbar and the listing, and renders no `<Outlet/>`. Secondary surfaces are
-  selected by the `panel` search param rather than by child routes:
-  `?panel=members`, `?panel=trash`, `?panel=shared`, `?panel=settings`; absent means the file
-  listing. Adding a child route under `drive/$spaceId/` will silently never
-  render — add a `panel` value, or introduce an `<Outlet/>` first.
+- **The space is a URL segment, never state.** Every drive surface is a child
+  route of `drive/$spaceId/`: `index.tsx` is the listing, and `home`, `recent`,
+  `starred`, `shared`, `trash` and `settings/*` sit beside it. So `spaceId` is
+  in the params on every one of them, and the rail can read it without a
+  fallback. This replaced a `?panel=` search param, which is why Home, Recent
+  and Starred used to blank the switcher, the Files tree and the Trash and
+  Shared rows: they were siblings of `$spaceId`, so there was no space to read.
+  Add a surface as a child route; do not reintroduce a panel param.
+- **Settings tabs are routes.** Space settings (`settings/general|people|danger`)
+  and account settings (`account/profile|preferences`) both render
+  `settings-tabs.tsx`, a strip of `<Link>`s. A settings pane is a place: it has
+  to survive a reload, be sendable to a colleague and answer the back button.
+  `settings/route.tsx` refuses a non-admin in `beforeLoad` rather than
+  rendering a "you cannot" pane at a URL that resolved.
 - **Drive shell layout.** `routes/drive.tsx` owns the 256px left rail as three
-  bands — `space-switcher` (48px), the scrolling nav (search, Quick access,
-  the Files tree, Spaces), and a pinned footer (`storage-meter` + `nav-user`).
-  `drive/$spaceId.tsx` owns the main column as two 40px rows (`drive-header`,
-  `drive-toolbar`) above the listing. Row geometry for the rail lives in
-  `rail-item.tsx`; use `railRow()` rather than re-deriving row classes.
+  bands — `space-switcher` (48px, also the only place to change space — the
+  space list is not duplicated further down), the scrolling nav (search,
+  Quick access, the Files tree), and a pinned footer (`storage-meter` +
+  `nav-user`).
+  `drive/$spaceId/route.tsx` owns `drive-header` (40px, breadcrumbs derived
+  from the pathname) above an `<Outlet/>`; `index.tsx` adds `drive-toolbar`.
+  The rail reads its space through `useActiveSpaceId()`, which is the route
+  param everywhere except `/drive/account` — an account belongs to no space, so
+  there the rail keeps pointing at the last one opened. Row geometry for the
+  rail lives in `rail-item.tsx`; use `railRow()` rather than re-deriving row
+  classes.
+- **Folder navigation keeps the previous listing on screen.** `childrenOptions`
+  sets `placeholderData: (prev) => prev` — the same pattern `useNodeSearch`
+  uses — so clicking a folder in `folder-tree.tsx` swaps content in place
+  instead of blanking to "Loading…" and back. `FolderTreeItem` also queries its
+  **own** id (`useTree(spaceId, node.id, expanded)`), gated on `expanded`; it
+  used to query `useTree(spaceId, undefined)` — the root tree's key — for
+  every collapsed row, an unnecessary live subscription per rendered folder.
+- **The archive is filtered out of the ordinary listing.** `spaces.archive_root_id`
+  is a real entry point (the `Admin` group holds a grant on it, see
+  [permissions.md](../architecture/permissions.md#archive)), so the server
+  returns it like any other root-level folder. Both `index.tsx` (main listing)
+  and `folder-tree.tsx` (rail) filter it out by id when browsing the space
+  root; `quick-access.tsx` renders it as its own row instead, visible only to
+  `space.is_admin`. Browsing into it (`?dir=archive_root_id`) is ordinary —
+  filtering only applies at the root, where it would otherwise sit mixed in
+  with real files.
 - **Clicking a node only selects it.** There is no checkbox: a plain click
   replaces the selection, ⌘/Ctrl toggles one node and Shift takes the range
   from the last plain click, all of it decided by `nextSelection`
@@ -132,7 +163,7 @@ pp-hub/
   get a soft `bg-primary/10` wash, never an outline.
 - **The listing's background is a marquee.** `useMarqueeSelection`
   (`lib/use-marquee-selection.ts`) is mounted on the scrolling listing in
-  `drive/$spaceId.tsx`: a press bands every node box it overlaps, holding
+  `drive/$spaceId/index.tsx`: a press bands every node box it overlaps, holding
   ⌘/Ctrl/Shift adds to whatever was selected when the drag began, and a press
   that never travels 4px reports an empty band — which is what clears the
   selection on a plain background click. A press is only background if it is
@@ -164,17 +195,24 @@ pp-hub/
   where numbers belong. Column count comes from a container query on the grid
   itself (2→5 columns), so opening the details panel drops 5 columns to 4
   without the route passing anything down.
-- **Members and invitations render as one table.** `space-members-panel.tsx`
-  owns both, plus the admin toggle and the invite dialog; `space-settings-panel.tsx`
-  only mounts it. Listing invitations is admin-gated server-side, so the query
-  is `enabled` on the admin check rather than firing and 403-ing.
+- **People is one table, and the only membership surface.** `people-table.tsx`
+  owns members, pending invitations, the Admin switch and the group chips;
+  `group-drawer.tsx` owns the group list beside it, and `invite-modal.tsx` is
+  the only way into a space. Admin _is_ membership of the automatic `Admin`
+  group, so the switch and the chip are one fact — which is why all three
+  membership mutations invalidate `["spaces", id]` rather than just the member
+  list, and why that group is read-only in the drawer. What a group _opens_ is
+  still set on the folder, in its access dialog: this table answers who is in
+  the group, the folder answers what the group reaches. Listing invitations is
+  admin-gated server-side, so the query is `enabled` on the admin check rather
+  than firing and 403-ing.
 - **Node menu actions have one definition.** `node-actions.tsx` builds the
   action list; the list view, grid view and their right-click menus all render
   from it. Add an action there, not in a menu.
 - **Two searches, on purpose.** The rail field filters the _open folder_
   locally — its query lives in `ui-store.filterQuery` because the field sits in
   the rail (mounted by `drive.tsx`) while the listing it filters is owned by
-  `drive/$spaceId.tsx`. ⌘K is something else: a server search across every
+  `drive/$spaceId/index.tsx`. ⌘K is something else: a server search across every
   space, in `command-palette.tsx`. The rail's `⌘K` chip is a button through to
   the palette, not a hint that the chip focuses the field. Don't merge them.
 - **Design source.** The UI follows the Stitch project "pp-hub — Self-hosted
@@ -190,7 +228,8 @@ pp-hub/
   register `afterEach(cleanup)` themselves. `apps/web/tsconfig.json` includes
   `tests` so JSX in a test type-checks.
 - **Two kinds of administration.** A _space admin_ — a member of that space's
-  automatic `Admin` group — administers one space (`?panel=settings`); a
+  automatic `Admin` group — administers one space
+  (`/drive/$spaceId/settings/*`, reached from the space menu in the rail); a
   _server admin_ administers the install (`/admin/users`). Neither implies the
   other, and neither carries file access: an admin reads a colleague's file
   only through a grant. The server enforces that separately from what the UI

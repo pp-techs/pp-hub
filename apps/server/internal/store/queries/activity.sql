@@ -32,7 +32,8 @@ LIMIT $2;
 -- name: ListRecentNodes :many
 -- "Recent" is the caller's own touches, most recently touched first, one row
 -- per node. DISTINCT ON collapses repeated edits of the same file into its
--- latest, which is what "recent" means to a person.
+-- latest, which is what "recent" means to a person. A null space_id spans
+-- every space the caller belongs to; a set one scopes the feed to it.
 SELECT DISTINCT ON (n.id)
   n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
   n.current_version_id, n.deleted_at, n.created_by, n.created_at,
@@ -50,6 +51,7 @@ LEFT JOIN node_versions v ON v.id = n.current_version_id
 LEFT JOIN users u ON u.id = n.created_by
 LEFT JOIN nodes p ON p.id = n.parent_id AND p.deleted_at IS NULL
 WHERE a.actor_id = $1 AND n.deleted_at IS NULL AND n.kind = 'file'
+  AND (sqlc.narg('space_id')::uuid IS NULL OR n.space_id = sqlc.narg('space_id')::uuid)
 ORDER BY n.id, a.created_at DESC;
 
 -- name: SumSpaceUsage :one

@@ -689,13 +689,15 @@ LEFT JOIN node_versions v ON v.id = n.current_version_id
 LEFT JOIN users u ON u.id = n.created_by
 LEFT JOIN nodes p ON p.id = n.parent_id AND p.deleted_at IS NULL
 WHERE st.user_id = $1 AND n.deleted_at IS NULL
+  AND ($3::uuid IS NULL OR n.space_id = $3::uuid)
 ORDER BY st.created_at DESC
 LIMIT $2
 `
 
 type ListStarredNodesParams struct {
-	UserID pgtype.UUID `json:"user_id"`
-	Limit  int32       `json:"limit"`
+	UserID  pgtype.UUID `json:"user_id"`
+	Limit   int32       `json:"limit"`
+	SpaceID pgtype.UUID `json:"space_id"`
 }
 
 type ListStarredNodesRow struct {
@@ -724,9 +726,10 @@ type ListStarredNodesRow struct {
 }
 
 // The caller's starred nodes, newest star first. Space membership is rechecked
-// here because a star survives losing access to the space that holds it.
+// here because a star survives losing access to the space that holds it. A
+// null space_id spans every space; a set one scopes the listing to it.
 func (q *Queries) ListStarredNodes(ctx context.Context, arg ListStarredNodesParams) ([]ListStarredNodesRow, error) {
-	rows, err := q.db.Query(ctx, listStarredNodes, arg.UserID, arg.Limit)
+	rows, err := q.db.Query(ctx, listStarredNodes, arg.UserID, arg.Limit, arg.SpaceID)
 	if err != nil {
 		return nil, err
 	}

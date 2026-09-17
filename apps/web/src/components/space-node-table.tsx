@@ -19,32 +19,31 @@ import { canEdit, fmtRelative, fmtSize, openEditor, type SearchResult } from "@/
 import { PreviewModal } from "@/components/preview-modal";
 import { NodeIcon } from "@/components/node-icon";
 
-interface CrossSpaceTableProps {
+interface SpaceNodeTableProps {
   nodes: SearchResult[];
   isPending: boolean;
   emptyIcon: React.ReactNode;
   emptyTitle: string;
   emptyDescription: string;
-  /** Extra column between Space and Modified — "Action" on the Recent table. */
+  /** Extra column between Location and Modified — "Action" on Recent. */
   extraColumn?: { header: string; cell: (node: SearchResult) => React.ReactNode };
 }
 
 /**
- * A listing whose rows come from several spaces at once — Recent, Starred,
- * Shared with me.
+ * A flat listing of files gathered from across one space — Recent, Starred.
  *
- * Distinct from `NodeTable`, which lists one folder and can therefore leave
- * the location implicit. Here every row has to say where it lives, and opening
- * one has to navigate to another space rather than just changing folder.
+ * Distinct from `NodeTable`, which lists the contents of one folder and can
+ * leave the location implicit. Here the rows come from anywhere in the space,
+ * so each says which folder holds it; opening a folder row navigates there.
  */
-export function CrossSpaceTable({
+export function SpaceNodeTable({
   nodes,
   isPending,
   emptyIcon,
   emptyTitle,
   emptyDescription,
   extraColumn,
-}: CrossSpaceTableProps) {
+}: SpaceNodeTableProps) {
   const navigate = useNavigate();
 
   const open = (node: SearchResult) => {
@@ -80,7 +79,7 @@ export function CrossSpaceTable({
       <TableHeader>
         <TableRow>
           <TableHead>Name</TableHead>
-          <TableHead className="w-32">Space</TableHead>
+          <TableHead className="w-40">Location</TableHead>
           {extraColumn && <TableHead className="w-36">{extraColumn.header}</TableHead>}
           <TableHead className="w-32">Modified</TableHead>
           <TableHead className="w-24">Size</TableHead>
@@ -100,9 +99,10 @@ export function CrossSpaceTable({
                 <span className="truncate">{n.name}</span>
               </Button>
             </TableCell>
-            <TableCell className="text-muted-foreground truncate" title={n.parent_name}>
-              {n.space_name}
-            </TableCell>
+            {/* An empty parent name means the space root, which has no folder
+                to name — an em dash reads better than the space name repeated
+                on every row. */}
+            <TableCell className="text-muted-foreground truncate">{n.parent_name || "—"}</TableCell>
             {extraColumn && (
               <TableCell className="text-muted-foreground truncate">
                 {extraColumn.cell(n)}

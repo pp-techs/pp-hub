@@ -19,6 +19,7 @@ import {
   restoreVersion,
   uploadFile,
 } from "@/lib/api";
+import type { Node } from "@/lib/api";
 import { keys } from "./keys";
 
 /** Query options factory for children listing. */
@@ -26,6 +27,11 @@ export function childrenOptions(spaceId: string, parentId?: string) {
   return {
     queryKey: keys.children(spaceId, parentId),
     queryFn: () => getChildren(spaceId, parentId),
+    // Keeps the previous folder's rows on screen while the next folder loads,
+    // so clicking a folder in the sidebar swaps content in place instead of
+    // blanking to "Loading…" and back — the visible stutter this exists to
+    // remove. Same pattern as `useNodeSearch`.
+    placeholderData: (prev: Node[] | undefined) => prev,
   } as const;
 }
 
@@ -143,18 +149,18 @@ export function useRestoreVersion(spaceId: string) {
 
 // ─── Tree / Trash / Shared (Sidebar) ─────────────────────────────────────────
 
-export function treeOptions(spaceId: string | undefined, parentId?: string) {
+export function treeOptions(spaceId: string | undefined, parentId?: string, enabled = true) {
   return {
     queryKey: keys.tree(spaceId ?? "", parentId),
     queryFn: () => getTree(spaceId as string, parentId),
     // The rail mounts above the space route, so it renders for a beat with no
     // space selected. Without this the tree would request `/spaces/undefined`.
-    enabled: !!spaceId,
+    enabled: !!spaceId && enabled,
   } as const;
 }
 
-export function useTree(spaceId: string | undefined, parentId?: string) {
-  return useQuery(treeOptions(spaceId, parentId));
+export function useTree(spaceId: string | undefined, parentId?: string, enabled = true) {
+  return useQuery(treeOptions(spaceId, parentId, enabled));
 }
 
 export function useTrash(spaceId: string) {
@@ -164,10 +170,10 @@ export function useTrash(spaceId: string) {
   });
 }
 
-export function useShared() {
+export function useShared(spaceId: string) {
   return useQuery({
-    queryKey: keys.shared,
-    queryFn: getShared,
+    queryKey: keys.shared(spaceId),
+    queryFn: () => getShared(spaceId),
   });
 }
 

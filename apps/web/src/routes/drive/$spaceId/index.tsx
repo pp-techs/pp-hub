@@ -1,10 +1,4 @@
-import {
-  createFileRoute,
-  notFound,
-  useNavigate,
-  useParams,
-  useSearch,
-} from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, MouseEvent } from "react";
 import { FolderOpen } from "lucide-react";
@@ -30,7 +24,6 @@ import {
   canEdit,
   openEditor,
   sortNodes,
-  type DrivePanel,
   type Node,
   type NodeView,
   type SortField,
@@ -38,13 +31,13 @@ import {
 } from "@/lib/api";
 import {
   childrenOptions,
-  spacesOptions,
   useCreateFolder,
   useNode,
   useDeleteNode,
   useCopyNode,
   useMoveNode,
   useRenameNode,
+  useSpace,
   useStarred,
   useToggleStar,
 } from "@/lib/queries";
@@ -53,15 +46,10 @@ import { collectInputFiles } from "@/lib/drop-items";
 import { nextSelection } from "@/lib/selection";
 import { useMarqueeSelection } from "@/lib/use-marquee-selection";
 import { useUiStore } from "@/lib/ui-store";
-import { SpaceMembersPanel } from "@/components/space-members-panel";
-import { SharedPanel } from "@/components/drive-panels";
-import { TrashPanel } from "@/components/trash-panel";
-import { SpaceSettingsPanel } from "@/components/space-settings-panel";
 import { NodePanels } from "@/components/node-panels";
 import { PreviewModal } from "@/components/preview-modal";
 import { DetailsPanel } from "@/components/preview-panel";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { DriveHeader } from "@/components/drive-header";
 import { DriveToolbar } from "@/components/drive-toolbar";
 import { NodeGrid } from "@/components/node-grid";
 import { NodeList } from "@/components/node-list";
@@ -71,7 +59,7 @@ import { FolderAccessDialog } from "@/components/folder-access-dialog";
 import { DropZone } from "@/components/drop-zone";
 import { downloadUrl } from "@/components/node-actions";
 
-export const Route = createFileRoute("/drive/$spaceId")({
+export const Route = createFileRoute("/drive/$spaceId/")({
   head: () => ({ meta: [{ title: "Drive · pp-hub" }] }),
   validateSearch: (
     search: Record<string, unknown>,
@@ -80,7 +68,6 @@ export const Route = createFileRoute("/drive/$spaceId")({
     sort?: SortField;
     order?: SortOrder;
     view?: NodeView;
-    panel?: DrivePanel;
   } => ({
     dir: typeof search.dir === "string" ? search.dir : undefined,
     sort: ["name", "modified", "size"].includes(search.sort as string)
@@ -90,47 +77,25 @@ export const Route = createFileRoute("/drive/$spaceId")({
       ? (search.order as SortOrder)
       : undefined,
     view: ["grid", "list"].includes(search.view as string) ? (search.view as NodeView) : undefined,
-    panel: ["members", "trash", "shared", "settings"].includes(search.panel as string)
-      ? (search.panel as DrivePanel)
-      : undefined,
   }),
   component: FolderView,
-  notFoundComponent: SpaceGone,
 });
 
-function SpaceGone() {
-  const navigate = useNavigate();
-  return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8">
-      <h1 className="text-sm font-medium">Space not found</h1>
-      <p className="text-muted-foreground text-xs">
-        It may have been deleted, or you no longer have access.
-      </p>
-      <Button variant="outline" onClick={() => void navigate({ to: "/drive" })}>
-        Back to Drive
-      </Button>
-    </div>
-  );
-}
-
 function FolderView() {
-  const { spaceId } = useParams({ from: "/drive/$spaceId" });
-  const {
-    dir,
-    sort = "name",
-    order = "asc",
-    view = "grid",
-    panel,
-  } = useSearch({ from: "/drive/$spaceId" });
-  // Any panel replaces the file listing, so the browsing controls hide with it.
-  const browsing = panel === undefined;
+  const { spaceId } = Route.useParams();
+  const { dir, sort: sortParam, order: orderParam, view: viewParam } = Route.useSearch();
   const navigate = useNavigate();
-  const spaces = spacesOptions();
+  const space = useSpace(spaceId);
   const rememberDir = useUiStore((s) => s.rememberDir);
-  const setLastSpaceId = useUiStore((s) => s.setLastSpaceId);
   const openPanel = useUiStore((s) => s.openPanel);
   const filterQuery = useUiStore((s) => s.filterQuery);
   const dirs = useUiStore((s) => s.dirs);
+  // The URL wins so a copied link keeps the view it was copied with; the
+  // preference is only the fallback for a link that says nothing.
+  const prefs = useUiStore((s) => s.listingPrefs);
+  const sort = sortParam ?? prefs.sort;
+  const order = orderParam ?? prefs.order;
+  const view = viewParam ?? prefs.view;
 
   /** The clicked nodes — drives the action bar and the details panel alike. */
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -154,12 +119,8 @@ function FolderView() {
   const copy = useCopyNode(spaceId);
   const toggleStar = useToggleStar();
   // One request for the whole starred set beats one per visible row.
-  const starred = useStarred(200);
+  const starred = useStarred(spaceId, 200);
   const del = useDeleteNode(spaceId);
-
-  useEffect(() => {
-    setLastSpaceId(spaceId);
-  }, [spaceId, setLastSpaceId]);
 
   // Moving to another folder or space invalidates the selection.
   useEffect(() => {
@@ -169,7 +130,6 @@ function FolderView() {
 
   const children = childrenOptions(spaceId, dir);
 
-  const space = spaces.data?.find((s) => s.id === spaceId);
   // In M15, any member can create files/folders at the root (dir === undefined),
   // and every item created is private to them. Inside a folder, permission
   // requires edit capability on that folder.
@@ -179,9 +139,20 @@ function FolderView() {
   const sorted = useMemo(() => {
     const q = filterQuery.trim().toLowerCase();
     const base = children.data ?? [];
-    const filtered = q ? base.filter((n) => n.name.toLowerCase().includes(q)) : base;
+    // The archive is a real entry point (an admin holds a grant on it) but it
+    // is not an ordinary file or folder — it should not show up mixed in with
+    // them at the space root. It stays reachable through the Quick Access
+    // shortcut, and browsing into it (dir === archive_root_id) renders its
+    // contents exactly like any other folder.
+    const withoutArchive =
+      dir === undefined && space?.archive_root_id
+        ? base.filter((n) => n.id !== space.archive_root_id)
+        : base;
+    const filtered = q
+      ? withoutArchive.filter((n) => n.name.toLowerCase().includes(q))
+      : withoutArchive;
     return sortNodes(filtered, sort, order);
-  }, [children.data, filterQuery, sort, order]);
+  }, [children.data, filterQuery, sort, order, dir, space?.archive_root_id]);
 
   const sortedDirs = useMemo(() => sorted.filter((n) => n.kind === "dir"), [sorted]);
   const sortedFiles = useMemo(() => sorted.filter((n) => n.kind === "file"), [sorted]);
@@ -198,9 +169,9 @@ function FolderView() {
       void navigate({
         to: "/drive/$spaceId",
         params: { spaceId },
-        search: { dir, sort, order, view, panel, ...next },
+        search: { dir, sort, order, view, ...next },
       }),
-    [navigate, spaceId, dir, sort, order, view, panel],
+    [navigate, spaceId, dir, sort, order, view],
   );
 
   /**
@@ -229,7 +200,7 @@ function FolderView() {
    */
   const dragBase = useRef<Set<string>>(new Set());
   const marquee = useMarqueeSelection(listingRef, {
-    enabled: browsing,
+    enabled: true,
     onStart: () => {
       dragBase.current = selectedIds;
     },
@@ -290,8 +261,11 @@ function FolderView() {
   const handleMove = useCallback(
     async (nodes: Node[]) => {
       if (nodes.length === 0) return;
-      const spaceName = spaces.data?.find((s) => s.id === spaceId)?.name ?? "this space";
-      const target = await MoveDialog.show({ spaceId, spaceName, nodes });
+      const target = await MoveDialog.show({
+        spaceId,
+        spaceName: space?.name ?? "this space",
+        nodes,
+      });
       if (target === null) return; // cancelled — undefined means the space root
 
       let moved = 0;
@@ -312,7 +286,7 @@ function FolderView() {
         setSelectedIds(new Set());
       }
     },
-    [move, spaceId, spaces.data],
+    [move, spaceId, space?.name],
   );
 
   const handleDeleteConfirmed = useCallback(() => {
@@ -346,12 +320,6 @@ function FolderView() {
     onDeleteRequest: handleDeleteRequest,
   };
 
-  if (spaces.isSuccess && !spaces.data.some((s) => s.id === spaceId)) {
-    throw notFound();
-  }
-
-  const showDetails = browsing && detailsOpen;
-
   // Can write if:
   // - At root (dir === undefined): every space member can create items at root.
   // - Inside a folder (dir !== undefined): user must have edit capability on that folder.
@@ -367,66 +335,34 @@ function FolderView() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <DriveHeader
-        spaceId={spaceId}
-        dir={dir}
-        panel={panel}
-        onTogglePanel={(next) =>
-          void navigate({
-            to: "/drive/$spaceId",
-            params: { spaceId },
-            search: { dir, sort, order, view, panel: panel === next ? undefined : next },
-          })
-        }
+      <DriveToolbar
+        sort={sort}
+        order={order}
+        view={view}
+        canUpload={canUpload}
+        onUploadFiles={() => fileRef.current?.click()}
+        onUploadFolder={() => folderRef.current?.click()}
+        onNewFolder={() => setNewFolderOpen(true)}
+        onSortChange={(s) => goTo({ sort: s })}
+        onOrderToggle={() => goTo({ order: order === "asc" ? "desc" : "asc" })}
+        onViewChange={(v) => goTo({ view: v })}
+        detailsOpen={detailsOpen}
+        onToggleDetails={() => setDetailsOpen((v) => !v)}
       />
-
-      {browsing && (
-        <DriveToolbar
-          sort={sort}
-          order={order}
-          view={view}
-          canUpload={canUpload}
-          onUploadFiles={() => fileRef.current?.click()}
-          onUploadFolder={() => folderRef.current?.click()}
-          onNewFolder={() => setNewFolderOpen(true)}
-          onSortChange={(s) => goTo({ sort: s })}
-          onOrderToggle={() => goTo({ order: order === "asc" ? "desc" : "asc" })}
-          onViewChange={(v) => goTo({ view: v })}
-          detailsOpen={detailsOpen}
-          onToggleDetails={() => setDetailsOpen((v) => !v)}
-        />
-      )}
 
       <div className="flex min-h-0 flex-1">
         <DropZone
           spaceId={spaceId}
           parentId={writeDir}
           destination={destination}
-          disabled={!browsing || !canUpload}
+          disabled={!canUpload}
         >
           <div
             ref={listingRef}
             className="relative min-h-0 flex-1 overflow-auto"
             onMouseDown={marquee.onMouseDown}
           >
-            {panel === "members" ? (
-              <div className="p-4">
-                <SpaceMembersPanel
-                  spaceId={spaceId}
-                  isAdmin={spaces.data?.find((s) => s.id === spaceId)?.is_admin}
-                />
-              </div>
-            ) : panel === "trash" ? (
-              <div className="p-4">
-                <TrashPanel spaceId={spaceId} />
-              </div>
-            ) : panel === "settings" ? (
-              <div className="p-4">{space && <SpaceSettingsPanel space={space} />}</div>
-            ) : panel === "shared" ? (
-              <div className="p-4">
-                <SharedPanel />
-              </div>
-            ) : children.isPending ? (
+            {children.isPending ? (
               <p className="text-muted-foreground p-4 text-xs">Loading…</p>
             ) : sorted.length === 0 ? (
               <Empty className="py-12">
@@ -473,21 +409,19 @@ function FolderView() {
               />
             )}
 
-            {browsing && (
-              <SelectionBar
-                selected={selectedNodes}
-                onClear={() => setSelectedIds(new Set())}
-                onDownload={(node) => window.open(downloadUrl(node), "_blank")}
-                onShare={(node) => openPanel("share", node)}
-                onRename={handleRename}
-                onMove={(nodes) => void handleMove(nodes)}
-                onDelete={(nodes) => setConfirmNodes(nodes)}
-              />
-            )}
+            <SelectionBar
+              selected={selectedNodes}
+              onClear={() => setSelectedIds(new Set())}
+              onDownload={(node) => window.open(downloadUrl(node), "_blank")}
+              onShare={(node) => openPanel("share", node)}
+              onRename={handleRename}
+              onMove={(nodes) => void handleMove(nodes)}
+              onDelete={(nodes) => setConfirmNodes(nodes)}
+            />
           </div>
         </DropZone>
 
-        {showDetails && (
+        {detailsOpen && (
           <aside className="border-border w-80 shrink-0 border-l">
             <DetailsPanel nodes={selectedNodes} onClose={() => setDetailsOpen(false)} />
           </aside>

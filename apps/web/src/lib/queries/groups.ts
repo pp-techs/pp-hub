@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   addGroupMember,
   createGroup,
@@ -11,7 +11,7 @@ import {
   updateGroup,
   upsertGrant,
 } from "@/lib/api/groups";
-import type { GrantCaps } from "@/lib/api";
+import type { GrantCaps, Group } from "@/lib/api";
 import { keys } from "./keys";
 
 export function useGroups(spaceId: string | null) {
@@ -28,6 +28,36 @@ export function useGroupMembers(spaceId: string, groupId: string | null) {
     queryFn: () => getGroupMembers(spaceId, groupId as string),
     enabled: Boolean(groupId),
   });
+}
+
+/**
+ * Which groups each member belongs to, keyed by user id.
+ *
+ * There is no "groups for a user" endpoint, so this fans out over the group
+ * list and inverts the result. One request per group, not per member: a space
+ * has a handful of groups and can have hundreds of people, and the responses
+ * are the same rows the group drawer reads, so both come from one cache.
+ */
+export function useGroupMemberships(spaceId: string, groups: Group[]) {
+  const results = useQueries({
+    queries: groups.map((g) => ({
+      queryKey: keys.groupMembers(spaceId, g.id),
+      queryFn: () => getGroupMembers(spaceId, g.id),
+    })),
+  });
+
+  const byUser = new Map<string, Group[]>();
+  results.forEach((res, i) => {
+    const group = groups[i];
+    if (!group) return;
+    for (const m of res.data ?? []) {
+      const held = byUser.get(m.user_id);
+      if (held) held.push(group);
+      else byUser.set(m.user_id, [group]);
+    }
+  });
+
+  return { byUser, isPending: results.some((r) => r.isPending) };
 }
 
 export function useCreateGroup(spaceId: string) {

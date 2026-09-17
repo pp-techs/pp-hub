@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Node } from "@/lib/api";
+import type { Node, NodeView, SortField, SortOrder } from "@/lib/api";
 
 export type PanelKind = "share" | "versions";
 
@@ -30,11 +30,20 @@ interface UiState {
    */
   filterQuery: string;
   setFilterQuery: (v: string) => void;
+  /**
+   * How a folder listing is drawn when the URL says nothing. The search params
+   * still win, so a shared link keeps the view it was copied with; these are
+   * only the fallback, edited from Account → Preferences.
+   */
+  listingPrefs: { view: NodeView; sort: SortField; order: SortOrder };
+  setListingPrefs: (next: Partial<UiState["listingPrefs"]>) => void;
   openPanel: OpenPanel;
   closePanel: () => void;
   /** Record dir id + its parent (from the listing it appeared in). */
-  rememberDir: (node: Node) => void;
+  rememberDir: (node: Pick<Node, "id" | "name" | "parent_id">) => void;
   setLastSpaceId: (id: string) => void;
+  /** Forgets the last space if it is the one given — after a 404 or a delete. */
+  clearLastSpaceId: (id: string) => void;
   newSpaceOpen: boolean;
   setNewSpaceOpen: (v: boolean) => void;
   /**
@@ -53,6 +62,8 @@ export const useUiStore = create<UiState>()(
       lastSpaceId: null,
       filterQuery: "",
       setFilterQuery: (v) => set({ filterQuery: v }),
+      listingPrefs: { view: "grid", sort: "name", order: "asc" },
+      setListingPrefs: (next) => set((s) => ({ listingPrefs: { ...s.listingPrefs, ...next } })),
       openPanel: (kind, node) => set({ panel: { kind, node } }),
       closePanel: () => set({ panel: null }),
       rememberDir: (node) => {
@@ -66,6 +77,7 @@ export const useUiStore = create<UiState>()(
         }));
       },
       setLastSpaceId: (id) => set({ lastSpaceId: id }),
+      clearLastSpaceId: (id) => set((s) => (s.lastSpaceId === id ? { lastSpaceId: null } : s)),
       newSpaceOpen: false,
       setNewSpaceOpen: (v) => set({ newSpaceOpen: v }),
       paletteOpen: false,
@@ -73,7 +85,11 @@ export const useUiStore = create<UiState>()(
     }),
     {
       name: "pp-hub-ui",
-      partialize: (s) => ({ dirs: s.dirs, lastSpaceId: s.lastSpaceId }),
+      partialize: (s) => ({
+        dirs: s.dirs,
+        lastSpaceId: s.lastSpaceId,
+        listingPrefs: s.listingPrefs,
+      }),
     },
   ),
 );

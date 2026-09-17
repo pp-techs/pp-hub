@@ -180,12 +180,20 @@ WITH RECURSIVE entry(id) AS (
 ),
 -- Every strict ancestor of each entry, so the ones sitting underneath
 -- another entry can be dropped.
-walk(origin, id, depth) AS (
-    SELECT e.id, n.parent_id, 0
+--
+-- The recursive step climbs to the *parent* of the row it joins. Selecting
+-- `p.id` there instead re-emitted the same node forever: with UNION ALL the
+-- CTE never terminated, so the first nested owned node made the root listing
+-- and the folder tree spin until the client gave up. `UNION` is the belt to
+-- that brace — a parent_id cycle can then only produce finitely many pairs.
+walk(origin, id) AS (
+    SELECT e.id, n.parent_id
     FROM entry e JOIN nodes n ON n.id = e.id
-  UNION ALL
-    SELECT w.origin, p.id, w.depth + 1
+    WHERE n.parent_id IS NOT NULL
+  UNION
+    SELECT w.origin, p.parent_id
     FROM walk w JOIN nodes p ON p.id = w.id
+    WHERE p.parent_id IS NOT NULL
 )
 SELECT
   n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
@@ -199,10 +207,12 @@ LEFT JOIN users u ON u.id = n.created_by
 WHERE n.deleted_at IS NULL
   AND (sqlc.narg('space_id')::uuid IS NULL OR n.space_id = sqlc.narg('space_id')::uuid)
   AND (@include_owned::bool OR n.created_by <> @user_id)
+  -- Every walk row is already a strict ancestor — the base step starts at the
+  -- parent — so there is no depth to filter on here.
   AND NOT EXISTS (
       SELECT 1 FROM walk w
       JOIN entry e2 ON e2.id = w.id
-      WHERE w.origin = e.id AND w.depth > 0
+      WHERE w.origin = e.id
   )
 ORDER BY n.kind, n.name
 LIMIT 200;

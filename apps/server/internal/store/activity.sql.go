@@ -98,8 +98,14 @@ LEFT JOIN node_versions v ON v.id = n.current_version_id
 LEFT JOIN users u ON u.id = n.created_by
 LEFT JOIN nodes p ON p.id = n.parent_id AND p.deleted_at IS NULL
 WHERE a.actor_id = $1 AND n.deleted_at IS NULL AND n.kind = 'file'
+  AND ($2::uuid IS NULL OR n.space_id = $2::uuid)
 ORDER BY n.id, a.created_at DESC
 `
+
+type ListRecentNodesParams struct {
+	UserID  pgtype.UUID `json:"user_id"`
+	SpaceID pgtype.UUID `json:"space_id"`
+}
 
 type ListRecentNodesRow struct {
 	ID               pgtype.UUID        `json:"id"`
@@ -130,9 +136,10 @@ type ListRecentNodesRow struct {
 
 // "Recent" is the caller's own touches, most recently touched first, one row
 // per node. DISTINCT ON collapses repeated edits of the same file into its
-// latest, which is what "recent" means to a person.
-func (q *Queries) ListRecentNodes(ctx context.Context, userID pgtype.UUID) ([]ListRecentNodesRow, error) {
-	rows, err := q.db.Query(ctx, listRecentNodes, userID)
+// latest, which is what "recent" means to a person. A null space_id spans
+// every space the caller belongs to; a set one scopes the feed to it.
+func (q *Queries) ListRecentNodes(ctx context.Context, arg ListRecentNodesParams) ([]ListRecentNodesRow, error) {
+	rows, err := q.db.Query(ctx, listRecentNodes, arg.UserID, arg.SpaceID)
 	if err != nil {
 		return nil, err
 	}

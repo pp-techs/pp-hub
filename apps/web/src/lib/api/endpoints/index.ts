@@ -293,34 +293,41 @@ export async function searchNodes(
   return res.json() as Promise<SearchResult[]>;
 }
 
-// ─── Home: recent, starred, activity, usage ─────────────────────────────────
+// ─── Space feeds: recent, starred, activity, usage ──────────────────────────
 
-/** Files the caller last touched, most recent first. */
-export async function getRecent(limit?: number): Promise<RecentNode[]> {
-  const res = await api.get(`api/v1/recent${limit ? `?limit=${limit}` : ""}`);
+/**
+ * Every feed is scoped to one space. The server accepts `?space=` as optional
+ * and would otherwise answer across every space the caller belongs to, which
+ * the UI no longer has a surface for: a row from another space cannot be
+ * opened without leaving the space the rail is showing.
+ */
+export async function getRecent(spaceId: string, limit?: number): Promise<RecentNode[]> {
+  const params = new URLSearchParams({ space: spaceId });
+  if (limit) params.set("limit", String(limit));
+  const res = await api.get(`api/v1/recent?${params}`);
   if (!res.ok) throw new ApiError(res.status, await res.text());
   return res.json() as Promise<RecentNode[]>;
 }
 
-export async function getStarred(limit?: number): Promise<SearchResult[]> {
-  const res = await api.get(`api/v1/starred${limit ? `?limit=${limit}` : ""}`);
+export async function getStarred(spaceId: string, limit?: number): Promise<SearchResult[]> {
+  const params = new URLSearchParams({ space: spaceId });
+  if (limit) params.set("limit", String(limit));
+  const res = await api.get(`api/v1/starred?${params}`);
   if (!res.ok) throw new ApiError(res.status, await res.text());
   return res.json() as Promise<SearchResult[]>;
 }
 
-/** Activity across every space you belong to, or one space when given. */
-export async function getActivity(spaceId?: string, limit?: number): Promise<ActivityEvent[]> {
-  const params = new URLSearchParams();
-  if (spaceId) params.set("space", spaceId);
+/** The space's activity feed. */
+export async function getActivity(spaceId: string, limit?: number): Promise<ActivityEvent[]> {
+  const params = new URLSearchParams({ space: spaceId });
   if (limit) params.set("limit", String(limit));
-  const qs = params.toString();
-  const res = await api.get(`api/v1/activity${qs ? `?${qs}` : ""}`);
+  const res = await api.get(`api/v1/activity?${params}`);
   if (!res.ok) throw new ApiError(res.status, await res.text());
   return res.json() as Promise<ActivityEvent[]>;
 }
 
-export async function getUsage(spaceId?: string): Promise<UsageCategory[]> {
-  const res = await api.get(`api/v1/usage${spaceId ? `?space=${spaceId}` : ""}`);
+export async function getUsage(spaceId: string): Promise<UsageCategory[]> {
+  const res = await api.get(`api/v1/usage?space=${spaceId}`);
   if (!res.ok) throw new ApiError(res.status, await res.text());
   return res.json() as Promise<UsageCategory[]>;
 }
@@ -432,8 +439,9 @@ export async function getTrash(spaceId: string): Promise<TrashNode[]> {
   return res.json() as Promise<TrashNode[]>;
 }
 
-export async function getShared(): Promise<Node[]> {
-  const res = await api.get("api/v1/shared");
+/** Grant entry points inside one space — where the caller's access begins. */
+export async function getShared(spaceId: string): Promise<Node[]> {
+  const res = await api.get(`api/v1/shared?space=${spaceId}`);
   if (!res.ok) throw new ApiError(res.status, await res.text());
   return res.json() as Promise<Node[]>;
 }

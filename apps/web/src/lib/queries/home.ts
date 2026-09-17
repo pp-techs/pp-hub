@@ -1,31 +1,32 @@
-// Recent, starred, activity and storage-usage hooks — the Home surfaces.
+// Recent, starred, activity and storage-usage hooks. Every one is scoped to a
+// single space — the route always has a space id, so none of them is optional.
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getActivity, getRecent, getStarred, getUsage, starNode } from "@/lib/api";
 import { keys } from "./keys";
 
-export function useRecent(limit?: number) {
+export function useRecent(spaceId: string, limit?: number) {
   return useQuery({
-    queryKey: keys.recent(limit),
-    queryFn: () => getRecent(limit),
+    queryKey: keys.recent(spaceId, limit),
+    queryFn: () => getRecent(spaceId, limit),
   });
 }
 
-export function useStarred(limit?: number) {
+export function useStarred(spaceId: string, limit?: number) {
   return useQuery({
-    queryKey: keys.starred(limit),
-    queryFn: () => getStarred(limit),
+    queryKey: keys.starred(spaceId, limit),
+    queryFn: () => getStarred(spaceId, limit),
   });
 }
 
-export function useActivity(spaceId?: string, limit?: number) {
+export function useActivity(spaceId: string, limit?: number) {
   return useQuery({
     queryKey: keys.activity(spaceId, limit),
     queryFn: () => getActivity(spaceId, limit),
   });
 }
 
-export function useUsage(spaceId?: string) {
+export function useUsage(spaceId: string) {
   return useQuery({
     queryKey: keys.usage(spaceId),
     queryFn: () => getUsage(spaceId),

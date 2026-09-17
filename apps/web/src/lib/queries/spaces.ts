@@ -1,6 +1,7 @@
 // Space-related hooks.
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { QueryClient } from "@tanstack/react-query";
 import { createSpace, getSpaces, type SpaceSettings } from "@/lib/api";
 import { keys } from "./keys";
 
@@ -9,6 +10,17 @@ export function useSpaces() {
     queryKey: keys.spaces,
     queryFn: getSpaces,
   });
+}
+
+/** The one space a route is about, from the list the rail already holds. */
+export function useSpace(spaceId: string) {
+  const spaces = useSpaces();
+  return spaces.data?.find((s) => s.id === spaceId);
+}
+
+/** Route-loader form: the spaces list through the shared query cache. */
+export function fetchSpaces(qc: QueryClient) {
+  return qc.ensureQueryData({ queryKey: keys.spaces, queryFn: getSpaces });
 }
 
 export function useCreateSpace() {

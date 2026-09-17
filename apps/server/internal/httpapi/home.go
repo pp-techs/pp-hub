@@ -56,6 +56,29 @@ func feedLimit(r *http.Request) int32 {
 	return int32(min(n, maxFeedLimit))
 }
 
+// optionalSpaceParam reads the optional ?space= filter every cross-space
+// listing accepts. An absent or empty param yields an invalid pgtype.UUID,
+// which the queries read as "every space the caller belongs to". A malformed
+// value is the client's mistake, and a space the caller is not a member of is
+// not one they may scope a feed to. Reports false once it has answered the
+// request itself.
+func (s *Server) optionalSpaceParam(w http.ResponseWriter, r *http.Request, userID pgtype.UUID) (pgtype.UUID, bool) {
+	var spaceID pgtype.UUID
+	raw := r.URL.Query().Get("space")
+	if raw == "" {
+		return spaceID, true
+	}
+	if err := spaceID.Scan(raw); err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
+		return spaceID, false
+	}
+	if err := s.spaces.RequireMember(r.Context(), spaceID, userID); err != nil {
+		s.spaceError(w, r, err)
+		return spaceID, false
+	}
+	return spaceID, true
+}
+
 // handleListActivity answers GET /api/v1/activity[?space=].
 func (s *Server) handleListActivity(w http.ResponseWriter, r *http.Request) {
 	u := s.requireUser(w, r)
@@ -64,19 +87,15 @@ func (s *Server) handleListActivity(w http.ResponseWriter, r *http.Request) {
 	}
 	limit := feedLimit(r)
 
+	spaceID, ok := s.optionalSpaceParam(w, r, u.ID)
+	if !ok {
+		return
+	}
+
 	// Membership decides which feed you may ask for; the grants decide which
 	// events in it you may see. Both branches filter — the space_members join
 	// in ListMyActivity only narrows to the caller's companies.
-	if raw := r.URL.Query().Get("space"); raw != "" {
-		var spaceID pgtype.UUID
-		if err := spaceID.Scan(raw); err != nil {
-			writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
-			return
-		}
-		if err := s.spaces.RequireMember(r.Context(), spaceID, u.ID); err != nil {
-			s.spaceError(w, r, err)
-			return
-		}
+	if spaceID.Valid {
 		rows, err := s.activity.ForSpace(r.Context(), spaceID, limit)
 		if err != nil {
 			Error(w, r, err)
@@ -118,14 +137,18 @@ func (s *Server) handleListActivity(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// handleListRecent answers GET /api/v1/recent — files the caller themselves
-// last touched, newest first.
+// handleListRecent answers GET /api/v1/recent[?space=] — files the caller
+// themselves last touched, newest first.
 func (s *Server) handleListRecent(w http.ResponseWriter, r *http.Request) {
 	u := s.requireUser(w, r)
 	if u == nil {
 		return
 	}
-	rows, err := s.activity.Recent(r.Context(), u.ID)
+	spaceID, ok := s.optionalSpaceParam(w, r, u.ID)
+	if !ok {
+		return
+	}
+	rows, err := s.activity.Recent(r.Context(), u.ID, spaceID)
 	if err != nil {
 		Error(w, r, err)
 		return
@@ -156,13 +179,17 @@ func (s *Server) handleListRecent(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// handleListStarred answers GET /api/v1/starred.
+// handleListStarred answers GET /api/v1/starred[?space=].
 func (s *Server) handleListStarred(w http.ResponseWriter, r *http.Request) {
 	u := s.requireUser(w, r)
 	if u == nil {
 		return
 	}
-	rows, err := s.fs.Starred(r.Context(), u.ID, feedLimit(r))
+	spaceID, ok := s.optionalSpaceParam(w, r, u.ID)
+	if !ok {
+		return
+	}
+	rows, err := s.fs.Starred(r.Context(), u.ID, spaceID, feedLimit(r))
 	if err != nil {
 		Error(w, r, err)
 		return
@@ -218,16 +245,9 @@ func (s *Server) handleUsage(w http.ResponseWriter, r *http.Request) {
 	if u == nil {
 		return
 	}
-	var spaceID pgtype.UUID
-	if raw := r.URL.Query().Get("space"); raw != "" {
-		if err := spaceID.Scan(raw); err != nil {
-			writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
-			return
-		}
-		if err := s.spaces.RequireMember(r.Context(), spaceID, u.ID); err != nil {
-			s.spaceError(w, r, err)
-			return
-		}
+	spaceID, ok := s.optionalSpaceParam(w, r, u.ID)
+	if !ok {
+		return
 	}
 
 	rows, err := s.fs.UsageByCategory(r.Context(), u.ID, spaceID)

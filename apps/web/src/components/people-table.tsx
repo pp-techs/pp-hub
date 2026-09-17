@@ -1,18 +1,16 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Download, Mail, Trash2, UserPlus, Shield, ShieldCheck } from "lucide-react";
+import { Download, Lock, Mail, Plus, Trash2, UserPlus, X } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import { Badge } from "@workspace/ui/components/badge";
-import { Checkbox } from "@workspace/ui/components/checkbox";
-import { Label } from "@workspace/ui/components/label";
+import { Switch } from "@workspace/ui/components/switch";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@workspace/ui/components/dialog";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@workspace/ui/components/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -30,30 +28,21 @@ import {
 } from "@workspace/ui/components/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/avatar";
 import { fmtDate, fmtRelative } from "@/lib/api";
-import type { Invitation, SpaceMember, UserSearchResult } from "@/lib/api/types";
+import type { Group, Invitation, Space, SpaceMember } from "@/lib/api";
 import {
-  useAddSpaceMember,
+  useAddGroupMember,
   useCreateInvitation,
+  useGroupMemberships,
+  useGroups,
   useInvitations,
   useMyProfile,
+  useRemoveGroupMember,
   useRemoveSpaceMember,
   useRevokeInvitation,
-  useSpaceMembers,
   useSetMemberAdmin,
+  useSpaceMembers,
 } from "@/lib/queries";
-import { MemberPicker } from "@/components/member-picker";
-import { RailLabel } from "@/components/rail-item";
-
-interface SpaceMembersPanelProps {
-  spaceId: string;
-  isAdmin?: boolean;
-}
-
-const ADMIN_FILTERS = [
-  { label: "All members", value: "all" },
-  { label: "Admins only", value: "admin" },
-  { label: "Members only", value: "member" },
-];
+import { InviteModal } from "@/components/invite-modal";
 
 const STATUS_FILTERS = [
   { label: "Status: All", value: "all" },
@@ -61,90 +50,124 @@ const STATUS_FILTERS = [
   { label: "Status: Pending", value: "pending" },
 ];
 
+const ALL_GROUPS = "all";
+
+interface PeopleTableProps {
+  space: Space;
+  /** Which group the drawer is showing — the table filters to match. */
+  groupFilter: string | undefined;
+  onGroupFilterChange: (groupId: string | undefined) => void;
+}
+
 /**
- * Who belongs to a space, and on what terms.
+ * Everyone in a space, in one table: who they are, whether they administer the
+ * space, and which groups they belong to.
  *
- * Members and pending invitations share one table rather than sitting in two
- * lists: from the owner's side they are the same question — who has access —
- * and splitting them hides the fact that an invitation is access already
- * granted, just not yet taken up. Pending rows are visually distinct and carry
- * their own actions (resend, revoke).
+ * One table rather than a Members tab plus a Groups tab. Admin rights and group
+ * membership are both answers to "what is this person to this space", and
+ * splitting them produced a UI where promoting someone happened in one place
+ * while what they could actually open was decided in another. Pending
+ * invitations are rows here too: an invitation is access already granted, just
+ * not yet taken up.
  *
- * The server already returns `files_owned`, `created_at` and `last_seen` per
- * member, so those columns cost nothing extra to render.
+ * What a group *opens* is still set on the folder, from its access dialog. This
+ * table says who is in the group; the folder says what the group reaches.
  */
-export function SpaceMembersPanel({ spaceId, isAdmin }: SpaceMembersPanelProps) {
+export function PeopleTable({ space, groupFilter, onGroupFilterChange }: PeopleTableProps) {
+  const spaceId = space.id;
+  const isAdmin = space.is_admin;
+
   const { data: members = [], isLoading } = useSpaceMembers(spaceId);
-  const admin = isAdmin ?? false;
   // Listing invitations is admin-gated on the server, so asking as a member
   // would only produce a 403 in the console.
-  const invitations = useInvitations(spaceId, admin);
+  const invitations = useInvitations(spaceId, isAdmin);
+  const { data: groups = [] } = useGroups(spaceId);
+  const { byUser } = useGroupMemberships(spaceId, groups);
   const { data: me } = useMyProfile();
 
   const setAdmin = useSetMemberAdmin();
   const removeMember = useRemoveSpaceMember();
   const invite = useCreateInvitation(spaceId);
   const revokeInvite = useRevokeInvitation(spaceId);
+  const addToGroup = useAddGroupMember(spaceId);
+  const removeFromGroup = useRemoveGroupMember(spaceId);
 
-  const [inviteOpen, setInviteOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [adminFilter, setAdminFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
   const pending = invitations.data ?? [];
+
+  const groupItems = useMemo(
+    () => [
+      { label: "Group: All", value: ALL_GROUPS },
+      ...groups.map((g) => ({ label: `Group: ${g.name}`, value: g.id })),
+    ],
+    [groups],
+  );
 
   const visibleMembers = useMemo(() => {
     const q = query.trim().toLowerCase();
     return members.filter((m) => {
       if (statusFilter === "pending") return false;
-      if (adminFilter === "admin" && !m.is_admin) return false;
-      if (adminFilter === "member" && m.is_admin) return false;
+      if (groupFilter && !(byUser.get(m.user_id) ?? []).some((g) => g.id === groupFilter)) {
+        return false;
+      }
       if (!q) return true;
       return (
         m.email.toLowerCase().includes(q) ||
         (m.display_name || m.name || "").toLowerCase().includes(q)
       );
     });
-  }, [members, query, adminFilter, statusFilter]);
+  }, [members, query, statusFilter, groupFilter, byUser]);
 
   const visiblePending = useMemo(() => {
     const q = query.trim().toLowerCase();
+    // An invitation is not in any group yet, so a group filter excludes them
+    // all rather than showing rows the filter does not describe.
+    if (groupFilter) return [];
     return pending.filter((i) => {
       if (statusFilter === "active") return false;
-      if (adminFilter === "admin" && !i.as_admin) return false;
-      if (adminFilter === "member" && i.as_admin) return false;
       return !q || i.email.toLowerCase().includes(q);
     });
-  }, [pending, query, adminFilter, statusFilter]);
+  }, [pending, query, statusFilter, groupFilter]);
 
   const shown = visibleMembers.length + visiblePending.length;
   const total = members.length + pending.length;
 
   if (isLoading) {
-    return <p className="text-muted-foreground text-xs">Loading members…</p>;
+    return <p className="text-muted-foreground text-xs">Loading people…</p>;
   }
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex flex-col gap-0.5">
-          <h2 className="font-heading text-sm font-medium">Members</h2>
+          <h2 className="font-heading text-sm font-medium">People</h2>
           <p className="text-muted-foreground text-[10px] tabular-nums">
             {plural(members.length, "member")}
-            {pending.length > 0 && ` · ${pending.length} pending`}
+            {pending.length > 0 && ` · ${pending.length} pending`} ·{" "}
+            {plural(groups.length, "group")}
           </p>
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
           {isAdmin && (
-            <Button onClick={() => setInviteOpen(true)}>
+            <Button
+              onClick={() =>
+                void InviteModal.show({
+                  spaceId,
+                  memberIds: members.map((m) => m.user_id),
+                  defaultAsAdmin: space.default_as_admin ?? false,
+                })
+              }
+            >
               <UserPlus data-icon="inline-start" /> Invite people
             </Button>
           )}
           <Button
             variant="outline"
             disabled={total === 0}
-            onClick={() => exportCsv(visibleMembers, visiblePending)}
+            onClick={() => exportCsv(visibleMembers, visiblePending, byUser)}
           >
             <Download data-icon="inline-start" /> Export CSV
           </Button>
@@ -156,14 +179,14 @@ export function SpaceMembersPanel({ spaceId, isAdmin }: SpaceMembersPanelProps) 
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Filter by name or email"
-          aria-label="Filter members by name or email"
+          aria-label="Filter people by name or email"
           className="max-w-64"
         />
         <FilterSelect
-          value={adminFilter}
-          onChange={setAdminFilter}
-          items={ADMIN_FILTERS}
-          label="Filter by admin status"
+          value={groupFilter ?? ALL_GROUPS}
+          onChange={(v) => onGroupFilterChange(v === ALL_GROUPS ? undefined : v)}
+          items={groupItems}
+          label="Filter by group"
         />
         <FilterSelect
           value={statusFilter}
@@ -180,11 +203,12 @@ export function SpaceMembersPanel({ spaceId, isAdmin }: SpaceMembersPanelProps) 
         <TableHeader>
           <TableRow>
             <TableHead>Member</TableHead>
-            <TableHead className="w-24">Admin</TableHead>
-            <TableHead className="w-28">Joined</TableHead>
-            <TableHead className="w-28">Last active</TableHead>
-            <TableHead className="w-24 text-right">Files owned</TableHead>
-            {isAdmin && <TableHead className="w-16" />}
+            <TableHead className="w-16">Admin</TableHead>
+            <TableHead className="w-64">Groups</TableHead>
+            <TableHead className="w-24">Joined</TableHead>
+            <TableHead className="w-24">Last active</TableHead>
+            <TableHead className="w-20 text-right">Files owned</TableHead>
+            {isAdmin && <TableHead className="w-10" />}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -192,20 +216,44 @@ export function SpaceMembersPanel({ spaceId, isAdmin }: SpaceMembersPanelProps) 
             <MemberRow
               key={member.user_id}
               member={member}
+              groups={groups}
+              held={byUser.get(member.user_id) ?? []}
               isSelf={member.user_id === me?.id}
               external={isExternal(member.email, me?.email)}
-              canManage={!!isAdmin}
+              canManage={isAdmin}
               onAdminToggle={(as_admin) =>
                 setAdmin.mutate(
                   { spaceId, userId: member.user_id, as_admin },
                   { onError: (e) => toast.error(e.message) },
                 )
               }
+              onAddToGroup={(group) =>
+                addToGroup.mutate(
+                  { groupId: group.id, userId: member.user_id },
+                  {
+                    onSuccess: () => toast.success(`Added to ${group.name}`),
+                    onError: (e) => toast.error(e.message),
+                  },
+                )
+              }
+              onRemoveFromGroup={(group) =>
+                removeFromGroup.mutate(
+                  { groupId: group.id, userId: member.user_id },
+                  {
+                    onSuccess: () => toast.success(`Removed from ${group.name}`),
+                    onError: (e) => toast.error(e.message),
+                  },
+                )
+              }
+              onOpenGroup={(group) => onGroupFilterChange(group.id)}
               onRemove={() =>
                 removeMember.mutate(
                   { spaceId, userId: member.user_id },
                   {
-                    onSuccess: () => toast.success(`Removed ${member.email}`),
+                    onSuccess: () =>
+                      toast.success(`Removed ${member.email}`, {
+                        description: "Anything they owned here is filed in the Archive.",
+                      }),
                     onError: (e) => toast.error(e.message),
                   },
                 )
@@ -218,7 +266,7 @@ export function SpaceMembersPanel({ spaceId, isAdmin }: SpaceMembersPanelProps) 
               key={inv.id}
               invitation={inv}
               external={isExternal(inv.email, me?.email)}
-              canManage={!!isAdmin}
+              canManage={isAdmin}
               busy={invite.isPending}
               onResend={() =>
                 invite.mutate(
@@ -247,22 +295,13 @@ export function SpaceMembersPanel({ spaceId, isAdmin }: SpaceMembersPanelProps) 
 
           {shown === 0 && (
             <TableRow>
-              <TableCell colSpan={isAdmin ? 6 : 5} className="text-muted-foreground py-6 text-xs">
+              <TableCell colSpan={isAdmin ? 7 : 6} className="text-muted-foreground py-6 text-xs">
                 No one matches these filters.
               </TableCell>
             </TableRow>
           )}
         </TableBody>
       </Table>
-
-      {isAdmin && (
-        <InviteDialog
-          spaceId={spaceId}
-          open={inviteOpen}
-          onOpenChange={setInviteOpen}
-          memberIds={members.map((m) => m.user_id)}
-        />
-      )}
     </div>
   );
 }
@@ -296,22 +335,37 @@ function FilterSelect({
 
 interface MemberRowProps {
   member: SpaceMember;
+  /** Every group in the space, for the add menu. */
+  groups: Group[];
+  /** The groups this member is in. */
+  held: Group[];
   isSelf: boolean;
   external: boolean;
   canManage: boolean;
   onAdminToggle: (as_admin: boolean) => void;
+  onAddToGroup: (group: Group) => void;
+  onRemoveFromGroup: (group: Group) => void;
+  onOpenGroup: (group: Group) => void;
   onRemove: () => void;
 }
 
 function MemberRow({
   member,
+  groups,
+  held,
   isSelf,
   external,
   canManage,
   onAdminToggle,
+  onAddToGroup,
+  onRemoveFromGroup,
+  onOpenGroup,
   onRemove,
 }: MemberRowProps) {
   const name = member.display_name || member.name || member.email;
+  const joinable = groups.filter(
+    (g) => !g.is_everyone && !g.is_admin && !held.some((h) => h.id === g.id),
+  );
 
   return (
     <TableRow>
@@ -324,7 +378,7 @@ function MemberRow({
           <div className="flex min-w-0 flex-col leading-tight">
             <span className="flex items-center gap-1 truncate font-medium">
               <span className="truncate">{name}</span>
-              {isSelf && <Chip>You</Chip>}
+              {isSelf && <Badge variant="secondary">You</Badge>}
               {external && <ExternalChip />}
             </span>
             <span className="text-muted-foreground truncate text-[10px]">{member.email}</span>
@@ -333,14 +387,75 @@ function MemberRow({
       </TableCell>
 
       <TableCell>
-        {member.is_admin ? (
-          <Badge variant="default" className="gap-1">
-            <ShieldCheck className="h-3 w-3" />
-            Admin
-          </Badge>
-        ) : (
-          <span className="text-muted-foreground">Member</span>
-        )}
+        {/* Admin is membership of the automatic Admin group, so this switch and
+            that group are the same fact — which is why the group itself is
+            read-only in the drawer. */}
+        <Switch
+          size="sm"
+          checked={member.is_admin}
+          disabled={!canManage || isSelf}
+          aria-label={`Admin of this space: ${name}`}
+          title={
+            isSelf
+              ? "You cannot change your own admin rights"
+              : member.is_admin
+                ? "Remove admin rights"
+                : "Make admin"
+          }
+          onCheckedChange={onAdminToggle}
+        />
+      </TableCell>
+
+      <TableCell>
+        <div className="flex flex-wrap items-center gap-1">
+          {held.map((g) => {
+            const automatic = g.is_everyone || g.is_admin;
+            return (
+              <span
+                key={g.id}
+                className="border-border text-muted-foreground inline-flex items-center gap-1 rounded-sm border px-1.5 text-[10px]"
+              >
+                {automatic && <Lock className="size-2.5 shrink-0" />}
+                <button
+                  type="button"
+                  className="hover:text-foreground max-w-24 truncate"
+                  onClick={() => onOpenGroup(g)}
+                >
+                  {g.name}
+                </button>
+                {canManage && !automatic && (
+                  <button
+                    type="button"
+                    aria-label={`Remove ${member.email} from ${g.name}`}
+                    className="hover:text-destructive shrink-0"
+                    onClick={() => onRemoveFromGroup(g)}
+                  >
+                    <X className="size-2.5" />
+                  </button>
+                )}
+              </span>
+            );
+          })}
+
+          {canManage && joinable.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button variant="ghost" size="icon-xs" aria-label={`Add ${name} to a group`} />
+                }
+              >
+                <Plus />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                {joinable.map((g) => (
+                  <DropdownMenuItem key={g.id} onClick={() => onAddToGroup(g)}>
+                    {g.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
       </TableCell>
 
       <TableCell className="text-muted-foreground tabular-nums">
@@ -355,32 +470,16 @@ function MemberRow({
 
       {canManage && (
         <TableCell>
-          <div className="flex items-center justify-end gap-1">
-            {/* Only allow admin toggle for non-self members */}
-            {!isSelf && (
-              <Button
-                variant="ghost"
-                size="xs"
-                onClick={() => onAdminToggle(!member.is_admin)}
-                title={member.is_admin ? "Remove admin access" : "Make admin"}
-              >
-                {member.is_admin ? (
-                  <>
-                    <Shield className="h-3 w-3" />
-                    Remove
-                  </>
-                ) : (
-                  <>
-                    <ShieldCheck className="h-3 w-3" />
-                    Make admin
-                  </>
-                )}
-              </Button>
-            )}
-            <Button variant="ghost" size="icon-xs" onClick={onRemove} title="Remove from space">
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          </div>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            disabled={isSelf}
+            onClick={onRemove}
+            aria-label={`Remove ${member.email} from the space`}
+            title={isSelf ? "You cannot remove yourself" : "Remove from space"}
+          >
+            <Trash2 />
+          </Button>
         </TableCell>
       )}
     </TableRow>
@@ -424,15 +523,15 @@ function PendingRow({
         </div>
       </TableCell>
       <TableCell>
-        {invitation.as_admin ? (
-          <Badge variant="default" className="gap-1">
-            <ShieldCheck className="h-3 w-3" />
-            Admin
-          </Badge>
-        ) : (
-          <span className="text-muted-foreground">Member</span>
-        )}
+        <Switch
+          size="sm"
+          checked={invitation.as_admin}
+          disabled
+          aria-label="Will join as admin"
+          title={invitation.as_admin ? "Will join as an admin" : "Will join as a member"}
+        />
       </TableCell>
+      <TableCell className="text-muted-foreground">—</TableCell>
       <TableCell className="text-muted-foreground tabular-nums">
         Invited {fmtDate(invitation.created_at)}
       </TableCell>
@@ -451,14 +550,6 @@ function PendingRow({
         </TableCell>
       )}
     </TableRow>
-  );
-}
-
-function Chip({ children }: { children: React.ReactNode }) {
-  return (
-    <Badge variant="secondary" className="shrink-0">
-      {children}
-    </Badge>
   );
 }
 
@@ -481,147 +572,24 @@ function isExternal(email: string, myEmail?: string): boolean {
   return !!mine && !!theirs && mine !== theirs;
 }
 
-/**
- * Adds someone to the space — by picking an existing account, or by emailing
- * an address that has none.
- */
-function InviteDialog({
-  spaceId,
-  open,
-  onOpenChange,
-  memberIds,
-}: {
-  spaceId: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  memberIds: string[];
-}) {
-  const addMember = useAddSpaceMember();
-  const invite = useCreateInvitation(spaceId);
-
-  const [asAdmin, setAsAdmin] = useState(false);
-  const [picked, setPicked] = useState<UserSearchResult | null>(null);
-  const [email, setEmail] = useState("");
-
-  const close = () => {
-    onOpenChange(false);
-    setPicked(null);
-    setEmail("");
-    setAsAdmin(false);
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={(v) => (v ? onOpenChange(true) : close())}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Invite people</DialogTitle>
-          <DialogDescription>
-            New members can see everything in this space. Choose what they may do with it.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="make-admin"
-              checked={asAdmin}
-              onCheckedChange={(checked) => setAsAdmin(checked === true)}
-            />
-            <Label htmlFor="make-admin" className="text-sm font-normal cursor-pointer">
-              Make admin
-            </Label>
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <RailLabel>Someone with an account</RailLabel>
-            <div className="flex items-center gap-2">
-              <div className="min-w-0 flex-1">
-                <MemberPicker
-                  onSelect={setPicked}
-                  excludeIds={memberIds}
-                  placeholder={picked ? picked.display_name || picked.name : "Search people…"}
-                />
-              </div>
-              <Button
-                disabled={!picked || addMember.isPending}
-                onClick={() =>
-                  picked &&
-                  addMember.mutate(
-                    { spaceId, user_id: picked.id, as_admin: asAdmin },
-                    {
-                      onSuccess: () => {
-                        toast.success(`Added ${picked.display_name || picked.name}`);
-                        close();
-                      },
-                      onError: (e) => toast.error(e.message),
-                    },
-                  )
-                }
-              >
-                Add
-              </Button>
-            </div>
-          </div>
-
-          <form
-            className="flex flex-col gap-1"
-            onSubmit={(e) => {
-              e.preventDefault();
-              invite.mutate(
-                { email: email.trim(), as_admin: asAdmin },
-                {
-                  onSuccess: (result) => {
-                    if (result.added_member) {
-                      toast.success(`${result.email} already has an account`, {
-                        description: "They were added to the space directly.",
-                      });
-                    } else if (result.url) {
-                      void navigator.clipboard?.writeText(result.url);
-                      toast.success("Invitation created", {
-                        description: "The link is on your clipboard — send it to them.",
-                      });
-                    }
-                    close();
-                  },
-                  onError: (e) => toast.error("Could not invite", { description: e.message }),
-                },
-              );
-            }}
-          >
-            <RailLabel>By email</RailLabel>
-            <div className="flex items-center gap-2">
-              <Input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@example.com"
-                aria-label="Email to invite"
-                className="min-w-0 flex-1"
-                required
-              />
-              <Button type="submit" disabled={invite.isPending || !email.trim()}>
-                <UserPlus data-icon="inline-start" /> Invite
-              </Button>
-            </div>
-            <p className="text-muted-foreground text-[10px]">
-              pp-hub does not send mail yet. The invitation link is copied to your clipboard so you
-              can send it yourself; it expires in 14 days.
-            </p>
-          </form>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 /** Downloads the rows currently on screen, filters included. */
-function exportCsv(members: SpaceMember[], pending: Invitation[]) {
-  const header = ["Name", "Email", "Admin", "Status", "Joined", "Last active", "Files owned"];
+function exportCsv(members: SpaceMember[], pending: Invitation[], byUser: Map<string, Group[]>) {
+  const header = [
+    "Name",
+    "Email",
+    "Admin",
+    "Groups",
+    "Status",
+    "Joined",
+    "Last active",
+    "Files owned",
+  ];
   const rows = [
     ...members.map((m) => [
       m.display_name || m.name || "",
       m.email,
       m.is_admin ? "Yes" : "No",
+      (byUser.get(m.user_id) ?? []).map((g) => g.name).join(" | "),
       "active",
       m.created_at,
       m.last_seen ?? "",
@@ -631,6 +599,7 @@ function exportCsv(members: SpaceMember[], pending: Invitation[]) {
       " ",
       i.email,
       i.as_admin ? "Yes" : "No",
+      "",
       "pending",
       i.created_at,
       "",
@@ -642,7 +611,7 @@ function exportCsv(members: SpaceMember[], pending: Invitation[]) {
   const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
   const a = document.createElement("a");
   a.href = url;
-  a.download = "members.csv";
+  a.download = "people.csv";
   a.click();
   URL.revokeObjectURL(url);
 }

@@ -103,8 +103,7 @@ Closes the gaps between the shipped app and the Stitch screens that needed no ne
 - `activity.Service` records uploaded / created / renamed / moved / trashed / restored / purged / shared / unshared / reverted. **Recording is best-effort by design** — an activity row describes work that already succeeded, and failing a user's upload because the audit line could not be written would trade a real outcome for a cosmetic one.
 - `GET /api/v1/activity` (mine or one space), `/recent`, `/starred`, `/usage`; `POST|DELETE /nodes/{id}/star`. A star needs only _read_ access: it is the user's private note about the node, not a change to it.
 - **`used_bytes` is now maintained.** `fs.RecountUsage` runs after every size-changing mutation, so the rail's storage meter reads true instead of always 0. Also best-effort, and logged when it fails.
-- Web: `/drive/home`, `/drive/recent`, `/drive/starred`; `cross-space-table.tsx`, `activity-feed.tsx`, `storage-breakdown.tsx`; star in the node menus; Home / Recent / Starred in Quick Access.
-- `/drive` still redirects to the last space opened — making Home the landing surface is a one-line change to the redirect in `drive.tsx`, deliberately not taken unilaterally.
+- Web: cross-space `/drive/home`, `/drive/recent`, `/drive/starred`; `cross-space-table.tsx`, `activity-feed.tsx`, `storage-breakdown.tsx`; star in the node menus; Home / Recent / Starred in Quick Access. **Superseded by M16**, which scoped all three to one space and moved them under `/drive/$spaceId/`.
 
 ## M10 — Space Settings & Admin Console ✅ done
 
@@ -114,7 +113,7 @@ Closes the gaps between the shipped app and the Stitch screens that needed no ne
 - Accepting checks that the invitation's address matches the signed-in account: it is addressed to an email, not to whoever holds the link.
 - `PATCH|DELETE /api/v1/spaces/{id}`, `GET|POST /spaces/{id}/invitations`, `DELETE /spaces/{id}/invitations/{inviteID}`, `POST /invitations/accept`, `GET /admin/stats`, `PATCH /admin/users/{userID}`.
 - **Suspension is enforced in `requireUser`**, not at sign-in, so it takes effect on the next request rather than waiting for an existing session to expire. 403 and not 401: the credentials are fine, the account is not. An admin cannot revoke their own admin flag or suspend themselves — that would leave the server potentially unadministrable with no way back through the UI.
-- Web: `?panel=settings` with General / Members / Danger zone tabs, `/invite/$token`, and a rewritten admin console with stat tiles, suspend/reinstate and admin toggles.
+- Web: `?panel=settings` with General / Members / Danger zone tabs, `/invite/$token`, and a rewritten admin console with stat tiles, suspend/reinstate and admin toggles. **The panel param and the Members tab were replaced in M16** by `settings/general|people|danger` routes.
 
 **Fixed after the fact:** `spaceDTO` never carried `slug` / `description` /
 `default_role`, so the settings form read them back as `undefined`, rendered
@@ -205,6 +204,79 @@ actually holds rather than inferring them from a role it no longer has.
 member's folder, ownership inherits down a subtree, promote/demote both take
 effect with a last-admin floor, and a departure archives roots while revoking
 grants.
+
+## M16 — Login → Account → Space, One Shape ✅ done
+
+No migration. A routing and surface-ownership milestone, fixing three defects
+that shared one cause: surfaces that belong to a space did not live under the
+space in the URL, and concerns that belong to one owner had two.
+
+**The space became a URL segment.** `/drive/home`, `/drive/recent` and
+`/drive/starred` were **siblings** of `/drive/$spaceId`, so on all three
+`useParams().spaceId` was undefined and the rail emptied itself: the switcher
+read "Select a space", the folder tree vanished, and the Trash and Shared rows
+disappeared entirely because they were `?panel=` values needing a space to hang
+on. They are now child routes of `drive/$spaceId/`, along with `shared`,
+`trash` and `settings/*`. `type DrivePanel`, `onTogglePanel` and every `?panel=`
+value are gone. Nothing was papered over with a fallback: there is no state to
+lose, only a segment that is always present.
+
+**Membership has one home.** `?panel=members` and the Members tab inside
+`?panel=settings` rendered the _same_ component at two addresses, while the
+Groups tab edited group membership and declared the automatic `Admin` group
+read-only "managed in the Members tab" — so who administers a space was set in
+one place and what they could open in another. `settings/people` is now the only
+membership surface: one table with an Admin switch, group chips and pending
+invitations as rows, beside a group drawer keyed by `?group=`. Admin _is_
+membership of the `Admin` group, so all three membership mutations invalidate
+`["spaces", id]` — narrowing that to the member list left a promoted admin with
+no Admin chip until a reload, which this milestone found and fixed.
+
+**Settings tabs are routes, not state.** Both space settings and the new
+`/drive/account` render `settings-tabs.tsx`, a strip of links. Non-admins are
+refused in `beforeLoad` rather than shown "only an admin can…" at a URL that
+already resolved. `/profile` — a top-level route that dropped the rail, the
+breadcrumb and any way back — is replaced by `/drive/account/{profile,preferences}`
+inside the shell.
+
+**Feeds are per-space, in SQL.** `GET /api/v1/recent`, `/starred` and `/shared`
+take the optional `?space=` that `/activity` and `/usage` already had, via
+`sqlc.narg('space_id')`. The filter had to go in SQL rather than the handler:
+all three pages are limited, so a post-filter hands back a short page whenever
+another space's rows fill the limit first.
+`internal/httpapi/space_scope_db_test.go` pins exactly that — with limit 1 the
+scoped call still returns the scoped space's row.
+
+**Deep links survive sign-in.** `requireAuth` now redirects to
+`/login?redirect=<path>`, and `/auth/login?next=` carries the destination
+through the OIDC round trip in a short-lived `pp_oidc_next` cookie, revalidated
+on the way back. `safeNext` accepts only a same-origin absolute path, so
+`//evil.example` and absolute URLs cannot turn sign-in into an open redirect.
+
+**Deliberately not built:** an account Sessions tab (no session-listing
+endpoint) and a "leave space" button (`DELETE /spaces/{id}/members/{userID}` is
+`RequireAdmin`, so a member cannot remove themselves — the account page says so
+rather than offering a button that 403s). Cross-space Home was **removed**, not
+deferred: with every listing scoped to one space, a row from another space could
+not be opened without silently switching the rail underneath the user.
+
+**Fixed after the fact:** `ListEntryPoints`' ancestor walk never terminated.
+Its recursive step read `SELECT w.origin, p.id … JOIN nodes p ON p.id = w.id`
+— re-emitting the node it had just joined, under `UNION ALL`, forever. It
+looked harmless because the base step starts at `parent_id`, so a space whose
+reachable nodes all sat at the root produced a `NULL` join and stopped on the
+first iteration; the moment anyone created a folder _inside_ another, the root
+listing (`/children`) and the folder tree (`/tree`) spun until the browser
+gave up — 500 after ~10s, with `context canceled` in the server log and the
+query still burning CPU in `pg_stat_activity` with no wait event. The step now
+climbs to `p.parent_id` and the CTE uses `UNION`, so a `parent_id` cycle can
+only ever produce finitely many pairs. The `w.depth > 0` filter went with it:
+every walk row is already a strict ancestor, so the filter was silently
+excluding immediate parents and only appeared to work because the runaway
+recursion re-emitted each parent at every depth.
+`TestNestedOwnedNodesAreNotSeparateEntryPoints` pins it with its own 10s
+deadline — reverting the query fails it in 10.1s with
+`context deadline exceeded` rather than hanging the suite.
 
 ## Testing Strategy
 

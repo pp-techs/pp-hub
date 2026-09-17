@@ -8,6 +8,23 @@ Three layers, one direction only — components never call `api` directly:
 2. **`queries/`** — TanStack Query hooks, one file per resource (`auth.ts`, `spaces.ts`, `nodes.ts`, `shares.ts`). `keys.ts` is the single source of truth for cache keys. Route guards (`requireAuth`, `fetchMe`) live in `queries/auth.ts` and take the `QueryClient`.
 3. **`ui-store.ts`** — zustand for ephemeral UI state only (selection, panels); never server state.
 
+## Routes
+
+- **A space is a URL segment.** Anything about one space is a child route of
+  `routes/drive/$spaceId/`, so `spaceId` is in the params on every drive
+  surface and the rail never has to guess. Never reintroduce a `?panel=`-style
+  search param for a whole surface: that is what made Home, Recent and Starred
+  blank the rail.
+- **A settings tab is a route**, rendered through `settings-tabs.tsx`. Panes
+  have to survive a reload, be sendable to a colleague and answer the back
+  button, so the router owns which one is open — never component state.
+- **Gate in `beforeLoad`, not in the pane.** An admin-only page redirects with
+  a toast; rendering "only an admin can…" at a URL that already resolved tells
+  the caller a page exists where it does not.
+- **Ephemeral view state belongs in the URL when it is shareable** (`?dir=`,
+  `?group=`, `?view=`) and in `ui-store` only when it is not (selection, open
+  panels, the rail's filter field).
+
 ## Monorepo Rules
 
 - Workspace layout: `apps/*`, `packages/*`, `tools/*` (see root `package.json`).

@@ -1,6 +1,7 @@
 // User management query hooks.
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { QueryClient } from "@tanstack/react-query";
 import {
   getMyProfile,
   updateMyProfile,
@@ -67,12 +68,24 @@ export function useSpaceMembers(spaceId: string | null) {
     enabled: !!spaceId,
   });
 }
+
+/**
+ * Membership and group membership are the same cache tree, so all three
+ * mutations below invalidate `["spaces", id]` rather than just the member
+ * list. Admin *is* membership of the automatic Admin group and joining a
+ * space *is* joining Everyone: narrowing the invalidation to `members` left
+ * the People table showing a promoted admin with no Admin chip until a
+ * reload.
+ */
+const invalidateSpace = (qc: QueryClient, spaceId: string) =>
+  qc.invalidateQueries({ queryKey: ["spaces", spaceId] });
+
 export function useAddSpaceMember() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ spaceId, ...body }: { spaceId: string; user_id: string; as_admin: boolean }) =>
       addSpaceMember(spaceId, body),
-    onSuccess: (_, vars) => qc.invalidateQueries({ queryKey: keys.members(vars.spaceId) }),
+    onSuccess: (_, vars) => invalidateSpace(qc, vars.spaceId),
   });
 }
 
@@ -88,7 +101,7 @@ export function useSetMemberAdmin() {
       userId: string;
       as_admin: boolean;
     }) => setMemberAdmin(spaceId, userId, as_admin),
-    onSuccess: (_, vars) => qc.invalidateQueries({ queryKey: keys.members(vars.spaceId) }),
+    onSuccess: (_, vars) => invalidateSpace(qc, vars.spaceId),
   });
 }
 
@@ -97,6 +110,6 @@ export function useRemoveSpaceMember() {
   return useMutation({
     mutationFn: ({ spaceId, userId }: { spaceId: string; userId: string }) =>
       removeSpaceMember(spaceId, userId),
-    onSuccess: (_, vars) => qc.invalidateQueries({ queryKey: keys.members(vars.spaceId) }),
+    onSuccess: (_, vars) => invalidateSpace(qc, vars.spaceId),
   });
 }

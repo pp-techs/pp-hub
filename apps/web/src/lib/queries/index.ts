@@ -8,12 +8,13 @@ export { keys } from "./keys";
 export { useMe, requireAuth, fetchMe, logout } from "./auth";
 
 // Spaces
-export { useSpaces, useCreateSpace } from "./spaces";
+export { useSpaces, useSpace, fetchSpaces, useCreateSpace } from "./spaces";
 
 // Groups and folder grants
 export {
   useGroups,
   useGroupMembers,
+  useGroupMemberships,
   useCreateGroup,
   useUpdateGroup,
   useDeleteGroup,

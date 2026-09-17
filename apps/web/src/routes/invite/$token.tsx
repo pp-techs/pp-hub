@@ -17,8 +17,8 @@ export const Route = createFileRoute("/invite/$token")({
   head: () => ({ meta: [{ title: "Invitation · pp-hub" }] }),
   // Redeeming names an account, not an address, so sign-in comes first. The
   // guard bounces to login and back, landing here with a session.
-  beforeLoad: async ({ context }) => {
-    await requireAuth(context.queryClient);
+  beforeLoad: async ({ context, location }) => {
+    await requireAuth(context.queryClient, location.href);
   },
   component: AcceptInvite,
 });

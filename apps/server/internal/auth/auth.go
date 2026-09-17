@@ -33,6 +33,7 @@ import (
 
 const (
 	stateCookie   = "pp_oidc_state"
+	nextCookie    = "pp_oidc_next"
 	sessionCookie = "pp_session"
 	sessionTTL    = 30 * 24 * time.Hour
 )
@@ -89,7 +90,33 @@ func (s *Service) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	})
+	// Where the browser was headed before it was bounced here. It cannot ride
+	// the OAuth `state` — that is compared byte-for-byte against the cookie —
+	// so it travels in a cookie of its own with the same short life.
+	if next := safeNext(r.URL.Query().Get("next")); next != "" {
+		http.SetCookie(w, &http.Cookie{
+			Name:     nextCookie,
+			Value:    next,
+			Path:     "/",
+			MaxAge:   600,
+			HttpOnly: true,
+			SameSite: http.SameSiteLaxMode,
+		})
+	}
 	http.Redirect(w, r, s.oauth.AuthCodeURL(state), http.StatusFound)
+}
+
+// safeNext keeps only a same-origin absolute path, so the sign-in endpoint
+// cannot be turned into an open redirect. "//evil.example" is a protocol-
+// relative URL, not a path, which is why a leading "/" alone is not enough.
+func safeNext(raw string) string {
+	if !strings.HasPrefix(raw, "/") || strings.HasPrefix(raw, "//") {
+		return ""
+	}
+	if u, err := url.Parse(raw); err != nil || u.Scheme != "" || u.Host != "" {
+		return ""
+	}
+	return raw
 }
 
 func (s *Service) HandleCallback(w http.ResponseWriter, r *http.Request) {
@@ -160,7 +187,17 @@ func (s *Service) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 	})
 	clearCookie(w, stateCookie)
-	http.Redirect(w, r, "/", http.StatusFound)
+
+	// Back to wherever the browser was going, revalidated: the cookie is ours
+	// and HttpOnly, but it is still input.
+	dest := "/"
+	if c, err := r.Cookie(nextCookie); err == nil {
+		if next := safeNext(c.Value); next != "" {
+			dest = next
+		}
+		clearCookie(w, nextCookie)
+	}
+	http.Redirect(w, r, dest, http.StatusFound)
 }
 
 func (s *Service) HandleLogout(w http.ResponseWriter, r *http.Request) {

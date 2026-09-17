@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
+import { Link, useSearch } from "@tanstack/react-router";
 import { ChevronRight, Folder, Loader2 } from "lucide-react";
-import { useTree } from "@/lib/queries";
+import { useSpace, useTree } from "@/lib/queries";
 import { railRow } from "@/components/rail-item";
 import { cn } from "@workspace/ui/lib/utils";
 import type { TreeNode } from "@/lib/api";
@@ -13,9 +13,13 @@ interface FolderTreeItemProps {
 }
 
 function FolderTreeItem({ node, currentDirId, spaceId }: FolderTreeItemProps) {
-  const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
-  const { data: children, isLoading } = useTree(spaceId, expanded ? node.id : undefined);
+  // Keyed on this node's own id, gated on `expanded`: collapsed items must not
+  // query at all. They used to call `useTree(spaceId, undefined)` while
+  // collapsed — the same key as the space's root tree — so every rendered row
+  // stayed subscribed to root data it never used, and the query cache carried
+  // one extra live subscriber per folder in the rail for no reason.
+  const { data: children, isLoading } = useTree(spaceId, node.id, expanded);
 
   const isActive = node.id === currentDirId;
   const dirs = children?.filter((n) => n.kind === "dir") ?? [];
@@ -41,16 +45,14 @@ function FolderTreeItem({ node, currentDirId, spaceId }: FolderTreeItemProps) {
             )}
           />
         </button>
-        <button
-          type="button"
+        {/* A real link, not an onClick button: consistent with every other rail
+            row, and it is what lets a middle-click or ⌘-click open the folder
+            in a new tab like the rest of the app. */}
+        <Link
+          to="/drive/$spaceId"
+          params={{ spaceId }}
+          search={{ dir: node.id }}
           className="flex min-w-0 flex-1 items-center gap-2 text-left"
-          onClick={() =>
-            void navigate({
-              to: "/drive/$spaceId",
-              params: { spaceId },
-              search: { dir: node.id },
-            })
-          }
         >
           <Folder
             className={cn(
@@ -59,7 +61,7 @@ function FolderTreeItem({ node, currentDirId, spaceId }: FolderTreeItemProps) {
             )}
           />
           <span className="truncate">{node.name}</span>
-        </button>
+        </Link>
         {isLoading && <Loader2 className="text-muted-foreground size-3 shrink-0 animate-spin" />}
       </div>
 
@@ -79,20 +81,20 @@ function FolderTreeItem({ node, currentDirId, spaceId }: FolderTreeItemProps) {
   );
 }
 
-export function FolderTree() {
-  const { spaceId } = useParams({ strict: false }) as { spaceId?: string };
+export function FolderTree({ spaceId }: { spaceId: string }) {
   // Read the open folder from the router rather than window.location: router
   // navigations use pushState, which never fires popstate.
   const { dir } = useSearch({ strict: false }) as { dir?: string };
+  const space = useSpace(spaceId);
   const { data: roots, isLoading } = useTree(spaceId);
-
-  if (!spaceId) return null;
 
   if (isLoading) {
     return <p className="text-muted-foreground px-2 py-1 text-xs">Loading…</p>;
   }
 
-  const rootDirs = roots?.filter((n) => n.kind === "dir") ?? [];
+  // The archive has its own Quick Access row; it must not also show up as an
+  // ordinary expandable folder here, or it is mixed with real files twice.
+  const rootDirs = roots?.filter((n) => n.kind === "dir" && n.id !== space?.archive_root_id) ?? [];
 
   if (rootDirs.length === 0) {
     return <p className="text-muted-foreground px-2 py-1 text-xs">No folders yet.</p>;

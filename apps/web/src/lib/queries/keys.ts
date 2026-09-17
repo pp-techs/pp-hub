@@ -10,13 +10,12 @@ export const keys = {
   tree: (spaceId: string, parentId?: string) => ["tree", spaceId, parentId ?? null] as const,
   search: (query: string, spaceId?: string, kind?: string, ownerId?: string, modified?: number) =>
     ["search", query, spaceId ?? null, kind ?? null, ownerId ?? null, modified ?? null] as const,
-  recent: (limit?: number) => ["recent", limit ?? null] as const,
-  starred: (limit?: number) => ["starred", limit ?? null] as const,
-  activity: (spaceId?: string, limit?: number) =>
-    ["activity", spaceId ?? null, limit ?? null] as const,
-  usage: (spaceId?: string) => ["usage", spaceId ?? null] as const,
+  recent: (spaceId: string, limit?: number) => ["recent", spaceId, limit ?? null] as const,
+  starred: (spaceId: string, limit?: number) => ["starred", spaceId, limit ?? null] as const,
+  activity: (spaceId: string, limit?: number) => ["activity", spaceId, limit ?? null] as const,
+  usage: (spaceId: string) => ["usage", spaceId] as const,
   trash: (spaceId: string) => ["trash", spaceId] as const,
-  shared: ["shared"] as const,
+  shared: (spaceId: string) => ["shared", spaceId] as const,
   shares: (nodeId: string) => ["shares", nodeId] as const,
   shareInfo: (token: string) => ["share", token] as const,
   users: ["users"] as const,

@@ -848,12 +848,19 @@ func (s *Server) handleListDeleted(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
+// handleListShared answers GET /api/v1/shared[?space=]. The entry-point query
+// already carries an optional space filter, and it applies a LIMIT, so the
+// scoping has to happen in SQL rather than on the assembled slice.
 func (s *Server) handleListShared(w http.ResponseWriter, r *http.Request) {
 	u := s.requireUser(w, r)
 	if u == nil {
 		return
 	}
-	nodes, err := s.fs.ListShared(r.Context(), u.ID)
+	spaceID, ok := s.optionalSpaceParam(w, r, u.ID)
+	if !ok {
+		return
+	}
+	nodes, err := s.fs.ListShared(r.Context(), u.ID, spaceID)
 	if err != nil {
 		Error(w, r, err)
 		return

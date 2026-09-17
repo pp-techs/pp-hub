@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -273,4 +275,78 @@ func TestRemoveMemberArchivesTheirRootsAndRevokesGrants(t *testing.T) {
 	if len(entries) != 0 {
 		t.Errorf("the departed member still lists %d entry points in the space", len(entries))
 	}
+}
+
+// A node under another node the caller reaches is not an entry point of its
+// own — you get to it by walking down from the ancestor.
+//
+// This is a regression test with teeth: the ancestor walk used to re-emit the
+// same parent on every recursive step under UNION ALL, so it never terminated
+// once any reachable node had a parent at all. The symptom was not a wrong
+// answer, it was the space's root listing and folder tree hanging until the
+// browser gave up — which is why the call here carries its own deadline
+// instead of relying on the suite's.
+func TestNestedOwnedNodesAreNotSeparateEntryPoints(t *testing.T) {
+	q, sp, _ := testEnv(t)
+	ctx := context.Background()
+
+	owner := user(t, q, "nested-owner")
+	space, err := sp.Create(ctx, fmt.Sprintf("nested-%d", os.Getpid()), owner.ID)
+	if err != nil {
+		t.Fatalf("create space: %v", err)
+	}
+	t.Cleanup(func() { _ = q.DeleteSpace(ctx, space.ID) })
+
+	top, err := q.CreateNode(ctx, store.CreateNodeParams{
+		SpaceID: space.ID, Kind: store.NodeKindDir, Name: "Top", CreatedBy: owner.ID,
+	})
+	if err != nil {
+		t.Fatalf("create top: %v", err)
+	}
+	mid, err := q.CreateNode(ctx, store.CreateNodeParams{
+		SpaceID: space.ID, Kind: store.NodeKindDir, Name: "Mid",
+		ParentID: top.ID, CreatedBy: owner.ID,
+	})
+	if err != nil {
+		t.Fatalf("create mid: %v", err)
+	}
+	if _, err := q.CreateNode(ctx, store.CreateNodeParams{
+		SpaceID: space.ID, Kind: store.NodeKindFile, Name: "deep.txt",
+		ParentID: mid.ID, CreatedBy: owner.ID,
+	}); err != nil {
+		t.Fatalf("create deep file: %v", err)
+	}
+
+	deadline, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	entries, err := q.ListEntryPoints(deadline, store.ListEntryPointsParams{
+		UserID: owner.ID, IncludeOwned: true, SpaceID: space.ID,
+	})
+	if err != nil {
+		t.Fatalf("entry points over a nested tree: %v", err)
+	}
+	// The space's own Archive folder is a legitimate second entry point — the
+	// creator owns it — so this asserts the containment rule rather than a
+	// count: the top folder is listed, what sits under it is not.
+	listed := map[string]bool{}
+	for _, e := range entries {
+		listed[e.Name] = true
+	}
+	if !listed["Top"] {
+		t.Errorf("the top folder is missing from the entry points, got %v", keys(listed))
+	}
+	for _, under := range []string{"Mid", "deep.txt"} {
+		if listed[under] {
+			t.Errorf("%q sits under Top and must not be its own entry point, got %v", under, keys(listed))
+		}
+	}
+}
+
+func keys(m map[string]bool) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
