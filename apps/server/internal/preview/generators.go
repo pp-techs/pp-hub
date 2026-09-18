@@ -7,17 +7,26 @@ import (
 	"image"
 	"image/png"
 	"io"
+	"strings"
 
 	// Register image formats.
 	_ "image/gif"
 	_ "image/jpeg"
 
+	"github.com/srwiley/oksvg"
+	"github.com/srwiley/rasterx"
 	"golang.org/x/image/draw"
 )
 
 const (
 	thumbMaxDim  = 256
 	textMaxBytes = 4096
+
+	// defaultSVGWidth/Height are the CSS replaced-element default (300×150)
+	// an <svg> root falls back to when it declares neither a viewBox nor
+	// explicit width/height — matches what a browser would size it to.
+	defaultSVGWidth  = 300
+	defaultSVGHeight = 150
 )
 
 // ImageRenderer thumbnails raster images. Pure Go, so the API server itself
@@ -30,6 +39,21 @@ func (ImageRenderer) Render(_ context.Context, src io.Reader, _ Payload) ([]byte
 	return imageThumbnail(src)
 }
 
+// SVGRenderer thumbnails SVG images by rasterizing them with oksvg/rasterx —
+// both pure Go, so like ImageRenderer it runs in the API server itself with
+// no external binary. Rasterizing rather than serving the markup is also what
+// keeps a thumbnail request safe: the renderer only ever walks paths and
+// paints pixels onto an RGBA buffer, so an embedded <script> or an external
+// href never executes or gets fetched, unlike pointing a browser at the raw
+// file (why /content downgrades image/svg+xml to attachment — see drive.go).
+type SVGRenderer struct{}
+
+func (SVGRenderer) Kind() string { return KindRenderSVG }
+
+func (SVGRenderer) Render(_ context.Context, src io.Reader, _ Payload) ([]byte, error) {
+	return svgThumbnail(src)
+}
+
 // TextRenderer takes the head of a text file. Also pure Go.
 type TextRenderer struct{}
 
@@ -37,6 +61,64 @@ func (TextRenderer) Kind() string { return KindSnippetText }
 
 func (TextRenderer) Render(_ context.Context, src io.Reader, _ Payload) ([]byte, error) {
 	return io.ReadAll(io.LimitReader(src, textMaxBytes))
+}
+
+// svgThumbnail rasterizes an SVG to fit within thumbMaxDim and encodes it as
+// PNG. Scaling happens in the rasterizer via SetTarget rather than by
+// resampling afterwards, so a vector source renders straight at the target
+// resolution instead of through an extra downscale pass.
+//
+// oksvg's color parser only understands literal values (hex, rgb, named) —
+// it hard-errors on the bare token currentColor and on any var()/color-mix()
+// call, even a var() naming a plain hex color declared right there in the
+// SVG. Both are common: currentColor is how icon sets like Feather/Lucide
+// theme fill/stroke, and var()-of-root-custom-property is how generated
+// chart/diagram exports do the same. resolveCSSColors (svg_colors.go) does a
+// best-effort textual substitution for both before parsing, so those files
+// get a thumbnail — in the right color when resolvable, in svgFallbackColor
+// when it is genuinely computed (color-mix) or otherwise out of reach —
+// instead of failing to render at all.
+func svgThumbnail(r io.Reader) ([]byte, error) {
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return nil, fmt.Errorf("read svg: %w", err)
+	}
+	svg := string(data)
+	if strings.Contains(svg, "currentColor") {
+		svg = strings.ReplaceAll(svg, "currentColor", svgFallbackColor)
+	}
+	if strings.Contains(svg, "var(") || strings.Contains(svg, "color-mix(") {
+		svg = resolveCSSColors(svg)
+	}
+	// IgnoreErrorMode, not Warn: oksvg's warning path writes straight to the
+	// stdlib global log package on stderr, once per unsupported element (most
+	// commonly <text> — oksvg draws shapes, not text layout). A drive full of
+	// generated diagrams would flood the server's log with an unstructured
+	// line per label on every render; skipping silently is the right default
+	// since the renderer already degrades gracefully (missing element, not
+	// missing file).
+	icon, err := oksvg.ReadIconStream(strings.NewReader(svg), oksvg.IgnoreErrorMode)
+	if err != nil {
+		return nil, fmt.Errorf("parse svg: %w", err)
+	}
+	vw, vh := icon.ViewBox.W, icon.ViewBox.H
+	if vw <= 0 || vh <= 0 {
+		vw, vh = defaultSVGWidth, defaultSVGHeight
+	}
+	scale := float64(thumbMaxDim) / max(vw, vh)
+	if scale >= 1 {
+		scale = 1 // don't upscale
+	}
+	w, h := max(int(vw*scale), 1), max(int(vh*scale), 1)
+	icon.SetTarget(0, 0, float64(w), float64(h))
+	dst := image.NewRGBA(image.Rect(0, 0, w, h))
+	scanner := rasterx.NewScannerGV(w, h, dst, dst.Bounds())
+	icon.Draw(rasterx.NewDasher(w, h, scanner), 1.0)
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, dst); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 // imageThumbnail scales an image to fit within thumbMaxDim and re-encodes as

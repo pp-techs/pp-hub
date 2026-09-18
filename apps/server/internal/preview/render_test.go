@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -91,6 +92,93 @@ func TestImageRendererDoesNotUpscale(t *testing.T) {
 	img := decodeThumb(t, out)
 	if img.Bounds().Dx() != 64 || img.Bounds().Dy() != 32 {
 		t.Errorf("got %v, want 64x32 unchanged", img.Bounds())
+	}
+}
+
+func TestSVGRendererDownscales(t *testing.T) {
+	src := `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 500">
+		<rect width="1000" height="500" fill="#ff0000"/>
+	</svg>`
+	out, err := (SVGRenderer{}).Render(t.Context(), strings.NewReader(src), Payload{})
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	img := decodeThumb(t, out)
+	// Aspect ratio must survive: 1000x500 capped at 256 gives 256x128.
+	if got := img.Bounds().Dx(); got != thumbMaxDim {
+		t.Errorf("width = %d, want %d", got, thumbMaxDim)
+	}
+	if got := img.Bounds().Dy(); got != thumbMaxDim/2 {
+		t.Errorf("height = %d, want %d", got, thumbMaxDim/2)
+	}
+}
+
+// currentColor is how icon sets like Feather/Lucide theme fill/stroke via
+// CSS; oksvg's color parser errors on the literal token, so without the
+// substitution in svgThumbnail every such icon would fail to render.
+func TestSVGRendererHandlesCurrentColor(t *testing.T) {
+	src := `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+		<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+		<circle cx="12" cy="13" r="4"/>
+	</svg>`
+	out, err := (SVGRenderer{}).Render(t.Context(), strings.NewReader(src), Payload{})
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	decodeThumb(t, out)
+}
+
+// Generated chart/diagram exports theme via a handful of custom properties
+// on the root <svg style="...">, referenced with var() from presentation
+// attributes — the pattern that made every SVG in a real drive fail before
+// resolveCSSColors existed. This renders the real shape in the declared
+// color rather than the svgFallbackColor collapseColorFuncs would use for
+// something genuinely unresolvable.
+func TestSVGRendererHandlesRootCustomProperties(t *testing.T) {
+	src := `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10" style="--fill:#00ff00">
+		<rect width="10" height="10" fill="var(--fill)"/>
+	</svg>`
+	out, err := (SVGRenderer{}).Render(t.Context(), strings.NewReader(src), Payload{})
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	img := decodeThumb(t, out)
+	r, g, b, _ := img.At(img.Bounds().Dx()/2, img.Bounds().Dy()/2).RGBA()
+	got := color.RGBA{R: uint8(r >> 8), G: uint8(g >> 8), B: uint8(b >> 8)}
+	want := color.RGBA{G: 255}
+	if got != want {
+		t.Errorf("center pixel = %v, want %v (the declared --fill, not svgFallbackColor)", got, want)
+	}
+}
+
+// Small SVGs must not be blown up to fill the cap, matching ImageRenderer.
+func TestSVGRendererDoesNotUpscale(t *testing.T) {
+	src := `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 32">
+		<rect width="64" height="32" fill="#00ff00"/>
+	</svg>`
+	out, err := (SVGRenderer{}).Render(t.Context(), strings.NewReader(src), Payload{})
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	img := decodeThumb(t, out)
+	if img.Bounds().Dx() != 64 || img.Bounds().Dy() != 32 {
+		t.Errorf("got %v, want 64x32 unchanged", img.Bounds())
+	}
+}
+
+// An <svg> root with neither a viewBox nor width/height falls back to the
+// CSS replaced-element default (300×150) instead of dividing by zero, then
+// still scales that default down to the cap like any other size.
+func TestSVGRendererDefaultsMissingViewport(t *testing.T) {
+	src := `<svg xmlns="http://www.w3.org/2000/svg"><rect width="10" height="10"/></svg>`
+	out, err := (SVGRenderer{}).Render(t.Context(), strings.NewReader(src), Payload{})
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	img := decodeThumb(t, out)
+	wantW, wantH := thumbMaxDim, defaultSVGHeight*thumbMaxDim/defaultSVGWidth
+	if img.Bounds().Dx() != wantW || img.Bounds().Dy() != wantH {
+		t.Errorf("got %v, want %dx%d", img.Bounds(), wantW, wantH)
 	}
 }
 

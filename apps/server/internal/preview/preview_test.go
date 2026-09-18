@@ -17,6 +17,7 @@ func TestKindForMime(t *testing.T) {
 		"image/jpeg":              KindRenderImage,
 		"image/gif":               KindRenderImage,
 		"image/webp":              KindRenderImage,
+		"image/svg+xml":           KindRenderSVG,
 		"video/mp4":               KindRenderVideo,
 		"video/webm":              KindRenderVideo,
 		"video/quicktime":         KindRenderVideo,
@@ -28,7 +29,6 @@ func TestKindForMime(t *testing.T) {
 		// No preview: .epub is a zip the editor opens but a cover render would
 		// misrepresent; the rest have no renderer at all.
 		"application/epub+zip": "",
-		"image/svg+xml":        "",
 		"video/x-matroska":     "",
 		"application/zip":      "",
 		"":                     "",
@@ -46,6 +46,7 @@ func TestKindForMime(t *testing.T) {
 func TestPreviewKindFor(t *testing.T) {
 	cases := map[string]string{
 		KindRenderImage:  PreviewThumbnail,
+		KindRenderSVG:    PreviewThumbnail,
 		KindRenderPDF:    PreviewThumbnail,
 		KindRenderVideo:  PreviewThumbnail,
 		KindRenderOffice: PreviewThumbnail,
@@ -65,7 +66,8 @@ func TestPreviewKindFor(t *testing.T) {
 func TestEveryJobKindHasPreviewKind(t *testing.T) {
 	mimes := []string{
 		"application/pdf", "image/png", "image/jpeg", "image/gif", "image/webp",
-		"video/mp4", "video/webm", "video/quicktime", "application/rtf", "text/plain",
+		"image/svg+xml", "video/mp4", "video/webm", "video/quicktime",
+		"application/rtf", "text/plain",
 		"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 	}
 	for _, m := range mimes {

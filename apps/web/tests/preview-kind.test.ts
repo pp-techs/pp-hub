@@ -20,6 +20,7 @@ const CONTRACT: [string | undefined, ReturnType<typeof previewKind>][] = [
   ["image/jpeg", "thumbnail"],
   ["image/gif", "thumbnail"],
   ["image/webp", "thumbnail"],
+  ["image/svg+xml", "thumbnail"],
   ["video/mp4", "thumbnail"],
   ["video/webm", "thumbnail"],
   ["video/quicktime", "thumbnail"],
@@ -37,7 +38,6 @@ const CONTRACT: [string | undefined, ReturnType<typeof previewKind>][] = [
   // it; .csv keeps its text snippet rather than becoming a spreadsheet render.
   ["application/epub+zip", null],
   ["text/csv", "text"],
-  ["image/svg+xml", null],
   ["video/x-matroska", null],
   ["application/zip", null],
   [undefined, null],
@@ -58,6 +58,7 @@ test("hasThumbnail covers every rasterized type", () => {
     "video/mp4",
     "video/quicktime",
     "image/webp",
+    "image/svg+xml",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/vnd.oasis.opendocument.presentation",
   ]) {
@@ -66,13 +67,7 @@ test("hasThumbnail covers every rasterized type", () => {
 });
 
 test("hasThumbnail is false for text and unrenderable types", () => {
-  for (const mime of [
-    "text/plain",
-    "application/zip",
-    "image/svg+xml",
-    "application/epub+zip",
-    undefined,
-  ]) {
+  for (const mime of ["text/plain", "application/zip", "application/epub+zip", undefined]) {
     expect(hasThumbnail(file(mime))).toBe(false);
   }
 });

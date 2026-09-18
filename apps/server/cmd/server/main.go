@@ -57,7 +57,7 @@ func run() error {
 	// and ffmpeg, which live in cmd/worker; jobs for those kinds stay pending
 	// until such a worker exists, and are never claimed-and-failed here.
 	previewWorker := preview.NewWorker(queries, blobs,
-		preview.ImageRenderer{}, preview.TextRenderer{})
+		preview.ImageRenderer{}, preview.SVGRenderer{}, preview.TextRenderer{})
 	fsSvc.SetVersionHook(func(ctx context.Context, ver store.NodeVersion, name string) {
 		if err := previewWorker.Enqueue(ctx, ver, name); err != nil {
 			slog.Warn("enqueue preview", "err", err)

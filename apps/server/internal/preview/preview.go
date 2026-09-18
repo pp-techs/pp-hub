@@ -46,6 +46,7 @@ func init() {
 // Job kinds — the routing keys workers claim by.
 const (
 	KindRenderImage  = "render:image"
+	KindRenderSVG    = "render:svg"
 	KindRenderPDF    = "render:pdf"
 	KindRenderVideo  = "render:video"
 	KindRenderOffice = "render:office"
@@ -170,6 +171,8 @@ func kindForMime(m string) string {
 		return KindRenderPDF
 	case m == "image/png", m == "image/jpeg", m == "image/gif", m == "image/webp":
 		return KindRenderImage
+	case m == "image/svg+xml":
+		return KindRenderSVG
 	case m == "video/mp4", m == "video/webm", m == "video/quicktime":
 		return KindRenderVideo
 	case officeMimes[m]:
@@ -188,7 +191,7 @@ func kindForMime(m string) string {
 // splitting the two kinds.
 func previewKindFor(jobKind string) string {
 	switch jobKind {
-	case KindRenderImage, KindRenderPDF, KindRenderVideo, KindRenderOffice:
+	case KindRenderImage, KindRenderSVG, KindRenderPDF, KindRenderVideo, KindRenderOffice:
 		return PreviewThumbnail
 	case KindSnippetText:
 		return PreviewText

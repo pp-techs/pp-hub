@@ -112,6 +112,10 @@ const THUMBNAIL_MIMES = new Set([
   "image/jpeg",
   "image/gif",
   "image/webp",
+  // Not in INLINE_MIMES — /content downgrades SVG to attachment since it can
+  // embed scripts. The thumbnail is a rasterized PNG, so it carries none of
+  // that risk (apps/server/internal/preview/generators.go).
+  "image/svg+xml",
   "video/mp4",
   "video/webm",
   "video/quicktime",

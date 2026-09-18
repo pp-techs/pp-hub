@@ -26,6 +26,7 @@ are now distinct:
 ```
 jobs.kind = how to render        │  previews.kind = what was produced
   render:image   ─┐              │
+  render:svg     ─┤              │
   render:pdf     ─┼──────────────────> thumbnail   (PNG, longest side ≤ 256px)
   render:video   ─┤              │
   render:office  ─┘              │
@@ -44,6 +45,7 @@ question only, so it no longer mirrors anything on the server.
 | MIME                                                              | job kind        | preview kind |
 | ----------------------------------------------------------------- | --------------- | ------------ |
 | `image/png`, `image/jpeg`, `image/gif`, `image/webp`              | `render:image`  | `thumbnail`  |
+| `image/svg+xml`                                                   | `render:svg`    | `thumbnail`  |
 | `application/pdf`                                                 | `render:pdf`    | `thumbnail`  |
 | `video/mp4`, `video/webm`, `video/quicktime`                      | `render:video`  | `thumbnail`  |
 | `.docx` `.doc` `.odt` `.xlsx` `.xls` `.ods` `.pptx` `.ppt` `.odp` | `render:office` | `thumbnail`  |
@@ -75,14 +77,14 @@ Two binaries share the `jobs` table. `internal/bootstrap` builds the config,
 pool, queries and blob store for both, so the entrypoints cannot drift.
 
 ```
-┌─ cmd/server ─────────────┐        ┌─ cmd/worker (optional) ───────┐
-│ HTTP API                 │        │ no HTTP listener              │
-│ renderers:               │        │ renderers:                    │
-│   render:image  (pure Go)│        │   render:pdf    → pdftoppm    │
-│   snippet:text  (pure Go)│        │   render:video  → ffmpeg      │
-│ owns migrations          │        │   render:office → OnlyOffice  │
-│                          │        │ waits for schema              │
-└──────────┬───────────────┘        └───────────┬───────────────────┘
+┌─ cmd/server ───────────────┐      ┌─ cmd/worker (optional) ───────┐
+│ HTTP API                   │      │ no HTTP listener              │
+│ renderers:                 │      │ renderers:                    │
+│   render:image  (pure Go)  │      │   render:pdf    → pdftoppm    │
+│   render:svg    (pure Go)  │      │   render:video  → ffmpeg      │
+│   snippet:text  (pure Go)  │      │   render:office → OnlyOffice  │
+│ owns migrations            │      │ waits for schema              │
+└──────────┬─────────────────┘      └───────────┬───────────────────┘
            └──────────────┬─────────────────────┘
                           ▼
              jobs table — ClaimJobs(kinds[], n)
@@ -159,6 +161,41 @@ PNG encoding are defined exactly once.
 Every exec goes through `internal/preview/exec.go`: a 30s `CommandContext`
 deadline, a 16MB cap on captured output, a 512MB cap on spooled input, and a
 per-job temp dir removed on return.
+
+### SVG
+
+`SVGRenderer` parses and rasterizes with `oksvg`/`rasterx` — both pure Go, so
+like `ImageRenderer` it runs in `cmd/server` itself rather than needing
+`cmd/worker`. Scaling happens in the rasterizer via `SvgIcon.SetTarget` rather
+than as a resample pass afterwards, but the output still funnels through the
+same 256px-cap, PNG-encode step every other rasterizer uses.
+
+This is also why an SVG can be thumbnailed while its original bytes stay
+`attachment`-only from `/content` (see below): rasterizing only ever walks
+parsed path data and paints pixels, so an embedded `<script>` or external
+`href` never executes or gets fetched — unlike handing a browser the raw
+markup to render as a document.
+
+`oksvg`'s color parser only understands literal values — it hard-errors the
+instant it sees the bare token `currentColor` or any `var()`/`color-mix()`
+call, even a `var()` naming a plain hex color declared right there in the
+file. Both are common enough to matter: `currentColor` is how icon sets like
+Feather/Lucide theme fill/stroke, and a handful of custom properties on the
+root `<svg style="--fg:...">`, referenced by `var()` from presentation
+attributes, is how generated chart/diagram exports do the same. Without
+handling either, every such file fails to render — which is not a corner
+case; it was every SVG in one real drive.
+
+`svgThumbnail` (`generators.go`) substitutes `currentColor` before parsing,
+and `resolveCSSColors` (`svg_colors.go`) does the same for `var()` — but it
+is deliberately not a CSS engine: no cascade, no specificity, no computed
+color mixing. It resolves `var(--name)` only against literal declarations on
+the _root_ element's own `style` attribute (a few passes let a short chain of
+var-referencing-var resolve), honors a `var()`'s own CSS fallback argument
+when the name itself is undefined, and flattens anything still
+standing — an undefined `var()` with no fallback, or a bare `color-mix()` —
+to a fixed fallback color. The result renders in the wrong color rather than
+not rendering at all.
 
 ### Office
 
@@ -289,6 +326,15 @@ generated blob outright; a 4KB head is all the viewer shows.
 
 Images are the case worth spelling out: `ImagePreview` points at `/content` and
 falls back to the 256px thumbnail only if those bytes fail to load.
+
+SVG is the wrinkle in that fallback: `PreviewBody` dispatches it into
+`ImagePreview` too (its MIME starts with `image/`), so the full-size viewer
+renders it via `<img src=".../content">` even though `inlineMimes` downgrades
+that same request to `attachment`. That is not a bug — `<img>` (and `<video>`,
+`<object>`) render a response's bytes regardless of `Content-Disposition`;
+only top-level navigation and `/download` respect it, and neither happens
+here. The grid and details panel instead show the real `/preview` thumbnail
+`SVGRenderer` rasterized, same as any other image type.
 
 ## Still to come
 
