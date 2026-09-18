@@ -193,7 +193,7 @@ const NodeCard = memo(function NodeCard({
       >
         <MoreVertical />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align="end" className="w-56">
         {actions.map((action) => (
           <DropdownMenuItem
             key={action.key}
@@ -261,7 +261,7 @@ const NodeCard = memo(function NodeCard({
         </div>
       </ContextMenuTrigger>
 
-      <ContextMenuContent>
+      <ContextMenuContent className="w-56">
         {actions.map((action) => (
           <span key={action.key} className="contents">
             {action.startsGroup && <ContextMenuSeparator />}

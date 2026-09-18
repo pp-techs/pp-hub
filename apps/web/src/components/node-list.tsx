@@ -156,7 +156,7 @@ const NodeListRow = memo(function NodeListRow({
               >
                 <MoreHorizontal />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="w-56">
                 {actions.map((action) => (
                   <DropdownMenuItem
                     key={action.key}
@@ -180,7 +180,7 @@ const NodeListRow = memo(function NodeListRow({
         </tr>
       </ContextMenuTrigger>
 
-      <ContextMenuContent>
+      <ContextMenuContent className="w-56">
         {actions.map((action) => (
           <ContextMenuItemWithSeparator key={action.key} action={action} />
         ))}
