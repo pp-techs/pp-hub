@@ -129,13 +129,16 @@ function ListingBreadcrumb({
   // Prefer the cached name if we have one — it reflects any rename the user
   // made in this session. The fetched name is the fallback until the cache
   // catches up, or forever for folders the user opened exactly once.
+  // `chain` runs leaf-to-root (level0 is the current dir); reverse it so the
+  // breadcrumb reads root-to-leaf, ancestors before the current folder.
   const trail = chain
     .map((q) => {
       const id = q.data?.id;
       const name = (id && cachedDirs[id]?.name) || q.data?.name;
       return { id, name };
     })
-    .filter((seg): seg is { id: string; name: string } => Boolean(seg.id && seg.name));
+    .filter((seg): seg is { id: string; name: string } => Boolean(seg.id && seg.name))
+    .reverse();
 
   const crumbs: Crumb[] = [
     { key: "my-drive", label: "My Drive" },
