@@ -20,11 +20,12 @@ export const keys = {
   shareInfo: (token: string) => ["share", token] as const,
   users: ["users"] as const,
   userSearch: ["users", "search"] as const,
-  members: (spaceId: string) => ["spaces", spaceId, "members"] as const,
-  invitations: (spaceId: string) => ["spaces", spaceId, "invitations"] as const,
-  groups: (spaceId: string) => ["spaces", spaceId, "groups"] as const,
-  groupMembers: (spaceId: string, groupId: string) =>
-    ["spaces", spaceId, "groups", groupId, "members"] as const,
+  // People/group caches live under their own roots, NOT under "spaces":
+  // invalidating keys.spaces must not wipe them (prefix matching).
+  members: (spaceId: string) => ["members", spaceId] as const,
+  invitations: (spaceId: string) => ["invitations", spaceId] as const,
+  groups: (spaceId: string) => ["groups", spaceId] as const,
+  groupMembers: (spaceId: string, groupId: string) => ["groups", spaceId, groupId] as const,
   grants: (nodeId: string) => ["grants", nodeId] as const,
   adminStats: ["admin", "stats"] as const,
 };

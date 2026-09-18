@@ -30,9 +30,16 @@ import { CommandPalette } from "@/components/command-palette";
 export const Route = createFileRoute("/drive")({
   head: () => ({ meta: [{ title: "Drive · pp-hub" }] }),
   beforeLoad: async ({ context, location }) => {
-    await requireAuth(context.queryClient, location.href);
+    const { queryClient } = context;
+    // The spaces list doesn't depend on who signs in, so it goes out
+    // alongside the auth check rather than behind it; nested routes pick up
+    // the same in-flight query through the cache. The noop catch keeps a 401
+    // from surfacing as unhandled when auth redirects to /login first.
+    const spacesPromise = fetchSpaces(queryClient);
+    spacesPromise.catch(() => {});
+    await requireAuth(queryClient, location.href);
     if (/^\/drive\/?$/.test(location.pathname)) {
-      const spaces = await fetchSpaces(context.queryClient);
+      const spaces = await spacesPromise;
       if (spaces.length > 0) {
         const last = useUiStore.getState().lastSpaceId;
         // The remembered space may have been deleted since it was recorded.

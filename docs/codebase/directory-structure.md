@@ -147,6 +147,12 @@ pp-hub/
   **own** id (`useTree(spaceId, node.id, expanded)`), gated on `expanded`; it
   used to query `useTree(spaceId, undefined)` — the root tree's key — for
   every collapsed row, an unnecessary live subscription per rendered folder.
+- **Route data loaders prefetch queries.** Routes (`drive.tsx`,
+  `drive/$spaceId/index.tsx`, `s/$token.tsx`, `edit/$nodeId.tsx`,
+  `admin.users.tsx`) prefetch data in route `loader`s via
+  `queryClient.ensureQueryData` with plain options factories
+  (`childrenOptions`, `shareInfoOptions`, `nodeOptions`, etc.), eliminating
+  component mount waterfalls while preserving component-level subscriptions.
 - **The archive is filtered out of the ordinary listing.** `spaces.archive_root_id`
   is a real entry point (the `Admin` group holds a grant on it, see
   [permissions.md](../architecture/permissions.md#archive)), so the server

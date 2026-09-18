@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent, RefObject } from "react";
 
 /** The band, in the container's own content coordinates. */
@@ -26,11 +26,15 @@ function covered(container: HTMLElement, bounds: DOMRect, band: MarqueeRect): Se
   const ids = new Set<string>();
   const right = band.left + band.width;
   const bottom = band.top + band.height;
+  const scrollLeft = container.scrollLeft;
+  const scrollTop = container.scrollTop;
+  const boundsLeft = bounds.left;
+  const boundsTop = bounds.top;
 
   for (const el of container.querySelectorAll<HTMLElement>("[data-node-id]")) {
     const box = el.getBoundingClientRect();
-    const left = box.left - bounds.left + container.scrollLeft;
-    const top = box.top - bounds.top + container.scrollTop;
+    const left = box.left - boundsLeft + scrollLeft;
+    const top = box.top - boundsTop + scrollTop;
     if (left < right && left + box.width > band.left && top < bottom && top + box.height > band.top)
       ids.add(el.dataset.nodeId!);
   }
@@ -54,11 +58,16 @@ export function useMarqueeSelection(
   options: MarqueeOptions,
 ): { onMouseDown: (event: ReactMouseEvent) => void; rect: MarqueeRect | null } {
   const [rect, setRect] = useState<MarqueeRect | null>(null);
+  const cleanupRef = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    return () => {
+      cleanupRef.current?.();
+    };
+  }, []);
   // The handler outlives the render that installed it, so it reads the
   // callbacks through a ref rather than closing over stale ones.
   const latest = useRef(options);
   latest.current = options;
-
   const onMouseDown = useCallback(
     (event: ReactMouseEvent) => {
       const el = container.current;
@@ -90,14 +99,18 @@ export function useMarqueeSelection(
         setRect(band);
         latest.current.onChange(covered(el, bounds, band), e.shiftKey || e.metaKey || e.ctrlKey);
       };
-
       const up = (e: MouseEvent) => {
+        cleanupRef.current = null;
         window.removeEventListener("mousemove", move);
         window.removeEventListener("mouseup", up);
         setRect(null);
         if (!dragged) latest.current.onChange(new Set(), e.shiftKey || e.metaKey || e.ctrlKey);
       };
 
+      cleanupRef.current = () => {
+        window.removeEventListener("mousemove", move);
+        window.removeEventListener("mouseup", up);
+      };
       window.addEventListener("mousemove", move);
       window.addEventListener("mouseup", up);
     },

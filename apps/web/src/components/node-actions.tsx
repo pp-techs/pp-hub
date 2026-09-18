@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import {
   Copy,
   Download,
@@ -150,4 +151,37 @@ export function nodeActions(
     run: () => handlers.onDeleteRequest(node),
   });
   return actions;
+}
+
+/**
+ * Memoized `nodeActions` for the listing rows: the action objects (and their
+ * closures) are rebuilt only when the row's own node, capabilities or
+ * handlers change — not when an unrelated row's selection state flips.
+ */
+export function useNodeActions(
+  node: Node,
+  handlers: NodeActionHandlers,
+  openPanel: OpenPanel,
+  starred = false,
+): NodeAction[] {
+  const { onPreview, onShowDetails, onToggleStar, onRename, onMove, onCopy, onDeleteRequest } =
+    handlers;
+  return useMemo(
+    () => nodeActions(node, handlers, openPanel, starred),
+    // The handlers bag is reassembled per render; the functions in it are the
+    // real inputs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      node,
+      onPreview,
+      onShowDetails,
+      onToggleStar,
+      onRename,
+      onMove,
+      onCopy,
+      onDeleteRequest,
+      openPanel,
+      starred,
+    ],
+  );
 }

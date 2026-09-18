@@ -1,6 +1,5 @@
-// Re-export all query hooks for convenience.
-// Also exports Options factories with hook-like names for backward compatibility
-// with old single-file pattern.
+// Re-export all query hooks for convenience, plus the plain options factories
+// (`childrenOptions`, `treeOptions`, `versionsOptions`) for route loaders.
 
 export { keys } from "./keys";
 
@@ -27,6 +26,11 @@ export {
 
 // Nodes
 export {
+  childrenOptions,
+  nodeOptions,
+  treeOptions,
+  versionsOptions,
+  useChildren,
   useNode,
   useInvalidateChildren,
   useCreateFolder,
@@ -45,15 +49,6 @@ export {
   useShared,
 } from "./nodes";
 
-// Backward compat: old components call these as hooks returning query state
-import { useMe } from "./auth";
-import { useSpaces } from "./spaces";
-import { useChildren, useVersions } from "./nodes";
-export { useMe as meOptions, useSpaces as spacesOptions };
-export const childrenOptions = (spaceId: string, parentId?: string) =>
-  useChildren(spaceId, parentId);
-export const versionsOptions = (nodeId: string | null) => useVersions(nodeId);
-
 // Search
 export { useNodeSearch, MIN_QUERY_LENGTH } from "./search";
 
@@ -64,6 +59,7 @@ export {
   useInvitations,
   useCreateInvitation,
   useRevokeInvitation,
+  adminStatsOptions,
   useAdminStats,
   useUpdateAdminUser,
 } from "./spaces-admin";
@@ -73,6 +69,8 @@ export { useRecent, useStarred, useActivity, useUsage, useToggleStar } from "./h
 
 // Shares
 export {
+  sharesOptions,
+  shareInfoOptions,
   useShares,
   useShareInfo,
   useCreateShare,
@@ -82,6 +80,8 @@ export {
 
 // Users
 export {
+  myProfileOptions,
+  usersOptions,
   useMyProfile,
   useUpdateProfile,
   useUploadAvatar,

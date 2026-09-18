@@ -62,7 +62,11 @@ function FolderTreeItem({ node, currentDirId, spaceId }: FolderTreeItemProps) {
           />
           <span className="truncate">{node.name}</span>
         </Link>
-        {isLoading && <Loader2 className="text-muted-foreground size-3 shrink-0 animate-spin" />}
+        {isLoading && (
+          <div className="size-3 shrink-0 animate-spin">
+            <Loader2 className="text-muted-foreground size-full" />
+          </div>
+        )}
       </div>
 
       {expanded && dirs.length > 0 && (

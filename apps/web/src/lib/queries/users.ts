@@ -16,11 +16,15 @@ import {
 import { keys } from "./keys";
 // ─── Profile ─────────────────────────────────────────────────────────────────
 
-export function useMyProfile() {
-  return useQuery({
+export function myProfileOptions() {
+  return {
     queryKey: keys.profile,
     queryFn: getMyProfile,
-  });
+  };
+}
+
+export function useMyProfile() {
+  return useQuery(myProfileOptions());
 }
 
 export function useUpdateProfile() {
@@ -51,12 +55,15 @@ export function useUserSearch(q: string, enabled = true) {
 }
 
 // ─── Admin ───────────────────────────────────────────────────────────────────
-
-export function useUsers(limit = 50, offset = 0) {
-  return useQuery({
+export function usersOptions(limit = 50, offset = 0) {
+  return {
     queryKey: [...keys.users, limit, offset],
     queryFn: () => listUsers(limit, offset),
-  });
+  };
+}
+
+export function useUsers(limit = 50, offset = 0) {
+  return useQuery(usersOptions(limit, offset));
 }
 
 // ─── Space Members ───────────────────────────────────────────────────────────
@@ -71,14 +78,18 @@ export function useSpaceMembers(spaceId: string | null) {
 
 /**
  * Membership and group membership are the same cache tree, so all three
- * mutations below invalidate `["spaces", id]` rather than just the member
- * list. Admin *is* membership of the automatic Admin group and joining a
- * space *is* joining Everyone: narrowing the invalidation to `members` left
- * the People table showing a promoted admin with no Admin chip until a
- * reload.
+ * mutations below invalidate the member, invitation, and group roots rather
+ * than just the member list. Admin *is* membership of the automatic Admin
+ * group and joining a space *is* joining Everyone: narrowing the
+ * invalidation to `members` left the People table showing a promoted admin
+ * with no Admin chip until a reload.
  */
-const invalidateSpace = (qc: QueryClient, spaceId: string) =>
-  qc.invalidateQueries({ queryKey: ["spaces", spaceId] });
+const invalidateSpace = (qc: QueryClient, spaceId: string) => {
+  void qc.invalidateQueries({ queryKey: keys.members(spaceId) });
+  void qc.invalidateQueries({ queryKey: keys.invitations(spaceId) });
+  // The groups root also covers each group's member list.
+  void qc.invalidateQueries({ queryKey: keys.groups(spaceId) });
+};
 
 export function useAddSpaceMember() {
   const qc = useQueryClient();

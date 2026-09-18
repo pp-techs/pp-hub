@@ -18,6 +18,27 @@ type ThemeProviderState = {
 
 const COLOR_SCHEME_QUERY = "(prefers-color-scheme: dark)";
 const THEME_VALUES: Theme[] = ["dark", "light", "system"];
+const DEFAULT_STORAGE_KEY = "pp-hub-theme:v1";
+const LEGACY_STORAGE_KEY = "theme";
+
+const memoryStore = new Map<string, string>();
+
+function readStoredTheme(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return memoryStore.get(key) ?? null;
+  }
+}
+
+function writeStoredTheme(key: string, value: string) {
+  memoryStore.set(key, value);
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // Storage unavailable; in-memory fallback already updated.
+  }
+}
 
 const ThemeProviderContext = React.createContext<ThemeProviderState | undefined>(undefined);
 
@@ -72,18 +93,25 @@ function isEditableTarget(target: EventTarget | null) {
 
   return false;
 }
-
 export function ThemeProvider({
   children,
   defaultTheme = "system",
-  storageKey = "theme",
+  storageKey = DEFAULT_STORAGE_KEY,
   disableTransitionOnChange = true,
   ...props
 }: ThemeProviderProps) {
   const [theme, setThemeState] = React.useState<Theme>(() => {
-    const storedTheme = localStorage.getItem(storageKey);
+    const storedTheme = readStoredTheme(storageKey);
     if (isTheme(storedTheme)) {
       return storedTheme;
+    }
+
+    if (storageKey === DEFAULT_STORAGE_KEY) {
+      const legacyTheme = readStoredTheme(LEGACY_STORAGE_KEY);
+      if (isTheme(legacyTheme)) {
+        writeStoredTheme(storageKey, legacyTheme);
+        return legacyTheme;
+      }
     }
 
     return defaultTheme;
@@ -91,7 +119,7 @@ export function ThemeProvider({
 
   const setTheme = React.useCallback(
     (nextTheme: Theme) => {
-      localStorage.setItem(storageKey, nextTheme);
+      writeStoredTheme(storageKey, nextTheme);
       setThemeState(nextTheme);
     },
     [storageKey],
@@ -160,7 +188,7 @@ export function ThemeProvider({
                 ? "light"
                 : "dark";
 
-        localStorage.setItem(storageKey, nextTheme);
+        writeStoredTheme(storageKey, nextTheme);
         return nextTheme;
       });
     };
@@ -174,7 +202,11 @@ export function ThemeProvider({
 
   React.useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {
-      if (event.storageArea !== localStorage) {
+      try {
+        if (event.storageArea !== localStorage) {
+          return;
+        }
+      } catch {
         return;
       }
 

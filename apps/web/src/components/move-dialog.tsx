@@ -116,7 +116,9 @@ function DestinationLevel({ spaceId, parentId, depth, target, movingIds, onSelec
   if (isLoading) {
     return (
       <div className="flex h-7 items-center gap-2 px-2" style={{ paddingLeft: depth * 16 }}>
-        <Loader2 className="text-muted-foreground size-3 animate-spin" />
+        <div className="size-3 shrink-0 animate-spin">
+          <Loader2 className="text-muted-foreground size-full" />
+        </div>
       </div>
     );
   }

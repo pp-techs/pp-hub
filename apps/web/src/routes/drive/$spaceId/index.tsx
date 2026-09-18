@@ -31,6 +31,7 @@ import {
 } from "@/lib/api";
 import {
   childrenOptions,
+  useChildren,
   useCreateFolder,
   useNode,
   useDeleteNode,
@@ -45,6 +46,7 @@ import { useUploadStore } from "@/lib/upload-store";
 import { collectInputFiles } from "@/lib/drop-items";
 import { nextSelection } from "@/lib/selection";
 import { useMarqueeSelection } from "@/lib/use-marquee-selection";
+import { useKeyedState } from "@/lib/use-keyed-state";
 import { useUiStore } from "@/lib/ui-store";
 import { NodePanels } from "@/components/node-panels";
 import { PreviewModal } from "@/components/preview-modal";
@@ -57,6 +59,8 @@ import { SelectionBar } from "@/components/selection-bar";
 import { MoveDialog } from "@/components/move-dialog";
 import { ShareDialog } from "@/components/share-dialog";
 import { downloadUrl } from "@/components/node-actions";
+const EMPTY_SET = new Set<string>();
+
 export const Route = createFileRoute("/drive/$spaceId/")({
   head: () => ({ meta: [{ title: "Drive · pp-hub" }] }),
   validateSearch: (
@@ -76,6 +80,10 @@ export const Route = createFileRoute("/drive/$spaceId/")({
       : undefined,
     view: ["grid", "list"].includes(search.view as string) ? (search.view as NodeView) : undefined,
   }),
+  loaderDeps: ({ search: { dir } }) => ({ dir }),
+  loader: ({ context, params, deps: { dir } }) => {
+    void context.queryClient.ensureQueryData(childrenOptions(params.spaceId, dir));
+  },
   component: FolderView,
 });
 
@@ -95,9 +103,15 @@ function FolderView() {
   const view = viewParam ?? prefs.view;
 
   /** The clicked nodes — drives the action bar and the details panel alike. */
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const selectionKey = `${spaceId}:${dir ?? ""}`;
+  const [selectedIds, setSelectedIds] = useKeyedState<string, Set<string>>(selectionKey, EMPTY_SET);
   /** Anchor for shift-click ranges: the last node clicked without a modifier. */
   const anchorId = useRef<string | null>(null);
+  const prevKeyRef = useRef(selectionKey);
+  if (prevKeyRef.current !== selectionKey) {
+    prevKeyRef.current = selectionKey;
+    anchorId.current = null;
+  }
   const detailsOpen = useUiStore((s) => s.detailsOpen);
   const setDetailsOpen = useUiStore((s) => s.setDetailsOpen);
   const newFolderOpen = useUiStore((s) => s.newFolderOpen);
@@ -122,13 +136,7 @@ function FolderView() {
   // "shared with me" query just to paint an icon.
   const del = useDeleteNode(spaceId);
 
-  // Moving to another folder or space invalidates the selection.
-  useEffect(() => {
-    setSelectedIds(new Set());
-    anchorId.current = null;
-  }, [spaceId, dir]);
-
-  const children = childrenOptions(spaceId, dir);
+  const children = useChildren(spaceId, dir);
 
   // Record every listed folder in the dirs store so the header breadcrumb can
   // resolve names and parents. Clicking a folder in the sidebar tree — or
@@ -163,9 +171,15 @@ function FolderView() {
       : withoutArchive;
     return sortNodes(filtered, sort, order);
   }, [children.data, filterQuery, sort, order, dir, space?.archive_root_id]);
-
-  const sortedDirs = useMemo(() => sorted.filter((n) => n.kind === "dir"), [sorted]);
-  const sortedFiles = useMemo(() => sorted.filter((n) => n.kind === "file"), [sorted]);
+  const { sortedDirs, sortedFiles } = useMemo(() => {
+    const dirs: Node[] = [];
+    const files: Node[] = [];
+    for (const n of sorted) {
+      if (n.kind === "dir") dirs.push(n);
+      else files.push(n);
+    }
+    return { sortedDirs: dirs, sortedFiles: files };
+  }, [sorted]);
 
   // The listing is the flat order the grid and list both draw from, so it is
   // also what a shift-click range walks.
@@ -180,16 +194,16 @@ function FolderView() {
    */
   const handleClick = useCallback(
     (node: Node, event: MouseEvent) => {
-      const next = nextSelection(
-        sorted,
-        { ids: selectedIds, anchorId: anchorId.current },
-        node.id,
-        { toggle: event.metaKey || event.ctrlKey, range: event.shiftKey },
-      );
-      anchorId.current = next.anchorId;
-      setSelectedIds(next.ids);
+      setSelectedIds((prev) => {
+        const next = nextSelection(sorted, { ids: prev, anchorId: anchorId.current }, node.id, {
+          toggle: event.metaKey || event.ctrlKey,
+          range: event.shiftKey,
+        });
+        anchorId.current = next.anchorId;
+        return next.ids;
+      });
     },
-    [sorted, selectedIds],
+    [sorted, setSelectedIds],
   );
 
   /**
@@ -297,26 +311,39 @@ function FolderView() {
 
   const starredIds = useMemo(() => new Set((starred.data ?? []).map((n) => n.id)), [starred.data]);
 
-  const nodeHandlers = {
-    onPreview: handlePreview,
-    onShowDetails: handleShowDetails,
-    onCopy: (node: Node) =>
-      copy.mutate(
-        { nodeId: node.id, parentId: dir },
-        {
-          onSuccess: (made) => toast.success(`Copied as “${made.name}”`),
-          onError: (e) => toast.error(`Could not copy “${node.name}”`, { description: e.message }),
-        },
-      ),
-    onToggleStar: (node: Node, next: boolean) =>
-      toggleStar.mutate(
-        { nodeId: node.id, starred: next },
-        { onError: (e) => toast.error(e.message) },
-      ),
-    onRename: handleRename,
-    onMove: (node: Node) => void handleMove([node]),
-    onDeleteRequest: handleDeleteRequest,
-  };
+  const nodeHandlers = useMemo(
+    () => ({
+      onPreview: handlePreview,
+      onShowDetails: handleShowDetails,
+      onCopy: (node: Node) =>
+        copy.mutate(
+          { nodeId: node.id, parentId: dir },
+          {
+            onSuccess: (made) => toast.success(`Copied as “${made.name}”`),
+            onError: (e) =>
+              toast.error(`Could not copy “${node.name}”`, { description: e.message }),
+          },
+        ),
+      onToggleStar: (node: Node, next: boolean) =>
+        toggleStar.mutate(
+          { nodeId: node.id, starred: next },
+          { onError: (e) => toast.error(e.message) },
+        ),
+      onRename: handleRename,
+      onMove: (node: Node) => void handleMove([node]),
+      onDeleteRequest: handleDeleteRequest,
+    }),
+    [
+      handlePreview,
+      handleShowDetails,
+      copy,
+      dir,
+      toggleStar,
+      handleRename,
+      handleMove,
+      handleDeleteRequest,
+    ],
+  );
 
   // Can write if:
   // - At root (dir === undefined): every space member can create items at root.

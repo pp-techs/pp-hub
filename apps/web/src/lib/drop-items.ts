@@ -44,9 +44,17 @@ async function walk(entry: FileSystemEntry, prefix: string, out: UploadItem[]): 
   if (!entry.isDirectory) return;
 
   const path = prefix ? `${prefix}/${entry.name}` : entry.name;
-  for (const child of await readAll((entry as FileSystemDirectoryEntry).createReader())) {
-    await walk(child, path, out);
-  }
+  const children = await readAll((entry as FileSystemDirectoryEntry).createReader());
+  // Walk subtrees concurrently but concatenate in entry order so the result
+  // matches serial depth-first traversal.
+  const subtrees = await Promise.all(
+    children.map(async (child) => {
+      const items: UploadItem[] = [];
+      await walk(child, path, items);
+      return items;
+    }),
+  );
+  for (const items of subtrees) out.push(...items);
 }
 
 /**

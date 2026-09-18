@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import type { MouseEvent } from "react";
 import { MoreVertical } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
@@ -17,7 +17,7 @@ import {
 } from "@workspace/ui/components/dropdown-menu";
 import { cn } from "@workspace/ui/lib/utils";
 import { fmtDate, fmtSize, hasThumbnail, previewUrl, thumbnailFit, type Node } from "@/lib/api";
-import { nodeActions, type NodeActionHandlers } from "@/components/node-actions";
+import { useNodeActions, type NodeActionHandlers } from "@/components/node-actions";
 import { NodeIcon } from "@/components/node-icon";
 import { useUiStore } from "@/lib/ui-store";
 
@@ -70,7 +70,11 @@ export function NodeGrid({
   onDoubleClick,
   ...handlers
 }: NodeGridProps) {
-  const countSelected = (nodes: Node[]) => nodes.filter((n) => selectedIds.has(n.id)).length;
+  const countSelected = (nodes: Node[]) => {
+    let count = 0;
+    for (const n of nodes) if (selectedIds.has(n.id)) count++;
+    return count;
+  };
   const card = (node: Node) => (
     <NodeCard
       key={node.id}
@@ -150,7 +154,7 @@ interface NodeCardProps extends NodeActionHandlers {
   onDoubleClick: (node: Node) => void;
 }
 
-function NodeCard({
+const NodeCard = memo(function NodeCard({
   node,
   selected,
   starred,
@@ -160,7 +164,7 @@ function NodeCard({
   ...handlers
 }: NodeCardProps) {
   const openPanel = useUiStore((s) => s.openPanel);
-  const actions = nodeActions(node, handlers, openPanel, starred);
+  const actions = useNodeActions(node, handlers, openPanel, starred);
   const isDir = node.kind === "dir";
 
   // Size and date only live in the tooltip: the Stitch card carries the name
@@ -223,10 +227,10 @@ function NodeCard({
         <div
           data-node-id={node.id}
           className={cn(
-            "group bg-muted/60 hover:bg-muted cursor-pointer border border-transparent transition-colors",
+            "group bg-muted/60 hover:bg-muted cursor-pointer border border-transparent transition-colors [content-visibility:auto]",
             isDir
-              ? "flex h-12 items-center justify-between rounded-xl px-3.5"
-              : "rounded-2xl p-2.5",
+              ? "flex h-12 items-center justify-between rounded-xl px-3.5 [contain-intrinsic-size:auto_48px]"
+              : "rounded-2xl p-2.5 [contain-intrinsic-size:auto_140px]",
             // Selection is a soft wash, not an outline: a whole folder of
             // ticked cards should still read as a grid.
             selected && "bg-primary/10 hover:bg-primary/15 border-primary/30",
@@ -277,4 +281,4 @@ function NodeCard({
       </ContextMenuContent>
     </ContextMenu>
   );
-}
+});

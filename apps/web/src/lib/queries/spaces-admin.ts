@@ -58,11 +58,13 @@ export function useRevokeInvitation(spaceId: string) {
     onSuccess: () => void qc.invalidateQueries({ queryKey: keys.invitations(spaceId) }),
   });
 }
-
-export function useAdminStats() {
-  return useQuery({ queryKey: keys.adminStats, queryFn: getAdminStats });
+export function adminStatsOptions() {
+  return { queryKey: keys.adminStats, queryFn: getAdminStats };
 }
 
+export function useAdminStats() {
+  return useQuery(adminStatsOptions());
+}
 export function useUpdateAdminUser() {
   const qc = useQueryClient();
   return useMutation({

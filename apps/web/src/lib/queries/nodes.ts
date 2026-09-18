@@ -40,12 +40,16 @@ export function useChildren(spaceId: string, parentId?: string) {
 }
 
 /** A single node, for surfaces routed by node id alone (the editor page). */
-export function useNode(nodeId: string | undefined) {
-  return useQuery({
+export function nodeOptions(nodeId: string | undefined) {
+  return {
     queryKey: keys.node(nodeId ?? ""),
     queryFn: () => getNode(nodeId as string),
     enabled: !!nodeId,
-  });
+  };
+}
+
+export function useNode(nodeId: string | undefined) {
+  return useQuery(nodeOptions(nodeId));
 }
 
 /** Invalidates the file listing for a space (root + every open folder). */

@@ -160,7 +160,9 @@ export function CommandPalette() {
             className="placeholder:text-muted-foreground w-full min-w-0 border-none bg-transparent p-0 text-sm outline-none"
           />
           {search.isFetching && (
-            <Loader2 className="text-muted-foreground size-3.5 shrink-0 animate-spin" />
+            <div className="size-3.5 shrink-0 animate-spin">
+              <Loader2 className="text-muted-foreground size-full" />
+            </div>
           )}
         </div>
 

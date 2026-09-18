@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ChevronsUpDown } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import {
@@ -31,7 +31,8 @@ export function MemberPicker({
   // so the dropdown does not fire a request per keystroke.
   const { data: users = [], isLoading } = useUserSearch(useDebounced(query, 250), open);
 
-  const filtered = users.filter((u) => !excludeIds.includes(u.id));
+  const excluded = useMemo(() => new Set(excludeIds), [excludeIds]);
+  const filtered = users.filter((u) => !excluded.has(u.id));
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>

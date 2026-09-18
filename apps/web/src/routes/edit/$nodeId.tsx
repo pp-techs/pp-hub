@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Download, History, Link2 } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { createEditSession, fmtSize, type EditSession } from "@/lib/api";
-import { requireAuth, useNode } from "@/lib/queries";
+import { nodeOptions, requireAuth, useNode } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
 import { NodePanels } from "@/components/node-panels";
 import { NodeIcon } from "@/components/node-icon";
@@ -13,6 +13,9 @@ export const Route = createFileRoute("/edit/$nodeId")({
   head: () => ({ meta: [{ title: "Editing · pp-hub" }] }),
   beforeLoad: async ({ context, location }) => {
     await requireAuth(context.queryClient, location.href);
+  },
+  loader: ({ context, params }) => {
+    void context.queryClient.ensureQueryData(nodeOptions(params.nodeId));
   },
   component: EditPage,
 });

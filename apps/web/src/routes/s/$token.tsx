@@ -25,11 +25,14 @@ import {
   shareNodeDownloadUrl,
   type Node,
 } from "@/lib/api";
-import { useShareChildren, useShareInfo } from "@/lib/queries";
+import { shareInfoOptions, useShareChildren, useShareInfo } from "@/lib/queries";
 import { NodeIcon } from "@/components/node-icon";
 
 export const Route = createFileRoute("/s/$token")({
   head: () => ({ meta: [{ title: "Shared · pp-hub" }] }),
+  loader: ({ context, params }) => {
+    void context.queryClient.ensureQueryData(shareInfoOptions(params.token));
+  },
   component: ShareLanding,
 });
 

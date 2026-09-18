@@ -1,4 +1,4 @@
-import type { MouseEvent } from "react";
+import { memo, type MouseEvent } from "react";
 import { MoreHorizontal } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import {
@@ -16,7 +16,11 @@ import {
 } from "@workspace/ui/components/dropdown-menu";
 import { cn } from "@workspace/ui/lib/utils";
 import { fmtDate, fmtSize, type Node } from "@/lib/api";
-import { nodeActions, type NodeAction, type NodeActionHandlers } from "@/components/node-actions";
+import {
+  useNodeActions,
+  type NodeAction,
+  type NodeActionHandlers,
+} from "@/components/node-actions";
 import { NodeIcon } from "@/components/node-icon";
 import { useUiStore } from "@/lib/ui-store";
 
@@ -91,7 +95,7 @@ interface NodeListRowProps extends NodeActionHandlers {
   onDoubleClick: (node: Node) => void;
 }
 
-function NodeListRow({
+const NodeListRow = memo(function NodeListRow({
   node,
   selected,
   starred,
@@ -101,7 +105,7 @@ function NodeListRow({
   ...handlers
 }: NodeListRowProps) {
   const openPanel = useUiStore((s) => s.openPanel);
-  const actions = nodeActions(node, handlers, openPanel, starred);
+  const actions = useNodeActions(node, handlers, openPanel, starred);
 
   return (
     <ContextMenu>
@@ -109,7 +113,7 @@ function NodeListRow({
         <tr
           data-node-id={node.id}
           className={cn(
-            "group hover:bg-muted/40 h-9 cursor-pointer transition-colors",
+            "group hover:bg-muted/40 h-9 cursor-pointer transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_36px]",
             // Soft wash rather than a border, to match the grid's cards.
             selected && "bg-primary/10 hover:bg-primary/15",
           )}
@@ -183,7 +187,7 @@ function NodeListRow({
       </ContextMenuContent>
     </ContextMenu>
   );
-}
+});
 
 function ContextMenuItemWithSeparator({ action }: { action: NodeAction }) {
   return (

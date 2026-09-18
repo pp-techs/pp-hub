@@ -83,6 +83,12 @@ function notify(spaceId: string, parentId: string | undefined): void {
 }
 
 let seq = 0;
+/**
+ * Each transfer's slot in the `transfers` array. Lookups used to scan the
+ * array per file and per progress tick, which made large drops quadratic;
+ * every mutation below keeps this in sync instead.
+ */
+const positions = new Map<string, number>();
 
 export const useUploadStore = create<UploadState>()((set, get) => ({
   transfers: [],
@@ -106,29 +112,42 @@ export const useUploadStore = create<UploadState>()((set, get) => ({
       added.map((t) => t.id),
       items.map((i) => i.file),
     );
-    set((s) => ({ transfers: [...s.transfers, ...added], dismissed: false }));
+    set((s) => {
+      added.forEach((t, i) => positions.set(t.id, s.transfers.length + i));
+      return { transfers: [...s.transfers, ...added], dismissed: false };
+    });
     pump();
   },
 
   cancel: (id) => {
     aborts.get(id)?.();
     aborts.delete(id);
-    set((s) => ({
-      transfers: s.transfers.map((t) =>
-        t.id === id && (t.status === "queued" || t.status === "uploading")
-          ? { ...t, status: "cancelled" }
-          : t,
-      ),
-    }));
+    pendingTicks.delete(id);
+    const found = transferAt(id);
+    if (found && (found.transfer.status === "queued" || found.transfer.status === "uploading")) {
+      set({
+        transfers: replaceAt(get().transfers, found.index, {
+          ...found.transfer,
+          status: "cancelled",
+        }),
+      });
+    }
     pump();
   },
 
   retry: (id) => {
-    set((s) => ({
-      transfers: s.transfers.map((t) =>
-        t.id === id ? { ...t, status: "queued", loaded: 0, error: undefined } : t,
-      ),
-    }));
+    pendingTicks.delete(id);
+    const found = transferAt(id);
+    if (found) {
+      set({
+        transfers: replaceAt(get().transfers, found.index, {
+          ...found.transfer,
+          status: "queued",
+          loaded: 0,
+          error: undefined,
+        }),
+      });
+    }
     pump();
   },
 
@@ -137,6 +156,8 @@ export const useUploadStore = create<UploadState>()((set, get) => ({
       (t) => t.status === "queued" || t.status === "uploading" || t.status === "error",
     );
     files.prune(new Set(kept.map((t) => t.id)));
+    positions.clear();
+    kept.forEach((t, i) => positions.set(t.id, i));
     set({ transfers: kept });
   },
 
@@ -150,6 +171,8 @@ export const useUploadStore = create<UploadState>()((set, get) => ({
   dismiss: () => {
     files.clear();
     dirCache.clear();
+    positions.clear();
+    pendingTicks.clear();
     set({ transfers: [], dismissed: true, paused: false });
   },
 }));
@@ -175,26 +198,86 @@ const files = {
   },
 };
 
+/** The transfer at its indexed slot, or undefined when the id is gone. */
+function transferAt(id: string): { index: number; transfer: Transfer } | undefined {
+  const { transfers } = useUploadStore.getState();
+  const index = positions.get(id);
+  if (index === undefined) return undefined;
+  const transfer = transfers[index];
+  if (!transfer || transfer.id !== id) return undefined;
+  return { index, transfer };
+}
+
+function replaceAt(transfers: Transfer[], index: number, transfer: Transfer): Transfer[] {
+  const next = transfers.slice();
+  next[index] = transfer;
+  return next;
+}
+
 /** Starts queued transfers up to the concurrency limit. */
 function pump(): void {
   const { transfers, paused } = useUploadStore.getState();
   if (paused) return;
 
-  const active = transfers.filter((t) => t.status === "uploading").length;
-  const next = transfers.filter((t) => t.status === "queued").slice(0, MAX_CONCURRENT - active);
-  for (const transfer of next) void run(transfer.id);
+  let active = 0;
+  const queued: Transfer[] = [];
+  for (const t of transfers) {
+    if (t.status === "uploading") active += 1;
+    else if (t.status === "queued") queued.push(t);
+  }
+  for (const transfer of queued.slice(0, MAX_CONCURRENT - active)) void run(transfer.id);
+}
+
+/**
+ * Progress ticks buffered since the last flush, coalesced per transfer. XHR
+ * progress fires far faster than the screen refreshes, and every write copies
+ * the transfers array — so ticks land once per frame, in a single write.
+ */
+const pendingTicks = new Map<string, Partial<Transfer>>();
+let tickFrame: number | null = null;
+
+function flushTicks(): void {
+  tickFrame = null;
+  if (pendingTicks.size === 0) return;
+  const batch = Array.from(pendingTicks);
+  pendingTicks.clear();
+  const { transfers } = useUploadStore.getState();
+  let next: Transfer[] | null = null;
+  for (const [id, fields] of batch) {
+    const index = positions.get(id);
+    if (index === undefined) continue;
+    const transfer = transfers[index];
+    // A terminal patch since the tick was buffered supersedes it.
+    if (!transfer || transfer.id !== id || transfer.status !== "uploading") continue;
+    next ??= transfers.slice();
+    next[index] = { ...transfer, ...fields };
+  }
+  if (next) useUploadStore.setState({ transfers: next });
 }
 
 function patch(id: string, fields: Partial<Transfer>): void {
-  useUploadStore.setState((s) => ({
-    transfers: s.transfers.map((t) => (t.id === id ? { ...t, ...fields } : t)),
-  }));
+  // Byte counts coalesce per frame; structural changes land immediately.
+  if (fields.status === undefined) {
+    pendingTicks.set(id, { ...pendingTicks.get(id), ...fields });
+    if (tickFrame === null) tickFrame = requestAnimationFrame(flushTicks);
+    return;
+  }
+  pendingTicks.delete(id);
+  const found = transferAt(id);
+  if (!found) return;
+  useUploadStore.setState({
+    transfers: replaceAt(useUploadStore.getState().transfers, found.index, {
+      ...found.transfer,
+      ...fields,
+    }),
+  });
 }
 
 async function run(id: string): Promise<void> {
-  const transfer = useUploadStore.getState().transfers.find((t) => t.id === id);
   const file = files.get(id);
-  if (!transfer || transfer.status !== "queued" || !file) return;
+  const found = transferAt(id);
+  if (!found || found.transfer.status !== "queued" || !file) return;
+  const { transfer } = found;
 
   patch(id, { status: "uploading", startedAt: Date.now(), loaded: 0 });
 
@@ -202,7 +285,7 @@ async function run(id: string): Promise<void> {
     const parentId = await ensureDir(transfer.spaceId, transfer.rootParentId, transfer.path);
 
     // Cancelling while the folder was being created should not then upload.
-    if (useUploadStore.getState().transfers.find((t) => t.id === id)?.status !== "uploading") {
+    if (transferAt(id)?.transfer.status !== "uploading") {
       return;
     }
 
@@ -215,8 +298,7 @@ async function run(id: string): Promise<void> {
     notify(transfer.spaceId, parentId);
   } catch (e) {
     // A cancel already moved the row to its final state; do not overwrite it.
-    const current = useUploadStore.getState().transfers.find((t) => t.id === id);
-    if (current?.status === "cancelled") return;
+    if (transferAt(id)?.transfer.status === "cancelled") return;
     patch(id, { status: "error", error: describe(e) });
   } finally {
     aborts.delete(id);

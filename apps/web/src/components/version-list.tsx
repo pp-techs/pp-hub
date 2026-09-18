@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { toast } from "sonner";
 import { Download, RotateCcw } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
@@ -17,7 +16,6 @@ import { useRestoreVersion, useVersions } from "@/lib/queries";
 export function VersionList({ node, onRestored }: { node: Node; onRestored?: () => void }) {
   const versions = useVersions(node.id);
   const restore = useRestoreVersion(node.space_id);
-  const [busy, setBusy] = useState<string | null>(null);
 
   if (versions.isPending) {
     return <p className="text-muted-foreground text-xs">Loading…</p>;
@@ -57,9 +55,8 @@ export function VersionList({ node, onRestored }: { node: Node; onRestored?: () 
                 <Button
                   variant="ghost"
                   size="xs"
-                  disabled={busy === v.id}
+                  disabled={restore.isPending}
                   onClick={() => {
-                    setBusy(v.id);
                     restore.mutate(
                       { nodeId: node.id, versionId: v.id },
                       {
@@ -70,7 +67,6 @@ export function VersionList({ node, onRestored }: { node: Node; onRestored?: () 
                           onRestored?.();
                         },
                         onError: (e) => toast.error(e.message),
-                        onSettled: () => setBusy(null),
                       },
                     );
                   }}

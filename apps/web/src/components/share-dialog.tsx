@@ -72,8 +72,12 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
   const [linkCanDownload, setLinkCanDownload] = useKeyedState<string, boolean>(node.id, false);
   const [expires, setExpires] = useKeyedState<string, string>(node.id, "0");
 
-  const directShares = (shares.data ?? []).filter((s) => s.kind === "direct");
-  const linkShares = (shares.data ?? []).filter((s) => s.kind === "link");
+  const directShares: Share[] = [];
+  const linkShares: Share[] = [];
+  for (const s of shares.data ?? []) {
+    if (s.kind === "direct") directShares.push(s);
+    else if (s.kind === "link") linkShares.push(s);
+  }
   // Group rows come back from GET /shares too, without a grantee this shape
   // could name. /grants is the labelled view of the same rows.
   const grantRows = grants.data ?? [];
@@ -82,37 +86,37 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
   const grantedGroups = new Set(grantRows.map((g) => g.group_id));
   const sharedEmails = new Set(directShares.map((s) => s.grantee_email));
 
-  const options: Grantee[] = [
-    ...groups
-      .filter((g) => !grantedGroups.has(g.id) && !pickedIds.has(g.id))
-      .map<Grantee>((g) => ({
-        kind: "group",
-        id: g.id,
-        label: g.name,
-        isEveryone: g.is_everyone,
-        isAdmin: g.is_admin,
-      })),
-    ...members
-      // Sharing with yourself is refused by the server, and re-sharing with
-      // someone who already holds a grant would only collide: both belong out
-      // of the list rather than in an error toast.
-      .filter(
-        (m) => m.user_id !== me.data?.id && !sharedEmails.has(m.email) && !pickedIds.has(m.user_id),
-      )
-      .map<Grantee>((m) => ({
-        kind: "user",
-        id: m.user_id,
-        label: m.display_name || m.name || m.email,
-        email: m.email,
-        avatarUrl: m.avatar_url || undefined,
-      })),
-  ];
-
+  const options: Grantee[] = [];
   // Groups worth one click: the quick row above the picker, so giving a whole
   // team access does not need a search first.
-  const quickGroups = options.filter(
-    (g): g is Extract<Grantee, { kind: "group" }> => g.kind === "group",
-  );
+  const quickGroups: Extract<Grantee, { kind: "group" }>[] = [];
+  for (const g of groups) {
+    if (grantedGroups.has(g.id) || pickedIds.has(g.id)) continue;
+    const grantee: Extract<Grantee, { kind: "group" }> = {
+      kind: "group",
+      id: g.id,
+      label: g.name,
+      isEveryone: g.is_everyone,
+      isAdmin: g.is_admin,
+    };
+    options.push(grantee);
+    quickGroups.push(grantee);
+  }
+  for (const m of members) {
+    // Sharing with yourself is refused by the server, and re-sharing with
+    // someone who already holds a grant would only collide: both belong out
+    // of the list rather than in an error toast.
+    if (m.user_id === me.data?.id || sharedEmails.has(m.email) || pickedIds.has(m.user_id)) {
+      continue;
+    }
+    options.push({
+      kind: "user",
+      id: m.user_id,
+      label: m.display_name || m.name || m.email,
+      email: m.email,
+      avatarUrl: m.avatar_url || undefined,
+    });
+  }
 
   // An editor can always download what it edits — the database says so, and
   // sending the contradiction would come back as a constraint violation.
@@ -127,23 +131,24 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
 
   async function submit() {
     if (picked.length === 0) return;
+    const results = await Promise.allSettled(
+      picked.map((g) =>
+        g.kind === "group"
+          ? upsertGrant.mutateAsync({ groupId: g.id, caps })
+          : createShare.mutateAsync({
+              nodeId: node.id,
+              body: { kind: "direct", email: g.email, ...caps },
+            }),
+      ),
+    );
     const failed: string[] = [];
     let firstError = "";
-    for (const g of picked) {
-      try {
-        if (g.kind === "group") {
-          await upsertGrant.mutateAsync({ groupId: g.id, caps });
-        } else {
-          await createShare.mutateAsync({
-            nodeId: node.id,
-            body: { kind: "direct", email: g.email, ...caps },
-          });
-        }
-      } catch (e) {
-        failed.push(g.label);
-        firstError ||= message(e, "Could not share");
+    results.forEach((r, i) => {
+      if (r.status === "rejected") {
+        failed.push(picked[i].label);
+        firstError ||= message(r.reason, "Could not share");
       }
-    }
+    });
     const shared = picked.length - failed.length;
     if (shared > 0) {
       toast.success(`${shared === 1 ? picked[0].label : `${shared} grantees`} can now ${level}`);

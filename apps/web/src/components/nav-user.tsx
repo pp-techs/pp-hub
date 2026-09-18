@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
 import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar";
-import { logout, meOptions } from "@/lib/queries";
+import { logout, useMe } from "@/lib/queries";
 
 /**
  * Bottom band of the left rail: who is signed in, with the account menu behind
@@ -19,7 +19,7 @@ import { logout, meOptions } from "@/lib/queries";
  */
 export function NavUser() {
   const navigate = useNavigate();
-  const me = meOptions();
+  const me = useMe();
 
   const initials = (me.data?.name || me.data?.email || "?").charAt(0).toUpperCase();
 

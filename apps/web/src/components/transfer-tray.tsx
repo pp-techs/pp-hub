@@ -39,13 +39,27 @@ export function TransferTray() {
 
   if (dismissed || transfers.length === 0) return null;
 
-  const done = transfers.filter((t) => t.status === "done").length;
-  const failed = transfers.filter((t) => t.status === "error").length;
-  const active = transfers.filter((t) => t.status === "uploading" || t.status === "queued");
-  const finished = active.length === 0;
+  let done = 0;
+  let failed = 0;
+  let activeCount = 0;
+  let totalBytes = 0;
+  let loadedBytes = 0;
 
-  const totalBytes = transfers.reduce((n, t) => n + t.size, 0);
-  const loadedBytes = transfers.reduce((n, t) => n + (t.status === "done" ? t.size : t.loaded), 0);
+  for (const t of transfers) {
+    totalBytes += t.size;
+    if (t.status === "done") {
+      done++;
+      loadedBytes += t.size;
+    } else {
+      loadedBytes += t.loaded;
+      if (t.status === "error") {
+        failed++;
+      } else if (t.status === "uploading" || t.status === "queued") {
+        activeCount++;
+      }
+    }
+  }
+  const finished = activeCount === 0;
   const pct = totalBytes > 0 ? Math.round((loadedBytes / totalBytes) * 100) : 0;
 
   return (
