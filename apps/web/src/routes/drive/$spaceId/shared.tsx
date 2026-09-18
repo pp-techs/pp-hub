@@ -34,6 +34,7 @@ function SharedPage() {
         emptyIcon={<Users className="text-muted-foreground size-10" />}
         emptyTitle="Nothing shared with you here"
         emptyDescription="When a group you are in is given a folder, or someone shares one with you, it appears here."
+        allShared
       />
     </div>
   );

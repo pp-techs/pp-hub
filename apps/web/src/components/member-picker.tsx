@@ -11,6 +11,7 @@ import {
 import { Input } from "@workspace/ui/components/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/avatar";
 import { useUserSearch } from "@/lib/queries";
+import { useDebounced } from "@/lib/use-debounced";
 import type { UserSearchResult } from "@/lib/api/types";
 
 interface MemberPickerProps {
@@ -26,7 +27,9 @@ export function MemberPicker({
 }: MemberPickerProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const { data: users = [], isLoading } = useUserSearch(query, open);
+  // The field stays controlled by what was typed; only the search trails it,
+  // so the dropdown does not fire a request per keystroke.
+  const { data: users = [], isLoading } = useUserSearch(useDebounced(query, 250), open);
 
   const filtered = users.filter((u) => !excludeIds.includes(u.id));
 
@@ -43,6 +46,12 @@ export function MemberPicker({
           onChange={(e) => setQuery(e.target.value)}
           className="mb-2"
           autoFocus
+          // base-ui's Menu popup runs a bubble-phase keydown handler for
+          // roving focus and typeahead that calls preventDefault() on
+          // printable keys, which swallowed every keystroke before this
+          // input's own default action (typing) could run — see
+          // grantee-picker.tsx for the same fix.
+          onKeyDown={(e) => e.key !== "Escape" && e.stopPropagation()}
         />
         <DropdownMenuGroup className="max-h-[200px] overflow-y-auto">
           {isLoading && (

@@ -21,12 +21,12 @@ pp-hub/
 │   │       │   ├── use-debounced.ts # trailing-edge debounce for the palette query
 │   │       │   └── use-keyed-state.ts # state that resets when its subject changes
 │   │       ├── components/         # app-level UI panels
-│   │       │   ├── share-panel.tsx       # share dialog (direct + link)
+│   │       │   ├── share-dialog.tsx      # the one access surface: groups, people, link (better-modal)
 │   │       │   ├── people-table.tsx      # space membership: admin switch, groups, pending invites
 │   │       │   ├── group-drawer.tsx      # People page drawer: groups and who is in them
 │   │       │   ├── invite-modal.tsx      # the one way into a space (better-modal)
-│   │       │   ├── folder-access-dialog.tsx # who can open a folder (better-modal, admin only)
-│   │       │   ├── member-picker.tsx     # user search + member add
+│   │       │   ├── grantee-picker.tsx    # picks a group or a space member, filtered locally
+│   │       │   ├── member-picker.tsx     # tenant user search, invite-only (see /users/search scoping)
 │   │       │   ├── user-avatar.tsx       # avatar with fallback
 │   │       │   ├── confirm-dialog.tsx    # confirmation modal
 │   │       │   ├── quick-access.tsx      # rail links to the space's own surfaces

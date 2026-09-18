@@ -120,7 +120,7 @@ func (s *Server) handleSearchUsers(w http.ResponseWriter, r *http.Request) {
 			limit = int32(v)
 		}
 	}
-	results, err := s.users.Search(r.Context(), "default", q, limit)
+	results, err := s.users.Search(r.Context(), "default", u.ID, u.IsAdmin, q, limit)
 	if err != nil {
 		writeProblem(w, http.StatusInternalServerError, "Error", "search failed")
 		return

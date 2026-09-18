@@ -59,6 +59,12 @@ type nodeDTO struct {
 	// Caps is the caller's resolved capability set on this node — what the
 	// node menu enables. Set on listings and single-node GETs.
 	Caps *share.Caps `json:"caps,omitempty"`
+	// Shared reports whether this node itself carries a live share row —
+	// direct, group or link, any grantee. It is not access: a node the
+	// caller can only reach through an ancestor's grant is not itself
+	// shared, and a node shared with someone else stays true even when the
+	// caller holds no grant on it at all. Set alongside Caps.
+	Shared bool `json:"shared,omitempty"`
 }
 
 type versionDTO struct {
@@ -307,7 +313,7 @@ func (s *Server) requireNodeCaps(w http.ResponseWriter, r *http.Request, need sh
 	return u, node, caps
 }
 
-// attachCaps fills each DTO's Caps in one batched resolution.
+// attachCaps fills each DTO's Caps and Shared in one batched resolution.
 func (s *Server) attachCaps(ctx context.Context, userID pgtype.UUID, nodes []nodeDTO) {
 	if len(nodes) == 0 {
 		return
@@ -323,6 +329,12 @@ func (s *Server) attachCaps(ctx context.Context, userID pgtype.UUID, nodes []nod
 	if err != nil {
 		return // presentation detail
 	}
+	// A failure here only costs the badge, not access, so it does not abort
+	// the caps resolution above.
+	shared, err := s.share.NodesWithShares(ctx, ids)
+	if err != nil {
+		shared = nil
+	}
 	for i := range nodes {
 		var id pgtype.UUID
 		if err := id.Scan(nodes[i].ID); err != nil {
@@ -330,6 +342,7 @@ func (s *Server) attachCaps(ctx context.Context, userID pgtype.UUID, nodes []nod
 		}
 		caps := share.EffectiveCaps(res[id])
 		nodes[i].Caps = &caps
+		nodes[i].Shared = shared[id]
 	}
 }
 

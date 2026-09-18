@@ -192,29 +192,41 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 }
 
 const searchUsers = `-- name: SearchUsers :many
-SELECT id, email, name, display_name, avatar_url
-FROM users
-WHERE tenant_id = $1
+SELECT u.id, u.email, u.name, u.display_name, u.avatar_url
+FROM users u
+WHERE u.tenant_id = $1
   AND (
-    email ILIKE '%' || $2 || '%'
-    OR name ILIKE '%' || $2 || '%'
-    OR display_name ILIKE '%' || $2 || '%'
+    u.email ILIKE '%' || $2::text || '%'
+    OR u.name ILIKE '%' || $2::text || '%'
+    OR u.display_name ILIKE '%' || $2::text || '%'
+  )
+  AND (
+    $3::bool
+    OR u.id = $4
+    OR EXISTS (
+      SELECT 1
+      FROM space_members mine
+      JOIN space_members theirs ON theirs.space_id = mine.space_id
+      WHERE mine.user_id = $4 AND theirs.user_id = u.id
+    )
   )
 ORDER BY
   CASE
-    WHEN email ILIKE $2 || '%' THEN 0
-    WHEN display_name ILIKE $2 || '%' THEN 1
-    WHEN name ILIKE $2 || '%' THEN 2
+    WHEN u.email ILIKE $2::text || '%' THEN 0
+    WHEN u.display_name ILIKE $2::text || '%' THEN 1
+    WHEN u.name ILIKE $2::text || '%' THEN 2
     ELSE 3
   END,
-  display_name, email
-LIMIT $3
+  u.display_name, u.email
+LIMIT $5
 `
 
 type SearchUsersParams struct {
-	TenantID string      `json:"tenant_id"`
-	Column2  pgtype.Text `json:"column_2"`
-	Limit    int32       `json:"limit"`
+	TenantID     string      `json:"tenant_id"`
+	Q            string      `json:"q"`
+	Unrestricted bool        `json:"unrestricted"`
+	CallerID     pgtype.UUID `json:"caller_id"`
+	MaxRows      int32       `json:"max_rows"`
 }
 
 type SearchUsersRow struct {
@@ -225,8 +237,18 @@ type SearchUsersRow struct {
 	AvatarUrl   string      `json:"avatar_url"`
 }
 
+// Autocomplete over accounts the caller may legitimately see. A space is a
+// company, so an ordinary caller only matches people they already share a
+// space with; @unrestricted lifts that for an instance admin, whose console
+// lists every account anyway.
 func (q *Queries) SearchUsers(ctx context.Context, arg SearchUsersParams) ([]SearchUsersRow, error) {
-	rows, err := q.db.Query(ctx, searchUsers, arg.TenantID, arg.Column2, arg.Limit)
+	rows, err := q.db.Query(ctx, searchUsers,
+		arg.TenantID,
+		arg.Q,
+		arg.Unrestricted,
+		arg.CallerID,
+		arg.MaxRows,
+	)
 	if err != nil {
 		return nil, err
 	}

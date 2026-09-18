@@ -1,6 +1,7 @@
 import type { FunctionComponent, SVGProps } from "react";
 import DefaultFile from "~icons/vscode-icons/default-file";
 import DefaultFolder from "~icons/vscode-icons/default-folder";
+import FolderShared from "~icons/vscode-icons/folder-type-public";
 import FileAi from "~icons/vscode-icons/file-type-ai";
 import FileAudio from "~icons/vscode-icons/file-type-audio";
 import FileBinary from "~icons/vscode-icons/file-type-binary";
@@ -181,12 +182,24 @@ const BY_EXT: Record<string, IconComponent> = {
 };
 
 /**
- * The `vscode-icons` glyph for a node: the set's default folder, or the glyph
- * for the filename's extension, falling back to its default file.
+ * The `vscode-icons` glyph for a node: the set's default folder (or its
+ * shared variant), or the glyph for the filename's extension, falling back
+ * to its default file.
  */
-export function NodeIcon({ node, className }: { node: Node; className?: string }) {
+export function NodeIcon({
+  node,
+  className,
+  isShared,
+}: {
+  node: Node;
+  className?: string;
+  isShared?: boolean;
+}) {
   const cls = cn("size-4 shrink-0", className);
-  if (node.kind === "dir") return <DefaultFolder className={cls} />;
+  if (node.kind === "dir") {
+    const Folder = isShared ? FolderShared : DefaultFolder;
+    return <Folder className={cls} />;
+  }
 
   const dot = node.name.lastIndexOf(".");
   const Icon = (dot > 0 && BY_EXT[node.name.slice(dot + 1).toLowerCase()]) || DefaultFile;

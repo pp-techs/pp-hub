@@ -80,3 +80,13 @@ SELECT * FROM shares
 WHERE kind = 'direct' AND node_id = $1 AND grantee_user_id = $2
   AND (expires_at IS NULL OR expires_at > now())
 LIMIT 1;
+
+-- name: NodesWithLiveShares :many
+-- Which of these nodes carry at least one live share row directly on them —
+-- direct, group or link, regardless of grantee. This is deliberately not the
+-- recursive access-caps walk: it answers "did someone explicitly share this
+-- node", the fact the folder-listing badge shows, not "can the caller reach
+-- it via an ancestor's grant".
+SELECT DISTINCT node_id FROM shares
+WHERE node_id = ANY(@node_ids::uuid[])
+  AND (expires_at IS NULL OR expires_at > now());

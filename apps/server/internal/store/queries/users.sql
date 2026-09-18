@@ -21,23 +21,37 @@ RETURNING *;
 UPDATE users SET avatar_url = $2 WHERE id = $1 RETURNING *;
 
 -- name: SearchUsers :many
-SELECT id, email, name, display_name, avatar_url
-FROM users
-WHERE tenant_id = $1
+-- Autocomplete over accounts the caller may legitimately see. A space is a
+-- company, so an ordinary caller only matches people they already share a
+-- space with; @unrestricted lifts that for an instance admin, whose console
+-- lists every account anyway.
+SELECT u.id, u.email, u.name, u.display_name, u.avatar_url
+FROM users u
+WHERE u.tenant_id = @tenant_id
   AND (
-    email ILIKE '%' || $2 || '%'
-    OR name ILIKE '%' || $2 || '%'
-    OR display_name ILIKE '%' || $2 || '%'
+    u.email ILIKE '%' || @q::text || '%'
+    OR u.name ILIKE '%' || @q::text || '%'
+    OR u.display_name ILIKE '%' || @q::text || '%'
+  )
+  AND (
+    @unrestricted::bool
+    OR u.id = @caller_id
+    OR EXISTS (
+      SELECT 1
+      FROM space_members mine
+      JOIN space_members theirs ON theirs.space_id = mine.space_id
+      WHERE mine.user_id = @caller_id AND theirs.user_id = u.id
+    )
   )
 ORDER BY
   CASE
-    WHEN email ILIKE $2 || '%' THEN 0
-    WHEN display_name ILIKE $2 || '%' THEN 1
-    WHEN name ILIKE $2 || '%' THEN 2
+    WHEN u.email ILIKE @q::text || '%' THEN 0
+    WHEN u.display_name ILIKE @q::text || '%' THEN 1
+    WHEN u.name ILIKE @q::text || '%' THEN 2
     ELSE 3
   END,
-  display_name, email
-LIMIT $3;
+  u.display_name, u.email
+LIMIT @max_rows;
 
 -- name: ListUsers :many
 SELECT * FROM users

@@ -24,6 +24,8 @@ interface NodeTableProps {
   emptyDescription: string;
   /** Rendered per row in a trailing cell. Omit for a read-only listing. */
   renderActions?: (node: Node) => React.ReactNode;
+  /** Whether all nodes are shared (shows share indicator on folder icons). */
+  allShared?: boolean;
 }
 
 /**
@@ -38,6 +40,7 @@ export function NodeTable({
   emptyTitle,
   emptyDescription,
   renderActions,
+  allShared,
 }: NodeTableProps) {
   if (isPending) {
     return <p className="text-muted-foreground py-8 text-xs">Loading…</p>;
@@ -71,7 +74,7 @@ export function NodeTable({
           <TableRow key={n.id}>
             <TableCell>
               <div className="flex items-center gap-2">
-                <NodeIcon node={n} />
+                <NodeIcon node={n} isShared={allShared} />
                 <span className="truncate font-medium">{n.name}</span>
               </div>
             </TableCell>

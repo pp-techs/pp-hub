@@ -7,6 +7,7 @@ import { requireAuth, useNode } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
 import { NodePanels } from "@/components/node-panels";
 import { NodeIcon } from "@/components/node-icon";
+import { ShareDialog } from "@/components/share-dialog";
 
 export const Route = createFileRoute("/edit/$nodeId")({
   head: () => ({ meta: [{ title: "Editing · pp-hub" }] }),
@@ -85,7 +86,7 @@ function EditPage() {
             variant="outline"
             size="sm"
             disabled={!node.data}
-            onClick={() => node.data && openPanel("share", node.data)}
+            onClick={() => node.data && void ShareDialog.show({ node: node.data })}
           >
             <Link2 data-icon="inline-start" /> Share
           </Button>

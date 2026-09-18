@@ -201,8 +201,32 @@ MIME family, names nothing, and the rail already shows the space quota beside it
 Listings and single-node GETs carry a `caps` object per node (`attachCaps`), and
 creation responses stamp `share.CapsOwner` without a query — creating a node
 makes you its owner. Every node DTO therefore carries caps, so the client offers
-exactly what the caller holds: the share dialog and the `Who can open this…`
-entry in the node menu follow `node.caps.share`, not admin status.
+exactly what the caller holds: the `Share` entry in the node menu follows
+`node.caps.share`, not admin status.
+
+`attachCaps` also stamps `shared` — whether the node itself carries a live
+share row (`NodesWithLiveShares`, batched by id like `AccessCaps`), direct,
+group or link, any grantee. This is a different question from caps: a node
+reached only through an ancestor's grant is not itself shared, and a node the
+owner shared out to a group is `shared: true` even though the owner holds no
+grant on their own file. The folder-listing badge (`NodeIcon`'s people glyph)
+reads this field directly rather than a separate "shared with me" query, so it
+lights for outgoing shares too — a folder you own and shared with a group,
+which is not the same as `GET /shared`'s "shared with me" list.
+
+**One dialog answers "who can reach this".** Access is one table, so groups,
+people and the public link are granted and revoked from the same `Share`
+dialog on any node — a file included. Group grants were never restricted to
+folders on the server (`Grant` only checks that node and group share a space,
+and the resolver treats a share row on a file as an entry point like any
+other); the client used to hide them behind a folder-only dialog.
+
+Grantees are offered from the space — `GET /spaces/{id}/groups` and
+`GET /spaces/{id}/members`, both member-readable — never from
+`GET /users/search`. That endpoint is the invite path's tenant directory and is
+scoped to accounts sharing a space with the caller, lifted only for an
+instance admin: a space is a company, and the picker must not double as an
+address book for all of them.
 
 ## A Member's Top Level
 

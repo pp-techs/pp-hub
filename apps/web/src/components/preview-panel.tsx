@@ -19,6 +19,7 @@ import { describeSelection } from "@/lib/selection";
 import { useUiStore } from "@/lib/ui-store";
 import { NodeIcon } from "@/components/node-icon";
 import { PreviewModal } from "@/components/preview-modal";
+import { ShareDialog } from "@/components/share-dialog";
 
 /** Uppercase section heading inside the panel. */
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -146,7 +147,7 @@ function NodeDetails({ node }: { node: Node }) {
           disabled={!isFile}
           onClick={() => window.open(`/api/v1/nodes/${node.id}/download`, "_blank")}
         />
-        <PanelAction icon={Link2} label="Share" onClick={() => openPanel("share", node)} />
+        <PanelAction icon={Link2} label="Share" onClick={() => void ShareDialog.show({ node })} />
         <PanelAction
           icon={History}
           label="Versions"

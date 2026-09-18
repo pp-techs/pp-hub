@@ -245,6 +245,27 @@ func (s *Service) AccessCaps(ctx context.Context, nodeIDs []pgtype.UUID, userID 
 	return out, nil
 }
 
+// NodesWithShares reports which of the requested nodes carry at least one
+// live share row directly on them — direct, group or link, any grantee. Used
+// to badge a listing row "this is shared", which is a different question
+// from AccessCaps: a node can be unreachable to the caller and still be
+// shared with someone else, and a node the caller reaches via an ancestor's
+// grant is not itself shared.
+func (s *Service) NodesWithShares(ctx context.Context, nodeIDs []pgtype.UUID) (map[pgtype.UUID]bool, error) {
+	out := make(map[pgtype.UUID]bool, len(nodeIDs))
+	if len(nodeIDs) == 0 {
+		return out, nil
+	}
+	rows, err := s.q.NodesWithLiveShares(ctx, nodeIDs)
+	if err != nil {
+		return out, err
+	}
+	for _, id := range rows {
+		out[id] = true
+	}
+	return out, nil
+}
+
 // LinkCaps returns the capabilities a link token grants: view, and download
 // only if the link allows it. Never edit, never share.
 func LinkCaps(sh store.Share) (Caps, error) {

@@ -81,11 +81,19 @@ func (s *Service) SetAvatar(ctx context.Context, id pgtype.UUID, avatarURL strin
 }
 
 // Search returns users matching a query string for autocomplete.
-func (s *Service) Search(ctx context.Context, tenantID, query string, limit int32) ([]SearchResult, error) {
+//
+// caller is whose eyes the directory is seen through: the results are the
+// accounts sharing at least one space with them, because a space is a company
+// and the picker must not double as a tenant-wide address book. unrestricted
+// lifts the narrowing for an instance admin, whose console lists every
+// account anyway.
+func (s *Service) Search(ctx context.Context, tenantID string, caller pgtype.UUID, unrestricted bool, query string, limit int32) ([]SearchResult, error) {
 	rows, err := s.q.SearchUsers(ctx, store.SearchUsersParams{
-		TenantID: tenantID,
-		Column2:  pgtype.Text{String: query, Valid: true},
-		Limit:    limit,
+		TenantID:     tenantID,
+		Q:            query,
+		CallerID:     caller,
+		Unrestricted: unrestricted,
+		MaxRows:      limit,
 	})
 	if err != nil {
 		return nil, err

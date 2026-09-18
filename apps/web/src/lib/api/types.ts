@@ -120,6 +120,14 @@ export interface Node {
   owner_id?: string; // user id for avatar initials
   /** Access capabilities for the current user on this node. */
   caps?: { view: boolean; download: boolean; share: boolean; edit: boolean; owner: boolean };
+  /**
+   * Whether this node itself carries a live share — direct, group or link,
+   * any grantee. Not access: a node reached only through an ancestor's grant
+   * is not itself shared, and a node shared with someone else is true even
+   * when the caller holds no grant on it. Omitted (falsy) on surfaces that
+   * do not resolve caps, e.g. recent/starred/search.
+   */
+  shared?: boolean;
 }
 
 /**
@@ -225,10 +233,19 @@ export interface Version {
   created_at: string;
 }
 
+/**
+ * One row of the `shares` table. `kind` is closed on purpose: the node's
+ * access list renders a different line for each, and a widened `string` is
+ * what once let a group grant render as the literal word "group".
+ *
+ * A `group` row names `grantee_group_id`, which this shape does not carry —
+ * group access is read through `Grant` instead, so the share list filters
+ * these out rather than showing a row it cannot label.
+ */
 export interface Share {
   id: string;
   node_id?: string;
-  kind: string;
+  kind: "direct" | "link" | "group";
   level: "view" | "edit";
   can_download: boolean;
   can_share: boolean;

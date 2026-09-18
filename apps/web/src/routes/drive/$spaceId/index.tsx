@@ -55,7 +55,7 @@ import { NodeGrid } from "@/components/node-grid";
 import { NodeList } from "@/components/node-list";
 import { SelectionBar } from "@/components/selection-bar";
 import { MoveDialog } from "@/components/move-dialog";
-import { FolderAccessDialog } from "@/components/folder-access-dialog";
+import { ShareDialog } from "@/components/share-dialog";
 import { DropZone } from "@/components/drop-zone";
 import { downloadUrl } from "@/components/node-actions";
 
@@ -87,7 +87,6 @@ function FolderView() {
   const navigate = useNavigate();
   const space = useSpace(spaceId);
   const rememberDir = useUiStore((s) => s.rememberDir);
-  const openPanel = useUiStore((s) => s.openPanel);
   const filterQuery = useUiStore((s) => s.filterQuery);
   const dirs = useUiStore((s) => s.dirs);
   // The URL wins so a copied link keeps the view it was copied with; the
@@ -120,6 +119,9 @@ function FolderView() {
   const toggleStar = useToggleStar();
   // One request for the whole starred set beats one per visible row.
   const starred = useStarred(spaceId, 200);
+  // The share badge reads `node.shared` straight off each listing row now —
+  // set server-side alongside caps — so this surface needs no separate
+  // "shared with me" query just to paint an icon.
   const del = useDeleteNode(spaceId);
 
   // Moving to another folder or space invalidates the selection.
@@ -315,8 +317,6 @@ function FolderView() {
       ),
     onRename: handleRename,
     onMove: (node: Node) => void handleMove([node]),
-    // node-actions decides whether to offer this, from the node's own caps.
-    onManageAccess: (node: Node) => void FolderAccessDialog.show({ node, spaceId }),
     onDeleteRequest: handleDeleteRequest,
   };
 
@@ -413,7 +413,7 @@ function FolderView() {
               selected={selectedNodes}
               onClear={() => setSelectedIds(new Set())}
               onDownload={(node) => window.open(downloadUrl(node), "_blank")}
-              onShare={(node) => openPanel("share", node)}
+              onShare={(node) => void ShareDialog.show({ node })}
               onRename={handleRename}
               onMove={(nodes) => void handleMove(nodes)}
               onDelete={(nodes) => setConfirmNodes(nodes)}

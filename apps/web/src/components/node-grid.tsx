@@ -77,6 +77,7 @@ export function NodeGrid({
       node={node}
       selected={selectedIds.has(node.id)}
       starred={starredIds.has(node.id)}
+      shared={node.shared ?? false}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       {...handlers}
@@ -141,6 +142,7 @@ function Thumb({ node }: { node: Node }) {
 
 interface NodeCardProps extends NodeActionHandlers {
   starred: boolean;
+  shared: boolean;
   node: Node;
   /** Clicked — feeds the bulk action bar and the details panel. */
   selected: boolean;
@@ -148,7 +150,15 @@ interface NodeCardProps extends NodeActionHandlers {
   onDoubleClick: (node: Node) => void;
 }
 
-function NodeCard({ node, selected, starred, onClick, onDoubleClick, ...handlers }: NodeCardProps) {
+function NodeCard({
+  node,
+  selected,
+  starred,
+  shared,
+  onClick,
+  onDoubleClick,
+  ...handlers
+}: NodeCardProps) {
   const openPanel = useUiStore((s) => s.openPanel);
   const actions = nodeActions(node, handlers, openPanel, starred);
   const isDir = node.kind === "dir";
@@ -227,7 +237,7 @@ function NodeCard({ node, selected, starred, onClick, onDoubleClick, ...handlers
           {isDir ? (
             <>
               <div className="flex min-w-0 items-center gap-2.5">
-                <NodeIcon node={node} className="size-5" />
+                <NodeIcon node={node} isShared={shared} className="size-5" />
                 {name}
               </div>
               {kebab}

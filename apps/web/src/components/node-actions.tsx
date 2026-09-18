@@ -12,11 +12,11 @@ import {
   Star,
   StarOff,
   Trash2,
-  Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { canOpenInTab, isOfficeFile, openEditor, openInTab, type Node } from "@/lib/api";
 import type { OpenPanel } from "@/lib/ui-store";
+import { ShareDialog } from "@/components/share-dialog";
 
 export interface NodeAction {
   key: string;
@@ -38,8 +38,6 @@ export interface NodeActionHandlers {
   onToggleStar: (node: Node, starred: boolean) => void;
   onRename: (node: Node) => void;
   onMove: (node: Node) => void;
-  /** Admin-only: which groups open this folder. Absent for non-admins. */
-  onManageAccess?: (node: Node) => void;
   onCopy: (node: Node) => void;
   onDeleteRequest: (node: Node) => void;
 }
@@ -113,23 +111,15 @@ export function nodeActions(
     icon: starred ? StarOff : Star,
     run: () => handlers.onToggleStar(node, !starred),
   });
+  // One entry, because there is one answer: groups, people and the public
+  // link all end up as rows in `shares` on this node.
   actions.push({
     key: "share",
     label: "Share",
     icon: Link2,
     shortcut: "⌘⇧S",
-    run: () => openPanel("share", node),
+    run: () => void ShareDialog.show({ node }),
   });
-  // Standing group access is offered to whoever may share this folder: its
-  // owner, or anyone a grant handed the share capability to.
-  if (node.kind === "dir" && node.caps?.share && handlers.onManageAccess) {
-    actions.push({
-      key: "access",
-      label: "Who can open this…",
-      icon: Users,
-      run: () => handlers.onManageAccess?.(node),
-    });
-  }
   actions.push({
     key: "rename",
     label: "Rename",

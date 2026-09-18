@@ -80,11 +80,6 @@ export {
   useShareChildren,
 } from "./shares";
 
-// Backward compat
-import { useShares, useShareInfo } from "./shares";
-export const sharesOptions = (nodeId: string | null) => useShares(nodeId);
-export const shareInfoOptions = (token: string) => useShareInfo(token);
-
 // Users
 export {
   useMyProfile,

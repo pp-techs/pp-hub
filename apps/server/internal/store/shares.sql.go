@@ -269,3 +269,34 @@ func (q *Queries) NodeAccessCaps(ctx context.Context, arg NodeAccessCapsParams) 
 	}
 	return items, nil
 }
+
+const nodesWithLiveShares = `-- name: NodesWithLiveShares :many
+SELECT DISTINCT node_id FROM shares
+WHERE node_id = ANY($1::uuid[])
+  AND (expires_at IS NULL OR expires_at > now())
+`
+
+// Which of these nodes carry at least one live share row directly on them —
+// direct, group or link, regardless of grantee. This is deliberately not the
+// recursive access-caps walk: it answers "did someone explicitly share this
+// node", the fact the folder-listing badge shows, not "can the caller reach
+// it via an ancestor's grant".
+func (q *Queries) NodesWithLiveShares(ctx context.Context, nodeIds []pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, nodesWithLiveShares, nodeIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []pgtype.UUID
+	for rows.Next() {
+		var node_id pgtype.UUID
+		if err := rows.Scan(&node_id); err != nil {
+			return nil, err
+		}
+		items = append(items, node_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

@@ -65,12 +65,13 @@ export function NodeList({
         </tr>
       </thead>
       <tbody className="divide-border divide-y">
-        {nodes.map((node) => (
+        {nodes.map((n) => (
           <NodeListRow
-            key={node.id}
-            node={node}
-            selected={selectedIds.has(node.id)}
-            starred={starredIds.has(node.id)}
+            key={n.id}
+            node={n}
+            selected={selectedIds.has(n.id)}
+            starred={starredIds.has(n.id)}
+            shared={n.shared ?? false}
             onClick={onClick}
             onDoubleClick={onDoubleClick}
             {...handlers}
@@ -83,6 +84,7 @@ export function NodeList({
 
 interface NodeListRowProps extends NodeActionHandlers {
   starred: boolean;
+  shared: boolean;
   node: Node;
   selected: boolean;
   onClick: (node: Node, event: MouseEvent) => void;
@@ -93,6 +95,7 @@ function NodeListRow({
   node,
   selected,
   starred,
+  shared,
   onClick,
   onDoubleClick,
   ...handlers
@@ -115,7 +118,7 @@ function NodeListRow({
         >
           <td className="px-3">
             <div className="flex min-w-0 items-center gap-2">
-              <NodeIcon node={node} />
+              <NodeIcon node={node} isShared={shared} />
               <span
                 className="flex min-w-0 items-center gap-1.5 truncate font-medium"
                 title={node.name}

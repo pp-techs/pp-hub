@@ -26,8 +26,9 @@ import {
   useGroupMembers,
   useGroups,
   useRemoveGroupMember,
+  useSpaceMembers,
 } from "@/lib/queries";
-import { MemberPicker } from "@/components/member-picker";
+import { GranteePicker, type Grantee } from "@/components/grantee-picker";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 
 interface GroupDrawerProps {
@@ -112,8 +113,8 @@ export function GroupDrawer({ space, selectedId, onSelect }: GroupDrawerProps) {
       )}
 
       <p className="text-muted-foreground border-border mt-auto rounded-sm border p-2 text-[10px]">
-        Groups decide what people can open. Give a group a folder from that folder’s “Who can open
-        this…” dialog.
+        Groups decide what people can open. Give a group a file or folder from that item’s “Share”
+        dialog.
       </p>
     </div>
   );
@@ -129,6 +130,10 @@ function GroupMembers({
   onDeleted: () => void;
 }) {
   const { data: members = [], isLoading } = useGroupMembers(space.id, group.id);
+  // Only this space's people: a group belongs to one company, so the server
+  // refuses an outsider anyway (422) — offering them was an error waiting to
+  // be clicked.
+  const { data: spaceMembers = [] } = useSpaceMembers(space.id);
   const add = useAddGroupMember(space.id);
   const remove = useRemoveGroupMember(space.id);
   const del = useDeleteGroup(space.id);
@@ -186,12 +191,20 @@ function GroupMembers({
       )}
 
       {canEditMembers && (
-        <MemberPicker
+        <GranteePicker
           placeholder="Add someone to this group…"
-          excludeIds={members.map((m) => m.user_id)}
-          onSelect={(user) =>
+          options={spaceMembers
+            .filter((m) => !members.some((existing) => existing.user_id === m.user_id))
+            .map<Grantee>((m) => ({
+              kind: "user",
+              id: m.user_id,
+              label: m.display_name || m.name || m.email,
+              email: m.email,
+              avatarUrl: m.avatar_url || undefined,
+            }))}
+          onPick={(picked) =>
             add.mutate(
-              { groupId: group.id, userId: user.id },
+              { groupId: group.id, userId: picked.id },
               {
                 onError: (e) =>
                   toast.error(
