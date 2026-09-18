@@ -50,6 +50,15 @@ Three layers, one direction only — components never call `api` directly:
   (`@xl/main`, `@4xl/main`), not viewport breakpoints, because the details
   panel narrows the column without the route knowing. The listing stays
   full-bleed on purpose.
+- **Where a write lands is derived from the URL, once, by `DriveWriteProvider`**
+  (`components/drive-write.tsx`), mounted in `routes/drive.tsx` above the
+  sidebar and the inset alike. The rail's New menu and the listing's
+  background context menu both call `useDriveWrite()` rather than each
+  guessing the current folder — they used to disagree, and the rail uploaded
+  into the space root from inside a folder. `folderActions()`
+  (`components/folder-actions.tsx`) is the single list of what a folder can
+  be asked to do, exactly as `nodeActions()` is for a node; a create/upload/
+  paste item never gets a second definition in a second menu.
 - **`packages/ui` is shadcn's base-ui variant** (style `base-mira`,
   `@base-ui/react`). Composition uses `render={<El/>}`, never `asChild`.
 

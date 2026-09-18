@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import {
+  ClipboardCopy,
   Copy,
   Download,
   ExternalLink,
@@ -9,6 +10,7 @@ import {
   Info,
   Link2,
   Pencil,
+  Scissors,
   SquarePen,
   Star,
   StarOff,
@@ -40,6 +42,8 @@ export interface NodeActionHandlers {
   onRename: (node: Node) => void;
   onMove: (node: Node) => void;
   onCopy: (node: Node) => void;
+  /** Puts the node on the clipboard for a Paste in some other folder. */
+  onClipboard: (node: Node, mode: "cut" | "copy") => void;
   onDeleteRequest: (node: Node) => void;
 }
 
@@ -134,11 +138,26 @@ export function nodeActions(
     icon: FolderInput,
     run: () => handlers.onMove(node),
   });
+  // Cut/Copy stage the node for a Paste in another folder; "Make a copy"
+  // duplicates it where it already is. Three neighbours, three different acts
+  // — so the duplicate no longer claims the ⌘C badge, and none of the three
+  // advertises a shortcut, because nothing binds one yet.
+  actions.push({
+    key: "cut",
+    label: "Cut",
+    icon: Scissors,
+    run: () => handlers.onClipboard(node, "cut"),
+  });
+  actions.push({
+    key: "clipboard-copy",
+    label: "Copy",
+    icon: ClipboardCopy,
+    run: () => handlers.onClipboard(node, "copy"),
+  });
   actions.push({
     key: "copy",
     label: "Make a copy",
     icon: Copy,
-    shortcut: "⌘C",
     run: () => handlers.onCopy(node),
   });
   actions.push({

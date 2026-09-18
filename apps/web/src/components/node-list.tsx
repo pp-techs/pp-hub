@@ -109,7 +109,11 @@ const NodeListRow = memo(function NodeListRow({
 
   return (
     <ContextMenu>
-      <ContextMenuTrigger className="contents">
+      {/* Stops the event reaching the listing's background trigger, whose menu
+          acts on the folder: a right-click on a row is about the row, and two
+          menus must never open at once. The row's own handler is on this same
+          element, so it still runs. */}
+      <ContextMenuTrigger className="contents" onContextMenu={(e) => e.stopPropagation()}>
         <tr
           data-node-id={node.id}
           className={cn(

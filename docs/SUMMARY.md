@@ -38,6 +38,25 @@ rounding are `peer-data-[variant=inset]`), and the shell has to pin `h-svh
 overflow-hidden`, because `SidebarProvider` is only `min-h-svh` and the marquee
 band measures against whatever actually scrolls.
 
+**M19 — one owner decides where a write lands.** The rail's New menu is a
+sibling of the folder listing, not a descendant of it, and used to guess: it
+hardcoded the space root, so uploading from inside a folder silently landed
+at the top of the space. `DriveWriteProvider` (`components/drive-write.tsx`)
+is now the sole owner — mounted in `drive.tsx` above the sidebar and the
+inset alike, deriving the target from `?dir=` the same way `folder-tree.tsx`
+already did, so the rail and the listing can no longer disagree. It also owns
+both hidden file inputs and the New-folder dialog, which move out of
+`drive.tsx` and `$spaceId/index.tsx`; `ui-store`'s `newFolderOpen` flag — the
+only way the dialog used to reach across that boundary — is gone.
+`folderActions()` (`components/folder-actions.tsx`) is `nodeActions()`'s
+counterpart for the folder itself: New folder, Upload files/folder, Paste,
+Select all, Sort by, View, Refresh and Folder information, rendered by both
+the rail's dropdown and a new background `ContextMenu` on the listing (right-
+click the empty state or the gap below the last row). Paste needs a source,
+so nodes can be Cut or Copied onto a small `ui-store.clipboard` — deliberately
+outside `partialize`, so it never survives a reload — and a folder can never
+paste a cut node into itself or its own subtree (`lib/write-target.ts`).
+
 ## Architecture
 
 System design, component interactions, data flows, deployment, and external integrations.

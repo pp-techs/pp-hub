@@ -6,6 +6,18 @@ import { toast } from "sonner";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuRadioGroup,
+  ContextMenuRadioItem,
+  ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuTrigger,
+} from "@workspace/ui/components/context-menu";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -32,7 +44,7 @@ import {
 import {
   childrenOptions,
   useChildren,
-  useCreateFolder,
+  useInvalidateChildren,
   useNode,
   useDeleteNode,
   useCopyNode,
@@ -42,8 +54,6 @@ import {
   useStarred,
   useToggleStar,
 } from "@/lib/queries";
-import { useUploadStore } from "@/lib/upload-store";
-import { collectInputFiles } from "@/lib/drop-items";
 import { nextSelection } from "@/lib/selection";
 import { useMarqueeSelection } from "@/lib/use-marquee-selection";
 import { useKeyedState } from "@/lib/use-keyed-state";
@@ -60,6 +70,8 @@ import { MoveDialog } from "@/components/move-dialog";
 import { ShareDialog } from "@/components/share-dialog";
 import { HeaderActions } from "@/components/header-slot";
 import { ListingControls } from "@/components/listing-controls";
+import { useDriveWrite } from "@/components/drive-write";
+import { folderActions, type FolderAction, type ListingContext } from "@/components/folder-actions";
 import { downloadUrl } from "@/components/node-actions";
 const EMPTY_SET = new Set<string>();
 
@@ -96,7 +108,6 @@ function FolderView() {
   const space = useSpace(spaceId);
   const rememberDir = useUiStore((s) => s.rememberDir);
   const filterQuery = useUiStore((s) => s.filterQuery);
-  const dirs = useUiStore((s) => s.dirs);
   // The URL wins so a copied link keeps the view it was copied with; the
   // preference is only the fallback for a link that says nothing.
   const prefs = useUiStore((s) => s.listingPrefs);
@@ -116,17 +127,16 @@ function FolderView() {
   }
   const detailsOpen = useUiStore((s) => s.detailsOpen);
   const setDetailsOpen = useUiStore((s) => s.setDetailsOpen);
-  const newFolderOpen = useUiStore((s) => s.newFolderOpen);
-  const setNewFolderOpen = useUiStore((s) => s.setNewFolderOpen);
-  const [newFolderName, setNewFolderName] = useState("");
   const [renameNode, setRenameNode] = useState<Node | null>(null);
   const [renameName, setRenameName] = useState("");
   const [confirmNodes, setConfirmNodes] = useState<Node[] | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const folderRef = useRef<HTMLInputElement>(null);
   /** The scrolling listing, which the marquee bands over. */
   const listingRef = useRef<HTMLDivElement>(null);
-  const enqueueUploads = useUploadStore((s) => s.enqueue);
+  // Where a create, an upload or a paste lands — derived from the URL by the
+  // shell, so the rail's New menu and this surface cannot disagree about it.
+  const write = useDriveWrite();
+  const setClipboard = useUiStore((s) => s.setClipboard);
+  const invalidateChildren = useInvalidateChildren(spaceId);
   const rename = useRenameNode(spaceId);
   const move = useMoveNode(spaceId);
   const copy = useCopyNode(spaceId);
@@ -150,11 +160,6 @@ function FolderView() {
     }
   }, [children.data, rememberDir]);
 
-  // In M15, any member can create files/folders at the root (dir === undefined),
-  // and every item created is private to them. Inside a folder, permission
-  // requires edit capability on that folder.
-  const writeDir = dir;
-  const mkdir = useCreateFolder(spaceId, writeDir);
   const currentFolder = useNode(dir);
   const sorted = useMemo(() => {
     const q = filterQuery.trim().toLowerCase();
@@ -326,6 +331,14 @@ function FolderView() {
               toast.error(`Could not copy “${node.name}”`, { description: e.message }),
           },
         ),
+      onClipboard: (node: Node, mode: "cut" | "copy") => {
+        setClipboard({ mode, spaceId, nodes: [node] });
+        toast.success(
+          mode === "cut"
+            ? `“${node.name}” cut — paste it in another folder`
+            : `“${node.name}” copied — paste it in another folder`,
+        );
+      },
       onToggleStar: (node: Node, next: boolean) =>
         toggleStar.mutate(
           { nodeId: node.id, starred: next },
@@ -340,6 +353,8 @@ function FolderView() {
       handleShowDetails,
       copy,
       dir,
+      setClipboard,
+      spaceId,
       toggleStar,
       handleRename,
       handleMove,
@@ -347,18 +362,58 @@ function FolderView() {
     ],
   );
 
-  // Can write if:
-  // - At root (dir === undefined): every space member can create items at root.
-  // - Inside a folder (dir !== undefined): user must have edit capability on that folder.
-  const canUpload =
-    Boolean(space) && (dir === undefined || Boolean(currentFolder.data?.caps?.edit));
-  // Destination for the drop overlay: the space name plus where the write lands.
-  const destination = [
-    space?.name ?? "this space",
-    dir ? (dirs[dir]?.name ?? "this folder") : undefined,
-  ]
-    .filter(Boolean)
-    .join(" / ");
+  /** Writes the listing's own view state to the URL, as the header does. */
+  const setSearch = useCallback(
+    (next: Record<string, unknown>) =>
+      void navigate({
+        to: "/drive/$spaceId",
+        params: { spaceId },
+        search: (prev) => ({ ...prev, ...next }),
+      }),
+    [navigate, spaceId],
+  );
+
+  const listing = useMemo<ListingContext>(
+    () => ({
+      sort,
+      order,
+      view,
+      count: sorted.length,
+      canDescribeFolder: Boolean(currentFolder.data),
+      onSort: (nextSort, nextOrder) => setSearch({ sort: nextSort, order: nextOrder }),
+      onView: (nextView) => setSearch({ view: nextView }),
+      onSelectAll: () => {
+        anchorId.current = null;
+        setSelectedIds(new Set(sorted.map((n) => n.id)));
+      },
+      onRefresh: () => void invalidateChildren(),
+      // With nothing selected the details panel describes the folder itself,
+      // which is what this asks for.
+      onFolderInfo: () => {
+        setSelectedIds(new Set());
+        setDetailsOpen(true);
+      },
+    }),
+    [
+      sort,
+      order,
+      view,
+      sorted,
+      currentFolder.data,
+      setSearch,
+      setSelectedIds,
+      invalidateChildren,
+      setDetailsOpen,
+    ],
+  );
+
+  const backgroundActions = folderActions(write, listing);
+
+  // The panel follows the selection, and with none it describes the folder the
+  // listing is showing — at the space root there is no such node, and it says
+  // so itself.
+  const panelNodes =
+    selectedNodes.length > 0 ? selectedNodes : currentFolder.data ? [currentFolder.data] : [];
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -368,142 +423,112 @@ function FolderView() {
         <ListingControls spaceId={spaceId} />
       </HeaderActions>
       <div className="flex min-h-0 flex-1 overflow-hidden rounded-b-xl">
-        <DropZone spaceId={spaceId} parentId={dir} destination={destination} disabled={!canUpload}>
-          <div
-            ref={listingRef}
-            className="relative min-h-0 flex-1 overflow-auto"
-            onMouseDown={marquee.onMouseDown}
-          >
-            {children.isPending ? (
-              <p className="text-muted-foreground p-4 text-xs">Loading…</p>
-            ) : sorted.length === 0 ? (
-              <Empty className="py-12">
-                <EmptyHeader>
-                  <EmptyMedia>
-                    <FolderOpen className="text-muted-foreground size-10" />
-                  </EmptyMedia>
-                  <EmptyTitle>
-                    {filterQuery.trim() ? "No matching files or folders" : "This folder is empty"}
-                  </EmptyTitle>
-                  <EmptyDescription>
-                    {filterQuery.trim()
-                      ? "Try a different search."
-                      : "Upload a file or create a folder to get started."}
-                  </EmptyDescription>
-                </EmptyHeader>
-              </Empty>
-            ) : view === "grid" ? (
-              <NodeGrid
-                dirs={sortedDirs}
-                files={sortedFiles}
-                selectedIds={selectedIds}
-                starredIds={starredIds}
-                onClick={handleClick}
-                onDoubleClick={handleDoubleClick}
-                {...nodeHandlers}
-              />
-            ) : (
-              <NodeList
-                nodes={sorted}
-                selectedIds={selectedIds}
-                starredIds={starredIds}
-                onClick={handleClick}
-                onDoubleClick={handleDoubleClick}
-                {...nodeHandlers}
-              />
-            )}
+        <DropZone
+          spaceId={spaceId}
+          parentId={dir}
+          destination={write.label}
+          disabled={!write.canWrite}
+        >
+          <ContextMenu>
+            {/* The trigger is the scroller itself, so the menu answers on the
+                gaps between rows, below the last one and over the empty state
+                — everywhere the folder itself is what was clicked. Rows stop
+                the event at their own trigger, so only one menu ever opens. */}
+            <ContextMenuTrigger
+              render={
+                <div
+                  ref={listingRef}
+                  className="relative min-h-0 flex-1 overflow-auto"
+                  onMouseDown={marquee.onMouseDown}
+                  onContextMenu={(e: MouseEvent) => {
+                    if (
+                      (e.target as HTMLElement).closest("[data-node-id],[data-keeps-selection]")
+                    ) {
+                      return;
+                    }
+                    // The menu acts on the folder, so it must not read as
+                    // acting on whatever was selected a moment ago.
+                    setSelectedIds(new Set());
+                  }}
+                />
+              }
+            >
+              {children.isPending ? (
+                <p className="text-muted-foreground p-4 text-xs">Loading…</p>
+              ) : sorted.length === 0 ? (
+                <Empty className="py-12">
+                  <EmptyHeader>
+                    <EmptyMedia>
+                      <FolderOpen className="text-muted-foreground size-10" />
+                    </EmptyMedia>
+                    <EmptyTitle>
+                      {filterQuery.trim() ? "No matching files or folders" : "This folder is empty"}
+                    </EmptyTitle>
+                    <EmptyDescription>
+                      {filterQuery.trim()
+                        ? "Try a different search."
+                        : "Right-click here, or use New, to add something."}
+                    </EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
+              ) : view === "grid" ? (
+                <NodeGrid
+                  dirs={sortedDirs}
+                  files={sortedFiles}
+                  selectedIds={selectedIds}
+                  starredIds={starredIds}
+                  onClick={handleClick}
+                  onDoubleClick={handleDoubleClick}
+                  {...nodeHandlers}
+                />
+              ) : (
+                <NodeList
+                  nodes={sorted}
+                  selectedIds={selectedIds}
+                  starredIds={starredIds}
+                  onClick={handleClick}
+                  onDoubleClick={handleDoubleClick}
+                  {...nodeHandlers}
+                />
+              )}
 
-            {marquee.rect && (
-              <div
-                aria-hidden
-                className="border-primary/50 bg-primary/10 pointer-events-none absolute z-20 rounded-xs border"
-                style={marquee.rect}
-              />
-            )}
+              {marquee.rect && (
+                <div
+                  aria-hidden
+                  className="border-primary/50 bg-primary/10 pointer-events-none absolute z-20 rounded-xs border"
+                  style={marquee.rect}
+                />
+              )}
 
-            <SelectionBar
-              selected={selectedNodes}
-              onClear={() => setSelectedIds(new Set())}
-              onDownload={(node) => window.open(downloadUrl(node), "_blank")}
-              onShare={(node) => void ShareDialog.show({ node })}
-              onRename={handleRename}
-              onMove={(nodes) => void handleMove(nodes)}
-              onDelete={(nodes) => setConfirmNodes(nodes)}
-            />
-          </div>
+              <SelectionBar
+                selected={selectedNodes}
+                onClear={() => setSelectedIds(new Set())}
+                onDownload={(node) => window.open(downloadUrl(node), "_blank")}
+                onShare={(node) => void ShareDialog.show({ node })}
+                onRename={handleRename}
+                onMove={(nodes) => void handleMove(nodes)}
+                onDelete={(nodes) => setConfirmNodes(nodes)}
+              />
+            </ContextMenuTrigger>
+
+            <ContextMenuContent className="w-56">
+              {backgroundActions.map((action, i) => (
+                <BackgroundMenuItem
+                  key={action.key}
+                  action={action}
+                  startsGroup={i > 0 && backgroundActions[i - 1]!.group !== action.group}
+                />
+              ))}
+            </ContextMenuContent>
+          </ContextMenu>
         </DropZone>
 
         {detailsOpen && (
           <aside className="border-border w-80 shrink-0 border-l">
-            <DetailsPanel nodes={selectedNodes} onClose={() => setDetailsOpen(false)} />
+            <DetailsPanel nodes={panelNodes} onClose={() => setDetailsOpen(false)} />
           </aside>
         )}
       </div>
-
-      {/* Two inputs rather than one: `webkitdirectory` is a property of the
-          element, not of the click, so picking files and picking a folder
-          cannot share a control. */}
-      <input
-        ref={fileRef}
-        type="file"
-        multiple
-        hidden
-        onChange={(e) => {
-          enqueueUploads(collectInputFiles(e.target.files), spaceId, writeDir);
-          e.target.value = "";
-        }}
-      />
-      <input
-        ref={folderRef}
-        type="file"
-        multiple
-        hidden
-        // @ts-expect-error — non-standard, but the only way to pick a folder.
-        webkitdirectory=""
-        onChange={(e) => {
-          enqueueUploads(collectInputFiles(e.target.files), spaceId, writeDir);
-          e.target.value = "";
-        }}
-      />
-
-      <Dialog
-        open={newFolderOpen}
-        onOpenChange={(v) => {
-          setNewFolderOpen(v);
-          if (!v) setNewFolderName("");
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>New folder</DialogTitle>
-            <DialogDescription>Create a folder in the current location.</DialogDescription>
-          </DialogHeader>
-          <form
-            onSubmit={(e: FormEvent) => {
-              e.preventDefault();
-              mkdir.mutate(newFolderName.trim(), {
-                onSuccess: () => {
-                  setNewFolderOpen(false);
-                  setNewFolderName("");
-                },
-              });
-            }}
-          >
-            <Input
-              autoFocus
-              value={newFolderName}
-              onChange={(e) => setNewFolderName(e.target.value)}
-              placeholder="Folder name"
-              required
-            />
-            <DialogFooter className="mt-4">
-              <Button type="submit" disabled={!newFolderName.trim() || mkdir.isPending}>
-                Create
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={!!renameNode} onOpenChange={(v) => !v && setRenameNode(null)}>
         <DialogContent>
@@ -556,5 +581,44 @@ function FolderView() {
         node={confirmNodes?.length === 1 ? confirmNodes[0] : null}
       />
     </div>
+  );
+}
+
+/**
+ * One background action, with the separator that opens its group. Submenus are
+ * radio groups because sort and view are one-of-many, not toggles.
+ */
+function BackgroundMenuItem({
+  action,
+  startsGroup,
+}: {
+  action: FolderAction;
+  startsGroup: boolean;
+}) {
+  const choices = action.choices;
+  return (
+    <>
+      {startsGroup && <ContextMenuSeparator />}
+      {choices ? (
+        <ContextMenuSub>
+          <ContextMenuSubTrigger>
+            <action.icon /> {action.label}
+          </ContextMenuSubTrigger>
+          <ContextMenuSubContent className="w-48">
+            <ContextMenuRadioGroup value={choices.value} onValueChange={choices.onSelect}>
+              {choices.items.map((item) => (
+                <ContextMenuRadioItem key={item.value} value={item.value}>
+                  {item.label}
+                </ContextMenuRadioItem>
+              ))}
+            </ContextMenuRadioGroup>
+          </ContextMenuSubContent>
+        </ContextMenuSub>
+      ) : (
+        <ContextMenuItem disabled={action.disabled} onClick={action.run}>
+          <action.icon /> {action.label}
+        </ContextMenuItem>
+      )}
+    </>
   );
 }

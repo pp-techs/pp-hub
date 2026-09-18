@@ -22,15 +22,9 @@ import { StorageMeter } from "@/components/storage-meter";
  */
 export function AppSidebar({
   spaceId,
-  onNewFolder,
-  onUploadFiles,
-  onUploadFolder,
   ...props
 }: ComponentProps<typeof Sidebar> & {
   spaceId: string | undefined;
-  onNewFolder: () => void;
-  onUploadFiles: () => void;
-  onUploadFolder: () => void;
 }) {
   return (
     <Sidebar collapsible="offcanvas" {...props}>
@@ -40,11 +34,7 @@ export function AppSidebar({
       <SidebarContent>
         {spaceId && (
           <>
-            <NavCreate
-              onNewFolder={onNewFolder}
-              onUploadFiles={onUploadFiles}
-              onUploadFolder={onUploadFolder}
-            />
+            <NavCreate />
             <NavSpace spaceId={spaceId} />
           </>
         )}

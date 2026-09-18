@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Node, NodeView, SortField, SortOrder } from "@/lib/api";
+import type { ClipboardState } from "@/lib/write-target";
 
 export type PanelKind = "versions";
 
@@ -45,8 +46,14 @@ interface UiState {
   clearLastSpaceId: (id: string) => void;
   newSpaceOpen: boolean;
   setNewSpaceOpen: (v: boolean) => void;
-  newFolderOpen: boolean;
-  setNewFolderOpen: (v: boolean) => void;
+  /**
+   * Cut/copied nodes awaiting a Paste. Ephemeral by nature and deliberately
+   * outside `partialize`: a clipboard that survives a reload offers to move
+   * nodes the user has long forgotten selecting.
+   */
+  clipboard: ClipboardState | null;
+  setClipboard: (c: ClipboardState) => void;
+  clearClipboard: () => void;
   /**
    * ⌘K palette. Lives here because the shortcut is bound by the drive shell
    * but the palette is opened from the rail search field too.
@@ -85,8 +92,9 @@ export const useUiStore = create<UiState>()(
       clearLastSpaceId: (id) => set((s) => (s.lastSpaceId === id ? { lastSpaceId: null } : s)),
       newSpaceOpen: false,
       setNewSpaceOpen: (v) => set({ newSpaceOpen: v }),
-      newFolderOpen: false,
-      setNewFolderOpen: (v) => set({ newFolderOpen: v }),
+      clipboard: null,
+      setClipboard: (c) => set({ clipboard: c }),
+      clearClipboard: () => set({ clipboard: null }),
       paletteOpen: false,
       setPaletteOpen: (v: boolean) => set({ paletteOpen: v }),
       detailsOpen: false,

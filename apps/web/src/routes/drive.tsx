@@ -1,7 +1,7 @@
 import { Outlet, createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { FolderPlus, Plus } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import type { CSSProperties, FormEvent, RefObject } from "react";
+import { useEffect, useState } from "react";
+import type { CSSProperties, FormEvent } from "react";
 import { toast } from "sonner";
 import { Button } from "@workspace/ui/components/button";
 import { Label } from "@workspace/ui/components/label";
@@ -17,8 +17,8 @@ import {
 } from "@workspace/ui/components/dialog";
 import { fetchSpaces, requireAuth, useCreateSpace, useSpaces } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
-import { useUploadStore } from "@/lib/upload-store";
 import { useActiveSpaceId } from "@/lib/use-active-space";
+import { DriveWriteProvider } from "@/components/drive-write";
 import { AppSidebar } from "@/components/app-sidebar";
 import { HeaderSlotProvider } from "@/components/header-slot";
 import { SiteHeader } from "@/components/site-header";
@@ -58,10 +58,6 @@ function DriveLayout() {
   const showLanding = spaces.data?.length === 0;
   const spaceId = useActiveSpaceId();
   const setPaletteOpen = useUiStore((s) => s.setPaletteOpen);
-  const setNewFolderOpen = useUiStore((s) => s.setNewFolderOpen);
-  const enqueue = useUploadStore((s) => s.enqueue);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const folderRef = useRef<HTMLInputElement>(null);
 
   // Bound once for the whole drive, so ⌘K works from the listing, a panel or
   // the rail. The palette itself only handles keys while it is open.
@@ -76,108 +72,47 @@ function DriveLayout() {
     return () => window.removeEventListener("keydown", onKey);
   }, [setPaletteOpen]);
 
-  const handleUploadFiles = () => fileRef.current?.click();
-  const handleUploadFolder = () => folderRef.current?.click();
-
   return (
-    // `HeaderSlotProvider` wraps the provider, never sits between it and
-    // `SidebarInset`: the inset's margin/rounding is `peer-data-[variant=inset]`,
-    // which only matches while the inset is a direct sibling of the sidebar.
+    // `HeaderSlotProvider` and `DriveWriteProvider` wrap the provider, never
+    // sit between it and `SidebarInset`: the inset's margin/rounding is
+    // `peer-data-[variant=inset]`, which only matches while the inset is a
+    // direct sibling of the sidebar.
     <HeaderSlotProvider>
-      {/* `SidebarProvider` is only `min-h-svh`; the drive clamps to the
-          viewport and scrolls inside the listing, so the shell pins the height
-          here. Miss this and the listing grows the page instead of its own
-          scroller — which is also what the marquee band measures against. */}
-      <SidebarProvider
-        className="h-svh overflow-hidden"
-        style={
-          {
-            "--sidebar-width": "calc(var(--spacing) * 72)",
-            "--header-height": "calc(var(--spacing) * 12)",
-          } as CSSProperties
-        }
-      >
-        <AppSidebar
-          variant="inset"
-          spaceId={spaceId}
-          onNewFolder={() => setNewFolderOpen(true)}
-          onUploadFiles={handleUploadFiles}
-          onUploadFolder={handleUploadFolder}
-        />
+      <DriveWriteProvider>
+        {/* `SidebarProvider` is only `min-h-svh`; the drive clamps to the
+            viewport and scrolls inside the listing, so the shell pins the
+            height here. Miss this and the listing grows the page instead of
+            its own scroller — which is also what the marquee band measures
+            against. */}
+        <SidebarProvider
+          className="h-svh overflow-hidden"
+          style={
+            {
+              "--sidebar-width": "calc(var(--spacing) * 72)",
+              "--header-height": "calc(var(--spacing) * 12)",
+            } as CSSProperties
+          }
+        >
+          <AppSidebar variant="inset" spaceId={spaceId} />
 
-        <SidebarInset className="min-h-0 overflow-hidden">
-          <SiteHeader />
-          {/* Always render both to keep hooks order stable */}
-          <div className={showLanding ? "flex flex-1 flex-col" : "hidden"}>
-            <LandingPage />
-          </div>
-          <div className={showLanding ? "hidden" : "flex min-h-0 flex-1 flex-col"}>
-            <Outlet />
-          </div>
-        </SidebarInset>
+          <SidebarInset className="min-h-0 overflow-hidden">
+            <SiteHeader />
+            {/* Always render both to keep hooks order stable */}
+            <div className={showLanding ? "flex flex-1 flex-col" : "hidden"}>
+              <LandingPage />
+            </div>
+            <div className={showLanding ? "hidden" : "flex min-h-0 flex-1 flex-col"}>
+              <Outlet />
+            </div>
+          </SidebarInset>
 
-        {/* Hidden file inputs triggered by the rail's New menu */}
-        <FileInput
-          ref={fileRef}
-          multiple
-          onFiles={(files) => {
-            if (files.length)
-              enqueue(
-                files.map((f) => ({ file: f, path: "" })),
-                spaceId ?? "",
-                undefined,
-              );
-          }}
-        />
-        <FileInput
-          ref={folderRef}
-          webkitdirectory
-          onFiles={(files) => {
-            if (files.length)
-              enqueue(
-                files.map((f) => ({ file: f, path: f.webkitRelativePath })),
-                spaceId ?? "",
-                undefined,
-              );
-          }}
-        />
-
-        <NewSpaceDialog />
-        {/* Mounted by the shell so uploads survive navigating between folders. */}
-        <TransferTray />
-        <CommandPalette />
-      </SidebarProvider>
+          <NewSpaceDialog />
+          {/* Mounted by the shell so uploads survive navigating between folders. */}
+          <TransferTray />
+          <CommandPalette />
+        </SidebarProvider>
+      </DriveWriteProvider>
     </HeaderSlotProvider>
-  );
-}
-
-/** Hidden file input that resets after selection */
-function FileInput({
-  ref,
-  multiple,
-  webkitdirectory,
-  onFiles,
-}: {
-  ref: RefObject<HTMLInputElement | null>;
-  multiple?: boolean;
-  webkitdirectory?: boolean;
-  onFiles: (files: File[]) => void;
-}) {
-  return (
-    <input
-      ref={ref}
-      type="file"
-      multiple={multiple}
-      {...(webkitdirectory ? { webkitdirectory: "" } : {})}
-      className="hidden"
-      onChange={(e) => {
-        const files = e.target.files;
-        if (files?.length) {
-          onFiles([...files]);
-        }
-        e.target.value = "";
-      }}
-    />
   );
 }
 

@@ -223,7 +223,8 @@ const NodeCard = memo(function NodeCard({
 
   return (
     <ContextMenu>
-      <ContextMenuTrigger>
+      {/* See node-list: the row owns this click, not the folder behind it. */}
+      <ContextMenuTrigger onContextMenu={(e) => e.stopPropagation()}>
         <div
           data-node-id={node.id}
           className={cn(
