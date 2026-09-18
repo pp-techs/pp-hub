@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Clock, Star } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
-import { RailLabel } from "@/components/rail-item";
+import { HeaderActions } from "@/components/header-slot";
+import { SectionLabel } from "@/components/section-label";
+import { Surface } from "@/components/surface";
 import { SpaceNodeTable } from "@/components/space-node-table";
 import { ActivityFeed } from "@/components/activity-feed";
 import { StorageBreakdown } from "@/components/storage-breakdown";
@@ -46,14 +48,10 @@ function HomePage() {
   const usage = useUsage(spaceId);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="border-border flex h-10 shrink-0 items-center justify-between gap-2 border-b px-4">
-        <div className="flex min-w-0 items-baseline gap-2">
-          <span className="text-sm font-medium">Home</span>
-          <span className="text-muted-foreground truncate text-[10px]">
-            Everything in {space?.name ?? "this space"}
-          </span>
-        </div>
+    <Surface>
+      {/* The shell's header names this surface; the one thing it cannot know
+          is where "Browse files" goes, so the route puts it there itself. */}
+      <HeaderActions>
         <Button
           variant="outline"
           size="xs"
@@ -61,44 +59,49 @@ function HomePage() {
         >
           Browse files
         </Button>
-      </div>
+      </HeaderActions>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-auto p-4">
-        {(recent.data?.length ?? 0) > 0 && (
-          <section>
-            <RailLabel>Continue where you left off</RailLabel>
-            <ContinueCards nodes={recent.data ?? []} />
-          </section>
-        )}
+      <p className="text-muted-foreground -mt-1 text-xs">
+        Everything in {space?.name ?? "this space"}
+      </p>
 
+      {(recent.data?.length ?? 0) > 0 && (
         <section>
-          <div className="flex items-center justify-between">
-            <RailLabel>Recent</RailLabel>
-            <Button
-              variant="ghost"
-              size="xs"
-              render={<Link to="/drive/$spaceId/recent" params={{ spaceId }} />}
-            >
-              View all
-            </Button>
-          </div>
-          <SpaceNodeTable
-            nodes={recent.data ?? []}
-            isPending={recent.isPending}
-            emptyIcon={<Clock className="text-muted-foreground size-10" />}
-            emptyTitle="Nothing recent yet"
-            emptyDescription="Files you upload or edit in this space show up here."
-            extraColumn={{
-              header: "Action",
-              cell: (n) => ACTIONS[(n as SearchResult & { last_action: ActivityKind }).last_action],
-            }}
-          />
+          <SectionLabel>Continue where you left off</SectionLabel>
+          <ContinueCards nodes={recent.data ?? []} />
         </section>
+      )}
 
-        <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+      <div className="grid gap-4 md:gap-6 @4xl/main:grid-cols-[2fr_1fr]">
+        <div className="flex flex-col gap-4 md:gap-6">
           <section>
             <div className="flex items-center justify-between">
-              <RailLabel>Starred</RailLabel>
+              <SectionLabel>Recent</SectionLabel>
+              <Button
+                variant="ghost"
+                size="xs"
+                render={<Link to="/drive/$spaceId/recent" params={{ spaceId }} />}
+              >
+                View all
+              </Button>
+            </div>
+            <SpaceNodeTable
+              nodes={recent.data ?? []}
+              isPending={recent.isPending}
+              emptyIcon={<Clock className="text-muted-foreground size-10" />}
+              emptyTitle="Nothing recent yet"
+              emptyDescription="Files you upload or edit in this space show up here."
+              extraColumn={{
+                header: "Action",
+                cell: (n) =>
+                  ACTIONS[(n as SearchResult & { last_action: ActivityKind }).last_action],
+              }}
+            />
+          </section>
+
+          <section>
+            <div className="flex items-center justify-between">
+              <SectionLabel>Starred</SectionLabel>
               <Button
                 variant="ghost"
                 size="xs"
@@ -115,28 +118,28 @@ function HomePage() {
               emptyDescription="Star a file from its ⋯ menu to keep it here."
             />
           </section>
+        </div>
 
-          <div className="flex flex-col gap-6">
-            <section>
-              <RailLabel>Storage</RailLabel>
-              {usage.isPending ? (
-                <p className="text-muted-foreground text-xs">Loading…</p>
-              ) : (
-                <StorageBreakdown usage={usage.data ?? []} />
-              )}
-            </section>
+        <div className="flex flex-col gap-4 md:gap-6">
+          <section>
+            <SectionLabel>Storage</SectionLabel>
+            {usage.isPending ? (
+              <p className="text-muted-foreground text-xs">Loading…</p>
+            ) : (
+              <StorageBreakdown usage={usage.data ?? []} />
+            )}
+          </section>
 
-            <section>
-              <RailLabel>Activity</RailLabel>
-              {activity.isPending ? (
-                <p className="text-muted-foreground text-xs">Loading…</p>
-              ) : (
-                <ActivityFeed events={activity.data ?? []} />
-              )}
-            </section>
-          </div>
+          <section>
+            <SectionLabel>Activity</SectionLabel>
+            {activity.isPending ? (
+              <p className="text-muted-foreground text-xs">Loading…</p>
+            ) : (
+              <ActivityFeed events={activity.data ?? []} />
+            )}
+          </section>
         </div>
       </div>
-    </div>
+    </Surface>
   );
 }

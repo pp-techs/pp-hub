@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Clock } from "lucide-react";
+import { Surface } from "@/components/surface";
 import { SpaceNodeTable } from "@/components/space-node-table";
 import { useRecent } from "@/lib/queries";
 import type { ActivityKind, SearchResult } from "@/lib/api";
@@ -31,7 +32,7 @@ function RecentPage() {
   const recent = useRecent(spaceId, 100);
 
   return (
-    <div className="min-h-0 flex-1 overflow-auto p-4">
+    <Surface>
       <SpaceNodeTable
         nodes={recent.data ?? []}
         isPending={recent.isPending}
@@ -43,6 +44,6 @@ function RecentPage() {
           cell: (n) => ACTIONS[(n as SearchResult & { last_action: ActivityKind }).last_action],
         }}
       />
-    </div>
+    </Surface>
   );
 }

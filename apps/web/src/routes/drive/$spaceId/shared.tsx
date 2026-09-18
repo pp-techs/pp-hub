@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Users } from "lucide-react";
 import { useShared } from "@/lib/queries";
+import { Surface } from "@/components/surface";
 import { NodeTable } from "@/components/node-table";
 
 export const Route = createFileRoute("/drive/$spaceId/shared")({
@@ -21,8 +22,8 @@ function SharedPage() {
   const shared = useShared(spaceId);
 
   return (
-    <div className="min-h-0 flex-1 overflow-auto p-4">
-      <div className="mb-3 flex flex-col gap-0.5">
+    <Surface>
+      <div className="flex flex-col gap-0.5">
         <h2 className="font-heading text-sm font-medium">Shared with me</h2>
         <p className="text-muted-foreground text-xs">
           Everywhere your access to this space begins. Open one to see what is inside.
@@ -36,6 +37,6 @@ function SharedPage() {
         emptyDescription="When a group you are in is given a folder, or someone shares one with you, it appears here."
         allShared
       />
-    </div>
+    </Surface>
   );
 }

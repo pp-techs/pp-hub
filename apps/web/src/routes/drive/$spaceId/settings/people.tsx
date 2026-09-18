@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useSpace } from "@/lib/queries";
+import { Surface } from "@/components/surface";
 import { PeopleTable } from "@/components/people-table";
 import { GroupDrawer } from "@/components/group-drawer";
 
@@ -38,9 +39,9 @@ function PeoplePage() {
 
   return (
     <div className="flex min-h-0 flex-1">
-      <div className="min-h-0 flex-1 overflow-auto p-4">
+      <Surface>
         <PeopleTable space={space} groupFilter={group} onGroupFilterChange={selectGroup} />
-      </div>
+      </Surface>
       <aside className="border-border w-80 shrink-0 border-l">
         <GroupDrawer space={space} selectedId={group} onSelect={selectGroup} />
       </aside>

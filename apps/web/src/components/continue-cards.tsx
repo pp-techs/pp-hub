@@ -1,6 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { canEdit, fmtRelative, openEditor, type ActivityKind, type RecentNode } from "@/lib/api";
 import { PreviewModal } from "@/components/preview-modal";
+import { Card, CardContent } from "@workspace/ui/components/card";
 import { NodeIcon } from "@/components/node-icon";
 
 /** Past-tense phrasing for the caller's own last touch. */
@@ -46,23 +47,32 @@ export function ContinueCards({ nodes }: { nodes: RecentNode[] }) {
   };
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+    <div className="grid grid-cols-2 gap-3 @xl/main:grid-cols-3 @4xl/main:grid-cols-5">
       {nodes.slice(0, 5).map((node) => (
-        <button
+        <Card
           key={node.id}
-          type="button"
+          role="button"
+          tabIndex={0}
           onClick={() => open(node)}
-          className="border-border hover:bg-muted/50 flex items-center gap-2 rounded-lg border p-3 text-left transition-colors"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              open(node);
+            }
+          }}
+          className="hover:bg-muted/50 cursor-pointer gap-0 py-3 transition-colors focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none"
         >
-          <NodeIcon node={node} className="size-8 shrink-0" />
-          <div className="flex min-w-0 flex-col">
-            <span className="truncate text-xs font-medium">{node.name}</span>
-            <span className="text-muted-foreground truncate text-[10px]">
-              {node.space_name} · {VERBS[node.last_action] ?? node.last_action}{" "}
-              {fmtRelative(node.last_action_at)}
-            </span>
-          </div>
-        </button>
+          <CardContent className="flex items-center gap-2 px-3">
+            <NodeIcon node={node} className="size-8 shrink-0" />
+            <div className="flex min-w-0 flex-col text-left">
+              <span className="truncate text-xs font-medium">{node.name}</span>
+              <span className="text-muted-foreground truncate text-[10px]">
+                {node.space_name} · {VERBS[node.last_action] ?? node.last_action}{" "}
+                {fmtRelative(node.last_action_at)}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
       ))}
     </div>
   );

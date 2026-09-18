@@ -1,6 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
 import { ChevronsUpDown, Plus, Settings, Users } from "lucide-react";
-import { Button } from "@workspace/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,6 +9,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
+import {
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  useSidebar,
+} from "@workspace/ui/components/sidebar";
 import { useSpaces } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
 import { cn } from "@workspace/ui/lib/utils";
@@ -23,9 +28,9 @@ function monogram(name: string) {
 }
 
 /**
- * Top band of the left rail: the active space as a monogram tile with its
- * name, opening the space list. Fixed 48px to line up with the header and
- * toolbar rows in the main column.
+ * The rail's header: the active space as a monogram tile with its name, and
+ * the only place to change space — the space list is not duplicated anywhere
+ * further down.
  *
  * `spaceId` is passed in rather than read from the route: the rail is mounted
  * above `/drive/$spaceId` and also renders on `/drive/account`, where the
@@ -35,90 +40,104 @@ export function SpaceSwitcher({ spaceId }: { spaceId: string | undefined }) {
   const spaces = useSpaces();
   const navigate = useNavigate();
   const setNewSpaceOpen = useUiStore((s) => s.setNewSpaceOpen);
+  const { isMobile } = useSidebar();
 
   const current = spaces.data?.find((s) => s.id === spaceId);
 
   return (
-    <div className="border-border flex h-12 shrink-0 items-center justify-between gap-2 border-b px-3">
-      <div className="flex min-w-0 items-center gap-2">
-        <div className="bg-foreground text-background flex size-5 shrink-0 items-center justify-center rounded-sm text-[10px] font-semibold">
-          {current ? monogram(current.name) : "—"}
-        </div>
-        <div className="flex min-w-0 flex-col leading-none">
-          <span className="truncate text-xs font-medium">{current?.name ?? "Select a space"}</span>
-          {current?.is_admin && (
-            <span className="text-muted-foreground mt-0.5 text-[10px] tracking-wider uppercase">
-              Admin
-            </span>
-          )}
-        </div>
-      </div>
-
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={<Button variant="ghost" size="icon-sm" aria-label="Switch space" />}
-        >
-          <ChevronsUpDown />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuGroup>
-            <DropdownMenuLabel className="text-muted-foreground text-[11px] tracking-wider uppercase">
-              Spaces
-            </DropdownMenuLabel>
-            {spaces.data?.map((space) => (
-              <DropdownMenuItem
-                key={space.id}
-                className={cn(space.id === spaceId && "bg-accent")}
-                onClick={() =>
-                  void navigate({
-                    to: "/drive/$spaceId",
-                    params: { spaceId: space.id },
-                    search: { dir: undefined },
-                  })
-                }
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <SidebarMenuButton
+                size="lg"
+                aria-label="Switch space"
+                className="data-popup-open:bg-sidebar-accent data-popup-open:text-sidebar-accent-foreground"
               >
-                <span className="truncate">{space.name}</span>
-                {space.is_admin && (
-                  <span className="text-muted-foreground ml-auto text-[10px] uppercase">Admin</span>
-                )}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuGroup>
-          {current?.is_admin && (
-            <>
-              <DropdownMenuSeparator />
-              {/* The only way into space settings. It used to be a gear in the
-                  main header, which sat next to a Members icon that opened a
-                  second, competing copy of the same screen. */}
-              <DropdownMenuItem
-                onClick={() =>
-                  void navigate({
-                    to: "/drive/$spaceId/settings/general",
-                    params: { spaceId: current.id },
-                  })
-                }
-              >
-                <Settings /> Space settings
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() =>
-                  void navigate({
-                    to: "/drive/$spaceId/settings/people",
-                    params: { spaceId: current.id },
-                    search: { group: undefined },
-                  })
-                }
-              >
-                <Users /> People
-              </DropdownMenuItem>
-            </>
-          )}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => setNewSpaceOpen(true)}>
-            <Plus /> Create new space
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+                <div className="bg-foreground text-background flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg text-[11px] font-semibold">
+                  {current ? monogram(current.name) : "—"}
+                </div>
+                <div className="grid flex-1 text-left leading-tight">
+                  <span className="truncate text-sm font-medium">
+                    {current?.name ?? "Select a space"}
+                  </span>
+                  {current?.is_admin && (
+                    <span className="text-muted-foreground truncate text-[10px] tracking-wider uppercase">
+                      Admin
+                    </span>
+                  )}
+                </div>
+                <ChevronsUpDown className="ml-auto" />
+              </SidebarMenuButton>
+            }
+          />
+          <DropdownMenuContent
+            className="min-w-56"
+            side={isMobile ? "bottom" : "right"}
+            align="start"
+          >
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="text-muted-foreground text-[11px] tracking-wider uppercase">
+                Spaces
+              </DropdownMenuLabel>
+              {spaces.data?.map((space) => (
+                <DropdownMenuItem
+                  key={space.id}
+                  className={cn(space.id === spaceId && "bg-accent")}
+                  onClick={() =>
+                    void navigate({
+                      to: "/drive/$spaceId",
+                      params: { spaceId: space.id },
+                      search: { dir: undefined },
+                    })
+                  }
+                >
+                  <span className="truncate">{space.name}</span>
+                  {space.is_admin && (
+                    <span className="text-muted-foreground ml-auto text-[10px] uppercase">
+                      Admin
+                    </span>
+                  )}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
+            {current?.is_admin && (
+              <>
+                <DropdownMenuSeparator />
+                {/* The only way into space settings. It used to be a gear in
+                    the main header, which sat next to a Members icon that
+                    opened a second, competing copy of the same screen. */}
+                <DropdownMenuItem
+                  onClick={() =>
+                    void navigate({
+                      to: "/drive/$spaceId/settings/general",
+                      params: { spaceId: current.id },
+                    })
+                  }
+                >
+                  <Settings /> Space settings
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() =>
+                    void navigate({
+                      to: "/drive/$spaceId/settings/people",
+                      params: { spaceId: current.id },
+                      search: { group: undefined },
+                    })
+                  }
+                >
+                  <Users /> People
+                </DropdownMenuItem>
+              </>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setNewSpaceOpen(true)}>
+              <Plus /> Create new space
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
+    </SidebarMenu>
   );
 }

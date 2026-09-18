@@ -17,6 +17,27 @@ Status: M1–M5 done — full MVP: OIDC auth (Logto; any OIDC provider works), d
 
 **M17 — one dialog owns access.** `Share` on any node — file or folder — is the single place groups, people and the public link are granted and revoked; the folder-only `Who can open this…` dialog and the email-only share panel are gone, along with `?panel=share` (`PanelKind` is now just `versions`). Grantees are picked from the space, never typed: one combobox offers the space's groups above its members, filtered locally because `GET /spaces/{id}/groups` and `GET /spaces/{id}/members` are both member-readable and already cached, with one level/download/re-share control applied to everyone picked. Group grants now reach files too — the server always allowed it (`Grant` only checks that node and group share a space, and a share row on a file is an entry point like any other), the client merely hid it; the same widening fixed a share list that rendered a group grant as a row labelled with the literal word "group". `GET /users/search` stays the invite path's tenant directory but is now scoped to accounts sharing a space with the caller, lifted only for an instance admin: it was an unscoped address book across every company on the instance.
 
+**M18 — the shell is the shadcn dashboard shell.** `drive.tsx` is now
+`SidebarProvider` → `app-sidebar` (`variant="inset"`, `collapsible="offcanvas"`)
+→ `SidebarInset`, so the rail collapses with `Ctrl+B`, remembers that in a
+cookie and becomes a sheet below `md` — none of which the hand-rolled
+`<aside className="w-64">` could do. The bigger win is that there is now
+**one** header: `site-header.tsx` renders the trigger, a breadcrumb derived
+from the pathname, the ⌘K button and a portal slot, and every surface fills
+that slot through `HeaderActions` instead of stacking a second 40px band of
+its own — Home and Account each used to. `drive-header.tsx`, `drive-toolbar.tsx`
+(dead: defined, never imported), `quick-access.tsx` and `rail-item.tsx` are
+gone; rail rows are `SidebarMenuButton`/`SidebarMenuSubButton`, and `RailLabel`
+— which was never used in the rail — is `section-label.tsx`. Page rhythm has
+one home, `surface.tsx` (`@container/main`, `px-4 lg:px-6`, `py-4 md:py-6`),
+and the folder listing deliberately opts out of it: a file manager's rows reach
+the edges and scroll under a sticky header, so it keeps a full-bleed container
+clipped to the inset's corner. Two invariants are load-bearing —
+`SidebarInset` has to stay a direct sibling of the sidebar (its margin and
+rounding are `peer-data-[variant=inset]`), and the shell has to pin `h-svh
+overflow-hidden`, because `SidebarProvider` is only `min-h-svh` and the marquee
+band measures against whatever actually scrolls.
+
 ## Architecture
 
 System design, component interactions, data flows, deployment, and external integrations.

@@ -2,7 +2,6 @@ import { Outlet, createFileRoute, notFound, useNavigate } from "@tanstack/react-
 import { Button } from "@workspace/ui/components/button";
 import { fetchSpaces } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
-import { DriveHeader } from "@/components/drive-header";
 
 export const Route = createFileRoute("/drive/$spaceId")({
   beforeLoad: async ({ context, params }) => {
@@ -21,16 +20,9 @@ export const Route = createFileRoute("/drive/$spaceId")({
 });
 
 function SpaceLayout() {
-  const { spaceId } = Route.useParams();
-
-  return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      {/* One header for every space surface — breadcrumbs left, view controls
-          right (controls render only on the listing, decided inside). */}
-      <DriveHeader spaceId={spaceId} />
-      <Outlet />
-    </div>
-  );
+  // The shell above owns the header; this layout is only here to resolve the
+  // space in `beforeLoad` and hold the surfaces.
+  return <Outlet />;
 }
 
 function SpaceGone() {

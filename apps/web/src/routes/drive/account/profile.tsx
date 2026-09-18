@@ -8,8 +8,9 @@ import { Textarea } from "@workspace/ui/components/textarea";
 import { Badge } from "@workspace/ui/components/badge";
 import { fmtDate, fmtRelative, type UserProfile } from "@/lib/api";
 import { useMyProfile, useSpaces, useUpdateProfile } from "@/lib/queries";
+import { Surface } from "@/components/surface";
 import { UserAvatar } from "@/components/user-avatar";
-import { RailLabel } from "@/components/rail-item";
+import { SectionLabel } from "@/components/section-label";
 
 export const Route = createFileRoute("/drive/account/profile")({
   head: () => ({ meta: [{ title: "Profile · Account · pp-hub" }] }),
@@ -34,7 +35,7 @@ function ProfileForm({ profile }: { profile: UserProfile }) {
   const dirty = displayName !== (profile.display_name || profile.name) || bio !== profile.bio;
 
   return (
-    <div className="flex max-w-xl flex-col gap-6 overflow-y-auto p-4">
+    <Surface className="max-w-xl">
       <div className="flex items-center gap-4">
         <UserAvatar
           src={profile.avatar_url}
@@ -69,7 +70,7 @@ function ProfileForm({ profile }: { profile: UserProfile }) {
           );
         }}
       >
-        <RailLabel>Profile</RailLabel>
+        <SectionLabel>Profile</SectionLabel>
 
         <div className="flex flex-col gap-1">
           <Label htmlFor="display-name">Display name</Label>
@@ -125,7 +126,7 @@ function ProfileForm({ profile }: { profile: UserProfile }) {
       </form>
 
       <section className="flex flex-col gap-2">
-        <RailLabel>Your spaces</RailLabel>
+        <SectionLabel>Your spaces</SectionLabel>
         <div className="border-border divide-border flex flex-col divide-y rounded-lg border">
           {(spaces.data ?? []).map((space) => (
             <div key={space.id} className="flex items-center gap-2 p-2">
@@ -156,7 +157,7 @@ function ProfileForm({ profile }: { profile: UserProfile }) {
           Only a space admin can add or remove members, so leaving is a request to one of them.
         </p>
       </section>
-    </div>
+    </Surface>
   );
 }
 

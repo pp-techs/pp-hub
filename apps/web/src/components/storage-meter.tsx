@@ -3,9 +3,12 @@ import { fmtSize } from "@/lib/api";
 import { useSpaces } from "@/lib/queries";
 
 /**
- * Storage consumption for the active space, pinned to the bottom of the rail.
+ * Storage consumption for the active space, pinned to the rail's footer.
  * `quota_bytes` is 0 for an unmetered space, in which case there is no ratio
  * to draw and only the used figure is shown.
+ *
+ * Hidden when the rail is collapsed to icons: a 3rem column has no room for
+ * a label, a bar and a byte count.
  */
 export function StorageMeter() {
   const spaces = useSpaces();
@@ -20,7 +23,7 @@ export function StorageMeter() {
     : null;
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-1.5 px-2 py-1 group-data-[collapsible=icon]:hidden">
       <div className="flex items-center justify-between">
         <span className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
           Storage

@@ -21,9 +21,6 @@ export const Route = createFileRoute("/drive/account")({
 function AccountLayout() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="border-border flex h-10 shrink-0 items-center border-b px-4">
-        <span className="text-xs font-medium">Account</span>
-      </header>
       <SettingsTabs
         tabs={[
           { label: "Profile", to: "/drive/account/profile" },

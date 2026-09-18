@@ -58,6 +58,8 @@ import { NodeList } from "@/components/node-list";
 import { SelectionBar } from "@/components/selection-bar";
 import { MoveDialog } from "@/components/move-dialog";
 import { ShareDialog } from "@/components/share-dialog";
+import { HeaderActions } from "@/components/header-slot";
+import { ListingControls } from "@/components/listing-controls";
 import { downloadUrl } from "@/components/node-actions";
 const EMPTY_SET = new Set<string>();
 
@@ -360,8 +362,12 @@ function FolderView() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {/* Header is rendered once by the space layout above — no second copy. */}
-      <div className="flex min-h-0 flex-1">
+      {/* Sort/view/details live in the shell's one header, put there from here
+          so the header never has to sniff the pathname for a listing. */}
+      <HeaderActions>
+        <ListingControls spaceId={spaceId} />
+      </HeaderActions>
+      <div className="flex min-h-0 flex-1 overflow-hidden rounded-b-xl">
         <DropZone spaceId={spaceId} parentId={dir} destination={destination} disabled={!canUpload}>
           <div
             ref={listingRef}

@@ -1,7 +1,7 @@
 import { Outlet, createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { FolderPlus, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import type { FormEvent, RefObject } from "react";
+import type { CSSProperties, FormEvent, RefObject } from "react";
 import { toast } from "sonner";
 import { Button } from "@workspace/ui/components/button";
 import { Label } from "@workspace/ui/components/label";
@@ -19,13 +19,12 @@ import { fetchSpaces, requireAuth, useCreateSpace, useSpaces } from "@/lib/queri
 import { useUiStore } from "@/lib/ui-store";
 import { useUploadStore } from "@/lib/upload-store";
 import { useActiveSpaceId } from "@/lib/use-active-space";
-import { FolderTree } from "@/components/folder-tree";
-import { SpaceSwitcher } from "@/components/space-switcher";
-import { NavUser } from "@/components/nav-user";
-import { QuickAccess } from "@/components/quick-access";
-import { StorageMeter } from "@/components/storage-meter";
+import { AppSidebar } from "@/components/app-sidebar";
+import { HeaderSlotProvider } from "@/components/header-slot";
+import { SiteHeader } from "@/components/site-header";
 import { TransferTray } from "@/components/transfer-tray";
 import { CommandPalette } from "@/components/command-palette";
+import { SidebarInset, SidebarProvider } from "@workspace/ui/components/sidebar";
 export const Route = createFileRoute("/drive")({
   head: () => ({ meta: [{ title: "Drive · pp-hub" }] }),
   beforeLoad: async ({ context, location }) => {
@@ -81,78 +80,74 @@ function DriveLayout() {
   const handleUploadFolder = () => folderRef.current?.click();
 
   return (
-    <div className="bg-background text-foreground flex h-svh overflow-hidden">
-      <aside className="bg-sidebar text-sidebar-foreground border-border flex w-64 shrink-0 flex-col justify-between border-r">
-        {/* Space switcher */}
-        <SpaceSwitcher spaceId={spaceId} />
+    // `HeaderSlotProvider` wraps the provider, never sits between it and
+    // `SidebarInset`: the inset's margin/rounding is `peer-data-[variant=inset]`,
+    // which only matches while the inset is a direct sibling of the sidebar.
+    <HeaderSlotProvider>
+      {/* `SidebarProvider` is only `min-h-svh`; the drive clamps to the
+          viewport and scrolls inside the listing, so the shell pins the height
+          here. Miss this and the listing grows the page instead of its own
+          scroller — which is also what the marquee band measures against. */}
+      <SidebarProvider
+        className="h-svh overflow-hidden"
+        style={
+          {
+            "--sidebar-width": "calc(var(--spacing) * 72)",
+            "--header-height": "calc(var(--spacing) * 12)",
+          } as CSSProperties
+        }
+      >
+        <AppSidebar
+          variant="inset"
+          spaceId={spaceId}
+          onNewFolder={() => setNewFolderOpen(true)}
+          onUploadFiles={handleUploadFiles}
+          onUploadFolder={handleUploadFolder}
+        />
 
-        {/* Navigation */}
-        <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-2 py-3">
-          {/* Both bands are about one space, so they wait for one rather than
-              rendering an empty frame. Only true before the first space is
-              created. */}
-          {spaceId && (
-            <QuickAccess
-              spaceId={spaceId}
-              onNewFolder={() => setNewFolderOpen(true)}
-              onUploadFiles={handleUploadFiles}
-              onUploadFolder={handleUploadFolder}
-            >
-              <FolderTree spaceId={spaceId} />
-            </QuickAccess>
-          )}
-        </div>
-
-        {/* Band 3 — storage and account */}
-        <div className="border-border flex shrink-0 flex-col gap-3 border-t p-3">
-          <StorageMeter />
-          <div className="border-border border-t pt-2">
-            <NavUser />
+        <SidebarInset className="min-h-0 overflow-hidden">
+          <SiteHeader />
+          {/* Always render both to keep hooks order stable */}
+          <div className={showLanding ? "flex flex-1 flex-col" : "hidden"}>
+            <LandingPage />
           </div>
-        </div>
-      </aside>
+          <div className={showLanding ? "hidden" : "flex min-h-0 flex-1 flex-col"}>
+            <Outlet />
+          </div>
+        </SidebarInset>
 
-      <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        {/* Always render both to keep hooks order stable */}
-        <div className={showLanding ? "flex flex-1 flex-col" : "hidden"}>
-          <LandingPage />
-        </div>
-        <div className={showLanding ? "hidden" : "flex min-h-0 flex-1 flex-col"}>
-          <Outlet />
-        </div>
-      </main>
+        {/* Hidden file inputs triggered by the rail's New menu */}
+        <FileInput
+          ref={fileRef}
+          multiple
+          onFiles={(files) => {
+            if (files.length)
+              enqueue(
+                files.map((f) => ({ file: f, path: "" })),
+                spaceId ?? "",
+                undefined,
+              );
+          }}
+        />
+        <FileInput
+          ref={folderRef}
+          webkitdirectory
+          onFiles={(files) => {
+            if (files.length)
+              enqueue(
+                files.map((f) => ({ file: f, path: f.webkitRelativePath })),
+                spaceId ?? "",
+                undefined,
+              );
+          }}
+        />
 
-      {/* Hidden file inputs triggered by QuickAccess */}
-      <FileInput
-        ref={fileRef}
-        multiple
-        onFiles={(files) => {
-          if (files.length)
-            enqueue(
-              files.map((f) => ({ file: f, path: "" })),
-              spaceId ?? "",
-              undefined,
-            );
-        }}
-      />
-      <FileInput
-        ref={folderRef}
-        webkitdirectory
-        onFiles={(files) => {
-          if (files.length)
-            enqueue(
-              files.map((f) => ({ file: f, path: f.webkitRelativePath })),
-              spaceId ?? "",
-              undefined,
-            );
-        }}
-      />
-
-      <NewSpaceDialog />
-      {/* Mounted by the shell so uploads survive navigating between folders. */}
-      <TransferTray />
-      <CommandPalette />
-    </div>
+        <NewSpaceDialog />
+        {/* Mounted by the shell so uploads survive navigating between folders. */}
+        <TransferTray />
+        <CommandPalette />
+      </SidebarProvider>
+    </HeaderSlotProvider>
   );
 }
 

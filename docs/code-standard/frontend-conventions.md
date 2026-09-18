@@ -23,7 +23,35 @@ Three layers, one direction only — components never call `api` directly:
   the caller a page exists where it does not.
 - **Ephemeral view state belongs in the URL when it is shareable** (`?dir=`,
   `?group=`, `?view=`) and in `ui-store` only when it is not (selection, open
-  panels, the rail's filter field).
+  panels).
+
+## Drive Shell
+
+- **The shell is the shadcn dashboard shell.** `routes/drive.tsx` = `SidebarProvider`
+  → `app-sidebar` (`variant="inset"`, `collapsible="offcanvas"`) + `SidebarInset`
+  → `site-header` + `<Outlet/>`. `--sidebar-width: 18rem`, `--header-height: 3rem`.
+- **A rail row is a `SidebarMenuButton`**, a tree row a `SidebarMenuSubButton`.
+  `railRow()` is gone; do not reintroduce a parallel row helper.
+  Skip the `tooltip` prop — with `offcanvas` the sidebar never reaches the
+  collapsed state that would show it.
+- **`SidebarInset` must stay a direct sibling of the sidebar.** Its margin and
+  rounding are `peer-data-[variant=inset]`. A new provider wraps
+  `SidebarProvider`; it never sits between the provider and the inset.
+- **The shell pins the viewport.** `SidebarProvider` is only `min-h-svh`, so
+  `drive.tsx` adds `h-svh overflow-hidden` and `SidebarInset` adds
+  `min-h-0 overflow-hidden`. Without both, the listing grows the page rather
+  than its own scroller and the marquee band measures against the document.
+- **There is exactly one header.** A surface never renders a header row; it
+  puts its controls in the shell's header through `HeaderActions`
+  (`header-slot.tsx`). Titles come from the pathname via `SECTIONS` in
+  `site-header.tsx` — add a segment there, not a prop.
+- **Page rhythm lives in `surface.tsx`.** Every surface except the folder
+  listing renders inside `<Surface>`; size sections with container queries
+  (`@xl/main`, `@4xl/main`), not viewport breakpoints, because the details
+  panel narrows the column without the route knowing. The listing stays
+  full-bleed on purpose.
+- **`packages/ui` is shadcn's base-ui variant** (style `base-mira`,
+  `@base-ui/react`). Composition uses `render={<El/>}`, never `asChild`.
 
 ## Monorepo Rules
 

@@ -16,7 +16,7 @@ import type { UserSearchResult } from "@/lib/api";
 import { useKeyedState } from "@/lib/use-keyed-state";
 import { useAddSpaceMember, useCreateInvitation } from "@/lib/queries";
 import { MemberPicker } from "@/components/member-picker";
-import { RailLabel } from "@/components/rail-item";
+import { SectionLabel } from "@/components/section-label";
 
 interface InviteProps extends Record<string, unknown> {
   spaceId: string;
@@ -69,7 +69,7 @@ export const InviteModal = createModal<InviteProps>(
             </div>
 
             <div className="flex flex-col gap-1">
-              <RailLabel>Someone with an account</RailLabel>
+              <SectionLabel>Someone with an account</SectionLabel>
               <div className="flex items-center gap-2">
                 <div className="min-w-0 flex-1">
                   <MemberPicker
@@ -124,7 +124,7 @@ export const InviteModal = createModal<InviteProps>(
                 );
               }}
             >
-              <RailLabel>By email</RailLabel>
+              <SectionLabel>By email</SectionLabel>
               <div className="flex items-center gap-2">
                 <Input
                   type="email"

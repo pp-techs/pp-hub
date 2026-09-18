@@ -9,8 +9,9 @@ import {
 } from "@workspace/ui/components/select";
 import type { NodeView, SortField, SortOrder } from "@/lib/api";
 import { useUiStore } from "@/lib/ui-store";
+import { Surface } from "@/components/surface";
 import { useTheme } from "@/components/theme-provider";
-import { RailLabel } from "@/components/rail-item";
+import { SectionLabel } from "@/components/section-label";
 
 export const Route = createFileRoute("/drive/account/preferences")({
   head: () => ({ meta: [{ title: "Preferences · Account · pp-hub" }] }),
@@ -50,9 +51,9 @@ function PreferencesPage() {
   const setPrefs = useUiStore((s) => s.setListingPrefs);
 
   return (
-    <div className="flex max-w-xl flex-col gap-6 overflow-y-auto p-4">
+    <Surface className="max-w-xl">
       <section className="flex flex-col gap-3">
-        <RailLabel>Appearance</RailLabel>
+        <SectionLabel>Appearance</SectionLabel>
         <Field
           id="pref-theme"
           label="Theme"
@@ -64,7 +65,7 @@ function PreferencesPage() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <RailLabel>Default listing</RailLabel>
+        <SectionLabel>Default listing</SectionLabel>
         <p className="text-muted-foreground text-[10px]">
           Used when a link says nothing about how to draw the folder. A link that carries a view or
           a sort keeps the one it was copied with.
@@ -91,7 +92,7 @@ function PreferencesPage() {
           onChange={(v) => setPrefs({ order: v as SortOrder })}
         />
       </section>
-    </div>
+    </Surface>
   );
 }
 

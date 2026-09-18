@@ -29,7 +29,9 @@ pp-hub/
 │   │       │   ├── member-picker.tsx     # tenant user search, invite-only (see /users/search scoping)
 │   │       │   ├── user-avatar.tsx       # avatar with fallback
 │   │       │   ├── confirm-dialog.tsx    # confirmation modal
-│   │       │   ├── quick-access.tsx      # rail links to the space's own surfaces
+│   │       │   ├── app-sidebar.tsx       # the rail: header + nav bands + footer, one Sidebar
+│   │       │   ├── nav-create.tsx        # rail: the accented New row (upload files/folder, mkdir)
+│   │       │   ├── nav-space.tsx         # rail: Home / My Drive+tree / smart views / Trash+Archive
 │   │       │   ├── trash-panel.tsx       # Trash listing + restore / delete forever / empty
 │   │       │   ├── move-dialog.tsx       # "Move to…" folder picker (better-modal)
 │   │       │   ├── drop-zone.tsx         # drag-and-drop overlay over the listing
@@ -43,12 +45,14 @@ pp-hub/
 │   │       │   ├── version-list.tsx      # shared by the ⋯ dialog and preview tab
 │   │       │   ├── node-table.tsx        # read-only dense node listing
 │   │       │   ├── node-icon.tsx         # NodeIcon: vscode-icons glyph per extension
-│   │       │   ├── space-switcher.tsx    # rail band 1: active space + space menu
-│   │       │   ├── rail-search.tsx       # rail name filter (⌘K), writes ui-store.filterQuery
-│   │       │   ├── rail-item.tsx         # shared rail row geometry + section label
-│   │       │   ├── storage-meter.tsx     # rail band 3: used/quota for the active space
-│   │       │   ├── drive-header.tsx      # main column row 1: breadcrumbs + global toggles
-│   │       │   ├── drive-toolbar.tsx     # main column row 2: create, sort, view, details (i)
+│   │       │   ├── space-switcher.tsx    # SidebarHeader: active space + the only space menu
+│   │       │   ├── nav-search.tsx        # header ⌘K trigger; icon-only below `sm`
+│   │       │   ├── section-label.tsx     # uppercase 11px heading for a page or form section
+│   │       │   ├── storage-meter.tsx     # SidebarFooter: used/quota for the active space
+│   │       │   ├── site-header.tsx       # the one header: trigger + breadcrumb + HeaderSlot
+│   │       │   ├── header-slot.tsx       # portal pair so a route fills the shell's header
+│   │       │   ├── listing-controls.tsx  # sort, view and details (i), portalled by the listing
+│   │       │   ├── surface.tsx           # scrolling body + page rhythm for every non-listing surface
 │   │       │   ├── node-list.tsx         # dense list view, click-to-select rows
 │   │       │   ├── node-grid.tsx         # card grid, grouped Folders / Files, always-on thumbnails
 │   │       │   ├── node-actions.tsx      # single source for a node's menu actions
@@ -60,9 +64,9 @@ pp-hub/
 │   │           ├── invite/$token.tsx    # redeem a space invitation
 │   │           ├── s/$token.tsx         # anonymous share-link browser (no rail, no account)
 │   │           ├── edit/$nodeId.tsx     # full-page OnlyOffice editor (opened in a new tab)
-│   │           ├── drive.tsx            # drive shell: left rail + <Outlet/>
+│   │           ├── drive.tsx            # drive shell: SidebarProvider + AppSidebar + SidebarInset
 │   │           ├── drive/account/       # route.tsx (tabs) + profile.tsx + preferences.tsx
-│   │           └── drive/$spaceId/      # route.tsx (layout) + index.tsx (listing)
+│   │           └── drive/$spaceId/      # route.tsx (space guard) + index.tsx (listing)
 │   │               │                    #   + home / recent / starred / shared / trash
 │   │               └── settings/        # route.tsx (tabs) + general / people / danger
 │   └── server/                     # Go backend — own go.mod
@@ -93,7 +97,9 @@ pp-hub/
 │           ├── wopi/               # WOPI host endpoints, access tokens
 │           └── preview/            # renderers + job loop; jobs.kind routes, previews.kind is the artifact
 ├── packages/
-│   ├── ui/                         # @workspace/ui — shadcn/ui preset components + design tokens (globals.css)
+│   ├── ui/                         # @workspace/ui — shadcn/ui preset (base-ui) + design tokens (globals.css)
+│   │   ├── src/components/         # primitives; `sidebar.tsx` owns the drive shell's geometry
+│   │   └── src/hooks/              # use-mobile.ts — the sidebar's md breakpoint
 │   └── utils/                      # shared TS utils (template package, dist via vp pack)
 ├── deploy/
 │   └── compose/
@@ -128,18 +134,42 @@ pp-hub/
   to survive a reload, be sendable to a colleague and answer the back button.
   `settings/route.tsx` refuses a non-admin in `beforeLoad` rather than
   rendering a "you cannot" pane at a URL that resolved.
-- **Drive shell layout.** `routes/drive.tsx` owns the 256px left rail as three
-  bands — `space-switcher` (48px, also the only place to change space — the
-  space list is not duplicated further down), the scrolling nav (search,
-  Quick access, the Files tree), and a pinned footer (`storage-meter` +
-  `nav-user`).
-  `drive/$spaceId/route.tsx` owns `drive-header` (40px, breadcrumbs derived
-  from the pathname) above an `<Outlet/>`; `index.tsx` adds `drive-toolbar`.
-  The rail reads its space through `useActiveSpaceId()`, which is the route
-  param everywhere except `/drive/account` — an account belongs to no space, so
-  there the rail keeps pointing at the last one opened. Row geometry for the
-  rail lives in `rail-item.tsx`; use `railRow()` rather than re-deriving row
-  classes.
+- **Drive shell layout.** `routes/drive.tsx` is the shadcn dashboard shell:
+  `SidebarProvider` (`--sidebar-width: 18rem`, `--header-height: 3rem`) holding
+  `app-sidebar` (`variant="inset"`, `collapsible="offcanvas"`) beside a
+  `SidebarInset`. The rail is `space-switcher` in `SidebarHeader`, then
+  `nav-create` + `nav-space` in `SidebarContent`, then `storage-meter` +
+  `nav-user` in `SidebarFooter`. Row geometry comes from `SidebarMenuButton`
+  and `SidebarMenuSubButton` — there is no `railRow()` any more, and a new row
+  must not reintroduce one.
+  Two things about this are load-bearing and easy to break:
+  - `SidebarProvider` is only `min-h-svh`, so `drive.tsx` adds
+    `h-svh overflow-hidden` and `SidebarInset` adds `min-h-0 overflow-hidden`.
+    Without them the listing grows the page instead of its own scroller, and
+    the marquee band ends up measured against the document.
+  - the inset's margin and rounding are `peer-data-[variant=inset]`, which only
+    matches while `SidebarInset` is a **direct sibling** of the sidebar. Any new
+    provider (`HeaderSlotProvider` is one) wraps `SidebarProvider`, never sits
+    between it and the inset.
+    The rail reads its space through `useActiveSpaceId()`, which is the route
+    param everywhere except `/drive/account` — an account belongs to no space, so
+    there the rail keeps pointing at the last one opened.
+- **One header, filled by the route.** `site-header.tsx` is rendered once by
+  the shell: the `SidebarTrigger`, a breadcrumb derived from the pathname plus
+  the `dirs` cache, then `nav-search` and a `HeaderSlot`. A surface no longer
+  renders a header row of its own — `home.tsx` and `account/route.tsx` each
+  used to add a second 40px band under it. Controls that belong to one route go
+  through `header-slot.tsx`: the shell publishes the slot node, the route
+  portals into it (`ListingControls` from the listing, "Browse files" from
+  Home). That is why the header never has to sniff the pathname to decide
+  whether there are rows to sort. Deliberately not `ui-store`: that store is
+  for ephemeral UI _state_, and a ReactNode is not state.
+- **Two rhythms, on purpose.** Every surface except the folder listing renders
+  inside `surface.tsx` — `@container/main` plus `px-4 lg:px-6` and
+  `py-4 md:py-6`. Put the rhythm there, not in the route: ten surfaces retyping
+  the class string is how it drifts. The listing keeps its own full-bleed
+  container (`rounded-b-xl overflow-hidden`, so rows clip to the inset's
+  corner) because a file manager's rows have to reach the edges.
 - **Folder navigation keeps the previous listing on screen.** `childrenOptions`
   sets `placeholderData: (prev) => prev` — the same pattern `useNodeSearch`
   uses — so clicking a folder in `folder-tree.tsx` swaps content in place
@@ -215,12 +245,15 @@ pp-hub/
 - **Node menu actions have one definition.** `node-actions.tsx` builds the
   action list; the list view, grid view and their right-click menus all render
   from it. Add an action there, not in a menu.
-- **Two searches, on purpose.** The rail field filters the _open folder_
-  locally — its query lives in `ui-store.filterQuery` because the field sits in
-  the rail (mounted by `drive.tsx`) while the listing it filters is owned by
-  `drive/$spaceId/index.tsx`. ⌘K is something else: a server search across every
-  space, in `command-palette.tsx`. The rail's `⌘K` chip is a button through to
-  the palette, not a hint that the chip focuses the field. Don't merge them.
+- **One search, and one dead store field.** `nav-search.tsx` sits in the header
+  and is a _button_ through to `command-palette.tsx` — a server search across
+  every space — not a field. It is icon-only below `sm` so the breadcrumb keeps
+  its width on a phone.
+  `ui-store.filterQuery` is the leftover of a rail filter field that no longer
+  exists: `drive/$spaceId/index.tsx` still reads it (and still has a "No
+  matching files or folders" empty state behind it), but nothing writes it, so
+  it is permanently `""`. Either bring the field back or delete the field and
+  that empty-state branch together — do not add a second writer somewhere else.
 - **Design source.** The UI follows the Stitch project "pp-hub — Self-hosted
   Drive" (`11969748414038004354`); tokens and screen prompts are mirrored in
   `.stitch/DESIGN.md` and `.stitch/SCREEN-PROMPTS.md`. Where a designed element

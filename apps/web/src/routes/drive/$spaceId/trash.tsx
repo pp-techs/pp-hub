@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Surface } from "@/components/surface";
 import { TrashPanel } from "@/components/trash-panel";
 
 export const Route = createFileRoute("/drive/$spaceId/trash")({
@@ -10,8 +11,8 @@ function TrashPage() {
   const { spaceId } = Route.useParams();
 
   return (
-    <div className="min-h-0 flex-1 overflow-auto p-4">
+    <Surface>
       <TrashPanel spaceId={spaceId} />
-    </div>
+    </Surface>
   );
 }

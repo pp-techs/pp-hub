@@ -1,6 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { LogOut, MoreHorizontal, User } from "lucide-react";
-import { Button } from "@workspace/ui/components/button";
+import { ChevronsUpDown, LogOut, User } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,60 +10,79 @@ import {
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
 import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar";
+import {
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  useSidebar,
+} from "@workspace/ui/components/sidebar";
 import { logout, useMe } from "@/lib/queries";
 
 /**
- * Bottom band of the left rail: who is signed in, with the account menu behind
- * the trailing button rather than making the whole row a control.
+ * The rail's footer: who is signed in, with the account menu behind the whole
+ * row — there is nothing else the row could do, so a separate trailing button
+ * would only be a smaller target for the same action.
  */
 export function NavUser() {
   const navigate = useNavigate();
   const me = useMe();
+  const { isMobile } = useSidebar();
 
   const initials = (me.data?.name || me.data?.email || "?").charAt(0).toUpperCase();
 
   return (
-    <div className="flex items-center justify-between gap-2">
-      <div className="flex min-w-0 items-center gap-2">
-        <Avatar size="sm" className="shrink-0">
-          <AvatarFallback>{initials}</AvatarFallback>
-        </Avatar>
-        <div className="flex min-w-0 flex-col leading-tight">
-          <span className="truncate text-xs font-medium">{me.data?.name || "User"}</span>
-          <span className="text-muted-foreground truncate text-[10px]">{me.data?.email}</span>
-        </div>
-      </div>
-
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={<Button variant="ghost" size="icon-sm" aria-label="Account menu" />}
-        >
-          <MoreHorizontal />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" side="top" className="w-56">
-          <DropdownMenuGroup>
-            <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col gap-0.5">
-                <p className="text-xs font-medium">{me.data?.name || "User"}</p>
-                <p className="text-muted-foreground text-[10px]">{me.data?.email}</p>
-              </div>
-            </DropdownMenuLabel>
-          </DropdownMenuGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => void navigate({ to: "/drive/account/profile" })}>
-            <User /> Account
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={async () => {
-              await logout();
-              void navigate({ to: "/login" });
-            }}
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <SidebarMenuButton
+                size="lg"
+                aria-label="Account menu"
+                className="data-popup-open:bg-sidebar-accent data-popup-open:text-sidebar-accent-foreground"
+              >
+                <Avatar className="size-8 rounded-lg">
+                  <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
+                </Avatar>
+                <div className="grid flex-1 text-left leading-tight">
+                  <span className="truncate text-sm font-medium">{me.data?.name || "User"}</span>
+                  <span className="text-muted-foreground truncate text-[10px]">
+                    {me.data?.email}
+                  </span>
+                </div>
+                <ChevronsUpDown className="ml-auto" />
+              </SidebarMenuButton>
+            }
+          />
+          <DropdownMenuContent
+            className="min-w-56"
+            side={isMobile ? "bottom" : "right"}
+            align="end"
           >
-            <LogOut /> Sign out
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col gap-0.5">
+                  <p className="text-xs font-medium">{me.data?.name || "User"}</p>
+                  <p className="text-muted-foreground text-[10px]">{me.data?.email}</p>
+                </div>
+              </DropdownMenuLabel>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => void navigate({ to: "/drive/account/profile" })}>
+              <User /> Account
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={async () => {
+                await logout();
+                void navigate({ to: "/login" });
+              }}
+            >
+              <LogOut /> Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
+    </SidebarMenu>
   );
 }

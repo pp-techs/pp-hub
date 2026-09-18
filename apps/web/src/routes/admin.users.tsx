@@ -26,7 +26,7 @@ import {
   usersOptions,
 } from "@/lib/queries";
 import { UserAvatar } from "@/components/user-avatar";
-import { RailLabel } from "@/components/rail-item";
+import { SectionLabel } from "@/components/section-label";
 
 export const Route = createFileRoute("/admin/users")({
   head: () => ({ meta: [{ title: "Server administration · pp-hub" }] }),
@@ -100,7 +100,7 @@ function AdminPage() {
 
       <div className="flex flex-col gap-6 p-4">
         <section>
-          <RailLabel>Overview</RailLabel>
+          <SectionLabel>Overview</SectionLabel>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             <StatTile
               label="Users"
@@ -129,7 +129,7 @@ function AdminPage() {
 
         <section className="flex flex-col gap-2">
           <div className="flex items-center justify-between gap-2">
-            <RailLabel>Users</RailLabel>
+            <SectionLabel>Users</SectionLabel>
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}

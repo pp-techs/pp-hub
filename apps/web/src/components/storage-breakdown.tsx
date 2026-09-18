@@ -1,4 +1,11 @@
 import { fmtSize, type UsageCategory } from "@/lib/api";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@workspace/ui/components/card";
 import { cn } from "@workspace/ui/lib/utils";
 
 /**
@@ -28,42 +35,43 @@ export function StorageBreakdown({ usage }: { usage: UsageCategory[] }) {
   }
 
   return (
-    <div className="border-border flex flex-col gap-2 rounded-lg border p-3">
-      <div className="flex items-baseline justify-between">
-        <span className="text-xs tabular-nums">{fmtSize(total)} used</span>
-        <span className="text-muted-foreground text-[10px] tabular-nums">
+    <Card>
+      <CardHeader>
+        <CardTitle className="tabular-nums">{fmtSize(total)} used</CardTitle>
+        <CardAction className="text-muted-foreground text-[10px] tabular-nums">
           {usage.reduce((n, u) => n + u.files, 0)} files
-        </span>
-      </div>
-
-      <div className="bg-muted flex h-1.5 w-full overflow-hidden rounded-full">
-        {usage.map((u, i) => (
-          <div
-            key={u.category}
-            className={cn("h-full", i === 0 ? "bg-primary" : SHADES[(i - 1) % SHADES.length])}
-            style={{ width: `${(u.bytes / total) * 100}%` }}
-            title={`${LABELS[u.category]} — ${fmtSize(u.bytes)}`}
-          />
-        ))}
-      </div>
-
-      <ul className="flex flex-col gap-1">
-        {usage.map((u, i) => (
-          <li key={u.category} className="flex items-center gap-2 text-xs">
-            <span
-              aria-hidden
-              className={cn(
-                "size-2 shrink-0 rounded-[2px]",
-                i === 0 ? "bg-primary" : SHADES[(i - 1) % SHADES.length],
-              )}
+        </CardAction>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-2">
+        <div className="bg-muted flex h-1.5 w-full overflow-hidden rounded-full">
+          {usage.map((u, i) => (
+            <div
+              key={u.category}
+              className={cn("h-full", i === 0 ? "bg-primary" : SHADES[(i - 1) % SHADES.length])}
+              style={{ width: `${(u.bytes / total) * 100}%` }}
+              title={`${LABELS[u.category]} — ${fmtSize(u.bytes)}`}
             />
-            <span className="truncate">{LABELS[u.category]}</span>
-            <span className="text-muted-foreground ml-auto shrink-0 tabular-nums">
-              {fmtSize(u.bytes)}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </div>
+          ))}
+        </div>
+
+        <ul className="flex flex-col gap-1">
+          {usage.map((u, i) => (
+            <li key={u.category} className="flex items-center gap-2 text-xs">
+              <span
+                aria-hidden
+                className={cn(
+                  "size-2 shrink-0 rounded-[2px]",
+                  i === 0 ? "bg-primary" : SHADES[(i - 1) % SHADES.length],
+                )}
+              />
+              <span className="truncate">{LABELS[u.category]}</span>
+              <span className="text-muted-foreground ml-auto shrink-0 tabular-nums">
+                {fmtSize(u.bytes)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
   );
 }

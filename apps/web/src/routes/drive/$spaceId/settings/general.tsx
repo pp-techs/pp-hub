@@ -8,7 +8,8 @@ import { Switch } from "@workspace/ui/components/switch";
 import { Textarea } from "@workspace/ui/components/textarea";
 import { fmtSize, type Space, type SpaceSettings } from "@/lib/api";
 import { useSpace, useUpdateSpace } from "@/lib/queries";
-import { RailLabel } from "@/components/rail-item";
+import { SectionLabel } from "@/components/section-label";
+import { Surface } from "@/components/surface";
 
 export const Route = createFileRoute("/drive/$spaceId/settings/general")({
   head: () => ({ meta: [{ title: "General · Space settings · pp-hub" }] }),
@@ -78,118 +79,125 @@ function GeneralForm({ space }: { space: Space }) {
   };
 
   return (
-    <form
-      className="flex max-w-xl flex-col gap-6 overflow-y-auto p-4"
-      onSubmit={(e) => {
-        e.preventDefault();
-        update.mutate(changed(), {
-          onSuccess: () => toast.success("Settings saved"),
-          onError: (e) => toast.error("Could not save", { description: e.message }),
-        });
-      }}
-    >
-      <section className="flex flex-col gap-3">
-        <RailLabel>Identity</RailLabel>
+    <Surface className="max-w-xl">
+      <form
+        className="flex flex-col gap-6"
+        onSubmit={(e) => {
+          e.preventDefault();
+          update.mutate(changed(), {
+            onSuccess: () => toast.success("Settings saved"),
+            onError: (e) => toast.error("Could not save", { description: e.message }),
+          });
+        }}
+      >
+        <section className="flex flex-col gap-3">
+          <SectionLabel>Identity</SectionLabel>
 
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="space-name">Space name</Label>
-          <p className="text-muted-foreground text-[10px]">
-            Shown in the switcher and every breadcrumb.
-          </p>
-          <Input id="space-name" value={name} onChange={(e) => setName(e.target.value)} required />
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="space-slug">URL slug</Label>
-          <Input
-            id="space-slug"
-            value={slug}
-            onChange={(e) => setSlug(e.target.value)}
-            placeholder="marketing"
-          />
-          <p className="text-muted-foreground text-[10px]">
-            Lowercase letters, numbers and dashes. Leave empty for none.
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="space-description">Description</Label>
-          <Textarea
-            id="space-description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="What lives in this space?"
-          />
-        </div>
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <RailLabel>Membership</RailLabel>
-        <div className="flex items-start justify-between gap-4">
-          <Label htmlFor="space-default-admin" className="cursor-pointer font-normal">
-            New members are admins by default
-            <span className="text-muted-foreground block text-[10px]">
-              When on, everyone you invite can change these settings. Change it per-person on the
-              People tab.
-            </span>
-          </Label>
-          <Switch
-            id="space-default-admin"
-            checked={defaultAsAdmin}
-            onCheckedChange={setDefaultAsAdmin}
-          />
-        </div>
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <RailLabel>Limits</RailLabel>
-        <div className="grid gap-3 sm:grid-cols-2">
           <div className="flex flex-col gap-1">
-            <Label htmlFor="space-quota">Storage quota (GB)</Label>
+            <Label htmlFor="space-name">Space name</Label>
+            <p className="text-muted-foreground text-[10px]">
+              Shown in the switcher and every breadcrumb.
+            </p>
             <Input
-              id="space-quota"
-              type="number"
-              min={0}
-              value={quotaGb}
-              onChange={(e) => setQuotaGb(e.target.value)}
-              placeholder="Unlimited"
+              id="space-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
             />
-            <p className="text-muted-foreground text-[10px]">Empty means unlimited.</p>
           </div>
 
           <div className="flex flex-col gap-1">
-            <Label htmlFor="space-retention">Trash retention (days)</Label>
+            <Label htmlFor="space-slug">URL slug</Label>
             <Input
-              id="space-retention"
-              type="number"
-              min={0}
-              value={retentionDays}
-              onChange={(e) => setRetentionDays(e.target.value)}
-              placeholder="Forever"
+              id="space-slug"
+              value={slug}
+              onChange={(e) => setSlug(e.target.value)}
+              placeholder="marketing"
             />
             <p className="text-muted-foreground text-[10px]">
-              Empty keeps trashed items until someone deletes them. A number purges them
-              automatically — and permanently — once it passes.
+              Lowercase letters, numbers and dashes. Leave empty for none.
             </p>
           </div>
-        </div>
-        <p className="text-muted-foreground text-[10px] tabular-nums">
-          {fmtSize(space.used_bytes)} in use
-          {space.quota_bytes > 0 && ` of ${fmtSize(space.quota_bytes)}`}.
-        </p>
-      </section>
 
-      <div className="border-border flex items-center gap-2 border-t pt-4">
-        <Button type="submit" disabled={!dirty || update.isPending || !name.trim()}>
-          Save changes
-        </Button>
-        <Button type="button" variant="ghost" disabled={!dirty} onClick={discard}>
-          Discard
-        </Button>
-        <span className="text-muted-foreground text-[10px]">
-          {dirty ? "Unsaved changes" : "No unsaved changes"}
-        </span>
-      </div>
-    </form>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="space-description">Description</Label>
+            <Textarea
+              id="space-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="What lives in this space?"
+            />
+          </div>
+        </section>
+
+        <section className="flex flex-col gap-3">
+          <SectionLabel>Membership</SectionLabel>
+          <div className="flex items-start justify-between gap-4">
+            <Label htmlFor="space-default-admin" className="cursor-pointer font-normal">
+              New members are admins by default
+              <span className="text-muted-foreground block text-[10px]">
+                When on, everyone you invite can change these settings. Change it per-person on the
+                People tab.
+              </span>
+            </Label>
+            <Switch
+              id="space-default-admin"
+              checked={defaultAsAdmin}
+              onCheckedChange={setDefaultAsAdmin}
+            />
+          </div>
+        </section>
+
+        <section className="flex flex-col gap-3">
+          <SectionLabel>Limits</SectionLabel>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="space-quota">Storage quota (GB)</Label>
+              <Input
+                id="space-quota"
+                type="number"
+                min={0}
+                value={quotaGb}
+                onChange={(e) => setQuotaGb(e.target.value)}
+                placeholder="Unlimited"
+              />
+              <p className="text-muted-foreground text-[10px]">Empty means unlimited.</p>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="space-retention">Trash retention (days)</Label>
+              <Input
+                id="space-retention"
+                type="number"
+                min={0}
+                value={retentionDays}
+                onChange={(e) => setRetentionDays(e.target.value)}
+                placeholder="Forever"
+              />
+              <p className="text-muted-foreground text-[10px]">
+                Empty keeps trashed items until someone deletes them. A number purges them
+                automatically — and permanently — once it passes.
+              </p>
+            </div>
+          </div>
+          <p className="text-muted-foreground text-[10px] tabular-nums">
+            {fmtSize(space.used_bytes)} in use
+            {space.quota_bytes > 0 && ` of ${fmtSize(space.quota_bytes)}`}.
+          </p>
+        </section>
+
+        <div className="border-border flex items-center gap-2 border-t pt-4">
+          <Button type="submit" disabled={!dirty || update.isPending || !name.trim()}>
+            Save changes
+          </Button>
+          <Button type="button" variant="ghost" disabled={!dirty} onClick={discard}>
+            Discard
+          </Button>
+          <span className="text-muted-foreground text-[10px]">
+            {dirty ? "Unsaved changes" : "No unsaved changes"}
+          </span>
+        </div>
+      </form>
+    </Surface>
   );
 }
