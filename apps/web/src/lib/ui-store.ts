@@ -42,16 +42,21 @@ interface UiState {
   /** Record dir id + its parent (from the listing it appeared in). */
   rememberDir: (node: Pick<Node, "id" | "name" | "parent_id">) => void;
   setLastSpaceId: (id: string) => void;
-  /** Forgets the last space if it is the one given — after a 404 or a delete. */
   clearLastSpaceId: (id: string) => void;
   newSpaceOpen: boolean;
   setNewSpaceOpen: (v: boolean) => void;
+  newFolderOpen: boolean;
+  setNewFolderOpen: (v: boolean) => void;
   /**
    * ⌘K palette. Lives here because the shortcut is bound by the drive shell
    * but the palette is opened from the rail search field too.
    */
   paletteOpen: boolean;
   setPaletteOpen: (v: boolean) => void;
+  /** Right-hand details panel on the folder listing. */
+  detailsOpen: boolean;
+  setDetailsOpen: (v: boolean) => void;
+  toggleDetails: () => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -80,8 +85,13 @@ export const useUiStore = create<UiState>()(
       clearLastSpaceId: (id) => set((s) => (s.lastSpaceId === id ? { lastSpaceId: null } : s)),
       newSpaceOpen: false,
       setNewSpaceOpen: (v) => set({ newSpaceOpen: v }),
+      newFolderOpen: false,
+      setNewFolderOpen: (v) => set({ newFolderOpen: v }),
       paletteOpen: false,
-      setPaletteOpen: (v) => set({ paletteOpen: v }),
+      setPaletteOpen: (v: boolean) => set({ paletteOpen: v }),
+      detailsOpen: false,
+      setDetailsOpen: (v: boolean) => set({ detailsOpen: v }),
+      toggleDetails: () => set((s) => ({ detailsOpen: !s.detailsOpen })),
     }),
     {
       name: "pp-hub-ui",

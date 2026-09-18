@@ -4,15 +4,6 @@ import { fetchSpaces } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
 import { DriveHeader } from "@/components/drive-header";
 
-/**
- * Everything about one space hangs off this layout: the listing, the feeds,
- * the trash and the settings pages.
- *
- * They are child routes rather than `?panel=` values so that `spaceId` is in
- * the params on every drive surface. The left rail reads it from there, which
- * is why switching to Recent or Starred can no longer empty the rail — there is
- * no state to lose, only a URL segment that is always present.
- */
 export const Route = createFileRoute("/drive/$spaceId")({
   beforeLoad: async ({ context, params }) => {
     const spaces = await fetchSpaces(context.queryClient);
@@ -34,6 +25,8 @@ function SpaceLayout() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      {/* One header for every space surface — breadcrumbs left, view controls
+          right (controls render only on the listing, decided inside). */}
       <DriveHeader spaceId={spaceId} />
       <Outlet />
     </div>

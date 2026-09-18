@@ -50,15 +50,13 @@ import { NodePanels } from "@/components/node-panels";
 import { PreviewModal } from "@/components/preview-modal";
 import { DetailsPanel } from "@/components/preview-panel";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { DriveToolbar } from "@/components/drive-toolbar";
+import { DropZone } from "@/components/drop-zone";
 import { NodeGrid } from "@/components/node-grid";
 import { NodeList } from "@/components/node-list";
 import { SelectionBar } from "@/components/selection-bar";
 import { MoveDialog } from "@/components/move-dialog";
 import { ShareDialog } from "@/components/share-dialog";
-import { DropZone } from "@/components/drop-zone";
 import { downloadUrl } from "@/components/node-actions";
-
 export const Route = createFileRoute("/drive/$spaceId/")({
   head: () => ({ meta: [{ title: "Drive · pp-hub" }] }),
   validateSearch: (
@@ -100,14 +98,14 @@ function FolderView() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   /** Anchor for shift-click ranges: the last node clicked without a modifier. */
   const anchorId = useRef<string | null>(null);
-  const [detailsOpen, setDetailsOpen] = useState(false);
-
-  const [newFolderOpen, setNewFolderOpen] = useState(false);
+  const detailsOpen = useUiStore((s) => s.detailsOpen);
+  const setDetailsOpen = useUiStore((s) => s.setDetailsOpen);
+  const newFolderOpen = useUiStore((s) => s.newFolderOpen);
+  const setNewFolderOpen = useUiStore((s) => s.setNewFolderOpen);
   const [newFolderName, setNewFolderName] = useState("");
   const [renameNode, setRenameNode] = useState<Node | null>(null);
   const [renameName, setRenameName] = useState("");
   const [confirmNodes, setConfirmNodes] = useState<Node[] | null>(null);
-
   const fileRef = useRef<HTMLInputElement>(null);
   const folderRef = useRef<HTMLInputElement>(null);
   /** The scrolling listing, which the marquee bands over. */
@@ -131,6 +129,16 @@ function FolderView() {
   }, [spaceId, dir]);
 
   const children = childrenOptions(spaceId, dir);
+
+  // Record every listed folder in the dirs store so the header breadcrumb can
+  // resolve names and parents. Clicking a folder in the sidebar tree — or
+  // opening a copied link — never passes through the grid's double-click,
+  // which was previously the only place that recorded them.
+  useEffect(() => {
+    for (const node of children.data ?? []) {
+      if (node.kind === "dir") rememberDir(node);
+    }
+  }, [children.data, rememberDir]);
 
   // In M15, any member can create files/folders at the root (dir === undefined),
   // and every item created is private to them. Inside a folder, permission
@@ -166,19 +174,9 @@ function FolderView() {
     [sorted, selectedIds],
   );
 
-  const goTo = useCallback(
-    (next: Partial<{ dir?: string; sort: SortField; order: SortOrder; view: NodeView }>) =>
-      void navigate({
-        to: "/drive/$spaceId",
-        params: { spaceId },
-        search: { dir, sort, order, view, ...next },
-      }),
-    [navigate, spaceId, dir, sort, order, view],
-  );
-
   /**
    * A click only ever changes the selection — the details panel is opened by
-   * hand, from the toolbar's (i) or the node's Information action.
+   * hand, from the header's (i) or the node's Information action.
    */
   const handleClick = useCallback(
     (node: Node, event: MouseEvent) => {
@@ -335,28 +333,9 @@ function FolderView() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <DriveToolbar
-        sort={sort}
-        order={order}
-        view={view}
-        canUpload={canUpload}
-        onUploadFiles={() => fileRef.current?.click()}
-        onUploadFolder={() => folderRef.current?.click()}
-        onNewFolder={() => setNewFolderOpen(true)}
-        onSortChange={(s) => goTo({ sort: s })}
-        onOrderToggle={() => goTo({ order: order === "asc" ? "desc" : "asc" })}
-        onViewChange={(v) => goTo({ view: v })}
-        detailsOpen={detailsOpen}
-        onToggleDetails={() => setDetailsOpen((v) => !v)}
-      />
-
+      {/* Header is rendered once by the space layout above — no second copy. */}
       <div className="flex min-h-0 flex-1">
-        <DropZone
-          spaceId={spaceId}
-          parentId={writeDir}
-          destination={destination}
-          disabled={!canUpload}
-        >
+        <DropZone spaceId={spaceId} parentId={dir} destination={destination} disabled={!canUpload}>
           <div
             ref={listingRef}
             className="relative min-h-0 flex-1 overflow-auto"
