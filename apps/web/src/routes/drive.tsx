@@ -23,7 +23,6 @@ import { FolderTree } from "@/components/folder-tree";
 import { SpaceSwitcher } from "@/components/space-switcher";
 import { NavUser } from "@/components/nav-user";
 import { QuickAccess } from "@/components/quick-access";
-import { RailSearch } from "@/components/rail-search";
 import { StorageMeter } from "@/components/storage-meter";
 import { TransferTray } from "@/components/transfer-tray";
 import { CommandPalette } from "@/components/command-palette";
@@ -89,8 +88,6 @@ function DriveLayout() {
 
         {/* Navigation */}
         <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-2 py-3">
-          <RailSearch />
-
           {/* Both bands are about one space, so they wait for one rather than
               rendering an empty frame. Only true before the first space is
               created. */}

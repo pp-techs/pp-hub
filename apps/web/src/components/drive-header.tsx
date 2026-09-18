@@ -11,6 +11,7 @@ import { Button } from "@workspace/ui/components/button";
 import { cn } from "@workspace/ui/lib/utils";
 import { useUiStore } from "@/lib/ui-store";
 import type { NodeView, SortField, SortOrder } from "@/lib/api";
+import { NavSearch } from "@/components/rail-search";
 
 /**
  * What each path segment under `/drive/$spaceId` is called in a breadcrumb.
@@ -149,74 +150,78 @@ export function DriveHeader({ spaceId }: { spaceId: string }) {
         })}
       </nav>
 
-      {/* View controls — listing only */}
-      {isListing && (
-        <div className="flex shrink-0 items-center gap-1">
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button variant="ghost" size="sm" className="h-7 text-xs">
-                  {sortLabels[sort]}
-                </Button>
-              }
-            />
-            <DropdownMenuContent align="end">
-              <DropdownMenuRadioGroup value={sort} onValueChange={(v) => setSearch({ sort: v })}>
-                {(Object.keys(sortLabels) as SortField[]).map((field) => (
-                  <DropdownMenuRadioItem key={field} value={field}>
-                    {sortLabels[field]}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
+      <div className="flex shrink-0 items-center gap-1">
+        <NavSearch />
 
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={order === "asc" ? "Sort ascending" : "Sort descending"}
-            onClick={() => setSearch({ order: order === "asc" ? "desc" : "asc" })}
-          >
-            {order === "asc" ? <ArrowUp /> : <ArrowDown />}
-          </Button>
+        {/* View controls — listing only */}
+        {isListing && (
+          <>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button variant="ghost" size="sm" className="h-7 text-xs">
+                    {sortLabels[sort]}
+                  </Button>
+                }
+              />
+              <DropdownMenuContent align="end">
+                <DropdownMenuRadioGroup value={sort} onValueChange={(v) => setSearch({ sort: v })}>
+                  {(Object.keys(sortLabels) as SortField[]).map((field) => (
+                    <DropdownMenuRadioItem key={field} value={field}>
+                      {sortLabels[field]}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-          <div className="border-border flex items-center gap-0.5 rounded-md border p-0.5">
             <Button
               variant="ghost"
               size="icon-sm"
-              aria-label="Grid view"
-              aria-pressed={view === "grid"}
-              className={cn(view === "grid" && "bg-accent text-foreground")}
-              onClick={() => setSearch({ view: "grid" })}
+              aria-label={order === "asc" ? "Sort ascending" : "Sort descending"}
+              onClick={() => setSearch({ order: order === "asc" ? "desc" : "asc" })}
             >
-              <LayoutGrid />
+              {order === "asc" ? <ArrowUp /> : <ArrowDown />}
             </Button>
+
+            <div className="border-border flex items-center gap-0.5 rounded-md border p-0.5">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Grid view"
+                aria-pressed={view === "grid"}
+                className={cn(view === "grid" && "bg-accent text-foreground")}
+                onClick={() => setSearch({ view: "grid" })}
+              >
+                <LayoutGrid />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="List view"
+                aria-pressed={view === "list"}
+                className={cn(view === "list" && "bg-accent text-foreground")}
+                onClick={() => setSearch({ view: "list" })}
+              >
+                <List />
+              </Button>
+            </div>
+
+            {/* Details is a manual toggle, not a side effect of clicking a node,
+                so it sits with the other view controls. */}
             <Button
               variant="ghost"
               size="icon-sm"
-              aria-label="List view"
-              aria-pressed={view === "list"}
-              className={cn(view === "list" && "bg-accent text-foreground")}
-              onClick={() => setSearch({ view: "list" })}
+              aria-label="Details"
+              aria-pressed={detailsOpen}
+              className={cn(detailsOpen && "bg-accent text-foreground")}
+              onClick={toggleDetails}
             >
-              <List />
+              <Info />
             </Button>
-          </div>
-
-          {/* Details is a manual toggle, not a side effect of clicking a node,
-              so it sits with the other view controls. */}
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Details"
-            aria-pressed={detailsOpen}
-            className={cn(detailsOpen && "bg-accent text-foreground")}
-            onClick={toggleDetails}
-          >
-            <Info />
-          </Button>
-        </div>
-      )}
+          </>
+        )}
+      </div>
     </header>
   );
 }
