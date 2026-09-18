@@ -127,18 +127,7 @@ export function QuickAccess({
           toggles the disclosure. Active at the root listing, checked by hand
           for the same search-param reason as every other rail row. */}
       <div>
-        <div className={railRow(location.pathname === `/drive/${spaceId}` && !dir, "gap-1.5")}>
-          <button
-            type="button"
-            aria-label={driveOpen ? "Collapse My Drive" : "Expand My Drive"}
-            aria-expanded={driveOpen}
-            className="text-muted-foreground hover:text-foreground -ml-0.5 shrink-0"
-            onClick={() => setDriveOpen((v) => !v)}
-          >
-            <ChevronRight
-              className={cn("size-3.5 transition-transform", driveOpen && "rotate-90")}
-            />
-          </button>
+        <div className={railRow(location.pathname === `/drive/${spaceId}` && !dir)}>
           <Link
             to="/drive/$spaceId"
             params={{ spaceId }}
@@ -148,6 +137,17 @@ export function QuickAccess({
             <HardDrive className="text-muted-foreground size-3.5 shrink-0" />
             <span className="truncate">My Drive</span>
           </Link>
+          <button
+            type="button"
+            aria-label={driveOpen ? "Collapse My Drive" : "Expand My Drive"}
+            aria-expanded={driveOpen}
+            className="text-muted-foreground hover:text-foreground shrink-0"
+            onClick={() => setDriveOpen((v) => !v)}
+          >
+            <ChevronRight
+              className={cn("size-3.5 transition-transform", driveOpen && "rotate-90")}
+            />
+          </button>
         </div>
         {driveOpen && <div className="ml-[18px] flex flex-col gap-0.5 pt-0.5">{children}</div>}
       </div>
