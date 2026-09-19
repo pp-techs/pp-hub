@@ -78,7 +78,13 @@ CREATE TABLE spaces (
     trash_retention_days INT NOT NULL DEFAULT 0,
     archive_root_id      UUID,
     default_as_admin     BOOLEAN NOT NULL DEFAULT false,
-    created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- Ownership is intrinsic, so whoever creates a node can always share it —
+    -- including as a public link — whatever the grant on the folder above
+    -- said about re-sharing. Right for a personal top level, wrong for a
+    -- company that publishes nothing, so the switch lives where the policy
+    -- does: on the space.
+    allow_public_links   BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 CREATE UNIQUE INDEX spaces_slug_uniq ON spaces (tenant_id, slug) WHERE slug <> '';
@@ -149,7 +155,40 @@ CREATE TABLE nodes (
     deleted_at         TIMESTAMPTZ,
     deleted_by         UUID REFERENCES users(id) ON DELETE SET NULL,
     created_by         UUID NOT NULL REFERENCES users(id),
-    created_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    -- Team folders: a folder the *team* owns rather than a person.
+    --
+    -- Everything else here hangs off `created_by`, the one unconditional
+    -- access path: create something and you reach it forever, and so does
+    -- whoever owns a folder above it. Right for a member's own top level,
+    -- wrong for shared company content — it is why revoking a grant cannot
+    -- take back what the grantee uploaded, why they can always mint a link
+    -- for it, and why they can move it out from under the folder's owner.
+    -- Drive, ownCloud and Nextcloud all grew a second container (shared
+    -- drive, project space, team folder) where content has no personal owner.
+    --
+    -- NULL for personal content, the container's id for everything inside
+    -- one, and its own id on the container itself. Denormalised on purpose:
+    -- the alternative is an ancestor walk inside every resolution query, and
+    -- this turns three recursive checks into a column predicate. `fs`
+    -- maintains it — inherited from the parent on create and copy, rewritten
+    -- across the subtree on move.
+    team_root_id       UUID REFERENCES nodes(id) ON DELETE SET NULL,
+
+    -- A node parented to itself makes every ancestor-walking CTE loop
+    -- forever: NodeAccessCaps uses UNION ALL, so resolution for anything
+    -- beneath the cycle never returns and the request holds its connection
+    -- until the client gives up. `RemoveMember` once created exactly that
+    -- shape — the space creator owns the Archive, so it came back as one of
+    -- "their roots" and was filed under itself.
+    CONSTRAINT nodes_no_self_parent_ck CHECK (parent_id IS DISTINCT FROM id),
+
+    -- A team folder is always top level. Nesting one would make "which
+    -- container owns this" ambiguous, and the whole point is that the answer
+    -- is never in doubt.
+    CONSTRAINT nodes_team_root_top_level_ck
+        CHECK (team_root_id IS DISTINCT FROM id OR parent_id IS NULL)
 );
 
 CREATE UNIQUE INDEX nodes_name_uniq
@@ -159,6 +198,7 @@ CREATE UNIQUE INDEX nodes_name_uniq
 CREATE INDEX nodes_listing ON nodes (space_id, parent_id) WHERE deleted_at IS NULL;
 CREATE INDEX nodes_trash_sweep ON nodes (space_id, deleted_at) WHERE deleted_at IS NOT NULL;
 CREATE INDEX nodes_name_trgm ON nodes USING gin (name gin_trgm_ops) WHERE deleted_at IS NULL;
+CREATE INDEX nodes_team_root ON nodes (team_root_id) WHERE team_root_id IS NOT NULL;
 
 -- Wire circular FK for spaces.archive_root_id
 ALTER TABLE spaces ADD CONSTRAINT spaces_archive_root_id_fkey

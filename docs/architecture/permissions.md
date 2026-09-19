@@ -130,7 +130,7 @@ and may share it however they like — `can_share: false` on the folder above
 never reaches them. This is not a hole in `Covers`, it is what intrinsic
 ownership means. The part worth controlling is publication, so that is a
 space-wide switch rather than a per-grant one: `spaces.allow_public_links`
-(migration 0003, default true). With it off, `POST /nodes/{id}/shares` with
+(default true). With it off, `POST /nodes/{id}/shares` with
 `kind: "link"` answers **403** for everybody, owner included; direct and group
 grants are unaffected.
 
@@ -314,7 +314,7 @@ not take back what the grantee uploaded into your folder, they can always mint
 a link for it, and they can move it out from under you. Drive, ownCloud and
 Nextcloud all reached the same conclusion and grew a second container — the
 shared drive, the project space, the team folder — where content has no
-personal owner at all. `nodes.team_root_id` (migration 0004) is ours.
+personal owner at all. `nodes.team_root_id` is ours.
 
 |                               | Personal folder                                | Team folder                               |
 | :---------------------------- | :--------------------------------------------- | :---------------------------------------- |

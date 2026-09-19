@@ -12,7 +12,8 @@ users(id, tenant_id, external_id, email, name,            -- OIDC-sourced fields
   -- email_hash (sha256) for search, unique per tenant
 ```
 
-Profile fields (`display_name`, `avatar_url`, `bio`, `settings`, `is_admin`, `last_seen`) are added in migration 0006. The `is_admin` flag gates admin-only endpoints.
+Profile fields (`display_name`, `avatar_url`, `bio`, `settings`, `is_admin`, `last_seen`) sit
+alongside the OIDC-sourced ones in the baseline. The `is_admin` flag gates admin-only endpoints.
 
 ## Core Tables
 
@@ -103,7 +104,7 @@ jobs(id, kind, payload, status, run_at, attempts)        -- kind routes to a wor
 - CAS dedup: identical content across files/spaces shares one blob row.
 - Every node has an owner: `nodes.created_by` is NOT NULL, and it is the only unconditional access path in the system. Ownership inherits down the subtree, so a node inside somebody else's folder is reachable by both creators.
 - Every space has an `Everyone` group, an `Admin` group and an `archive_root_id`. `spaces.Service` provisions all three at creation; the uniqueness indices assume they exist.
-- No node is its own parent (`nodes_no_self_parent_ck`, migration 0002), and every recursive ancestor/descendant walk stops at depth 100. `NodeAccessCaps` recurses with `UNION ALL`, so one cycle would hang capability resolution for everything beneath it rather than return a wrong answer.
+- No node is its own parent (`nodes_no_self_parent_ck`), and every recursive ancestor/descendant walk stops at depth 100. `NodeAccessCaps` recurses with `UNION ALL`, so one cycle would hang capability resolution for everything beneath it rather than return a wrong answer.
 - A team folder is top level (`nodes_team_root_top_level_ck`) and is its own container: `team_root_id = id`. Everything inside carries that id, inherited by `CreateNode` and rewritten across the subtree by `fs.Move` — the only two operations that can change containment. Inside one, `created_by` grants nothing; see the Team Folders section of [permissions.md](permissions.md).
 
 ## Query Patterns
