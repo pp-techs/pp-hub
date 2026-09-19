@@ -17,24 +17,92 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/wopi"
 )
 
-// wopiClaims resolves the access_token from query and validates it.
-func (s *Server) wopiClaims(w http.ResponseWriter, r *http.Request) (wopi.TokenClaims, bool) {
+// wopiCaller is a validated WOPI request: the node, the person it acts for,
+// and the token's permission rank **re-resolved against present-day access**.
+//
+// A WOPI access token is a bearer credential with a ten-hour life that
+// OnlyOffice holds and replays, and the rank baked into it was the caller's
+// rank at mint time. Trusting that rank alone meant a grant could be revoked,
+// a member removed from the space, or an account suspended, and the editor
+// would keep saving for the rest of the day — while every /api/v1 route
+// refused the same person immediately. So the rank in the token is now a
+// ceiling, not an authority: it is clamped to what the caller can do right
+// now, and a caller who can no longer reach the file at all is refused.
+type wopiCaller struct {
+	claims wopi.TokenClaims
+	node   store.Node
+	// user is nil for a machine token — currently only the preview worker's
+	// conversion fetch, which acts for nobody and reads bytes.
+	user *store.User
+}
+
+// wopiClaims validates the access_token, loads the file, and re-resolves what
+// the token's subject may do with it.
+func (s *Server) wopiClaims(w http.ResponseWriter, r *http.Request) (wopiCaller, bool) {
 	token := r.URL.Query().Get("access_token")
 	if token == "" {
 		writeProblem(w, http.StatusUnauthorized, "Unauthorized", "missing access_token")
-		return wopi.TokenClaims{}, false
+		return wopiCaller{}, false
 	}
 	c, err := s.wopi.VerifyToken(token)
 	if err != nil {
 		writeProblem(w, http.StatusUnauthorized, "Unauthorized", "invalid token")
-		return wopi.TokenClaims{}, false
+		return wopiCaller{}, false
 	}
 	urlNode, err := uuidParam(r, "nodeID")
 	if err != nil || urlNode != c.NodeID {
 		writeProblem(w, http.StatusForbidden, "Forbidden", "token does not match file")
-		return wopi.TokenClaims{}, false
+		return wopiCaller{}, false
 	}
-	return c, true
+	node, err := s.fs.Get(r.Context(), c.NodeID)
+	if err != nil {
+		s.nodeError(w, r, err)
+		return wopiCaller{}, false
+	}
+
+	// A machine token carries no subject to resolve access for. It is minted
+	// by this deployment, scoped to one node, read-only and short-lived, and
+	// the key that signs it is the authorization.
+	if c.UserID.String() == wopi.SystemSubject {
+		return wopiCaller{claims: c, node: node}, true
+	}
+
+	user, err := s.store.GetUser(r.Context(), c.UserID)
+	if err != nil {
+		s.nodeError(w, r, err)
+		return wopiCaller{}, false
+	}
+	if user.SuspendedAt.Valid {
+		writeProblem(w, http.StatusForbidden, "Forbidden", "this account is suspended")
+		return wopiCaller{}, false
+	}
+	caps, err := s.share.EffectiveCapsForNode(r.Context(), node, user.ID)
+	if err != nil {
+		Error(w, r, err)
+		return wopiCaller{}, false
+	}
+	if rank := rankFromCaps(caps); rank < c.PermRank {
+		c.PermRank = rank
+	}
+	if c.PermRank < 1 {
+		writeProblem(w, http.StatusForbidden, "Forbidden", "no longer have access to this file")
+		return wopiCaller{}, false
+	}
+	return wopiCaller{claims: c, node: node, user: &user}, true
+}
+
+// rankFromCaps collapses resolved capabilities onto the WOPI rank scale the
+// w1 token format carries: 3 = edit, 2 = download, 1 = view, 0 = no access.
+func rankFromCaps(c share.Caps) int {
+	switch {
+	case c.Has(share.CapEdit):
+		return 3
+	case c.Has(share.CapDownload):
+		return 2
+	case c.Has(share.CapView):
+		return 1
+	}
+	return 0
 }
 
 // CheckFileInfo: GET /wopi/files/{nodeID}
@@ -43,31 +111,32 @@ func (s *Server) handleWopiCheckFileInfo(w http.ResponseWriter, r *http.Request)
 	if !ok {
 		return
 	}
-	node, err := s.fs.Get(r.Context(), c.NodeID)
+	// Only an editor session opens a file, and only a person has one. A
+	// machine token reaching here is a caller confusing the read endpoint
+	// with the host endpoint, not an account to answer for.
+	if c.user == nil {
+		writeProblem(w, http.StatusForbidden, "Forbidden", "not an editor session")
+		return
+	}
+	ver, err := s.store.GetCurrentVersion(r.Context(), c.node.ID)
 	if err != nil {
 		s.nodeError(w, r, err)
 		return
 	}
-	ver, err := s.store.GetCurrentVersion(r.Context(), node.ID)
-	if err != nil {
-		s.nodeError(w, r, err)
-		return
-	}
-	user, err := s.store.GetUser(r.Context(), c.UserID)
-	if err != nil {
-		Error(w, r, err)
-		return
-	}
-	uid, _ := user.ID.Value()
-	oid, _ := node.CreatedBy.Value()
+	uid, _ := c.user.ID.Value()
+	oid, _ := c.node.CreatedBy.Value()
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"BaseFileName":               node.Name,
-		"Size":                       ver.Size,
-		"OwnerId":                    oid.(string),
-		"UserId":                     uid.(string),
-		"UserFriendlyName":           user.Name,
-		"UserCanWrite":               c.PermRank >= 3, // token holds effective rank at mint time
+		"BaseFileName":     c.node.Name,
+		"Size":             ver.Size,
+		"OwnerId":          oid.(string),
+		"UserId":           uid.(string),
+		"UserFriendlyName": c.user.Name,
+		// Present-day access, not the rank the token was minted with. A
+		// reader whose edit grant was revoked mid-session is told the truth
+		// on the next CheckFileInfo and the editor drops to read-only,
+		// rather than letting them type into a save that will 403.
+		"UserCanWrite":               c.claims.PermRank >= 3 && !c.node.DeletedAt.Valid,
 		"Version":                    strconv.Itoa(int(ver.VersionNo)),
 		"SupportsUpdate":             true,
 		"SupportsLocks":              true,
@@ -81,7 +150,7 @@ func (s *Server) handleWopiGetFile(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	_, ver, rc, err := s.fs.OpenFile(r.Context(), c.NodeID)
+	_, ver, rc, err := s.fs.OpenFile(r.Context(), c.node.ID)
 	if err != nil {
 		s.nodeError(w, r, err)
 		return
@@ -98,13 +167,16 @@ func (s *Server) handleWopiPutFile(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if c.PermRank < 3 {
+	if c.claims.PermRank < 3 {
 		writeProblem(w, http.StatusForbidden, "Forbidden", "no write permission")
 		return
 	}
-	node, err := s.fs.Get(r.Context(), c.NodeID)
-	if err != nil {
-		s.nodeError(w, r, err)
+	node := c.node
+	// Committing a new version into a tombstone would resurrect content
+	// nobody expects on the next restore. Reads still work, so an editor open
+	// when the file was trashed can still show what it had.
+	if node.DeletedAt.Valid {
+		writeProblem(w, http.StatusConflict, "Conflict", "this file is in the trash")
 		return
 	}
 	if lockToken, err := s.wopi.CurrentLock(r.Context(), node.ID); err == nil && lockToken != "" {
@@ -122,7 +194,7 @@ func (s *Server) handleWopiPutFile(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	_, ver, err := s.fs.PutFile(r.Context(), node.SpaceID, pgtype.UUID{}, node.ID, node.Name, r.Body, c.UserID)
+	_, ver, err := s.fs.PutFile(r.Context(), node.SpaceID, pgtype.UUID{}, node.ID, node.Name, r.Body, c.claims.UserID)
 	if err != nil {
 		s.nodeError(w, r, err)
 		return
@@ -138,11 +210,11 @@ func (s *Server) handleWopiLockOps(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if c.PermRank < 3 {
+	if c.claims.PermRank < 3 {
 		writeProblem(w, http.StatusForbidden, "Forbidden", "no write permission")
 		return
 	}
-	nodeID := c.NodeID
+	nodeID := c.node.ID
 	override := r.Header.Get("X-WOPI-Override")
 	lockToken := r.Header.Get("X-WOPI-Lock")
 

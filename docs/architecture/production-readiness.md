@@ -127,17 +127,47 @@ Still open in this area, which is why the section survives:
   JSON over `fetch`, so this is thin rather than absent — and it is the one
   weakness here that M20 did not touch.
 
-### 4. OnlyOffice runs unsigned with its SSRF guard disabled
+### 4. The Document Server boundary is unauthenticated
 
-`compose.prod.yml:176-192` sets `JWT_ENABLED=false` **and**
+`compose.prod.yml` sets `JWT_ENABLED=false` **and**
 `ALLOW_PRIVATE_IP_ADDRESS=true` / `ALLOW_META_IP_ADDRESS=true`.
 
-WOPI and conversion requests are therefore unauthenticated at the Document
-Server boundary, and the Document Server will fetch private and cloud-metadata
-addresses on request. Either alone is a weak posture; together, a leaked WOPI
-token becomes a probe into the internal network. `office-integration.md:86` and
-`preview-pipeline.md:236` both already record that JWT signing is not
-implemented — this notes that it is a rollout blocker rather than a deferral.
+Requests **to** the Document Server are therefore unauthenticated — anyone who
+can reach it can drive it — and it will fetch private and cloud-metadata
+addresses on request, which turns its conversion API into a probe of the
+internal network. `office-integration.md` and `preview-pipeline.md` both
+already record that JWT signing is not implemented; this notes that it is a
+rollout blocker rather than a deferral. Switching it on is not a code change
+alone: `ALLOW_PRIVATE_IP_ADDRESS=true` is load-bearing for the current compose
+topology (`host.docker.internal`, the 172.16/12 range), so closing this
+requires deciding the network layout first, and `JWT_ENABLED` is a breaking
+change for every running deployment.
+
+**Requests _from_ the Document Server were the other half, and that half is
+closed.** A WOPI access token is a bearer credential OnlyOffice holds and
+replays for its ten-hour life, and the permission rank inside it was the
+caller's rank when the editor opened. Every handler trusted that rank, so a
+grant could be revoked, a member removed from the space, or an account
+suspended, and the editor kept saving for the rest of the day while every
+`/api/v1` route refused the same person immediately — a WOPI token was the one
+unrevocable credential left after M20 made sessions revocable.
+
+`wopiClaims` now re-resolves on every WOPI request: it loads the node, checks
+`users.suspended_at`, calls `share.EffectiveCapsForNode` and clamps the
+token's rank to what the caller can do _now_ (`rankFromCaps`), refusing
+outright at rank 0. The token is a ceiling, not an authority. Two consequences
+are deliberate: a revoked _edit_ grant downgrades an open session to read-only
+rather than killing it — `CheckFileInfo` reports the live `UserCanWrite`, so
+the editor switches itself — and `PutFile` refuses a node in the trash, since
+committing a version into a tombstone resurrects content nobody expects on
+restore. A machine token (`wopi.SystemSubject`, the preview worker's
+conversion fetch) has no subject to resolve and is authorized by the signing
+key alone; it is read-only, single-node and short-lived, and it is now
+refused at `CheckFileInfo` instead of answering 500 on a missing user row.
+
+`internal/httpapi/wopi_db_test.go` holds the line against a real Postgres:
+revocation, departure from the space, suspension, edit→view downgrade, and a
+token minted for one file being replayed against another.
 
 ### 5. The first admin cannot be created
 

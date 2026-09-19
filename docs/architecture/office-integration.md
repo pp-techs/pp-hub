@@ -54,10 +54,23 @@ What the caller holds decides the _session_, not whether there is one:
 | `CapEdit` | 3            | `/edit`    | `true`                       | allowed              |
 | `CapView` | 1            | `/view`    | `false`                      | **403**              |
 
-The rank is signed into the token at mint time, so the write refusal does not
-depend on OnlyOffice honouring `UserCanWrite`. The response carries
-`can_write`, and the editor page's subtitle says "read-only" rather than
-"saved by OnlyOffice" when it is false.
+The rank is signed into the token, so the write refusal does not depend on
+OnlyOffice honouring `UserCanWrite`. The response carries `can_write`, and the
+editor page's subtitle says "read-only" rather than "saved by OnlyOffice" when
+it is false.
+
+**The rank in the token is a ceiling, not an authority.** It was resolved when
+the editor opened, and the token lives ten hours; trusting it alone meant a
+revoked grant, a departure from the space or a suspended account did not reach
+an open editor until the token expired, while `/api/v1` refused the same
+person on the next request. `wopiClaims` re-resolves on every WOPI call —
+`share.EffectiveCapsForNode` collapsed onto the same scale by `rankFromCaps`,
+with the lower of the two winning — so the table above describes the caller's
+access _now_, not when they clicked Open. An edit grant withdrawn mid-session
+downgrades to the second row rather than ending the session, because
+`CheckFileInfo` reports the live value and OnlyOffice switches itself to
+read-only. A node in the trash refuses `PutFile` outright: a version committed
+into a tombstone reappears on restore as content nobody wrote there.
 
 ## Co-Editing
 
