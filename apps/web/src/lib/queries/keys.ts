@@ -1,7 +1,9 @@
 // Query keys — single source of truth for cache keys.
 export const keys = {
+  // The signed-in user's own profile — one identity cache, read by the rail,
+  // the share dialog and the route guards alike.
   me: ["me"] as const,
-  profile: ["profile"] as const,
+  sessions: ["sessions"] as const,
   spaces: ["spaces"] as const,
   children: (spaceId: string, parentId?: string) =>
     ["children", spaceId, parentId ?? null] as const,

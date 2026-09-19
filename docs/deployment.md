@@ -37,7 +37,8 @@ Two compose files, for two different jobs:
 **The SPA and the API must be served from the same origin.** This is not a
 preference:
 
-- the session cookie is host-only (no `Domain`) with `SameSite=Lax`
+- the session cookie is host-only (no `Domain`), `HttpOnly`, `SameSite=Lax`
+  and `Secure` whenever `PP_EXTERNAL_URL` is `https://`
   (`internal/auth/auth.go`), and
 - the API client sets `credentials: "same-origin"`
   (`apps/web/src/lib/api/client.ts`).
@@ -104,20 +105,64 @@ docker compose -f deploy/compose/compose.prod.yml \
 Required values have no defaults — compose refuses to start and names the
 missing variable rather than booting a half-configured stack.
 
-Generate the session key once and keep it:
+Generate the master secret once and keep it:
 
 ```bash
 openssl rand -base64 32
 ```
 
-`PP_SESSION_KEY` is shared by the server and the worker. The worker signs
-office-conversion tokens that the _server_ verifies, so a mismatch means office
-thumbnails silently never appear. Changing it logs everyone out.
+`PP_SESSION_KEY` no longer signs sessions — those are rows in the `sessions`
+table, so **rotating it does not sign anybody out**. The variable keeps its
+historical name deliberately: it is written into every existing deployment's
+env file, and renaming it would fall back to an ephemeral key silently and
+break office previews at runtime rather than at startup. What it is now is the
+master secret every signer derives a purpose-bound subkey from
+(`config.DeriveKey`, HKDF-SHA256). Today the only consumer is the WOPI access
+token, so rotating it invalidates the tokens currently in flight — an open
+editor session and any conversion job mid-retry — and nothing else.
+
+It still has to be **set, and identical in the server and the worker**. The
+worker signs office-conversion tokens the _server_ verifies, so a mismatch
+means office thumbnails silently never appear; left unset, each process
+generates its own key at startup and the worker declines to register the
+office renderer rather than failing every job with an opaque token error.
+
+`PP_EXTERNAL_URL` must be `https://` in production. The `Secure` flag on every
+cookie the server sets is derived from its scheme — there is no separate
+switch — so an `http://` value ships session cookies a browser will happily
+send over plain HTTP, and one accidental downgrade exposes a live session to
+anyone on the path. The server says so at startup:
+`PP_EXTERNAL_URL is not https: session cookies will be sent without the Secure flag`.
+If that line is in your production logs, the deployment is misconfigured; it is
+also the OIDC redirect base, so the scheme has to match what you registered
+with the provider anyway.
 
 Register with your OIDC provider:
 
 - redirect URI: `https://drive.example.com/auth/callback`
 - post-logout redirect: `https://drive.example.com`
+
+### One issuer or two
+
+`PP_OIDC_ISSUER` is the issuer **this process** can reach: discovery, token,
+userinfo and JWKS are all fetched from it. `PP_OIDC_ISSUER_EXTERNAL` is the
+issuer **the browser** is sent to, and the value that must appear in the `iss`
+claim. In the ordinary deployment the IdP has one address, the external one is
+left unset and defaults to the first, and none of this does anything.
+
+They differ only in a split horizon — the IdP answering on a container
+hostname inside the network and a public domain outside it:
+
+```
+PP_OIDC_ISSUER=http://logto:3001/oidc            # server → IdP, container network
+PP_OIDC_ISSUER_EXTERNAL=https://id.example.com/oidc   # browser → IdP, and the `iss` claim
+```
+
+Only the two endpoints the browser visits are rebased onto the external
+origin: **authorization** and **end-session**. Token, userinfo and JWKS stay on
+the internal one, because only the server calls them. Get this backwards and
+the symptom is either a browser redirected to a hostname it cannot resolve, or
+an ID token rejected because its `iss` does not match what was expected.
 
 ### Dokploy
 
@@ -299,11 +344,11 @@ service. The worker is bursty — it spawns `pdftoppm`/`ffmpeg` per job with a
 
 ## Known gaps
 
-- **The session cookie does not set `Secure`** (`internal/auth/auth.go`). Over
-  HTTPS it still works, but the browser will also send it over plain HTTP, so
-  it is exposed to interception on any accidental downgrade. The fix is one
-  line — set `Secure` when `PP_EXTERNAL_URL` is `https://` — and should land
-  before this is exposed to the internet.
+- **No CSRF defence beyond `SameSite=Lax`** — no `Origin` or `Referer` check
+  on the API. `Lax` covers top-level navigations and the API is JSON over
+  `fetch`, so this is thin rather than absent. See
+  [production-readiness.md](architecture/production-readiness.md) §3, which
+  also records the cookie and session weaknesses that M20 closed.
 - **No JWT signing** for OnlyOffice, as above.
 - **No backup job.** `pg_data` and `blob_data` both need one; a database dump
   without the blobs restores metadata pointing at content that is gone.

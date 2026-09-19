@@ -7,7 +7,7 @@ Monorepo: bun workspaces + Vite+ frontend (`apps/web`), Go modular-monolith back
 
 Before planning or implementing, read this `docs/SUMMARY.md` file first. Load only the detail docs relevant to the current task, and prioritize `Code Standard` docs for implementation conventions. If docs conflict with code or user intent, use the available question tool before making broad changes.
 
-Status: M1–M5 done — full MVP: OIDC auth (Logto; any OIDC provider works), drive (spaces/nodes/CAS blob/upload/download/versioning), sharing (direct + link), OnlyOffice WOPI editing with locks, previews via background jobs — images, PDFs, video and office documents all get a real 256px thumbnail, text gets a 4KB snippet. PDF/video rasterization needs poppler/ffmpeg, and office documents convert through OnlyOffice first; all three live in an **optional** `cmd/worker` container; without it those jobs stay pending rather than failing, and `worker --backfill` sweeps files that predate it. Full-size viewing still streams the original bytes from `GET /api/v1/nodes/{id}/content` (inline, allowlisted MIME), since a 256px thumbnail is a stamp in a modal. Two compose stacks in `deploy/compose/` — `compose.dev.yml` (services only, app from source) and `compose.prod.yml` (everything, VPS/Dokploy); the web image is nginx serving the SPA and proxying the API on one origin, which the session cookie requires. See [deployment.md](deployment.md). UI primitives extracted to `packages/ui` (shadcn/ui preset). Drive rail exposes Trash and Shared with me as routes under the open space (`/drive/$spaceId/trash|shared`); Trash supports restore, delete forever and empty trash. Uploads run through a queue with drag-and-drop, folder upload and a progress tray. ⌘K opens a command palette backed by `GET /api/v1/search` (trigram index, scoped to your space membership). Share links browse shared folders anonymously (containment-checked, zip download); stars, activity and a Home dashboard are scoped to the open space; space settings cover slug/description/quota, whether new members arrive as admins, and deletion, with members, their groups and pending invitations in one filterable table (admin, joined, last active, files owned, CSV export); the admin console reports server stats and can suspend accounts. Blobs live on local disk or in any S3-compatible bucket (`PP_BLOB_BACKEND`), both behind one interface and one conformance suite (SeaweedFS ships in the compose files). Blob GC reclaims disk from unreferenced content, quotas are enforced at upload, and per-space trash retention purges on a schedule (off by default).
+Status: M1–M20 done — full MVP: OIDC auth (Logto; any OIDC provider works — PKCE and nonce on the handshake, sessions as rows so a device can be signed out on its own), drive (spaces/nodes/CAS blob/upload/download/versioning), sharing (direct + link), OnlyOffice WOPI editing with locks, previews via background jobs — images, PDFs, video and office documents all get a real 256px thumbnail, text gets a 4KB snippet. PDF/video rasterization needs poppler/ffmpeg, and office documents convert through OnlyOffice first; all three live in an **optional** `cmd/worker` container; without it those jobs stay pending rather than failing, and `worker --backfill` sweeps files that predate it. Full-size viewing still streams the original bytes from `GET /api/v1/nodes/{id}/content` (inline, allowlisted MIME), since a 256px thumbnail is a stamp in a modal. Two compose stacks in `deploy/compose/` — `compose.dev.yml` (services only, app from source) and `compose.prod.yml` (everything, VPS/Dokploy); the web image is nginx serving the SPA and proxying the API on one origin, which the session cookie requires. See [deployment.md](deployment.md). UI primitives extracted to `packages/ui` (shadcn/ui preset). Drive rail exposes Trash and Shared with me as routes under the open space (`/drive/$spaceId/trash|shared`); Trash supports restore, delete forever and empty trash. Uploads run through a queue with drag-and-drop, folder upload and a progress tray. ⌘K opens a command palette backed by `GET /api/v1/search` (trigram index, scoped to your space membership). Share links browse shared folders anonymously (containment-checked, zip download); stars, activity and a Home dashboard are scoped to the open space; space settings cover slug/description/quota, whether new members arrive as admins, and deletion, with members, their groups and pending invitations in one filterable table (admin, joined, last active, files owned, CSV export); the admin console reports server stats and can suspend accounts; the account page lists your live sessions and can end them. Blobs live on local disk or in any S3-compatible bucket (`PP_BLOB_BACKEND`), both behind one interface and one conformance suite (SeaweedFS ships in the compose files). Blob GC reclaims disk from unreferenced content, quotas are enforced at upload, and per-space trash retention purges on a schedule (off by default).
 
 **M11 — a space is a company.** One instance hosts several companies: space membership grants **no file access at all**, and access comes from `groups` granted on folders (`shares.kind = 'group'`), inherited down the subtree. Resolution is one batched recursive query that also walks through trashed ancestors, so the trash needs no weaker rule of its own. Listings, search, starred, recent, activity and trash all narrow to what the caller can reach, in one batched query per page rather than a walk per row, and `Shared with me` is an actual list of grants rather than a slice of the filing cabinet. Groups are managed from the drawer on the People page in space settings, and a folder's `Who can open this…` dialog is the one place access is granted or revoked; behind them sit `/spaces/{id}/groups` and `/nodes/{id}/grants`. A direct share may not name someone outside the space — that is what link shares are for.
 
@@ -57,19 +57,59 @@ so nodes can be Cut or Copied onto a small `ui-store.clipboard` — deliberately
 outside `partialize`, so it never survives a reload — and a folder can never
 paste a cut node into itself or its own subtree (`lib/write-target.ts`).
 
+**M20 — a session is a row, not a signature.** The cookie was
+`v1.<uuid>.<expiry>.<hmac>`: self-contained, thirty days, and nothing to
+revoke. A lost laptop stayed signed in until the token aged out, "sign out"
+only cleared the browser's copy, and the single lever that invalidated
+anything was rotating `PP_SESSION_KEY` — which signed out everybody at once,
+and rotated the WOPI signing key with them, because one secret served both
+token classes. The cookie now carries an opaque 256-bit random token and
+`sessions` stores only its SHA-256, so a dump of that table yields nothing a
+browser can present, and one indexed join answers "who is this" with the
+session row and its owner together. The idle deadline is 30 days, slid lazily
+— at most one `UPDATE` an hour per session — under an absolute 90-day cap
+measured from `created_at`, and a five-minute ticker in `cmd/server` sweeps
+what has expired. Everything that was impossible before follows from the row:
+`GET /api/v1/users/me/sessions` lists the devices behind a third tab on the
+account page, `DELETE …/sessions/{id}` ends one and `DELETE …/sessions` ends
+all but the current, `POST /auth/logout` deletes the row and returns
+`end_session_url` so the IdP session ends too (`EndSessionURL` existed all
+along and had no caller — "sign out" then "sign in" was a silent SSO re-entry
+as the previous person), rotating the master key signs nobody out, and
+`users.last_seen` finally means last seen: `TouchSession` writes it in the
+same statement, where before it was stamped only at login and the People
+table's "last active" column was really "last signed in". Cookies carry
+`Secure` whenever `PP_EXTERNAL_URL` is `https://`, alongside HttpOnly and
+SameSite=Lax, and the server warns at startup when it is not.
+**Authentication is a chi middleware** on the `/api/v1` group instead of
+thirty hand-written guards that a new route could simply forget to copy;
+handlers call `caller(r)`, which cannot be nil, and
+`TestEveryAPIRouteIsAuthenticated` walks the router and fails the build if a
+route escapes it. The login handshake keeps state, nonce and PKCE verifier in
+one `pp_oidc_tx` cookie cleared unconditionally at the top of the callback —
+the two cookies it replaces survived every failure path for their full ten
+minutes, leaving a replayable state value behind — verifies the nonce in
+constant time, and reports failure by redirecting to `/login?error=<code>`
+rather than answering a top-level navigation with plain-text `http.Error`.
+And changing the issuer URL no longer 500s every returning user: identity is
+still keyed on `(oidc_iss, oidc_sub)`, but a miss now falls back to the
+**verified** email and re-points the existing account instead of inserting a
+second row that collides with the unique index on `(tenant_id, email_hash)`.
+
 ## Architecture
 
 System design, component interactions, data flows, deployment, and external integrations.
 
-| File                                                        | Description                                                                                      |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| [system-design.md](architecture/system-design.md)           | Modular monolith rationale, component map, upload/WOPI/share data flows, tenancy & scale posture |
-| [data-model.md](architecture/data-model.md)                 | Postgres schema, invariants, query patterns, quota handling                                      |
-| [storage.md](architecture/storage.md)                       | Content-addressed blob store, blake3, local + S3 backends, dedup/versioning, GC                  |
-| [office-integration.md](architecture/office-integration.md) | WOPI host endpoints, access tokens, OnlyOffice co-editing, locking                               |
-| [permissions.md](architecture/permissions.md)               | Ownership vs grants, Admin/Everyone groups, capabilities, archive on departure                   |
-| [preview-pipeline.md](architecture/preview-pipeline.md)     | Preview job flow, job vs preview kinds, the optional worker, caching, backfill                   |
-| [milestones.md](architecture/milestones.md)                 | M1–M15 delivery history, testing strategy, rollout/ops                                           |
+| File                                                            | Description                                                                                      |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| [system-design.md](architecture/system-design.md)               | Modular monolith rationale, component map, upload/WOPI/share data flows, tenancy & scale posture |
+| [data-model.md](architecture/data-model.md)                     | Postgres schema, invariants, query patterns, sessions, quota handling                            |
+| [storage.md](architecture/storage.md)                           | Content-addressed blob store, blake3, local + S3 backends, dedup/versioning, GC                  |
+| [office-integration.md](architecture/office-integration.md)     | WOPI host endpoints, access tokens, OnlyOffice co-editing, locking                               |
+| [permissions.md](architecture/permissions.md)                   | Ownership vs grants, Admin/Everyone groups, capabilities, archive on departure                   |
+| [preview-pipeline.md](architecture/preview-pipeline.md)         | Preview job flow, job vs preview kinds, the optional worker, caching, backfill                   |
+| [milestones.md](architecture/milestones.md)                     | M1–M20 delivery history, testing strategy, rollout/ops                                           |
+| [production-readiness.md](architecture/production-readiness.md) | P0 rollout blockers, P1 gaps vs Google Drive, proposed phasing for an internal deployment        |
 
 ## Codebase
 

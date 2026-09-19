@@ -50,7 +50,7 @@ func testEnv(t *testing.T) (*store.Queries, *spaces.Service, *share.Service) {
 func user(t *testing.T, q *store.Queries, label string) store.User {
 	t.Helper()
 	sub := fmt.Sprintf("test-%s-%d", label, os.Getpid())
-	u, err := q.UpsertUser(context.Background(), store.UpsertUserParams{
+	u, err := q.CreateUser(context.Background(), store.CreateUserParams{
 		OidcSub: sub,
 		OidcIss: "test",
 		Email:   sub + "@test.local",

@@ -35,7 +35,7 @@ import {
   useGroupMemberships,
   useGroups,
   useInvitations,
-  useMyProfile,
+  useMe,
   useRemoveGroupMember,
   useRemoveSpaceMember,
   useRevokeInvitation,
@@ -83,7 +83,7 @@ export function PeopleTable({ space, groupFilter, onGroupFilterChange }: PeopleT
   const invitations = useInvitations(spaceId, isAdmin);
   const { data: groups = [] } = useGroups(spaceId);
   const { byUser } = useGroupMemberships(spaceId, groups);
-  const { data: me } = useMyProfile();
+  const { data: me } = useMe();
 
   const setAdmin = useSetMemberAdmin();
   const removeMember = useRemoveSpaceMember();

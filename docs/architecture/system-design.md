@@ -13,7 +13,7 @@ Rationale:
 Alternatives considered and rejected:
 
 - **Fork/strip ocis**: inherits CS3/REVA debt and a forced microservices topology; contradicts "minimal".
-- **Monolith + separate worker from day one**: adds a deploy unit and job contract before preview workload justifies it. Can be split later without architectural change — and was, once PDF/video rendering arrived. The trigger was not load but blast radius: `pdftoppm` and `ffmpeg` parse hostile input in memory-unsafe code and should not sit beside the session key. `ClaimJobs` filtering on capability is what kept the split optional rather than mandatory. See [preview-pipeline.md](preview-pipeline.md).
+- **Monolith + separate worker from day one**: adds a deploy unit and job contract before preview workload justifies it. Can be split later without architectural change — and was, once PDF/video rendering arrived. The trigger was not load but blast radius: `pdftoppm` and `ffmpeg` parse hostile input in memory-unsafe code and should not sit beside the master secret and the connection pool. `ClaimJobs` filtering on capability is what kept the split optional rather than mandatory. See [preview-pipeline.md](preview-pipeline.md).
 
 ## Component Map
 

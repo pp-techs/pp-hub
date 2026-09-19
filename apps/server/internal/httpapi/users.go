@@ -44,10 +44,7 @@ func profileToDTO(p users.Profile) userProfileDTO {
 
 // handleGetMyProfile returns the current user's full profile.
 func (s *Server) handleGetMyProfile(w http.ResponseWriter, r *http.Request) {
-	u := s.requireUser(w, r)
-	if u == nil {
-		return
-	}
+	u := caller(r)
 	profile, err := s.users.GetMe(r.Context(), u.ID)
 	if err != nil {
 		writeProblem(w, http.StatusNotFound, "Error", "user not found")
@@ -58,10 +55,7 @@ func (s *Server) handleGetMyProfile(w http.ResponseWriter, r *http.Request) {
 
 // handleUpdateMyProfile updates the current user's profile.
 func (s *Server) handleUpdateMyProfile(w http.ResponseWriter, r *http.Request) {
-	u := s.requireUser(w, r)
-	if u == nil {
-		return
-	}
+	u := caller(r)
 	var req updateProfileRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeProblem(w, http.StatusBadRequest, "Error", "invalid body")
@@ -77,10 +71,7 @@ func (s *Server) handleUpdateMyProfile(w http.ResponseWriter, r *http.Request) {
 
 // handleUploadAvatar handles avatar upload (multipart → blob).
 func (s *Server) handleUploadAvatar(w http.ResponseWriter, r *http.Request) {
-	u := s.requireUser(w, r)
-	if u == nil {
-		return
-	}
+	u := caller(r)
 	if err := r.ParseMultipartForm(5 << 20); err != nil { // 5MB max
 		writeProblem(w, http.StatusRequestEntityTooLarge, "Error", "file too large")
 		return
@@ -105,10 +96,7 @@ func (s *Server) handleUploadAvatar(w http.ResponseWriter, r *http.Request) {
 
 // handleSearchUsers handles user search for autocomplete.
 func (s *Server) handleSearchUsers(w http.ResponseWriter, r *http.Request) {
-	u := s.requireUser(w, r)
-	if u == nil {
-		return
-	}
+	u := caller(r)
 	q := r.URL.Query().Get("q")
 	if q == "" {
 		writeProblem(w, http.StatusBadRequest, "Error", "missing query")
@@ -130,10 +118,7 @@ func (s *Server) handleSearchUsers(w http.ResponseWriter, r *http.Request) {
 
 // handleListUsers returns all users (admin only).
 func (s *Server) handleListUsers(w http.ResponseWriter, r *http.Request) {
-	u := s.requireUser(w, r)
-	if u == nil {
-		return
-	}
+	u := caller(r)
 	if !u.IsAdmin {
 		writeProblem(w, http.StatusForbidden, "Error", "admin required")
 		return

@@ -111,10 +111,7 @@ func (s *Server) groupError(w http.ResponseWriter, r *http.Request, err error) {
 // Callers MUST honour the ok flag: continuing after a refusal would write a
 // second response body over the 403 this already sent.
 func (s *Server) requireSpaceAdmin(w http.ResponseWriter, r *http.Request) (*store.User, store.Space, bool) {
-	u := s.requireUser(w, r)
-	if u == nil {
-		return nil, store.Space{}, false
-	}
+	u := caller(r)
 	spaceID, err := uuidParam(r, "spaceID")
 	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
@@ -158,10 +155,7 @@ func (s *Server) groupInSpace(w http.ResponseWriter, r *http.Request, spaceID pg
 // folder you own needs the group's name and id, and the members panel already
 // shows who is in the company. Creating or editing a group stays admin-only.
 func (s *Server) handleListGroups(w http.ResponseWriter, r *http.Request) {
-	u := s.requireUser(w, r)
-	if u == nil {
-		return
-	}
+	u := caller(r)
 	spaceID, err := uuidParam(r, "spaceID")
 	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")

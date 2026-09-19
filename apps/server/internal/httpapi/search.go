@@ -124,10 +124,7 @@ func parseSearchQuery(v url.Values) (searchQuery, error) {
 const searchOverfetch = 5
 
 func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
-	u := s.requireUser(w, r)
-	if u == nil {
-		return
-	}
+	u := caller(r)
 
 	q, err := parseSearchQuery(r.URL.Query())
 	if err != nil {

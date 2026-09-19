@@ -17,10 +17,9 @@ import { cn } from "@workspace/ui/lib/utils";
 import { fmtRelative, fmtSize } from "@/lib/api";
 import {
   adminStatsOptions,
-  myProfileOptions,
   requireAuth,
   useAdminStats,
-  useMyProfile,
+  useMe,
   useUpdateAdminUser,
   useUsers,
   usersOptions,
@@ -33,8 +32,8 @@ export const Route = createFileRoute("/admin/users")({
   beforeLoad: async ({ context, location }) => {
     await requireAuth(context.queryClient, location.href);
   },
+  // `requireAuth` above has already primed the identity cache under keys.me.
   loader: ({ context }) => {
-    void context.queryClient.ensureQueryData(myProfileOptions());
     void context.queryClient.ensureQueryData(adminStatsOptions());
     void context.queryClient.ensureQueryData(usersOptions(100, 0));
   },
@@ -50,7 +49,7 @@ export const Route = createFileRoute("/admin/users")({
  * non-admin out.
  */
 function AdminPage() {
-  const { data: me } = useMyProfile();
+  const { data: me } = useMe();
   const stats = useAdminStats();
   const { data, isLoading } = useUsers(100, 0);
   const update = useUpdateAdminUser();

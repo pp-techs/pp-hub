@@ -74,9 +74,12 @@ documents into PDF, then rasterizes the first page into a thumbnail. Request:
 The service **fetches the document by URL** rather than accepting an upload, so
 the worker signs a 5-minute view-only WOPI token and hands over
 `{PP_WOPI_SERVER_URL}/wopi/files/{id}/contents?access_token=…`. That means
-`PP_SESSION_KEY` must be the same in the worker and the API server: the worker
-signs, the server verifies. The worker refuses to register the office renderer
-when the key was generated rather than supplied.
+`PP_SESSION_KEY` must be the same in the worker and the API server: it is the
+master secret both processes derive the WOPI signing subkey from
+(`config.DeriveKey(wopi.KeyPurpose)`), so the worker signs and the server
+verifies with the same key without either holding the master for that purpose.
+The worker refuses to register the office renderer when the key was generated
+rather than supplied.
 
 Failures come back as HTTP 200 with a negative `error` code in the body, so the
 status alone is not enough to tell success from failure. `preview.convertError`

@@ -2,6 +2,8 @@ package httpapi
 
 import (
 	"net/http"
+	"reflect"
+	"sort"
 	"strings"
 	"testing"
 
@@ -15,10 +17,12 @@ import (
 // while the UI's revoke button returned 404. A handler that no router mentions
 // is invisible to the compiler, so the router itself has to be asserted.
 var clientRoutes = []string{
-	"GET /api/v1/me",
 	"GET /api/v1/users/me",
 	"PUT /api/v1/users/me",
 	"POST /api/v1/users/me/avatar",
+	"GET /api/v1/users/me/sessions/",
+	"DELETE /api/v1/users/me/sessions/",
+	"DELETE /api/v1/users/me/sessions/{sessionID}",
 	"GET /api/v1/users",
 	"GET /api/v1/admin/stats",
 	"PATCH /api/v1/admin/users/{userID}",
@@ -111,5 +115,40 @@ func TestRouterRegistersClientRoutes(t *testing.T) {
 	}
 	if len(missing) > 0 {
 		t.Errorf("routes not registered:\n  %s", strings.Join(missing, "\n  "))
+	}
+}
+
+// Authentication is a middleware on the /api/v1 group, not a line at the top
+// of each handler. That is the only reason a new route cannot ship public by
+// omission — so the wiring that makes it true is asserted, not assumed.
+//
+// The check is on the middleware chain rather than on a live 401, because a
+// zero Server has no session store to answer with and the invariant being
+// defended is structural: this handler is wrapped, whatever it does.
+func TestEveryAPIRouteIsAuthenticated(t *testing.T) {
+	guard := reflect.ValueOf((&Server{}).authenticated).Pointer()
+
+	var unguarded []string
+	err := chi.Walk(
+		(&Server{}).Router().(chi.Routes),
+		func(method, route string, _ http.Handler, middlewares ...func(http.Handler) http.Handler) error {
+			if !strings.HasPrefix(route, "/api/v1/") {
+				return nil
+			}
+			for _, mw := range middlewares {
+				if reflect.ValueOf(mw).Pointer() == guard {
+					return nil
+				}
+			}
+			unguarded = append(unguarded, method+" "+route)
+			return nil
+		},
+	)
+	if err != nil {
+		t.Fatalf("walk routes: %v", err)
+	}
+	if len(unguarded) > 0 {
+		sort.Strings(unguarded)
+		t.Errorf("routes reachable without authentication:\n  %s", strings.Join(unguarded, "\n  "))
 	}
 }

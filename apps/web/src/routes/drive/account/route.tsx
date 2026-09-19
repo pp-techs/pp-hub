@@ -10,8 +10,9 @@ import { SettingsTabs } from "@/components/settings-tabs";
  * previous `/profile` route is gone — a standalone page dropped the rail, the
  * breadcrumb and any way back.
  *
- * Two tabs, not three: there is no session-listing endpoint yet, so a Sessions
- * tab could only be an empty pane.
+ * Three tabs: Profile is the account the server stores, Preferences is how
+ * this browser draws the app, and Sessions lists the devices currently
+ * signed in so one can be ended from another.
  */
 export const Route = createFileRoute("/drive/account")({
   head: () => ({ meta: [{ title: "Account · pp-hub" }] }),
@@ -25,6 +26,7 @@ function AccountLayout() {
         tabs={[
           { label: "Profile", to: "/drive/account/profile" },
           { label: "Preferences", to: "/drive/account/preferences" },
+          { label: "Sessions", to: "/drive/account/sessions" },
         ]}
       />
       <Outlet />

@@ -1,8 +1,28 @@
--- name: UpsertUser :one
+-- name: CreateUser :one
 INSERT INTO users (oidc_sub, oidc_iss, email, name)
 VALUES ($1, $2, $3, $4)
-ON CONFLICT (oidc_iss, oidc_sub)
-DO UPDATE SET email = EXCLUDED.email, name = EXCLUDED.name, last_seen = now()
+RETURNING *;
+
+-- name: GetUserByIdentity :one
+SELECT * FROM users WHERE oidc_iss = $1 AND oidc_sub = $2;
+
+-- Refreshes the profile fields the IdP owns on every sign-in.
+-- name: TouchUserLogin :one
+UPDATE users SET email = $2, name = $3, last_seen = now()
+WHERE id = $1
+RETURNING *;
+
+-- Re-points an existing account at a new (issuer, subject) pair.
+--
+-- Identity is keyed on (oidc_iss, oidc_sub), and oidc_iss is a URL an operator
+-- can change — moving the IdP behind a new hostname, or setting
+-- PP_OIDC_ISSUER_EXTERNAL for the first time. Without this, that change made
+-- every returning user look brand new, the insert collided with the unique
+-- index on (tenant_id, email_hash), and sign-in answered 500 with no way back
+-- short of hand-editing Postgres.
+-- name: AdoptUserIdentity :one
+UPDATE users SET oidc_iss = $2, oidc_sub = $3, email = $4, name = $5, last_seen = now()
+WHERE id = $1
 RETURNING *;
 
 -- name: GetUser :one

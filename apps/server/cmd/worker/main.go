@@ -3,7 +3,7 @@
 // It is optional. The server registers only the pure-Go renderers; PDF and
 // video need poppler and ffmpeg, which would otherwise have to be installed
 // next to the API — both parse hostile bytes in memory-unsafe code, and the
-// API process holds the session key and the connection pool. Running them
+// API process holds the master secret and the connection pool. Running them
 // here instead keeps that blast radius inside a container with no listener.
 //
 // An install that never deploys this binary is fully supported: the jobs it
@@ -25,6 +25,7 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/bootstrap"
 	"github.com/nhatbui/pp-hub/apps/server/internal/config"
 	"github.com/nhatbui/pp-hub/apps/server/internal/preview"
+	"github.com/nhatbui/pp-hub/apps/server/internal/wopi"
 )
 
 func main() {
@@ -66,7 +67,7 @@ func run() error {
 		preview.NewOfficeRenderer(preview.OfficeConfig{
 			ConvertURL:    deps.Cfg.OnlyOfficeIntURL,
 			SourceBaseURL: deps.Cfg.WopiServerURL,
-			SessionKey:    officeSigningKey(deps.Cfg),
+			WopiKey:       officeSigningKey(deps.Cfg),
 		}),
 	)
 	if len(renderers) == 0 {
@@ -100,12 +101,12 @@ func (errNoRenderersType) Error() string {
 // renderer leaves those jobs pending instead — recoverable by setting the key
 // and restarting, which is exactly what the operator needs to do.
 func officeSigningKey(cfg *config.Config) []byte {
-	if !cfg.SessionKeyShared {
+	if !cfg.SecretKeyShared {
 		slog.Warn("office thumbnails disabled: PP_SESSION_KEY must be set to the same value as the API server",
 			"effect", "render:office jobs stay pending until it is")
 		return nil
 	}
-	return cfg.SessionKey
+	return cfg.DeriveKey(wopi.KeyPurpose)
 }
 
 func nonNil(rs ...preview.Renderer) []preview.Renderer {

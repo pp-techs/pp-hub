@@ -201,10 +201,7 @@ func nodeToDTOMeta(n store.NodeWithMeta) nodeDTO {
 // --- Spaces handlers ---
 
 func (s *Server) handleCreateSpace(w http.ResponseWriter, r *http.Request) {
-	u := s.requireUser(w, r)
-	if u == nil {
-		return
-	}
+	u := caller(r)
 	var body struct {
 		Name           string `json:"name"`
 		Slug           string `json:"slug"`
@@ -245,10 +242,7 @@ func (s *Server) handleCreateSpace(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleListSpaces(w http.ResponseWriter, r *http.Request) {
-	u := s.requireUser(w, r)
-	if u == nil {
-		return
-	}
+	u := caller(r)
 	list, err := s.spaces.ListForUser(r.Context(), u.ID)
 	if err != nil {
 		Error(w, r, err)
@@ -308,10 +302,7 @@ func (s *Server) requireParentWrite(w http.ResponseWriter, r *http.Request, spac
 // named capability on it. There is no role floor — an admin with neither
 // ownership nor a grant resolves to nothing, like anyone else.
 func (s *Server) requireNodeCaps(w http.ResponseWriter, r *http.Request, need share.Cap) (*store.User, store.Node, share.Caps) {
-	u := s.requireUser(w, r)
-	if u == nil {
-		return nil, store.Node{}, share.Caps{}
-	}
+	u := caller(r)
 	nodeID, err := uuidParam(r, "nodeID")
 	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid node id")
@@ -380,10 +371,7 @@ func (s *Server) isArchiveRoot(ctx context.Context, node store.Node) bool {
 // --- Node handlers ---
 
 func (s *Server) handleListChildren(w http.ResponseWriter, r *http.Request) {
-	u := s.requireUser(w, r)
-	if u == nil {
-		return
-	}
+	u := caller(r)
 	spaceID, err := uuidParam(r, "spaceID")
 	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
@@ -440,10 +428,7 @@ func (s *Server) listVisibleChildren(r *http.Request, spaceID, parentID pgtype.U
 }
 
 func (s *Server) handleMkdir(w http.ResponseWriter, r *http.Request) {
-	u := s.requireUser(w, r)
-	if u == nil {
-		return
-	}
+	u := caller(r)
 	spaceID, err := uuidParam(r, "spaceID")
 	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
@@ -527,10 +512,7 @@ func (s *Server) handleCreateTeamFolder(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
-	u := s.requireUser(w, r)
-	if u == nil {
-		return
-	}
+	u := caller(r)
 	spaceID, err := uuidParam(r, "spaceID")
 	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
@@ -1001,10 +983,7 @@ func (s *Server) handleRestoreVersion(w http.ResponseWriter, r *http.Request) {
 // --- Sidebar handlers ---
 
 func (s *Server) handleListTree(w http.ResponseWriter, r *http.Request) {
-	u := s.requireUser(w, r)
-	if u == nil {
-		return
-	}
+	u := caller(r)
 	spaceID, err := uuidParam(r, "spaceID")
 	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
@@ -1058,10 +1037,7 @@ func (s *Server) handleListTree(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleListDeleted(w http.ResponseWriter, r *http.Request) {
-	u := s.requireUser(w, r)
-	if u == nil {
-		return
-	}
+	u := caller(r)
 	spaceID, err := uuidParam(r, "spaceID")
 	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
@@ -1135,10 +1111,7 @@ func (s *Server) handleListDeleted(w http.ResponseWriter, r *http.Request) {
 // already carries an optional space filter, and it applies a LIMIT, so the
 // scoping has to happen in SQL rather than on the assembled slice.
 func (s *Server) handleListShared(w http.ResponseWriter, r *http.Request) {
-	u := s.requireUser(w, r)
-	if u == nil {
-		return
-	}
+	u := caller(r)
 	spaceID, ok := s.optionalSpaceParam(w, r, u.ID)
 	if !ok {
 		return

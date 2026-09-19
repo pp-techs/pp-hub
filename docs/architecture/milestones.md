@@ -4,7 +4,7 @@ Each milestone ends in a working end-to-end state inside the compose stack.
 
 ## M1 — Skeleton ✅ done
 
-- `apps/server` boots; chi router; OIDC login against **Logto** (cloud or self-hosted in compose); `GET /me`.
+- `apps/server` boots; chi router; OIDC login against **Logto** (cloud or self-hosted in compose); `GET /me`. **Replaced in M20** by `GET /api/v1/users/me` as the single identity endpoint.
 - Website calls the API (same-origin via Vite proxy; OpenAPI-generated TS client deferred until the API surface grows in M2).
 - Verified: `go test ./...` (session cookie unit tests), `vp check`, OIDC discovery and login flow.
 - IdP note: Logto là IdP (Cloud tenant mặc định cho dev, hoặc self-host qua `--profile idp`); backend dùng standard OIDC. Setup steps live in [deployment.md](../deployment.md) (dev stack: `compose.dev.yml`).
@@ -112,7 +112,7 @@ Closes the gaps between the shipped app and the Stitch screens that needed no ne
 - Inviting an address that already has an account adds them as a member directly — an invitation would be a pointless extra step for someone who can already sign in.
 - Accepting checks that the invitation's address matches the signed-in account: it is addressed to an email, not to whoever holds the link.
 - `PATCH|DELETE /api/v1/spaces/{id}`, `GET|POST /spaces/{id}/invitations`, `DELETE /spaces/{id}/invitations/{inviteID}`, `POST /invitations/accept`, `GET /admin/stats`, `PATCH /admin/users/{userID}`.
-- **Suspension is enforced in `requireUser`**, not at sign-in, so it takes effect on the next request rather than waiting for an existing session to expire. 403 and not 401: the credentials are fine, the account is not. An admin cannot revoke their own admin flag or suspend themselves — that would leave the server potentially unadministrable with no way back through the UI.
+- **Suspension is enforced on every request**, not at sign-in, so it takes effect on the next request rather than waiting for an existing session to expire. 403 and not 401: the credentials are fine, the account is not. An admin cannot revoke their own admin flag or suspend themselves — that would leave the server potentially unadministrable with no way back through the UI. (The check moved from the per-handler guard into the `/api/v1` middleware in M20; the rule did not change.)
 - Web: `?panel=settings` with General / Members / Danger zone tabs, `/invite/$token`, and a rewritten admin console with stat tiles, suspend/reinstate and admin toggles. **The panel param and the Members tab were replaced in M16** by `settings/general|people|danger` routes.
 
 **Fixed after the fact:** `spaceDTO` never carried `slug` / `description` /
@@ -250,11 +250,13 @@ scoped call still returns the scoped space's row.
 **Deep links survive sign-in.** `requireAuth` now redirects to
 `/login?redirect=<path>`, and `/auth/login?next=` carries the destination
 through the OIDC round trip in a short-lived `pp_oidc_next` cookie, revalidated
-on the way back. `safeNext` accepts only a same-origin absolute path, so
-`//evil.example` and absolute URLs cannot turn sign-in into an open redirect.
+on the way back — **folded into the single `pp_oidc_tx` cookie in M20**.
+`safeNext` accepts only a same-origin absolute path, so `//evil.example` and
+absolute URLs cannot turn sign-in into an open redirect.
 
 **Deliberately not built:** an account Sessions tab (no session-listing
-endpoint) and a "leave space" button (`DELETE /spaces/{id}/members/{userID}` is
+endpoint — **built in M20**, once sessions became rows) and a "leave space"
+button (`DELETE /spaces/{id}/members/{userID}` is
 `RequireAdmin`, so a member cannot remove themselves — the account page says so
 rather than offering a button that 403s). Cross-space Home was **removed**, not
 deferred: with every listing scoped to one space, a row from another space could
@@ -278,10 +280,138 @@ recursion re-emitted each parent at every depth.
 deadline — reverting the query fails it in 10.1s with
 `context deadline exceeded` rather than hanging the suite.
 
+## M20 — Sessions Are Rows ✅ done
+
+Migration `0002_sessions.sql` — the first file on top of the frozen baseline,
+and the one schema change [production-readiness.md](production-readiness.md)
+said Phase A might need.
+
+**A session used to be a signature.** The cookie was
+`v1.<uuid>.<expiry>.<hmac>`: self-contained, hard-coded to thirty days, and
+backed by nothing, so there was nothing to revoke. A stolen or lost cookie was
+good for a month, `HandleLogout` cleared the browser's copy and left the IdP
+session standing, and the only lever that invalidated anything — rotating
+`PP_SESSION_KEY` — signed out every user at once and rotated the WOPI signing
+key with them. It is now an opaque 256-bit random token whose SHA-256 is the
+`sessions` row; only the hash is stored, so the table cannot be turned back
+into a cookie. `GetSessionByHash` resolves cookie → session + owner in one
+indexed join, replacing verify-then-fetch-user. The idle deadline is 30 days,
+slid by `TouchSession` at most once an hour per session, under a 90-day
+absolute cap measured from `created_at`; `PurgeExpiredSessions` sweeps on a
+five-minute ticker in `cmd/server`, which is housekeeping rather than
+enforcement — `GetSessionByHash` filters on `expires_at` itself, so an expired
+row can never be touched back to life.
+
+**`users.last_seen` finally means last seen.** `TouchSession` updates it in
+the same statement that slides the deadline. It used to be written only at
+login, so the People page's "last active" column was a login timestamp under
+a label that promised more.
+
+**Revocation became a surface.** `GET /api/v1/users/me/sessions`,
+`DELETE /api/v1/users/me/sessions/{id}` and `DELETE /api/v1/users/me/sessions`
+(all but the current one) back a third tab on `/drive/account`, beside Profile
+and Preferences — the tab M16 recorded as deliberately not built because no
+session-listing endpoint existed. The user id is part of every delete
+predicate, so guessing somebody else's session id achieves nothing; revoking
+the session you are holding also clears the cookie, because a browser still
+presenting a handle to a deleted row is the same bug seen from the other side.
+`POST /auth/logout` deletes the row and returns `{"end_session_url": …}`, and
+`signOut()` on the web side hands the browser to it, so sign-out ends the IdP
+session too rather than offering a one-click SSO re-entry as the previous
+person on a shared machine. That handoff has an ordering the comment in
+`lib/queries/auth.ts` records: the global 401 handler is disabled before the
+cross-origin assignment, because a mounted query refetching into the session
+that was just revoked would otherwise win the race and land on `/login` with
+the IdP session still standing. When the provider advertises no end-session
+endpoint there is nothing to navigate to, so that branch clears the TanStack
+Query cache and routes to `/login` instead. `EndSessionURL` had been there all
+along with no caller.
+
+**Authentication is a middleware, not a habit.** `r.Use(s.authenticated)` on
+the `/api/v1` group replaces roughly thirty hand-written guards in front of
+seventy-odd handlers, with nothing but eyesight connecting the two numbers —
+a new route was public until someone noticed. The per-handler guard is gone;
+handlers call `caller(r)`, which reads the session the middleware put in the
+context and cannot be nil. Called outside the group it panics, because that is a
+wiring bug rather than a request anyone can fix. Suspension is still checked
+per request, not at sign-in, so suspending an account ends its live sessions
+immediately — 403, not 401: the credentials are fine, the account is not.
+
+**The handshake is single-use and constant-time.** `pp_oidc_state` and
+`pp_oidc_next` are replaced by one `pp_oidc_tx` cookie carrying state, nonce,
+PKCE (S256) verifier and the post-login destination; `HandleCallback` clears
+it unconditionally before anything can return early. The pair it replaces
+survived every failure path for their full ten minutes, which is a replay
+window in exchange for nothing. Both the state and the ID token's nonce are
+compared against the transaction with `subtle.ConstantTimeCompare`, and
+`next` is revalidated through `safeNext` on the way out even though the cookie
+is ours and HttpOnly. A failed callback now redirects to `/login?error=<code>`
+— the callback is a top-level navigation, so the problem+json the rest of the
+server returns would render as raw JSON in front of somebody who only tried to
+log in. The cause stays in the log; `ERRORS` in `apps/web/src/routes/login.tsx`
+turns the code into a sentence.
+
+**Cookies carry `Secure`** when `PP_EXTERNAL_URL` is `https://`, beside
+HttpOnly and SameSite=Lax, through the one `cookie()` constructor every cookie
+in the package goes through. A non-https deployment logs a warning at startup
+instead of being quietly interceptable on the first accidental downgrade.
+
+**Split-horizon OIDC stopped being fiction.** `PP_OIDC_ISSUER` is the
+discovery URL _this process_ can reach; `PP_OIDC_ISSUER_EXTERNAL` is what the
+browser is sent to and what must appear in `iss`. Only the two endpoints the
+browser visits — authorization and end-session — are rebased onto the external
+origin; token, userinfo and JWKS stay internal because only the server calls
+them. Before this the first variable was merely a default for the second and
+its doc comment described behaviour that did not exist.
+
+**Changing the issuer no longer locks everyone out.** Identity is keyed on
+`(oidc_iss, oidc_sub)`, and `oidc_iss` is a URL an operator can change — a new
+IdP hostname, or setting `PP_OIDC_ISSUER_EXTERNAL` for the first time. Every
+returning user then looked brand new, the insert collided with
+`users_tenant_email_hash`, and sign-in answered 500 for everybody with no way
+back short of hand-editing Postgres. A miss on the identity now falls back to
+the verified email and re-points the account (`AdoptUserIdentity`), gated on
+`email_verified` because an IdP that lets a user claim an arbitrary address
+would otherwise let them claim an arbitrary account. A real collision answers
+`email-taken` on the sign-in page instead of a 500.
+
+**One key, purpose-bound subkeys.** `config.SessionKey` is now `SecretKey`, and
+nothing signs with it directly: `DeriveKey` (HKDF-SHA256) issues a subkey per
+purpose and WOPI tokens take `wopi.KeyPurpose`. The environment variable is
+still `PP_SESSION_KEY` on purpose — renaming it would silently fall back to an
+ephemeral key in every existing deployment and break office previews at
+runtime instead of at startup. Sessions no longer touch it, so rotating it
+signs nobody out; it invalidates in-flight WOPI tokens only.
+
+**Frontend:** the thin second identity endpoint is deleted —
+`GET /api/v1/users/me` is the one identity endpoint, cached under `keys.me`,
+so the rail and the profile page can no longer hold two versions of the same
+person. A global 401 handler in `main.tsx` clears the query cache and
+navigates to `/login` (excluding `/login` itself, whose own probe legitimately
+401s), because a session can now be ended from another device while a tab is
+still rendering a signed-in shell.
+
+**Testing.** `internal/auth/sessions_db_test.go` follows the established
+`PP_TEST_DATABASE_URL`-or-skip contract — the lookup join, expiry refusal,
+`TouchSession` moving both the deadline and `last_seen`, owner-scoped
+revocation, "sign out everywhere else" keeping the current row, and the list
+excluding expired sessions are all invariants that live in SQL and cannot be
+asserted against a fake. `TestEveryAPIRouteIsAuthenticated`
+(`internal/httpapi/routes_test.go`) is the structural guard: it walks the
+router and fails if any `/api/v1` route is not wrapped by `authenticated`,
+which is what makes "the group is the guard" enforceable rather than a
+convention.
+
+**Deliberately not built:** an `Origin`/`Referer` CSRF check. `SameSite=Lax`
+plus a JSON-over-`fetch` API is thin rather than absent, and it is the one
+item [production-readiness.md](production-readiness.md) §3 still lists as
+open.
+
 ## Testing Strategy
 
 - **Unit**: capability resolver matrix (ownership × grant × ancestor × link), blob CAS (put/get/dedup/gc), tree ops (move-cycle rejection, rename conflicts).
-- **Database-backed**: the invariants that live in SQL — owner inheritance, admin-has-no-access, member lifecycle — run against a real Postgres and skip without `PP_TEST_DATABASE_URL`.
+- **Database-backed**: the invariants that live in SQL — owner inheritance, admin-has-no-access, member lifecycle, session lookup and revocation — run against a real Postgres and skip without `PP_TEST_DATABASE_URL`.
+- **Structural**: `TestEveryAPIRouteIsAuthenticated` walks the chi router and fails if an `/api/v1` route is not wrapped by the auth middleware. A convention nobody can forget is worth more than a convention everybody is told about.
 - **Integration** (compose test profile): upload→download byte-identical roundtrip; WOPI flow against real OnlyOffice (open → PutFile → version increments); link share access without auth.
 - **Contract**: hand-typed TS interfaces in `apps/web/src/lib/api/types.ts` mirror the Go handlers; OpenAPI codegen deferred until the surface grows.
 - **Load sanity**: k6 — 100 concurrent uploads, 5-user co-edit; pass = no errors, no performance target yet.
@@ -290,4 +420,11 @@ deadline — reverting the query fails it in 10.1s with
 
 - Two compose files in `deploy/compose/`: `compose.dev.yml` (services only, app runs from source) and `compose.prod.yml` (everything, for a VPS or Dokploy). Config via `.env`, templated by `.env.example` in each location.
 - Persistent state: `data/` volume (blobs) + Postgres volume.
-- Backup: `pg_dump` + rsync of `data/blobs`.
+- Backup: `pg_dump` + rsync of `data/blobs` — **documented, not implemented**. See
+  [production-readiness.md](production-readiness.md), which collects everything
+  standing between M20 and an internal rollout: the P0 blockers (backup, mail
+  transport, OnlyOffice JWT, admin bootstrap, upload/rate limits, lock
+  enforcement on the REST path — the session/cookie item is closed), the P1
+  gaps against Google Drive (content search, audit-grade events, comments,
+  resumable upload, storage accounting, IdP group sync), and a proposed
+  phasing.

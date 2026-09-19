@@ -1,7 +1,9 @@
 package config
 
 import (
+	"crypto/hkdf"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
 	"log/slog"
@@ -9,18 +11,29 @@ import (
 )
 
 type Config struct {
-	Addr             string
-	DatabaseURL      string
-	OIDCIssuer       string // issuer URL as reachable by the server
-	OIDCIssuerExt    string // issuer URL as reachable by the user's browser (defaults to OIDCIssuer)
+	Addr        string
+	DatabaseURL string
+	// OIDCIssuer is where *this process* fetches the discovery document and
+	// calls the token, userinfo and JWKS endpoints. OIDCIssuerExt is the
+	// issuer the browser is sent to and the value that must appear in the
+	// `iss` claim. They differ only in a split-horizon deployment, where the
+	// IdP answers on a container hostname internally and a public one
+	// externally; otherwise the external one defaults to this.
+	OIDCIssuer       string
+	OIDCIssuerExt    string
 	OIDCClientID     string
 	OIDCClientSecret string
 	ExternalURL      string // public base URL of this server
-	SessionKey       []byte // HMAC key for session cookies
-	// SessionKeyShared is false when the key was generated at startup rather
+	// SecretKey is the master secret. Nothing signs with it directly — every
+	// consumer takes a purpose-bound subkey through DeriveKey, so a token
+	// minted for one purpose can never verify as another and the two can be
+	// reasoned about separately. Sessions no longer use it at all: they are
+	// rows in `sessions`, so rotating this key does not sign anyone out.
+	SecretKey []byte
+	// SecretKeyShared is false when the key was generated at startup rather
 	// than supplied. Anything that signs a token another process must verify
 	// — the worker's office conversion fetch — has to refuse in that case.
-	SessionKeyShared bool
+	SecretKeyShared  bool
 	BlobRoot         string // local CAS blob directory
 	BlobBackend      string // "local" | "s3"
 	S3               S3Settings
@@ -30,7 +43,7 @@ type Config struct {
 }
 
 func Load() (*Config, error) {
-	key, shared, err := sessionKey()
+	key, shared, err := secretKey()
 	if err != nil {
 		return nil, err
 	}
@@ -42,8 +55,8 @@ func Load() (*Config, error) {
 		OIDCClientID:     env("PP_OIDC_CLIENT_ID", "pphub-server"),
 		OIDCClientSecret: env("PP_OIDC_CLIENT_SECRET", "pphub-server-secret"),
 		ExternalURL:      env("PP_EXTERNAL_URL", "http://localhost:8080"),
-		SessionKey:       key,
-		SessionKeyShared: shared,
+		SecretKey:        key,
+		SecretKeyShared:  shared,
 		BlobRoot:         env("PP_BLOB_ROOT", "./data/blobs"),
 		BlobBackend:      env("PP_BLOB_BACKEND", "local"),
 		S3: S3Settings{
@@ -111,9 +124,15 @@ func env(key, def string) string {
 	return def
 }
 
-// sessionKey returns the HMAC key and whether every process in this
+// secretKey returns the master secret and whether every process in this
 // deployment will derive the same one.
-func sessionKey() ([]byte, bool, error) {
+//
+// The environment variable keeps its historical name. It no longer has
+// anything to do with sessions — those are rows now — but it is written into
+// every existing deployment's .env, and a rename that silently falls back to
+// an ephemeral key would break office previews at runtime rather than at
+// startup.
+func secretKey() ([]byte, bool, error) {
 	if v := os.Getenv("PP_SESSION_KEY"); v != "" {
 		b, err := base64.StdEncoding.DecodeString(v)
 		if err != nil || len(b) < 32 {
@@ -122,13 +141,30 @@ func sessionKey() ([]byte, bool, error) {
 		return b, true, nil
 	}
 	if env("PP_DEV_INSECURE", "") == "1" {
-		slog.Warn("PP_DEV_INSECURE=1: using fixed development session key")
-		return []byte("pphub-dev-session-key-32bytes!!"), true, nil
+		slog.Warn("PP_DEV_INSECURE=1: using fixed development secret key")
+		return []byte("pphub-dev-secret-key-32-bytes!!!"), true, nil
 	}
 	key := make([]byte, 32)
 	if _, err := rand.Read(key); err != nil {
 		return nil, false, err
 	}
-	slog.Warn("PP_SESSION_KEY unset: generated ephemeral key, sessions will not survive restarts")
+	slog.Warn("PP_SESSION_KEY unset: generated ephemeral secret key, office previews are disabled in a multi-process deployment")
 	return key, false, nil
+}
+
+// DeriveKey returns a 32-byte subkey bound to purpose.
+//
+// Two token classes used to be signed with the master secret directly — the
+// session cookie and the WOPI access token — which meant one leak compromised
+// both and neither could be rotated without the other. Sessions have since
+// moved to the database, but the principle stands for whatever signs next:
+// ask for a subkey, never the master.
+func (c *Config) DeriveKey(purpose string) []byte {
+	key, err := hkdf.Key(sha256.New, c.SecretKey, nil, "pp-hub/"+purpose, 32)
+	if err != nil {
+		// HKDF fails only on an absurd key length; 32 bytes from SHA-256 is
+		// always derivable, so this is unreachable rather than handled.
+		panic("config: derive " + purpose + ": " + err.Error())
+	}
+	return key
 }

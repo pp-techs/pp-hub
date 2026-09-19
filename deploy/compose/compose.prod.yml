@@ -64,8 +64,11 @@ services:
       PP_OIDC_CLIENT_ID: "${PP_OIDC_CLIENT_ID:?set in .env}"
       PP_OIDC_CLIENT_SECRET: "${PP_OIDC_CLIENT_SECRET:?set in .env}"
 
-      # Shared with the worker: it signs conversion tokens this server
-      # verifies. Also what keeps sessions alive across restarts.
+      # The master secret. Nothing signs with it directly — config.DeriveKey
+      # issues a purpose-bound subkey per signer — and sessions are rows, so
+      # rotating this does not sign anyone out. It must be identical here and
+      # in the worker, which mints the office-conversion tokens this server
+      # verifies; without that, those previews stay pending.
       PP_SESSION_KEY: "${PP_SESSION_KEY:?set in .env - generate with openssl rand -base64 32}"
 
       # Browser-facing OnlyOffice URL — goes into the editor iframe src.

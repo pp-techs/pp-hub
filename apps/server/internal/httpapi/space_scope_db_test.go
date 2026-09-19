@@ -57,7 +57,7 @@ func feedEnv(t *testing.T) (*Server, *store.Queries) {
 func feedUser(t *testing.T, q *store.Queries, label string) store.User {
 	t.Helper()
 	sub := fmt.Sprintf("test-%s-%d-%d", label, os.Getpid(), time.Now().UnixNano())
-	u, err := q.UpsertUser(context.Background(), store.UpsertUserParams{
+	u, err := q.CreateUser(context.Background(), store.CreateUserParams{
 		OidcSub: sub,
 		OidcIss: "test",
 		Email:   sub + "@test.local",

@@ -37,10 +37,7 @@ type trashNodeDTO struct {
 // requireTrashAccess resolves the space and checks admin status.
 // Returns (user, spaceID, ok).
 func (s *Server) requireTrashAccess(w http.ResponseWriter, r *http.Request) (*store.User, pgtype.UUID, bool) {
-	u := s.requireUser(w, r)
-	if u == nil {
-		return nil, pgtype.UUID{}, false
-	}
+	u := caller(r)
 	spaceID, err := uuidParam(r, "spaceID")
 	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
@@ -56,10 +53,7 @@ func (s *Server) requireTrashAccess(w http.ResponseWriter, r *http.Request) (*st
 // requireTrashedNode resolves a trashed node and enforces the given capability.
 // Returns (user, node).
 func (s *Server) requireTrashedNode(w http.ResponseWriter, r *http.Request, need share.Cap) (*store.User, store.Node) {
-	u := s.requireUser(w, r)
-	if u == nil {
-		return nil, store.Node{}
-	}
+	u := caller(r)
 	nodeID, err := uuidParam(r, "nodeID")
 	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid node id")

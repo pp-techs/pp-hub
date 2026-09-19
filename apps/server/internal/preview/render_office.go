@@ -36,8 +36,8 @@ type OfficeConfig struct {
 	// SourceBaseURL is this deployment's API server as reachable from the
 	// OnlyOffice container (PP_WOPI_SERVER_URL).
 	SourceBaseURL string
-	// SessionKey signs the short-lived token on the source URL.
-	SessionKey []byte
+	// WopiKey signs the short-lived token on the source URL.
+	WopiKey []byte
 }
 
 // OfficeRenderer thumbnails office documents by converting them to PDF with
@@ -65,7 +65,7 @@ type OfficeRenderer struct {
 // Returning nil leaves render:office jobs pending for a worker that has all
 // four, rather than failing them here.
 func NewOfficeRenderer(cfg OfficeConfig) Renderer {
-	if cfg.ConvertURL == "" || cfg.SourceBaseURL == "" || len(cfg.SessionKey) == 0 {
+	if cfg.ConvertURL == "" || cfg.SourceBaseURL == "" || len(cfg.WopiKey) == 0 {
 		return nil
 	}
 	pdf := NewPDFRenderer()
@@ -116,7 +116,7 @@ func (r *OfficeRenderer) sourceURL(nodeID string) (string, error) {
 	// Rank 1 is view — the lowest that opens the file. A conversion never
 	// writes, so handing out anything more would be a gift to whoever gets
 	// hold of the URL in the next five minutes.
-	token, err := wopi.SignTokenWithTTL(r.cfg.SessionKey, pgtype.UUID{}, nid, 1, sourceTokenTTL)
+	token, err := wopi.SignTokenWithTTL(r.cfg.WopiKey, pgtype.UUID{}, nid, 1, sourceTokenTTL)
 	if err != nil {
 		return "", err
 	}

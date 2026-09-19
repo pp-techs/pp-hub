@@ -4,7 +4,7 @@
 export { keys } from "./keys";
 
 // Auth
-export { useMe, requireAuth, fetchMe, logout } from "./auth";
+export { useMe, requireAuth, fetchMe, signOut } from "./auth";
 
 // Spaces
 export { useSpaces, useSpace, fetchSpaces, useCreateSpace } from "./spaces";
@@ -82,11 +82,12 @@ export {
 
 // Users
 export {
-  myProfileOptions,
   usersOptions,
-  useMyProfile,
   useUpdateProfile,
   useUploadAvatar,
+  useSessions,
+  useRevokeSession,
+  useRevokeOtherSessions,
   useUserSearch,
   useUsers,
   useSpaceMembers,

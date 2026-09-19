@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -52,10 +53,22 @@ func (s *Server) Router() http.Handler {
 	r.Post("/auth/logout", s.auth.HandleLogout)
 
 	r.Route("/api/v1", func(r chi.Router) {
-		r.Get("/me", s.handleMe)
+		// Everything below this line is authenticated.
+		//
+		// This used to be a call at the top of each handler: seventy-odd
+		// handlers, thirty-odd guards, and nothing but eyesight connecting
+		// the two numbers — a new route was public until someone noticed.
+		// TestEveryAPIRouteIsAuthenticated walks the router and holds the line.
+		r.Use(s.authenticated)
+
 		r.Get("/users/me", s.handleGetMyProfile)
 		r.Put("/users/me", s.handleUpdateMyProfile)
 		r.Post("/users/me/avatar", s.handleUploadAvatar)
+		r.Route("/users/me/sessions", func(r chi.Router) {
+			r.Get("/", s.handleListSessions)
+			r.Delete("/", s.handleRevokeOtherSessions)
+			r.Delete("/{sessionID}", s.handleRevokeSession)
+		})
 		r.Get("/search", s.handleSearch)
 		r.Get("/activity", s.handleListActivity)
 		r.Get("/recent", s.handleListRecent)
@@ -151,35 +164,42 @@ func (s *Server) Router() http.Handler {
 	return r
 }
 
-// requireUser returns the authenticated user or writes 401 and returns nil.
-func (s *Server) requireUser(w http.ResponseWriter, r *http.Request) *store.User {
-	u := s.auth.CurrentUser(r)
-	if u == nil {
-		writeProblem(w, http.StatusUnauthorized, "Unauthorized", "")
-		return nil
-	}
-	if u.SuspendedAt.Valid {
-		writeProblem(w, http.StatusForbidden, "Forbidden", "this account is suspended")
-		return nil
-	}
-	return u
-}
+// ctxKey is this package's private context-key type; a named type keeps it
+// from colliding with a key any other package stores.
+type ctxKey int
 
-type meResponse struct {
-	ID    string `json:"id"`
-	Email string `json:"email"`
-	Name  string `json:"name"`
-}
+const sessionCtxKey ctxKey = iota
 
-func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
-	u := s.requireUser(w, r)
-	if u == nil {
-		return
-	}
-	id, _ := u.ID.Value()
-	writeJSON(w, http.StatusOK, meResponse{
-		ID:    id.(string),
-		Email: u.Email,
-		Name:  u.Name,
+// authenticated resolves the session cookie once, for every route it wraps,
+// and rejects the request before any handler runs.
+func (s *Server) authenticated(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sess := s.auth.Authenticate(w, r)
+		if sess == nil {
+			writeProblem(w, http.StatusUnauthorized, "Unauthorized", "")
+			return
+		}
+		// Suspension is checked per request rather than at login, so
+		// suspending an account ends its live sessions immediately.
+		if sess.User.SuspendedAt.Valid {
+			writeProblem(w, http.StatusForbidden, "Forbidden", "this account is suspended")
+			return
+		}
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), sessionCtxKey, sess)))
 	})
+}
+
+// caller is the authenticated user. Never nil inside the authenticated group,
+// which is the only place a handler may call it.
+func caller(r *http.Request) *store.User { return &callerSession(r).User }
+
+func callerSession(r *http.Request) *auth.Session {
+	sess, ok := r.Context().Value(sessionCtxKey).(*auth.Session)
+	if !ok {
+		// A handler registered outside the authenticated group. That is a
+		// wiring bug, not a request the caller can fix, and it fails loudly
+		// here rather than silently serving someone else's data.
+		panic("httpapi: handler runs outside the authenticated group")
+	}
+	return sess
 }

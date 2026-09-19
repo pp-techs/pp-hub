@@ -1,6 +1,6 @@
 // User management API endpoints.
 import { api, ApiError } from "./client";
-import type { AdminUser, SpaceMember, UserProfile, UserSearchResult } from "./types";
+import type { AdminUser, Session, SpaceMember, UserProfile, UserSearchResult } from "./types";
 
 // ─── Profile ─────────────────────────────────────────────────────────────────
 
@@ -25,6 +25,26 @@ export async function uploadAvatar(file: File): Promise<{ avatar_url: string }> 
   const res = await api.post("api/v1/users/me/avatar", { body: form });
   if (!res.ok) throw new ApiError(res.status, "Failed to upload avatar");
   return res.json();
+}
+
+// ─── Sessions ────────────────────────────────────────────────────────────────
+
+/** Every live session of the caller, newest use first, current one flagged. */
+export async function listSessions(): Promise<Session[]> {
+  const res = await api.get("api/v1/users/me/sessions");
+  if (!res.ok) throw new ApiError(res.status, "Failed to list sessions");
+  return res.json();
+}
+
+export async function revokeSession(id: string): Promise<void> {
+  const res = await api.delete(`api/v1/users/me/sessions/${id}`);
+  if (!res.ok) throw new ApiError(res.status, "Failed to revoke session");
+}
+
+/** Ends every session but the caller's own — the "lost laptop" button. */
+export async function revokeOtherSessions(): Promise<void> {
+  const res = await api.delete("api/v1/users/me/sessions");
+  if (!res.ok) throw new ApiError(res.status, "Failed to revoke sessions");
 }
 
 // ─── User Search ─────────────────────────────────────────────────────────────

@@ -523,10 +523,11 @@ makes. Re-adding a departed member does not un-archive their content.
 ## Suspension
 
 `users.suspended_at` blocks a user without deleting their files or their
-authorship of anything. It is enforced in `requireUser` on every request, so
-suspending takes effect immediately rather than waiting for open sessions to
-expire. The response is **403, not 401**: the credentials are valid, the account
-is not, and a 401 would send the client into a pointless re-authentication loop.
+authorship of anything. It is enforced by the `/api/v1` auth middleware on
+every request, so suspending takes effect immediately rather than waiting for
+open sessions to expire. The response is **403, not 401**: the credentials are
+valid, the account is not, and a 401 would send the client into a pointless
+re-authentication loop.
 
 An instance admin cannot revoke their own instance-admin flag or suspend
 themselves; both are refused server-side.

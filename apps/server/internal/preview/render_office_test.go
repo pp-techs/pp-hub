@@ -22,11 +22,11 @@ func TestNewOfficeRendererDeclinesWhenUnconfigured(t *testing.T) {
 	full := OfficeConfig{
 		ConvertURL:    "http://onlyoffice",
 		SourceBaseURL: "http://server:8080",
-		SessionKey:    testKey,
+		WopiKey:       testKey,
 	}
 	cases := map[string]OfficeConfig{
-		"no convert url": {SourceBaseURL: full.SourceBaseURL, SessionKey: full.SessionKey},
-		"no source url":  {ConvertURL: full.ConvertURL, SessionKey: full.SessionKey},
+		"no convert url": {SourceBaseURL: full.SourceBaseURL, WopiKey: full.WopiKey},
+		"no source url":  {ConvertURL: full.ConvertURL, WopiKey: full.WopiKey},
 		"no session key": {ConvertURL: full.ConvertURL, SourceBaseURL: full.SourceBaseURL},
 		"all missing":    {},
 	}
@@ -52,7 +52,7 @@ func TestNewOfficeRendererDeclinesWhenUnconfigured(t *testing.T) {
 func TestOfficeSourceURLIsSignedAndReadOnly(t *testing.T) {
 	r := &OfficeRenderer{cfg: OfficeConfig{
 		SourceBaseURL: "http://server:8080/",
-		SessionKey:    testKey,
+		WopiKey:       testKey,
 	}}
 	nodeID := "11111111-2222-3333-4444-555555555555"
 	got, err := r.sourceURL(nodeID)
@@ -93,7 +93,7 @@ func TestOfficeSourceURLIsSignedAndReadOnly(t *testing.T) {
 func TestOfficeTokenFailsUnderAKeyMismatch(t *testing.T) {
 	r := &OfficeRenderer{cfg: OfficeConfig{
 		SourceBaseURL: "http://server:8080",
-		SessionKey:    testKey,
+		WopiKey:       testKey,
 	}}
 	got, err := r.sourceURL("11111111-2222-3333-4444-555555555555")
 	if err != nil {
@@ -109,7 +109,7 @@ func TestOfficeTokenFailsUnderAKeyMismatch(t *testing.T) {
 }
 
 func TestOfficeRenderRejectsPayloadWithoutNodeID(t *testing.T) {
-	r := &OfficeRenderer{cfg: OfficeConfig{SourceBaseURL: "http://s", SessionKey: testKey}}
+	r := &OfficeRenderer{cfg: OfficeConfig{SourceBaseURL: "http://s", WopiKey: testKey}}
 	if _, err := r.Render(t.Context(), strings.NewReader(""), Payload{}); err == nil {
 		t.Error("expected an error when the payload carries no node id")
 	}

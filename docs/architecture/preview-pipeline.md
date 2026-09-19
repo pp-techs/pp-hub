@@ -220,7 +220,7 @@ Three consequences worth knowing:
   worker signs the token; the _server_ verifies it. When the variable is unset
   each process generates its own key at startup, so every conversion would fail
   with an opaque "invalid or expired WOPI token" after five retries. The worker
-  detects this (`config.SessionKeyShared`) and **declines to register the office
+  detects this (`config.SecretKeyShared`) and **declines to register the office
   renderer**, leaving those jobs pending and logging what to fix.
 - **Two URLs, two directions.** `PP_ONLYOFFICE_INTERNAL_URL` is OnlyOffice as
   the worker reaches it (container network, not the browser-facing

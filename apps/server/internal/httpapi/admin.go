@@ -27,10 +27,7 @@ type adminStatsDTO struct {
 // Distinct from space ownership: a space owner administers their own space, an
 // admin administers the server. Neither implies the other.
 func (s *Server) requireAdmin(w http.ResponseWriter, r *http.Request) *store.User {
-	u := s.requireUser(w, r)
-	if u == nil {
-		return nil
-	}
+	u := caller(r)
 	if !u.IsAdmin {
 		writeProblem(w, http.StatusForbidden, "Forbidden", "admin access required")
 		return nil

@@ -2,6 +2,7 @@ import { StrictMode, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import { RouterProvider, createRouter } from "@tanstack/react-router";
 import "@workspace/ui/globals.css";
+import { setUnauthorizedHandler } from "@/lib/api";
 import { queryClient } from "@/lib/query-client";
 import { ThemeProvider } from "@/components/theme-provider";
 import { routeTree } from "./routeTree.gen";
@@ -12,6 +13,27 @@ const router = createRouter({
   routeTree,
   defaultPreload: "intent",
   context: { queryClient },
+});
+
+/**
+ * One place where a dead session becomes a sign-in screen.
+ *
+ * Sessions live in the database, so the server can end one while this tab is
+ * still rendering a signed-in shell; the transport reports that as a 401 and
+ * this hands it to the router. `/login` is excluded on purpose — its own
+ * `fetchMe` probe legitimately 401s for a signed-out visitor, and answering
+ * that with a navigation to `/login` is an endless loop. `navigating` keeps a
+ * burst of parallel 401s (a surface fires several queries at once) from
+ * stacking one navigation per failed request.
+ */
+let navigating = false;
+setUnauthorizedHandler(() => {
+  if (navigating || location.pathname === "/login") return;
+  navigating = true;
+  queryClient.clear();
+  void router.navigate({ to: "/login", search: { redirect: location.pathname } }).finally(() => {
+    navigating = false;
+  });
 });
 
 declare module "@tanstack/react-router" {

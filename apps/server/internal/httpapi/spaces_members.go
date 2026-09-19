@@ -37,10 +37,7 @@ func memberToDTO(r store.ListSpaceMembersDetailedRow) spaceMemberDTO {
 }
 
 func (s *Server) handleListMembers(w http.ResponseWriter, r *http.Request) {
-	u := s.requireUser(w, r)
-	if u == nil {
-		return
-	}
+	u := caller(r)
 	spaceID, err := uuidParam(r, "spaceID")
 	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Error", "invalid space id")
@@ -63,10 +60,7 @@ func (s *Server) handleListMembers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleAddMember(w http.ResponseWriter, r *http.Request) {
-	u := s.requireUser(w, r)
-	if u == nil {
-		return
-	}
+	u := caller(r)
 	spaceID, err := uuidParam(r, "spaceID")
 	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Error", "invalid space id")
@@ -101,10 +95,7 @@ func (s *Server) handleAddMember(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleSetMemberAdmin(w http.ResponseWriter, r *http.Request) {
-	u := s.requireUser(w, r)
-	if u == nil {
-		return
-	}
+	u := caller(r)
 	spaceID, err := uuidParam(r, "spaceID")
 	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Error", "invalid space id")
@@ -139,10 +130,7 @@ func (s *Server) handleSetMemberAdmin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleRemoveMember(w http.ResponseWriter, r *http.Request) {
-	u := s.requireUser(w, r)
-	if u == nil {
-		return
-	}
+	u := caller(r)
 	spaceID, err := uuidParam(r, "spaceID")
 	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Error", "invalid space id")

@@ -11,6 +11,57 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const adoptUserIdentity = `-- name: AdoptUserIdentity :one
+UPDATE users SET oidc_iss = $2, oidc_sub = $3, email = $4, name = $5, last_seen = now()
+WHERE id = $1
+RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at
+`
+
+type AdoptUserIdentityParams struct {
+	ID      pgtype.UUID `json:"id"`
+	OidcIss string      `json:"oidc_iss"`
+	OidcSub string      `json:"oidc_sub"`
+	Email   string      `json:"email"`
+	Name    string      `json:"name"`
+}
+
+// Re-points an existing account at a new (issuer, subject) pair.
+//
+// Identity is keyed on (oidc_iss, oidc_sub), and oidc_iss is a URL an operator
+// can change — moving the IdP behind a new hostname, or setting
+// PP_OIDC_ISSUER_EXTERNAL for the first time. Without this, that change made
+// every returning user look brand new, the insert collided with the unique
+// index on (tenant_id, email_hash), and sign-in answered 500 with no way back
+// short of hand-editing Postgres.
+func (q *Queries) AdoptUserIdentity(ctx context.Context, arg AdoptUserIdentityParams) (User, error) {
+	row := q.db.QueryRow(ctx, adoptUserIdentity,
+		arg.ID,
+		arg.OidcIss,
+		arg.OidcSub,
+		arg.Email,
+		arg.Name,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.OidcSub,
+		&i.OidcIss,
+		&i.Email,
+		&i.Name,
+		&i.DisplayName,
+		&i.AvatarUrl,
+		&i.Bio,
+		&i.Settings,
+		&i.IsAdmin,
+		&i.LastSeen,
+		&i.EmailHash,
+		&i.SuspendedAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const countUsers = `-- name: CountUsers :one
 SELECT COUNT(*) FROM users WHERE tenant_id = $1
 `
@@ -20,6 +71,47 @@ func (q *Queries) CountUsers(ctx context.Context, tenantID string) (int64, error
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const createUser = `-- name: CreateUser :one
+INSERT INTO users (oidc_sub, oidc_iss, email, name)
+VALUES ($1, $2, $3, $4)
+RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at
+`
+
+type CreateUserParams struct {
+	OidcSub string `json:"oidc_sub"`
+	OidcIss string `json:"oidc_iss"`
+	Email   string `json:"email"`
+	Name    string `json:"name"`
+}
+
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, createUser,
+		arg.OidcSub,
+		arg.OidcIss,
+		arg.Email,
+		arg.Name,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.OidcSub,
+		&i.OidcIss,
+		&i.Email,
+		&i.Name,
+		&i.DisplayName,
+		&i.AvatarUrl,
+		&i.Bio,
+		&i.Settings,
+		&i.IsAdmin,
+		&i.LastSeen,
+		&i.EmailHash,
+		&i.SuspendedAt,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const getSpaceMembers = `-- name: GetSpaceMembers :many
@@ -105,6 +197,38 @@ SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url,
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
 	row := q.db.QueryRow(ctx, getUserByEmail, email)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.OidcSub,
+		&i.OidcIss,
+		&i.Email,
+		&i.Name,
+		&i.DisplayName,
+		&i.AvatarUrl,
+		&i.Bio,
+		&i.Settings,
+		&i.IsAdmin,
+		&i.LastSeen,
+		&i.EmailHash,
+		&i.SuspendedAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getUserByIdentity = `-- name: GetUserByIdentity :one
+SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at FROM users WHERE oidc_iss = $1 AND oidc_sub = $2
+`
+
+type GetUserByIdentityParams struct {
+	OidcIss string `json:"oidc_iss"`
+	OidcSub string `json:"oidc_sub"`
+}
+
+func (q *Queries) GetUserByIdentity(ctx context.Context, arg GetUserByIdentityParams) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByIdentity, arg.OidcIss, arg.OidcSub)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -319,27 +443,21 @@ func (q *Queries) SetUserAvatar(ctx context.Context, arg SetUserAvatarParams) (U
 	return i, err
 }
 
-const updateUserProfile = `-- name: UpdateUserProfile :one
-UPDATE users
-SET display_name = $2, bio = $3, settings = COALESCE($4, settings)
+const touchUserLogin = `-- name: TouchUserLogin :one
+UPDATE users SET email = $2, name = $3, last_seen = now()
 WHERE id = $1
 RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at
 `
 
-type UpdateUserProfileParams struct {
-	ID          pgtype.UUID `json:"id"`
-	DisplayName string      `json:"display_name"`
-	Bio         string      `json:"bio"`
-	Settings    []byte      `json:"settings"`
+type TouchUserLoginParams struct {
+	ID    pgtype.UUID `json:"id"`
+	Email string      `json:"email"`
+	Name  string      `json:"name"`
 }
 
-func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (User, error) {
-	row := q.db.QueryRow(ctx, updateUserProfile,
-		arg.ID,
-		arg.DisplayName,
-		arg.Bio,
-		arg.Settings,
-	)
+// Refreshes the profile fields the IdP owns on every sign-in.
+func (q *Queries) TouchUserLogin(ctx context.Context, arg TouchUserLoginParams) (User, error) {
+	row := q.db.QueryRow(ctx, touchUserLogin, arg.ID, arg.Email, arg.Name)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -361,27 +479,26 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 	return i, err
 }
 
-const upsertUser = `-- name: UpsertUser :one
-INSERT INTO users (oidc_sub, oidc_iss, email, name)
-VALUES ($1, $2, $3, $4)
-ON CONFLICT (oidc_iss, oidc_sub)
-DO UPDATE SET email = EXCLUDED.email, name = EXCLUDED.name, last_seen = now()
+const updateUserProfile = `-- name: UpdateUserProfile :one
+UPDATE users
+SET display_name = $2, bio = $3, settings = COALESCE($4, settings)
+WHERE id = $1
 RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at
 `
 
-type UpsertUserParams struct {
-	OidcSub string `json:"oidc_sub"`
-	OidcIss string `json:"oidc_iss"`
-	Email   string `json:"email"`
-	Name    string `json:"name"`
+type UpdateUserProfileParams struct {
+	ID          pgtype.UUID `json:"id"`
+	DisplayName string      `json:"display_name"`
+	Bio         string      `json:"bio"`
+	Settings    []byte      `json:"settings"`
 }
 
-func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) (User, error) {
-	row := q.db.QueryRow(ctx, upsertUser,
-		arg.OidcSub,
-		arg.OidcIss,
-		arg.Email,
-		arg.Name,
+func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateUserProfile,
+		arg.ID,
+		arg.DisplayName,
+		arg.Bio,
+		arg.Settings,
 	)
 	var i User
 	err := row.Scan(

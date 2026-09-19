@@ -9,7 +9,6 @@ import type {
   Invitation,
   InviteResult,
   EditSession,
-  Me,
   MoveImpact,
   Node,
   RecentNode,
@@ -24,14 +23,6 @@ import type {
   TreeNode,
   Version,
 } from "../types";
-
-// ─── Auth ───────────────────────────────────────────────────────────────────
-
-export async function getMe(): Promise<Me> {
-  const res = await api.get("api/v1/me");
-  if (!res.ok) throw new ApiError(res.status, await res.text());
-  return res.json() as Promise<Me>;
-}
 
 // ─── Spaces ─────────────────────────────────────────────────────────────────
 
@@ -460,9 +451,16 @@ export async function createEditSession(nodeId: string): Promise<EditSession> {
 
 // ─── Auth Actions ───────────────────────────────────────────────────────────
 
-export async function logout(): Promise<void> {
+/**
+ * Ends the server-side session. `end_session_url` is the provider's
+ * RP-initiated logout URL when it has one, and `""` when it does not — with a
+ * URL the browser has to leave the origin, or the IdP would simply hand the
+ * same account straight back on the next sign-in.
+ */
+export async function logout(): Promise<{ end_session_url: string }> {
   const res = await api.post("auth/logout");
   if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<{ end_session_url: string }>;
 }
 
 // ─── Tree / Trash / Shared (Sidebar) ─────────────────────────────────────────

@@ -1,9 +1,18 @@
 // Shared TypeScript interfaces matching the server API.
 
-export interface Me {
+/**
+ * One server-side session row for the signed-in user: a device that currently
+ * holds a live cookie. `current` marks the one making the request, which is
+ * the only one the UI must not offer to revoke from under itself.
+ */
+export interface Session {
   id: string;
-  name: string;
-  email: string;
+  user_agent: string;
+  ip: string;
+  created_at: string;
+  last_used_at: string;
+  expires_at: string;
+  current: boolean;
 }
 
 export interface UserProfile {

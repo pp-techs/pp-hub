@@ -5,15 +5,61 @@ All tables carry `tenant_id` (default `'default'`). Postgres is the only metadat
 ## Users Table
 
 ```sql
-users(id, tenant_id, external_id, email, name,            -- OIDC-sourced fields
+users(id, tenant_id, oidc_sub, oidc_iss, email, name,     -- OIDC-sourced fields
       display_name, avatar_url, bio,                      -- user-editable profile
       settings,                                            -- JSONB preferences
-      is_admin, last_seen, created_at)
-  -- email_hash (sha256) for search, unique per tenant
+      is_admin, last_seen, suspended_at, created_at)
+  UNIQUE (oidc_iss, oidc_sub)                              -- the identity key
+  -- email_hash (sha256, set by a trigger) unique per tenant where non-empty
 ```
 
 Profile fields (`display_name`, `avatar_url`, `bio`, `settings`, `is_admin`, `last_seen`) sit
 alongside the OIDC-sourced ones in the baseline. The `is_admin` flag gates admin-only endpoints.
+`last_seen` means last seen: `TouchSession` writes it in the same statement that slides a
+session's deadline, so it moves with actual use. It used to be stamped only by the sign-in path,
+which made the People table's "last active" column a login timestamp wearing another name.
+
+A user is identified by `(oidc_iss, oidc_sub)` — `GetUserByIdentity` — with `email_hash` unique
+per tenant. Those two facts collide when an operator changes the issuer URL: every returning
+user looks brand new, and the insert that follows hits the email uniqueness index. So a miss on
+the identity falls back to the **verified** email and re-points the existing row at the new
+`(iss, sub)` pair (`AdoptUserIdentity`) instead of creating a second account. The unique
+constraint is unchanged; what changed is that a collision is now reached only by an identity
+that has no right to the address, and is reported as such rather than as a 500.
+
+## Sessions
+
+`migrations/0002_sessions.sql`. A login is a row, not a signed cookie — the cookie it replaced
+(`v1.<uuid>.<expiry>.<hmac>`) could not be revoked, listed or survive a key rotation.
+
+```sql
+sessions(id, user_id,                           -- ON DELETE CASCADE from users
+         token_hash,                            -- sha256 of the cookie; UNIQUE
+         user_agent, ip,                        -- what the Sessions tab shows
+         created_at,                            -- the absolute deadline is measured from here
+         last_used_at,                          -- slid lazily, at most hourly
+         expires_at)                            -- the idle deadline
+  INDEX (user_id, last_used_at DESC)            -- sessions_user_id: list and bulk-revoke
+  INDEX (expires_at)                            -- sessions_expires_at: the purge sweep
+```
+
+- **Only the hash is stored.** The 256-bit token exists in the browser and nowhere else, for the
+  same reason password hashes exist: a dump of this table yields nothing that can be presented
+  as a cookie. Lookup is by hash, so the invariant costs nothing — it is still one indexed read.
+- **Two deadlines, and both are needed.** `expires_at` is the idle deadline (30 days), pushed
+  forward by `TouchSession` as the session is used; the absolute cap (90 days) is enforced in Go
+  against `created_at`, because a deadline that traffic can extend indefinitely is not a
+  timeout. `GetSessionByHash` filters `expires_at > now()` in SQL rather than in Go, so an
+  expired row can never be touched back to life by the refresh that follows it.
+- **The refresh is lazy.** `Authenticate` only writes when `last_used_at` is more than an hour
+  old, so an active tab costs one `UPDATE` an hour rather than one per request, and a failed
+  refresh is logged rather than failing a request that is otherwise valid.
+- **Cascade, not cleanup.** `user_id` is `ON DELETE CASCADE`, so deleting a user cannot leave a
+  live session behind. `DeleteExpiredSessions` is housekeeping only — expired rows are already
+  refused on lookup — and runs on a five-minute ticker in `cmd/server`.
+- **Revocation is scoped by owner.** `DeleteUserSession` takes `(id, user_id)` and
+  `DeleteOtherUserSessions` takes `(user_id, id_to_keep)`, so guessing another person's session
+  id achieves nothing and "sign out everywhere else" keeps exactly the session that asked.
 
 ## Core Tables
 

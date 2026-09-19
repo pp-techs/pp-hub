@@ -277,6 +277,17 @@ type Preview struct {
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 }
 
+type Session struct {
+	ID         pgtype.UUID        `json:"id"`
+	UserID     pgtype.UUID        `json:"user_id"`
+	TokenHash  []byte             `json:"token_hash"`
+	UserAgent  string             `json:"user_agent"`
+	Ip         string             `json:"ip"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	LastUsedAt pgtype.Timestamptz `json:"last_used_at"`
+	ExpiresAt  pgtype.Timestamptz `json:"expires_at"`
+}
+
 type Share struct {
 	ID             pgtype.UUID        `json:"id"`
 	TenantID       string             `json:"tenant_id"`

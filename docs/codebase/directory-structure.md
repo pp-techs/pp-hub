@@ -77,7 +77,7 @@ pp-hub/
 │       └── internal/
 │           ├── bootstrap/          # ✅ shared wiring for both entry points: config, pool, blobs
 │           ├── activity/           # ✅ event recording: who did what, to what
-│           ├── auth/               # ✅ OIDC login/callback/logout, HMAC session cookies (go-oidc)
+│           ├── auth/               # ✅ OIDC login/callback/logout, DB-backed sessions (go-oidc)
 │           ├── gc/                 # ✅ blob reclaim + trash retention sweeps
 │           ├── config/             # ✅ env-based config
 │           ├── httpapi/            # ✅ chi routes (/healthz, /auth/*, /api/v1/*), RFC 7807 errors

@@ -7,7 +7,7 @@ import { Label } from "@workspace/ui/components/label";
 import { Textarea } from "@workspace/ui/components/textarea";
 import { Badge } from "@workspace/ui/components/badge";
 import { fmtDate, fmtRelative, type UserProfile } from "@/lib/api";
-import { useMyProfile, useSpaces, useUpdateProfile } from "@/lib/queries";
+import { useMe, useSpaces, useUpdateProfile } from "@/lib/queries";
 import { Surface } from "@/components/surface";
 import { UserAvatar } from "@/components/user-avatar";
 import { SectionLabel } from "@/components/section-label";
@@ -18,7 +18,7 @@ export const Route = createFileRoute("/drive/account/profile")({
 });
 
 function ProfilePage() {
-  const { data: profile, isLoading } = useMyProfile();
+  const { data: profile, isLoading } = useMe();
 
   if (isLoading) return <p className="text-muted-foreground p-4 text-xs">Loading…</p>;
   if (!profile) return <p className="text-muted-foreground p-4 text-xs">Profile not found.</p>;

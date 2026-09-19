@@ -81,10 +81,7 @@ func (s *Server) optionalSpaceParam(w http.ResponseWriter, r *http.Request, user
 
 // handleListActivity answers GET /api/v1/activity[?space=].
 func (s *Server) handleListActivity(w http.ResponseWriter, r *http.Request) {
-	u := s.requireUser(w, r)
-	if u == nil {
-		return
-	}
+	u := caller(r)
 	limit := feedLimit(r)
 
 	spaceID, ok := s.optionalSpaceParam(w, r, u.ID)
@@ -140,10 +137,7 @@ func (s *Server) handleListActivity(w http.ResponseWriter, r *http.Request) {
 // handleListRecent answers GET /api/v1/recent[?space=] — files the caller
 // themselves last touched, newest first.
 func (s *Server) handleListRecent(w http.ResponseWriter, r *http.Request) {
-	u := s.requireUser(w, r)
-	if u == nil {
-		return
-	}
+	u := caller(r)
 	spaceID, ok := s.optionalSpaceParam(w, r, u.ID)
 	if !ok {
 		return
@@ -183,10 +177,7 @@ func (s *Server) handleListRecent(w http.ResponseWriter, r *http.Request) {
 
 // handleListStarred answers GET /api/v1/starred[?space=].
 func (s *Server) handleListStarred(w http.ResponseWriter, r *http.Request) {
-	u := s.requireUser(w, r)
-	if u == nil {
-		return
-	}
+	u := caller(r)
 	spaceID, ok := s.optionalSpaceParam(w, r, u.ID)
 	if !ok {
 		return
@@ -245,10 +236,7 @@ func (s *Server) handleUnstarNode(w http.ResponseWriter, r *http.Request) {
 
 // handleUsage answers GET /api/v1/usage[?space=] with the storage breakdown.
 func (s *Server) handleUsage(w http.ResponseWriter, r *http.Request) {
-	u := s.requireUser(w, r)
-	if u == nil {
-		return
-	}
+	u := caller(r)
 	spaceID, ok := s.optionalSpaceParam(w, r, u.ID)
 	if !ok {
 		return

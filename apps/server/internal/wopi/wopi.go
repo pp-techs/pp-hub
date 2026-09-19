@@ -34,6 +34,13 @@ const TokenTTL = 10 * time.Hour
 // handleWopiGetFile authorizes on the token and never reads the subject.
 const SystemSubject = "00000000-0000-0000-0000-000000000000"
 
+// KeyPurpose names the subkey these tokens are signed with. Both processes
+// that mint them — the API server and the preview worker — derive it from the
+// master secret through config.DeriveKey, so neither holds the master and a
+// WOPI token can never be mistaken for anything else signed by this
+// deployment.
+const KeyPurpose = "wopi-token-v1"
+
 // Service signs WOPI access tokens and manages file locks.
 type Service struct {
 	q   *store.Queries

@@ -1,91 +1,130 @@
 package auth
 
 import (
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/base64"
-	"encoding/binary"
-	"strings"
+	"encoding/json"
 	"testing"
-	"time"
-
-	"github.com/jackc/pgx/v5/pgtype"
-
-	"github.com/nhatbui/pp-hub/apps/server/internal/config"
 )
 
-func testService(t *testing.T) *Service {
-	t.Helper()
-	return &Service{cfg: &config.Config{SessionKey: []byte("test-key-32-bytes-test-key-32byt")}}
+// safeNext is the only thing standing between /auth/login?next=… and an open
+// redirect, and the interesting cases are all the ones that look like a path
+// without being one.
+func TestSafeNext(t *testing.T) {
+	cases := map[string]string{
+		"/drive/abc":                    "/drive/abc",
+		"/drive/abc?dir=x#y":            "/drive/abc?dir=x#y",
+		"/":                             "/",
+		"":                              "",
+		"drive/abc":                     "",
+		"//evil.example":                "",
+		"//evil.example/drive":          "",
+		`/\evil.example`:                "",
+		`/\/evil.example`:               "",
+		"https://evil.example":          "",
+		"http://evil.example/drive":     "",
+		"javascript:alert(1)":           "",
+		"/drive\r\nSet-Cookie: a=b":     "",
+		"/drive\x00":                    "",
+		"////evil.example":              "",
+		"/redirect?to=https://evil.com": "/redirect?to=https://evil.com",
+	}
+	for in, want := range cases {
+		if got := safeNext(in); got != want {
+			t.Errorf("safeNext(%q) = %q, want %q", in, got, want)
+		}
+	}
 }
 
-func testUUID(t *testing.T) pgtype.UUID {
-	t.Helper()
-	var id pgtype.UUID
-	if err := id.Scan("018f3c2e-7b1a-7f2a-9c4d-2e8f1a0b3c4d"); err != nil {
+// A backslash is a forward slash to a browser in the authority position, so
+// "/\evil.example" is a protocol-relative URL even though net/url parses it as
+// a path. This is the case net/url alone gets wrong.
+func TestSafeNextRejectsBackslashAuthority(t *testing.T) {
+	if got := safeNext(`/\evil.example/path`); got != "" {
+		t.Fatalf("backslash authority accepted as %q", got)
+	}
+}
+
+// Providers disagree about whether email_verified is a bool or a string, and
+// encoding/json failing on the string form would take every other claim in the
+// token down with it.
+func TestBoolishAcceptsBothSpellings(t *testing.T) {
+	cases := map[string]bool{
+		`{"email_verified": true}`:    true,
+		`{"email_verified": false}`:   false,
+		`{"email_verified": "true"}`:  true,
+		`{"email_verified": "false"}`: false,
+	}
+	for raw, want := range cases {
+		var c idClaims
+		if err := json.Unmarshal([]byte(raw), &c); err != nil {
+			t.Fatalf("%s: %v", raw, err)
+		}
+		if bool(c.EmailVerified) != want {
+			t.Errorf("%s: got %v, want %v", raw, bool(c.EmailVerified), want)
+		}
+	}
+}
+
+// An absent claim must read false, not fail: it is how "this provider does not
+// say" reaches the account-adoption decision, and adopting on a claim nobody
+// made is exactly the hijack the check exists to prevent.
+func TestBoolishAbsentIsFalse(t *testing.T) {
+	var c idClaims
+	if err := json.Unmarshal([]byte(`{"email": "a@b.c"}`), &c); err != nil {
 		t.Fatal(err)
 	}
-	return id
+	if bool(c.EmailVerified) {
+		t.Fatal("absent email_verified read as true")
+	}
 }
 
-func TestSessionRoundTrip(t *testing.T) {
-	s := testService(t)
-	id := testUUID(t)
+func TestBoolishRejectsNonsense(t *testing.T) {
+	var c idClaims
+	if err := json.Unmarshal([]byte(`{"email_verified": "yes please"}`), &c); err == nil {
+		t.Fatal("unparseable email_verified accepted")
+	}
+}
 
-	cookie, err := s.signSession(id)
+// In a split-horizon deployment discovery answers on an internal hostname, so
+// the authorization URL it hands back is one the browser cannot reach.
+func TestRebaseOrigin(t *testing.T) {
+	const internal = "http://logto:3001/oidc"
+	const external = "https://id.example.com/oidc"
+
+	got := rebaseOrigin("http://logto:3001/oidc/auth?x=1", internal, external)
+	if want := "https://id.example.com/oidc/auth?x=1"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+
+	// Same origin on both sides — the overwhelmingly common case — must be a
+	// no-op rather than a reconstruction of the URL.
+	if got := rebaseOrigin("http://x/y?a=b", internal, internal); got != "http://x/y?a=b" {
+		t.Errorf("identity rebase changed the URL: %q", got)
+	}
+
+	// A URL from some third origin is left alone: rebasing it would point the
+	// browser somewhere the IdP never advertised.
+	if got := rebaseOrigin("https://elsewhere.example/auth", internal, external); got != "https://elsewhere.example/auth" {
+		t.Errorf("unrelated origin rewritten: %q", got)
+	}
+
+	if got := rebaseOrigin("", internal, external); got != "" {
+		t.Errorf("empty URL became %q", got)
+	}
+}
+
+// The transaction cookie is the state/nonce/verifier triple, and a callback
+// cannot validate anything if it does not survive the round trip intact.
+func TestOIDCTxRoundTrip(t *testing.T) {
+	in := oidcTx{State: "s-value", Nonce: "n-value", Verifier: "v-value", Next: "/drive/x"}
+	blob, err := json.Marshal(in)
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := s.verifySession(cookie)
-	if err != nil {
+	var out oidcTx
+	if err := json.Unmarshal(blob, &out); err != nil {
 		t.Fatal(err)
 	}
-	if got != id {
-		t.Fatalf("want %v, got %v", id, got)
-	}
-}
-
-func TestSessionTampered(t *testing.T) {
-	s := testService(t)
-	cookie, err := s.signSession(testUUID(t))
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Flip a character inside the signature segment.
-	parts := strings.Split(cookie, ".")
-	sig := []byte(parts[3])
-	sig[0] ^= 0xFF
-	if _, err := s.verifySession(strings.Join(parts[:3], ".") + "." + string(sig)); err == nil {
-		t.Fatal("tampered session must not verify")
-	}
-}
-
-func TestSessionExpired(t *testing.T) {
-	s := testService(t)
-	id := testUUID(t)
-
-	// Rebuild a cookie with an expiry in the past, signed with the real key.
-	raw, _ := id.Value()
-	var expBuf [8]byte
-	binary.BigEndian.PutUint64(expBuf[:], uint64(time.Now().Add(-time.Hour).Unix()))
-	payload := raw.(string) + "." + base64.RawURLEncoding.EncodeToString(expBuf[:])
-	mac := hmac.New(sha256.New, s.cfg.SessionKey)
-	mac.Write([]byte(payload))
-	cookie := "v1." + payload + "." + base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
-
-	if _, err := s.verifySession(cookie); err == nil {
-		t.Fatal("expired session must not verify")
-	}
-}
-
-func TestSessionWrongKey(t *testing.T) {
-	s1 := testService(t)
-	s2 := &Service{cfg: &config.Config{SessionKey: []byte("other-key-32-bytes-other-key-32b")}}
-	cookie, err := s1.signSession(testUUID(t))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := s2.verifySession(cookie); err == nil {
-		t.Fatal("session signed with another key must not verify")
+	if out != in {
+		t.Fatalf("got %+v, want %+v", out, in)
 	}
 }

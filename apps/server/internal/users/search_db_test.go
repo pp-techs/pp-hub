@@ -45,7 +45,7 @@ func searchEnv(t *testing.T) (*users.Service, *store.Queries) {
 func searchUser(t *testing.T, q *store.Queries, token, label string) store.User {
 	t.Helper()
 	sub := fmt.Sprintf("test-%s-%s", token, label)
-	u, err := q.UpsertUser(context.Background(), store.UpsertUserParams{
+	u, err := q.CreateUser(context.Background(), store.CreateUserParams{
 		OidcSub: sub,
 		OidcIss: "test",
 		Email:   sub + "@test.local",

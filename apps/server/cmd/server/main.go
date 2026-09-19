@@ -52,7 +52,9 @@ func run() error {
 	fsSvc := fs.NewService(queries, blobs)
 	spacesSvc := spaces.NewService(queries)
 	shareSvc := share.NewService(queries)
-	wopiSvc := wopi.NewService(queries, cfg.SessionKey)
+	// A purpose-bound subkey, never the master secret: a leaked WOPI token
+	// must not be a session, and rotating one class must not rotate the other.
+	wopiSvc := wopi.NewService(queries, cfg.DeriveKey(wopi.KeyPurpose))
 	// Only the pure-Go renderers run in-process. PDF and video need poppler
 	// and ffmpeg, which live in cmd/worker; jobs for those kinds stay pending
 	// until such a worker exists, and are never claimed-and-failed here.
@@ -73,7 +75,9 @@ func run() error {
 	// defaults to 0 (never), so this is inert until a space opts in.
 	go gc.NewTrashWorker(fsSvc).Run(ctx)
 
-	// Sweep expired WOPI locks periodically.
+	// Sweep expired WOPI locks and dead sessions periodically. Both are
+	// housekeeping: an expired lock is ignored and an expired session is
+	// refused on lookup, so this only keeps the tables from growing.
 	go func() {
 		ticker := time.NewTicker(5 * time.Minute)
 		defer ticker.Stop()
@@ -84,6 +88,11 @@ func run() error {
 			case <-ticker.C:
 				if err := wopiSvc.Sweep(ctx); err != nil {
 					slog.Warn("lock sweep", "err", err)
+				}
+				if n, err := authSvc.PurgeExpiredSessions(ctx); err != nil {
+					slog.Warn("session sweep", "err", err)
+				} else if n > 0 {
+					slog.Info("expired sessions purged", "count", n)
 				}
 			}
 		}

@@ -300,10 +300,7 @@ func (s *Server) handleRevokeInvitation(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *Server) handleAcceptInvitation(w http.ResponseWriter, r *http.Request) {
-	u := s.requireUser(w, r)
-	if u == nil {
-		return
-	}
+	u := caller(r)
 	var body struct {
 		Token string `json:"token"`
 	}

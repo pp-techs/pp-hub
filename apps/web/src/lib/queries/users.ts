@@ -3,11 +3,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import {
-  getMyProfile,
   updateMyProfile,
   uploadAvatar,
   searchUsers,
   listUsers,
+  listSessions,
+  revokeSession,
+  revokeOtherSessions,
   getSpaceMembers,
   addSpaceMember,
   setMemberAdmin,
@@ -16,22 +18,13 @@ import {
 import { keys } from "./keys";
 // ─── Profile ─────────────────────────────────────────────────────────────────
 
-export function myProfileOptions() {
-  return {
-    queryKey: keys.profile,
-    queryFn: getMyProfile,
-  };
-}
-
-export function useMyProfile() {
-  return useQuery(myProfileOptions());
-}
+// Reading the profile is `useMe()` in ./auth — one identity query, one key.
 
 export function useUpdateProfile() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: updateMyProfile,
-    onSuccess: () => qc.invalidateQueries({ queryKey: keys.profile }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.me }),
   });
 }
 
@@ -39,7 +32,32 @@ export function useUploadAvatar() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: uploadAvatar,
-    onSuccess: () => qc.invalidateQueries({ queryKey: keys.profile }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.me }),
+  });
+}
+
+// ─── Sessions ────────────────────────────────────────────────────────────────
+
+export function useSessions() {
+  return useQuery({
+    queryKey: keys.sessions,
+    queryFn: listSessions,
+  });
+}
+
+export function useRevokeSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: revokeSession,
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.sessions }),
+  });
+}
+
+export function useRevokeOtherSessions() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: revokeOtherSessions,
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.sessions }),
   });
 }
 

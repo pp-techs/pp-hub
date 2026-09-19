@@ -18,6 +18,8 @@ Stack: Go, chi (HTTP router), sqlc + pgx (Postgres), go-oidc (OIDC), blake3 (con
 ## HTTP API
 
 - Routes in `internal/httpapi` only; business logic stays in modules.
+- **Authentication is a middleware on the `/api/v1` group, never a line in a handler.** `r.Route("/api/v1", …)` calls `r.Use(s.authenticated)` and everything registered under it is authenticated before it runs. A handler takes the caller with `caller(r)` — never nil inside the group — or `callerSession(r)` when it also needs the session id; it does not re-check, re-resolve or defend itself. This replaced roughly thirty hand-written guards in front of seventy-odd handlers, where a new route was public until somebody noticed the missing line. A route that genuinely must be public is registered **outside** the group, next to `/healthz`, `/auth/*`, `/wopi/*` and `/s/*` — it is a deliberate decision made at the router, not an omission inside a handler. `TestEveryAPIRouteIsAuthenticated` (`internal/httpapi/routes_test.go`) walks the router and fails if an `/api/v1` route is not wrapped, so the rule is enforced rather than remembered. Calling `caller(r)` outside the group panics: it is a wiring bug, and failing loudly beats serving somebody else's data.
+- **Nothing signs with `cfg.SecretKey`.** It is a master secret; every signer takes a purpose-bound subkey from `cfg.DeriveKey(purpose)` (HKDF-SHA256), with the purpose string a constant owned by the module that mints the token — `wopi.KeyPurpose` is the pattern. Two token classes signed with the master directly is what made the session cookie and the WOPI token inseparable: one leak compromised both and neither could be rotated alone. A new signer adds a purpose; it never reaches for the master, and it never reuses another module's purpose string.
 - Errors are returned as RFC 7807 `problem+json`. Each module owns its error values and the edge maps them: `nodeError` (`fs.ErrNotFound` → 404, `fs.ErrNameConflict` / `fs.ErrCycle` → 409, `fs.ErrQuotaExceeded` → 413, `fs.ErrNotFile` / `fs.ErrNotDir` → 400), `spaceError` (`spaces.ErrNotMember` / `spaces.ErrForbidden` → 403, `spaces.ErrLastAdmin` → 409), `wopiLockError` (`wopi.ErrLockConflict` → 409 plus the current `X-WOPI-Lock` header, `wopi.ErrNotLocked` → 404). `httpapi.Error` is the fallback: it answers 500 with an empty detail and logs the cause, so an unmapped error cannot leak internals to a caller.
 - The FE↔BE contract is currently hand-typed TS interfaces in `apps/web/src/lib/api/types.ts`; `openapi.yaml` codegen (oapi-codegen + TS client) is deferred until the API surface justifies it. Keep interfaces in sync with the Go handlers.
 
@@ -56,8 +58,8 @@ it goes through `internal/preview/exec.go`, and new callers must too:
   for anything a binary wrote to disk.
 - Spool input to a per-job temp dir and `defer os.RemoveAll`.
 - These processes belong in `cmd/worker`, never in the API binary — they parse
-  hostile bytes in memory-unsafe code, and the API process holds the session
-  key and the connection pool.
+  hostile bytes in memory-unsafe code, and the API process holds the master
+  secret and the connection pool.
 
 ## Process Bootstrap
 
