@@ -63,14 +63,14 @@ func (s *Server) handleWopiCheckFileInfo(w http.ResponseWriter, r *http.Request)
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"BaseFileName":               node.Name,
-		"Size":                      ver.Size,
-		"OwnerId":                   oid.(string),
-		"UserId":                    uid.(string),
+		"Size":                       ver.Size,
+		"OwnerId":                    oid.(string),
+		"UserId":                     uid.(string),
 		"UserFriendlyName":           user.Name,
 		"UserCanWrite":               c.PermRank >= 3, // token holds effective rank at mint time
-		"Version":                   strconv.Itoa(int(ver.VersionNo)),
-		"SupportsUpdate":            true,
-		"SupportsLocks":             true,
+		"Version":                    strconv.Itoa(int(ver.VersionNo)),
+		"SupportsUpdate":             true,
+		"SupportsLocks":              true,
 		"SupportsExtendedLockLength": true,
 	})
 }
@@ -189,8 +189,16 @@ func (s *Server) wopiLockError(w http.ResponseWriter, r *http.Request, err error
 
 // --- Editor session (authenticated, called by the SPA) ---
 
+// handleEditSession mints a WOPI session for the SPA's office viewer.
+//
+// View access is enough to open one: the rank in the token decides whether it
+// is a read-write or a read-only session, PutFile and the lock ops refuse
+// anything below rank 3, and OnlyOffice is asked for its viewer rather than
+// its editor. Demanding CapEdit here instead would leave a reader with no way
+// to open a .docx at all — the preview worker has no page renderer for one —
+// so the honest answer for them is the document, read-only.
 func (s *Server) handleEditSession(w http.ResponseWriter, r *http.Request) {
-	u, node, caps := s.requireNodeCaps(w, r, share.CapEdit)
+	u, node, caps := s.requireNodeCaps(w, r, share.CapView)
 	if u == nil {
 		return
 	}
@@ -209,9 +217,9 @@ func (s *Server) handleEditSession(w http.ResponseWriter, r *http.Request) {
 	}
 	// M15: effective caps computed by requireNodeCaps above. Token encodes a
 	// permission rank for WOPI compatibility (w1 format): rank 3 = edit, 1 = view.
-	permRank := 1
+	permRank, mode := 1, "view"
 	if caps.Has(share.CapEdit) {
-		permRank = 3
+		permRank, mode = 3, "edit"
 	}
 	token, err := s.wopi.SignToken(u.ID, node.ID, permRank)
 	if err != nil {
@@ -220,12 +228,13 @@ func (s *Server) handleEditSession(w http.ResponseWriter, r *http.Request) {
 	}
 	nodeIDStr, _ := node.ID.Value()
 	wopiSrc := s.wopiServerURL + "/wopi/files/" + nodeIDStr.(string)
-	editorURL := s.onlyOfficeURL + "/hosting/wopi/" + wopiDocumentType(node.Name) + "/edit?WOPISrc=" + url.QueryEscape(wopiSrc)
+	editorURL := s.onlyOfficeURL + "/hosting/wopi/" + wopiDocumentType(node.Name) + "/" + mode + "?WOPISrc=" + url.QueryEscape(wopiSrc)
 	writeJSON(w, http.StatusOK, map[string]any{
-		"editor_url":        editorURL,
-		"wopi_src":          wopiSrc,
-		"token":             token,
-		"access_token_ttl":  time.Now().Add(wopi.TokenTTL).UnixMilli(),
+		"editor_url":       editorURL,
+		"wopi_src":         wopiSrc,
+		"token":            token,
+		"access_token_ttl": time.Now().Add(wopi.TokenTTL).UnixMilli(),
+		"can_write":        permRank >= 3,
 	})
 }
 

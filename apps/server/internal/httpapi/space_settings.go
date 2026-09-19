@@ -38,24 +38,26 @@ func (s *Server) handleUpdateSpace(w http.ResponseWriter, r *http.Request) {
 	}
 	var body struct {
 		Name               *string `json:"name"`
-		Slug              *string `json:"slug"`
-		Description       *string `json:"description"`
-		DefaultAsAdmin   *bool   `json:"default_as_admin"`
-		QuotaBytes       *int64  `json:"quota_bytes"`
-		TrashRetentionDays *int32 `json:"trash_retention_days"`
+		Slug               *string `json:"slug"`
+		Description        *string `json:"description"`
+		DefaultAsAdmin     *bool   `json:"default_as_admin"`
+		QuotaBytes         *int64  `json:"quota_bytes"`
+		TrashRetentionDays *int32  `json:"trash_retention_days"`
+		AllowPublicLinks   *bool   `json:"allow_public_links"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid body")
 		return
 	}
 	next := store.UpdateSpaceSettingsParams{
-		ID:                  space.ID,
-		Name:                space.Name,
-		Slug:                space.Slug,
-		Description:         space.Description,
+		ID:                 space.ID,
+		Name:               space.Name,
+		Slug:               space.Slug,
+		Description:        space.Description,
 		DefaultAsAdmin:     space.DefaultAsAdmin,
 		QuotaBytes:         space.QuotaBytes,
 		TrashRetentionDays: space.TrashRetentionDays,
+		AllowPublicLinks:   space.AllowPublicLinks,
 	}
 	if body.Name != nil {
 		if strings.TrimSpace(*body.Name) == "" {
@@ -93,6 +95,9 @@ func (s *Server) handleUpdateSpace(w http.ResponseWriter, r *http.Request) {
 		}
 		next.TrashRetentionDays = *body.TrashRetentionDays
 	}
+	if body.AllowPublicLinks != nil {
+		next.AllowPublicLinks = *body.AllowPublicLinks
+	}
 	updated, err := s.store.UpdateSpaceSettings(r.Context(), next)
 	if err != nil {
 		if isUniqueViolation(err) {
@@ -108,13 +113,14 @@ func (s *Server) handleUpdateSpace(w http.ResponseWriter, r *http.Request) {
 
 func spaceSettingsFrom(sp store.Space, slug, description string, defaultAsAdmin bool, quota int64) (store.UpdateSpaceSettingsParams, string) {
 	next := store.UpdateSpaceSettingsParams{
-		ID:                  sp.ID,
-		Name:                sp.Name,
-		Slug:                sp.Slug,
-		Description:         sp.Description,
+		ID:                 sp.ID,
+		Name:               sp.Name,
+		Slug:               sp.Slug,
+		Description:        sp.Description,
 		DefaultAsAdmin:     sp.DefaultAsAdmin,
 		QuotaBytes:         sp.QuotaBytes,
 		TrashRetentionDays: sp.TrashRetentionDays,
+		AllowPublicLinks:   sp.AllowPublicLinks,
 	}
 	if slug != "" {
 		normalised := strings.TrimSpace(strings.ToLower(slug))
@@ -334,7 +340,6 @@ func (s *Server) handleAcceptInvitation(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, spaceToDTO(space, inv.AsAdmin))
 }
 
-
 func newInviteToken() (token, hash string, err error) {
 	raw := make([]byte, 32)
 	if _, err := rand.Read(raw); err != nil {
@@ -364,7 +369,6 @@ func optionalTime(t pgtype.Timestamptz) string {
 	}
 	return t.Time.Format(timeLayout)
 }
-
 
 func isUniqueViolation(err error) bool {
 	var pgErr interface{ SQLState() string }

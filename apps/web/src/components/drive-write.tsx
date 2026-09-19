@@ -12,11 +12,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@workspace/ui/components/dialog";
+import { TeamFolderDialog } from "@/components/team-folder-dialog";
+import { useUploadWithConflicts } from "@/components/upload-conflict-dialog";
 import type { Node } from "@/lib/api";
 import { collectInputFiles } from "@/lib/drop-items";
-import { useCopyNode, useCreateFolder, useMoveNode, useNode, useSpace } from "@/lib/queries";
+import {
+  useCopyNode,
+  useCreateFolder,
+  useCreateTeamFolder,
+  useMoveNode,
+  useNode,
+  useSpace,
+} from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
-import { useUploadStore } from "@/lib/upload-store";
 import { useActiveSpaceId } from "@/lib/use-active-space";
 import { pasteTargets, writeTarget, type WriteTarget } from "@/lib/write-target";
 
@@ -24,6 +32,10 @@ export interface DriveWrite extends WriteTarget {
   /** What a Paste here would land. Empty means the item must be disabled. */
   pasteable: Node[];
   newFolder: () => void;
+  /** True only for a space admin: the server rejects anyone else with a 403. */
+  canCreateTeamFolder: boolean;
+  /** Always creates at the space's top level — a team folder cannot be nested. */
+  newTeamFolder: () => void;
   uploadFiles: () => void;
   uploadFolder: () => void;
   paste: () => void;
@@ -56,10 +68,11 @@ export function DriveWriteProvider({ children }: { children: ReactNode }) {
   const dirs = useUiStore((s) => s.dirs);
   const clipboard = useUiStore((s) => s.clipboard);
   const clearClipboard = useUiStore((s) => s.clearClipboard);
-  const enqueue = useUploadStore((s) => s.enqueue);
+  const upload = useUploadWithConflicts();
   const copy = useCopyNode(spaceId ?? "");
   const move = useMoveNode(spaceId ?? "");
   const mkdir = useCreateFolder(spaceId ?? "", dir);
+  const mkteam = useCreateTeamFolder(spaceId ?? "");
   const fileRef = useRef<HTMLInputElement>(null);
   const folderRef = useRef<HTMLInputElement>(null);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
@@ -78,20 +91,28 @@ export function DriveWriteProvider({ children }: { children: ReactNode }) {
   );
   const pasteable = useMemo(() => pasteTargets(clipboard, target, dirs), [clipboard, target, dirs]);
 
-  const upload = useCallback(
+  const pickFiles = useCallback(
     (list: FileList | null) => {
       const items = collectInputFiles(list);
-      if (items.length === 0 || !target.spaceId) return;
-      enqueue(items, target.spaceId, target.dir);
-      // The transfer tray reports progress but not the destination, and an
-      // upload started from Home or Recent lands somewhere the user cannot see.
-      toast.success(
-        items.length === 1
-          ? `Uploading 1 file to ${target.label}`
-          : `Uploading ${items.length} files to ${target.label}`,
-      );
+      const { spaceId: into, dir: parent, label } = target;
+      if (items.length === 0 || !into) return;
+      // Starting the upload is this surface's job; whether it has to ask
+      // about same-named files first is the destination's, not the picker's.
+      void upload(items, into, parent).then((outcome) => {
+        if (outcome === "cancelled") {
+          toast("Upload cancelled");
+          return;
+        }
+        // The transfer tray reports progress but not the destination, and an
+        // upload started from Home or Recent lands somewhere the user cannot see.
+        toast.success(
+          items.length === 1
+            ? `Uploading 1 file to ${label}`
+            : `Uploading ${items.length} files to ${label}`,
+        );
+      });
     },
-    [enqueue, target.spaceId, target.dir, target.label],
+    [upload, target],
   );
 
   const paste = useCallback(() => {
@@ -122,16 +143,38 @@ export function DriveWriteProvider({ children }: { children: ReactNode }) {
     });
   }, [pasteable, clipboard, move, copy, target.dir, target.label, clearClipboard]);
 
+  // Creation lives here rather than in the menu because the menu is rendered
+  // in two places: the rail's New and the listing's background. Note what is
+  // *not* read — `target`: a team folder is always top level, so the folder
+  // the user happens to be browsing has no say in where it lands.
+  const newTeamFolder = useCallback(() => {
+    if (!spaceId) return;
+    void TeamFolderDialog.show({ spaceId, spaceName: space?.name ?? "this space" }).then((name) => {
+      if (!name) return;
+      mkteam.mutate(name, {
+        onSuccess: (made) =>
+          toast.success(`Created team folder “${made.name}”`, {
+            description: "Nobody can see it yet — access to a team folder is given through Share.",
+          }),
+        onError: (e) => toast.error("Could not create team folder", { description: e.message }),
+      });
+    });
+  }, [spaceId, space?.name, mkteam]);
+
   const value = useMemo<DriveWrite>(
     () => ({
       ...target,
       pasteable,
       newFolder: () => setNewFolderOpen(true),
+      // A team folder belongs to the space, so only a space admin may start
+      // one; the server answers everyone else with a 403.
+      canCreateTeamFolder: space?.is_admin === true,
+      newTeamFolder,
       uploadFiles: () => fileRef.current?.click(),
       uploadFolder: () => folderRef.current?.click(),
       paste,
     }),
-    [target, pasteable, paste],
+    [target, pasteable, paste, space?.is_admin, newTeamFolder],
   );
 
   return (
@@ -141,8 +184,8 @@ export function DriveWriteProvider({ children }: { children: ReactNode }) {
       {/* Two inputs rather than one: `webkitdirectory` is a property of the
           element, not of the click, so picking files and picking a folder
           cannot share a control. */}
-      <FileInput ref={fileRef} onFiles={upload} />
-      <FileInput ref={folderRef} webkitdirectory onFiles={upload} />
+      <FileInput ref={fileRef} onFiles={pickFiles} />
+      <FileInput ref={folderRef} webkitdirectory onFiles={pickFiles} />
 
       <Dialog
         open={newFolderOpen}

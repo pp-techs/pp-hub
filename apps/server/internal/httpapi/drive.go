@@ -41,21 +41,26 @@ type spaceDTO struct {
 	Description        string `json:"description"`
 	DefaultAsAdmin     bool   `json:"default_as_admin"`
 	TrashRetentionDays int32  `json:"trash_retention_days"`
+	// AllowPublicLinks gates anonymous share links for the whole space.
+	// Ownership is intrinsic, so a member can always share what they created;
+	// whether that may become a public URL is a company decision, not a
+	// per-grant one.
+	AllowPublicLinks bool `json:"allow_public_links"`
 }
 
 type nodeDTO struct {
-	ID         string      `json:"id"`
-	SpaceID    string      `json:"space_id"`
-	ParentID   string      `json:"parent_id,omitempty"`
-	Kind       string      `json:"kind"`
-	Name       string      `json:"name"`
-	Size       int64       `json:"size,omitempty"`
-	Mime       string      `json:"mime,omitempty"`
-	Version    int32       `json:"version,omitempty"`
-	ModifiedAt string      `json:"modified_at,omitempty"`
-	Owner      string      `json:"owner,omitempty"`
-	OwnerID    string      `json:"owner_id,omitempty"`
-	CreatedAt  string      `json:"created_at"`
+	ID         string `json:"id"`
+	SpaceID    string `json:"space_id"`
+	ParentID   string `json:"parent_id,omitempty"`
+	Kind       string `json:"kind"`
+	Name       string `json:"name"`
+	Size       int64  `json:"size,omitempty"`
+	Mime       string `json:"mime,omitempty"`
+	Version    int32  `json:"version,omitempty"`
+	ModifiedAt string `json:"modified_at,omitempty"`
+	Owner      string `json:"owner,omitempty"`
+	OwnerID    string `json:"owner_id,omitempty"`
+	CreatedAt  string `json:"created_at"`
 	// Caps is the caller's resolved capability set on this node — what the
 	// node menu enables. Set on listings and single-node GETs.
 	Caps *share.Caps `json:"caps,omitempty"`
@@ -65,6 +70,17 @@ type nodeDTO struct {
 	// shared, and a node shared with someone else stays true even when the
 	// caller holds no grant on it at all. Set alongside Caps.
 	Shared bool `json:"shared,omitempty"`
+	// ForeignOwned counts live nodes inside this folder that somebody other
+	// than the caller created. Only set on single-folder GETs — a listing
+	// would need one subtree walk per row — and it exists so a destructive
+	// action can warn before it runs.
+	ForeignOwned int64 `json:"foreign_owned,omitempty"`
+	// TeamFolder marks a folder the team owns: `created_by` there is a byline,
+	// access comes only from grants on it, and it outlives its creator.
+	// InTeam marks anything inside one — the client uses it to stop offering
+	// "owner" language for content that has no personal owner.
+	TeamFolder bool `json:"team_folder,omitempty"`
+	InTeam     bool `json:"in_team,omitempty"`
 }
 
 type versionDTO struct {
@@ -96,12 +112,13 @@ func spaceToDTO(sp store.Space, isAdmin bool) spaceDTO {
 		UsedBytes:          sp.UsedBytes,
 		QuotaBytes:         sp.QuotaBytes,
 		IsAdmin:            isAdmin,
-		CreatedAt:         sp.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
+		CreatedAt:          sp.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
 		Slug:               sp.Slug,
 		Description:        sp.Description,
 		DefaultAsAdmin:     sp.DefaultAsAdmin,
 		TrashRetentionDays: sp.TrashRetentionDays,
 		ArchiveRootID:      uuidString(sp.ArchiveRootID),
+		AllowPublicLinks:   sp.AllowPublicLinks,
 	}
 }
 
@@ -125,6 +142,8 @@ func nodeToDTO(n store.Node, ver *store.NodeVersion) nodeDTO {
 		dto.Mime = ver.Mime
 		dto.Version = ver.VersionNo
 	}
+	dto.TeamFolder = n.TeamRootID.Valid && n.TeamRootID == n.ID
+	dto.InTeam = n.TeamRootID.Valid
 	return dto
 }
 
@@ -174,6 +193,8 @@ func nodeToDTOMeta(n store.NodeWithMeta) nodeDTO {
 			dto.OwnerID = oid.(string)
 		}
 	}
+	dto.TeamFolder = n.TeamRootID.Valid && n.TeamRootID == n.ID
+	dto.InTeam = n.TeamRootID.Valid
 	return dto
 }
 
@@ -185,11 +206,11 @@ func (s *Server) handleCreateSpace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		Name          string `json:"name"`
-		Slug          string `json:"slug"`
-		Description   string `json:"description"`
+		Name           string `json:"name"`
+		Slug           string `json:"slug"`
+		Description    string `json:"description"`
 		DefaultAsAdmin bool   `json:"default_as_admin"`
-		QuotaBytes    int64  `json:"quota_bytes"`
+		QuotaBytes     int64  `json:"quota_bytes"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || strings.TrimSpace(body.Name) == "" {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "name is required")
@@ -459,6 +480,52 @@ func (s *Server) handleMkdir(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, nodeToDTO(n, nil).withCaps(share.CapsOwner))
 }
 
+// handleCreateTeamFolder makes a folder the team owns rather than a person.
+//
+// Admin-only, deliberately. A team folder is a company-level container — it
+// survives its creator's departure, it holds content nobody personally owns,
+// and it is administered through grants — so creating one is space
+// administration, which is the line `RequireAdmin` already draws. Members
+// still create and share their own folders freely; that is the personal half
+// of the tree.
+//
+// The creator gets the first manager grant (edit + download + share). Without
+// it the folder would be unreachable the moment it existed, since a team
+// folder grants nothing through ownership.
+func (s *Server) handleCreateTeamFolder(w http.ResponseWriter, r *http.Request) {
+	u, space, ok := s.requireSpaceAdmin(w, r)
+	if !ok {
+		return
+	}
+	var body struct {
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || strings.TrimSpace(body.Name) == "" {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "name is required")
+		return
+	}
+	node, err := s.fs.CreateTeamFolder(r.Context(), space.ID, strings.TrimSpace(body.Name), u.ID)
+	if err != nil {
+		s.nodeError(w, r, err)
+		return
+	}
+	if _, err := s.store.CreateShare(r.Context(), store.CreateShareParams{
+		NodeID:        node.ID,
+		Kind:          store.ShareKindDirect,
+		GranteeUserID: u.ID,
+		Level:         store.ShareLevelEdit,
+		CanDownload:   true,
+		CanShare:      true,
+		CreatedBy:     u.ID,
+	}); err != nil {
+		Error(w, r, err)
+		return
+	}
+	s.activity.Node(r.Context(), u.ID, node, activity.KindCreated, map[string]any{"team_folder": true})
+	dto := nodeToDTO(node, nil).withCaps(share.Caps{View: true, Download: true, Share: true, Edit: true})
+	writeJSON(w, http.StatusCreated, dto)
+}
+
 func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 	u := s.requireUser(w, r)
 	if u == nil {
@@ -507,6 +574,50 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, nodeToDTO(node, &ver).withCaps(share.CapsOwner))
 }
 
+// handleUploadVersion replaces the contents of an existing file. Requires
+// CapEdit on that file.
+//
+// This is the only way to add a version through the API now: uploading into a
+// folder never overwrites a file that happens to share its name, so replacing
+// somebody's work has to be asked for by node id rather than stumbled into by
+// filename. The node keeps its name and its owner — a new version is authored
+// by whoever uploaded it (node_versions.created_by), which is what the version
+// history shows.
+func (s *Server) handleUploadVersion(w http.ResponseWriter, r *http.Request) {
+	u, node, caps := s.requireNodeCaps(w, r, share.CapEdit)
+	if u == nil {
+		return
+	}
+	if node.Kind != store.NodeKindFile {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "not a file")
+		return
+	}
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid multipart form")
+		return
+	}
+	f, _, err := r.FormFile("file")
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "file field required")
+		return
+	}
+	defer f.Close()
+
+	updated, ver, err := s.fs.PutFile(r.Context(), node.SpaceID, node.ParentID, node.ID, node.Name, f, u.ID)
+	if err != nil {
+		s.nodeError(w, r, err)
+		return
+	}
+	s.activity.Node(r.Context(), u.ID, updated, activity.KindUploaded, map[string]any{
+		"size":    ver.Size,
+		"version": ver.VersionNo,
+	})
+	if used, err := s.store.SumSpaceUsage(r.Context(), node.SpaceID); err == nil {
+		_ = s.store.UpdateSpaceUsedBytes(r.Context(), store.UpdateSpaceUsedBytesParams{ID: node.SpaceID, UsedBytes: used})
+	}
+	writeJSON(w, http.StatusOK, nodeToDTO(updated, &ver).withCaps(caps))
+}
+
 // inlineMimes are the types /content may hand the browser to render in place.
 var inlineMimes = map[string]bool{
 	"application/pdf": true, "image/png": true, "image/jpeg": true,
@@ -533,15 +644,24 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 		s.streamZip(w, r, node)
 		return
 	}
-	s.serveBlob(w, r, "attachment")
+	s.serveBlob(w, r, "attachment", share.CapDownload)
 }
 
+// handleContent serves the file's own bytes for the browser to render in
+// place — the PDF viewer, an <img>, a <video>.
+//
+// It takes the download capability, not view. The bytes are the file: a
+// reader who was refused download could otherwise open this URL in a tab and
+// keep the original, which would make "view without download" a label rather
+// than a rule. What such a reader still gets is the derived preview served by
+// /preview — a thumbnail or a text snippet, generated from the file but not
+// the file. Drive draws the line in the same place.
 func (s *Server) handleContent(w http.ResponseWriter, r *http.Request) {
-	s.serveBlob(w, r, "inline")
+	s.serveBlob(w, r, "inline", share.CapDownload)
 }
 
-func (s *Server) serveBlob(w http.ResponseWriter, r *http.Request, disposition string) {
-	_, node, _ := s.requireNodeCaps(w, r, share.CapView)
+func (s *Server) serveBlob(w http.ResponseWriter, r *http.Request, disposition string, need share.Cap) {
+	_, node, _ := s.requireNodeCaps(w, r, need)
 	if !node.ID.Valid {
 		return
 	}
@@ -571,22 +691,91 @@ func (s *Server) serveBlob(w http.ResponseWriter, r *http.Request, disposition s
 	_, _ = io.Copy(w, rc)
 }
 
-// requireMovableNode authorises moving, renaming or trashing a node. The archive
-// root itself cannot be moved, renamed or trashed.
-func (s *Server) requireMovableNode(w http.ResponseWriter, r *http.Request) (*store.User, store.Node) {
-	u, node, _ := s.requireNodeCaps(w, r, share.CapEdit)
+// requireMovableNode authorises moving, renaming or trashing a node, and hands
+// back the caller's capabilities so the caller can apply the extra rules a
+// move has. The archive root itself cannot be moved, renamed or trashed.
+//
+// A team folder is the team's, not its creator's, so renaming or trashing one
+// takes `CapShare` — a manager of that folder — rather than the `CapEdit` that
+// any contributor holds. Drive draws the same line: only a shared drive's
+// managers can rename or delete it.
+func (s *Server) requireMovableNode(w http.ResponseWriter, r *http.Request) (*store.User, store.Node, share.Caps) {
+	u, node, caps := s.requireNodeCaps(w, r, share.CapEdit)
 	if !node.ID.Valid {
-		return nil, store.Node{}
+		return nil, store.Node{}, share.Caps{}
 	}
 	if s.isArchiveRoot(r.Context(), node) {
 		writeProblem(w, http.StatusForbidden, "Forbidden", "the archive has a fixed place and cannot be moved, renamed or trashed")
-		return nil, store.Node{}
+		return nil, store.Node{}, share.Caps{}
 	}
-	return u, node
+	if node.TeamRootID == node.ID && !caps.Has(share.CapShare) {
+		writeProblem(w, http.StatusForbidden, "Forbidden",
+			"only a manager of this team folder can rename or delete it")
+		return nil, store.Node{}, share.Caps{}
+	}
+	return u, node, caps
+}
+
+// handleMoveImpact answers "who gains and who loses access if this node moves
+// there" before the move happens. Same precondition as the move itself:
+// CapEdit on the node and on the destination.
+//
+// Moving a file out of somebody else's folder is a legitimate act — it is how
+// a member takes back something they created and Drive documents it as the way
+// to narrow sharing — so this does not gate the move. It only makes the
+// consequence visible, in both directions: moving INTO a shared folder hands
+// the file to everyone that folder reaches.
+func (s *Server) handleMoveImpact(w http.ResponseWriter, r *http.Request) {
+	u, node, _ := s.requireNodeCaps(w, r, share.CapEdit)
+	if u == nil {
+		return
+	}
+	var destID pgtype.UUID
+	if p := r.URL.Query().Get("parent"); p != "" {
+		if err := destID.Scan(p); err != nil {
+			writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid parent")
+			return
+		}
+	}
+	if !s.requireParentWrite(w, r, node.SpaceID, destID, u) {
+		return
+	}
+	impact, err := s.fs.MoveImpact(r.Context(), node, destID)
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, moveImpactDTO{
+		Losing:  principalDTOs(impact.Losing, u.ID),
+		Gaining: principalDTOs(impact.Gaining, u.ID),
+	})
+}
+
+type moveImpactDTO struct {
+	Losing  []principalDTO `json:"losing"`
+	Gaining []principalDTO `json:"gaining"`
+}
+
+type principalDTO struct {
+	Kind string `json:"kind"` // user | group | link
+	Name string `json:"name"`
+}
+
+// principalDTOs drops the caller: they are performing the move, and telling
+// them they are about to lose their own access reads as a bug.
+func principalDTOs(ps []fs.Principal, caller pgtype.UUID) []principalDTO {
+	out := make([]principalDTO, 0, len(ps))
+	for _, p := range ps {
+		if p.Kind == "user" && p.ID == caller {
+			continue
+		}
+		out = append(out, principalDTO{Kind: p.Kind, Name: p.Name})
+	}
+	return out
 }
 
 func (s *Server) handleRenameNode(w http.ResponseWriter, r *http.Request) {
-	u, node := s.requireMovableNode(w, r)
+	u, node, _ := s.requireMovableNode(w, r)
 	if u == nil {
 		return
 	}
@@ -607,8 +796,16 @@ func (s *Server) handleRenameNode(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
+// handleMoveNode relocates a node.
+//
+// Taking content OUT of a team folder needs `CapShare` on it — a manager of
+// that folder — because a move out is an export: the subtree leaves the
+// container, stops being the team's, and becomes the mover's personally owned
+// content. Drive requires Manager access to move items out of a shared drive
+// for exactly that reason. Moving deeper inside the same team folder, or into
+// one, needs nothing beyond the write access the destination already demands.
 func (s *Server) handleMoveNode(w http.ResponseWriter, r *http.Request) {
-	u, node := s.requireMovableNode(w, r)
+	u, node, caps := s.requireMovableNode(w, r)
 	if u == nil {
 		return
 	}
@@ -629,7 +826,15 @@ func (s *Server) handleMoveNode(w http.ResponseWriter, r *http.Request) {
 	if !s.requireParentWrite(w, r, node.SpaceID, parentID, u) {
 		return
 	}
-	if err := s.fs.Move(r.Context(), node.ID, parentID); err != nil {
+	if leavesTeam, err := s.movesOutOfTeam(r.Context(), node, parentID); err != nil {
+		Error(w, r, err)
+		return
+	} else if leavesTeam && !caps.Has(share.CapShare) {
+		writeProblem(w, http.StatusForbidden, "Forbidden",
+			"only a manager of this team folder can move content out of it")
+		return
+	}
+	if err := s.fs.Move(r.Context(), node.ID, parentID, u.ID); err != nil {
 		s.nodeError(w, r, err)
 		return
 	}
@@ -637,8 +842,33 @@ func (s *Server) handleMoveNode(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
+// movesOutOfTeam reports whether the move would take the node out of the team
+// folder it currently belongs to. Moving from one team folder to another counts
+// as leaving the first.
+func (s *Server) movesOutOfTeam(ctx context.Context, node store.Node, destID pgtype.UUID) (bool, error) {
+	if !node.TeamRootID.Valid {
+		return false, nil
+	}
+	if !destID.Valid {
+		return true, nil
+	}
+	dest, err := s.fs.Get(ctx, destID)
+	if err != nil {
+		return false, err
+	}
+	return dest.TeamRootID != node.TeamRootID, nil
+}
+
+// handleCopyNode duplicates a node into a destination folder.
+//
+// The source is read, not written, so download is the capability it takes —
+// the same one that already lets the caller pull the bytes down and upload
+// them back. Requiring edit on the source instead would deny a reader the
+// ordinary way to work from somebody else's file. The destination is a write
+// and is checked as one, below, so a copy never lands anywhere the caller
+// could not have uploaded to.
 func (s *Server) handleCopyNode(w http.ResponseWriter, r *http.Request) {
-	u, _, _ := s.requireNodeCaps(w, r, share.CapEdit)
+	u, _, _ := s.requireNodeCaps(w, r, share.CapDownload)
 	if u == nil {
 		return
 	}
@@ -679,7 +909,7 @@ func (s *Server) handleCopyNode(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, nodeToDTO(copied, nil).withCaps(share.CapsOwner))
 }
 func (s *Server) handleDeleteNode(w http.ResponseWriter, r *http.Request) {
-	u, node := s.requireMovableNode(w, r)
+	u, node, _ := s.requireMovableNode(w, r)
 	if u == nil {
 		return
 	}
@@ -712,6 +942,14 @@ func (s *Server) handleGetNode(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	dto.Caps = &caps
+	// Inside a team folder "items other people created" is not a category:
+	// the container owns everything, so a manager trashing a folder is not
+	// reaching into anybody's personal work and the warning would be noise.
+	if node.Kind == store.NodeKindDir && !node.TeamRootID.Valid {
+		if n, err := s.fs.ForeignOwnedCount(r.Context(), node.ID, u.ID); err == nil {
+			dto.ForeignOwned = n
+		}
+	}
 	writeJSON(w, http.StatusOK, dto)
 }
 
@@ -740,7 +978,7 @@ func (s *Server) handleListVersions(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleRestoreVersion(w http.ResponseWriter, r *http.Request) {
-	u, node := s.requireMovableNode(w, r)
+	u, node, _ := s.requireMovableNode(w, r)
 	if u == nil {
 		return
 	}
@@ -759,6 +997,7 @@ func (s *Server) handleRestoreVersion(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
+
 // --- Sidebar handlers ---
 
 func (s *Server) handleListTree(w http.ResponseWriter, r *http.Request) {
@@ -832,7 +1071,7 @@ func (s *Server) handleListDeleted(w http.ResponseWriter, r *http.Request) {
 		s.spaceError(w, r, err)
 		return
 	}
-	rows, err := s.fs.ListDeletedWithMeta(r.Context(), spaceID)
+	all, err := s.fs.ListDeletedWithMeta(r.Context(), spaceID)
 	if err != nil {
 		Error(w, r, err)
 		return
@@ -840,13 +1079,27 @@ func (s *Server) handleListDeleted(w http.ResponseWriter, r *http.Request) {
 	// Filter by reachability: the ancestor walk does not filter deleted_at, so
 	// a deleted file inside a deleted folder still resolves against the grant
 	// above it.
-	rows, err = reachableRows(r.Context(), s, u.ID, rows,
+	rows, _, err := reachableRows(r.Context(), s, u.ID, all,
 		func(n store.ListDeletedWithMetaRow) pgtype.UUID { return n.ID },
 		func(n store.ListDeletedWithMetaRow) pgtype.UUID { return n.SpaceID })
 	if err != nil {
+		Error(w, r, err)
 		return
 	}
-	out := make([]trashNodeDTO, 0, len(rows))
+	// A folder somebody else trashed may bury work the caller created. They
+	// hold no capability on that folder, so reachability drops it — and the
+	// caller is left with files that have silently vanished and a purge they
+	// cannot see coming. Those tombstones come back as read-only rows.
+	buried, err := s.fs.TrashRootsWithUserContent(r.Context(), spaceID, u.ID)
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+	visible := make(map[pgtype.UUID]bool, len(rows))
+	for _, n := range rows {
+		visible[n.ID] = true
+	}
+	out := make([]trashNodeDTO, 0, len(rows)+len(buried))
 	for _, n := range rows {
 		out = append(out, trashNodeDTO{
 			ID:         uuidString(n.ID),
@@ -856,6 +1109,23 @@ func (s *Server) handleListDeleted(w http.ResponseWriter, r *http.Request) {
 			ModifiedAt: n.VCreatedAt.Time.Format(timeLayout),
 			DeletedAt:  n.DeletedAt.Time.Format(timeLayout),
 			PurgesAt:   n.PurgesAt.Time.Format(timeLayout),
+			BuriedOwn:  buried[n.ID],
+		})
+	}
+	for _, n := range all {
+		if visible[n.ID] || buried[n.ID] == 0 {
+			continue
+		}
+		out = append(out, trashNodeDTO{
+			ID:         uuidString(n.ID),
+			SpaceID:    uuidString(n.SpaceID),
+			Kind:       string(n.Kind),
+			Name:       n.Name,
+			ModifiedAt: n.VCreatedAt.Time.Format(timeLayout),
+			DeletedAt:  n.DeletedAt.Time.Format(timeLayout),
+			PurgesAt:   n.PurgesAt.Time.Format(timeLayout),
+			BuriedOwn:  buried[n.ID],
+			ReadOnly:   true,
 		})
 	}
 	writeJSON(w, http.StatusOK, out)
@@ -894,7 +1164,11 @@ func (s *Server) nodeError(w http.ResponseWriter, r *http.Request, err error) {
 		writeProblem(w, http.StatusNotFound, "Not Found", "node not found")
 	case errors.Is(err, fs.ErrNameConflict):
 		writeProblem(w, http.StatusConflict, "Conflict", err.Error())
-	case errors.Is(err, fs.ErrCycle):
+	case errors.Is(err, fs.ErrCycle), errors.Is(err, fs.ErrTeamRootFixed):
+		writeProblem(w, http.StatusConflict, "Conflict", err.Error())
+	case errors.Is(err, fs.ErrNotDeleted):
+		// Restoring or purging something that is not in the trash: a double
+		// click, or somebody else restored it first. Not a server fault.
 		writeProblem(w, http.StatusConflict, "Conflict", err.Error())
 	case errors.Is(err, fs.ErrQuotaExceeded):
 		writeProblem(w, http.StatusRequestEntityTooLarge, "Quota Exceeded", err.Error())

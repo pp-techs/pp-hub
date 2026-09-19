@@ -1,7 +1,21 @@
 -- name: CreateNode :one
-INSERT INTO nodes (space_id, parent_id, kind, name, created_by)
-VALUES ($1, $2, $3, $4, $5)
+-- team_root_id is inherited from the parent, so everything created inside a
+-- team folder belongs to that container without the caller having to know.
+INSERT INTO nodes (space_id, parent_id, kind, name, created_by, team_root_id)
+VALUES ($1, $2, $3, $4, $5,
+        (SELECT p.team_root_id FROM nodes p WHERE p.id = $2))
 RETURNING *;
+
+-- name: CreateTeamRoot :one
+-- A team folder: a top-level node that owns its own subtree. Its team_root_id
+-- points at itself, which is what marks it as the container rather than a
+-- member of one.
+INSERT INTO nodes (space_id, kind, name, created_by)
+VALUES ($1, 'dir', $2, $3)
+RETURNING *;
+
+-- name: MarkTeamRoot :exec
+UPDATE nodes SET team_root_id = id WHERE id = $1 AND parent_id IS NULL;
 
 -- name: GetNode :one
 SELECT * FROM nodes WHERE id = $1 AND deleted_at IS NULL LIMIT 1;
@@ -25,6 +39,37 @@ WHERE id = $1 AND deleted_at IS NULL;
 -- name: MoveNode :exec
 UPDATE nodes SET parent_id = $2
 WHERE id = $1 AND deleted_at IS NULL;
+
+-- name: SetSubtreeTeamRoot :exec
+-- Rewrite container membership across a moved subtree. A move is the only
+-- operation that changes which container a node belongs to, and it changes it
+-- for everything underneath — which is why team_root_id can be denormalised
+-- at all: exactly one operation has to maintain it.
+--
+-- @team_root_id is NULL when the subtree lands in personal space.
+WITH RECURSIVE sub AS (
+    SELECT n.id, 0 AS depth FROM nodes n WHERE n.id = @root_id
+  UNION ALL
+    SELECT c.id, s.depth + 1 FROM nodes c JOIN sub s ON c.parent_id = s.id
+    WHERE s.depth < 100
+)
+UPDATE nodes SET team_root_id = sqlc.narg('team_root_id')::uuid
+WHERE id IN (SELECT id FROM sub);
+
+-- name: ReassignAuthor :exec
+-- Give a subtree a personal owner. Used when content leaves a team folder:
+-- outside a container `created_by` IS access, and a file whose author no
+-- longer works here would otherwise land in personal space owned by nobody
+-- reachable. Drive transfers ownership to whoever moves the item out; so do
+-- we, and the version history keeps the real authors.
+WITH RECURSIVE sub AS (
+    SELECT n.id, 0 AS depth FROM nodes n WHERE n.id = @root_id
+  UNION ALL
+    SELECT c.id, s.depth + 1 FROM nodes c JOIN sub s ON c.parent_id = s.id
+    WHERE s.depth < 100
+)
+UPDATE nodes SET created_by = @user_id
+WHERE id IN (SELECT id FROM sub);
 
 -- name: SoftDeleteNode :exec
 UPDATE nodes SET deleted_at = now(), deleted_by = $2
@@ -75,7 +120,7 @@ ORDER BY deleted_at DESC;
 -- name: ListChildrenWithMeta :many
 SELECT
   n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
-  n.current_version_id, n.deleted_at, n.created_by, n.created_at,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id,
   v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
   u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email
 FROM nodes n
@@ -118,10 +163,12 @@ SELECT id FROM nodes WHERE space_id = $1 AND deleted_at IS NOT NULL;
 -- name: ListSubtreeBlobHashes :many
 -- Every blob referenced by the subtree rooted at $1, one row per version, so
 -- a purge can decrement ref_count exactly as many times as it was incremented.
-WITH RECURSIVE sub(node_id) AS (
-    SELECT r.id FROM nodes r WHERE r.id = $1
+-- The depth cap is a cycle brake, not a shape the tree is expected to have.
+WITH RECURSIVE sub(node_id, depth) AS (
+    SELECT r.id, 0 FROM nodes r WHERE r.id = $1
     UNION ALL
-    SELECT n.id FROM nodes n JOIN sub ON n.parent_id = sub.node_id
+    SELECT n.id, sub.depth + 1 FROM nodes n JOIN sub ON n.parent_id = sub.node_id
+    WHERE sub.depth < 100
 )
 SELECT v.blob_hash FROM node_versions v JOIN sub ON v.node_id = sub.node_id;
 
@@ -135,6 +182,7 @@ WITH RECURSIVE anc AS (
     UNION ALL
     SELECT a.origin, p.parent_id, p.name, a.depth + 1
     FROM anc a JOIN nodes p ON p.id = a.parent_id
+    WHERE a.depth < 100
 ),
 loc AS (
     SELECT origin, string_agg(name, ' / ' ORDER BY depth DESC) AS path
@@ -142,7 +190,7 @@ loc AS (
 )
 SELECT
   n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
-  n.current_version_id, n.deleted_at, n.created_by, n.created_at,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id,
   v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
   u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email,
   COALESCE(loc.path, '')::text AS location,
@@ -167,7 +215,7 @@ ORDER BY n.deleted_at DESC;
 -- first, with an exact prefix match promoted above a mid-string one.
 SELECT
   n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
-  n.current_version_id, n.deleted_at, n.created_by, n.created_at,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id,
   v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
   u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email,
   s.name AS space_name,
@@ -207,7 +255,7 @@ DELETE FROM node_stars WHERE user_id = $1 AND node_id = $2;
 -- null space_id spans every space; a set one scopes the listing to it.
 SELECT
   n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
-  n.current_version_id, n.deleted_at, n.created_by, n.created_at,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id,
   v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
   u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email,
   s.name AS space_name,
@@ -246,14 +294,19 @@ LIMIT $1;
 -- instead of moving to the archive. RemoveMember runs this before collecting
 -- orphaned roots. Tombstones walk and transfer like live nodes, matching the
 -- resolver's unfiltered recursive join.
+--
+-- Team content is skipped: `created_by` there grants nothing, so there is
+-- nothing to hand over, and rewriting it would erase the only record of who
+-- wrote what.
 WITH RECURSIVE up(origin, id, parent_id, created_by, depth) AS (
     SELECT n.id, n.id, n.parent_id, n.created_by, 0
     FROM nodes n
     WHERE n.space_id = @space_id AND n.created_by = @user_id
+      AND n.team_root_id IS NULL
   UNION ALL
     SELECT u.origin, p.id, p.parent_id, p.created_by, u.depth + 1
     FROM up u JOIN nodes p ON p.id = u.parent_id
-    WHERE u.created_by = @user_id
+    WHERE u.created_by = @user_id AND u.depth < 100
 ),
 new_owner(origin, owner) AS (
     SELECT DISTINCT ON (origin) origin, created_by
@@ -268,10 +321,154 @@ WHERE n.id = o.origin;
 -- Topmost nodes in $1 still created by $2 after TransferNestedOwnership:
 -- roots. Every chain that never left the departed member's ownership tops
 -- out at one of these, so moving each moves everything they owned.
-SELECT id FROM nodes
-WHERE space_id = $1 AND created_by = $2 AND parent_id IS NULL;
+--
+-- The Archive itself is excluded. The space creator owns it, so without this
+-- their departure re-parented the Archive under the Archive: a cycle that
+-- hangs every ancestor walk in the space.
+--
+-- Team folders are excluded for a different reason: whoever created one does
+-- not own it, the team does. Archiving it on their departure would take the
+-- company's shared content with one person leaving.
+SELECT n.id FROM nodes n
+JOIN spaces s ON s.id = n.space_id
+WHERE n.space_id = $1 AND n.created_by = $2 AND n.parent_id IS NULL
+  AND n.id IS DISTINCT FROM s.archive_root_id
+  AND n.team_root_id IS NULL;
 
 -- name: MoveUnderArchiveRoot :exec
 -- Reparent without the live-only filter MoveNode has: a departed member's
 -- trashed roots move too, so no node in the space keeps a gone owner.
 UPDATE nodes SET parent_id = $2 WHERE id = $1;
+
+-- name: CountForeignOwnedInSubtree :one
+-- How many live nodes under @root_id were created by somebody other than
+-- @user_id. Drives the "this folder holds N items other people made" warning
+-- a destructive action shows before it runs.
+WITH RECURSIVE sub AS (
+    SELECT n.id, n.created_by, 0 AS depth
+    FROM nodes n
+    WHERE n.parent_id = @root_id AND n.deleted_at IS NULL
+  UNION ALL
+    SELECT c.id, c.created_by, s.depth + 1
+    FROM nodes c JOIN sub s ON c.parent_id = s.id
+    WHERE s.depth < 100 AND c.deleted_at IS NULL
+)
+SELECT COUNT(*)::bigint AS foreign_count
+FROM nodes x
+WHERE x.id IN (SELECT id FROM sub) AND x.created_by <> @user_id;
+
+-- name: ListForeignTopmostInSubtree :many
+-- The topmost nodes under @root_id that @user_id did not create. The walk
+-- descends only through nodes @user_id owns, so each returned row is the head
+-- of a subtree belonging to somebody else — move it and its contents follow.
+--
+-- Tombstones are included on purpose: a purge would take them with it, and a
+-- colleague's trashed file is still their file.
+WITH RECURSIVE sub AS (
+    SELECT n.id, n.created_by, 0 AS depth
+    FROM nodes n
+    WHERE n.parent_id = @root_id
+  UNION ALL
+    SELECT c.id, c.created_by, s.depth + 1
+    FROM nodes c JOIN sub s ON c.parent_id = s.id
+    WHERE s.depth < 100 AND s.created_by = @user_id
+)
+SELECT x.id, x.created_by
+FROM nodes x
+WHERE x.id IN (SELECT id FROM sub) AND x.created_by <> @user_id;
+
+-- name: DetachNodeToTopLevel :exec
+-- Lift a node out of whatever folder it sits in, keeping its deleted_at.
+-- Used when a purge would otherwise destroy content the purger does not own:
+-- the node lands at its owner's top level instead of following the cascade.
+UPDATE nodes SET parent_id = NULL, name = $2 WHERE id = $1;
+
+-- name: ListTrashRootsWithUserContent :many
+-- Tombstones in @space_id that have a live descendant created by @user_id,
+-- with how many such nodes are buried under each.
+--
+-- The climb goes upward from the caller's own nodes and stops at the first
+-- tombstoned ancestor, so each node is attributed to the tombstone that
+-- actually hid it rather than to every trashed folder above it.
+WITH RECURSIVE up AS (
+    SELECT n.id AS origin, n.parent_id AS id, 0 AS depth
+    FROM nodes n
+    WHERE n.space_id = @space_id AND n.created_by = @user_id
+      AND n.deleted_at IS NULL AND n.parent_id IS NOT NULL
+  UNION ALL
+    SELECT u.origin, p.parent_id, u.depth + 1
+    FROM up u JOIN nodes p ON p.id = u.id
+    WHERE u.depth < 100 AND p.deleted_at IS NULL AND p.parent_id IS NOT NULL
+)
+SELECT t.id AS tombstone_id, COUNT(DISTINCT u.origin)::bigint AS own_count
+FROM up u JOIN nodes t ON t.id = u.id
+WHERE t.deleted_at IS NOT NULL
+GROUP BY t.id;
+
+-- name: CountOwnedInSubtree :one
+-- How many live nodes under @root_id @user_id created. Revoking a grant does
+-- not touch them — ownership is intrinsic — so the share dialog says how much
+-- the grantee keeps before the revoke goes through.
+WITH RECURSIVE sub AS (
+    SELECT n.id, 0 AS depth
+    FROM nodes n
+    WHERE n.parent_id = @root_id AND n.deleted_at IS NULL
+  UNION ALL
+    SELECT c.id, s.depth + 1
+    FROM nodes c JOIN sub s ON c.parent_id = s.id
+    WHERE s.depth < 100 AND c.deleted_at IS NULL
+)
+SELECT COUNT(*)::bigint AS owned_count
+FROM nodes x
+WHERE x.id IN (SELECT id FROM sub) AND x.created_by = @user_id;
+
+-- name: ListChainPrincipals :many
+-- Everyone who reaches @root_id by inheritance: the creator of the node and of
+-- every ancestor (ownership is intrinsic and travels down), plus every live
+-- grant anywhere on that chain — a named person, a group, or a link.
+--
+-- Moving a node changes which chain it hangs from, so comparing this set
+-- before and after is the honest answer to "who gains and who loses access",
+-- which is the warning a move has to show. Drive shows the same thing.
+WITH RECURSIVE chain AS (
+    SELECT n.id, n.parent_id, n.created_by, n.team_root_id, 0 AS depth
+    FROM nodes n WHERE n.id = @root_id
+  UNION ALL
+    SELECT p.id, p.parent_id, p.created_by, p.team_root_id, c.depth + 1
+    FROM chain c JOIN nodes p ON p.id = c.parent_id
+    WHERE c.depth < 100
+)
+-- Authors count only outside a team folder, where `created_by` is access. In
+-- one, it is a byline: whoever uploaded a file there reaches it through the
+-- grant on the folder like everybody else, so listing them as gaining or
+-- losing access on a move would be wrong.
+SELECT 'user'::text AS kind,
+       u.id AS principal_id,
+       COALESCE(NULLIF(u.display_name, ''), NULLIF(u.name, ''), u.email)::text AS name
+FROM chain c JOIN users u ON u.id = c.created_by
+WHERE c.team_root_id IS NULL
+UNION
+SELECT CASE s.kind WHEN 'group' THEN 'group' WHEN 'link' THEN 'link' ELSE 'user' END::text,
+       COALESCE(s.grantee_user_id, s.grantee_group_id, s.id),
+       COALESCE(g.name,
+                NULLIF(gu.display_name, ''), NULLIF(gu.name, ''), gu.email,
+                'Anyone with the link')::text
+FROM chain c
+JOIN shares s ON s.node_id = c.id
+LEFT JOIN groups g ON g.id = s.grantee_group_id
+LEFT JOIN users gu ON gu.id = s.grantee_user_id
+WHERE s.expires_at IS NULL OR s.expires_at > now();
+
+
+-- name: ListTeamRoots :many
+-- The team folders of a space: nodes that are their own container.
+SELECT id FROM nodes
+WHERE space_id = $1 AND team_root_id = id AND deleted_at IS NULL
+ORDER BY name;
+
+-- name: CountTeamManagers :one
+-- Live grants on $1 that carry can_share — the managers of a team folder.
+-- A team folder with none is unadministrable: nobody can add a member, and
+-- the content belongs to a container no person owns.
+SELECT COUNT(*)::bigint AS managers FROM shares
+WHERE node_id = $1 AND can_share AND (expires_at IS NULL OR expires_at > now());

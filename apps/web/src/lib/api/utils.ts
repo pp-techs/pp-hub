@@ -177,7 +177,7 @@ export function thumbnailFit(node: Node): "cover" | "contain" {
 }
 
 /** File types that open in OnlyOffice on double-click. */
-export function canEdit(node: Node): boolean {
+export function opensInEditor(node: Node): boolean {
   return node.kind === "file" && isOfficeFile(node.name);
 }
 

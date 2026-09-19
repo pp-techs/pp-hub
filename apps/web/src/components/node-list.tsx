@@ -28,6 +28,8 @@ interface NodeListProps extends NodeActionHandlers {
   /** Node ids the caller has starred, so each row can show its own state. */
   starredIds: Set<string>;
   nodes: Node[];
+  /** Whether the caller may add to the folder these rows belong to. */
+  canWriteHere: boolean;
   selectedIds: Set<string>;
   /** Modifier keys decide replace / toggle / range — the caller reads them. */
   onClick: (node: Node, event: MouseEvent) => void;
@@ -41,6 +43,7 @@ interface NodeListProps extends NodeActionHandlers {
  */
 export function NodeList({
   nodes,
+  canWriteHere,
   selectedIds,
   starredIds,
   onClick,
@@ -76,6 +79,7 @@ export function NodeList({
             selected={selectedIds.has(n.id)}
             starred={starredIds.has(n.id)}
             shared={n.shared ?? false}
+            canWriteHere={canWriteHere}
             onClick={onClick}
             onDoubleClick={onDoubleClick}
             {...handlers}
@@ -90,6 +94,7 @@ interface NodeListRowProps extends NodeActionHandlers {
   starred: boolean;
   shared: boolean;
   node: Node;
+  canWriteHere: boolean;
   selected: boolean;
   onClick: (node: Node, event: MouseEvent) => void;
   onDoubleClick: (node: Node) => void;
@@ -97,6 +102,7 @@ interface NodeListRowProps extends NodeActionHandlers {
 
 const NodeListRow = memo(function NodeListRow({
   node,
+  canWriteHere,
   selected,
   starred,
   shared,
@@ -105,7 +111,7 @@ const NodeListRow = memo(function NodeListRow({
   ...handlers
 }: NodeListRowProps) {
   const openPanel = useUiStore((s) => s.openPanel);
-  const actions = useNodeActions(node, handlers, openPanel, starred);
+  const actions = useNodeActions(node, handlers, openPanel, starred, canWriteHere);
 
   return (
     <ContextMenu>
@@ -141,7 +147,13 @@ const NodeListRow = memo(function NodeListRow({
           <td className="text-muted-foreground px-2 text-right tabular-nums">
             {node.size != null ? fmtSize(node.size) : "—"}
           </td>
-          <td className="text-muted-foreground truncate px-2">{node.owner ?? "—"}</td>
+          {/* Inside a team folder `owner` is only a byline — access comes from
+              the folder's grants, not from whoever uploaded. Printing a name
+              here would invite the reader to think that person controls the
+              row, so the column names the holder instead. */}
+          <td className="text-muted-foreground truncate px-2">
+            {node.in_team ? "Team" : (node.owner ?? "—")}
+          </td>
           <td className="px-3 text-right">
             <DropdownMenu>
               <DropdownMenuTrigger

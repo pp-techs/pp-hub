@@ -36,7 +36,7 @@ LIMIT $2;
 -- every space the caller belongs to; a set one scopes the feed to it.
 SELECT DISTINCT ON (n.id)
   n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
-  n.current_version_id, n.deleted_at, n.created_by, n.created_at,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id,
   v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
   u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email,
   s.name AS space_name,

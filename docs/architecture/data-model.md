@@ -25,6 +25,7 @@ spaces(id, tenant_id, name, owner_id, quota_bytes, used_bytes,
        slug, description, archived_at, trash_retention_days,
        archive_root_id,                         -- the space's Archive folder
        default_as_admin,                        -- do new members land in Admin?
+       allow_public_links,                      -- may anyone mint a /s/ link here?
        created_at)
 
 space_members(space_id, user_id, created_at)
@@ -52,7 +53,12 @@ nodes(id, tenant_id, space_id, parent_id,       -- NULL parent = space root
       deleted_at,                               -- soft delete (trash)
       created_by,                               -- THE OWNER: full access here
                                                 -- and everywhere beneath, no
-                                                -- grant row involved
+                                                -- grant row involved — EXCEPT
+                                                -- inside a team folder, where
+                                                -- it is only a byline
+      team_root_id,                             -- NULL = personal; own id on a
+                                                -- team folder; the container's
+                                                -- id for its contents
       created_at)
   UNIQUE (parent_id, name) WHERE deleted_at IS NULL
 
@@ -93,9 +99,12 @@ jobs(id, kind, payload, status, run_at, attempts)        -- kind routes to a wor
 - `node_versions` are immutable; restore = flip `nodes.current_version_id`.
 - Every `blob_hash` referenced by a version exists in `blobs`; `ref_count` tracks references (counter + periodic recount job — counter drift is a known, tolerated risk).
 - A file node always has at least one version.
+- Uploading into a folder never overwrites: `PutFile` with a zero `fileID` always creates a node, suffixing the name (`report (2).txt`) when it is taken. A new version of an existing file is an explicit `POST /nodes/{id}/versions`. Ownership must not depend on whether a filename happened to collide.
 - CAS dedup: identical content across files/spaces shares one blob row.
 - Every node has an owner: `nodes.created_by` is NOT NULL, and it is the only unconditional access path in the system. Ownership inherits down the subtree, so a node inside somebody else's folder is reachable by both creators.
 - Every space has an `Everyone` group, an `Admin` group and an `archive_root_id`. `spaces.Service` provisions all three at creation; the uniqueness indices assume they exist.
+- No node is its own parent (`nodes_no_self_parent_ck`, migration 0002), and every recursive ancestor/descendant walk stops at depth 100. `NodeAccessCaps` recurses with `UNION ALL`, so one cycle would hang capability resolution for everything beneath it rather than return a wrong answer.
+- A team folder is top level (`nodes_team_root_top_level_ck`) and is its own container: `team_root_id = id`. Everything inside carries that id, inherited by `CreateNode` and rewritten across the subtree by `fs.Move` — the only two operations that can change containment. Inside one, `created_by` grants nothing; see the Team Folders section of [permissions.md](permissions.md).
 
 ## Query Patterns
 
@@ -104,6 +113,8 @@ jobs(id, kind, payload, status, run_at, attempts)        -- kind routes to a wor
 - **Search**: `nodes.name ILIKE '%…%'`, answered by the GIN trigram index `nodes_name_trgm` (partial on `deleted_at IS NULL`). A B-tree cannot serve an infix match, and people search for `forecast` expecting `Q1-forecast-final.xlsx`. The same index backs `similarity()` for ranking, and results are scoped by joining `space_members` — supported by `space_members_by_user`, since the table's `(space_id, user_id)` primary key cannot serve a user-first probe.
 - **Trash**: `WHERE space_id AND deleted_at IS NOT NULL`. `ListDeletedWithMeta` joins the current version and owner, and adds two derived columns — `location` (ancestor names joined with `" / "`, from a recursive CTE) and `child_count` (direct live children) — so a row can say where it came from and how much comes back with it.
 - **Effective capabilities**: `NodeAccessCaps` (`queries/shares.sql`) — one recursive CTE that takes an array of node ids and returns, per node, whether the caller owns it (`nodes.created_by` anywhere up the chain) plus the `BOOL_OR` of every grant flag reachable on the node **or any ancestor**, via a direct share or a group they belong to. Batched on purpose: a listing resolves every row in one query instead of one walk per row. It replaced a loop issuing one `GetNodeParent` per tree level per node, which also stopped widening at depth 100.
+- **Buried content**: `ListTrashRootsWithUserContent` climbs from the caller's own live nodes to the first tombstoned ancestor, so the trash can show a folder somebody else trashed with the caller's work inside it. `CountForeignOwnedInSubtree` and `CountOwnedInSubtree` walk the other way for the "this holds N items other people made" warnings. All four subtree walks cap at depth 100.
+- **Who reaches a node**: `ListChainPrincipals` returns the creator of the node and of every ancestor plus every live grant on that chain, as `(kind, principal_id, name)` rows. `fs.MoveImpact` differences three of those sets — node, current parent, destination — to answer "who gains and who loses access" before a move.
 - **Entry points**: `ListEntryPoints` returns the topmost nodes a caller can reach — owned (`include_owned`) or granted — dropping any row that sits beneath another reachable one. It backs both a member's top level and "Shared with me", which is the same query with `include_owned = false`.
 
   The recursive join deliberately omits `deleted_at IS NULL`, unlike `GetNodeParent`. Filtering it truncates the chain at the first trashed ancestor and loses the grant above it — which is why trash used to bypass share resolution entirely. `ListDeletedWithMeta` walks the same way for the same reason.
@@ -119,7 +130,7 @@ Two things can block a restore, and both are resolved rather than surfaced as er
 
 `RestoreNode` sets `deleted_at`, `parent_id` and `name` in one statement so neither adjustment needs a second write.
 
-**Purge** is a hard `DELETE`. Descendants and versions follow through `ON DELETE CASCADE`; `shares` cascade from `node_id`. Before deleting, `ListSubtreeBlobHashes` collects one row per version in the subtree so `DecrBlobRef` can be called exactly as many times as `IncrBlobRef` was during upload. The delete and the decrements are not in one transaction — `fs.Service` holds a `*store.Queries`, not a pool — so they run in the order that fails safe: a crash between them leaves `ref_count` too **high**, which only delays garbage collection. The reverse order could drop a blob another node still points at.
+**Purge** is a hard `DELETE`, but not an indiscriminate one. `fs.Purge` first lifts out every topmost node in the subtree that the purged node's owner did not create (`ListForeignTopmostInSubtree` → `DetachNodeToTopLevel`), re-parenting each to `NULL` — its owner's top level — with a `" (n)"` suffix if the name is taken up there, and keeping `deleted_at` so a colleague's own tombstone stays in their trash. Only then does the `DELETE` run: descendants and versions follow through `ON DELETE CASCADE`, `shares` cascade from `node_id`, and the rescued rows are no longer in the subtree to be reached. Before deleting, `ListSubtreeBlobHashes` collects one row per version in the subtree — after the rescue, so surviving files keep their references — and `DecrBlobRef` is called exactly as many times as `IncrBlobRef` was during upload. The delete and the decrements are not in one transaction — `fs.Service` holds a `*store.Queries`, not a pool — so they run in the order that fails safe: a crash between them leaves `ref_count` too **high**, which only delays garbage collection. The reverse order could drop a blob another node still points at.
 
 `EmptyTrash` purges each tombstone in turn and tolerates `ErrNotFound`, since a nested tombstone often disappears with its ancestor's cascade before its own turn comes.
 

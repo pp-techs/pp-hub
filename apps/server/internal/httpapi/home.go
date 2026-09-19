@@ -156,7 +156,7 @@ func (s *Server) handleListRecent(w http.ResponseWriter, r *http.Request) {
 	// Scoped by membership in SQL, which only narrows to the caller's
 	// companies. Losing access to a folder must also drop its files out of
 	// "recent", so the grants decide here.
-	rows, err = reachableRows(r.Context(), s, u.ID, rows,
+	rows, rc, err := reachableRows(r.Context(), s, u.ID, rows,
 		func(n store.ListRecentNodesRow) pgtype.UUID { return n.ID },
 		func(n store.ListRecentNodesRow) pgtype.UUID { return n.SpaceID })
 	if err != nil {
@@ -174,7 +174,9 @@ func (s *Server) handleListRecent(w http.ResponseWriter, r *http.Request) {
 
 	out := make([]recentDTO, 0, len(rows))
 	for _, n := range rows {
-		out = append(out, recentRowToDTO(n))
+		d := recentRowToDTO(n)
+		rc.stamp(&d.nodeDTO, n.ID)
+		out = append(out, d)
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -198,7 +200,7 @@ func (s *Server) handleListStarred(w http.ResponseWriter, r *http.Request) {
 	// recheck now has to be a grant check: starring already went through
 	// requireNodeCaps, so a node reachable only by grant could be starred and
 	// then never appear here.
-	rows, err = reachableRows(r.Context(), s, u.ID, rows,
+	rows, rc, err := reachableRows(r.Context(), s, u.ID, rows,
 		func(n store.ListStarredNodesRow) pgtype.UUID { return n.ID },
 		func(n store.ListStarredNodesRow) pgtype.UUID { return n.SpaceID })
 	if err != nil {
@@ -207,7 +209,9 @@ func (s *Server) handleListStarred(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]searchResultDTO, 0, len(rows))
 	for _, n := range rows {
-		out = append(out, starredRowToDTO(n))
+		d := starredRowToDTO(n)
+		rc.stamp(&d.nodeDTO, n.ID)
+		out = append(out, d)
 	}
 	writeJSON(w, http.StatusOK, out)
 }

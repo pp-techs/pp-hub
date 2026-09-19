@@ -1,6 +1,16 @@
 import { createModal } from "@buiducnhat/better-modal";
 import { toast } from "sonner";
 import { Copy, Link2, Lock, ShieldCheck, Users, X } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@workspace/ui/components/alert-dialog";
 import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar";
 import { Badge } from "@workspace/ui/components/badge";
 import { Button } from "@workspace/ui/components/button";
@@ -35,6 +45,8 @@ type Props = { node: Node };
 
 const message = (e: unknown, fallback: string) =>
   e instanceof ApiError ? e.message : ((e as Error)?.message ?? fallback);
+
+const items = (n: number) => `${n} item${n === 1 ? "" : "s"}`;
 
 /**
  * Who can reach one node, and the one place to change it.
@@ -71,6 +83,10 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
   const [canShare, setCanShare] = useKeyedState<string, boolean>(node.id, false);
   const [linkCanDownload, setLinkCanDownload] = useKeyedState<string, boolean>(node.id, false);
   const [expires, setExpires] = useKeyedState<string, string>(node.id, "0");
+  // The row awaiting a revoke confirmation. Keyed like the rest: a closed
+  // better-modal stays mounted, and a pending share left over from the last
+  // node would offer to revoke access to something else entirely.
+  const [pendingRevoke, setPendingRevoke] = useKeyedState<string, Share | null>(node.id, null);
 
   const directShares: Share[] = [];
   const linkShares: Share[] = [];
@@ -81,6 +97,12 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
   // Group rows come back from GET /shares too, without a grantee this shape
   // could name. /grants is the labelled view of the same rows.
   const grantRows = grants.data ?? [];
+  // A team folder inverts the rule the rest of this dialog is written around.
+  // Everywhere else ownership outlives a grant, so revoking leaves the
+  // grantee's own uploads behind; inside a team folder nothing is personally
+  // owned, so a revoke genuinely takes the access away. Every "stays theirs"
+  // reassurance below is false here and is dropped rather than reworded.
+  const inTeam = node.in_team ?? false;
 
   const pickedIds = new Set(picked.map((g) => g.id));
   const grantedGroups = new Set(grantRows.map((g) => g.group_id));
@@ -183,6 +205,16 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
     );
   }
 
+  function revoke(s: Share) {
+    revokeShare.mutate(
+      { nodeId: node.id, shareId: s.id },
+      {
+        onSuccess: () => toast.success("Access revoked"),
+        onError: (e) => toast.error(message(e, "Could not revoke")),
+      },
+    );
+  }
+
   const capsLabel = (c: GrantCaps) =>
     [c.level, c.can_download && "download", c.can_share && "re-share"].filter(Boolean).join(" · ");
 
@@ -192,9 +224,11 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
         <DialogHeader>
           <DialogTitle>Share “{node.name}”</DialogTitle>
           <DialogDescription>
-            {node.kind === "dir"
-              ? "Access given here also opens everything inside this folder."
-              : "Give a group or a colleague access to this file."}
+            {node.team_folder
+              ? "Everyone listed here reaches this team folder and everything inside it. Nobody reaches it otherwise, including space admins."
+              : node.kind === "dir"
+                ? "Access given here also opens everything inside this folder."
+                : "Give a group or a colleague access to this file."}
           </DialogDescription>
         </DialogHeader>
 
@@ -317,6 +351,12 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
               </p>
             ) : (
               <ul className="divide-y">
+                {grantRows.length > 0 && !inTeam && (
+                  <li className="text-muted-foreground bg-muted/20 px-3 py-2 text-xs">
+                    Revoking a group’s access leaves anything its members created in here — those
+                    items stay with whoever made them.
+                  </li>
+                )}
                 {grantRows.map((g) => (
                   <li key={g.id} className="flex items-center gap-3 p-3 text-sm">
                     <Users className="text-muted-foreground size-4 shrink-0" />
@@ -357,59 +397,64 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
                     </Button>
                   </li>
                 ))}
-                {[...directShares, ...linkShares].map((s) => (
-                  <li key={s.id} className="flex items-center gap-3 p-3 text-sm">
-                    <Avatar size="sm">
-                      {s.kind === "direct" ? (
-                        <AvatarFallback>
-                          {(s.grantee_email ?? "?").charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      ) : (
-                        <AvatarFallback>
-                          <Link2 className="size-3.5" />
-                        </AvatarFallback>
+                {[...directShares, ...linkShares].map((s) => {
+                  // Only a direct share carries a count: the server cannot say
+                  // which member of a group authored what. Zero inside a team
+                  // folder, which also routes the revoke button straight past
+                  // the confirmation — there is nothing left behind to warn
+                  // about.
+                  const owned = !inTeam && s.kind === "direct" ? (s.grantee_owned ?? 0) : 0;
+                  return (
+                    <li key={s.id} className="flex items-center gap-3 p-3 text-sm">
+                      <Avatar size="sm">
+                        {s.kind === "direct" ? (
+                          <AvatarFallback>
+                            {(s.grantee_email ?? "?").charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        ) : (
+                          <AvatarFallback>
+                            <Link2 className="size-3.5" />
+                          </AvatarFallback>
+                        )}
+                      </Avatar>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium">
+                          {s.kind === "link" ? "Anyone with the link" : s.grantee_email}
+                        </p>
+                        <p className="text-muted-foreground text-[10px] uppercase">
+                          {s.kind === "link" ? "Public link" : "Direct share"}
+                        </p>
+                        {owned > 0 && (
+                          <p className="text-muted-foreground mt-0.5 text-xs">
+                            Created {items(owned)} in here — those stay theirs.
+                          </p>
+                        )}
+                      </div>
+                      <span className="text-muted-foreground shrink-0 text-xs whitespace-nowrap">
+                        {capsLabel(s)}
+                      </span>
+                      {s.url && (
+                        <a
+                          href={s.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-primary inline-flex shrink-0 items-center gap-1 text-xs underline"
+                        >
+                          <Copy className="size-3.5" /> Open
+                        </a>
                       )}
-                    </Avatar>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium">
-                        {s.kind === "link" ? "Anyone with the link" : s.grantee_email}
-                      </p>
-                      <p className="text-muted-foreground text-[10px] uppercase">
-                        {s.kind === "link" ? "Public link" : "Direct share"}
-                      </p>
-                    </div>
-                    <span className="text-muted-foreground shrink-0 text-xs whitespace-nowrap">
-                      {capsLabel(s)}
-                    </span>
-                    {s.url && (
-                      <a
-                        href={s.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-primary inline-flex shrink-0 items-center gap-1 text-xs underline"
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="shrink-0"
+                        aria-label={`Revoke access for ${s.grantee_email ?? "the public link"}`}
+                        onClick={() => (owned > 0 ? setPendingRevoke(s) : revoke(s))}
                       >
-                        <Copy className="size-3.5" /> Open
-                      </a>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      className="shrink-0"
-                      aria-label={`Revoke access for ${s.grantee_email ?? "the public link"}`}
-                      onClick={() =>
-                        revokeShare.mutate(
-                          { nodeId: node.id, shareId: s.id },
-                          {
-                            onSuccess: () => toast.success("Access revoked"),
-                            onError: (e) => toast.error(message(e, "Could not revoke")),
-                          },
-                        )
-                      }
-                    >
-                      <X />
-                    </Button>
-                  </li>
-                ))}
+                        <X />
+                      </Button>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>
@@ -468,6 +513,39 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
             Create public link
           </Button>
         </section>
+
+        {/* Inline rather than a nested better-modal: this confirmation belongs
+            to one row of a list that is already open, and a second modal in
+            the container would outlive the dialog it interrupts. */}
+        <AlertDialog
+          open={pendingRevoke !== null}
+          onOpenChange={(open) => !open && setPendingRevoke(null)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remove access</AlertDialogTitle>
+              <AlertDialogDescription>
+                {pendingRevoke?.grantee_email ?? "This person"} loses access to this{" "}
+                {node.kind === "dir" ? "folder" : "file"}, but keeps the{" "}
+                {items(pendingRevoke?.grantee_owned ?? 0)} they created inside it — ownership is
+                theirs, so those appear at their own top level.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (pendingRevoke) revoke(pendingRevoke);
+                  setPendingRevoke(null);
+                }}
+              >
+                Remove access
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </DialogContent>
     </Dialog>
   );

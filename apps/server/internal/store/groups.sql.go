@@ -268,8 +268,11 @@ WITH RECURSIVE entry(id) AS (
     UNION
     -- Owned, but only inside a space the caller still belongs to: leaving ends
     -- the reach, and a departed member's roots live in the archive now.
+    -- Team content is excluded: ` + "`" + `created_by` + "`" + ` there is authorship, not access,
+    -- so a file inside a team folder is reached through the grant on that
+    -- folder and must never surface as its own entry point.
     SELECT n.id FROM nodes n
-    WHERE $2::bool AND n.created_by = $3
+    WHERE $2::bool AND n.created_by = $3 AND n.team_root_id IS NULL
       AND ($1::uuid IS NULL OR n.space_id = $1::uuid)
       AND EXISTS (
           SELECT 1 FROM space_members sm
@@ -277,17 +280,21 @@ WITH RECURSIVE entry(id) AS (
       )
 ),
 walk(origin, id) AS (
-    SELECT e.id, n.parent_id
-    FROM entry e JOIN nodes n ON n.id = e.id
-    WHERE n.parent_id IS NOT NULL
+    SELECT e.id, p.id
+    FROM entry e
+    JOIN nodes n ON n.id = e.id
+    JOIN nodes p ON p.id = n.parent_id
+    WHERE p.deleted_at IS NULL
   UNION
-    SELECT w.origin, p.parent_id
-    FROM walk w JOIN nodes p ON p.id = w.id
-    WHERE p.parent_id IS NOT NULL
+    SELECT w.origin, p.id
+    FROM walk w
+    JOIN nodes c ON c.id = w.id
+    JOIN nodes p ON p.id = c.parent_id
+    WHERE p.deleted_at IS NULL
 )
 SELECT
   n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
-  n.current_version_id, n.deleted_at, n.created_by, n.created_at,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id,
   v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
   u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email
 FROM entry e
@@ -325,6 +332,7 @@ type ListEntryPointsRow struct {
 	DeletedAt        pgtype.Timestamptz `json:"deleted_at"`
 	CreatedBy        pgtype.UUID        `json:"created_by"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	TeamRootID       pgtype.UUID        `json:"team_root_id"`
 	VID              pgtype.UUID        `json:"v_id"`
 	BlobHash         pgtype.Text        `json:"blob_hash"`
 	VSize            pgtype.Int8        `json:"v_size"`
@@ -347,8 +355,15 @@ type ListEntryPointsRow struct {
 // walking down from that ancestor, so listing it separately is noise.
 // WITH RECURSIVE must lead the statement; a nested one inside a plain CTE is
 // valid Postgres but sqlc cannot parse it.
-// Every strict ancestor of each entry, so the ones sitting underneath
+// Every strict LIVE ancestor of each entry, so the ones sitting underneath
 // another entry can be dropped.
+//
+// The climb stops at the first tombstone. A node whose folder was trashed is
+// no longer reachable by walking down to it, so suppressing it here would
+// make it vanish for its own creator while the folder owner decides what to
+// do with the trash — and a purge could then destroy something they never
+// saw. Google Drive draws the same line: trashing a folder does not take
+// other people's access to what is inside it.
 //
 // The recursive step climbs to the *parent* of the row it joins. Selecting
 // `p.id` there instead re-emitted the same node forever: with UNION ALL the
@@ -375,6 +390,7 @@ func (q *Queries) ListEntryPoints(ctx context.Context, arg ListEntryPointsParams
 			&i.DeletedAt,
 			&i.CreatedBy,
 			&i.CreatedAt,
+			&i.TeamRootID,
 			&i.VID,
 			&i.BlobHash,
 			&i.VSize,
@@ -400,7 +416,7 @@ const listGrantedChildrenWithMeta = `-- name: ListGrantedChildrenWithMeta :many
 
 SELECT
   n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
-  n.current_version_id, n.deleted_at, n.created_by, n.created_at,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id,
   v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
   u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email
 FROM nodes n
@@ -409,7 +425,7 @@ LEFT JOIN users u ON u.id = n.created_by
 WHERE n.space_id = $1
   AND n.parent_id IS NOT DISTINCT FROM $2
   AND n.deleted_at IS NULL
-  AND ( n.created_by = $3
+  AND ( (n.created_by = $3 AND n.team_root_id IS NULL)
      OR EXISTS (
         SELECT 1 FROM shares s
         WHERE s.node_id = n.id
@@ -438,6 +454,7 @@ type ListGrantedChildrenWithMetaRow struct {
 	DeletedAt        pgtype.Timestamptz `json:"deleted_at"`
 	CreatedBy        pgtype.UUID        `json:"created_by"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	TeamRootID       pgtype.UUID        `json:"team_root_id"`
 	VID              pgtype.UUID        `json:"v_id"`
 	BlobHash         pgtype.Text        `json:"blob_hash"`
 	VSize            pgtype.Int8        `json:"v_size"`
@@ -452,7 +469,8 @@ type ListGrantedChildrenWithMetaRow struct {
 
 // ------------------------------------------------- grant-scoped listings ---
 // Children of $2 that the caller can reach *directly*: they own them
-// (created_by) or hold a grant on them.
+// (created_by, and only outside a team folder — team content has no personal
+// owner) or hold a grant on them.
 //
 // Only correct when the caller has no access to the parent itself: access
 // inherits downward, so if any ancestor were reachable the whole listing
@@ -478,6 +496,7 @@ func (q *Queries) ListGrantedChildrenWithMeta(ctx context.Context, arg ListGrant
 			&i.DeletedAt,
 			&i.CreatedBy,
 			&i.CreatedAt,
+			&i.TeamRootID,
 			&i.VID,
 			&i.BlobHash,
 			&i.VSize,

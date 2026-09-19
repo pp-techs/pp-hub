@@ -6,6 +6,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/activity"
+	"github.com/nhatbui/pp-hub/apps/server/internal/fs"
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 )
@@ -25,6 +26,12 @@ type trashNodeDTO struct {
 	ModifiedAt string `json:"modified_at"`
 	DeletedAt  string `json:"deleted_at,omitempty"`
 	PurgesAt   string `json:"purge_at,omitempty"`
+	// BuriedOwn counts the caller's own live nodes sitting inside this
+	// tombstone. ReadOnly marks a row the caller can see *only* because of
+	// them: somebody else trashed a folder their work was in, so the row is
+	// there to explain where the work went, not to be restored or purged.
+	BuriedOwn int64 `json:"buried_own,omitempty"`
+	ReadOnly  bool  `json:"read_only,omitempty"`
 }
 
 // requireTrashAccess resolves the space and checks admin status.
@@ -91,28 +98,45 @@ func (s *Server) handleRestoreNode(w http.ResponseWriter, r *http.Request) {
 }
 
 // handlePurgeNode permanently deletes a trashed node. Requires CapEdit.
+//
+// Answers 200 with how many subtrees survived, because a purge that quietly
+// spared somebody else's files needs to say so: the folder is gone, their
+// files are at their own top level now.
 func (s *Server) handlePurgeNode(w http.ResponseWriter, r *http.Request) {
 	u, node := s.requireTrashedNode(w, r, share.CapEdit)
 	if u == nil {
 		return
 	}
-	if err := s.fs.Purge(r.Context(), node.ID); err != nil {
+	rescued, err := s.fs.Purge(r.Context(), node.ID)
+	s.recordRescues(r, u, rescued)
+	if err != nil {
 		s.nodeError(w, r, err)
 		return
 	}
-	w.WriteHeader(http.StatusNoContent)
+	s.activity.Node(r.Context(), u.ID, node, activity.KindPurged, nil)
+	writeJSON(w, http.StatusOK, map[string]int{"rescued": len(rescued)})
 }
 
 // handleEmptyTrash permanently deletes every trashed node in a space. Admin only.
 func (s *Server) handleEmptyTrash(w http.ResponseWriter, r *http.Request) {
-	_, spaceID, _ := s.requireTrashAccess(w, r)
+	u, spaceID, _ := s.requireTrashAccess(w, r)
 	if spaceID.Bytes == [16]byte{} {
 		return
 	}
-	_, err := s.fs.EmptyTrash(r.Context(), spaceID)
+	purged, rescued, err := s.fs.EmptyTrash(r.Context(), spaceID)
+	s.recordRescues(r, u, rescued)
 	if err != nil {
 		Error(w, r, err)
 		return
 	}
-	w.WriteHeader(http.StatusNoContent)
+	writeJSON(w, http.StatusOK, map[string]int{"purged": purged, "rescued": len(rescued)})
+}
+
+// recordRescues leaves a trail on every subtree a purge lifted out. Its owner
+// finds the folder at their top level with no explanation otherwise.
+func (s *Server) recordRescues(r *http.Request, actor *store.User, rescued []fs.RescuedNode) {
+	for _, item := range rescued {
+		s.activity.Node(r.Context(), actor.ID, item.Node, activity.KindMoved,
+			map[string]any{"reason": "rescued_from_purge"})
+	}
 }

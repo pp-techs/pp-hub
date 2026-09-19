@@ -32,6 +32,8 @@ interface NodeGridProps extends NodeActionHandlers {
   /** Node ids the caller has starred, so each row can show its own state. */
   starredIds: Set<string>;
   dirs: Node[];
+  /** Whether the caller may add to the folder these cards belong to. */
+  canWriteHere: boolean;
   files: Node[];
   selectedIds: Set<string>;
   /** Modifier keys decide replace / toggle / range — the caller reads them. */
@@ -63,6 +65,7 @@ function GroupLabel({
 
 export function NodeGrid({
   dirs,
+  canWriteHere,
   files,
   selectedIds,
   starredIds,
@@ -82,6 +85,7 @@ export function NodeGrid({
       selected={selectedIds.has(node.id)}
       starred={starredIds.has(node.id)}
       shared={node.shared ?? false}
+      canWriteHere={canWriteHere}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       {...handlers}
@@ -148,6 +152,7 @@ interface NodeCardProps extends NodeActionHandlers {
   starred: boolean;
   shared: boolean;
   node: Node;
+  canWriteHere: boolean;
   /** Clicked — feeds the bulk action bar and the details panel. */
   selected: boolean;
   onClick: (node: Node, event: MouseEvent) => void;
@@ -156,6 +161,7 @@ interface NodeCardProps extends NodeActionHandlers {
 
 const NodeCard = memo(function NodeCard({
   node,
+  canWriteHere,
   selected,
   starred,
   shared,
@@ -164,7 +170,7 @@ const NodeCard = memo(function NodeCard({
   ...handlers
 }: NodeCardProps) {
   const openPanel = useUiStore((s) => s.openPanel);
-  const actions = useNodeActions(node, handlers, openPanel, starred);
+  const actions = useNodeActions(node, handlers, openPanel, starred, canWriteHere);
   const isDir = node.kind === "dir";
 
   // Size and date only live in the tooltip: the Stitch card carries the name

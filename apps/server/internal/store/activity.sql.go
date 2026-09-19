@@ -83,7 +83,7 @@ func (q *Queries) ListMyActivity(ctx context.Context, arg ListMyActivityParams) 
 const listRecentNodes = `-- name: ListRecentNodes :many
 SELECT DISTINCT ON (n.id)
   n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
-  n.current_version_id, n.deleted_at, n.created_by, n.created_at,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id,
   v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
   u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email,
   s.name AS space_name,
@@ -118,6 +118,7 @@ type ListRecentNodesRow struct {
 	DeletedAt        pgtype.Timestamptz `json:"deleted_at"`
 	CreatedBy        pgtype.UUID        `json:"created_by"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	TeamRootID       pgtype.UUID        `json:"team_root_id"`
 	VID              pgtype.UUID        `json:"v_id"`
 	BlobHash         pgtype.Text        `json:"blob_hash"`
 	VSize            pgtype.Int8        `json:"v_size"`
@@ -158,6 +159,7 @@ func (q *Queries) ListRecentNodes(ctx context.Context, arg ListRecentNodesParams
 			&i.DeletedAt,
 			&i.CreatedBy,
 			&i.CreatedAt,
+			&i.TeamRootID,
 			&i.VID,
 			&i.BlobHash,
 			&i.VSize,

@@ -5,6 +5,7 @@ import {
   type LazyExoticComponent,
   type SVGProps,
 } from "react";
+import { Users } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
 import type { Node } from "@/lib/api";
 
@@ -210,6 +211,12 @@ const BY_EXT: Record<string, string> = {
  * The `vscode-icons` glyph for a node: the set's default folder (or its
  * shared variant), or the glyph for the filename's extension, falling back
  * to its default file.
+ *
+ * A team folder is the one exception to the set. It is not "a folder of mine
+ * that I let others in to" — it has no personal owner at all — so it must not
+ * wear a folder glyph with a sharing decoration on it. It gets the same
+ * `Users` mark this UI already uses for a group, which reads as "people own
+ * this" rather than "someone shared this".
  */
 export function NodeIcon({
   node,
@@ -226,6 +233,7 @@ export function NodeIcon({
   const fallback = <svg className={cls} aria-hidden="true" />;
 
   if (node.kind === "dir") {
+    if (node.team_folder) return <Users className={cls} aria-hidden="true" />;
     const Folder = iconFor(isShared ? "folder-type-public" : "default-folder");
     return (
       <Suspense fallback={fallback}>

@@ -3,6 +3,7 @@ import { ExternalLink } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import type { Node } from "@/lib/api";
 import {
+  capsOf,
   contentUrl,
   isOfficeFile,
   openEditor,
@@ -69,10 +70,19 @@ function Stage({ children }: { children: React.ReactNode }) {
  * generated `thumbnail` blob, which is capped at 256px on its longest side
  * (docs/architecture/preview-pipeline.md) and shows as a stamp in a full-size
  * viewer. The thumbnail stays as the fallback for an image whose bytes the
- * server won't serve inline.
+ * server won't serve inline — including to a reader with no download
+ * capability, for whom the stamp is the whole of what they may see.
  */
-function ImagePreview({ node, thumbUrl }: { node: Node; thumbUrl: string }) {
-  const [src, setSrc] = useState(contentUrl(node));
+function ImagePreview({
+  node,
+  thumbUrl,
+  canRead,
+}: {
+  node: Node;
+  thumbUrl: string;
+  canRead: boolean;
+}) {
+  const [src, setSrc] = useState(canRead ? contentUrl(node) : thumbUrl);
   const [failed, setFailed] = useState(false);
 
   if (failed) return <Message>{NOT_READY}</Message>;
@@ -185,18 +195,30 @@ export function PreviewContent({ node }: { node: Node }) {
 
 function PreviewBody({ node }: { node: Node }) {
   const mime = node.mime?.split(";")[0]?.trim() ?? "";
+  // `/content` is the file itself and takes the download capability, so a
+  // reader who was refused it is shown what the preview worker derived
+  // instead: a thumbnail, or the text snippet. There is no full-size render
+  // to fall back to, and pretending otherwise would just 403 in an <img>.
+  const canRead = capsOf(node).download;
 
   // Dispatch on MIME, not on preview kind. The preview kind says what the
   // worker *stored* — and it stores one thumbnail for images, PDFs and video
   // alike — which is not enough to choose between <img>, <object> and <video>.
   // What the browser can render inline is a property of the MIME type.
-  if (mime === "application/pdf") return <PdfPreview node={node} />;
-  if (mime.startsWith("video/")) return <VideoPreview node={node} />;
+  if (canRead) {
+    if (mime === "application/pdf") return <PdfPreview node={node} />;
+    if (mime.startsWith("video/")) return <VideoPreview node={node} />;
+  }
   if (mime.startsWith("image/")) {
-    return <ImagePreview node={node} thumbUrl={previewUrl(node)} />;
+    return <ImagePreview node={node} thumbUrl={previewUrl(node)} canRead={canRead} />;
   }
   if (previewKind(node.mime) === "text") {
     return <TextPreview url={previewUrl(node, "text")} />;
+  }
+  if (!canRead) {
+    return (
+      <Message>Downloads are off for this file, so it can only be opened by its owner.</Message>
+    );
   }
 
   if (isOfficeFile(node.name)) {

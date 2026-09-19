@@ -34,8 +34,12 @@ DELETE FROM shares WHERE id = $1;
 -- does, which truncates the chain at the first trashed ancestor and loses the
 -- grant above it — the reason trash resolves exactly like the live tree.
 -- ListDeletedWithMeta walks the same way for the same reason.
-WITH RECURSIVE anc(origin, id, parent_id) AS (
-    SELECT n.id, n.id, n.parent_id
+--
+-- UNION ALL cannot dedup its way out of a parent cycle, and this query gates
+-- every node-addressed route: one cycle would hang the whole space. The depth
+-- cap is the brake; nodes_no_self_parent_ck keeps the obvious cycle out.
+WITH RECURSIVE anc(origin, id, parent_id, depth) AS (
+    SELECT n.id, n.id, n.parent_id, 0
     FROM nodes n
     WHERE n.id = ANY(@node_ids::uuid[])
       AND EXISTS (
@@ -43,7 +47,9 @@ WITH RECURSIVE anc(origin, id, parent_id) AS (
           WHERE sm.space_id = n.space_id AND sm.user_id = @user_id
       )
   UNION ALL
-    SELECT a.origin, p.id, p.parent_id FROM anc a JOIN nodes p ON p.id = a.parent_id
+    SELECT a.origin, p.id, p.parent_id, a.depth + 1
+    FROM anc a JOIN nodes p ON p.id = a.parent_id
+    WHERE a.depth < 100
 ),
 grants AS (
     SELECT anc.origin AS node_id,
@@ -60,9 +66,15 @@ grants AS (
     GROUP BY anc.origin
 ),
 owners AS (
+    -- Ownership is the one unconditional access path — except inside a team
+    -- folder, where content belongs to the container and `created_by` is
+    -- authorship only. Without this exclusion a team folder would behave
+    -- exactly like a personal one: whoever uploaded a file would keep full
+    -- capabilities on it after their access to the folder was revoked, could
+    -- share it onward regardless of the grant, and could move it out.
     SELECT DISTINCT a.origin AS node_id
     FROM anc a JOIN nodes n2 ON n2.id = a.id
-    WHERE n2.created_by = @user_id
+    WHERE n2.created_by = @user_id AND n2.team_root_id IS NULL
 )
 SELECT n.id AS node_id,
        COALESCE(g.view, false)     AS view,

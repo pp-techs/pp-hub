@@ -140,7 +140,7 @@ func TestSpaceFilterScopesRecentStarredAndShared(t *testing.T) {
 		if err != nil {
 			t.Fatalf("recent: %v", err)
 		}
-		rows, err = reachableRows(ctx, srv, caller.ID, rows,
+		rows, _, err = reachableRows(ctx, srv, caller.ID, rows,
 			func(n store.ListRecentNodesRow) pgtype.UUID { return n.ID },
 			func(n store.ListRecentNodesRow) pgtype.UUID { return n.SpaceID })
 		if err != nil {
@@ -158,7 +158,7 @@ func TestSpaceFilterScopesRecentStarredAndShared(t *testing.T) {
 		if err != nil {
 			t.Fatalf("starred: %v", err)
 		}
-		rows, err = reachableRows(ctx, srv, caller.ID, rows,
+		rows, _, err = reachableRows(ctx, srv, caller.ID, rows,
 			func(n store.ListStarredNodesRow) pgtype.UUID { return n.ID },
 			func(n store.ListStarredNodesRow) pgtype.UUID { return n.SpaceID })
 		if err != nil {

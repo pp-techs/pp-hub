@@ -9,6 +9,7 @@ import (
 	"io"
 	"mime"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -19,13 +20,16 @@ import (
 )
 
 var (
-	ErrNotFound        = errors.New("node not found")
-	ErrNotFile         = errors.New("node is not a file")
-	ErrNotDir          = errors.New("node is not a directory")
-	ErrCycle           = errors.New("cannot move a folder into its own descendant")
-	ErrNameConflict    = errors.New("a node with this name already exists in the target folder")
-	ErrVersionConflict = errors.New("stale version: node was modified concurrently")
-	ErrQuotaExceeded   = errors.New("this upload would exceed the space's storage limit")
+	ErrNotFound      = errors.New("node not found")
+	ErrNotFile       = errors.New("node is not a file")
+	ErrNotDir        = errors.New("node is not a directory")
+	ErrCycle         = errors.New("cannot move a folder into its own descendant")
+	ErrNameConflict  = errors.New("a node with this name already exists in the target folder")
+	ErrQuotaExceeded = errors.New("this upload would exceed the space's storage limit")
+	// ErrTeamRootFixed refuses to nest or relocate a team folder: a team folder
+	// is always top level, or "which container owns this" stops having one
+	// answer.
+	ErrTeamRootFixed = errors.New("a team folder cannot be moved or nested")
 )
 
 const (
@@ -75,7 +79,14 @@ func (s *Service) Mkdir(ctx context.Context, spaceID, parentID pgtype.UUID, name
 }
 
 // PutFile streams content into the blob store and commits a new version.
-// If fileID is zero, creates a new file node under parentID with name.
+//
+// If fileID is zero this always creates a NEW node: a name already taken in
+// the folder gets a " (2)" suffix rather than a version stacked onto whatever
+// was already there. Versioning silently made ownership depend on a name
+// collision — upload into a colleague's folder and you owned your file, unless
+// somebody had used the name first, in which case you owned nothing and had
+// just overwritten their work. Replacing a file is an explicit act now:
+// POST /nodes/{id}/versions, which passes fileID.
 func (s *Service) PutFile(ctx context.Context, spaceID, parentID, fileID pgtype.UUID, name string, r io.Reader, creator pgtype.UUID) (store.Node, store.NodeVersion, error) {
 	var node store.Node
 	var err error
@@ -89,24 +100,24 @@ func (s *Service) PutFile(ctx context.Context, spaceID, parentID, fileID pgtype.
 			return store.Node{}, store.NodeVersion{}, ErrNotFile
 		}
 	} else {
-		node, err = s.q.CreateNode(ctx, store.CreateNodeParams{
-			SpaceID:   spaceID,
-			ParentID:  parentID,
-			Kind:      store.NodeKindFile,
-			Name:      name,
-			CreatedBy: creator,
-		})
-		if isUniqueViolation(err) {
-			// Same name in this folder: treat as a new version of the existing file.
-			existing, gErr := s.findChildByName(ctx, spaceID, parentID, name)
-			if gErr != nil {
-				return store.Node{}, store.NodeVersion{}, gErr
+		candidate := name
+		for attempt := 1; ; attempt++ {
+			node, err = s.q.CreateNode(ctx, store.CreateNodeParams{
+				SpaceID:   spaceID,
+				ParentID:  parentID,
+				Kind:      store.NodeKindFile,
+				Name:      candidate,
+				CreatedBy: creator,
+			})
+			if !isUniqueViolation(err) {
+				break
 			}
-			if existing.Kind != store.NodeKindFile {
+			if attempt >= maxRestoreNameAttempts {
 				return store.Node{}, store.NodeVersion{}, ErrNameConflict
 			}
-			node = existing
-		} else if err != nil {
+			candidate = suffixName(name, attempt+1)
+		}
+		if err != nil {
 			return store.Node{}, store.NodeVersion{}, err
 		}
 	}
@@ -280,6 +291,7 @@ func childRowsToMeta(rows []store.ListChildrenWithMetaRow) []store.NodeWithMeta 
 				DeletedAt:        r.DeletedAt,
 				CreatedBy:        r.CreatedBy,
 				CreatedAt:        r.CreatedAt,
+				TeamRootID:       r.TeamRootID,
 			},
 			VerID:        r.VID,
 			VerBlobHash:  r.BlobHash.String,
@@ -310,7 +322,25 @@ func (s *Service) Rename(ctx context.Context, nodeID pgtype.UUID, name string) e
 }
 
 // Move relocates a node under a new parent (zero = space root).
-func (s *Service) Move(ctx context.Context, nodeID, newParentID pgtype.UUID) error {
+//
+// A move is the only operation that changes which container a node belongs to,
+// so it is also the only place `team_root_id` has to be maintained — across
+// the whole subtree, since containment is inherited. Leaving a team folder
+// additionally reassigns authorship to the mover: outside a container
+// `created_by` IS access, and content arriving in personal space owned by
+// whoever happened to upload it inside the team would hand them back a private
+// copy of the team's work. Drive transfers ownership on the way out of a
+// shared drive for the same reason; `node_versions.created_by` keeps the real
+// authors.
+func (s *Service) Move(ctx context.Context, nodeID, newParentID, actorID pgtype.UUID) error {
+	node, err := s.get(ctx, nodeID)
+	if err != nil {
+		return err
+	}
+	if node.TeamRootID == node.ID {
+		return ErrTeamRootFixed
+	}
+	var destTeam pgtype.UUID
 	if newParentID.Valid {
 		parent, err := s.get(ctx, newParentID)
 		if err != nil {
@@ -327,12 +357,56 @@ func (s *Service) Move(ctx context.Context, nodeID, newParentID pgtype.UUID) err
 		if isDesc || newParentID == nodeID {
 			return ErrCycle
 		}
+		destTeam = parent.TeamRootID
 	}
-	err := s.q.MoveNode(ctx, store.MoveNodeParams{ID: nodeID, ParentID: newParentID})
+	err = s.q.MoveNode(ctx, store.MoveNodeParams{ID: nodeID, ParentID: newParentID})
 	if isUniqueViolation(err) {
 		return ErrNameConflict
 	}
-	return err
+	if err != nil || node.TeamRootID == destTeam {
+		return err
+	}
+	if err := s.q.SetSubtreeTeamRoot(ctx, store.SetSubtreeTeamRootParams{
+		RootID: nodeID, TeamRootID: destTeam,
+	}); err != nil {
+		return err
+	}
+	if !destTeam.Valid {
+		return s.q.ReassignAuthor(ctx, store.ReassignAuthorParams{RootID: nodeID, UserID: actorID})
+	}
+	return nil
+}
+
+// CreateTeamFolder makes a top-level folder the team owns: `created_by` records
+// who set it up but grants nothing, so access comes only from grants on the
+// folder. The caller gets the first manager grant — without it, creating one
+// would lock everybody out, including its creator.
+func (s *Service) CreateTeamFolder(ctx context.Context, spaceID pgtype.UUID, name string, creator pgtype.UUID) (store.Node, error) {
+	node, err := s.q.CreateTeamRoot(ctx, store.CreateTeamRootParams{
+		SpaceID: spaceID, Name: name, CreatedBy: creator,
+	})
+	if isUniqueViolation(err) {
+		return store.Node{}, ErrNameConflict
+	}
+	if err != nil {
+		return store.Node{}, err
+	}
+	if err := s.q.MarkTeamRoot(ctx, node.ID); err != nil {
+		return store.Node{}, err
+	}
+	node.TeamRootID = node.ID
+	return node, nil
+}
+
+// TeamRoots lists a space's team folders.
+func (s *Service) TeamRoots(ctx context.Context, spaceID pgtype.UUID) ([]pgtype.UUID, error) {
+	return s.q.ListTeamRoots(ctx, spaceID)
+}
+
+// TeamManagerCount reports how many live grants on a team folder carry
+// can_share. Zero means nobody can administer it.
+func (s *Service) TeamManagerCount(ctx context.Context, teamRootID pgtype.UUID) (int64, error) {
+	return s.q.CountTeamManagers(ctx, teamRootID)
 }
 
 // Delete tombstones a node, recording who did it so the trash can say so.
@@ -617,9 +691,9 @@ func (s *Service) ListShared(ctx context.Context, userID, spaceID pgtype.UUID) (
 // spans every space; a set one scopes to that space — the member's top level.
 func (s *Service) EntryPointsWithMeta(ctx context.Context, userID, spaceID pgtype.UUID, includeOwned bool) ([]store.NodeWithMeta, error) {
 	rows, err := s.q.ListEntryPoints(ctx, store.ListEntryPointsParams{
-		UserID:        userID,
-		SpaceID:       spaceID,
-		IncludeOwned:  includeOwned,
+		UserID:       userID,
+		SpaceID:      spaceID,
+		IncludeOwned: includeOwned,
 	})
 	if err != nil {
 		return nil, err
@@ -667,20 +741,6 @@ func (s *Service) get(ctx context.Context, id pgtype.UUID) (store.Node, error) {
 		return store.Node{}, ErrNotFound
 	}
 	return n, err
-}
-
-// findChildByName returns the live child of parentID with the exact name.
-func (s *Service) findChildByName(ctx context.Context, spaceID, parentID pgtype.UUID, name string) (store.Node, error) {
-	children, err := s.q.ListChildren(ctx, store.ListChildrenParams{SpaceID: spaceID, ParentID: parentID})
-	if err != nil {
-		return store.Node{}, err
-	}
-	for _, c := range children {
-		if c.Name == name {
-			return c, nil
-		}
-	}
-	return store.Node{}, ErrNotFound
 }
 
 func isUniqueViolation(err error) bool {
@@ -765,56 +825,267 @@ func (s *Service) Restore(ctx context.Context, nodeID pgtype.UUID) (store.Node, 
 	return store.Node{}, RestoreOutcome{}, ErrNameConflict
 }
 
+// RescuedNode reports one subtree a purge refused to destroy.
+type RescuedNode struct {
+	Node  store.Node
+	Owner pgtype.UUID
+}
+
 // Purge permanently removes a trashed node and its subtree, and releases the
 // blobs the subtree's versions were holding.
+//
+// Content the node's owner did not create is lifted out first. A folder owner
+// can trash and purge what sits inside their folder, but destroying a
+// colleague's file as a side effect of housekeeping is not a power anybody
+// asked for — Drive never deletes another account's file when you empty your
+// own trash. Each rescued subtree lands at its own owner's top level, keeping
+// its deleted_at, so a file the colleague had trashed themselves stays in
+// their trash instead of quietly coming back.
 //
 // The delete and the ref-count decrements are not in one transaction — the fs
 // service holds a *store.Queries, not a pool. They are ordered so that a crash
 // between them leaves ref counts too HIGH, which only delays garbage
 // collection. The reverse order could drop a blob another node still points at.
-func (s *Service) Purge(ctx context.Context, nodeID pgtype.UUID) error {
+func (s *Service) Purge(ctx context.Context, nodeID pgtype.UUID) ([]RescuedNode, error) {
 	node, err := s.GetAny(ctx, nodeID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !node.DeletedAt.Valid {
-		return ErrNotDeleted
+		return nil, ErrNotDeleted
 	}
+	rescued, err := s.rescueForeignSubtrees(ctx, node)
+	if err != nil {
+		return nil, err
+	}
+	// Blob hashes are collected after the rescue so the surviving subtrees keep
+	// their references.
 	hashes, err := s.q.ListSubtreeBlobHashes(ctx, nodeID)
 	if err != nil {
-		return err
+		return rescued, err
 	}
 	if err := s.q.PurgeNode(ctx, nodeID); err != nil {
-		return err
+		return rescued, err
 	}
 	for _, h := range hashes {
 		if err := s.q.DecrBlobRef(ctx, h); err != nil {
-			return fmt.Errorf("release blob %s: %w", h[:min(12, len(h))], err)
+			return rescued, fmt.Errorf("release blob %s: %w", h[:min(12, len(h))], err)
 		}
 	}
-	return nil
+	return rescued, nil
+}
+
+// rescueForeignSubtrees detaches every topmost node under root that root's
+// owner did not create, so the cascade cannot reach it.
+//
+// Inside a team folder there is nothing to rescue: the container owns the whole
+// subtree, `created_by` is a byline, and scattering a team's files across the
+// personal top levels of whoever happened to upload them would be the opposite
+// of what a team folder is for. A manager purging team content purges it.
+func (s *Service) rescueForeignSubtrees(ctx context.Context, root store.Node) ([]RescuedNode, error) {
+	if root.TeamRootID.Valid {
+		return nil, nil
+	}
+	foreign, err := s.q.ListForeignTopmostInSubtree(ctx, store.ListForeignTopmostInSubtreeParams{
+		RootID: root.ID,
+		UserID: root.CreatedBy,
+	})
+	if err != nil {
+		return nil, err
+	}
+	rescued := make([]RescuedNode, 0, len(foreign))
+	for _, f := range foreign {
+		node, err := s.GetAny(ctx, f.ID)
+		if err != nil {
+			if errors.Is(err, ErrNotFound) {
+				continue
+			}
+			return rescued, err
+		}
+		// The top level is a folder like any other as far as the partial unique
+		// index is concerned, so the name may already be taken up there.
+		name := node.Name
+		for attempt := 1; ; attempt++ {
+			err = s.q.DetachNodeToTopLevel(ctx, store.DetachNodeToTopLevelParams{ID: node.ID, Name: name})
+			if !isUniqueViolation(err) {
+				break
+			}
+			if attempt >= maxRestoreNameAttempts {
+				return rescued, ErrNameConflict
+			}
+			name = suffixName(node.Name, attempt+1)
+		}
+		if err != nil {
+			return rescued, err
+		}
+		node.ParentID = pgtype.UUID{}
+		node.Name = name
+		rescued = append(rescued, RescuedNode{Node: node, Owner: f.CreatedBy})
+	}
+	return rescued, nil
+}
+
+// ForeignOwnedCount reports how many live nodes under nodeID somebody other
+// than userID created. A destructive action says so before it runs.
+func (s *Service) ForeignOwnedCount(ctx context.Context, nodeID, userID pgtype.UUID) (int64, error) {
+	return s.q.CountForeignOwnedInSubtree(ctx, store.CountForeignOwnedInSubtreeParams{
+		RootID: nodeID,
+		UserID: userID,
+	})
+}
+
+// Principal is somebody (or something) that reaches a node by inheritance:
+// a person, a group, or a share link.
+type Principal struct {
+	Kind string // user | group | link
+	ID   pgtype.UUID
+	Name string
+}
+
+// MoveImpact is the access delta a move would cause.
+type MoveImpact struct {
+	Losing  []Principal
+	Gaining []Principal
+}
+
+// MoveImpact answers "who gains and who loses access if this node moves
+// there" without moving anything.
+//
+// Access is inherited, so a move rehangs the node under a different chain of
+// owners and grants. Drive's answer to the same question is a warning on the
+// move dialog, and the reason it matters here is sharper: a member may move a
+// file they created out of a colleague's folder, which is the documented way
+// to take something back — but it should not be possible to do that, or the
+// reverse, without being told who it affects.
+//
+// Grants on the node itself and its own creator travel with it, so principals
+// reaching it that way appear on neither list. A zero destID means the
+// caller's top level, which inherits nothing.
+func (s *Service) MoveImpact(ctx context.Context, node store.Node, destID pgtype.UUID) (MoveImpact, error) {
+	withSelf, err := s.chainPrincipals(ctx, node.ID)
+	if err != nil {
+		return MoveImpact{}, err
+	}
+	above, err := s.chainPrincipals(ctx, node.ParentID)
+	if err != nil {
+		return MoveImpact{}, err
+	}
+	dest, err := s.chainPrincipals(ctx, destID)
+	if err != nil {
+		return MoveImpact{}, err
+	}
+	// What the node carries on its own: everything it grants minus what it
+	// only inherits.
+	self := make(map[string]Principal, len(withSelf))
+	for k, p := range withSelf {
+		if _, inherited := above[k]; !inherited {
+			self[k] = p
+		}
+	}
+	out := MoveImpact{}
+	for k, p := range above {
+		if _, keeps := dest[k]; keeps {
+			continue
+		}
+		if _, keeps := self[k]; keeps {
+			continue
+		}
+		out.Losing = append(out.Losing, p)
+	}
+	for k, p := range dest {
+		if _, had := above[k]; had {
+			continue
+		}
+		if _, had := self[k]; had {
+			continue
+		}
+		out.Gaining = append(out.Gaining, p)
+	}
+	sortPrincipals(out.Losing)
+	sortPrincipals(out.Gaining)
+	return out, nil
+}
+
+// chainPrincipals keys the query's rows so the three sets can be differenced.
+// A zero id is the top level of a space: nothing is inherited there.
+func (s *Service) chainPrincipals(ctx context.Context, rootID pgtype.UUID) (map[string]Principal, error) {
+	out := map[string]Principal{}
+	if !rootID.Valid {
+		return out, nil
+	}
+	rows, err := s.q.ListChainPrincipals(ctx, rootID)
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range rows {
+		p := Principal{Kind: r.Kind, ID: r.PrincipalID, Name: r.Name}
+		out[r.Kind+":"+fmt.Sprintf("%x", r.PrincipalID.Bytes)] = p
+	}
+	return out, nil
+}
+
+func sortPrincipals(ps []Principal) {
+	sort.Slice(ps, func(i, j int) bool {
+		if ps[i].Kind != ps[j].Kind {
+			return ps[i].Kind < ps[j].Kind
+		}
+		return ps[i].Name < ps[j].Name
+	})
+}
+
+// TrashRootsWithUserContent lists the tombstones in a space that bury live
+// nodes userID created, with how many. Those rows appear in that user's trash
+// even when they hold no capability on the trashed folder itself: their work
+// is inside it, and a purge is coming.
+func (s *Service) TrashRootsWithUserContent(ctx context.Context, spaceID, userID pgtype.UUID) (map[pgtype.UUID]int64, error) {
+	rows, err := s.q.ListTrashRootsWithUserContent(ctx, store.ListTrashRootsWithUserContentParams{
+		SpaceID: spaceID,
+		UserID:  userID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[pgtype.UUID]int64, len(rows))
+	for _, r := range rows {
+		out[r.TombstoneID] = r.OwnCount
+	}
+	return out, nil
+}
+
+// OwnedCount reports how many live nodes under nodeID userID created. Used by
+// the share dialog: revoking a grant leaves everything the grantee made behind,
+// and the number is the honest way to say so.
+func (s *Service) OwnedCount(ctx context.Context, nodeID, userID pgtype.UUID) (int64, error) {
+	return s.q.CountOwnedInSubtree(ctx, store.CountOwnedInSubtreeParams{
+		RootID: nodeID,
+		UserID: userID,
+	})
 }
 
 // EmptyTrash purges every trashed node in a space and returns how many it
-// removed. Nested tombstones disappear with their ancestor's cascade, so a
-// child already gone by the time its turn comes is not an error.
-func (s *Service) EmptyTrash(ctx context.Context, spaceID pgtype.UUID) (int, error) {
+// removed, plus whatever the purges refused to destroy. Nested tombstones
+// disappear with their ancestor's cascade, so a child already gone by the time
+// its turn comes is not an error.
+func (s *Service) EmptyTrash(ctx context.Context, spaceID pgtype.UUID) (int, []RescuedNode, error) {
 	ids, err := s.q.ListDeletedIDs(ctx, spaceID)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 	purged := 0
+	var rescued []RescuedNode
 	for _, id := range ids {
-		switch err := s.Purge(ctx, id); {
+		saved, err := s.Purge(ctx, id)
+		rescued = append(rescued, saved...)
+		switch {
 		case err == nil:
 			purged++
 		case errors.Is(err, ErrNotFound):
 			// Already removed by an ancestor's cascade.
 		default:
-			return purged, err
+			return purged, rescued, err
 		}
 	}
-	return purged, nil
+	return purged, rescued, nil
 }
 
 // ListDeletedWithMeta returns the trash listing with version, owner, original

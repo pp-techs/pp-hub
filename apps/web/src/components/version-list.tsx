@@ -2,7 +2,7 @@ import { toast } from "sonner";
 import { Download, RotateCcw } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { Badge } from "@workspace/ui/components/badge";
-import { fmtSize, fmtRelative, type Node } from "@/lib/api";
+import { capsOf, fmtSize, fmtRelative, type Node } from "@/lib/api";
 import { useRestoreVersion, useVersions } from "@/lib/queries";
 
 /**
@@ -11,9 +11,11 @@ import { useRestoreVersion, useVersions } from "@/lib/queries";
  *
  * Only the current version can be downloaded: the API serves a node's bytes,
  * not a version's, so a per-version download button would have nothing behind
- * it. Restoring makes an old version current, which is the way to get at it.
+ * it. Restoring makes an old version current, which is the way to get at it —
+ * and it is a write, so a reader sees the history without the button.
  */
 export function VersionList({ node, onRestored }: { node: Node; onRestored?: () => void }) {
+  const caps = capsOf(node);
   const versions = useVersions(node.id);
   const restore = useRestoreVersion(node.space_id);
 
@@ -43,37 +45,39 @@ export function VersionList({ node, onRestored }: { node: Node; onRestored?: () 
               {fmtRelative(v.created_at)} · {fmtSize(v.size)}
             </span>
             <div className="flex items-center gap-1">
-              {v.id === current ? (
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  render={<a href={`/api/v1/nodes/${node.id}/download`} />}
-                >
-                  <Download data-icon="inline-start" /> Download
-                </Button>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  disabled={restore.isPending}
-                  onClick={() => {
-                    restore.mutate(
-                      { nodeId: node.id, versionId: v.id },
-                      {
-                        onSuccess: () => {
-                          toast.success(`Restored version ${v.version_no}`, {
-                            description: "It is now the current version.",
-                          });
-                          onRestored?.();
-                        },
-                        onError: (e) => toast.error(e.message),
-                      },
-                    );
-                  }}
-                >
-                  <RotateCcw data-icon="inline-start" /> Restore
-                </Button>
-              )}
+              {v.id === current
+                ? caps.download && (
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      render={<a href={`/api/v1/nodes/${node.id}/download`} />}
+                    >
+                      <Download data-icon="inline-start" /> Download
+                    </Button>
+                  )
+                : caps.edit && (
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      disabled={restore.isPending}
+                      onClick={() => {
+                        restore.mutate(
+                          { nodeId: node.id, versionId: v.id },
+                          {
+                            onSuccess: () => {
+                              toast.success(`Restored version ${v.version_no}`, {
+                                description: "It is now the current version.",
+                              });
+                              onRestored?.();
+                            },
+                            onError: (e) => toast.error(e.message),
+                          },
+                        );
+                      }}
+                    >
+                      <RotateCcw data-icon="inline-start" /> Restore
+                    </Button>
+                  )}
             </div>
           </li>
         ))}

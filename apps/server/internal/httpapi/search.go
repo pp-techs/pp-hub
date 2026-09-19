@@ -159,7 +159,7 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 		Error(w, r, err)
 		return
 	}
-	rows, err = reachableRows(r.Context(), s, u.ID, rows,
+	rows, rc, err := reachableRows(r.Context(), s, u.ID, rows,
 		func(n store.SearchNodesRow) pgtype.UUID { return n.ID },
 		func(n store.SearchNodesRow) pgtype.UUID { return n.SpaceID })
 	if err != nil {
@@ -172,7 +172,9 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 
 	out := make([]searchResultDTO, 0, len(rows))
 	for _, n := range rows {
-		out = append(out, searchRowToDTO(n))
+		d := searchRowToDTO(n)
+		rc.stamp(&d.nodeDTO, n.ID)
+		out = append(out, d)
 	}
 	writeJSON(w, http.StatusOK, out)
 }

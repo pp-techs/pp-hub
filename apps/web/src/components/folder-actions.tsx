@@ -8,6 +8,7 @@ import {
   LayoutGrid,
   RefreshCw,
   SquareDashedMousePointer,
+  Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { NodeView, SortField, SortOrder } from "@/lib/api";
@@ -58,6 +59,20 @@ export function folderActions(write: DriveWrite, listing?: ListingContext): Fold
       disabled: !write.canWrite,
       run: write.newFolder,
     },
+    // Admins only, and never disabled by the folder being browsed: a team
+    // folder is always created at the space's top level, so the edit rights
+    // that gate "New folder" here do not apply to it.
+    ...(write.canCreateTeamFolder
+      ? [
+          {
+            key: "new-team-folder",
+            label: "New team folder",
+            icon: Users,
+            group: "create",
+            run: write.newTeamFolder,
+          } satisfies FolderAction,
+        ]
+      : []),
     {
       key: "upload-files",
       label: "Upload files",

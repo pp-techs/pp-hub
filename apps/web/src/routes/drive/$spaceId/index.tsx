@@ -1,3 +1,4 @@
+import { useQueries } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, MouseEvent } from "react";
@@ -33,7 +34,7 @@ import {
   EmptyTitle,
 } from "@workspace/ui/components/empty";
 import {
-  canEdit,
+  opensInEditor,
   openEditor,
   sortNodes,
   type Node,
@@ -43,6 +44,7 @@ import {
 } from "@/lib/api";
 import {
   childrenOptions,
+  nodeOptions,
   useChildren,
   useInvalidateChildren,
   useNode,
@@ -243,7 +245,7 @@ function FolderView() {
           params: { spaceId },
           search: { dir: node.id, sort, order, view },
         });
-      } else if (canEdit(node)) {
+      } else if (opensInEditor(node)) {
         openEditor(node);
       } else {
         void PreviewModal.show({ node, siblings: sortedFiles });
@@ -315,6 +317,25 @@ function FolderView() {
     const removed = new Set((confirmNodes ?? []).map((n) => n.id));
     setSelectedIds((prev) => new Set([...prev].filter((id) => !removed.has(id))));
   }, [confirmNodes, del]);
+
+  /**
+   * How much of other people's work the pending trash would take with it.
+   * `foreign_owned` is only resolved by the single-node GET — a listing would
+   * need a subtree walk per row — so the folders in the confirmation are
+   * fetched on the spot. The queries only exist while the dialog is open, and
+   * land in the same cache entry the details panel already uses.
+   */
+  const confirmFolders = useMemo(
+    () => (confirmNodes ?? []).filter((n) => n.kind === "dir"),
+    [confirmNodes],
+  );
+  const confirmFolderDetails = useQueries({
+    queries: confirmFolders.map((n) => nodeOptions(n.id)),
+  });
+  const foreignOwned = confirmFolderDetails.reduce(
+    (sum, result) => sum + (result.data?.foreign_owned ?? 0),
+    0,
+  );
 
   const starredIds = useMemo(() => new Set((starred.data ?? []).map((n) => n.id)), [starred.data]);
 
@@ -474,6 +495,7 @@ function FolderView() {
               ) : view === "grid" ? (
                 <NodeGrid
                   dirs={sortedDirs}
+                  canWriteHere={write.canWrite}
                   files={sortedFiles}
                   selectedIds={selectedIds}
                   starredIds={starredIds}
@@ -484,6 +506,7 @@ function FolderView() {
               ) : (
                 <NodeList
                   nodes={sorted}
+                  canWriteHere={write.canWrite}
                   selectedIds={selectedIds}
                   starredIds={starredIds}
                   onClick={handleClick}
@@ -579,9 +602,24 @@ function FolderView() {
         confirmVariant="destructive"
         onConfirm={handleDeleteConfirmed}
         node={confirmNodes?.length === 1 ? confirmNodes[0] : null}
+        warning={foreignOwnedWarning(foreignOwned, confirmFolders.length)}
       />
     </div>
   );
+}
+
+/**
+ * The line that turns "move to trash" from a private act into a shared one:
+ * trashing a folder pulls everything inside it out of reach, including work
+ * the people who made it can still be using. It never blocks the action — the
+ * caller is allowed to do this — it only refuses to let it happen silently.
+ */
+function foreignOwnedWarning(count: number, folders: number): string | undefined {
+  if (count <= 0) return undefined;
+  const items = `${count} ${count === 1 ? "item" : "items"} other people created`;
+  return folders === 1
+    ? `This folder holds ${items}. They lose access until you restore it.`
+    : `These folders hold ${items}. They lose access until you restore them.`;
 }
 
 /**

@@ -1,6 +1,6 @@
 import { Download, FolderInput, Link2, Pencil, Trash2, X } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
-import type { Node } from "@/lib/api";
+import { canRestructure, capsOf, commonCaps, type Node } from "@/lib/api";
 
 interface SelectionBarProps {
   selected: Node[];
@@ -18,6 +18,11 @@ interface SelectionBarProps {
  * Download, Share and Rename act on a single node, so they appear only when
  * the selection is exactly one; Move and Delete work on the whole selection.
  *
+ * Every control is gated on what the caller holds — for the bulk ones, on
+ * what they hold across the *whole* selection. A selection can mix a file you
+ * own with one you were only granted a look at, and "Delete 5 items" must not
+ * mean "delete the two of them I'm allowed to".
+ *
  * The Stitch design also offers Copy, which has no endpoint, so it is omitted
  * rather than rendered as a control that no-ops.
  */
@@ -33,6 +38,10 @@ export function SelectionBar({
   if (selected.length === 0) return null;
 
   const only = selected.length === 1 ? selected[0] : null;
+  const onlyCaps = capsOf(only);
+  const bulk = commonCaps(selected);
+  const canDelete = selected.every(canRestructure);
+  const canRename = only ? canRestructure(only) : false;
   return (
     <div
       role="toolbar"
@@ -46,30 +55,36 @@ export function SelectionBar({
       <span className="bg-border h-4 w-px" />
 
       <div className="flex items-center gap-1">
-        {only?.kind === "file" && (
+        {only?.kind === "file" && onlyCaps.download && (
           <Button variant="ghost" size="sm" onClick={() => onDownload(only)}>
             <Download data-icon="inline-start" /> Download
           </Button>
         )}
-        {only && (
-          <>
-            <Button variant="ghost" size="sm" onClick={() => onShare(only)}>
-              <Link2 data-icon="inline-start" /> Share
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => onRename(only)}>
-              <Pencil data-icon="inline-start" /> Rename
-            </Button>
-          </>
+        {only && onlyCaps.share && (
+          <Button variant="ghost" size="sm" onClick={() => onShare(only)}>
+            <Link2 data-icon="inline-start" /> Share
+          </Button>
         )}
-        <Button variant="ghost" size="sm" onClick={() => onMove(selected)}>
-          <FolderInput data-icon="inline-start" /> Move
-        </Button>
+        {only && canRename && (
+          <Button variant="ghost" size="sm" onClick={() => onRename(only)}>
+            <Pencil data-icon="inline-start" /> Rename
+          </Button>
+        )}
+        {bulk.edit && (
+          <Button variant="ghost" size="sm" onClick={() => onMove(selected)}>
+            <FolderInput data-icon="inline-start" /> Move
+          </Button>
+        )}
       </div>
 
-      <span className="bg-border h-4 w-px" />
-      <Button variant="destructive" size="sm" onClick={() => onDelete(selected)}>
-        <Trash2 data-icon="inline-start" /> Delete
-      </Button>
+      {canDelete && (
+        <>
+          <span className="bg-border h-4 w-px" />
+          <Button variant="destructive" size="sm" onClick={() => onDelete(selected)}>
+            <Trash2 data-icon="inline-start" /> Delete
+          </Button>
+        </>
+      )}
 
       <Button variant="ghost" size="icon-sm" aria-label="Clear selection" onClick={onClear}>
         <X />

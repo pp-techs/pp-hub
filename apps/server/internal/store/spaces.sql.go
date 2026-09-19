@@ -31,7 +31,7 @@ func (q *Queries) AddSpaceMember(ctx context.Context, arg AddSpaceMemberParams) 
 const createSpace = `-- name: CreateSpace :one
 INSERT INTO spaces (name, owner_id)
 VALUES ($1, $2)
-RETURNING id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at
+RETURNING id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at, allow_public_links
 `
 
 type CreateSpaceParams struct {
@@ -56,12 +56,13 @@ func (q *Queries) CreateSpace(ctx context.Context, arg CreateSpaceParams) (Space
 		&i.ArchiveRootID,
 		&i.DefaultAsAdmin,
 		&i.CreatedAt,
+		&i.AllowPublicLinks,
 	)
 	return i, err
 }
 
 const getSpace = `-- name: GetSpace :one
-SELECT id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at FROM spaces WHERE id = $1 LIMIT 1
+SELECT id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at, allow_public_links FROM spaces WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetSpace(ctx context.Context, id pgtype.UUID) (Space, error) {
@@ -81,12 +82,13 @@ func (q *Queries) GetSpace(ctx context.Context, id pgtype.UUID) (Space, error) {
 		&i.ArchiveRootID,
 		&i.DefaultAsAdmin,
 		&i.CreatedAt,
+		&i.AllowPublicLinks,
 	)
 	return i, err
 }
 
 const listMySpaces = `-- name: ListMySpaces :many
-SELECT s.id, s.tenant_id, s.name, s.owner_id, s.quota_bytes, s.used_bytes, s.slug, s.description, s.archived_at, s.trash_retention_days, s.archive_root_id, s.default_as_admin, s.created_at FROM spaces s
+SELECT s.id, s.tenant_id, s.name, s.owner_id, s.quota_bytes, s.used_bytes, s.slug, s.description, s.archived_at, s.trash_retention_days, s.archive_root_id, s.default_as_admin, s.created_at, s.allow_public_links FROM spaces s
 JOIN space_members m ON m.space_id = s.id
 WHERE m.user_id = $1
 ORDER BY s.created_at
@@ -115,6 +117,7 @@ func (q *Queries) ListMySpaces(ctx context.Context, userID pgtype.UUID) ([]Space
 			&i.ArchiveRootID,
 			&i.DefaultAsAdmin,
 			&i.CreatedAt,
+			&i.AllowPublicLinks,
 		); err != nil {
 			return nil, err
 		}

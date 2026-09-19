@@ -15,7 +15,13 @@ import {
 import { InputGroupAddon } from "@workspace/ui/components/input-group";
 import { ToggleGroup, ToggleGroupItem } from "@workspace/ui/components/toggle-group";
 import { cn } from "@workspace/ui/lib/utils";
-import { canEdit, openEditor, type SearchKind, type SearchResult, type Space } from "@/lib/api";
+import {
+  opensInEditor,
+  openEditor,
+  type SearchKind,
+  type SearchResult,
+  type Space,
+} from "@/lib/api";
 import { MIN_QUERY_LENGTH, useNodeSearch, useSpaces } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
 import { useDebounced } from "@/lib/use-debounced";
@@ -65,7 +71,7 @@ export function CommandPalette() {
         params: { spaceId: node.space_id },
         search: { dir: node.id },
       });
-    } else if (canEdit(node)) {
+    } else if (opensInEditor(node)) {
       openEditor(node);
     } else {
       void PreviewModal.show({ node });

@@ -1,5 +1,11 @@
 import { useNavigate } from "@tanstack/react-router";
-import { canEdit, fmtRelative, openEditor, type ActivityKind, type RecentNode } from "@/lib/api";
+import {
+  opensInEditor,
+  fmtRelative,
+  openEditor,
+  type ActivityKind,
+  type RecentNode,
+} from "@/lib/api";
 import { PreviewModal } from "@/components/preview-modal";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import { NodeIcon } from "@/components/node-icon";
@@ -39,7 +45,7 @@ export function ContinueCards({ nodes }: { nodes: RecentNode[] }) {
         params: { spaceId: node.space_id },
         search: { dir: node.id },
       });
-    } else if (canEdit(node)) {
+    } else if (opensInEditor(node)) {
       openEditor(node);
     } else {
       void PreviewModal.show({ node, siblings: nodes });

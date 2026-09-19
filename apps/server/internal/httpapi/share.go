@@ -27,6 +27,11 @@ type shareDTO struct {
 	URL         string `json:"url,omitempty"`
 	ExpiresAt   string `json:"expires_at,omitempty"`
 	CreatedAt   string `json:"created_at"`
+	// GranteeOwned counts live nodes inside this node that the grantee
+	// created. Revoking does not touch them: ownership is intrinsic and has no
+	// row to delete, so the dialog has to say what stays behind. Direct shares
+	// only — a group grant has no single author to attribute.
+	GranteeOwned int64 `json:"grantee_owned,omitempty"`
 }
 
 func shareToDTO(sh store.Share, externalURL, token string) shareDTO {
@@ -91,6 +96,21 @@ func (s *Server) handleCreateShare(w http.ResponseWriter, r *http.Request) {
 
 	switch body.Kind {
 	case "link":
+		// Ownership is intrinsic and cannot be narrowed by a grant, so a
+		// member who uploads into a colleague's folder owns that file and may
+		// share it however they like — `can_share: false` on the folder does
+		// not reach them. Whether "however they like" includes a public URL is
+		// therefore a space-wide policy rather than a per-grant one.
+		sp, err := s.store.GetSpace(r.Context(), node.SpaceID)
+		if err != nil {
+			Error(w, r, err)
+			return
+		}
+		if !sp.AllowPublicLinks {
+			writeProblem(w, http.StatusForbidden, "Forbidden",
+				"public links are turned off for this space")
+			return
+		}
 		sh, token, err := s.share.CreateLink(r.Context(), node.ID, want.CanDownload, expires, u.ID)
 		if err != nil {
 			Error(w, r, err)
@@ -153,6 +173,14 @@ func (s *Server) handleListShares(w http.ResponseWriter, r *http.Request) {
 		if sh.Kind == store.ShareKindDirect && sh.GranteeUserID.Valid {
 			if g, err := s.store.GetUser(r.Context(), sh.GranteeUserID); err == nil {
 				d.Grantee = g.Email
+			}
+			// Inside a team folder the count would be a lie: revoking really
+			// does remove access to what the grantee uploaded, because
+			// `created_by` grants nothing there.
+			if !node.TeamRootID.Valid {
+				if n, err := s.fs.OwnedCount(r.Context(), node.ID, sh.GranteeUserID); err == nil {
+					d.GranteeOwned = n
+				}
 			}
 		}
 		out = append(out, d)

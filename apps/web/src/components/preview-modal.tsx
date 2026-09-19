@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, Download, ExternalLink, X } from "lucide-rea
 import { Dialog, DialogContent, DialogTitle } from "@workspace/ui/components/dialog";
 import { Button } from "@workspace/ui/components/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs";
-import { canOpenInTab, fmtDate, fmtSize, openInTab, type Node } from "@/lib/api";
+import { canOpenInTab, capsOf, fmtDate, fmtSize, openInTab, type Node } from "@/lib/api";
 import { PreviewContent } from "@/components/preview-content";
 import { VersionList } from "@/components/version-list";
 import { NodeIcon } from "@/components/node-icon";
@@ -96,18 +96,20 @@ export const PreviewModal = createModal<Props, void>("preview", ({ node, sibling
           )}
 
           <div className="ml-auto flex shrink-0 items-center gap-1">
-            {canOpenInTab(current) && (
+            {canOpenInTab(current) && capsOf(current).download && (
               <Button variant="ghost" size="sm" onClick={() => openInTab(current)}>
                 <ExternalLink data-icon="inline-start" /> Open
               </Button>
             )}
-            <Button
-              variant="ghost"
-              size="sm"
-              render={<a href={`/api/v1/nodes/${current.id}/download`} />}
-            >
-              <Download data-icon="inline-start" /> Download
-            </Button>
+            {capsOf(current).download && (
+              <Button
+                variant="ghost"
+                size="sm"
+                render={<a href={`/api/v1/nodes/${current.id}/download`} />}
+              >
+                <Download data-icon="inline-start" /> Download
+              </Button>
+            )}
           </div>
         </div>
 

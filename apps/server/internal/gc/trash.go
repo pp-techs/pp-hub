@@ -59,7 +59,10 @@ func (w *TrashWorker) Sweep(ctx context.Context) (int, error) {
 
 	purged := 0
 	for _, node := range expired {
-		switch err := w.fs.Purge(ctx, node.ID); {
+		// Retention expiry is a background sweep, so a rescued subtree gets no
+		// notification beyond its new position at its owner's top level.
+		_, err := w.fs.Purge(ctx, node.ID)
+		switch {
 		case err == nil:
 			purged++
 		case errorIsGone(err):

@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Download, History, Link2 } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
-import { createEditSession, fmtSize, type EditSession } from "@/lib/api";
+import { capsOf, createEditSession, fmtSize, type EditSession } from "@/lib/api";
 import { nodeOptions, requireAuth, useNode } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
 import { NodePanels } from "@/components/node-panels";
@@ -76,7 +76,9 @@ function EditPage() {
               ? [
                   node.data.version ? `version ${node.data.version}` : null,
                   node.data.size != null ? fmtSize(node.data.size) : null,
-                  "saved by OnlyOffice",
+                  // A reader gets the document, not the editor, and the
+                  // ribbon alone is a subtle thing to read that from.
+                  session && !session.can_write ? "read-only" : "saved by OnlyOffice",
                 ]
                   .filter(Boolean)
                   .join(" · ")
@@ -85,14 +87,15 @@ function EditPage() {
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-1">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={!node.data}
-            onClick={() => node.data && void ShareDialog.show({ node: node.data })}
-          >
-            <Link2 data-icon="inline-start" /> Share
-          </Button>
+          {node.data && capsOf(node.data).share && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => node.data && void ShareDialog.show({ node: node.data })}
+            >
+              <Link2 data-icon="inline-start" /> Share
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"
@@ -101,14 +104,16 @@ function EditPage() {
           >
             <History data-icon="inline-start" /> Versions
           </Button>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Download"
-            render={<a href={`/api/v1/nodes/${nodeId}/download`} />}
-          >
-            <Download />
-          </Button>
+          {node.data && capsOf(node.data).download && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Download"
+              render={<a href={`/api/v1/nodes/${nodeId}/download`} />}
+            >
+              <Download />
+            </Button>
+          )}
         </div>
       </header>
 

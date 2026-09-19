@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import type { DragEvent, ReactNode } from "react";
 import { UploadCloud } from "lucide-react";
 import { collectDropItems } from "@/lib/drop-items";
-import { useUploadStore } from "@/lib/upload-store";
+import { useUploadWithConflicts } from "@/components/upload-conflict-dialog";
 
 interface DropZoneProps {
   spaceId: string;
@@ -25,7 +25,7 @@ interface DropZoneProps {
 export function DropZone({ spaceId, parentId, destination, disabled, children }: DropZoneProps) {
   const [over, setOver] = useState(false);
   const depth = useRef(0);
-  const enqueue = useUploadStore((s) => s.enqueue);
+  const upload = useUploadWithConflicts();
 
   if (disabled) return <>{children}</>;
 
@@ -58,7 +58,9 @@ export function DropZone({ spaceId, parentId, destination, disabled, children }:
         if (!carriesFiles(e)) return;
         e.preventDefault();
         reset();
-        void collectDropItems(e.dataTransfer).then((items) => enqueue(items, spaceId, parentId));
+        // Dropping onto a folder that already holds a file of the same name
+        // asks before it uploads, exactly as the New menu's picker does.
+        void collectDropItems(e.dataTransfer).then((items) => upload(items, spaceId, parentId));
       }}
     >
       {children}

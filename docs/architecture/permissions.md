@@ -21,7 +21,9 @@ Admin is membership in the space's `Admin` group, and it buys space
 administration (members, groups, settings, trash purge, the archive) — never
 readership of a colleague's files.
 
-Every item is therefore **private to its creator until they share it**.
+Every item is therefore **private to its creator until they share it** — in the
+personal half of the tree. A **team folder** is the other half; see
+[Team Folders](#team-folders).
 
 ## Groups
 
@@ -85,11 +87,23 @@ Two database CHECKs hold the shape:
 - `shares_link_ck` — a link is always `level = 'view'` with `can_share = false`.
   Edit-via-link stays post-MVP, and links must not chain.
 
-`can_download` gates _taking a copy_, not _seeing the bytes_: `GET
-/nodes/{id}/content` streams the original inline under `CapView`, because
-full-size viewing of a PDF or a video is reading, and a 256px thumbnail is a
-stamp in a modal. Withholding `can_download` withholds the download button and
-the zip, not the viewer.
+`can_download` gates **the bytes themselves**, in every route that would hand
+them over: `GET /nodes/{id}/download`, the folder zip, and
+`GET /nodes/{id}/content` — the inline stream the PDF viewer, `<img>` and
+`<video>` read. Serving `/content` under `CapView`, as it once did, made the
+flag a label: a reader could open the file in a tab and keep it. What a reader
+without download still gets is `GET /nodes/{id}/preview`, the artefact the
+preview worker _derived_ from the file — a 256px thumbnail or a text snippet —
+which is view-gated and stays so. The client follows: `PreviewBody` routes a
+no-download reader to the derived preview, and "Open in new tab" and
+"Download" are not offered. Drive draws the line in the same place.
+
+`can_download` is also what **copying** takes. `POST /nodes/{id}/copy`
+authorises the source with `CapDownload` and the destination with
+`requireParentWrite`, so a reader may work from somebody else's file in their
+own folder — and a reader denied download cannot launder the bytes through a
+copy. Requiring `CapEdit` on the source, as it once did, denied the ordinary
+case while leaving the loophole open.
 
 `can_share` is **independent of level** in storage and on the wire: a viewer may
 be allowed to pass their view on, and an editor may be denied re-sharing. Share
@@ -109,6 +123,16 @@ maximum, flags OR together. **Grants only widen; nothing narrows.**
 `Caps.Covers` is enforced in `handleCreateShare` and `handleUpsertGrant`: you
 can only hand out capabilities you hold yourself, so a download-only grantee
 cannot mint an editor. A refusal is **403** carrying `share.ErrEscalation`.
+
+Monotonicity has one blind spot by construction: **an owner covers
+everything**, so a member who uploads into a colleague's folder owns that file
+and may share it however they like — `can_share: false` on the folder above
+never reaches them. This is not a hole in `Covers`, it is what intrinsic
+ownership means. The part worth controlling is publication, so that is a
+space-wide switch rather than a per-grant one: `spaces.allow_public_links`
+(migration 0003, default true). With it off, `POST /nodes/{id}/shares` with
+`kind: "link"` answers **403** for everybody, owner included; direct and group
+grants are unaffected.
 
 ## Resolution Order
 
@@ -145,12 +169,12 @@ weaker rule of its own.
 Node-addressed routes go through `requireNodeCaps(w, r, need share.Cap)`, which
 resolves the node and demands one capability:
 
-| Capability    | Routes                                                                                           |
-| :------------ | :----------------------------------------------------------------------------------------------- |
-| `CapView`     | `GET /nodes/{id}`, `/children`, `/tree`, `/preview`, `/content`, versions, star                  |
-| `CapDownload` | `GET /nodes/{id}/download` (file or streamed zip)                                                |
-| `CapEdit`     | rename, move, copy, delete, upload-into, version restore, trash restore/purge, WOPI edit session |
-| `CapShare`    | list/create/revoke shares, list/upsert/revoke group grants                                       |
+| Capability    | Routes                                                                             |
+| :------------ | :--------------------------------------------------------------------------------- |
+| `CapView`     | `GET /nodes/{id}`, `/children`, `/tree`, `/preview`, versions, star, WOPI session  |
+| `CapDownload` | `GET /nodes/{id}/download` (file or streamed zip), `/content`, copy source         |
+| `CapEdit`     | rename, move, delete, upload-into, version restore, trash restore/purge, WOPI save |
+| `CapShare`    | list/create/revoke shares, list/upsert/revoke group grants                         |
 
 Creating into a folder goes through `requireParentWrite`:
 
@@ -198,11 +222,40 @@ as a grant).
 `GET /usage` is deliberately **not** narrowed: it is an aggregate of bytes per
 MIME family, names nothing, and the rail already shows the space quota beside it.
 
-Listings and single-node GETs carry a `caps` object per node (`attachCaps`), and
-creation responses stamp `share.CapsOwner` without a query — creating a node
-makes you its owner. Every node DTO therefore carries caps, so the client offers
-exactly what the caller holds: the `Share` entry in the node menu follows
-`node.caps.share`, not admin status.
+### Every Node Carries Its Own Answer
+
+Listings and single-node GETs carry a `caps` object per node, and creation
+responses stamp `share.CapsOwner` without a query — creating a node makes you
+its owner. Three paths fill it, and between them they cover every
+authenticated node response:
+
+- `attachCaps` — folder listings and `GET /shared`, one batched `AccessCaps`.
+- `reachability.stamp` — the cross-space feeds (`/search`, `/recent`,
+  `/starred`). These already resolved caps to filter themselves; the
+  resolution is now handed to the DTO instead of being thrown away, so the
+  answer costs no extra query.
+- `withCaps` — creation and single-node responses, from the caps the handler
+  already holds.
+
+This matters because **two rows of one folder can differ**. A folder shared
+with you `view` holds files you uploaded and own: your row resolves to
+`owner`, the neighbouring one to `view`. Nothing the client could compute from
+the listing would find that out.
+
+So the client never guesses. `capsOf(node)` (`lib/api/caps.ts`) returns the
+resolved set, falling back to view-only for a surface that carries none — a
+floor, not an assumption, so an unstamped listing degrades to read-only rather
+than offering controls that 403. Everything user-facing reads it: the node
+menu, the selection bar (`commonCaps`, the intersection across a multi-select,
+so "Delete 5 items" never means "delete the 3 I'm allowed to"), the details
+panel and its Sharing section, the version list's Restore, the preview modal's
+Download, and the editor page's chrome. `canRestructure(node)` carries the one
+rule that is not a plain capability: rename and trash take `edit`, except on a
+team folder's root, which takes `share` — a manager.
+
+An action the caller does not hold is **left out, not disabled**: a greyed
+`Share` invites a click and then explains nothing, and its absence matches
+what the API would answer.
 
 `attachCaps` also stamps `shared` — whether the node itself carries a live
 share row (`NodesWithLiveShares`, batched by id like `AccessCaps`), direct,
@@ -239,9 +292,142 @@ by walking down.
 "Shared with me" is the same query with `include_owned = false`, and it also
 drops rows the caller owns: your own file is not something shared with you.
 
+The containment rule only counts **live** ancestors. When somebody trashes a
+folder, `Delete` tombstones that one row and leaves the subtree live but
+unreachable from above — so a file you created inside it would otherwise
+vanish from your own home with no trace, and the folder owner's purge would
+then take it. The ancestor walk in `ListEntryPoints` therefore stops at the
+first tombstone, and your file surfaces at your top level instead. Drive draws
+the same line: trashing a folder does not remove other people's access to what
+is inside it.
+
 Personal folders are gone. There is no `personal_folders` table, no
 `spaces.personal_root_id`, and no "My files" carve-out — ownership does that
 job for every node, not just one mapped folder per member.
+
+## Team Folders
+
+Ownership as described above is the right model for a member's own work and the
+wrong one for shared company content. Because `created_by` cannot be revoked,
+the personal half of the tree accepts three consequences: revoking a grant does
+not take back what the grantee uploaded into your folder, they can always mint
+a link for it, and they can move it out from under you. Drive, ownCloud and
+Nextcloud all reached the same conclusion and grew a second container — the
+shared drive, the project space, the team folder — where content has no
+personal owner at all. `nodes.team_root_id` (migration 0004) is ours.
+
+|                               | Personal folder                                | Team folder                               |
+| :---------------------------- | :--------------------------------------------- | :---------------------------------------- |
+| Who owns the content          | its creator, forever                           | the folder                                |
+| `created_by`                  | full capabilities, unconditional               | a byline; grants nothing                  |
+| Revoking a grant              | leaves the grantee's uploads reachable by them | removes their access to everything inside |
+| Public link on content inside | the uploader can always mint one               | only a grantee with `can_share`           |
+| Moving content out            | anybody with `CapEdit` on the node             | a manager, and it becomes theirs          |
+| When the creator leaves       | roots go to the Archive                        | nothing moves; managers carry on          |
+
+`team_root_id` is NULL for personal content, the container's id for everything
+inside one, and its **own id** on the container itself — so "is this a team
+folder" is `team_root_id = id` and "is this team content" is
+`team_root_id IS NOT NULL`. It is denormalised deliberately: the alternative is
+an ancestor walk inside every resolution query, and this makes three recursive
+checks column predicates. `fs` maintains it in exactly two places — inherited
+from the parent by `CreateNode`, rewritten across the subtree by `Move` — and
+`nodes_team_root_top_level_ck` keeps a team folder at the top level, because a
+nested one would make "which container owns this" ambiguous.
+
+What changes in the queries:
+
+- **`NodeAccessCaps`** — the `owners` CTE ignores `created_by` when
+  `team_root_id IS NOT NULL`. This one predicate is what makes a team folder a
+  team folder; without it the container would behave exactly like a personal
+  one.
+- **`ListEntryPoints`** and **`ListGrantedChildrenWithMeta`** — the owned
+  branch skips team content, so a file inside a team folder is never somebody's
+  personal entry point and cannot surface at their home after their grant is
+  revoked.
+- **`ListChainPrincipals`** — authors inside a team folder are not principals,
+  so a move's access warning does not name them.
+- **`TransferNestedOwnership`** and **`ListArchiveRoots`** — both skip team
+  content: there is no ownership to hand over, and a team folder must not
+  follow its creator into the Archive.
+
+There is no role enum. A **manager** is simply a grantee whose grant carries
+`can_share`, which is already the capability that means "may hand out access".
+Managers rename and delete the folder (`requireMovableNode`), move content out
+of it (`handleMoveNode`), and appoint other managers. Everyone else with `edit`
+is a contributor.
+
+Two guards keep a team folder administrable:
+
+- **Creation seeds the first manager.** `POST /spaces/{id}/team-folders` is
+  admin-only — a team folder is company structure, which is the line
+  `RequireAdmin` already draws — and the creator immediately gets an
+  `edit + download + share` grant. Without it the folder would be unreachable
+  the moment it existed, since nothing about it is owned.
+- **Departure re-seats one.** `RemoveMember` deletes the grants the leaver
+  created, which may have been the only manager grant. Any team folder left
+  with no `can_share` grantee (`CountTeamManagers`) falls to the `Admin` group,
+  the same custodian the Archive gets, so an admin can appoint the next
+  manager.
+
+A purge inside a team folder does **not** rescue foreign subtrees, and
+`foreign_owned` is not reported for team content: the container owns everything
+in it, so "items other people created" is not a category there and scattering
+them across personal top levels would defeat the point.
+
+## Destroying Other People's Work
+
+A folder owner holds `CapEdit` on everything beneath, so they can trash and
+purge a subtree that colleagues have contributed to. Three rules keep that from
+being silent data loss:
+
+1. **The trash says where the work went.** `GET /spaces/{id}/trash` returns,
+   besides the tombstones the caller can reach, every tombstone that buries
+   live nodes they created (`ListTrashRootsWithUserContent`). Those rows carry
+   `buried_own` and `read_only: true` — an explanation, not a control. Restore
+   and purge still demand `CapEdit` on the tombstone, so they answer 403.
+2. **A purge rescues rather than cascades.** `fs.Purge` detaches every topmost
+   node in the subtree that the purged node's owner did not create
+   (`ListForeignTopmostInSubtree`) and re-parents it to its own owner's top
+   level, keeping `deleted_at` so a file the colleague trashed themselves stays
+   in their trash. Only then does the hard `DELETE` run, so the cascade cannot
+   reach the rescued rows. The response reports how many survived, and each
+   gets an activity event.
+3. **The warning precedes the act.** `GET /nodes/{id}` on a folder carries
+   `foreign_owned`, the number of live nodes inside it somebody else created
+   (`CountForeignOwnedInSubtree`). It is deliberately absent from listings —
+   one subtree walk per row — and exists so the confirm dialog can say what is
+   about to happen.
+
+Revoking a grant is the same story from the other end: it removes the grantee's
+access to the node, and changes nothing about what they created inside it.
+`GET /nodes/{id}/shares` carries `grantee_owned` per direct share so the dialog
+can say so. A group grant has no single author to attribute, so it carries no
+count.
+
+## Moving Changes Who Can Reach It
+
+Access is inherited, so a move rehangs a node under a different chain of
+owners and grants. Both directions matter: a file moved out of a colleague's
+folder leaves everyone that folder reached, and a file moved into a shared one
+is handed to everyone that folder reaches.
+
+The move is **not** blocked. Moving a file you created out of somebody else's
+folder is how you take it back, and Drive documents exactly that as the way to
+narrow sharing on a file inside a folder you do not own. What would be wrong is
+doing it silently, so `GET /nodes/{id}/move-impact?parent=` answers the
+question before the move: `{losing, gaining}`, each a list of principals —
+a person, a group, or the public link.
+
+`ListChainPrincipals` collects everyone who reaches a node by inheritance: the
+creator of the node and of every ancestor, plus every live grant on that chain.
+`fs.MoveImpact` takes it for three roots — the node, its current parent, the
+destination — and differences them. Grants on the node itself and its own
+creator travel with it, so they appear on neither list; the caller is dropped
+from both, because telling somebody they are about to lose their own access
+reads as a bug. The endpoint demands the same capabilities as the move
+(`CapEdit` on the node, `requireParentWrite` on the destination), so it cannot
+be used to probe a tree the caller cannot write to.
 
 ## Anonymous Link Browsing
 
@@ -275,7 +461,12 @@ silently.
    authorship; the activity feed keeps the history.
 3. **Their roots move to the Archive** — every remaining node they own whose
    `parent_id` is NULL is re-parented under `archive_root_id`, with a `" (n)"`
-   suffix if a live sibling already holds the name. Nothing is deleted.
+   suffix if a live sibling already holds the name. Nothing is deleted. The
+   Archive itself is excluded from that sweep: the space creator owns it, so
+   without the exclusion their departure parented the Archive under itself and
+   every ancestor-walking CTE in the space looped forever. `ListArchiveRoots`
+   filters it out, `nodes_no_self_parent_ck` makes the shape unrepresentable,
+   and the recursive walks carry a depth-100 brake.
 4. **Group memberships and the member row go last.** `group_members` references
    `users`, not `spaces`, so nothing cascades when the `space_members` row
    goes; skipping this would leave a departed person holding live access
@@ -287,9 +478,15 @@ have been the row's `created_by` and step 1 deleted it.
 Nothing else is needed to lock the door: with the `space_members` row gone,
 resolution step 0 fails for them, so their own `created_by` rows stop granting
 anything. Their work is in the archive and only the admins can read it.
-Re-adding the person restores that ownership — the folder stays in the archive,
-but they own it again, which is the outcome anyone would expect after a
-mistaken removal or a return.
+Re-adding the person restores ownership of what step 3 archived — the folder
+stays in the archive, but they own it again, which is the outcome anyone would
+expect after a mistaken removal or a return.
+
+Step 2 is **not** reversible in the same way. A file they created inside
+somebody else's folder has already had its `created_by` rewritten to that
+folder's owner, and re-adding the person does not hand it back: they return
+with no capabilities on it at all. Authorship of the individual versions
+(`node_versions.created_by`) and the activity feed are what remain.
 
 Removing the **last** admin is refused (`spaces.ErrLastAdmin` → **409**), as is
 demoting them. Both guards live in `spaces.Service` so the HTTP layer cannot

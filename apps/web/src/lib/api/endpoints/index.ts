@@ -10,6 +10,7 @@ import type {
   InviteResult,
   EditSession,
   Me,
+  MoveImpact,
   Node,
   RecentNode,
   RestoreResult,
@@ -153,6 +154,17 @@ export async function createFolder(
   return res.json() as Promise<Node>;
 }
 
+/**
+ * Creates a folder the team owns: no personal owner, access only through
+ * grants on it, and it survives its creator leaving the company. Space admins
+ * only — a team folder is company structure, not somebody's folder.
+ */
+export async function createTeamFolder(spaceId: string, name: string): Promise<Node> {
+  const res = await api.post(`api/v1/spaces/${spaceId}/team-folders`, { json: { name } });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<Node>;
+}
+
 export async function uploadFile(spaceId: string, file: File, parentId?: string): Promise<Node> {
   const fd = new FormData();
   if (parentId) fd.append("parent_id", parentId);
@@ -167,6 +179,13 @@ export async function uploadFile(spaceId: string, file: File, parentId?: string)
  * so the transfer tray needs XMLHttpRequest — this is the one endpoint that
  * does not go through the shared client.
  *
+ * With `replaceNodeId` the bytes go to that node's versions endpoint
+ * (`POST /api/v1/nodes/{id}/versions`) instead of the space's files endpoint:
+ * the same transfer row, the same progress and the same abort, but landing as
+ * a new version of a file that already exists rather than as a second file
+ * called "name (2)". That is the "Replace" half of the upload conflict
+ * dialog. The versions endpoint addresses a node, so it takes no `parent_id`.
+ *
  * Returns an abort function alongside the promise; cancelling rejects it with
  * an ApiError of status 0.
  */
@@ -175,11 +194,12 @@ export function uploadFileWithProgress(
   file: File,
   parentId: string | undefined,
   onProgress: (loaded: number, total: number) => void,
+  replaceNodeId?: string,
 ): { promise: Promise<Node>; abort: () => void } {
   const xhr = new XMLHttpRequest();
   const promise = new Promise<Node>((resolve, reject) => {
     const fd = new FormData();
-    if (parentId) fd.append("parent_id", parentId);
+    if (parentId && !replaceNodeId) fd.append("parent_id", parentId);
     fd.append("file", file);
 
     xhr.upload.addEventListener("progress", (e) => {
@@ -198,7 +218,10 @@ export function uploadFileWithProgress(
     xhr.addEventListener("error", () => reject(new ApiError(0, "Network error")));
     xhr.addEventListener("abort", () => reject(new ApiError(0, "Cancelled")));
 
-    xhr.open("POST", `/api/v1/spaces/${spaceId}/files`);
+    xhr.open(
+      "POST",
+      replaceNodeId ? `/api/v1/nodes/${replaceNodeId}/versions` : `/api/v1/spaces/${spaceId}/files`,
+    );
     xhr.withCredentials = true;
     xhr.send(fd);
   });
@@ -238,6 +261,22 @@ export async function moveNode(nodeId: string, parentId?: string): Promise<void>
   if (!res.ok) throw new ApiError(res.status, await res.text());
 }
 
+/**
+ * Who gains and who loses access if `nodeId` moves under `parentId`, asked
+ * before the move. Access is inherited, so a move rehangs the node under a
+ * different chain of owners and grants: moving out of a colleague's folder
+ * takes it away from them, moving into a shared one hands it over.
+ *
+ * An undefined parent means the caller's top level, which inherits nothing.
+ */
+export async function moveImpact(nodeId: string, parentId?: string): Promise<MoveImpact> {
+  const res = await api.get(`api/v1/nodes/${nodeId}/move-impact`, {
+    searchParams: parentId ? { parent: parentId } : {},
+  });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<MoveImpact>;
+}
+
 // ─── Trash ───────────────────────────────────────────────────────────────────
 
 export async function restoreNode(nodeId: string): Promise<RestoreResult> {
@@ -246,17 +285,21 @@ export async function restoreNode(nodeId: string): Promise<RestoreResult> {
   return res.json() as Promise<RestoreResult>;
 }
 
-/** Permanent, unrecoverable. Takes the node's whole subtree with it. */
-export async function purgeNode(nodeId: string): Promise<void> {
+/**
+ * Permanent and unrecoverable for everything the node's owner created.
+ * Subtrees belonging to other people are lifted out to their own top level
+ * instead of following the cascade; the count comes back so the UI can say so.
+ */
+export async function purgeNode(nodeId: string): Promise<{ rescued: number }> {
   const res = await api.delete(`api/v1/nodes/${nodeId}/purge`);
   if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<{ rescued: number }>;
 }
 
-export async function emptyTrash(spaceId: string): Promise<number> {
+export async function emptyTrash(spaceId: string): Promise<{ purged: number; rescued: number }> {
   const res = await api.post(`api/v1/spaces/${spaceId}/trash/empty`);
   if (!res.ok) throw new ApiError(res.status, await res.text());
-  const body = (await res.json()) as { purged: number };
-  return body.purged;
+  return res.json() as Promise<{ purged: number; rescued: number }>;
 }
 
 // ─── Search ──────────────────────────────────────────────────────────────────

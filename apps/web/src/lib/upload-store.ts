@@ -18,12 +18,23 @@ export interface Transfer {
   rootParentId?: string;
   /** Wall-clock ms the transfer has spent uploading, for the speed readout. */
   startedAt?: number;
+  /**
+   * Set when this upload replaces a file that already exists: the bytes land
+   * as a new version of that node instead of as a second file beside it.
+   */
+  replaceNodeId?: string;
 }
 
 /** A file plus where it sat in a dropped folder tree. */
 export interface UploadItem {
   file: File;
   path: string;
+  /**
+   * The existing file this one replaces, chosen in the upload conflict
+   * dialog. Only ever set on items dropped at the top level — a name inside
+   * an uploaded folder tree has nothing to collide with yet.
+   */
+  replaceNodeId?: string;
 }
 
 /**
@@ -98,7 +109,7 @@ export const useUploadStore = create<UploadState>()((set, get) => ({
 
   enqueue: (items, spaceId, rootParentId) => {
     if (items.length === 0) return;
-    const added: Transfer[] = items.map(({ file, path }) => ({
+    const added: Transfer[] = items.map(({ file, path, replaceNodeId }) => ({
       id: `t${++seq}`,
       name: file.name,
       path,
@@ -107,6 +118,7 @@ export const useUploadStore = create<UploadState>()((set, get) => ({
       status: "queued",
       spaceId,
       rootParentId,
+      replaceNodeId,
     }));
     files.set(
       added.map((t) => t.id),
@@ -282,15 +294,26 @@ async function run(id: string): Promise<void> {
   patch(id, { status: "uploading", startedAt: Date.now(), loaded: 0 });
 
   try {
-    const parentId = await ensureDir(transfer.spaceId, transfer.rootParentId, transfer.path);
+    // A replacement names an existing node, so there is nothing to resolve:
+    // the new version lands wherever that file already lives, and running
+    // `ensureDir` would create folders for a path the upload never uses.
+    // Only top-level items can be replacements, so their path is "" anyway
+    // and `rootParentId` is the folder the listing has to refetch.
+    const parentId = transfer.replaceNodeId
+      ? transfer.rootParentId
+      : await ensureDir(transfer.spaceId, transfer.rootParentId, transfer.path);
 
     // Cancelling while the folder was being created should not then upload.
     if (transferAt(id)?.transfer.status !== "uploading") {
       return;
     }
 
-    const { promise, abort } = uploadFileWithProgress(transfer.spaceId, file, parentId, (loaded) =>
-      patch(id, { loaded }),
+    const { promise, abort } = uploadFileWithProgress(
+      transfer.spaceId,
+      file,
+      parentId,
+      (loaded) => patch(id, { loaded }),
+      transfer.replaceNodeId,
     );
     aborts.set(id, abort);
     await promise;

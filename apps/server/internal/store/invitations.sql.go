@@ -239,9 +239,9 @@ func (q *Queries) SetUserSuspended(ctx context.Context, arg SetUserSuspendedPara
 const updateSpaceSettings = `-- name: UpdateSpaceSettings :one
 UPDATE spaces
 SET name = $2, slug = $3, description = $4, default_as_admin = $5, quota_bytes = $6,
-    trash_retention_days = $7
+    trash_retention_days = $7, allow_public_links = $8
 WHERE id = $1
-RETURNING id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at
+RETURNING id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at, allow_public_links
 `
 
 type UpdateSpaceSettingsParams struct {
@@ -252,6 +252,7 @@ type UpdateSpaceSettingsParams struct {
 	DefaultAsAdmin     bool        `json:"default_as_admin"`
 	QuotaBytes         int64       `json:"quota_bytes"`
 	TrashRetentionDays int32       `json:"trash_retention_days"`
+	AllowPublicLinks   bool        `json:"allow_public_links"`
 }
 
 func (q *Queries) UpdateSpaceSettings(ctx context.Context, arg UpdateSpaceSettingsParams) (Space, error) {
@@ -263,6 +264,7 @@ func (q *Queries) UpdateSpaceSettings(ctx context.Context, arg UpdateSpaceSettin
 		arg.DefaultAsAdmin,
 		arg.QuotaBytes,
 		arg.TrashRetentionDays,
+		arg.AllowPublicLinks,
 	)
 	var i Space
 	err := row.Scan(
@@ -279,6 +281,7 @@ func (q *Queries) UpdateSpaceSettings(ctx context.Context, arg UpdateSpaceSettin
 		&i.ArchiveRootID,
 		&i.DefaultAsAdmin,
 		&i.CreatedAt,
+		&i.AllowPublicLinks,
 	)
 	return i, err
 }

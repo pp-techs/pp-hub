@@ -15,7 +15,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@workspace/ui/components/empty";
-import { canEdit, fmtRelative, fmtSize, openEditor, type SearchResult } from "@/lib/api";
+import { opensInEditor, fmtRelative, fmtSize, openEditor, type SearchResult } from "@/lib/api";
 import { PreviewModal } from "@/components/preview-modal";
 import { NodeIcon } from "@/components/node-icon";
 
@@ -53,7 +53,7 @@ export function SpaceNodeTable({
         params: { spaceId: node.space_id },
         search: { dir: node.id },
       });
-    } else if (canEdit(node)) {
+    } else if (opensInEditor(node)) {
       openEditor(node);
     } else {
       void PreviewModal.show({ node, siblings: nodes });

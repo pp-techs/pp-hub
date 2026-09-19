@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   copyNode,
   createFolder,
+  createTeamFolder,
   deleteNode,
   emptyTrash,
   getChildren,
@@ -12,6 +13,7 @@ import {
   getTree,
   getTrash,
   getShared,
+  moveImpact,
   moveNode,
   purgeNode,
   renameNode,
@@ -19,7 +21,7 @@ import {
   restoreVersion,
   uploadFile,
 } from "@/lib/api";
-import type { Node } from "@/lib/api";
+import type { MoveImpact, Node, Principal } from "@/lib/api";
 import { keys } from "./keys";
 
 /** Query options factory for children listing. */
@@ -52,6 +54,32 @@ export function useNode(nodeId: string | undefined) {
   return useQuery(nodeOptions(nodeId));
 }
 
+/**
+ * Who gains and who loses access if these nodes move to `parentId`. Asked
+ * while the move dialog is open, so the destination is `enabled`-gated: no
+ * destination, no request.
+ */
+export function useMoveImpact(nodeIds: string[], parentId: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: ["move-impact", nodeIds.join(","), parentId ?? null],
+    queryFn: async () => {
+      const all = await Promise.all(nodeIds.map((id) => moveImpact(id, parentId)));
+      // One warning for the whole selection: the same colleague losing three
+      // files is one person losing access, not three lines.
+      const merge = (pick: (i: MoveImpact) => Principal[]) => {
+        const byKey: Record<string, Principal> = {};
+        for (const impact of all) for (const p of pick(impact)) byKey[`${p.kind}:${p.name}`] = p;
+        return Object.values(byKey);
+      };
+      return {
+        losing: merge((i) => i.losing),
+        gaining: merge((i) => i.gaining),
+      } satisfies MoveImpact;
+    },
+    enabled: enabled && nodeIds.length > 0,
+  });
+}
+
 /** Invalidates the file listing for a space (root + every open folder). */
 export function useInvalidateChildren(spaceId: string) {
   const qc = useQueryClient();
@@ -63,6 +91,22 @@ export function useCreateFolder(spaceId: string, parentId?: string) {
   return useMutation({
     mutationFn: (name: string) => createFolder(spaceId, name, parentId),
     onSuccess: invalidate,
+  });
+}
+
+/**
+ * Team folders only ever live at a space's top level, so this invalidates the
+ * root listing and the tree rather than the folder the user is standing in.
+ */
+export function useCreateTeamFolder(spaceId: string) {
+  const invalidate = useInvalidateChildren(spaceId);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => createTeamFolder(spaceId, name),
+    onSuccess: () => {
+      void invalidate();
+      void qc.invalidateQueries({ queryKey: ["tree", spaceId] });
+    },
   });
 }
 
@@ -199,12 +243,20 @@ export function useRestoreNode(spaceId: string) {
   });
 }
 
+/**
+ * A purge can hand content back rather than destroy it: subtrees the purger
+ * does not own move to their owner's top level. That changes folder listings
+ * and the tree, not just the trash, so everything node-shaped is invalidated.
+ */
 export function usePurgeNode(spaceId: string) {
+  const invalidate = useInvalidateChildren(spaceId);
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (nodeId: string) => purgeNode(nodeId),
     onSuccess: () => {
+      void invalidate();
       void qc.invalidateQueries({ queryKey: keys.trash(spaceId) });
+      void qc.invalidateQueries({ queryKey: ["tree", spaceId] });
       // Storage is released, so the rail meter is stale.
       void qc.invalidateQueries({ queryKey: keys.spaces });
     },
@@ -212,11 +264,14 @@ export function usePurgeNode(spaceId: string) {
 }
 
 export function useEmptyTrash(spaceId: string) {
+  const invalidate = useInvalidateChildren(spaceId);
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => emptyTrash(spaceId),
     onSuccess: () => {
+      void invalidate();
       void qc.invalidateQueries({ queryKey: keys.trash(spaceId) });
+      void qc.invalidateQueries({ queryKey: ["tree", spaceId] });
       void qc.invalidateQueries({ queryKey: keys.spaces });
     },
   });

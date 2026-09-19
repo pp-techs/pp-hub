@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { RotateCcw, Trash2 } from "lucide-react";
+import { Lock, RotateCcw, Trash2 } from "lucide-react";
+import { Badge } from "@workspace/ui/components/badge";
 import { Button } from "@workspace/ui/components/button";
 import { Checkbox } from "@workspace/ui/components/checkbox";
 import { Input } from "@workspace/ui/components/input";
@@ -19,6 +20,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@workspace/ui/components/empty";
+import { cn } from "@workspace/ui/lib/utils";
 import { fmtRelative, fmtSize, type TrashNode } from "@/lib/api";
 import { useEmptyTrash, usePurgeNode, useRestoreNode, useSpaces, useTrash } from "@/lib/queries";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -29,6 +31,13 @@ interface TrashPanelProps {
 }
 
 /**
+ * What a purge does *not* do, stated in both confirmations: the server refuses
+ * to destroy subtrees the purger did not create and hands them back instead.
+ */
+const RESCUE_RULE =
+  "Items other people created are not destroyed — they move to their owner’s top level.";
+
+/**
  * Items soft-deleted in this space, with the two ways out: restore, which
  * lifts a node back into the tree, and delete forever, which releases its
  * blobs and cannot be undone.
@@ -36,6 +45,11 @@ interface TrashPanelProps {
  * Only a space owner can act here — the server gates restore and purge at the
  * same rank it gates delete — so the buttons are hidden for everyone else
  * rather than shown and rejected.
+ *
+ * A row can also be read-only: somebody else's delete that the caller sees
+ * only because their own files are buried inside it. It carries the count of
+ * what is buried and no controls at all, because restore and purge there are
+ * not theirs to run — the server refuses both.
  */
 export function TrashPanel({ spaceId }: TrashPanelProps) {
   const trash = useTrash(spaceId);
@@ -58,8 +72,14 @@ export function TrashPanel({ spaceId }: TrashPanelProps) {
   }, [trash.data, query]);
 
   const totalBytes = (trash.data ?? []).reduce((sum, n) => sum + (n.size ?? 0), 0);
-  const selected = rows.filter((n) => selectedIds.has(n.id));
-  const allChecked = rows.length > 0 && selected.length === rows.length;
+  /**
+   * The rows the caller may act on. A read-only tombstone is somebody else's
+   * delete, so it is kept out of the selection — including select-all —
+   * rather than offered and then refused by the server.
+   */
+  const actionable = rows.filter((n) => !n.read_only);
+  const selected = actionable.filter((n) => selectedIds.has(n.id));
+  const allChecked = actionable.length > 0 && selected.length === actionable.length;
 
   const toggle = (id: string, checked: boolean) =>
     setSelectedIds((prev) => {
@@ -95,13 +115,37 @@ export function TrashPanel({ spaceId }: TrashPanelProps) {
       onError: (e) => toast.error(`Could not restore “${node.name}”`, { description: e.message }),
     });
 
-  const runPurge = (nodes: TrashNode[]) => {
-    for (const node of nodes) {
-      purge.mutate(node.id, {
-        onError: (e) => toast.error(`Could not delete “${node.name}”`, { description: e.message }),
-      });
-    }
+  /**
+   * Purging is not always destruction: the server keeps subtrees the purger
+   * did not create and moves them to their owner's top level, so the outcome
+   * is reported rather than assumed. Nodes are purged independently — one
+   * rejection must not swallow the rest — and counted once all have settled.
+   */
+  const runPurge = async (nodes: TrashNode[]) => {
     setSelectedIds(new Set());
+
+    let purged = 0;
+    let rescued = 0;
+    await Promise.all(
+      nodes.map((node) =>
+        purge
+          .mutateAsync(node.id)
+          .then((result) => {
+            purged += 1;
+            rescued += result.rescued;
+          })
+          .catch((e: Error) =>
+            toast.error(`Could not delete “${node.name}”`, { description: e.message }),
+          ),
+      ),
+    );
+
+    if (purged === 0) return;
+    const note = rescueNote(rescued);
+    toast.success(
+      `Permanently deleted ${plural(purged, "item")}`,
+      note ? { description: note } : undefined,
+    );
   };
 
   return (
@@ -174,7 +218,9 @@ export function TrashPanel({ spaceId }: TrashPanelProps) {
                     aria-label="Select all deleted items"
                     className="size-3.5"
                     onCheckedChange={(checked) =>
-                      setSelectedIds(checked === true ? new Set(rows.map((n) => n.id)) : new Set())
+                      setSelectedIds(
+                        checked === true ? new Set(actionable.map((n) => n.id)) : new Set(),
+                      )
                     }
                   />
                 </TableHead>
@@ -189,68 +235,99 @@ export function TrashPanel({ spaceId }: TrashPanelProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((n) => (
-              <TableRow key={n.id}>
-                {isAdmin && (
+            {rows.map((n) => {
+              // A read-only row is somebody else's delete. It is here to say
+              // where the caller's own files went and that a purge is coming,
+              // so it shows the count and nothing to press.
+              const readOnly = n.read_only === true;
+              const buried = n.buried_own ?? 0;
+              return (
+                <TableRow key={n.id} className={cn(readOnly && "text-muted-foreground")}>
+                  {isAdmin && (
+                    <TableCell>
+                      <Checkbox
+                        checked={!readOnly && selectedIds.has(n.id)}
+                        disabled={readOnly}
+                        aria-label={
+                          readOnly ? `${n.name} was deleted by someone else` : `Select ${n.name}`
+                        }
+                        className="size-3.5"
+                        onCheckedChange={(checked) => toggle(n.id, checked === true)}
+                      />
+                    </TableCell>
+                  )}
                   <TableCell>
-                    <Checkbox
-                      checked={selectedIds.has(n.id)}
-                      aria-label={`Select ${n.name}`}
-                      className="size-3.5"
-                      onCheckedChange={(checked) => toggle(n.id, checked === true)}
-                    />
-                  </TableCell>
-                )}
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <NodeIcon node={n} />
-                    <span className="truncate font-medium">{n.name}</span>
-                    {n.kind === "dir" && n.child_count > 0 && (
-                      <span className="text-muted-foreground shrink-0 text-[10px] tabular-nums">
-                        {plural(n.child_count, "item")}
+                    <div className="flex items-center gap-2">
+                      <NodeIcon node={n} />
+                      <span className={cn("truncate", readOnly ? "font-normal" : "font-medium")}>
+                        {n.name}
                       </span>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell className="text-muted-foreground truncate" title={n.location}>
-                  {n.location || "Top level"}
-                </TableCell>
-                <TableCell className="text-muted-foreground truncate">
-                  {n.deleted_by || n.owner || "—"}
-                </TableCell>
-                <TableCell className="text-muted-foreground tabular-nums">
-                  {fmtRelative(n.deleted_at)}
-                </TableCell>
-                <TableCell className="tabular-nums">
-                  <PurgesIn at={n.purges_at} />
-                </TableCell>
-                <TableCell className="text-muted-foreground tabular-nums">
-                  {n.kind === "file" && n.size != null ? fmtSize(n.size) : "—"}
-                </TableCell>
-                {isAdmin && (
-                  <TableCell>
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="xs"
-                        disabled={restore.isPending}
-                        onClick={() => runRestore(n)}
-                      >
-                        Restore
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="xs"
-                        disabled={purge.isPending}
-                        onClick={() => setConfirmPurge([n])}
-                      >
-                        Delete forever
-                      </Button>
+                      {readOnly && (
+                        <span
+                          className="shrink-0"
+                          title="Deleted by someone else — you see it because your items are inside"
+                        >
+                          <Lock className="text-muted-foreground size-3" />
+                        </span>
+                      )}
+                      {buried > 0 && (
+                        <Badge variant="secondary" className="shrink-0 font-normal">
+                          {plural(buried, "item")} of yours inside
+                        </Badge>
+                      )}
+                      {n.kind === "dir" && n.child_count > 0 && (
+                        <span className="text-muted-foreground shrink-0 text-[10px] tabular-nums">
+                          {plural(n.child_count, "item")}
+                        </span>
+                      )}
                     </div>
                   </TableCell>
-                )}
-              </TableRow>
-            ))}
+                  <TableCell className="text-muted-foreground truncate" title={n.location}>
+                    {n.location || "Top level"}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground truncate">
+                    {n.deleted_by || n.owner || "—"}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground tabular-nums">
+                    {fmtRelative(n.deleted_at)}
+                  </TableCell>
+                  <TableCell className="tabular-nums">
+                    <PurgesIn at={n.purges_at} />
+                  </TableCell>
+                  <TableCell className="text-muted-foreground tabular-nums">
+                    {n.kind === "file" && n.size != null ? fmtSize(n.size) : "—"}
+                  </TableCell>
+                  {isAdmin && (
+                    <TableCell>
+                      {readOnly ? (
+                        <div className="text-muted-foreground flex justify-end text-[10px]">
+                          Not yours to restore
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            disabled={restore.isPending}
+                            onClick={() => runRestore(n)}
+                          >
+                            Restore
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="xs"
+                            disabled={purge.isPending}
+                            onClick={() => setConfirmPurge([n])}
+                          >
+                            Delete forever
+                          </Button>
+                        </div>
+                      )}
+                    </TableCell>
+                  )}
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       )}
@@ -262,25 +339,27 @@ export function TrashPanel({ spaceId }: TrashPanelProps) {
         description={
           confirmPurge?.length === 1
             ? describePurge(confirmPurge[0])
-            : `Permanently delete ${confirmPurge?.length ?? 0} items? This cannot be undone.`
+            : `Permanently delete ${confirmPurge?.length ?? 0} items? This cannot be undone. ${RESCUE_RULE}`
         }
         confirmLabel="Delete forever"
         confirmVariant="destructive"
-        onConfirm={() => runPurge(confirmPurge ?? [])}
+        onConfirm={() => void runPurge(confirmPurge ?? [])}
       />
 
       <ConfirmDialog
         open={confirmEmpty}
         onOpenChange={setConfirmEmpty}
         title="Empty trash"
-        description={`Permanently delete all ${plural(trash.data?.length ?? 0, "item")} in the trash, including everything inside deleted folders. This cannot be undone.`}
+        description={`Permanently delete all ${plural(trash.data?.length ?? 0, "item")} in the trash, including everything inside deleted folders. This cannot be undone. ${RESCUE_RULE}`}
         confirmLabel="Empty trash"
         confirmVariant="destructive"
         onConfirm={() =>
           empty.mutate(undefined, {
-            onSuccess: (purged) => {
-              toast.success(`Emptied the trash`, {
-                description: `${plural(purged, "item")} permanently deleted.`,
+            onSuccess: ({ purged, rescued }) => {
+              toast.success("Emptied the trash", {
+                description: [`${plural(purged, "item")} permanently deleted.`, rescueNote(rescued)]
+                  .filter(Boolean)
+                  .join(" "),
               });
               setSelectedIds(new Set());
             },
@@ -317,7 +396,18 @@ function describePurge(node: TrashNode): string {
     node.kind === "dir" && node.child_count > 0
       ? ` and the ${plural(node.child_count, "item")} inside it`
       : "";
-  return `Permanently delete “${node.name}”${subtree}? This cannot be undone.`;
+  return `Permanently delete “${node.name}”${subtree}? This cannot be undone. ${RESCUE_RULE}`;
+}
+
+/**
+ * What a finished purge has to add when it rescued something: those files
+ * still exist, somewhere the caller cannot see, and a report of "deleted"
+ * alone would be a lie.
+ */
+function rescueNote(rescued: number): string | undefined {
+  return rescued > 0
+    ? `${plural(rescued, "item")} created by other people moved to their owner’s top level instead.`
+    : undefined;
 }
 
 /** Explains the bin's lifetime, which depends on the space's retention. */

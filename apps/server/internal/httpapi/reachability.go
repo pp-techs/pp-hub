@@ -44,11 +44,23 @@ func (s *Server) newReachability(ctx context.Context, userID pgtype.UUID, nodeID
 	return rc, nil
 }
 
+// caps is the caller's whole resolved capability set for a node on this page.
+func (rc *reachability) caps(nodeID pgtype.UUID) share.Caps {
+	return share.EffectiveCaps(rc.resolved[nodeID])
+}
+
 // can reports whether the user may see a node at all: they own it or hold a
 // grant on it or an ancestor. There is no role floor.
 func (rc *reachability) can(nodeID, spaceID pgtype.UUID) bool {
-	res := rc.resolved[nodeID]
-	return share.EffectiveCaps(res).Has(share.CapView)
+	return rc.caps(nodeID).Has(share.CapView)
+}
+
+// stamp copies the resolution onto a DTO. The cross-space feeds resolve caps
+// to filter themselves, and that resolution is exactly what a client needs to
+// know which actions to offer — so every row carries it, at no extra query.
+func (rc *reachability) stamp(d *nodeDTO, nodeID pgtype.UUID) {
+	c := rc.caps(nodeID)
+	d.Caps = &c
 }
 
 // filterRows keeps only the rows the user can reach. The accessors pull the
@@ -64,10 +76,12 @@ func filterRows[T any](rc *reachability, rows []T, nodeOf, spaceOf func(T) pgtyp
 	return out
 }
 
-// reachableRows is the whole pattern in one call: collect the ids, resolve, filter.
-func reachableRows[T any](ctx context.Context, s *Server, userID pgtype.UUID, rows []T, nodeOf, spaceOf func(T) pgtype.UUID) ([]T, error) {
+// reachableRows is the whole pattern in one call: collect the ids, resolve,
+// filter. The resolution comes back with the rows so the caller can stamp it
+// onto the DTOs it builds.
+func reachableRows[T any](ctx context.Context, s *Server, userID pgtype.UUID, rows []T, nodeOf, spaceOf func(T) pgtype.UUID) ([]T, *reachability, error) {
 	if len(rows) == 0 {
-		return rows, nil
+		return rows, &reachability{userID: userID}, nil
 	}
 	nodeIDs := make([]pgtype.UUID, 0, len(rows))
 	spaceIDs := make([]pgtype.UUID, 0, len(rows))
@@ -77,9 +91,9 @@ func reachableRows[T any](ctx context.Context, s *Server, userID pgtype.UUID, ro
 	}
 	rc, err := s.newReachability(ctx, userID, nodeIDs, spaceIDs)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return filterRows(rc, rows, nodeOf, spaceOf), nil
+	return filterRows(rc, rows, nodeOf, spaceOf), rc, nil
 }
 
 func dedupe(ids []pgtype.UUID) []pgtype.UUID {

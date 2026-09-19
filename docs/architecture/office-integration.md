@@ -35,9 +35,29 @@ Mounted under `/wopi`:
 
 ## Editor URL (OnlyOffice 9.x)
 
-- Compose sets `WOPI_ENABLED=true`; OnlyOffice serves `/hosting/discovery` and the editor at `/hosting/wopi/{documentType}/edit` (`word|cell|slide`, mapped from the file extension).
+- Compose sets `WOPI_ENABLED=true`; OnlyOffice serves `/hosting/discovery` and the editor at `/hosting/wopi/{documentType}/{mode}` (`word|cell|slide`, mapped from the file extension; `edit` or `view`, see below).
 - The browser loads the editor by **POSTing a form** into an iframe with `access_token` and `access_token_ttl` in the body — 9.x does not accept the token as a query param on this route.
 - `PP_WOPI_SERVER_URL` must be reachable **from the OnlyOffice container** — on macOS/Windows Docker Desktop use `http://host.docker.internal:8080`, not `localhost`.
+
+## Read-Only Sessions
+
+`POST /nodes/{id}/edit-session` takes **`CapView`**, not `CapEdit`. OnlyOffice
+is the only component that can render an office document at all — the preview
+worker produces a 256px thumbnail of the first page and nothing more — so
+demanding edit would leave a reader with no way to look at a `.docx` they were
+legitimately shared.
+
+What the caller holds decides the _session_, not whether there is one:
+
+| Caller    | Token `perm` | Editor URL | `CheckFileInfo.UserCanWrite` | `PutFile` / lock ops |
+| :-------- | :----------- | :--------- | :--------------------------- | :------------------- |
+| `CapEdit` | 3            | `/edit`    | `true`                       | allowed              |
+| `CapView` | 1            | `/view`    | `false`                      | **403**              |
+
+The rank is signed into the token at mint time, so the write refusal does not
+depend on OnlyOffice honouring `UserCanWrite`. The response carries
+`can_write`, and the editor page's subtitle says "read-only" rather than
+"saved by OnlyOffice" when it is false.
 
 ## Co-Editing
 

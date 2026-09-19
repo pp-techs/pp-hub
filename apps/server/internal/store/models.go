@@ -250,6 +250,7 @@ type Node struct {
 	DeletedBy        pgtype.UUID        `json:"deleted_by"`
 	CreatedBy        pgtype.UUID        `json:"created_by"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	TeamRootID       pgtype.UUID        `json:"team_root_id"`
 }
 
 type NodeStar struct {
@@ -306,6 +307,7 @@ type Space struct {
 	ArchiveRootID      pgtype.UUID        `json:"archive_root_id"`
 	DefaultAsAdmin     bool               `json:"default_as_admin"`
 	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	AllowPublicLinks   bool               `json:"allow_public_links"`
 }
 
 type SpaceInvitation struct {

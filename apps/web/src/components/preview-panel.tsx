@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar";
 import { cn } from "@workspace/ui/lib/utils";
 import {
   canPreview,
+  capsOf,
   fmtDate,
   fmtSize,
   isOfficeFile,
@@ -106,10 +107,13 @@ export function DetailsPanel({ nodes, onClose }: { nodes: Node[]; onClose: () =>
  */
 function NodeDetails({ node }: { node: Node }) {
   const openPanel = useUiStore((s) => s.openPanel);
-  const shares = useShares(node.kind === "file" ? node.id : null);
-  const versions = useVersions(node.kind === "file" ? node.id : null);
-
+  const caps = capsOf(node);
   const isFile = node.kind === "file";
+  // Who else holds this is a sharer's question, and the endpoint answers 403
+  // to anyone else — so the query is not made, rather than made and mourned.
+  const shares = useShares(isFile && caps.share ? node.id : null);
+  const versions = useVersions(isFile ? node.id : null);
+
   const hasThumb = hasThumbnail(node);
 
   return (
@@ -130,7 +134,9 @@ function NodeDetails({ node }: { node: Node }) {
         )}
       </div>
 
-      {/* Primary actions */}
+      {/* Primary actions. Each is hidden when the caller does not hold it:
+          the panel describes one node, and on a shared folder the answer
+          differs row by row. */}
       <div className="border-border flex items-stretch gap-1 border-y py-1">
         <PanelAction
           icon={Eye}
@@ -141,13 +147,17 @@ function NodeDetails({ node }: { node: Node }) {
             else void PreviewModal.show({ node });
           }}
         />
-        <PanelAction
-          icon={Download}
-          label="Download"
-          disabled={!isFile}
-          onClick={() => window.open(`/api/v1/nodes/${node.id}/download`, "_blank")}
-        />
-        <PanelAction icon={Link2} label="Share" onClick={() => void ShareDialog.show({ node })} />
+        {caps.download && (
+          <PanelAction
+            icon={Download}
+            label="Download"
+            disabled={!isFile}
+            onClick={() => window.open(`/api/v1/nodes/${node.id}/download`, "_blank")}
+          />
+        )}
+        {caps.share && (
+          <PanelAction icon={Link2} label="Share" onClick={() => void ShareDialog.show({ node })} />
+        )}
         <PanelAction
           icon={History}
           label="Versions"
@@ -164,14 +174,31 @@ function NodeDetails({ node }: { node: Node }) {
           {isFile && (
             <DetailRow label="Size" value={node.size != null ? fmtSize(node.size) : "—"} />
           )}
-          <DetailRow label="Owner" value={node.owner ?? "—"} />
+          {/* A team folder and its contents have no personal owner: the
+              creator is recorded, but access follows the folder's grants and
+              survives them leaving. Saying "Owner: Alice" would be a lie about
+              who controls it, so the holder is named on the labelled line and
+              the person is demoted to a byline under it. The wrapper keeps
+              both on one row of the divided list. */}
+          {node.in_team ? (
+            <div>
+              <DetailRow label="Managed by" value="Team folder" />
+              {node.owner && (
+                <p className="text-muted-foreground pb-1 text-right text-[11px]">
+                  Added by {node.owner}
+                </p>
+              )}
+            </div>
+          ) : (
+            <DetailRow label="Owner" value={node.owner ?? "—"} />
+          )}
           <DetailRow label="Modified" value={node.modified_at ? fmtDate(node.modified_at) : "—"} />
           {isFile && versions.data && <DetailRow label="Versions" value={versions.data.length} />}
         </div>
       </div>
 
       {/* Sharing */}
-      {isFile && (
+      {isFile && caps.share && (
         <div>
           <SectionLabel>Sharing</SectionLabel>
           {shares.isPending ? (

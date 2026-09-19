@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createModal } from "@buiducnhat/better-modal";
-import { ChevronRight, Folder, HardDrive, Loader2 } from "lucide-react";
+import { ChevronRight, Folder, HardDrive, Loader2, TriangleAlert, Users } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import {
   Dialog,
@@ -11,9 +11,9 @@ import {
   DialogTitle,
 } from "@workspace/ui/components/dialog";
 import { cn } from "@workspace/ui/lib/utils";
-import { useTree } from "@/lib/queries";
+import { useMoveImpact, useTree } from "@/lib/queries";
 import { useKeyedState } from "@/lib/use-keyed-state";
-import type { Node } from "@/lib/api";
+import type { MoveImpact, Node, Principal } from "@/lib/api";
 
 /** Undefined destination means the top level of the space. */
 type Destination = string | undefined;
@@ -32,6 +32,12 @@ type Props = {
  * lazily the same way the rail does. A folder being moved is excluded as a
  * destination, and so is the folder the selection already sits in — both would
  * be no-ops, and moving a folder into itself is rejected by the server anyway.
+ *
+ * Picking a destination also asks the server who gains and who loses access,
+ * because access is inherited: moving a file out of a colleague's folder takes
+ * it away from them, and moving it into a shared folder hands it over. The
+ * move is never blocked — it is the supported way to narrow sharing, the same
+ * advice Drive gives — but it must not be silent.
  */
 export const MoveDialog = createModal<Props, Destination | null>(
   "move-node",
@@ -48,7 +54,11 @@ export const MoveDialog = createModal<Props, Destination | null>(
     // Every node in a selection shares a parent, so one is enough to compare.
     const currentParent = nodes[0]?.parent_id;
     const unchanged = target === currentParent;
-
+    const impact = useMoveImpact(
+      nodes.map((n) => n.id),
+      target,
+      modal.visible && !unchanged,
+    );
     return (
       <Dialog open={modal.visible} onOpenChange={(open) => !open && modal.resolve(null)}>
         <DialogContent className="sm:max-w-md">
@@ -79,6 +89,8 @@ export const MoveDialog = createModal<Props, Destination | null>(
             />
           </div>
 
+          <AccessChange impact={impact.data} />
+
           <DialogFooter>
             <Button variant="outline" onClick={() => modal.resolve(null)}>
               Cancel
@@ -92,6 +104,38 @@ export const MoveDialog = createModal<Props, Destination | null>(
     );
   },
 );
+
+/**
+ * The access delta of the pending move, in the two directions that matter.
+ * Nothing renders while the query is idle or the answer is empty, so a move
+ * inside your own tree stays a two-click operation.
+ */
+function AccessChange({ impact }: { impact: MoveImpact | undefined }) {
+  if (!impact || (impact.losing.length === 0 && impact.gaining.length === 0)) return null;
+  return (
+    <div className="space-y-1 text-xs">
+      {impact.gaining.length > 0 && (
+        <p className="text-muted-foreground flex items-start gap-1.5">
+          <Users className="mt-0.5 size-3.5 shrink-0" />
+          <span>Gains access: {names(impact.gaining)}.</span>
+        </p>
+      )}
+      {impact.losing.length > 0 && (
+        <p className="text-destructive flex items-start gap-1.5">
+          <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
+          <span>Loses access: {names(impact.losing)}.</span>
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Three names, then a count: a folder shared with a big group is one line. */
+function names(ps: Principal[]): string {
+  const shown = ps.slice(0, 3).map((p) => (p.kind === "link" ? "the public link" : p.name));
+  const rest = ps.length - shown.length;
+  return rest > 0 ? `${shown.join(", ")} and ${rest} more` : shown.join(", ");
+}
 
 function destinationRow(active: boolean) {
   return cn(

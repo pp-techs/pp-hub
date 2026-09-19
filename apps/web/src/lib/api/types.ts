@@ -118,7 +118,11 @@ export interface Node {
   modified_at?: string; // ISO timestamp: latest version.CreatedAt (file) or node.CreatedAt (folder)
   owner?: string; // display name of creator
   owner_id?: string; // user id for avatar initials
-  /** Access capabilities for the current user on this node. */
+  /**
+   * What the current user may do to this node, resolved server-side on every
+   * listing and single-node GET. See `capsOf` — the UI gates on this rather
+   * than guessing, because two rows of one folder can differ.
+   */
   caps?: { view: boolean; download: boolean; share: boolean; edit: boolean; owner: boolean };
   /**
    * Whether this node itself carries a live share — direct, group or link,
@@ -128,6 +132,21 @@ export interface Node {
    * do not resolve caps, e.g. recent/starred/search.
    */
   shared?: boolean;
+  /**
+   * Live nodes inside this folder that somebody else created. Only resolved on
+   * a single-folder GET — a listing would need one subtree walk per row — and
+   * only useful to warn before a destructive action: trashing or purging a
+   * folder reaches other people's work too.
+   */
+  foreign_owned?: number;
+  /**
+   * A folder the team owns rather than a person. `owner` is a byline there:
+   * access comes only from grants on the folder, revoking one actually removes
+   * access to what the grantee uploaded, and the folder outlives its creator.
+   */
+  team_folder?: boolean;
+  /** Anything inside a team folder, including the folder itself. */
+  in_team?: boolean;
 }
 
 /**
@@ -145,6 +164,39 @@ export interface TrashNode extends Node {
   location: string;
   /** Direct children, for folders. Files report 0. */
   child_count: number;
+  /**
+   * How many of the caller's own live nodes are buried inside this tombstone.
+   */
+  buried_own?: number;
+  /**
+   * True when the caller can see this row *only* because their work is inside
+   * it. Somebody else trashed the folder; the row explains where their files
+   * went and warns that a purge is coming. Restore and purge are not theirs
+   * to run, and the server refuses them.
+   */
+  read_only?: boolean;
+}
+
+/**
+ * Somebody (or something) that reaches a node by inheritance: a person, a
+ * group, or a share link.
+ */
+export interface Principal {
+  kind: "user" | "group" | "link";
+  name: string;
+}
+
+/**
+ * The access delta a move would cause, asked before it happens. Access is
+ * inherited from the folder chain, so moving a file out of a colleague's
+ * folder takes it away from everyone that folder reached, and moving it into a
+ * shared folder hands it to everyone that one reaches. The move is never
+ * blocked — it is the documented way to narrow sharing — but it should not be
+ * silent. The caller themself never appears in either list.
+ */
+export interface MoveImpact {
+  losing: Principal[];
+  gaining: Principal[];
 }
 
 /**
@@ -253,12 +305,24 @@ export interface Share {
   url?: string;
   expires_at?: string;
   created_at?: string;
+  /**
+   * Live nodes inside the shared node that this grantee created. Revoking
+   * does not touch them — ownership is intrinsic, there is no row to delete —
+   * so the dialog warns before the revoke. Direct shares only.
+   */
+  grantee_owned?: number;
 }
 
 export interface EditSession {
   editor_url: string;
   token: string;
   access_token_ttl: number;
+  /**
+   * Whether this session may save. A reader gets a session too — OnlyOffice
+   * is the only thing here that renders an office document — but it opens in
+   * the viewer and the WOPI write calls refuse its token.
+   */
+  can_write: boolean;
 }
 
 /**

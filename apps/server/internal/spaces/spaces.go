@@ -96,12 +96,12 @@ func (s *Service) Create(ctx context.Context, name string, ownerID pgtype.UUID) 
 	}
 	sp.ArchiveRootID = archive.ID
 	if _, err := s.q.UpsertGroupGrant(ctx, store.UpsertGroupGrantParams{
-		NodeID:          archive.ID,
-		Level:           store.ShareLevelEdit,
-		CanDownload:     true,
-		CanShare:        true,
-		GranteeGroupID:  admin.ID,
-		CreatedBy:       ownerID,
+		NodeID:         archive.ID,
+		Level:          store.ShareLevelEdit,
+		CanDownload:    true,
+		CanShare:       true,
+		GranteeGroupID: admin.ID,
+		CreatedBy:      ownerID,
 	}); err != nil {
 		return store.Space{}, err
 	}
@@ -290,6 +290,37 @@ func (s *Service) RemoveMember(ctx context.Context, spaceID, userID, actorID pgt
 			}
 		}
 	}
+	// A team folder belongs to the company, so it does not follow its creator
+	// into the archive — but step 1 deleted the grants they made, and one of
+	// those may have been the only manager grant on it. A team folder nobody
+	// can administer is a dead end: no member can be added, and no person owns
+	// the content. Hand it to the Admin group, the same custodian the archive
+	// gets, so an admin can appoint the next manager.
+	if admin, err := s.q.GetAdminGroup(ctx, spaceID); err == nil {
+		teamRoots, err := s.q.ListTeamRoots(ctx, spaceID)
+		if err != nil {
+			return err
+		}
+		for _, rootID := range teamRoots {
+			managers, err := s.q.CountTeamManagers(ctx, rootID)
+			if err != nil {
+				return err
+			}
+			if managers > 0 {
+				continue
+			}
+			if _, err := s.q.UpsertGroupGrant(ctx, store.UpsertGroupGrantParams{
+				NodeID:         rootID,
+				Level:          store.ShareLevelEdit,
+				CanDownload:    true,
+				CanShare:       true,
+				GranteeGroupID: admin.ID,
+				CreatedBy:      actorID,
+			}); err != nil {
+				return err
+			}
+		}
+	}
 	if err := s.q.RemoveUserFromSpaceGroups(ctx, store.RemoveUserFromSpaceGroupsParams{
 		SpaceID: spaceID,
 		UserID:  userID,
@@ -332,7 +363,6 @@ func (s *Service) moveToArchive(ctx context.Context, nodeID, archiveRoot pgtype.
 func (s *Service) Members(ctx context.Context, spaceID pgtype.UUID) ([]store.ListSpaceMembersDetailedRow, error) {
 	return s.q.ListSpaceMembersDetailed(ctx, spaceID)
 }
-
 
 func isUniqueViolation(err error) bool {
 	var pgErr interface{ SQLState() string }
