@@ -124,6 +124,10 @@ services:
       PP_SESSION_KEY: "${PP_SESSION_KEY:?set in .env - generate with openssl rand -base64 32}"
       PP_ONLYOFFICE_INTERNAL_URL: http://onlyoffice
       PP_WOPI_SERVER_URL: http://server:8080
+      # MUST equal the Document Server's JWT_SECRET: the worker is the only
+      # process that calls its conversion API, and an unsigned request comes
+      # back as {"error":-8}.
+      PP_ONLYOFFICE_JWT_SECRET: "${PP_ONLYOFFICE_JWT_SECRET:?set in .env - generate with openssl rand -base64 32}"
     volumes:
       - blob_data:/data/blobs
     # Runs pdftoppm and ffmpeg over user-supplied files — memory-unsafe
@@ -173,20 +177,29 @@ services:
     # ports:
     #   - "127.0.0.1:9980:80"
     environment:
-      # JWT_ENABLED=false matches the WOPI integration and the preview
-      # worker's conversion calls, neither of which signs requests. Turning it
-      # on breaks both — office thumbnails fail with error -8.
-      - JWT_ENABLED=false
+      # The Document Server has no access control of its own. Without a
+      # signature, anything that can reach it can drive its conversion API —
+      # which means asking it to fetch a URL of the caller's choosing, from
+      # inside this network, with ALLOW_PRIVATE_IP_ADDRESS below. The worker
+      # signs every conversion request with the same secret
+      # (PP_ONLYOFFICE_JWT_SECRET); an unsigned or wrongly-signed one comes
+      # back as {"error":-8}.
+      - JWT_ENABLED=true
+      - JWT_SECRET=${PP_ONLYOFFICE_JWT_SECRET:?set in .env - generate with openssl rand -base64 32}
       - ONLYOFFICE_HTTPS_ENABLED=false
       # 9.x needs this to serve /hosting/discovery and /hosting/wopi/*/edit.
       - WOPI_ENABLED=true
       # PP_WOPI_SERVER_URL resolves to `server`'s container IP, which sits in
-      # a private (172.16.0.0/12) range. OnlyOffice's request-filtering-agent
-      # blocks fetches to private/meta addresses by default, so without these
-      # every conversion fails with the opaque {"error":-4} and every editor
-      # session with a WOPI CheckFileInfo error — nothing else in this stack
-      # crosses a private address, so this does not relax anything else.
-      - ALLOW_META_IP_ADDRESS=true
+      # a private (172.16.0.0/12) range, and OnlyOffice's
+      # request-filtering-agent blocks private addresses by default — without
+      # this every conversion fails with the opaque {"error":-4} and every
+      # editor session with a WOPI CheckFileInfo error.
+      #
+      # ALLOW_META_IP_ADDRESS is deliberately NOT set: the link-local range it
+      # opens is 169.254.169.254, the cloud metadata endpoint, and nothing in
+      # this topology is reachable there. Setting it would hand the Document
+      # Server's fetcher the one address worth stealing. (The dev stack does
+      # set it, because host.docker.internal lands in that range.)
       - ALLOW_PRIVATE_IP_ADDRESS=true
     volumes:
       - onlyoffice_data:/var/www/onlyoffice/Data

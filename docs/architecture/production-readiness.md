@@ -19,9 +19,9 @@ until the day they are needed, and unrecoverable on that day.
 ## P0 — blocks an internal rollout
 
 These are not features. Each one is either a way to lose data, a way to leak
-it, or a step an administrator cannot perform at all. Item 3 has been closed
-and is kept as a record of what was wrong and what replaced it; the other six
-stand.
+it, or a step an administrator cannot perform at all. Items 3 and 4 have been
+closed and are kept as a record of what was wrong and what replaced it; the
+other five stand.
 
 ### 1. There is no backup
 
@@ -127,24 +127,38 @@ Still open in this area, which is why the section survives:
   JSON over `fetch`, so this is thin rather than absent — and it is the one
   weakness here that M20 did not touch.
 
-### 4. The Document Server boundary is unauthenticated
+### 4. The Document Server was unauthenticated — closed
 
-`compose.prod.yml` sets `JWT_ENABLED=false` **and**
-`ALLOW_PRIVATE_IP_ADDRESS=true` / `ALLOW_META_IP_ADDRESS=true`.
+Both compose files used to set `JWT_ENABLED=false`, and prod also set
+`ALLOW_META_IP_ADDRESS=true`. The Document Server has no access control of its
+own, so that combination meant anything able to reach its port could drive its
+conversion API — an API whose input is a URL to fetch — with permission to
+reach private _and_ cloud-metadata addresses. Either alone is a weak posture;
+together they were a rollout blocker.
 
-Requests **to** the Document Server are therefore unauthenticated — anyone who
-can reach it can drive it — and it will fetch private and cloud-metadata
-addresses on request, which turns its conversion API into a probe of the
-internal network. `office-integration.md` and `preview-pipeline.md` both
-already record that JWT signing is not implemented; this notes that it is a
-rollout blocker rather than a deferral. Switching it on is not a code change
-alone: `ALLOW_PRIVATE_IP_ADDRESS=true` is load-bearing for the current compose
-topology (`host.docker.internal`, the 172.16/12 range), so closing this
-requires deciding the network layout first, and `JWT_ENABLED` is a breaking
-change for every running deployment.
+Both halves are now closed, and they were different problems.
 
-**Requests _from_ the Document Server were the other half, and that half is
-closed.** A WOPI access token is a bearer credential OnlyOffice holds and
+**Requests to the Document Server are signed.** `JWT_ENABLED=true` in both
+stacks with a shared `PP_ONLYOFFICE_JWT_SECRET`, and
+`preview.signOnlyOfficeJWT` signs every conversion request the worker makes —
+body `token` claim and `Authorization: Bearer` header both, because the docs
+disagree about which endpoints honour which. Unsigned and wrongly-signed
+requests come back `-8` with no fetch attempted, verified against a live 9.4.0
+with the metadata endpoint as the target URL. That is what makes the remaining
+`ALLOW_PRIVATE_IP_ADDRESS=true` tolerable rather than an open door: it is
+load-bearing for the topology — the WOPI host is at a 172.16/12 container
+address — but it is no longer reachable by an unauthenticated caller.
+`ALLOW_META_IP_ADDRESS` is gone from production entirely; the range it opens
+contains `169.254.169.254` and nothing in that topology lives there. Only
+development still sets it, because `host.docker.internal` resolves into it.
+
+The old belief that `JWT_ENABLED=true` breaks WOPI was half of the truth: the
+conversion call was unsigned, so it did break office thumbnails. WOPI itself
+is authorized by the access token, not a JWT, and a full editor round trip —
+`CheckFileInfo`, `LOCK`, `GetFile` — was verified working with JWT on.
+
+**Requests from the Document Server carried frozen authorization, and no
+longer do.** A WOPI access token is a bearer credential OnlyOffice holds and
 replays for its ten-hour life, and the permission rank inside it was the
 caller's rank when the editor opened. Every handler trusted that rank, so a
 grant could be revoked, a member removed from the space, or an account
@@ -363,13 +377,13 @@ Restating so these are not rediscovered as gaps:
 
 Nothing below is scheduled; it is the order the dependencies suggest.
 
-**Phase A — rollout blockers.** P0 items 1–7, of which **3 is done**: M20
-brought the `sessions` table with it, so the one schema change this phase ever
-needed is already applied. Of what remains, mostly infrastructure and
-configuration rather than product: items 4, 5 and 6 are small and mechanical;
-1 and 2 are the real work; 7 needs a decision about whether the REST path
-refuses a locked node (simple, correct, occasionally annoying) or takes a lock
-of its own.
+**Phase A — rollout blockers.** P0 items 1–7, of which **3 and 4 are done**:
+M20 brought the `sessions` table with it, so the one schema change this phase
+ever needed is already applied, and the Document Server now runs signed. Of
+what remains, mostly infrastructure and configuration rather than product:
+items 5 and 6 are small and mechanical; 1 and 2 are the real work; 7 needs a
+decision about whether the REST path refuses a locked node (simple, correct,
+occasionally annoying) or takes a lock of its own.
 
 **Phase B — the multi-department layer.** Audit-grade events (new kinds,
 synchronous writes on the paths that matter, request context, an export), then

@@ -38,6 +38,11 @@ type OfficeConfig struct {
 	SourceBaseURL string
 	// WopiKey signs the short-lived token on the source URL.
 	WopiKey []byte
+	// JWTSecret is the Document Server's shared signing secret
+	// (PP_ONLYOFFICE_JWT_SECRET, matching its JWT_SECRET). Empty means the
+	// Document Server is running with JWT_ENABLED=false and will accept
+	// requests from anything that can reach it.
+	JWTSecret []byte
 }
 
 // OfficeRenderer thumbnails office documents by converting them to PDF with
@@ -133,6 +138,10 @@ type convertRequest struct {
 	OutputType string `json:"outputtype"`
 	Key        string `json:"key"`
 	Title      string `json:"title"`
+	// Token is the request above, signed. Omitted when the Document Server
+	// runs unsigned — sending one it cannot verify is worse than sending
+	// none, because it fails with the same opaque code as a wrong secret.
+	Token string `json:"token,omitempty"`
 }
 
 type convertResponse struct {
@@ -143,7 +152,7 @@ type convertResponse struct {
 }
 
 func (r *OfficeRenderer) convert(ctx context.Context, srcURL string, p Payload) (string, error) {
-	body, err := json.Marshal(convertRequest{
+	payload := convertRequest{
 		// Synchronous: the worker already runs off the request path, so
 		// polling an async job would add a state machine for nothing.
 		Async:      false,
@@ -154,7 +163,28 @@ func (r *OfficeRenderer) convert(ctx context.Context, srcURL string, p Payload) 
 		// same document converted twice is a cache hit inside OnlyOffice.
 		Key:   convertKey(p.BlobHash),
 		Title: p.Name,
-	})
+	}
+
+	// The signature covers the request, so the URL the Document Server is
+	// told to fetch cannot be swapped by anyone who intercepts the call —
+	// and, more to the point, nobody who merely reaches its port can ask it
+	// to fetch anything at all.
+	var bearer string
+	if len(r.cfg.JWTSecret) > 0 {
+		signed, err := signOnlyOfficeJWT(r.cfg.JWTSecret, payload)
+		if err != nil {
+			return "", fmt.Errorf("office: sign convert request: %w", err)
+		}
+		payload.Token = signed
+		// The header form wraps the same request under `payload`; the
+		// Document Server checks whichever it is configured for.
+		bearer, err = signOnlyOfficeJWT(r.cfg.JWTSecret, map[string]any{"payload": payload})
+		if err != nil {
+			return "", fmt.Errorf("office: sign convert header: %w", err)
+		}
+	}
+
+	body, err := json.Marshal(payload)
 	if err != nil {
 		return "", err
 	}
@@ -167,6 +197,9 @@ func (r *OfficeRenderer) convert(ctx context.Context, srcURL string, p Payload) 
 	req.Header.Set("Content-Type", "application/json")
 	// Without this the service answers in XML.
 	req.Header.Set("Accept", "application/json")
+	if bearer != "" {
+		req.Header.Set("Authorization", "Bearer "+bearer)
+	}
 
 	resp, err := r.cli.Do(req)
 	if err != nil {

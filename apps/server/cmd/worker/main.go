@@ -68,6 +68,7 @@ func run() error {
 			ConvertURL:    deps.Cfg.OnlyOfficeIntURL,
 			SourceBaseURL: deps.Cfg.WopiServerURL,
 			WopiKey:       officeSigningKey(deps.Cfg),
+			JWTSecret:     deps.Cfg.OnlyOfficeJWTSecret,
 		}),
 	)
 	if len(renderers) == 0 {

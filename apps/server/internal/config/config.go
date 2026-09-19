@@ -40,6 +40,13 @@ type Config struct {
 	OnlyOfficeURL    string // OnlyOffice Document Server base URL (browser-facing)
 	OnlyOfficeIntURL string // OnlyOffice as reachable from the server/worker (container network)
 	WopiServerURL    string // base URL OnlyOffice uses to call this server (container network)
+	// OnlyOfficeJWTSecret is the Document Server's JWT_SECRET. It is its own
+	// variable rather than a DeriveKey subkey because the other holder is a
+	// third-party container configured from compose, which cannot run our
+	// derivation. Empty means the Document Server is unsigned: anything that
+	// can reach its port can drive it, including asking it to fetch an
+	// arbitrary URL.
+	OnlyOfficeJWTSecret []byte
 }
 
 func Load() (*Config, error) {
@@ -70,6 +77,8 @@ func Load() (*Config, error) {
 		OnlyOfficeURL:    env("PP_ONLYOFFICE_URL", "http://localhost:9980"),
 		OnlyOfficeIntURL: os.Getenv("PP_ONLYOFFICE_INTERNAL_URL"),
 		WopiServerURL:    env("PP_WOPI_SERVER_URL", "http://localhost:8080"),
+
+		OnlyOfficeJWTSecret: []byte(os.Getenv("PP_ONLYOFFICE_JWT_SECRET")),
 	}
 	if c.OIDCIssuerExt == "" {
 		c.OIDCIssuerExt = c.OIDCIssuer
@@ -79,6 +88,10 @@ func Load() (*Config, error) {
 		// server-to-server calls too. In compose they differ: the browser
 		// reaches OnlyOffice on localhost:9980, the worker on http://onlyoffice.
 		c.OnlyOfficeIntURL = c.OnlyOfficeURL
+	}
+	if len(c.OnlyOfficeJWTSecret) == 0 {
+		slog.Warn("PP_ONLYOFFICE_JWT_SECRET unset: the Document Server is unsigned",
+			"effect", "anything that can reach its port can drive it, including asking it to fetch an arbitrary URL")
 	}
 	if err := c.validateBlobBackend(); err != nil {
 		return nil, err

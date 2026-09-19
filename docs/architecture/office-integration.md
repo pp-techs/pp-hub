@@ -97,10 +97,43 @@ rather than supplied.
 Failures come back as HTTP 200 with a negative `error` code in the body, so the
 status alone is not enough to tell success from failure. `preview.convertError`
 translates the codes — `-4` is the source URL being unreachable from the
-OnlyOffice container, `-8` is JWT being enabled while this request is unsigned.
+OnlyOffice container, `-8` is a signature the Document Server would not accept.
 
-**JWT signing is not implemented**, here or anywhere else in the integration;
-the compose stack sets `JWT_ENABLED=false`.
+## JWT
+
+The Document Server has **no access control of its own**. It is not a service
+that authenticates callers and authorizes actions; it does what it is asked.
+With `JWT_ENABLED=false`, anything that can open a TCP connection to it can
+ask it to convert — and since the conversion API takes a URL, that is a
+request to fetch an arbitrary address from inside the network, which is
+exactly what `ALLOW_PRIVATE_IP_ADDRESS=true` then permits.
+
+So both compose stacks set `JWT_ENABLED=true` with a shared
+`PP_ONLYOFFICE_JWT_SECRET`, and the worker signs every conversion request:
+`preview.signOnlyOfficeJWT` puts an HS256 token over the request body in its
+`token` field and the same request, wrapped in `payload`, in an
+`Authorization: Bearer` header — the documentation is inconsistent about which
+endpoints honour which, and sending both costs nothing. Unsigned or
+wrongly-signed requests come back `-8` without the fetch being attempted.
+
+The signing helper is hand-rolled rather than a dependency, and that is only
+defensible because it **signs and never verifies**: algorithm confusion and
+`alg: none` are verification bugs. Anything here that ever needs to _check_ a
+JWT should take the dependency instead.
+
+**JWT does not apply to WOPI.** The editor launch, `CheckFileInfo`, `GetFile`,
+`PutFile` and the lock operations are authorized by the WOPI access token
+described above, not by a JWT, and turning `JWT_ENABLED` on leaves all of them
+working — verified against 9.4.0. The historical claim that enabling JWT
+"breaks the WOPI integration" was only ever true of the unsigned conversion
+call.
+
+What is deliberately **not** built is WOPI proof-key verification, the
+WOPI-native way for a host to confirm a request really came from its Document
+Server. The access token already binds one node, one subject and one rank, and
+that rank is re-resolved against live access on every call, so a replayed
+token — the browser holds one too, in the launch form — yields nothing its
+holder cannot already get through `/api/v1`.
 
 See [preview-pipeline.md](preview-pipeline.md).
 

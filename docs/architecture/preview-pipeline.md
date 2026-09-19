@@ -233,10 +233,14 @@ The token is view-only (rank 1) with a 5-minute TTL, signed for the nil-UUID
 system subject — nothing here acts on a user's behalf, and
 `handleWopiGetFile` authorizes on the token alone.
 
-**JWT is not implemented.** If OnlyOffice runs with `JWT_ENABLED=true`, the
-conversion request is rejected with error `-8`, which `convertError` spells out
-in `jobs.last_error`. The compose stack sets `JWT_ENABLED=false`, matching the
-existing WOPI integration.
+**The conversion request is signed.** Both compose stacks run the Document
+Server with `JWT_ENABLED=true`, because it has no other access control and its
+conversion API takes a URL to fetch — unsigned, anything that reaches its port
+can use it to probe the network. The worker signs with
+`PP_ONLYOFFICE_JWT_SECRET`, which must equal the Document Server's
+`JWT_SECRET`; a mismatch surfaces as error `-8` in `jobs.last_error`, which
+`convertError` spells out. See
+[office-integration.md](office-integration.md).
 
 ## Caching
 
@@ -350,7 +354,5 @@ Still open:
 
 - **Backfill has no priority lane** — on a large install, fresh uploads queue
   behind the sweep. Fix is a `run_at` offset on backfilled jobs.
-- **No JWT signing** for the OnlyOffice conversion request, so office
-  thumbnails need `JWT_ENABLED=false`.
 - **`previews` rows are never reaped when a version is superseded.** Blob GC
   collects the bytes once nothing references them, but the row itself lingers.

@@ -51,7 +51,16 @@ services:
     container_name: pphub-onlyoffice
     restart: unless-stopped
     environment:
-      - JWT_ENABLED=false
+      # Signed, same as production. The Document Server has no other access
+      # control: without this, anything that can reach port 9980 can ask it
+      # to convert — which means asking it to fetch a URL of the caller's
+      # choosing, from inside the network, with the allowances below.
+      #
+      # The dev default is a fixed well-known string so the stack comes up
+      # without ceremony; it must match PP_ONLYOFFICE_JWT_SECRET in
+      # apps/server/.env, which is where the worker reads it from.
+      - JWT_ENABLED=true
+      - JWT_SECRET=${PP_ONLYOFFICE_JWT_SECRET:-pphub-dev-onlyoffice-jwt-secret}
       - ONLYOFFICE_HTTPS_ENABLED=false
       - WOPI_ENABLED=true
       # host.docker.internal resolves to a link-local-ish gateway address
@@ -59,6 +68,7 @@ services:
       # blocks that as a "meta" IP by default, so the conversion API and the
       # editor iframe can never fetch /wopi/... from the host-run server
       # without these — fails with {"error":-4} and no other explanation.
+      # Both are only reachable behind the signature above.
       - ALLOW_META_IP_ADDRESS=true
       - ALLOW_PRIVATE_IP_ADDRESS=true
     volumes:
@@ -98,6 +108,9 @@ services:
       PP_ONLYOFFICE_INTERNAL_URL: http://onlyoffice
       # Your host-run server, as OnlyOffice must reach it.
       PP_WOPI_SERVER_URL: ${PP_WOPI_SERVER_URL:-http://host.docker.internal:8080}
+      # Must match the onlyoffice service's JWT_SECRET above, and the value in
+      # apps/server/.env. An unsigned conversion request answers {"error":-8}.
+      PP_ONLYOFFICE_JWT_SECRET: ${PP_ONLYOFFICE_JWT_SECRET:-pphub-dev-onlyoffice-jwt-secret}
       # Must match the server's key. PP_DEV_INSECURE=1 gives both processes the
       # same fixed development key, which is what apps/server/.env sets.
       PP_DEV_INSECURE: ${PP_DEV_INSECURE:-1}

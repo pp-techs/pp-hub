@@ -290,20 +290,40 @@ container IP rather than loopback, so healthchecks must target `$(hostname -i)`
 and not `localhost`; and the app never creates buckets, so `seaweedfs-init`
 does it once.
 
-**OnlyOffice JWT must stay disabled.** Neither the WOPI integration nor the
-preview worker's conversion calls sign their requests. `JWT_ENABLED=true`
-breaks both; office thumbnails fail with conversion error `-8`.
+**OnlyOffice runs signed.** Both compose files set `JWT_ENABLED=true` with
+`PP_ONLYOFFICE_JWT_SECRET`, which is a required secret in production and has a
+fixed well-known default in development. The Document Server has no other
+access control: without a signature anything that can reach its port can drive
+its conversion API, and that API takes a URL to fetch. The worker is the only
+process that calls it, and it signs every request; a mismatched secret shows
+up as conversion error `-8` in the job's `last_error`.
 
-**`ALLOW_META_IP_ADDRESS` / `ALLOW_PRIVATE_IP_ADDRESS` must stay enabled** in
-both compose files. OnlyOffice's `request-filtering-agent` refuses to fetch
-from anything it classifies as a private/link-local/meta address by default.
-That covers `host.docker.internal` in development (OrbStack resolves it to
-`0.250.250.254`) _and_ `http://server:8080` in production, whose container IP
-sits in `172.16.0.0/12`. Without these, every conversion fails with the
-unhelpful `{"error":-4}`; the real reason
+The older instruction to keep JWT disabled was half right and half wrong: the
+_conversion_ call used to be unsigned, so turning JWT on did break office
+thumbnails. WOPI was never affected — the editor launch, `CheckFileInfo`,
+`GetFile`, `PutFile` and the locks are authorized by the WOPI access token,
+not by a JWT, and they work unchanged with `JWT_ENABLED=true` (verified
+against 9.4.0).
+
+**`ALLOW_PRIVATE_IP_ADDRESS` must stay enabled** in both compose files.
+OnlyOffice's `request-filtering-agent` refuses to fetch from anything it
+classifies as a private/link-local/meta address by default, and the WOPI host
+it has to reach is exactly that: `host.docker.internal` in development
+(OrbStack resolves it to `0.250.250.254`, which is why development _also_ sets
+`ALLOW_META_IP_ADDRESS`) and `http://server:8080` in production, whose
+container IP sits in `172.16.0.0/12`. Without it, every conversion fails with
+the unhelpful `{"error":-4}`; the real reason
 (`DNS lookup … is not allowed. Because, It is meta IP address.`) appears only
 in `docker logs <onlyoffice container>`, never in the API or the job's
 `last_error`.
+
+**Production deliberately does not set `ALLOW_META_IP_ADDRESS`.** The range it
+opens contains `169.254.169.254`, the cloud metadata endpoint, and nothing in
+the production topology is reachable there — it is a private-range hop, not a
+link-local one. Setting it would hand the Document Server's fetcher the one
+address on the network worth stealing, for no gain. The signature above is
+what keeps the remaining private-range allowance from being an open door; the
+two go together and neither is sufficient alone.
 
 **The web image compresses and caches deliberately.** nginx ships `#gzip on;`
 commented out, so `nginx.conf` enables it — the entry chunk is 378 KB raw
@@ -349,6 +369,10 @@ service. The worker is bursty — it spawns `pdftoppm`/`ffmpeg` per job with a
   `fetch`, so this is thin rather than absent. See
   [production-readiness.md](architecture/production-readiness.md) §3, which
   also records the cookie and session weaknesses that M20 closed.
-- **No JWT signing** for OnlyOffice, as above.
+- **No WOPI proof-key verification.** The Document Server's calls into
+  `/wopi/files/...` are authorized by our own access token, not by proving
+  they came from the Document Server. Deliberate: the token binds one node,
+  one subject and one rank, and the rank is re-resolved against live access on
+  every call, so replaying it gains nothing.
 - **No backup job.** `pg_data` and `blob_data` both need one; a database dump
   without the blobs restores metadata pointing at content that is gone.
