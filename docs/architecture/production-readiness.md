@@ -1,6 +1,7 @@
 # Production Readiness — Gap Analysis
 
-M1–M19 delivered the product; M20 closed one of the items below. This document
+M1–M19 delivered the product; M20 closed one of the items below and M21 closed
+three more, plus a set of things nobody had written down. This document
 is what stands between that product and an internal rollout, assessed against
 the target deployment: **one company, 20–100 users, several departments,
 self-hosted, no compliance auditor yet**.
@@ -19,9 +20,10 @@ until the day they are needed, and unrecoverable on that day.
 ## P0 — blocks an internal rollout
 
 These are not features. Each one is either a way to lose data, a way to leak
-it, or a step an administrator cannot perform at all. Items 3 and 4 have been
-closed and are kept as a record of what was wrong and what replaced it; the
-other five stand.
+it, or a step an administrator cannot perform at all. Items 3, 4, 5 and 6 have
+been closed and are kept as a record of what was wrong and what replaced it;
+items 1, 2 and 7 stand. §8 is new: it is what two read-only sweeps found that
+was never on this register.
 
 ### 1. There is no backup
 
@@ -62,10 +64,10 @@ The consequences are already visible in the product:
 At 20–100 users across departments, "share" that does not tell the recipient
 anything is not a sharing feature.
 
-### 3. The session cookie was a signature — closed in M20
+### 3. The session cookie was a signature — closed in M20 and M21
 
 Kept rather than deleted, because the blocker was real and because the shape
-of the fix is why the rest of this item is now one bullet.
+of the fix is why the last gap in it was worth closing too.
 
 What it was: the cookie was `v1.<uuid>.<expiry>.<hmac>` — self-contained,
 hard-coded to thirty days, with no `Secure` flag, no `sessions` table and
@@ -120,12 +122,41 @@ What shipped:
   `/login?error=<code>` rather than answering a top-level navigation with
   plain-text `http.Error`.
 
-Still open in this area, which is why the section survives:
+**The last gap here — no CSRF defence beyond `SameSite=Lax` — closed in M21.**
 
-- **No CSRF defence beyond `SameSite=Lax`.** No `Origin` or `Referer` check
-  anywhere in `httpapi/`. `Lax` covers top-level navigations but the API is
-  JSON over `fetch`, so this is thin rather than absent — and it is the one
-  weakness here that M20 did not touch.
+What it was: no `Origin` or `Referer` comparison anywhere in `httpapi/`, so a
+browser policy on one cookie attribute was the entire defence against a
+cross-site write. `Lax` withholds the cookie from a cross-site `fetch`, which
+is most of it, but it is one browser's policy rather than this server's
+control, it does not cover a top-level form navigation, and a single control
+is exactly the thing that should not be the only one.
+
+What shipped: `Server.sameOrigin` (`httpapi/csrf.go`), a middleware on the
+`/api/v1` group and on `/auth/logout`. It reduces `Origin` to
+scheme-plus-host and compares that to `PP_EXTERNAL_URL`; with `Origin` absent
+it falls back to the **origin** of `Referer` and never its path, which the
+caller controls; with neither header present a cookie-authenticated write is
+refused rather than guessed about. An unparseable `PP_EXTERNAL_URL` refuses
+every mutation instead of allowing them, so a misconfiguration cannot become
+a silent bypass. `GET`, `HEAD` and `OPTIONS` pass untouched — demanding an
+Origin on them would break a plain `<a href>` download.
+
+It runs **before** `authenticated`, deliberately: a forged cross-site write
+should cost no session lookup, and the caller should be told the actual reason
+rather than a 401 that sends them hunting for an expired login. Two route
+groups are exempt and both are authorized by something other than a cookie —
+`/wopi/*`, where the Document Server sends no Origin at all and presents a
+signed access token, and `/auth/callback`, a top-level navigation from the IdP
+defended by the state and nonce in `pp_oidc_tx`.
+
+Both halves are structural rather than remembered:
+`TestEveryAPIMutationChecksOrigin` walks the router and fails if any non-safe
+`/api/v1` method is not wrapped; `TestWopiIsExemptFromOriginChecks` fails if
+the WOPI group ever is, because that would break every office save. The unit
+tests in `csrf_test.go` cover the host-prefix near-miss
+(`https://drive.example.com.evil.example`), a scheme downgrade and a
+different port, the Referer fallback, the both-headers-absent refusal and the
+unparseable-URL fail-closed.
 
 ### 4. The Document Server was unauthenticated — closed
 
@@ -183,49 +214,272 @@ refused at `CheckFileInfo` instead of answering 500 on a missing user row.
 revocation, departure from the space, suspension, edit→view downgrade, and a
 token minted for one file being replayed against another.
 
-### 5. The first admin cannot be created
+### 5. The first admin cannot be created — closed in M21
 
-`users.is_admin` defaults to `false` (`0001_init.sql:44`). Its only writer is
-`SetUserAdmin`, behind `requireAdmin` (`admin.go:88-96`). Grep for
-`PP_ADMIN|ADMIN_EMAIL|bootstrapAdmin` across the repo and `deploy/` returns
-nothing, and `bootstrap.go:44-79` does config, pool, migrate and blob only.
+What it was: `users.is_admin` defaults to `false`, and its only writer,
+`SetUserAdmin`, sits behind `requireAdmin`. A grep for
+`PP_ADMIN|ADMIN_EMAIL|bootstrapAdmin` across the repo and `deploy/` returned
+nothing, and `internal/bootstrap` did config, pool, migrate and blob store and
+nothing else. A fresh instance therefore had no administrator and no way to
+appoint one except `UPDATE users SET is_admin = true` against Postgres by
+hand. An install step that requires a psql session is not an install step.
 
-A fresh instance therefore has no administrator and no way to appoint one
-except `UPDATE users SET is_admin = true` against Postgres by hand. An install
-step that requires a psql session is not an install step.
+What shipped: `PP_BOOTSTRAP_ADMIN_EMAIL`, read in `config.Load` (lowercased
+and trimmed there, compared case-insensitively, because an IdP is free to
+return a different case than the operator typed) and applied by
+`auth.Service.promoteBootstrapAdmin` on the sign-in path. Three properties
+are deliberate:
 
-### 6. Uploads are unbounded and nothing is rate limited
+- **It re-promotes on every sign-in, not once.** A one-shot bootstrap solves
+  the empty instance and nothing else; running every time also recovers an
+  install whose last admin was demoted by mistake, which is the same dead end
+  arriving later. The write is idempotent — the function returns early when
+  the account is already an admin — so the ordinary case costs one
+  comparison. The consequence, warned about in the log at the moment of
+  promotion and stated in [deployment.md](../deployment.md), is that the named
+  account cannot stay demoted while the variable is set; unset it once a
+  second admin exists.
+- **It requires a verified email claim.** The address is matched against a
+  static configuration value, which makes the variable a standing
+  authorization rule keyed on a claim a self-service IdP may let its users
+  edit. Without the gate, anyone who could set their own address could take
+  the instance. An unverified claim logs an error naming the fix and records a
+  `login_failed` event with `code: bootstrap-admin-unverified` rather than
+  failing silently.
+- **Promotion is audited.** The row is an `admin_granted` event with
+  `{"via": "PP_BOOTSTRAP_ADMIN_EMAIL"}`, so the one privilege escalation the
+  configuration is allowed to perform is visible in the same log as every
+  other one.
 
-- `nginx.conf:48` sets `client_max_body_size 0` — explicitly uncapped at the
-  edge.
-- `handleUpload` and `handleUploadVersion` call `r.ParseMultipartForm(32<<20)`
-  (`drive.go:543`, `drive.go:595`). That is an in-memory buffering threshold,
-  not a size limit; the remainder spills to temp files. Grep for
-  `MaxBytesReader|http.MaxBytes` across `apps/server` returns no matches.
-- Quota is checked **after** the bytes land (`fs.go:130-137`, by design — a
-  streamed multipart part does not declare its length), so an over-quota upload
-  still consumes disk until the GC sweep reclaims it up to an hour later
-  (`gc/gc.go:22-30`).
-- The middleware chain is exactly `RequestID, RealIP, Logger, Recoverer`
-  (`httpapi/server.go:43`). No rate limiter, no `middleware.Timeout`; `go.mod`
-  has no rate-limit dependency. The anonymous share-link routes
-  (`server.go:130-137`) are brute-forceable at wire speed.
-- The server sets `ReadHeaderTimeout: 10s` and nothing else
-  (`cmd/server/main.go:91`) — no write or idle timeout.
+The related half is in §8: `TouchUserLogin` no longer overwrites
+`users.email` from an unverified claim, which is what stops this variable
+being reachable by a user who can edit their own address.
 
-One user with a large disk can fill the volume for everyone else.
+### 6. Uploads are unbounded and nothing is rate limited — closed in M21
+
+What it was, in four facts that only added up when read together:
+
+- `handleUpload` and `handleUploadVersion` called
+  `r.ParseMultipartForm(32<<20)` and nothing else. That argument is the
+  in-memory buffering threshold, not a size limit — the remainder spills to
+  temp files — so a request body of any size was accepted and written to disk.
+  A grep for `MaxBytesReader|http.MaxBytes` across `apps/server` returned no
+  matches.
+- Quota is checked **after** the bytes land (`fs.Service.checkQuota`, by
+  design: a streamed multipart part does not declare a trustworthy length), so
+  an over-quota upload still consumed disk until the GC sweep reclaimed it up
+  to an hour later.
+- A space's `quota_bytes` defaults to `0`, which means unlimited.
+- The middleware chain was `RequestID, RealIP, Logger, Recoverer` — no rate
+  limiter anywhere, and `go.mod` had no rate-limit dependency. The anonymous
+  share-link routes were brute-forceable at wire speed against a namespace
+  where a hit answers 200.
+
+One authenticated user could therefore fill the volume for everyone else, and
+one anonymous caller could guess share tokens as fast as the network allowed.
+
+What shipped:
+
+- **A body ceiling that stops the reader.** `PP_MAX_UPLOAD_BYTES` (default
+  5 GiB, plain bytes or a `K`/`M`/`G`/`T` suffix, `0` disables) becomes
+  `http.MaxBytesReader` in `limitBody`, so nothing past the ceiling is written
+  anywhere. `parseUpload` wraps it for the two multipart handlers and
+  translates the resulting parse failure into a 413 with a sentence a user can
+  act on instead of "invalid multipart form"; WOPI `PutFile` streams a raw
+  body and calls `limitBody` directly; avatars keep their own, much smaller
+  `avatarMaxBytes`. `Content-Length` is used only as a courtesy early exit —
+  it can lie or be absent under chunked encoding — and never as the
+  enforcement. A bad value fails at startup rather than defaulting to
+  unlimited: an operator who typed `5GB` meaning a ceiling should not be given
+  "no ceiling" for the trouble.
+- **Per-IP token buckets** (`httpapi/ratelimit.go`) on the three surfaces an
+  anonymous caller reaches: `/auth/login`, `/auth/callback` and
+  `/auth/logout` at 30/min with burst 10 (each costs an IdP round trip),
+  `/s/{token}` at 60/min with burst 20 (a guessable secret), and `/api/v1` at
+  1200/min with burst 200 (everything else). Buckets are per limiter as well
+  as per IP, so exhausting one does not spend another; an empty bucket answers
+  429 with `Retry-After`. Anything idle long enough to have refilled
+  completely is evicted, which is what keeps a map keyed on an
+  attacker-supplied value from being a memory leak.
+- **A client address the caller cannot choose.** The limiter keys on
+  `audit.ClientIP`, not `r.RemoteAddr`, and that is what makes it a limit at
+  all — see §8, where chi's `RealIP` is retired.
+
+What honestly remains:
+
+- **The limiter is per process.** The buckets are a map in memory, so N
+  `server` replicas allow N times the published rate. Redis would fix it and
+  would be the first piece of infrastructure this deployment does not already
+  need, for a control whose job is turning "millions of guesses an hour" into
+  "hundreds". Stated in [deployment.md](../deployment.md) rather than hidden,
+  because an operator who scales out should know the limit scaled with them.
+- **There is still no per-user or per-space upload quota beyond
+  `quota_bytes`.** The ceiling bounds one request; it does not bound a
+  thousand of them, and a space with `quota_bytes = 0` is unmetered by
+  definition. Per-user quota remains absent entirely — there is no
+  `users.quota_*` column — and the accounting gap under P1 ("storage
+  accounting understates real usage") is unchanged.
+- **The HTTP server still sets only `ReadHeaderTimeout: 10s`**
+  (`cmd/server/main.go`). There is no write or idle timeout, and no
+  `middleware.Timeout`; the long `proxy_*_timeout` values in `nginx.conf` are
+  there because a multi-gigabyte upload and an OnlyOffice conversion both need
+  them, which is also why a blanket handler timeout is not a one-line change.
 
 ### 7. A REST upload silently overwrites an open editing session
 
 `file_locks` exists (`0001_init.sql:286-291`) with a 30-minute TTL, and the
-WOPI endpoints honour it (`wopi.go:134-176`). Nothing else does: grep of
-`fs.go` finds no `GetLock` call, and there is no lock route under `/api/v1` in
-`server.go:54-140`. There is no ETag or `If-Match` on the version-upload path
-either.
+WOPI endpoints honour it (`handleWopiPutFile` and `handleWopiLockOps`).
+Nothing else does: grep of `fs.go` finds no `GetLock` call, and there is no
+lock route under `/api/v1` in `Server.Router`. There is no ETag or `If-Match`
+on the version-upload path either.
 
 So while A has a `.docx` open in OnlyOffice, B can `PUT /nodes/{id}/versions`
 and A's work is overwritten on the next save. This is the one item on the P0
 list that loses data during normal, well-intentioned use.
+
+### 8. What the sweeps found — closed in M21
+
+Two read-only sweeps went through the server and the deployment looking for
+the things this register had not thought to list. Everything below was real
+and is fixed; it is recorded here because a list of closed findings is how the
+next reader learns which mistakes this codebase is prone to. Ordered by what
+an attacker could actually reach, not by how the fix reads.
+
+1. **A "view only" share link served byte-identical originals.**
+   `GET /s/{token}/content` did not consult the link's `can_download`, so a
+   link created with downloads off handed over the complete file — and, one
+   `?node=` at a time, every file in the shared subtree. No account, no
+   session, nothing but the URL that had already been given out. It is the
+   highest-reach finding of the set and the one whose fix is a single
+   predicate: `serveShareFile` now requires the download flag on both the
+   inline and the attachment path, and the comment that used to claim
+   otherwise was simply wrong. There is no anonymous preview endpoint, so a
+   no-download link is now names, sizes and dates and no file bytes at all —
+   which is what "view only" should have meant, and what the share page now
+   says in those words.
+2. **A public link outlived its creator's access.** `resolveLinkNode`
+   resolved the token hash and the expiry and stopped there, so revoking the
+   grant that let somebody share a folder left every link they had minted
+   working — anonymously, indefinitely. The codebase already held the opposite
+   intent for the stronger action: `RemoveMember` runs
+   `DeleteSharesByCreatorInSpace` so that a departing member's sharing
+   decisions leave with them. Revoking one grant is the weaker action and left
+   the bigger hole. A link now resolves only while
+   `EffectiveCapsForNode(node, share.created_by)` still holds `CapShare`, and
+   answers 404 — not 403 — once it does not. Re-resolving on read rather than
+   cascading on revoke is the same choice made for WOPI tokens: one query
+   covers every way access can disappear, including an ancestor being moved,
+   instead of one cleanup path per way.
+3. **A WOPI editor session was a download in disguise.** `GetFile` accepted
+   rank 1, and `handleEditSession` accepted `CapView` on the reasoning that
+   rank 1 produces a read-only session — true about writing, irrelevant to
+   reading. A reader explicitly refused download could mint a view token, let
+   the Document Server fetch the document, and keep the file, while
+   `handleContent` refused the same person for the same bytes. `GetFile` now
+   requires rank ≥ 2 for a user token and `handleEditSession` requires
+   `CapDownload`, minting rank 2 even for a read-only session because rank 1
+   would no longer be able to fetch its own document. Machine tokens
+   (`wopi.SystemSubject`, the preview worker's conversion fetch) are
+   unaffected: they have no subject to resolve a capability for and the
+   signing key is their authorization. The cost is accepted and stated in
+   [permissions.md](permissions.md) — a view-but-not-download reader cannot
+   open an office document at all, only its thumbnail.
+4. **`/preview?kind=text` was the source file.** The text "preview" is a
+   verbatim 4 KiB prefix of the original, which for a note, a CSV, a config
+   file or a private key is usually the whole document, and it was gated on
+   view. `handlePreview` now demands `CapDownload` for `kind=text` and keeps
+   `kind=thumbnail` on view — a 256px rasterization is genuinely derived, and
+   it is what lets a no-download reader see _something_.
+5. **An unverified email claim could rewrite `users.email`.** The adoption
+   path in `resolveUser` had always required `email_verified`; the ordinary
+   path had not, and rewrote the stored address from the claim on every
+   sign-in. Since that column is what invitation acceptance matches on, what a
+   direct share is granted to, and what `PP_BOOTSTRAP_ADMIN_EMAIL` is compared
+   against, an IdP that lets a user set their own address turned it into a way
+   to collect somebody else's invitations — or, with a bootstrap admin
+   configured, to take the instance. The asymmetry was the bug; both paths now
+   require verification, and admin promotion requires it separately.
+6. **The client's IP address was the client's choice.** The chain began with
+   chi's `RealIP`, which 5.3.2 deprecates for exactly this reason: it
+   believed `True-Client-IP`, `X-Real-IP` and `X-Forwarded-For` from any
+   source. So the address shown on a session row in somebody's Sessions tab
+   was whatever an attacker wanted them to see, and any limit keyed on address
+   would have been resettable at will — which is why this had to be fixed
+   _before_ §6's limiter meant anything. It is replaced by
+   `middleware.ClientIPFromXFF(PP_TRUSTED_PROXIES...)`, installed only when
+   that variable names at least one CIDR, and read through `audit.ClientIP`,
+   where "no vouched-for value" means "believe the TCP peer" rather than
+   "believe the header". `config.Load` validates the CIDR list so a typo is a
+   sentence at startup rather than a panic out of chi. nginx clears
+   `True-Client-IP`, `CF-Connecting-IP` and `Forwarded` on the way through,
+   since a header the proxy does not set is a header the client sets.
+7. **Bearer credentials were written to the logs.** A share token _is_ the
+   authorization for anonymous access to a file and it is a path segment, so
+   chi's request logger put every live link on stdout — and from there into
+   container logs, a log-search index or a support bundle. Only the token's
+   SHA-256 is stored in the database; logging the plaintext beside it made
+   that decision pointless. The WOPI `access_token` is the same problem in a
+   query parameter. `redactingLogger` rewrites `r.RequestURI` — the raw string
+   chi's Logger formats — to `/s/REDACTED/download` and
+   `access_token=REDACTED`, and deliberately leaves `r.URL` alone: routing
+   runs off `r.URL.Path`, and an earlier version that swapped the URL too made
+   chi match the redacted path, so `{token}` reached the handler as the
+   literal string "REDACTED" and every share link answered 404 while the log
+   looked perfect. nginx does the same job with a `map` plus a custom
+   `log_format`.
+8. **`DELETE /nodes/{id}/shares/{shareID}` was not scoped by node.** The
+   handler authorised `CapShare` on the node in the URL and then deleted by
+   share id alone, so a caller who could share _any_ node could revoke a share
+   belonging to a node they had no rights on. `DeleteShare` now takes
+   `id = $1 AND node_id = $2` and a miss answers 404. Authorising on one row
+   and mutating another is the shape of bug worth remembering, not the
+   individual endpoint.
+9. **A space admin nobody could see.** `spaces.SetAdmin` added the target to
+   the space's `Admin` group without checking membership, which produced
+   somebody who passes `IsSpaceAdmin` — and therefore every space-
+   administration route, since those check admin status rather than membership
+   — while having no `space_members` row, so the People page does not list
+   them. Promotion now calls `RequireMember` first; the same check already
+   guarded user-created groups, and the Admin group is the higher privilege of
+   the two.
+10. **The office MIME allowlist allowed everything.** `isOfficeMime` accepted
+    `application/octet-stream`, which is precisely what `fs.PutFile` stores
+    whenever Go's MIME table does not recognise an extension — so the
+    allowlist read "any file with an unfamiliar name", and the editor handoff
+    would hand an arbitrary blob to the Document Server. Removed.
+11. **Secrets were landing in builder layers.** Docker reads
+    `.dockerignore` from the root of the _build context_, and the server and
+    worker images build with `context: ../../apps/server`, so the careful
+    exclusions at the repo root governed only the web image. A bare
+    `COPY . .` was pulling `apps/server/.env` — which holds
+    `PP_OIDC_CLIENT_SECRET` and `PP_SESSION_KEY` — and `apps/server/data/blobs`,
+    which on a developer machine is real user content, into the build. None of
+    it reaches the final image, but it is retained in the local build cache and
+    exported wholesale by any CI using `--cache-to` to a registry.
+    `apps/server/.dockerignore` now exists and is kept in step with the root
+    one.
+12. **One flat compose network, and `/wopi/` published to the internet.**
+    OnlyOffice is a third-party service whose only access control is a shared
+    JWT secret and which runs with `ALLOW_PRIVATE_IP_ADDRESS=true` because its
+    fetcher has to reach `server` at a private address; on a flat network that
+    combination also let it open connections to `postgres:5432` and
+    `seaweedfs:8333`. The network is now segmented `edge`/`data`/`office`,
+    with `server` the only member of all three and OnlyOffice reaching
+    `server:8080` and nothing else. Separately, nginx proxied `/wopi/`, which
+    no shipped topology uses — `PP_WOPI_SERVER_URL` is `http://server:8080`,
+    so the browser never calls that path — and publishing it turned the WOPI
+    access token from a credential that mattered inside the network into an
+    internet-wide bearer token, on the one route group with neither an origin
+    check nor a rate limit. The `location` is gone. The `web` container also
+    picked up `no-new-privileges`, `cap_drop: ALL` plus `NET_BIND_SERVICE`,
+    and an nginx master running as `nginx` rather than root — it terminates
+    every public request, so it gets the treatment the worker already had.
+13. **Two byte-serving endpoints sent no `nosniff` and no disposition.**
+    WOPI `GetFile` and the anonymous share-file path both derived
+    `Content-Type` from the uploader's chosen extension and left a sniffing
+    client nothing else to go on. Both now set
+    `X-Content-Type-Options: nosniff` and an explicit `Content-Disposition`,
+    which is what every other byte-serving path in the server already did.
 
 ## P1 — the gap against Google Drive
 
@@ -248,26 +502,63 @@ queue with an optional worker (`preview-pipeline.md`), and office documents
 already pass through OnlyOffice conversion, so a text-extraction job kind is an
 addition to a working pattern rather than new infrastructure.
 
-### `activity_events` is a feed, not an audit log
+### `activity_events` is a feed, not an audit log — mostly closed in M21
 
-The table and service are real — 12 verbs, space-scoped and cross-space
-readers (`activity.go:30-43`, `home.go:98-151`). As an audit trail it has four
-holes:
+`activity_events` is still a feed, and that has stopped being a complaint:
+M21 added a second table rather than more verbs to the first one. The reason
+is structural, not stylistic. `activity_events.space_id` and `.actor_id` are
+both `NOT NULL`, an authentication event belongs to no space, and the
+interesting authentication event is the _failed_ one, where there may be no
+local account to point an actor at. The two are also read by different people
+for different reasons: one is a feed of work for colleagues, the other is a
+record of access for whoever has to answer "who got in, from where, and when
+did that permission appear". `security_events`
+(`migrations/0003_security_events.sql`, service in `internal/audit`) is that
+second table — no space, a nullable user, a free-text subject, and the request
+context the first one has never carried. See
+[data-model.md](data-model.md).
 
-| Missing                      | Evidence                                                                                                                         |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| Reads and downloads          | No `viewed`/`downloaded` kind in `activity.go:30-43`; `handleDownload`, `handleContent` and `handleShareDownload` record nothing |
-| Authentication events        | `auth.go` never imports `activity` — no login, logout or failed-login rows                                                       |
-| Permission and admin changes | `handleUpsertGrant`/`handleRevokeGrant` (`groups.go`) and `handleAdminUpdateUser` (`admin.go:62-125`) write no activity row      |
-| Request context              | No IP, user-agent or request id in the schema (`0001_init.sql:315-325`)                                                          |
+Where the four holes stand now:
 
-Recording is also best-effort by design — errors are logged and swallowed
-(`activity.go:85-88`), which is correct for a feed and wrong for an audit log.
-There is no export endpoint, no instance-wide admin query (only
-`ListSpaceActivity` / `ListMyActivity`), and no retention.
+| Hole                         | Status                                                                                                                                                                           |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Reads and downloads          | **Still open, and deliberately so** — no `viewed`/`downloaded` kind anywhere; `handleDownload`, `handleContent` and `handleShareDownload` record nothing                         |
+| Authentication events        | **Closed** — `login`, `login_failed`, `logout`, `session_revoked`, `sessions_revoked`, `identity_adopted`, written by `internal/auth`                                            |
+| Permission and admin changes | **Closed** — `admin_granted`, `admin_revoked`, `account_suspended`, `account_unsuspended`, `grant_created`, `grant_revoked`, `share_revoked`, `member_added`, `member_removed`   |
+| Request context              | **Closed** — every row carries `ip` (through `audit.ClientIP`), a 400-byte-truncated `user_agent` and chi's `request_id`, so a row joins to the access-log line that produced it |
 
-Concretely: "who downloaded the payroll folder?" has no answer today. At
-20–100 people across departments that question gets asked.
+`GET /api/v1/admin/security-events` pages the log newest first, admin-only and
+deliberately **not** space-scoped: the whole value of a run of failed sign-ins
+is seeing it across accounts and addresses at once. `?kind=` filters,
+`?limit=`/`?offset=` page, and the actor's email is joined in so a row reads
+as a person rather than a UUID — falling back to the recorded `subject` once
+the account is gone. Retention is `PP_AUDIT_RETENTION_DAYS` (365), purged by
+the same five-minute ticker in `cmd/server` that sweeps expired sessions and
+WOPI locks: one row is written on every sign-in attempt, so "forever" is a
+slow leak and, eventually, a console nobody can read.
+
+Recording is still best-effort — the event describes something that already
+happened, and failing a sign-in because its audit line could not be written
+would trade the real outcome for the record of it — but a failure is logged at
+**error** level rather than warn, and the insert runs on
+`context.WithoutCancel` so a caller who disconnects mid-request cannot take
+the row with them. Unlike an activity row, a gap here is a gap in an audit
+trail.
+
+**Read auditing was omitted on purpose, not overlooked.** A `downloaded` row
+per byte-serving request is the highest-volume event in the system by an order
+of magnitude — every thumbnail in a grid scroll, every range request a video
+player makes, every WOPI `GetFile` behind an editor keystroke — and it would
+have to be written on the hot path of the endpoints that matter most for
+latency. Doing it properly means sampling or aggregation and a retention
+policy of its own, which is a design decision rather than a missing call. So
+"who downloaded the payroll folder?" still has no answer, and that remains a
+Phase B item; what M21 bought is that "who _gained access_ to the payroll
+folder, and when, and who granted it?" does.
+
+Still absent in this area: an export endpoint (the console reads JSON pages),
+and any alerting on the log — a hundred `login_failed` rows from one address
+is visible to an admin who looks, and nothing looks on its own.
 
 ### No comments
 
@@ -316,15 +607,30 @@ longer the only way in: a miss falls back to the **verified** email and
 re-points the existing account (`AdoptUserIdentity`), because `oidc_iss` is a
 URL an operator can change and changing it used to make every returning user
 look brand new — the insert then collided with the unique index on
-`(tenant_id, email_hash)` and sign-in answered 500 for everybody. The fallback
-is gated on `email_verified`; a genuine collision answers `email-taken` on the
-sign-in page rather than a 500. This is a recovery path, not provisioning:
-nothing here creates an account ahead of its owner's first login.
+`(tenant_id, email_hash)` and sign-in answered 500 for everybody. A genuine
+collision answers `email-taken` on the sign-in page rather than a 500. This is
+a recovery path, not provisioning: nothing here creates an account ahead of
+its owner's first login.
+
+Both directions of that key are now gated on `email_verified`, which M21
+made symmetric. The adoption path above always required a verified claim; the
+ordinary hit did not — `resolveUser` passed the claimed address straight into
+`TouchUserLogin` on every sign-in, so `users.email` was rewritten from
+whatever the IdP said. That address is not decoration: it is what invitation
+acceptance matches on, what a direct share is granted to, and what
+`PP_BOOTSTRAP_ADMIN_EMAIL` is compared against. At a self-service IdP a user
+who could set their own address could therefore set it to the bootstrap
+admin's and be promoted, or to a colleague's and collect their pending
+invitations. Now an unverified claim leaves the stored address alone and logs
+that it was ignored; only a verified one updates it. `email_verified` itself
+is decoded through a `boolish` type, because some providers send it as the
+string `"true"` and a strict decode would fail the whole claims read and take
+every other claim down with it.
 
 Deprovisioning is worse: `store/queries/users.sql` has no `DeleteUser`.
-Suspension (`admin.go:73-125`) is the terminal state, and instance-level
-ownership transfer does not exist — `RemoveMember`'s archive behaviour
-(`spaces/spaces.go:228-236`) is per-space only.
+Suspension (`handleAdminUpdateUser`) is the terminal state, and
+instance-level ownership transfer does not exist — `spaces.RemoveMember`'s
+archive behaviour is per-space only.
 
 ### Smaller, but on the list
 
@@ -334,23 +640,35 @@ ownership transfer does not exist — `RemoveMember`'s archive behaviour
   and no extension blocklist.
 - **No encryption at rest.** Local blobs are plaintext under `0755` dirs
   (`blob/blob.go:29-40`); the S3 backend sets no SSE headers; Postgres runs
-  `sslmode=disable` inside the compose network (`compose.prod.yml:59,112`).
+  `sslmode=disable` inside the compose network (the `PP_DATABASE_URL` both
+  the `server` and `worker` services are given in `compose.prod.yml`).
   Share and invite tokens _are_ stored hashed.
-- **No security headers.** `apps/web/nginx.conf` has only `Cache-Control`
-  `add_header`s (lines 121, 129) — no CSP, HSTS, X-Content-Type-Options or
-  X-Frame-Options.
+- **Security headers shipped in M21, with two documented exceptions.**
+  `apps/web/nginx.conf` now sends CSP, `X-Frame-Options: DENY`,
+  `Referrer-Policy: strict-origin-when-cross-origin`, HSTS and
+  `X-Content-Type-Options: nosniff`, all with `always` so they survive the
+  502s the config is designed to return, plus `server_tokens off`. Two CSP
+  directives are looser than the standard advice on purpose — `object-src
+'self'` because the PDF viewer is an `<object>`, and
+  `form-action`/`frame-src` naming the Document Server's origin because the
+  editor handoff is a real cross-origin form POST — and one is looser than it
+  should be: `style-src 'unsafe-inline'`, which needs code changes in
+  `apps/web` to remove. See [deployment.md](../deployment.md).
 - **No metrics, tracing or error tracking.** Grep
   `prometheus|otel|opentelemetry|pprof|sentry` over `apps/server` and `deploy/`
   returns nothing. `log/slog` uses the default text handler with no level
   control (no `slog.New`/`SetDefault` anywhere), and the request id is not
   bridged into log records.
-- **`/healthz` is a static 200** (`server.go:45-48`) — it touches neither
-  Postgres nor the blob store, so it cannot fail when the thing it reports on
-  has. There is no readiness split, and `cmd/worker` has no HTTP listener at
-  all, hence no healthcheck in `compose.prod.yml:104-155`.
-- **Avatar upload is a placeholder.** `users.go:78-103` accepts the file,
-  discards the bytes, stores a placeholder URL, and carries a
-  `// TODO: store to blob store`.
+- **`/healthz` is a static 200** (registered at the top of `Server.Router`) —
+  it touches neither Postgres nor the blob store, so it cannot fail when the
+  thing it reports on has. There is no readiness split, and `cmd/worker` has
+  no HTTP listener at all, hence no healthcheck on that service in
+  `compose.prod.yml`.
+- **Avatar upload is a placeholder.** `handleUploadAvatar` bounds and parses
+  the body, then discards the file, stores a placeholder URL and carries a
+  `// TODO: store to blob store`. The M21 ceiling applies to it
+  (`avatarMaxBytes`, 5 MiB), which means the bytes it throws away are at
+  least bounded.
 - **The UI is English-only.** No i18n library, no locale files, no string
   catalogue in `apps/web/src`.
 - **No orphan-blob audit.** `gc.go:66-76` deliberately leaves a file behind
@@ -377,19 +695,26 @@ Restating so these are not rediscovered as gaps:
 
 Nothing below is scheduled; it is the order the dependencies suggest.
 
-**Phase A — rollout blockers.** P0 items 1–7, of which **3 and 4 are done**:
-M20 brought the `sessions` table with it, so the one schema change this phase
-ever needed is already applied, and the Document Server now runs signed. Of
-what remains, mostly infrastructure and configuration rather than product:
-items 5 and 6 are small and mechanical; 1 and 2 are the real work; 7 needs a
-decision about whether the REST path refuses a locked node (simple, correct,
-occasionally annoying) or takes a lock of its own.
+**Phase A — rollout blockers.** P0 items 1–8, of which **3, 4, 5, 6 and 8 are
+done**: M20 brought the `sessions` table, M21 added `security_events`, so the
+schema changes this phase ever needed are already applied; the Document Server
+runs signed, the first admin is a configuration value, upload bodies and
+request rates have ceilings, and the sweep findings in §8 are closed. What
+remains is the work that is not code in this repository — **1 (backup)** and
+**2 (mail transport)** — plus **7**, which needs a decision rather than an
+implementation: either the REST version-upload path refuses a locked node
+(simple, correct, occasionally annoying) or it takes a lock of its own. 7 is
+also now the only P0 item that loses data.
 
-**Phase B — the multi-department layer.** Audit-grade events (new kinds,
-synchronous writes on the paths that matter, request context, an export), then
-content-indexed search as a new preview-pipeline job kind, then IdP group sync.
-These are what changes when the user count crosses a couple of departments, and
-each one is additive to a pattern that already exists.
+**Phase B — the multi-department layer.** The audit half of this phase is
+partly built: `security_events` carries authentication, admin, suspension,
+grant and membership changes with request context and a retention window, so
+what is left of it is read auditing (a design decision — see the section
+above), an export endpoint, and anything that watches the log rather than
+waiting to be read. Then content-indexed search as a new preview-pipeline job
+kind, then IdP group sync. These are what changes when the user count crosses
+a couple of departments, and each one is additive to a pattern that already
+exists.
 
 **Phase C — collaboration and storage honesty.** Comments, notifications
 (which needs Phase A's mail transport), resumable upload against the dead
@@ -402,9 +727,10 @@ diagnose. It is listed last only because nothing depends on it.
 
 ## Verdict
 
-A pilot with one department is reasonable once Phase A is done, provided
-everyone understands that search finds names rather than contents, that shares
-notify nobody, and that there are no comments. A company-wide rollout across
-several departments needs Phase B as well — specifically the audit log and
-content search, which are the two gaps that get noticed within the first week
-rather than the first month.
+A pilot with one department is reasonable once Phase A is done — which now
+means a backup procedure and a way to tell people they have been shared
+something — provided everyone understands that search finds names rather than
+contents and that there are no comments. A company-wide rollout across several
+departments needs Phase B as well: content search, and the half of the audit
+story that answers "who read this", which is the question that gets asked
+within the first week rather than the first month.

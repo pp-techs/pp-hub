@@ -1,7 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChevronsUpDown, LogOut, User } from "lucide-react";
+import { ChevronsUpDown, LogOut, Shield, ShieldAlert, User } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -88,6 +88,21 @@ export function NavUser() {
             <DropdownMenuItem onClick={() => void navigate({ to: "/drive/account/profile" })}>
               <User /> Account
             </DropdownMenuItem>
+            {/* The two server-administration surfaces are reachable nowhere
+                else in the shell, and the routes gate on `is_admin`
+                themselves — this only keeps the entry out of a menu where it
+                would always bounce. */}
+            {me.data?.is_admin && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => void navigate({ to: "/admin/users" })}>
+                  <Shield /> Server administration
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => void navigate({ to: "/admin/security" })}>
+                  <ShieldAlert /> Security log
+                </DropdownMenuItem>
+              </>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => void handleSignOut()}>
               <LogOut /> Sign out

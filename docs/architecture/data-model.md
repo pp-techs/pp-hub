@@ -61,6 +61,72 @@ sessions(id, user_id,                           -- ON DELETE CASCADE from users
   `DeleteOtherUserSessions` takes `(user_id, id_to_keep)`, so guessing another person's session
   id achieves nothing and "sign out everywhere else" keeps exactly the session that asked.
 
+## Security Events
+
+`migrations/0003_security_events.sql`. The audit trail for everything that changes who can
+reach what: sign-ins and their failures, session revocations, admin and suspension changes,
+grants, share revocation and membership changes. Written by `internal/audit`, read by
+`GET /api/v1/admin/security-events`.
+
+```sql
+security_events(id,
+                kind,                           -- TEXT verb, not an enum
+                user_id,                        -- NULLABLE; ON DELETE SET NULL from users
+                subject,                        -- free text: email, OIDC subject or error code
+                ip, user_agent, request_id,     -- request provenance
+                detail,                         -- JSONB, default '{}'
+                created_at)
+  INDEX (created_at DESC)                       -- security_events_recent: the console's tail
+  INDEX (user_id, created_at DESC)              -- security_events_by_user, partial on NOT NULL
+  INDEX (kind, created_at DESC)                 -- security_events_by_kind
+```
+
+**Why this is a second table and not more rows in `activity_events`.** Two columns on that
+table are `NOT NULL` and both are wrong here: `space_id`, because an authentication event
+belongs to no space, and `actor_id`, because the _interesting_ authentication event is the
+failed one — where there may be no local account to point at, and pointing at one would be a
+claim the server cannot make. The two tables are also read by different people for different
+reasons: `activity_events` is a feed of work for colleagues, this is a record of access for
+whoever has to answer "who got in, from where, and when did that permission appear". Nothing
+about the feed's schema, scoping or readers wanted to become an audit log.
+
+- **The three indexes answer the three questions actually asked.** `created_at DESC` is the
+  console's default page — the tail, newest first. `(user_id, created_at DESC)` is "everything
+  this account did", and it is partial on `user_id IS NOT NULL` because the rows with no user
+  are exactly the ones that question never reaches. `(kind, created_at DESC)` is "every failed
+  sign-in", which is the `?kind=` filter and the one query an incident starts from.
+- **`user_id` is nullable and `ON DELETE SET NULL`, not `CASCADE`.** Null covers two cases: a
+  sign-in that failed before an identity was resolved, and an account deleted since. Cascading
+  would mean deleting a user erases the record that they signed in, which is the whole point of
+  keeping one — the same reasoning that makes `activity_events.node_id` a `SET NULL` with the
+  name denormalised beside it.
+- **`subject` is free text, and what it carries depends on the event.** On a successful
+  sign-in, a logout or an admin change it is the account's email — a durable label that still
+  reads as a person after `user_id` has been nulled. On a failed sign-in it is the failure
+  _code_ rather than an address (`state`, `token`, `exchange`, `email-taken`, `suspended`,
+  `internal`), because `failLogin` records attempts that never resolved an identity and a code
+  is what there is to say. On `identity_adopted` it is the verified email the adoption matched
+  on. The console joins `users.email` for a live account and falls back to this column when
+  the join misses.
+- **`detail` is JSONB for the per-kind extras** — the revoked session id, `{"revoked": n}` on a
+  bulk revocation, the old and new issuer on an adoption, `{"via":
+"PP_BOOTSTRAP_ADMIN_EMAIL"}` on a bootstrap promotion. An empty object is omitted from the
+  wire, so the API shape stays honest about which events carry extras.
+- **`user_agent` is truncated to 400 bytes** before it reaches the column. It is
+  client-controlled text and there is no reason to accept a megabyte of it.
+- **Retention is real.** One row is written on every sign-in and every failed attempt, so
+  "forever" is a slow leak and eventually a console nobody can read.
+  `DeleteSecurityEventsBefore` runs on the same five-minute ticker in `cmd/server` that purges
+  expired sessions and sweeps WOPI locks, with the cutoff from
+  `PP_AUDIT_RETENTION_DAYS` (365).
+- **Writes are best-effort but not cancellable.** `audit.Record` swallows a failed insert with
+  an **error**-level log rather than failing the operation it describes — the event already
+  happened — but it writes on `context.WithoutCancel`, because a caller disconnecting
+  mid-request is exactly when the row matters.
+- `audit.Kind` is `TEXT`, so adding a verb is a code change rather than a migration. One kind,
+  `share_created`, is defined and currently has no writer: creating a share records an activity
+  row only, while revoking one records both.
+
 ## Core Tables
 
 The development-phase migrations were consolidated into one baseline,

@@ -150,6 +150,19 @@ func (s *Server) handleWopiGetFile(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	// Rank 2 is download, and handing over the complete file *is* a
+	// download however the editor frames it. A view-only rank used to be
+	// enough here, which made an editor session a way around the
+	// no-download half of a grant: mint a token with CapView, fetch the
+	// bytes, keep the file. handleContent refuses the same caller.
+	//
+	// A machine token has no subject to resolve a capability for; it is
+	// minted by this deployment, scoped to one node and short-lived, and
+	// the signing key is its authorization.
+	if c.user != nil && c.claims.PermRank < 2 {
+		writeProblem(w, http.StatusForbidden, "Forbidden", "this file may be viewed but not downloaded")
+		return
+	}
 	_, ver, rc, err := s.fs.OpenFile(r.Context(), c.node.ID)
 	if err != nil {
 		s.nodeError(w, r, err)
@@ -157,6 +170,11 @@ func (s *Server) handleWopiGetFile(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rc.Close()
 	w.Header().Set("Content-Type", ver.Mime)
+	// The MIME is derived from the uploader's chosen extension, and unlike
+	// every other byte-serving path this one used to send no disposition
+	// either — leaving a sniffing client nothing but that MIME to go on.
+	w.Header().Set("Content-Disposition", contentDisposition("attachment", c.node.Name))
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Length", strconv.FormatInt(ver.Size, 10))
 	_, _ = io.Copy(w, rc)
 }
@@ -193,6 +211,9 @@ func (s *Server) handleWopiPutFile(w http.ResponseWriter, r *http.Request) {
 			writeProblem(w, http.StatusConflict, "Conflict", "version mismatch")
 			return
 		}
+	}
+	if !limitBody(w, r, s.maxUploadBytes) {
+		return
 	}
 	_, ver, err := s.fs.PutFile(r.Context(), node.SpaceID, pgtype.UUID{}, node.ID, node.Name, r.Body, c.claims.UserID)
 	if err != nil {
@@ -263,14 +284,21 @@ func (s *Server) wopiLockError(w http.ResponseWriter, r *http.Request, err error
 
 // handleEditSession mints a WOPI session for the SPA's office viewer.
 //
-// View access is enough to open one: the rank in the token decides whether it
-// is a read-write or a read-only session, PutFile and the lock ops refuse
-// anything below rank 3, and OnlyOffice is asked for its viewer rather than
-// its editor. Demanding CapEdit here instead would leave a reader with no way
-// to open a .docx at all — the preview worker has no page renderer for one —
-// so the honest answer for them is the document, read-only.
+// It requires **download**, not view. Opening a document in OnlyOffice means
+// the Document Server fetches the whole file and the browser renders it, so
+// there is no version of this that is "viewing without downloading" — the
+// bytes leave the server either way. It used to accept CapView on the
+// reasoning that rank 1 produced a read-only session, which was true about
+// writing and irrelevant to reading: the session was a route around the
+// no-download half of a grant.
+//
+// The cost is real and accepted: a reader granted view-without-download
+// cannot open a .docx at all, only its thumbnail. That is the honest
+// consequence of the grant they were given. The rank in the token still
+// decides read-write versus read-only, and PutFile and the lock ops still
+// refuse anything below rank 3.
 func (s *Server) handleEditSession(w http.ResponseWriter, r *http.Request) {
-	u, node, caps := s.requireNodeCaps(w, r, share.CapView)
+	u, node, caps := s.requireNodeCaps(w, r, share.CapDownload)
 	if u == nil {
 		return
 	}
@@ -287,9 +315,10 @@ func (s *Server) handleEditSession(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "file type not supported by editor")
 		return
 	}
-	// M15: effective caps computed by requireNodeCaps above. Token encodes a
-	// permission rank for WOPI compatibility (w1 format): rank 3 = edit, 1 = view.
-	permRank, mode := 1, "view"
+	// The rank the w1 token carries: 3 = edit, 2 = download. A read-only
+	// session is rank 2 rather than 1 because GetFile now requires download
+	// — rank 1 would mint a session that could not fetch its own document.
+	permRank, mode := 2, "view"
 	if caps.Has(share.CapEdit) {
 		permRank, mode = 3, "edit"
 	}
@@ -325,8 +354,11 @@ func isOfficeMime(mime string) bool {
 		"text/csv",
 		"application/vnd.openxmlformats-officedocument.presentationml.presentation",
 		"application/vnd.ms-powerpoint",
-		"application/vnd.oasis.opendocument.presentation",
-		"application/octet-stream":
+		"application/vnd.oasis.opendocument.presentation":
+		// Deliberately not "application/octet-stream". That is what
+		// fs.PutFile stores whenever Go's MIME table does not recognise the
+		// extension, so allowing it turned this allowlist into "any file
+		// with an unfamiliar name" — which is the opposite of an allowlist.
 		return true
 	default:
 		return false

@@ -152,3 +152,68 @@ func TestEveryAPIRouteIsAuthenticated(t *testing.T) {
 		t.Errorf("routes reachable without authentication:\n  %s", strings.Join(unguarded, "\n  "))
 	}
 }
+
+// The other half of the pair. `SameSite=Lax` is a browser policy, not this
+// server's control, so every state-changing route also compares Origin — and
+// like authentication, it is a middleware rather than seventy chances to
+// forget.
+//
+// GET routes are excluded on purpose: they change nothing, and demanding
+// Origin on them would break a plain `<a href>` into a download.
+func TestEveryAPIMutationChecksOrigin(t *testing.T) {
+	guard := reflect.ValueOf((&Server{}).sameOrigin).Pointer()
+
+	var unguarded []string
+	err := chi.Walk(
+		(&Server{}).Router().(chi.Routes),
+		func(method, route string, _ http.Handler, middlewares ...func(http.Handler) http.Handler) error {
+			if !strings.HasPrefix(route, "/api/v1/") {
+				return nil
+			}
+			switch method {
+			case http.MethodGet, http.MethodHead, http.MethodOptions:
+				return nil
+			}
+			for _, mw := range middlewares {
+				if reflect.ValueOf(mw).Pointer() == guard {
+					return nil
+				}
+			}
+			unguarded = append(unguarded, method+" "+route)
+			return nil
+		},
+	)
+	if err != nil {
+		t.Fatalf("walk routes: %v", err)
+	}
+	if len(unguarded) > 0 {
+		sort.Strings(unguarded)
+		t.Errorf("mutations reachable cross-origin:\n  %s", strings.Join(unguarded, "\n  "))
+	}
+}
+
+// The WOPI group must NOT be wrapped. The Document Server POSTs saves with no
+// Origin header at all, so a check there would break every office save — and
+// the reason it is safe is that those routes are authorized by a signed
+// access token rather than by a cookie the browser attaches automatically.
+func TestWopiIsExemptFromOriginChecks(t *testing.T) {
+	guard := reflect.ValueOf((&Server{}).sameOrigin).Pointer()
+
+	err := chi.Walk(
+		(&Server{}).Router().(chi.Routes),
+		func(method, route string, _ http.Handler, middlewares ...func(http.Handler) http.Handler) error {
+			if !strings.HasPrefix(route, "/wopi/") {
+				return nil
+			}
+			for _, mw := range middlewares {
+				if reflect.ValueOf(mw).Pointer() == guard {
+					t.Errorf("%s %s would refuse the Document Server's own saves", method, route)
+				}
+			}
+			return nil
+		},
+	)
+	if err != nil {
+		t.Fatalf("walk routes: %v", err)
+	}
+}

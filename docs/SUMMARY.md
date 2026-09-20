@@ -7,7 +7,7 @@ Monorepo: bun workspaces + Vite+ frontend (`apps/web`), Go modular-monolith back
 
 Before planning or implementing, read this `docs/SUMMARY.md` file first. Load only the detail docs relevant to the current task, and prioritize `Code Standard` docs for implementation conventions. If docs conflict with code or user intent, use the available question tool before making broad changes.
 
-Status: M1–M20 done — full MVP: OIDC auth (Logto; any OIDC provider works — PKCE and nonce on the handshake, sessions as rows so a device can be signed out on its own), drive (spaces/nodes/CAS blob/upload/download/versioning), sharing (direct + link), OnlyOffice WOPI editing with locks, previews via background jobs — images, PDFs, video and office documents all get a real 256px thumbnail, text gets a 4KB snippet. PDF/video rasterization needs poppler/ffmpeg, and office documents convert through OnlyOffice first; all three live in an **optional** `cmd/worker` container; without it those jobs stay pending rather than failing, and `worker --backfill` sweeps files that predate it. Full-size viewing still streams the original bytes from `GET /api/v1/nodes/{id}/content` (inline, allowlisted MIME), since a 256px thumbnail is a stamp in a modal. Two compose stacks in `deploy/compose/` — `compose.dev.yml` (services only, app from source) and `compose.prod.yml` (everything, VPS/Dokploy); the web image is nginx serving the SPA and proxying the API on one origin, which the session cookie requires. See [deployment.md](deployment.md). UI primitives extracted to `packages/ui` (shadcn/ui preset). Drive rail exposes Trash and Shared with me as routes under the open space (`/drive/$spaceId/trash|shared`); Trash supports restore, delete forever and empty trash. Uploads run through a queue with drag-and-drop, folder upload and a progress tray. ⌘K opens a command palette backed by `GET /api/v1/search` (trigram index, scoped to your space membership). Share links browse shared folders anonymously (containment-checked, zip download); stars, activity and a Home dashboard are scoped to the open space; space settings cover slug/description/quota, whether new members arrive as admins, and deletion, with members, their groups and pending invitations in one filterable table (admin, joined, last active, files owned, CSV export); the admin console reports server stats and can suspend accounts; the account page lists your live sessions and can end them. Blobs live on local disk or in any S3-compatible bucket (`PP_BLOB_BACKEND`), both behind one interface and one conformance suite (SeaweedFS ships in the compose files). Blob GC reclaims disk from unreferenced content, quotas are enforced at upload, and per-space trash retention purges on a schedule (off by default).
+Status: M1–M21 done — full MVP: OIDC auth (Logto; any OIDC provider works — PKCE and nonce on the handshake, sessions as rows so a device can be signed out on its own), drive (spaces/nodes/CAS blob/upload/download/versioning), sharing (direct + link), OnlyOffice WOPI editing with locks, previews via background jobs — images, PDFs, video and office documents all get a real 256px thumbnail, text gets a 4KB snippet. PDF/video rasterization needs poppler/ffmpeg, and office documents convert through OnlyOffice first; all three live in an **optional** `cmd/worker` container; without it those jobs stay pending rather than failing, and `worker --backfill` sweeps files that predate it. Full-size viewing still streams the original bytes from `GET /api/v1/nodes/{id}/content` (inline, allowlisted MIME), since a 256px thumbnail is a stamp in a modal. Two compose stacks in `deploy/compose/` — `compose.dev.yml` (services only, app from source) and `compose.prod.yml` (everything, VPS/Dokploy); the web image is nginx serving the SPA and proxying the API on one origin, which the session cookie requires. See [deployment.md](deployment.md). UI primitives extracted to `packages/ui` (shadcn/ui preset). Drive rail exposes Trash and Shared with me as routes under the open space (`/drive/$spaceId/trash|shared`); Trash supports restore, delete forever and empty trash. Uploads run through a queue with drag-and-drop, folder upload and a progress tray. ⌘K opens a command palette backed by `GET /api/v1/search` (trigram index, scoped to your space membership). Share links browse shared folders anonymously (containment-checked, zip download); stars, activity and a Home dashboard are scoped to the open space; space settings cover slug/description/quota, whether new members arrive as admins, and deletion, with members, their groups and pending invitations in one filterable table (admin, joined, last active, files owned, CSV export); the admin console reports server stats, can suspend accounts, and reads the security log (`GET /api/v1/admin/security-events`); the account page lists your live sessions and can end them. Blobs live on local disk or in any S3-compatible bucket (`PP_BLOB_BACKEND`), both behind one interface and one conformance suite (SeaweedFS ships in the compose files). Blob GC reclaims disk from unreferenced content, quotas are enforced at upload, and per-space trash retention purges on a schedule (off by default). Every mutation is same-origin checked, the sign-in, share-link and API surfaces are rate limited per IP, upload bodies are capped by `PP_MAX_UPLOAD_BYTES`, and the first admin comes from `PP_BOOTSTRAP_ADMIN_EMAIL`.
 
 **M11 — a space is a company.** One instance hosts several companies: space membership grants **no file access at all**, and access comes from `groups` granted on folders (`shares.kind = 'group'`), inherited down the subtree. Resolution is one batched recursive query that also walks through trashed ancestors, so the trash needs no weaker rule of its own. Listings, search, starred, recent, activity and trash all narrow to what the caller can reach, in one batched query per page rather than a walk per row, and `Shared with me` is an actual list of grants rather than a slice of the filing cabinet. Groups are managed from the drawer on the People page in space settings, and a folder's `Who can open this…` dialog is the one place access is granted or revoked; behind them sit `/spaces/{id}/groups` and `/nodes/{id}/grants`. A direct share may not name someone outside the space — that is what link shares are for.
 
@@ -96,20 +96,76 @@ still keyed on `(oidc_iss, oidc_sub)`, but a miss now falls back to the
 **verified** email and re-points the existing account instead of inserting a
 second row that collides with the unique index on `(tenant_id, email_hash)`.
 
+**M21 — deciding once is not deciding.** M20 made a session a row so that it
+could be revoked and re-resolved on every request; this pass went looking for
+everything else that decided access once and then trusted the answer forever.
+A public link checked its own token hash and expiry and nothing else, so
+revoking the grant that let somebody share a folder left every link they had
+minted working, anonymously, indefinitely — `resolveLinkNode` now re-resolves
+the **creator's** `CapShare` on the node and answers 404 once it is gone. A
+WOPI `GetFile` accepted rank 1, which made an editor session the way around
+the no-download half of a grant: mint a view token, fetch the document, keep
+it. `GetFile` now requires rank ≥ 2 and `handleEditSession` requires
+`CapDownload`, minting rank 2 even for a read-only session because rank 1
+could no longer fetch its own document; the accepted cost is that a reader
+with view-but-not-download cannot open a `.docx` at all, only its thumbnail.
+`/s/{token}/content` served byte-identical originals of every file in a
+subtree regardless of `can_download`, one `?node=` at a time, and
+`/preview?kind=text` handed over a verbatim 4 KiB prefix of the source under
+view — both take download now. And the caller's own address was the caller's
+choice: chi's `RealIP` middleware, deprecated in 5.3.2 for exactly this,
+believed `True-Client-IP`, `X-Real-IP` and `X-Forwarded-For` from anybody, so
+a rate-limit bucket keyed on it was free to reset and the address on a session
+row was whatever an attacker wanted the victim to see. It is replaced by
+`middleware.ClientIPFromXFF(PP_TRUSTED_PROXIES…)`, installed only when that
+variable names a proxy and read everywhere through `audit.ClientIP`, where an
+empty result means "believe the socket". Two controls did not exist at all.
+**Same-origin is checked on every mutation**: `Server.sameOrigin` wraps the
+`/api/v1` group and `/auth/logout` and runs _before_ authentication, so a
+forged cross-site write is refused without a session lookup and with a reason
+instead of a 401; it compares `Origin` — falling back to the origin of
+`Referer`, never its path — against `PP_EXTERNAL_URL` and fails closed when
+that is unparseable, and `/wopi/*` is exempt by design, because the Document
+Server sends no Origin and is authorized by a signed token.
+`TestEveryAPIMutationChecksOrigin` and `TestWopiIsExemptFromOriginChecks` hold
+both halves at the router. **Rate limits exist**: per-IP token buckets on
+`/auth/login`, `/auth/callback` and `/auth/logout` (30/min, burst 10),
+`/s/{token}` (60/min, burst 20) and `/api/v1` (1200/min, burst 200) — in
+process, so N replicas allow N× the rate, which is stated rather than hidden.
+Uploads have a ceiling, `PP_MAX_UPLOAD_BYTES` (default 5G) enforced by
+`http.MaxBytesReader`: `ParseMultipartForm(32<<20)`'s argument was never a
+limit — it is the in-memory spill threshold — and quota is checked only after
+the bytes have landed, from a default of unlimited. All of it is finally
+observable: a `security_events` table and `internal/audit` record sign-ins and
+their failures, logout, session revocations, identity adoption, admin and
+suspension changes, grants, share revocation and membership changes with the
+client IP, user agent and chi request id, read by
+`GET /api/v1/admin/security-events` and purged past
+`PP_AUDIT_RETENTION_DAYS` (365) by the existing five-minute sweep.
+`PP_BOOTSTRAP_ADMIN_EMAIL` makes the first admin creatable without a psql
+session — promoted on every sign-in, so it also recovers an install whose last
+admin was demoted, and gated on a **verified** email claim, since otherwise it
+would be a standing authorization rule keyed on a field an IdP may let its
+users edit. At the edge, nginx now sends CSP, HSTS, `X-Frame-Options: DENY`,
+`Referrer-Policy` and `nosniff`, keeps share tokens out of its access log the
+way `redactingLogger` keeps them out of the server's, and no longer proxies
+`/wopi/` at all; compose splits one flat network into `edge`/`data`/`office`,
+so the Document Server can no longer open a connection to Postgres.
+
 ## Architecture
 
 System design, component interactions, data flows, deployment, and external integrations.
 
-| File                                                            | Description                                                                                      |
-| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| [system-design.md](architecture/system-design.md)               | Modular monolith rationale, component map, upload/WOPI/share data flows, tenancy & scale posture |
-| [data-model.md](architecture/data-model.md)                     | Postgres schema, invariants, query patterns, sessions, quota handling                            |
-| [storage.md](architecture/storage.md)                           | Content-addressed blob store, blake3, local + S3 backends, dedup/versioning, GC                  |
-| [office-integration.md](architecture/office-integration.md)     | WOPI host endpoints, access tokens, OnlyOffice co-editing, locking                               |
-| [permissions.md](architecture/permissions.md)                   | Ownership vs grants, Admin/Everyone groups, capabilities, archive on departure                   |
-| [preview-pipeline.md](architecture/preview-pipeline.md)         | Preview job flow, job vs preview kinds, the optional worker, caching, backfill                   |
-| [milestones.md](architecture/milestones.md)                     | M1–M20 delivery history, testing strategy, rollout/ops                                           |
-| [production-readiness.md](architecture/production-readiness.md) | P0 rollout blockers, P1 gaps vs Google Drive, proposed phasing for an internal deployment        |
+| File                                                            | Description                                                                                         |
+| --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| [system-design.md](architecture/system-design.md)               | Modular monolith rationale, component map, upload/WOPI/share data flows, tenancy & scale posture    |
+| [data-model.md](architecture/data-model.md)                     | Postgres schema, invariants, query patterns, sessions, the security log, quota handling             |
+| [storage.md](architecture/storage.md)                           | Content-addressed blob store, blake3, local + S3 backends, dedup/versioning, GC                     |
+| [office-integration.md](architecture/office-integration.md)     | WOPI host endpoints, access tokens, OnlyOffice co-editing, locking                                  |
+| [permissions.md](architecture/permissions.md)                   | Ownership vs grants, Admin/Everyone groups, capabilities, who may fetch bytes, archive on departure |
+| [preview-pipeline.md](architecture/preview-pipeline.md)         | Preview job flow, job vs preview kinds, the optional worker, caching, backfill                      |
+| [milestones.md](architecture/milestones.md)                     | M1–M21 delivery history, testing strategy, rollout/ops                                              |
+| [production-readiness.md](architecture/production-readiness.md) | P0 rollout blockers, P1 gaps vs Google Drive, proposed phasing for an internal deployment           |
 
 ## Codebase
 
@@ -141,6 +197,6 @@ Product goals, use cases, business rules, and constraints.
 
 Repository-specific docs outside the standard topic folders.
 
-| File                           | Description                                                                                        |
-| ------------------------------ | -------------------------------------------------------------------------------------------------- |
-| [deployment.md](deployment.md) | Prod + dev compose, env convention, the same-origin constraint, Dokploy, `/s/` routing, known gaps |
+| File                           | Description                                                                                                                            |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| [deployment.md](deployment.md) | Prod + dev compose, env convention, the same-origin constraint, security headers, network segments, Dokploy, `/s/` routing, known gaps |

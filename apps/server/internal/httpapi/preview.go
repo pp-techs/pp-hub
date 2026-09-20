@@ -47,14 +47,26 @@ func etagMatches(header, etag string) bool {
 
 // handlePreview serves a generated preview blob for a node's current version.
 // ?kind=thumbnail|text — default thumbnail.
+//
+// The two kinds are gated differently, because only one of them is actually
+// derived from the file. A thumbnail is a 256px rasterization — view is the
+// right bar, and it is what lets a no-download reader see *something*. The
+// text snippet is the first 4 KiB of the source, byte for byte, which for a
+// note, a CSV, a config file or a key is usually the whole document. Serving
+// that to someone explicitly refused download would make the view/download
+// split a label, so the snippet needs download.
 func (s *Server) handlePreview(w http.ResponseWriter, r *http.Request) {
-	_, node, _ := s.requireNodeCaps(w, r, share.CapView)
-	if !node.ID.Valid {
-		return
-	}
 	kind := r.URL.Query().Get("kind")
 	if kind == "" {
 		kind = preview.PreviewThumbnail
+	}
+	need := share.CapView
+	if kind == preview.PreviewText {
+		need = share.CapDownload
+	}
+	_, node, _ := s.requireNodeCaps(w, r, need)
+	if !node.ID.Valid {
+		return
 	}
 	if kind != preview.PreviewThumbnail && kind != preview.PreviewText {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "unknown preview kind")

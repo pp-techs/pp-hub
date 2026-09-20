@@ -26,7 +26,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -39,6 +38,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/oauth2"
 
+	"github.com/nhatbui/pp-hub/apps/server/internal/audit"
 	"github.com/nhatbui/pp-hub/apps/server/internal/config"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 )
@@ -73,6 +73,7 @@ type Session struct {
 type Service struct {
 	cfg      *config.Config
 	queries  *store.Queries
+	audit    *audit.Service
 	provider *oidc.Provider
 	verifier *oidc.IDTokenVerifier
 	oauth    oauth2.Config
@@ -106,6 +107,7 @@ func NewService(ctx context.Context, cfg *config.Config, queries *store.Queries)
 	s := &Service{
 		cfg:      cfg,
 		queries:  queries,
+		audit:    audit.New(queries),
 		provider: provider,
 		verifier: provider.Verifier(&oidc.Config{ClientID: cfg.OIDCClientID}),
 		oauth: oauth2.Config{
@@ -231,7 +233,7 @@ func (s *Service) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		s.failLogin(w, r, "token", "id_token claims could not be read", err)
 		return
 	}
-	user, err := s.resolveUser(r.Context(), idToken, claims)
+	user, err := s.resolveUser(r, idToken, claims)
 	if err != nil {
 		if errors.Is(err, errEmailTaken) {
 			s.failLogin(w, r, "email-taken", "an account with this email already exists", err)
@@ -244,6 +246,7 @@ func (s *Service) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		s.failLogin(w, r, "suspended", "this account is suspended", nil)
 		return
 	}
+	s.promoteBootstrapAdmin(r, &user, claims)
 
 	// Signing in again from a browser that already holds a session replaces
 	// it rather than stacking on top. The old cookie is about to be
@@ -255,6 +258,11 @@ func (s *Service) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		s.failLogin(w, r, "internal", "create session", err)
 		return
 	}
+	s.audit.Record(r, audit.Event{
+		Kind:    audit.KindLogin,
+		UserID:  user.ID,
+		Subject: user.Email,
+	})
 
 	// Back to wherever the browser was going, revalidated: the cookie is ours
 	// and HttpOnly, but it is still input.
@@ -263,6 +271,54 @@ func (s *Service) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		dest = next
 	}
 	http.Redirect(w, r, dest, http.StatusFound)
+}
+
+// promoteBootstrapAdmin makes the operator named by PP_BOOTSTRAP_ADMIN_EMAIL
+// an instance admin when they sign in.
+//
+// `users.is_admin` defaults to false and its only writer sits behind an
+// admin-only endpoint, so a fresh install had no administrator and no way to
+// appoint one except by hand in psql. This runs on every sign-in rather than
+// once, so it also recovers an install whose last admin was demoted — and it
+// is idempotent, so doing so costs nothing.
+func (s *Service) promoteBootstrapAdmin(r *http.Request, user *store.User, claims idClaims) {
+	want := s.cfg.BootstrapAdminEmail
+	if want == "" || user.IsAdmin || !strings.EqualFold(user.Email, want) {
+		return
+	}
+	// An unverified claim cannot buy instance admin. The address is matched
+	// against a static configuration value, so without this the variable is
+	// a standing authorization rule keyed on a field the IdP may let its
+	// users edit — and anyone who could set their own address could take the
+	// instance.
+	if !bool(claims.EmailVerified) {
+		slog.Error("refusing admin promotion for an unverified email",
+			"email", user.Email,
+			"advice", "the identity provider must assert email_verified for this address")
+		s.audit.Record(r, audit.Event{
+			Kind:    audit.KindLoginFailed,
+			UserID:  user.ID,
+			Subject: user.Email,
+			Detail:  map[string]any{"code": "bootstrap-admin-unverified"},
+		})
+		return
+	}
+	if err := s.queries.SetUserAdmin(r.Context(), store.SetUserAdminParams{
+		ID: user.ID, IsAdmin: true,
+	}); err != nil {
+		slog.Error("bootstrap admin promotion", "email", user.Email, "err", err)
+		return
+	}
+	user.IsAdmin = true
+	slog.Warn("promoted to instance admin by PP_BOOTSTRAP_ADMIN_EMAIL",
+		"email", user.Email,
+		"advice", "unset the variable once a second admin exists, or it will keep re-promoting this account")
+	s.audit.Record(r, audit.Event{
+		Kind:    audit.KindAdminGranted,
+		UserID:  user.ID,
+		Subject: user.Email,
+		Detail:  map[string]any{"via": "PP_BOOTSTRAP_ADMIN_EMAIL"},
+	})
 }
 
 // failLogin logs the cause and bounces the browser back to the sign-in page
@@ -274,6 +330,14 @@ func (s *Service) HandleCallback(w http.ResponseWriter, r *http.Request) {
 // gets a code the SPA can turn into a sentence.
 func (s *Service) failLogin(w http.ResponseWriter, r *http.Request, code, msg string, cause error) {
 	slog.Error("oidc login failed", "code", code, "reason", msg, "err", cause)
+	detail := map[string]any{"code": code, "reason": msg}
+	if cause != nil {
+		detail["err"] = cause.Error()
+	}
+	// Recorded even when no account was resolved — a run of these from one
+	// address is the signal, and the rows with no user_id are exactly the
+	// ones that carry it.
+	s.audit.Record(r, audit.Event{Kind: audit.KindLoginFailed, Subject: code, Detail: detail})
 	http.Redirect(w, r, "/login?error="+url.QueryEscape(code), http.StatusFound)
 }
 
@@ -344,14 +408,32 @@ var errEmailTaken = errors.New("email already belongs to another identity")
 // The fallback is gated on email_verified because an IdP that lets a user
 // claim an arbitrary unverified address would otherwise let them claim an
 // arbitrary account with it.
-func (s *Service) resolveUser(ctx context.Context, idToken *oidc.IDToken, claims idClaims) (store.User, error) {
+func (s *Service) resolveUser(r *http.Request, idToken *oidc.IDToken, claims idClaims) (store.User, error) {
+	ctx := r.Context()
 	user, err := s.queries.GetUserByIdentity(ctx, store.GetUserByIdentityParams{
 		OidcIss: idToken.Issuer,
 		OidcSub: idToken.Subject,
 	})
 	if err == nil {
+		// The address is only refreshed when the IdP says it verified it.
+		//
+		// users.email is not decoration: it is what invitation acceptance
+		// matches on, what a direct share is granted to, and what
+		// PP_BOOTSTRAP_ADMIN_EMAIL is compared against. Rewriting it from an
+		// unverified claim on every sign-in meant a user who could set their
+		// own address at a self-service IdP could set it to the bootstrap
+		// admin's and be promoted, or to a colleague's and collect their
+		// pending invitations. The adoption path twenty lines below already
+		// refused to trust an unverified claim; the asymmetry was the bug.
+		email := user.Email
+		if claims.Email != "" && bool(claims.EmailVerified) {
+			email = claims.Email
+		} else if claims.Email != "" && claims.Email != user.Email {
+			slog.Warn("ignoring an unverified email claim",
+				"user", user.ID.String(), "stored", user.Email, "claimed", claims.Email)
+		}
 		return s.queries.TouchUserLogin(ctx, store.TouchUserLoginParams{
-			ID: user.ID, Email: claims.Email, Name: claims.Name,
+			ID: user.ID, Email: email, Name: claims.Name,
 		})
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
@@ -364,6 +446,16 @@ func (s *Service) resolveUser(ctx context.Context, idToken *oidc.IDToken, claims
 		case err == nil:
 			slog.Warn("oidc identity adopted by an existing account",
 				"user", existing.ID.String(), "old_iss", existing.OidcIss, "new_iss", idToken.Issuer)
+			s.audit.Record(r, audit.Event{
+				Kind:    audit.KindIdentityAdopted,
+				UserID:  existing.ID,
+				Subject: claims.Email,
+				Detail: map[string]any{
+					"old_iss": existing.OidcIss,
+					"new_iss": idToken.Issuer,
+					"new_sub": idToken.Subject,
+				},
+			})
 			return s.queries.AdoptUserIdentity(ctx, store.AdoptUserIdentityParams{
 				ID:      existing.ID,
 				OidcIss: idToken.Issuer,
@@ -407,7 +499,7 @@ func (s *Service) issueSession(ctx context.Context, w http.ResponseWriter, r *ht
 		UserID:    userID,
 		TokenHash: sum[:],
 		UserAgent: truncate(r.UserAgent(), maxUserAgent),
-		Ip:        clientIP(r),
+		Ip:        audit.ClientIP(r),
 		ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(sessionIdleTTL), Valid: true},
 	}); err != nil {
 		return err
@@ -466,6 +558,13 @@ func (s *Service) Authenticate(w http.ResponseWriter, r *http.Request) *Session 
 // followed by "sign in" was a silent SSO re-entry — on a shared machine, as
 // the previous person.
 func (s *Service) HandleLogout(w http.ResponseWriter, r *http.Request) {
+	if sess := s.Authenticate(w, r); sess != nil {
+		s.audit.Record(r, audit.Event{
+			Kind:    audit.KindLogout,
+			UserID:  sess.User.ID,
+			Subject: sess.User.Email,
+		})
+	}
 	s.revokeCookieSession(r)
 	s.clearCookie(w, sessionCookie)
 	w.Header().Set("Content-Type", "application/json")
@@ -510,14 +609,33 @@ func (s *Service) ListSessions(ctx context.Context, userID pgtype.UUID) ([]store
 
 // RevokeSession drops one of the caller's own sessions. The user id is part of
 // the predicate, so guessing another person's session id achieves nothing.
-func (s *Service) RevokeSession(ctx context.Context, userID, sessionID pgtype.UUID) (bool, error) {
-	n, err := s.queries.DeleteUserSession(ctx, store.DeleteUserSessionParams{ID: sessionID, UserID: userID})
+func (s *Service) RevokeSession(r *http.Request, user store.User, sessionID pgtype.UUID) (bool, error) {
+	n, err := s.queries.DeleteUserSession(r.Context(), store.DeleteUserSessionParams{ID: sessionID, UserID: user.ID})
+	if err == nil && n > 0 {
+		s.audit.Record(r, audit.Event{
+			Kind:    audit.KindSessionRevoked,
+			UserID:  user.ID,
+			Subject: user.Email,
+			Detail:  map[string]any{"session": sessionID.String()},
+		})
+	}
 	return n > 0, err
 }
 
 // RevokeOtherSessions signs the caller out everywhere except here.
-func (s *Service) RevokeOtherSessions(ctx context.Context, userID, keep pgtype.UUID) (int64, error) {
-	return s.queries.DeleteOtherUserSessions(ctx, store.DeleteOtherUserSessionsParams{UserID: userID, ID: keep})
+func (s *Service) RevokeOtherSessions(r *http.Request, user store.User, keep pgtype.UUID) (int64, error) {
+	n, err := s.queries.DeleteOtherUserSessions(r.Context(), store.DeleteOtherUserSessionsParams{
+		UserID: user.ID, ID: keep,
+	})
+	if err == nil && n > 0 {
+		s.audit.Record(r, audit.Event{
+			Kind:    audit.KindSessionsRevoked,
+			UserID:  user.ID,
+			Subject: user.Email,
+			Detail:  map[string]any{"revoked": n},
+		})
+	}
+	return n, err
 }
 
 // PurgeExpiredSessions drops rows past their idle deadline. Expired sessions
@@ -614,15 +732,6 @@ func rebaseOrigin(raw, from, to string) string {
 	}
 	u.Scheme, u.Host = toU.Scheme, toU.Host
 	return u.String()
-}
-
-// clientIP is the caller's address as chi's RealIP middleware left it.
-func clientIP(r *http.Request) string {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr
-	}
-	return host
 }
 
 func truncate(s string, max int) string {

@@ -30,4 +30,9 @@ export const keys = {
   groupMembers: (spaceId: string, groupId: string) => ["groups", spaceId, groupId] as const,
   grants: (nodeId: string) => ["grants", nodeId] as const,
   adminStats: ["admin", "stats"] as const,
+  // Sibling of adminStats under the "admin" root, never a child of it: the
+  // user mutations invalidate `adminStats` exactly, and a log page hanging
+  // below that key would be refetched by every suspend/promote for nothing.
+  securityEvents: (kind?: string, offset?: number) =>
+    ["admin", "security-events", kind ?? null, offset ?? 0] as const,
 };

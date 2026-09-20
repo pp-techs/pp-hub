@@ -12,8 +12,12 @@ LIMIT 1;
 -- name: ListSharesForNode :many
 SELECT * FROM shares WHERE node_id = $1 ORDER BY created_at DESC;
 
--- name: DeleteShare :exec
-DELETE FROM shares WHERE id = $1;
+-- The node is part of the predicate, not just the authorization check at the
+-- edge: `CapShare` is resolved against {nodeID} in the URL, so without this a
+-- caller who may share one node could delete a share row belonging to another
+-- by naming its id.
+-- name: DeleteShare :execrows
+DELETE FROM shares WHERE id = $1 AND node_id = $2;
 
 -- name: NodeAccessCaps :many
 -- For each node in $1: the capabilities $2 holds via grants — direct or via a

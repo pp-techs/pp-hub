@@ -2,11 +2,13 @@ package httpapi
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/nhatbui/pp-hub/apps/server/internal/audit"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 )
 
@@ -94,6 +96,16 @@ func (s *Server) handleAdminUpdateUser(w http.ResponseWriter, r *http.Request) {
 			Error(w, r, err)
 			return
 		}
+		kind := audit.KindAdminRevoked
+		if *body.IsAdmin {
+			kind = audit.KindAdminGranted
+		}
+		s.audit.Record(r, audit.Event{
+			Kind:    kind,
+			UserID:  userID,
+			Subject: admin.Email,
+			Detail:  map[string]any{"by": admin.ID.String()},
+		})
 	}
 
 	if body.Suspended != nil {
@@ -111,6 +123,31 @@ func (s *Server) handleAdminUpdateUser(w http.ResponseWriter, r *http.Request) {
 			Error(w, r, err)
 			return
 		}
+		kind := audit.KindUnsuspended
+		if *body.Suspended {
+			kind = audit.KindSuspended
+			// The per-request suspension check already locks them out, but
+			// leaving the rows behind means the account's Sessions tab keeps
+			// listing devices that can no longer do anything, and an
+			// un-suspension silently restores every one of them. Ending them
+			// is what "suspended" should mean.
+			if n, err := s.store.DeleteUserSessions(r.Context(), userID); err != nil {
+				slog.Error("revoke sessions on suspend", "user", userID.String(), "err", err)
+			} else if n > 0 {
+				s.audit.Record(r, audit.Event{
+					Kind:    audit.KindSessionsRevoked,
+					UserID:  userID,
+					Subject: admin.Email,
+					Detail:  map[string]any{"revoked": n, "reason": "suspended"},
+				})
+			}
+		}
+		s.audit.Record(r, audit.Event{
+			Kind:    kind,
+			UserID:  userID,
+			Subject: admin.Email,
+			Detail:  map[string]any{"by": admin.ID.String()},
+		})
 	}
 
 	user, err := s.store.GetUser(r.Context(), userID)

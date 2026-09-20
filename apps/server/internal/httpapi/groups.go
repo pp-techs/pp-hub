@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/nhatbui/pp-hub/apps/server/internal/audit"
 	"github.com/nhatbui/pp-hub/apps/server/internal/groups"
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
@@ -409,6 +410,17 @@ func (s *Server) handleUpsertGrant(w http.ResponseWriter, r *http.Request) {
 		s.groupError(w, r, err)
 		return
 	}
+	s.audit.Record(r, audit.Event{
+		Kind:    audit.KindGrantCreated,
+		UserID:  u.ID,
+		Subject: u.Email,
+		Detail: map[string]any{
+			"node":  node.ID.String(),
+			"name":  node.Name,
+			"group": groupID.String(),
+			"level": string(want.Level),
+		},
+	})
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
@@ -426,5 +438,15 @@ func (s *Server) handleRevokeGrant(w http.ResponseWriter, r *http.Request) {
 		s.groupError(w, r, err)
 		return
 	}
+	s.audit.Record(r, audit.Event{
+		Kind:    audit.KindGrantRevoked,
+		UserID:  u.ID,
+		Subject: u.Email,
+		Detail: map[string]any{
+			"node":  node.ID.String(),
+			"name":  node.Name,
+			"group": groupID.String(),
+		},
+	})
 	w.WriteHeader(http.StatusNoContent)
 }

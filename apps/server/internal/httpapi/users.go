@@ -72,8 +72,7 @@ func (s *Server) handleUpdateMyProfile(w http.ResponseWriter, r *http.Request) {
 // handleUploadAvatar handles avatar upload (multipart → blob).
 func (s *Server) handleUploadAvatar(w http.ResponseWriter, r *http.Request) {
 	u := caller(r)
-	if err := r.ParseMultipartForm(5 << 20); err != nil { // 5MB max
-		writeProblem(w, http.StatusRequestEntityTooLarge, "Error", "file too large")
+	if !parseUpload(w, r, avatarMaxBytes) {
 		return
 	}
 	file, _, err := r.FormFile("avatar")

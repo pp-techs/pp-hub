@@ -14,7 +14,16 @@ PDF goes through the preview pipeline rather than OnlyOffice — Community editi
 support PDF editing. `.epub` and `.rtf` open in the editor and have no inline preview; see
 [preview-pipeline.md](preview-pipeline.md).
 
-The backend `handleEditSession` validates the file's MIME type via `isOfficeMime` before returning an editor URL — only known office MIME types pass.
+The backend `handleEditSession` validates the file's MIME type via `isOfficeMime` before
+returning an editor URL — only the MIME types in the list above pass.
+
+`application/octet-stream` is deliberately **not** on that list, and used to be. It is what
+`fs.PutFile` stores whenever Go's MIME table does not recognise an uploaded file's extension
+— `PutFile`'s fallback for anything unfamiliar — so accepting it turned the allowlist into
+"any file with an unfamiliar name", which is the opposite of an allowlist. The practical
+effect was that an arbitrary blob could be handed to the Document Server to parse. A file
+whose MIME really is unknown now gets "file type not supported by editor" instead, which is
+the truth.
 
 ## WOPI Host Endpoints
 
@@ -23,13 +32,25 @@ Mounted under `/wopi`:
 | Endpoint                                                              | Purpose                                                                                                               |
 | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | `GET /wopi/files/{id}`                                                | `CheckFileInfo` — returns `BaseFileName, Size, OwnerId, UserId, UserCanWrite, Version, SupportsUpdate, SupportsLocks` |
-| `GET /wopi/files/{id}/contents`                                       | `GetFile` — streams the blob of `current_version_id`                                                                  |
-| `POST /wopi/files/{id}/contents`                                      | `PutFile` — writes new blob, appends `node_version`, updates `ref_count`                                              |
-| `POST /wopi/files/{id}` (`X-WOPI-Override: LOCK/UNLOCK/REFRESH_LOCK`) | Lock management against `file_locks`                                                                                  |
+| `GET /wopi/files/{id}/contents`                                       | `GetFile` — streams the blob of `current_version_id`; **rank ≥ 2** for a user token                                   |
+| `POST /wopi/files/{id}/contents`                                      | `PutFile` — writes new blob, appends `node_version`, updates `ref_count`; **rank 3**                                  |
+| `POST /wopi/files/{id}` (`X-WOPI-Override: LOCK/UNLOCK/REFRESH_LOCK`) | Lock management against `file_locks`; **rank 3**                                                                      |
+
+Those routes are **not** published by the `web` container. `PP_WOPI_SERVER_URL` is
+`http://server:8080` in compose, and that value is what becomes the `WOPISrc` the Document
+Server fetches, so the browser never calls `/wopi/` and nginx no longer proxies it.
+Publishing it turned the access token from a credential that mattered only inside the network
+into an internet-wide bearer token — on the one route group exempt from both the same-origin
+check and the rate limiter, because the Document Server sends no `Origin` and is authorized by
+the signed token instead. A deployment that runs OnlyOffice outside the compose network must
+set `PP_WOPI_SERVER_URL` to a public URL **and** re-add a `location /wopi/` in
+`apps/web/nginx.conf`, ideally restricted to the Document Server's address. See
+[deployment.md](../deployment.md).
 
 ## WOPI Access Token
 
-- HMAC-signed, TTL ~10h, payload: `user_id`, `node_id`, `perm`.
+- HMAC-signed, TTL ~10h, payload: `user_id`, `node_id`, `perm` — the rank, on the scale
+  `rankFromCaps` produces: 3 = edit, 2 = download, 1 = view, 0 = no access.
 - Issued by the server when the web app opens an editor.
 - OnlyOffice's callbacks authenticate with this token — no session cookies cross the service boundary.
 
@@ -41,23 +62,52 @@ Mounted under `/wopi`:
 
 ## Read-Only Sessions
 
-`POST /nodes/{id}/edit-session` takes **`CapView`**, not `CapEdit`. OnlyOffice
-is the only component that can render an office document at all — the preview
-worker produces a 256px thumbnail of the first page and nothing more — so
-demanding edit would leave a reader with no way to look at a `.docx` they were
-legitimately shared.
+`POST /nodes/{id}/edit-session` takes **`CapDownload`**, not `CapView` and not
+`CapEdit`. Opening a document in OnlyOffice means the Document Server fetches
+the whole file and the browser renders it, so there is no version of this that
+is "viewing without downloading" — the bytes leave the server either way.
 
-What the caller holds decides the _session_, not whether there is one:
+It used to take `CapView`, on the argument that OnlyOffice is the only
+component able to render an office document at all (the preview worker
+produces a 256px thumbnail of the first page and nothing more), so demanding
+more would leave a reader with no way to look at a `.docx` they were
+legitimately shared. That argument does not survive contact with `GetFile`:
+the session it minted could fetch the complete file, so it was a route around
+the no-download half of a grant — mint a token with `CapView`, let the editor
+fetch, keep the document — while `GET /nodes/{id}/content` refused the same
+person for the same bytes.
 
-| Caller    | Token `perm` | Editor URL | `CheckFileInfo.UserCanWrite` | `PutFile` / lock ops |
-| :-------- | :----------- | :--------- | :--------------------------- | :------------------- |
-| `CapEdit` | 3            | `/edit`    | `true`                       | allowed              |
-| `CapView` | 1            | `/view`    | `false`                      | **403**              |
+The cost is real and accepted: **a reader granted view-without-download
+cannot open an office document at all, only its thumbnail.** That is the
+honest consequence of the grant they were given, and it is the same line
+[permissions.md](permissions.md) draws for `/content` and
+`/preview?kind=text`.
+
+What the caller holds still decides the _session_, not whether there is one:
+
+| Caller        | Token `perm` | Editor URL | `CheckFileInfo.UserCanWrite` | `PutFile` / lock ops |
+| :------------ | :----------- | :--------- | :--------------------------- | :------------------- |
+| `CapEdit`     | 3            | `/edit`    | `true`                       | allowed              |
+| `CapDownload` | 2            | `/view`    | `false`                      | **403**              |
+| `CapView`     | —            | —          | —                            | no session is minted |
+
+A read-only session is rank **2**, not rank 1. `GetFile` requires rank ≥ 2 for
+a user token — handing over the complete file is a download however the editor
+frames it — so rank 1 would mint a session that cannot fetch its own document.
+Rank 1 is still meaningful on the scale `rankFromCaps` produces; it simply
+cannot open an editor.
 
 The rank is signed into the token, so the write refusal does not depend on
 OnlyOffice honouring `UserCanWrite`. The response carries `can_write`, and the
 editor page's subtitle says "read-only" rather than "saved by OnlyOffice" when
 it is false.
+
+A **machine token** is the exception to the rank check on `GetFile`:
+`wopi.SystemSubject` is the preview worker's conversion fetch, which acts for
+nobody, so there is no capability to resolve. It is minted by this deployment,
+scoped to one node, read-only and five minutes long, and the signing key is
+its authorization. It is refused at `CheckFileInfo`, which only a person's
+session has any business calling.
 
 **The rank in the token is a ceiling, not an authority.** It was resolved when
 the editor opened, and the token lives ten hours; trusting it alone meant a

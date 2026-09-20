@@ -90,6 +90,8 @@ export {
   useRevokeOtherSessions,
   useUserSearch,
   useUsers,
+  useSecurityEvents,
+  SECURITY_PAGE_SIZE,
   useSpaceMembers,
   useAddSpaceMember,
   useSetMemberAdmin,

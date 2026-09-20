@@ -712,9 +712,10 @@ func TestTeamFolderContentHasNoPersonalOwner(t *testing.T) {
 		t.Errorf("a manager must be able to share team content, got %+v", got)
 	}
 
-	// Difference 2: revoking the grant actually removes access.
-	if err := sh.Revoke(ctx, contributor.ID); err != nil {
-		t.Fatalf("revoke: %v", err)
+	// Difference 2: revoking the grant actually removes access. The node is
+	// part of the predicate now, so the share's own node has to be named.
+	if ok, err := sh.Revoke(ctx, team.ID, contributor.ID); err != nil || !ok {
+		t.Fatalf("revoke: ok=%v err=%v", ok, err)
 	}
 	if got := caps(t, sh, file, member.ID); got.View || got.Edit || got.Owner {
 		t.Errorf("revoking a team grant must remove access to what the grantee uploaded, got %+v", got)

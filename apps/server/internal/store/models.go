@@ -277,6 +277,18 @@ type Preview struct {
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 }
 
+type SecurityEvent struct {
+	ID        pgtype.UUID        `json:"id"`
+	Kind      string             `json:"kind"`
+	UserID    pgtype.UUID        `json:"user_id"`
+	Subject   string             `json:"subject"`
+	Ip        string             `json:"ip"`
+	UserAgent string             `json:"user_agent"`
+	RequestID string             `json:"request_id"`
+	Detail    []byte             `json:"detail"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
 type Session struct {
 	ID         pgtype.UUID        `json:"id"`
 	UserID     pgtype.UUID        `json:"user_id"`

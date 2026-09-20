@@ -522,8 +522,7 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 		s.spaceError(w, r, err)
 		return
 	}
-	if err := r.ParseMultipartForm(32 << 20); err != nil {
-		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid multipart form")
+	if !parseUpload(w, r, s.maxUploadBytes) {
 		return
 	}
 	var parentID pgtype.UUID
@@ -574,8 +573,7 @@ func (s *Server) handleUploadVersion(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "not a file")
 		return
 	}
-	if err := r.ParseMultipartForm(32 << 20); err != nil {
-		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid multipart form")
+	if !parseUpload(w, r, s.maxUploadBytes) {
 		return
 	}
 	f, _, err := r.FormFile("file")

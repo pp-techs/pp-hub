@@ -173,8 +173,9 @@ function ShareLanding() {
           <div className="flex flex-col gap-0.5">
             <p className="text-xs font-medium">You are viewing a shared link</p>
             <p className="text-muted-foreground text-xs">
-              Anyone with this link can {canDownload ? "view and download" : "view"} these files.
-              You cannot edit or upload, and you cannot see who else has access.
+              {canDownload
+                ? "Anyone with this link can view and download these files. You cannot edit or upload, and you cannot see who else has access."
+                : "This link does not allow downloads, so it shows the names, sizes and dates of these files but cannot open their contents."}
             </p>
           </div>
         </div>
@@ -247,25 +248,36 @@ function ShareTable({ token, nodes, isPending, canDownload, onOpenFolder }: Shar
             <TableCell>
               {n.kind === "file" && (
                 <div className="flex items-center justify-end gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    aria-label={`Preview ${n.name}`}
-                    render={
-                      <a href={shareNodeContentUrl(token, n.id)} target="_blank" rel="noreferrer" />
-                    }
-                  >
-                    <Eye />
-                  </Button>
+                  {/* Both actions hang off the download capability, because
+                      both endpoints do: the server enforces `can_download` on
+                      `/content` as well as `/node-download`. Offering Preview
+                      on a view-only link was a button whose only possible
+                      outcome was a 403. */}
                   {canDownload && (
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      aria-label={`Download ${n.name}`}
-                      render={<a href={shareNodeDownloadUrl(token, n.id)} />}
-                    >
-                      <Download />
-                    </Button>
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        aria-label={`Preview ${n.name}`}
+                        render={
+                          <a
+                            href={shareNodeContentUrl(token, n.id)}
+                            target="_blank"
+                            rel="noreferrer"
+                          />
+                        }
+                      >
+                        <Eye />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        aria-label={`Download ${n.name}`}
+                        render={<a href={shareNodeDownloadUrl(token, n.id)} />}
+                      >
+                        <Download />
+                      </Button>
+                    </>
                   )}
                 </div>
               )}
@@ -304,6 +316,14 @@ function Shell({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * What the link actually permits, in the visitor's words.
+ *
+ * A link without `can_download` no longer means "look but do not save": the
+ * server refuses `/content` as well as `/node-download`, so no file bytes
+ * cross at all. Calling that "view only" promised a preview this page cannot
+ * deliver and the server will not serve.
+ */
 function describeLink(canDownload: boolean): string {
-  return canDownload ? "view and download only" : "view only";
+  return canDownload ? "view and download" : "file names and details only";
 }

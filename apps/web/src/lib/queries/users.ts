@@ -7,6 +7,7 @@ import {
   uploadAvatar,
   searchUsers,
   listUsers,
+  listSecurityEvents,
   listSessions,
   revokeSession,
   revokeOtherSessions,
@@ -15,6 +16,7 @@ import {
   setMemberAdmin,
   removeSpaceMember,
 } from "@/lib/api/users";
+import type { SecurityEventPage } from "@/lib/api";
 import { keys } from "./keys";
 // ─── Profile ─────────────────────────────────────────────────────────────────
 
@@ -82,6 +84,26 @@ export function usersOptions(limit = 50, offset = 0) {
 
 export function useUsers(limit = 50, offset = 0) {
   return useQuery(usersOptions(limit, offset));
+}
+
+/**
+ * How many log rows a page holds. Fixed rather than a parameter: the cache
+ * key is (kind, offset), so two callers asking for different page sizes at
+ * the same offset would read each other's page.
+ */
+export const SECURITY_PAGE_SIZE = 50;
+
+/**
+ * A page of the instance security log. `placeholderData` keeps the previous
+ * page on screen while the next one loads, so paging through a long run of
+ * failed sign-ins does not blink the table away under the reader.
+ */
+export function useSecurityEvents(kind?: string, offset = 0) {
+  return useQuery({
+    queryKey: keys.securityEvents(kind, offset),
+    queryFn: () => listSecurityEvents({ kind, offset, limit: SECURITY_PAGE_SIZE }),
+    placeholderData: (prev: SecurityEventPage | undefined) => prev,
+  });
 }
 
 // ─── Space Members ───────────────────────────────────────────────────────────

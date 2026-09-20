@@ -162,8 +162,14 @@ func (s *Service) ListForNode(ctx context.Context, nodeID pgtype.UUID) ([]store.
 	return s.q.ListSharesForNode(ctx, nodeID)
 }
 
-func (s *Service) Revoke(ctx context.Context, shareID pgtype.UUID) error {
-	return s.q.DeleteShare(ctx, shareID)
+// Revoke deletes a share, refusing one that does not belong to nodeID.
+//
+// Returns false when nothing matched, which the edge answers as 404 rather
+// than a silent success: "revoked" and "that share was somebody else's" are
+// different answers and only one of them is true.
+func (s *Service) Revoke(ctx context.Context, nodeID, shareID pgtype.UUID) (bool, error) {
+	n, err := s.q.DeleteShare(ctx, store.DeleteShareParams{ID: shareID, NodeID: nodeID})
+	return n > 0, err
 }
 
 // ResolveLink validates a link token and returns the share row.

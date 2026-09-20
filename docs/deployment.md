@@ -46,29 +46,49 @@ preference:
 Put the bundle on `app.example.com` and the API on `api.example.com` and the
 cookie is never sent: every request is a 401 and nobody can log in.
 
+It is also a rule the server enforces, not only a consequence of the cookie:
+every mutation under `/api/v1`, plus `POST /auth/logout`, is refused unless
+its `Origin` (or the origin of its `Referer`) equals `PP_EXTERNAL_URL`. So
+that variable must be the address users actually type, scheme included — a
+stale value there does not degrade gracefully, it refuses every write with
+403 `cross-origin request refused`. `/wopi/*` is exempt by design, because the
+Document Server sends no `Origin` and presents a signed token instead.
+
 The Go server serves **only** `/healthz`, `/auth/*`, `/api/v1/*`, `/wopi/*` and
 `/s/*` — it has no static file handler. So something has to serve the bundle
 and proxy the API on one hostname. That is what the `web` container is:
 nginx with the built SPA and a proxy to `server:8080`
 (`apps/web/Dockerfile`, `apps/web/nginx.conf`).
 
+`/wopi/*` is the one group nginx does **not** proxy: the Document Server
+reaches it over the compose network, so publishing it would put a bearer token
+on the public internet for nothing. See
+[`/wopi/` is not published](#wopi-is-not-published).
+
 ```
                     ┌──────────────────────────────────────┐
- drive.example.com ─┤ web (nginx)                          │
-                    │   /            → SPA bundle          │
-                    │   /api /auth /wopi /s → server:8080  │
+ drive.example.com ─┤ web (nginx)                   [edge] │
+                    │   /              → SPA bundle        │
+                    │   /api /auth /s  → server:8080       │
+                    │   /wopi          → not proxied       │
                     └───────────────────┬──────────────────┘
-                                        │
-                              ┌─────────▼────────┐   ┌──────────┐
-                              │ server           ├───┤ postgres │
-                              └─────────┬────────┘   └────┬─────┘
-                                        │                 │
-                              ┌─────────▼────────┐        │
-                              │ worker (optional)├────────┘
-                              └─────────┬────────┘
-                                        │ conversion
- office.example.com ──────────► onlyoffice
+                                        │ edge
+                          ┌─────────────▼─────────────┐   ┌──────────────────┐
+                          │ server  [edge data office]├───┤ postgres  [data] │
+                          └─────────────┬─────────────┘   └────────┬─────────┘
+                                        │ office                   │ data
+                          ┌─────────────▼─────────────┐            │
+                          │ worker (optional)         ├────────────┘
+                          │            [data office]  │
+                          └─────────────┬─────────────┘
+                                        │ conversion (office)
+ office.example.com ──────────► onlyoffice                    [office]
+                                        │ WOPI → server:8080  (office)
 ```
+
+The bracketed names are compose networks, not decoration: `onlyoffice` is on
+`office` only, so it can reach `server:8080` and nothing else. See [Network
+segments](#network-segments).
 
 `nginx.conf` mirrors the dev proxy in `apps/web/vite.config.ts`. **Change one,
 change the other.**
@@ -141,6 +161,219 @@ Register with your OIDC provider:
 
 - redirect URI: `https://drive.example.com/auth/callback`
 - post-logout redirect: `https://drive.example.com`
+
+### The security and limit variables
+
+Four variables added with the M21 security pass. None is required; each has a
+default, and each has a way of being wrong that is worth understanding before
+it bites.
+
+**`PP_BOOTSTRAP_ADMIN_EMAIL`** — strongly recommended on a fresh install, and
+empty by default. Whoever signs in with this address becomes an instance
+admin, **on every sign-in**. `users.is_admin` defaults to false and its only
+writer is an admin-only endpoint, so without this the first administrator can
+only be made with `UPDATE users SET is_admin = true` in psql. Two
+consequences:
+
+- It requires a **verified** email claim. The IdP must assert
+  `email_verified` for the address, or the promotion is refused with
+  `refusing admin promotion for an unverified email` in the log and a
+  `login_failed` row in the security log. This is not pedantry: the variable is
+  a standing authorization rule keyed on a claim, and an IdP that lets users
+  edit their own address would otherwise let any of them take the instance.
+- Because it re-promotes on every sign-in, **that account cannot be demoted
+  while the variable is set** — the demotion sticks until their next login.
+  That is deliberate (it is also the recovery path for an install whose last
+  admin was demoted by accident), but unset the variable once a second admin
+  exists, or the console will keep undoing you.
+
+**`PP_MAX_UPLOAD_BYTES`** — default `5G`; accepts plain bytes or a `K`/`M`/`G`/`T`
+suffix; `0` disables the ceiling. This is the only thing bounding a single
+upload body. A space's `quota_bytes` is checked _after_ the bytes have landed
+— the request's declared length is not trustworthy — and defaults to `0`,
+meaning unlimited, so with no ceiling one authenticated caller can fill the
+volume. Set too low, large legitimate uploads fail with 413 and a clear
+message; set to `0`, you are back to the original problem. A value that will
+not parse is a **startup error**, not a silent default: an operator who typed
+`5GB` meaning a ceiling should not be handed "no ceiling" for the trouble.
+Note that `client_max_body_size 0` in `nginx.conf` is intentional — the edge
+streams the body through and the app answers 413 with a sentence, instead of
+nginx rejecting it with a bare page long before the app can say why.
+
+**`PP_AUDIT_RETENTION_DAYS`** — default `365`. How long `security_events` rows
+live; the five-minute sweep in `cmd/server` purges anything older. One row is
+written on every sign-in and every failed attempt, so setting it very high on
+a busy instance grows a table nobody can page through, and setting it very low
+throws away the history an incident needs — a compromise noticed in March
+wants the failed sign-ins from February. Unparseable values fall back to the
+default and say so rather than refusing to start, because a retention window
+is a policy knob.
+
+**`PP_TRUSTED_PROXIES`** — a comma-separated list of CIDRs (a bare address is
+accepted as its own `/32`), empty by default, `172.16.0.0/12` in the compose
+file. This is the one where **both** a missing value and an over-broad value
+are harmful, in opposite ways:
+
+- **Unset behind a proxy**: no forwarded header is believed, so every request
+  appears to come from the proxy's address. The per-IP rate limits then share
+  one bucket across the whole internet — one caller can spend the instance's
+  entire budget and lock everybody else out of sign-in — and every session row
+  and security event records the proxy's address instead of the user's, which
+  makes the audit log useless for the question it exists to answer.
+- **Set too broadly** (`0.0.0.0/0`, or a range wider than your actual hops):
+  the server believes `X-Forwarded-For` from anybody, which hands the caller
+  their own identity back. Rate-limit buckets become resettable at will by
+  appending a header, and the address shown on somebody's Sessions tab becomes
+  whatever an attacker chose. That is precisely the behaviour chi's
+  deprecated `RealIP` had, and the reason it is gone.
+
+Name the hops you actually have and nothing more. On the compose stack that is
+the `web` container's network; add Traefik's or your own proxy's range if it
+adds another hop. Empty is **correct** for a server reached directly, and
+means "believe the TCP peer". The list is validated at startup, so a typo is a
+sentence (`PP_TRUSTED_PROXIES: "10.0.0" is neither an address nor a CIDR`)
+rather than a panic out of chi.
+
+The rate limits themselves are not configurable, and are worth knowing:
+`/auth/login`, `/auth/callback`, `/auth/logout` at 30/min with a burst of 10;
+`/s/{token}` at 60/min burst 20; `/api/v1` at 1200/min burst 200. An exhausted
+bucket answers 429 with `Retry-After`. **The buckets live in the process**, so
+`N` `server` replicas allow `N` times those rates — scaling out scales the
+limit with you. That is a deliberate trade against making Redis a dependency
+of a deployment that otherwise does not need it, and it is stated here rather
+than hidden because an operator running replicas should know.
+
+### Response headers and the CSP
+
+`nginx.conf` sends, on every response and with `always` so they survive the
+502s the config is designed to return while the API restarts:
+
+| Header                      | Value                                 |
+| --------------------------- | ------------------------------------- |
+| `Content-Security-Policy`   | see below                             |
+| `X-Frame-Options`           | `DENY`                                |
+| `Referrer-Policy`           | `strict-origin-when-cross-origin`     |
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` |
+| `X-Content-Type-Options`    | `nosniff`                             |
+
+plus `server_tokens off`, so no version number appears on responses or error
+pages. HSTS assumes you terminate TLS in front of this container, which the
+`https://` requirement on `PP_EXTERNAL_URL` already assumes.
+
+The policy itself:
+
+```
+default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';
+img-src 'self' data: blob:; media-src 'self' blob:; object-src 'self';
+frame-src 'self' ${PP_ONLYOFFICE_URL}; form-action 'self' ${PP_ONLYOFFICE_URL};
+frame-ancestors 'none'; base-uri 'none'; connect-src 'self'
+```
+
+Two directives are **deliberately looser than every guide recommends, and
+tightening them breaks the app**:
+
+- **`object-src 'self'`, not `'none'`.** The PDF viewer is an `<object>`
+  pointed at `/api/v1/nodes/{id}/content`. With `'none'` the browser blocks it
+  and renders the fallback children instead — so it fails as a silent UI
+  regression, not an error anybody sees in a log.
+- **`form-action` and `frame-src` name `${PP_ONLYOFFICE_URL}`.** The editor
+  handoff is a real cross-origin form POST into an iframe: 9.x will not accept
+  the access token as a query parameter on that route, so the browser submits
+  a form to the Document Server's origin. With `'self'` alone the editor frame
+  is simply blank.
+
+One more is looser than it should be, for a reason worth fixing later:
+**`style-src 'unsafe-inline'`** covers a handful of React `style` props
+(progress meters, tree indentation) plus sonner's runtime `<style>` injection.
+It is the only directive here that needs changes in `apps/web` to tighten,
+rather than a configuration decision.
+
+`script-src` needs no nonce: the built `index.html` carries zero inline
+script and the SPA uses `dangerouslySetInnerHTML` nowhere.
+`frame-ancestors 'none'` is safe because pp-hub is always the framer and never
+the framed — nothing reads `window.parent` or listens for `postMessage`.
+
+**The template mechanics.** `nginx.conf` is not a finished config: the CSP has
+to name the Document Server's origin, and hardcoding it would break the first
+deployment that moves the editor. The Dockerfile copies it to
+`/etc/nginx/templates/default.conf.template`, which the official nginx image
+runs `envsubst` over at container start, and sets
+`NGINX_ENVSUBST_FILTER=PP_` so substitution is restricted to `PP_*` — without
+that filter, nginx's own `$host`, `$remote_addr`, `$uri` and friends would be
+eaten and the config would not even load. `compose.prod.yml` therefore passes
+`PP_ONLYOFFICE_URL` to the `web` service as well as to `server`; if you run
+the image by hand, it must be in that container's environment or the CSP ships
+with an empty `frame-src` entry and the editor frame goes blank.
+
+The headers are **repeated** inside `location /assets/` and
+`location = /index.html`. That is not an accident and must not be
+"simplified": nginx does not merge `add_header` across levels — a `location`
+that declares any `add_header` of its own discards every inherited one, and
+both of those locations declare a `Cache-Control`. Without the repetition the
+bundle and the HTML entry point, the two responses a CSP is actually for,
+would ship bare. If you add a `location` with its own `add_header`, copy the
+block.
+
+The access log is a custom `log_format` with a `map` that rewrites
+`/s/<token>` to `/s/REDACTED` before the line is written, because a share
+token is the entire authorization for anonymous access to a file and only its
+SHA-256 is stored in the database. The Go side does the same for its own log
+and for the WOPI `access_token` query parameter.
+
+### Network segments
+
+`compose.prod.yml` defines three networks rather than one flat default:
+
+| Service          | Networks                 |
+| ---------------- | ------------------------ |
+| `web`            | `edge`                   |
+| `server`         | `edge`, `data`, `office` |
+| `worker`         | `data`, `office`         |
+| `postgres`       | `data`                   |
+| `onlyoffice`     | `office`                 |
+| `seaweedfs`      | `data` (profile `s3`)    |
+| `seaweedfs-init` | `data` (profile `s3`)    |
+
+`server` is the only service on all three, because it is the only one
+everything else has business talking to. The segment that matters is
+`office`: OnlyOffice is a third-party service, publicly hostnamed, whose only
+access control is a shared JWT secret, and it runs with
+`ALLOW_PRIVATE_IP_ADDRESS=true` because its own fetcher has to reach `server`
+at a private address. On one flat network that combination also let it open
+connections to `postgres:5432` and `seaweedfs:8333`. It needs `server:8080`
+and nothing else, so now that is all it can reach. The JWT gate is what stops
+it being driven at all; the segmentation is what bounds the damage the day
+that gate fails.
+
+`web` also runs hardened, because it terminates every public request:
+`no-new-privileges:true`, `cap_drop: ALL` with only `NET_BIND_SERVICE` added
+back, and nginx's master process running as the `nginx` user rather than root
+(the stock image drops only its workers). The unprivileged image variant is
+not used because it changes the listen port and the whole topology assumes 80.
+
+### `/wopi/` is not published
+
+nginx deliberately has **no `location /wopi/`**. `PP_WOPI_SERVER_URL` is
+`http://server:8080` inside compose, and that value is what becomes the
+`WOPISrc` the Document Server fetches, so the browser never calls that path
+and no deployment in this repository needs it reachable from outside.
+
+Publishing it anyway turned the WOPI access token from a credential that only
+mattered inside the network into an internet-wide bearer token — on the one
+route group exempt from both the same-origin check and the rate limiter,
+because the Document Server sends no `Origin` header and is authorized by the
+signed token instead.
+
+**If you run OnlyOffice outside this network** — its own host, a managed
+Document Server, a second compose stack — then it cannot reach `server:8080`,
+and you must do two things together: set `PP_WOPI_SERVER_URL` to a URL that is
+publicly reachable, and re-add a `location /wopi/ { proxy_pass $api; }` in
+`apps/web/nginx.conf`. Restrict it to the Document Server's address
+(`allow`/`deny`, or your proxy's equivalent) — the token binds one node, one
+subject and one rank re-resolved against live access, so a replay gains
+nothing a session would not, but there is no reason to leave the route open to
+the internet either. Doing one without the other gives an editor that opens
+and then fails on `CheckFileInfo`.
 
 ### One issuer or two
 
@@ -225,6 +458,21 @@ The server has no dotenv loader — it reads real environment variables — so
 Vite dev server (`http://localhost:5173`): it proxies `/api`, `/auth` and `/s/`
 to `:8080`, so the redirect to `/` after an OIDC callback lands on the SPA. The
 IdP's redirect URI must be `http://localhost:5173/auth/callback` to match.
+It is now also what the same-origin check compares against, so pointing it at
+`http://localhost:8080` while browsing the Vite server on `:5173` makes every
+write answer 403 `cross-origin request refused` while reads keep working —
+which looks like a permissions bug and is not one. Set it to the address in
+your browser's URL bar.
+
+The other new variables need nothing in development. `PP_TRUSTED_PROXIES`
+should stay unset: there is no proxy in front of `go run ./cmd/server`, and
+the Vite dev server is not one either — it proxies to `:8080` from the same
+machine, so the TCP peer is already the right answer.
+`PP_MAX_UPLOAD_BYTES` defaults to 5G and `PP_AUDIT_RETENTION_DAYS` to 365.
+`PP_BOOTSTRAP_ADMIN_EMAIL` is worth setting to your own address on a fresh
+local database — it is the only way to get an admin console — but your IdP
+has to assert `email_verified` for that address, or the promotion is refused
+and the reason is in the server log.
 
 If port 5432 is already taken on your host, set `PP_POSTGRES_PORT` in
 `deploy/compose/.env` and use the same port in `PP_DATABASE_URL`.
@@ -358,17 +606,43 @@ excludes the agent scratch directories (`.claude`, `.agents`, `.plans`, …) for
 cache reasons more than size: they change constantly, and `COPY . .` would
 otherwise invalidate the Vite build layer on every change.
 
+**There are two `.dockerignore` files, and there have to be.** Docker reads
+that file from the root of the _build context_, and the `server` and `worker`
+images build with `context: ../../apps/server` — so the root one governs only
+the web image. Without `apps/server/.dockerignore`, `COPY . .` in the server
+Dockerfile was pulling `apps/server/.env` (which holds
+`PP_OIDC_CLIENT_SECRET` and `PP_SESSION_KEY`) and `apps/server/data/blobs`
+(which on a developer machine is real user file content) into the builder
+stage. Neither reaches the final image — the runtime stages copy only the
+compiled binary — but both are retained in the local build cache and exported
+wholesale by any CI that pushes with `--cache-to`. Keep the two files in step.
+
 **Resources.** Document Server wants 2–4 GB RAM and is by far the heaviest
 service. The worker is bursty — it spawns `pdftoppm`/`ffmpeg` per job with a
 30s timeout each.
 
 ## Known gaps
 
-- **No CSRF defence beyond `SameSite=Lax`** — no `Origin` or `Referer` check
-  on the API. `Lax` covers top-level navigations and the API is JSON over
-  `fetch`, so this is thin rather than absent. See
-  [production-readiness.md](architecture/production-readiness.md) §3, which
-  also records the cookie and session weaknesses that M20 closed.
+- **The rate limits are per process.** `/auth/*`, `/s/{token}` and `/api/v1`
+  are limited per client IP, but the token buckets are in memory, so running
+  `N` `server` replicas allows `N` times the published rate. Redis would fix
+  it and would be the only infrastructure this stack does not otherwise need.
+  See [The security and limit variables](#the-security-and-limit-variables).
+- **No per-user upload quota.** `PP_MAX_UPLOAD_BYTES` bounds one request body
+  and `spaces.quota_bytes` bounds a space (and defaults to unlimited); there
+  is nothing between them, so a member can make many maximum-sized uploads
+  into a space whose quota was never set.
+- **`style-src 'unsafe-inline'` in the CSP.** The only loose directive that is
+  not load-bearing for a feature; removing it needs changes in `apps/web`,
+  not in the deployment.
+- **No read auditing.** `security_events` records who _gained_ access and who
+  signed in; it does not record who downloaded what. Deliberate — see
+  [production-readiness.md](architecture/production-readiness.md) — and the
+  reason "who downloaded the payroll folder?" still has no answer.
+- **No alerting on the security log.** A hundred `login_failed` rows from one
+  address are visible to an admin who looks at
+  `GET /api/v1/admin/security-events`; nothing looks on its own, and there is
+  no export endpoint.
 - **No WOPI proof-key verification.** The Document Server's calls into
   `/wopi/files/...` are authorized by our own access token, not by proving
   they came from the Document Server. Deliberate: the token binds one node,

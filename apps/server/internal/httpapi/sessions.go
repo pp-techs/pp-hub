@@ -53,7 +53,7 @@ func (s *Server) handleRevokeSession(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid session id")
 		return
 	}
-	ok, err := s.auth.RevokeSession(r.Context(), sess.User.ID, id)
+	ok, err := s.auth.RevokeSession(r, sess.User, id)
 	if err != nil {
 		Error(w, r, err)
 		return
@@ -73,7 +73,7 @@ func (s *Server) handleRevokeSession(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleRevokeOtherSessions(w http.ResponseWriter, r *http.Request) {
 	sess := callerSession(r)
-	if _, err := s.auth.RevokeOtherSessions(r.Context(), sess.User.ID, sess.ID); err != nil {
+	if _, err := s.auth.RevokeOtherSessions(r, sess.User, sess.ID); err != nil {
 		Error(w, r, err)
 		return
 	}

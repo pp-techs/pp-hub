@@ -9,6 +9,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert";
 import { Button } from "@workspace/ui/components/button";
 import { fetchMe } from "@/lib/queries";
+import { safePath } from "@/lib/safe-path";
 
 /**
  * Why a sign-in attempt came back here.
@@ -34,12 +35,11 @@ const ERRORS: Record<string, string> = {
 export const Route = createFileRoute("/login")({
   head: () => ({ meta: [{ title: "Sign in · pp-hub" }] }),
   validateSearch: (search: Record<string, unknown>): { redirect?: string; error?: string } => ({
-    // Only a same-origin path is honoured: an absolute URL here would make the
-    // sign-in page an open redirect.
-    redirect:
-      typeof search.redirect === "string" && search.redirect.startsWith("/")
-        ? search.redirect
-        : undefined,
+    // Only a same-origin path is honoured: an absolute URL — or the
+    // protocol-relative shapes a bare "/" prefix test lets through — would
+    // make the sign-in page an open redirect. `safePath` is the same rule the
+    // server applies to `next`.
+    redirect: safePath(search.redirect),
     error: typeof search.error === "string" ? search.error : undefined,
   }),
   beforeLoad: async ({ context, search }) => {

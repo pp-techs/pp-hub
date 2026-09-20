@@ -11,6 +11,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/nhatbui/pp-hub/apps/server/internal/audit"
 	"github.com/nhatbui/pp-hub/apps/server/internal/auth"
 	"github.com/nhatbui/pp-hub/apps/server/internal/bootstrap"
 	"github.com/nhatbui/pp-hub/apps/server/internal/config"
@@ -75,9 +78,14 @@ func run() error {
 	// defaults to 0 (never), so this is inert until a space opts in.
 	go gc.NewTrashWorker(fsSvc).Run(ctx)
 
-	// Sweep expired WOPI locks and dead sessions periodically. Both are
-	// housekeeping: an expired lock is ignored and an expired session is
-	// refused on lookup, so this only keeps the tables from growing.
+	// Sweep expired WOPI locks, dead sessions and aged security events.
+	//
+	// The first two are pure housekeeping — an expired lock is ignored and an
+	// expired session is refused on lookup — but the third is a retention
+	// policy, and a default of "forever" is not one: the table takes a row on
+	// every sign-in and every failed attempt, so an unbounded log is a slow
+	// leak that also makes the console useless to read.
+	auditSvc := audit.New(queries)
 	go func() {
 		ticker := time.NewTicker(5 * time.Minute)
 		defer ticker.Stop()
@@ -94,13 +102,34 @@ func run() error {
 				} else if n > 0 {
 					slog.Info("expired sessions purged", "count", n)
 				}
+				cutoff := pgtype.Timestamptz{Time: time.Now().Add(-cfg.AuditRetention), Valid: true}
+				if n, err := auditSvc.Purge(ctx, cutoff); err != nil {
+					slog.Warn("security event sweep", "err", err)
+				} else if n > 0 {
+					slog.Info("aged security events purged", "count", n)
+				}
 			}
 		}
 	}()
 	usersSvc := users.NewService(queries)
+	api := httpapi.NewServer(httpapi.Deps{
+		Auth:           authSvc,
+		Spaces:         spacesSvc,
+		FS:             fsSvc,
+		Share:          shareSvc,
+		Wopi:           wopiSvc,
+		Preview:        previewWorker,
+		Users:          usersSvc,
+		Store:          queries,
+		ExternalURL:    cfg.ExternalURL,
+		OnlyOfficeURL:  cfg.OnlyOfficeURL,
+		WopiServerURL:  cfg.WopiServerURL,
+		MaxUploadBytes: cfg.MaxUploadBytes,
+		TrustedProxies: cfg.TrustedProxies,
+	})
 	srv := &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           httpapi.NewServer(authSvc, spacesSvc, fsSvc, shareSvc, wopiSvc, previewWorker, usersSvc, queries, cfg.ExternalURL, cfg.OnlyOfficeURL, cfg.WopiServerURL).Router(),
+		Handler:           api.Router(),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 

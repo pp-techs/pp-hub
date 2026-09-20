@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/activity"
+	"github.com/nhatbui/pp-hub/apps/server/internal/audit"
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 )
@@ -39,12 +40,12 @@ func shareToDTO(sh store.Share, externalURL, token string) shareDTO {
 	nid, _ := sh.NodeID.Value()
 	d := shareDTO{
 		ID:          id.(string),
-		NodeID:     nid.(string),
-		Kind:       string(sh.Kind),
-		Level:      string(sh.Level),
+		NodeID:      nid.(string),
+		Kind:        string(sh.Kind),
+		Level:       string(sh.Level),
 		CanDownload: sh.CanDownload,
-		CanShare:   sh.CanShare,
-		CreatedAt:  sh.CreatedAt.Time.Format(time.RFC3339),
+		CanShare:    sh.CanShare,
+		CreatedAt:   sh.CreatedAt.Time.Format(time.RFC3339),
 	}
 	if sh.ExpiresAt.Valid {
 		d.ExpiresAt = sh.ExpiresAt.Time.Format(time.RFC3339)
@@ -121,6 +122,18 @@ func (s *Server) handleCreateShare(w http.ResponseWriter, r *http.Request) {
 			"level":        string(sh.Level),
 			"can_download": sh.CanDownload,
 		})
+		// A public link is the widest grant this app can make — anonymous,
+		// bearer, and forwardable — so it belongs in the security log and not
+		// only in the space's feed.
+		s.audit.Record(r, audit.Event{
+			Kind:    audit.KindShareCreated,
+			UserID:  u.ID,
+			Subject: u.Email,
+			Detail: map[string]any{
+				"node": node.ID.String(), "name": node.Name, "share_kind": "link",
+				"level": string(sh.Level), "can_download": sh.CanDownload,
+			},
+		})
 		writeJSON(w, http.StatusCreated, shareToDTO(sh, s.externalURL, token))
 	case "direct":
 		grantee, err := s.store.GetUserByEmail(r.Context(), body.Email)
@@ -150,6 +163,15 @@ func (s *Server) handleCreateShare(w http.ResponseWriter, r *http.Request) {
 			"can_download": sh.CanDownload,
 			"can_share":    sh.CanShare,
 			"grantee":      grantee.Email,
+		})
+		s.audit.Record(r, audit.Event{
+			Kind:    audit.KindShareCreated,
+			UserID:  u.ID,
+			Subject: u.Email,
+			Detail: map[string]any{
+				"node": node.ID.String(), "name": node.Name, "share_kind": "direct",
+				"level": string(sh.Level), "grantee": grantee.Email,
+			},
 		})
 		writeJSON(w, http.StatusCreated, dto)
 	default:
@@ -198,11 +220,22 @@ func (s *Server) handleRevokeShare(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid share id")
 		return
 	}
-	if err := s.share.Revoke(r.Context(), shareID); err != nil {
+	ok, err := s.share.Revoke(r.Context(), node.ID, shareID)
+	if err != nil {
 		Error(w, r, err)
 		return
 	}
+	if !ok {
+		writeProblem(w, http.StatusNotFound, "Not Found", "no such share on this node")
+		return
+	}
 	s.activity.Node(r.Context(), u.ID, node, activity.KindUnshared, nil)
+	s.audit.Record(r, audit.Event{
+		Kind:    audit.KindShareRevoked,
+		UserID:  u.ID,
+		Subject: u.Email,
+		Detail:  map[string]any{"node": node.ID.String(), "name": node.Name, "share": shareID.String()},
+	})
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -218,6 +251,30 @@ func (s *Server) resolveLinkNode(w http.ResponseWriter, r *http.Request) (store.
 	node, err := s.fs.Get(r.Context(), sh.NodeID)
 	if err != nil {
 		writeProblem(w, http.StatusNotFound, "Not Found", "file no longer exists")
+		return store.Share{}, store.Node{}
+	}
+	// A link is only as alive as its author's own access.
+	//
+	// Resolution used to be the token hash and the expiry, nothing else — so
+	// revoking the grant that let somebody share a folder left every link
+	// they had minted working, anonymously, forever. The codebase already
+	// held the opposite intent for the stronger action: removing a member
+	// runs DeleteSharesByCreatorInSpace so that "their sharing decisions
+	// leave with them". Revoking one grant is the weaker action and left the
+	// bigger hole.
+	//
+	// Re-resolving here rather than cascading on revoke is the same choice
+	// made for WOPI tokens: one query against present-day access covers
+	// every way access can disappear, including an ancestor being moved,
+	// rather than one cleanup path per way.
+	caps, err := s.share.EffectiveCapsForNode(r.Context(), node, sh.CreatedBy)
+	if err != nil {
+		Error(w, r, err)
+		return store.Share{}, store.Node{}
+	}
+	if !caps.Has(share.CapShare) {
+		writeProblem(w, http.StatusNotFound, "Not Found",
+			"this link is no longer valid: whoever created it no longer shares this file")
 		return store.Share{}, store.Node{}
 	}
 	return sh, node
@@ -241,6 +298,10 @@ func (s *Server) handleShareDownload(w http.ResponseWriter, r *http.Request) {
 	defer rc.Close()
 	w.Header().Set("Content-Type", ver.Mime)
 	w.Header().Set("Content-Disposition", contentDisposition("attachment", n.Name))
+	// The stored MIME comes from the extension the uploader chose, so it is
+	// attacker-selected within Go's table. Every other byte-serving path here
+	// sets this; the gap was the only one.
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Length", strconv.FormatInt(ver.Size, 10))
 	_, _ = io.Copy(w, rc)
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/nhatbui/pp-hub/apps/server/internal/audit"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 )
 
@@ -91,6 +92,12 @@ func (s *Server) handleAddMember(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusInternalServerError, "Error", "add failed")
 		return
 	}
+	s.audit.Record(r, audit.Event{
+		Kind:    audit.KindMemberAdded,
+		UserID:  user.ID,
+		Subject: u.Email,
+		Detail:  map[string]any{"space": spaceID.String(), "as_admin": body.AsAdmin},
+	})
 	writeJSON(w, http.StatusCreated, map[string]string{"status": "added"})
 }
 
@@ -151,5 +158,13 @@ func (s *Server) handleRemoveMember(w http.ResponseWriter, r *http.Request) {
 		s.spaceError(w, r, err)
 		return
 	}
+	// Membership is what gates every grant and every ownership claim, so
+	// losing it is the single largest change to what a person can reach.
+	s.audit.Record(r, audit.Event{
+		Kind:    audit.KindMemberRemoved,
+		UserID:  userID,
+		Subject: u.Email,
+		Detail:  map[string]any{"space": spaceID.String()},
+	})
 	writeJSON(w, http.StatusOK, map[string]string{"status": "removed"})
 }

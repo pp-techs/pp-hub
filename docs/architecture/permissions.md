@@ -92,11 +92,19 @@ them over: `GET /nodes/{id}/download`, the folder zip, and
 `GET /nodes/{id}/content` — the inline stream the PDF viewer, `<img>` and
 `<video>` read. Serving `/content` under `CapView`, as it once did, made the
 flag a label: a reader could open the file in a tab and keep it. What a reader
-without download still gets is `GET /nodes/{id}/preview`, the artefact the
-preview worker _derived_ from the file — a 256px thumbnail or a text snippet —
-which is view-gated and stays so. The client follows: `PreviewBody` routes a
-no-download reader to the derived preview, and "Open in new tab" and
-"Download" are not offered. Drive draws the line in the same place.
+without download still gets is `GET /nodes/{id}/preview?kind=thumbnail`, a
+256px rasterization the preview worker _derived_ from the file, which is
+view-gated and stays so. `?kind=text` is not in that category and no longer
+pretends to be: it is the first 4 KiB of the source, byte for byte, which for
+a note, a CSV, a config file or a key is usually the whole document, so it
+takes `CapDownload` too. The client follows rather than guesses:
+`PreviewBody` gates on `caps.download`, falls back to the stored thumbnail for
+an image, asks for `?kind=text` only when the capability is there — requesting
+it without would be a guaranteed 403 rendered as "preview not ready", which is
+a lie about why — and otherwise says plainly that downloads are off for this
+file. "Open in new tab" and "Download" are not offered. Drive draws the line
+in the same place. The full list of byte-serving paths and what each demands
+is below.
 
 `can_download` is also what **copying** takes. `POST /nodes/{id}/copy`
 authorises the source with `CapDownload` and the destination with
@@ -169,12 +177,12 @@ weaker rule of its own.
 Node-addressed routes go through `requireNodeCaps(w, r, need share.Cap)`, which
 resolves the node and demands one capability:
 
-| Capability    | Routes                                                                             |
-| :------------ | :--------------------------------------------------------------------------------- |
-| `CapView`     | `GET /nodes/{id}`, `/children`, `/tree`, `/preview`, versions, star, WOPI session  |
-| `CapDownload` | `GET /nodes/{id}/download` (file or streamed zip), `/content`, copy source         |
-| `CapEdit`     | rename, move, delete, upload-into, version restore, trash restore/purge, WOPI save |
-| `CapShare`    | list/create/revoke shares, list/upsert/revoke group grants                         |
+| Capability    | Routes                                                                                                                            |
+| :------------ | :-------------------------------------------------------------------------------------------------------------------------------- |
+| `CapView`     | `GET /nodes/{id}`, `/children`, `/tree`, `/preview?kind=thumbnail`, versions, star                                                |
+| `CapDownload` | `GET /nodes/{id}/download` (file or streamed zip), `/content`, `/preview?kind=text`, copy source, `POST /nodes/{id}/edit-session` |
+| `CapEdit`     | rename, move, delete, upload-into, version restore, trash restore/purge, WOPI save                                                |
+| `CapShare`    | list/create/revoke shares, list/upsert/revoke group grants                                                                        |
 
 Creating into a folder goes through `requireParentWrite`:
 
@@ -201,6 +209,16 @@ Two deliberate exceptions to "administration is admin-only":
   `{"is_admin": true}` is a **400** instead of decoding to `false` and silently
   demoting the person the caller meant to promote.
 
+`spaces.SetAdmin` also **refuses a non-member.** Promotion calls
+`RequireMember` first, because without it an admin could seat somebody in the
+space's `Admin` group who has no `space_members` row: they would pass
+`IsSpaceAdmin`, and therefore every space-administration route — those check
+admin status, not membership — while the People page, which lists members,
+would not show them. An administrator nobody can see is worse than one nobody
+wanted. The equivalent check already guarded user-created groups, and the
+Admin group is the higher privilege of the two. Demotion is unaffected, except
+that it still refuses to remove the last admin.
+
 Listings cannot afford a check per row, so they narrow in one batch
 (`reachability` + one `AccessCaps` call):
 
@@ -221,6 +239,46 @@ as a grant).
 
 `GET /usage` is deliberately **not** narrowed: it is an aggregate of bytes per
 MIME family, names nothing, and the rail already shows the space quota beside it.
+
+### Handing Over the File Is a Download
+
+One rule decides every row below: **handing over the complete file is a
+download, whatever the `Content-Disposition` says.** Inline versus attachment
+is a rendering hint to a browser; it is not an access-control boundary, and
+treating it as one is how three separate routes ended up serving byte-identical
+originals to callers who had been refused exactly that. What a view-only reader
+may have is something _derived_ from the file — a rasterization — not the file
+at a different `Content-Type`.
+
+| Path                                                         | Demands                          | Why                                                                 |
+| :----------------------------------------------------------- | :------------------------------- | :------------------------------------------------------------------ |
+| `GET /nodes/{id}/download`                                   | `CapDownload`                    | The file, or a folder streamed as a zip                             |
+| `GET /nodes/{id}/content`                                    | `CapDownload`                    | Same bytes, `inline` for the allowlisted MIME types                 |
+| `GET /nodes/{id}/preview?kind=thumbnail`                     | `CapView`                        | 256px PNG the worker rendered; genuinely derived                    |
+| `GET /nodes/{id}/preview?kind=text`                          | `CapDownload`                    | A verbatim 4 KiB prefix of the source — the document, not a summary |
+| `GET /s/{token}/download`, `/node-download`, `/download-all` | the link's `can_download`        | Attachment, anonymous                                               |
+| `GET /s/{token}/content`                                     | the link's `can_download`        | Inline, anonymous — and it is the same bytes as `/node-download`    |
+| `GET /wopi/files/{id}/contents`                              | token rank ≥ 2 (= `CapDownload`) | The Document Server fetching the whole document for the editor      |
+| `POST /nodes/{id}/edit-session`                              | `CapDownload`                    | Minting the token above; there is no "open without fetching"        |
+
+Two notes on the table:
+
+- **A machine token is not a person.** `wopi.SystemSubject` — the preview
+  worker's conversion fetch — has no subject to resolve a capability for, so
+  `handleWopiGetFile` skips the rank check for it. It is minted at rank 1,
+  which is why that exemption is load-bearing rather than cosmetic. The token
+  comes from this deployment, is scoped to one node, lasts five minutes, and
+  the signing key is its authorization.
+- **The accepted cost.** A reader granted view-without-download cannot open an
+  office document at all — only its thumbnail, which is the first page at
+  256px. There is no version of "view a `.docx` without downloading it": the
+  Document Server fetches the whole file and the browser renders it, so the
+  bytes leave the server either way. The old behaviour (an editor session on
+  `CapView`, rank 1 sufficient for `GetFile`) was not a kinder reading of the
+  grant, it was a way around it. A read-only session is now rank 2 rather than
+  rank 1, because rank 1 would mint a session that cannot fetch its own
+  document; rank 3 is still what `PutFile` and the lock operations demand. See
+  [office-integration.md](office-integration.md).
 
 ### Every Node Carries Its Own Answer
 
@@ -432,15 +490,37 @@ be used to probe a tree the caller cannot write to.
 ## Anonymous Link Browsing
 
 A link resolves without a user to `share.LinkCaps`: view, plus download when
-the link says so. Routes under `/s/{token}` mirror the authenticated split —
-`/content` serves the file inline under view, `/node-download`, `/download` and
-`/download-all` (zip) need the download flag. A view-only link that could not
-preview anything would be a blank page, which is why the split matters.
+the link says so. Every route under `/s/{token}` that serves original bytes —
+`/content` as well as `/node-download`, `/download` and `/download-all` (zip)
+— requires the download flag. `/content` once served the file inline under
+view on the reasoning that a view-only link needs something to show; what it
+actually did was hand over a byte-identical copy of every file in the subtree,
+one `?node=` at a time, which made `can_download: false` a label rather than a
+rule. There is no preview endpoint under `/s/{token}` — previews are
+authenticated — so a no-download link is now honestly what it is: names,
+sizes and dates, and no file bytes at all. The share page says so in those
+words rather than promising a preview the server will refuse, which is the
+trade this fix makes and the reason it is worth stating twice.
 
 Every node id an anonymous caller supplies is walked back up to the share root
 before anything is served. A node outside that subtree answers **404, not
 403**: confirming that a node exists but sits outside the share is itself more
 than the visitor should learn. Owner names are stripped from share responses.
+
+**A link is only as alive as its creator's own access.** `resolveLinkNode`
+re-resolves `EffectiveCapsForNode` for `shares.created_by` on every request
+and refuses the link — 404, with "whoever created it no longer shares this
+file" — once that no longer holds `CapShare`. Before this, resolution was the
+token hash and the expiry and nothing else, so revoking the grant that let
+somebody share a folder left every link they had minted working, anonymously,
+indefinitely. The model already held the opposite intent for the stronger
+action: `RemoveMember` deletes the grants a departing member created so that
+"their sharing decisions leave with them". Revoking one grant is the weaker
+action and left the bigger hole. Re-resolving on read rather than cascading on
+revoke is the same choice made for WOPI tokens — one query covers every way
+access can disappear, an ancestor being moved included, instead of one cleanup
+path per way. A link whose creator has left the space fails the same check,
+because resolution step 0 (membership) fails for them.
 
 ## Archive
 
@@ -558,6 +638,10 @@ Enforced in `spaces.Service`, not by the database alone:
 - **Removing a member removes them from every group in that space.**
 - **`Everyone` membership is always exactly space membership.** There is no API
   to edit it by hand.
+- **No group membership without space membership.** Both `AddGroupMember`'s
+  handler and `SetAdmin` call `RequireMember` before adding anyone, so a group
+  — the automatic `Admin` one included — can never hold someone the space
+  does not.
 
 ## Schema (M15)
 

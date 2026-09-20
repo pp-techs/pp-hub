@@ -7,7 +7,11 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log/slog"
+	"net/netip"
 	"os"
+	"strconv"
+	"strings"
+	"time"
 )
 
 type Config struct {
@@ -47,10 +51,46 @@ type Config struct {
 	// can reach its port can drive it, including asking it to fetch an
 	// arbitrary URL.
 	OnlyOfficeJWTSecret []byte
+	// MaxUploadBytes caps a single request body that becomes file content.
+	// A space's quota is checked only after the bytes have landed — the
+	// request's declared length is not trustworthy — so without a ceiling
+	// here one caller could fill the disk, and a space's quota defaults to
+	// unlimited. 0 disables it.
+	MaxUploadBytes int64
+	// BootstrapAdminEmail promotes whoever signs in with this address to
+	// instance admin, every time they sign in. It exists because there was
+	// no other way to create the first one: `users.is_admin` defaults to
+	// false and its only writer sits behind an admin-only endpoint, so a
+	// fresh install had no administrator and no way to appoint one short of
+	// `UPDATE users SET is_admin = true` in psql. An install step that
+	// requires a psql session is not an install step.
+	//
+	// Lowercased on load; comparison is case-insensitive, because an IdP is
+	// free to return a different case than the operator typed.
+	BootstrapAdminEmail string
+	// AuditRetention is how long security_events rows are kept. One row is
+	// written on every sign-in and every failed attempt, so "forever" is a
+	// slow leak and, eventually, a console nobody can read.
+	AuditRetention time.Duration
+	// TrustedProxies are the CIDRs whose X-Forwarded-For this server will
+	// believe. Empty — the default, and correct for a server reached
+	// directly — means no forwarded header is trusted at all and the TCP
+	// peer is the client address.
+	//
+	// This is not optional bookkeeping. The per-IP rate limits and the
+	// address recorded on a session are only worth anything if the address
+	// cannot be chosen by the caller, and behind a reverse proxy with this
+	// unset every request appears to come from the proxy, so one caller can
+	// spend the whole instance's budget.
+	TrustedProxies []string
 }
 
 func Load() (*Config, error) {
 	key, shared, err := secretKey()
+	if err != nil {
+		return nil, err
+	}
+	maxUpload, err := bytesEnv("PP_MAX_UPLOAD_BYTES", 5<<30)
 	if err != nil {
 		return nil, err
 	}
@@ -79,6 +119,30 @@ func Load() (*Config, error) {
 		WopiServerURL:    env("PP_WOPI_SERVER_URL", "http://localhost:8080"),
 
 		OnlyOfficeJWTSecret: []byte(os.Getenv("PP_ONLYOFFICE_JWT_SECRET")),
+		MaxUploadBytes:      maxUpload,
+		BootstrapAdminEmail: strings.ToLower(strings.TrimSpace(os.Getenv("PP_BOOTSTRAP_ADMIN_EMAIL"))),
+		AuditRetention:      time.Duration(daysEnv("PP_AUDIT_RETENTION_DAYS", 365)) * 24 * time.Hour,
+	}
+	// Validated here rather than at the router, because chi's
+	// ClientIPFromXFF panics on a bad prefix at startup and a typo in an
+	// operator's CIDR list deserves a sentence, not a stack trace.
+	for _, raw := range strings.Split(os.Getenv("PP_TRUSTED_PROXIES"), ",") {
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			continue
+		}
+		// A bare address is the single-host form of a prefix, which is what
+		// an operator naming one proxy means.
+		if !strings.Contains(raw, "/") {
+			addr, err := netip.ParseAddr(raw)
+			if err != nil {
+				return nil, fmt.Errorf("PP_TRUSTED_PROXIES: %q is neither an address nor a CIDR", raw)
+			}
+			raw = netip.PrefixFrom(addr, addr.BitLen()).String()
+		} else if _, err := netip.ParsePrefix(raw); err != nil {
+			return nil, fmt.Errorf("PP_TRUSTED_PROXIES: %q is not a CIDR", raw)
+		}
+		c.TrustedProxies = append(c.TrustedProxies, raw)
 	}
 	if c.OIDCIssuerExt == "" {
 		c.OIDCIssuerExt = c.OIDCIssuer
@@ -128,6 +192,56 @@ func (c *Config) validateBlobBackend() error {
 	default:
 		return fmt.Errorf("PP_BLOB_BACKEND must be \"local\" or \"s3\", got %q", c.BlobBackend)
 	}
+}
+
+// daysEnv reads a day count. Unlike bytesEnv this falls back rather than
+// erroring: a retention window is a policy knob, and refusing to start over a
+// typo in it would be a worse outcome than keeping the default and saying so.
+func daysEnv(key string, def int) int {
+	raw := strings.TrimSpace(os.Getenv(key))
+	if raw == "" {
+		return def
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil || n <= 0 {
+		slog.Warn("ignoring unusable value", "key", key, "value", raw, "using", def)
+		return def
+	}
+	return n
+}
+
+// bytesEnv reads a byte count, accepting a plain number or a K/M/G/T suffix.
+//
+// A wrong value is a startup error rather than a silent default: an operator
+// who typed "5GB" meaning a ceiling should not get "no ceiling" for the
+// trouble.
+func bytesEnv(key string, def int64) (int64, error) {
+	raw := strings.TrimSpace(os.Getenv(key))
+	if raw == "" {
+		return def, nil
+	}
+	mult := int64(1)
+	switch unit := raw[len(raw)-1]; unit {
+	case 'K', 'k':
+		mult = 1 << 10
+	case 'M', 'm':
+		mult = 1 << 20
+	case 'G', 'g':
+		mult = 1 << 30
+	case 'T', 't':
+		mult = 1 << 40
+	}
+	digits := raw
+	if mult > 1 {
+		// Not trimmed: "5 G" is a typo, and the point of erroring at all is
+		// that a mistyped ceiling must not quietly become a different one.
+		digits = raw[:len(raw)-1]
+	}
+	n, err := strconv.ParseInt(digits, 10, 64)
+	if err != nil || n < 0 {
+		return 0, fmt.Errorf("%s must be a byte count, optionally suffixed K/M/G/T; got %q", key, raw)
+	}
+	return n * mult, nil
 }
 
 func env(key, def string) string {

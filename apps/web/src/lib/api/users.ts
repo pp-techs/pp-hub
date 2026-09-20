@@ -1,6 +1,13 @@
 // User management API endpoints.
 import { api, ApiError } from "./client";
-import type { AdminUser, Session, SpaceMember, UserProfile, UserSearchResult } from "./types";
+import type {
+  AdminUser,
+  SecurityEventPage,
+  Session,
+  SpaceMember,
+  UserProfile,
+  UserSearchResult,
+} from "./types";
 
 // ─── Profile ─────────────────────────────────────────────────────────────────
 
@@ -68,6 +75,27 @@ export async function listUsers(
 ): Promise<{ users: AdminUser[]; total: number }> {
   const res = await api.get("api/v1/users", { searchParams: { limit, offset } });
   if (!res.ok) throw new ApiError(res.status, "Failed to list users");
+  return res.json();
+}
+
+// ─── Admin: Security Log ─────────────────────────────────────────────────────
+
+/**
+ * Admin-only, newest first, instance-wide. `kind` filters exactly; omit it for
+ * every kind. The server clamps `limit` to 1–500 and defaults it to 100.
+ */
+export async function listSecurityEvents(params: {
+  limit?: number;
+  offset?: number;
+  kind?: string;
+}): Promise<SecurityEventPage> {
+  const searchParams: Record<string, string | number> = {
+    limit: params.limit ?? 100,
+    offset: params.offset ?? 0,
+  };
+  if (params.kind) searchParams.kind = params.kind;
+  const res = await api.get("api/v1/admin/security-events", { searchParams });
+  if (!res.ok) throw new ApiError(res.status, "Failed to list security events");
   return res.json();
 }
 

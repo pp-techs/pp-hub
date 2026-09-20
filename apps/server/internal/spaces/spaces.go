@@ -191,12 +191,24 @@ func (s *Service) AddMember(ctx context.Context, spaceID, userID pgtype.UUID, as
 // SetAdmin adds or removes the user in the space's Admin group — the only
 // thing "admin" means anymore. Removing the last admin is refused: the space
 // would be unadministrable with no route back through the UI.
+//
+// Promotion requires the target to already be a member. Without that check
+// an admin could seat a non-member in the Admin group, producing somebody who
+// passes IsSpaceAdmin — and therefore every space-administration route, since
+// those check admin status and not membership — while having no
+// space_members row, so the People page does not list them. An administrator
+// nobody can see is worse than one nobody wanted. The equivalent check
+// already guards user-created groups, and the Admin group is the higher
+// privilege of the two.
 func (s *Service) SetAdmin(ctx context.Context, spaceID, userID pgtype.UUID, asAdmin bool) error {
 	admin, err := s.q.GetAdminGroup(ctx, spaceID)
 	if err != nil {
 		return err
 	}
 	if asAdmin {
+		if err := s.RequireMember(ctx, spaceID, userID); err != nil {
+			return err
+		}
 		return s.q.AddGroupMember(ctx, store.AddGroupMemberParams{GroupID: admin.ID, UserID: userID})
 	}
 	isAdmin, err := s.q.IsSpaceAdmin(ctx, store.IsSpaceAdminParams{SpaceID: spaceID, UserID: userID})

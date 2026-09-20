@@ -402,16 +402,171 @@ router and fails if any `/api/v1` route is not wrapped by `authenticated`,
 which is what makes "the group is the guard" enforceable rather than a
 convention.
 
-**Deliberately not built:** an `Origin`/`Referer` CSRF check. `SameSite=Lax`
-plus a JSON-over-`fetch` API is thin rather than absent, and it is the one
-item [production-readiness.md](production-readiness.md) §3 still lists as
-open.
+**Deferred here, shipped in M21:** an `Origin`/`Referer` CSRF check. The
+reasoning at the time was that `SameSite=Lax` plus a JSON-over-`fetch` API is
+thin rather than absent, which was true and was also the argument for a single
+control being the only one. See M21.
+
+## M21 — Access Re-Resolved, and the Controls That Were Missing ✅ done
+
+Migration `0003_security_events.sql`. A security milestone rather than a
+product one: no new surface except an admin-readable log, and one route group
+(`/wopi/`) removed from nginx.
+
+**The through-line is M20's.** Making a session a row was worth doing because
+it turned "decide once, trust forever" into "re-resolve on every request".
+Everything else in the system that still decided access once was then worth
+finding, and there were three. A public share link resolved its token hash and
+expiry and nothing else, so revoking the grant that let somebody share a
+folder left every link they had minted alive, anonymously, indefinitely —
+`resolveLinkNode` now re-resolves `EffectiveCapsForNode` for the share's
+`created_by` and answers 404 once that no longer holds `CapShare`. A WOPI
+access token carried a permission rank decided when the editor opened, and
+`GetFile` accepted rank 1 — so an editor session was the way around the
+no-download half of a grant: mint a view token, let the Document Server fetch
+the document, keep the file, while `handleContent` refused the same person for
+the same bytes. `GetFile` now requires rank ≥ 2 for a user token and
+`handleEditSession` requires `CapDownload`, minting rank 2 even for a
+read-only session because rank 1 could no longer fetch its own document; a
+machine token (`wopi.SystemSubject`) is unaffected, having no subject to
+resolve a capability for. And the caller's own IP address was the caller's
+choice, which made every future limit keyed on it decorative.
+
+**The view/download split is now a rule rather than a label.**
+`GET /s/{token}/content` ignored the link's `can_download` and served
+byte-identical originals — of every file in the subtree, one `?node=` at a
+time. `GET /nodes/{id}/preview?kind=text` is a verbatim 4 KiB prefix of the
+source, which for a note, a CSV or a key is the whole document, and it was
+gated on view. Both take download now; `kind=thumbnail` stays on view,
+because a 256px rasterization is genuinely derived and it is what lets a
+no-download reader see _something_. The accepted cost is stated rather than
+hidden: a reader with view-but-not-download cannot open an office document at
+all, only its thumbnail, and an anonymous no-download link is honestly names,
+sizes and dates — there is no anonymous preview endpoint. See
+[permissions.md](permissions.md).
+
+**Two controls did not exist at all.** `Server.sameOrigin` wraps the
+`/api/v1` group and `/auth/logout`, compares `Origin` — or the _origin_ of
+`Referer`, never its path — against `PP_EXTERNAL_URL`, and fails closed if
+that value will not parse. It runs before `authenticated` on purpose: a forged
+cross-site write should cost no session lookup and should be told the real
+reason rather than a 401. `/wopi/*` is exempt because the Document Server
+sends no Origin at all and is authorized by a signed token, and
+`/auth/callback` is exempt because it is a top-level navigation from the IdP
+defended by the state and nonce in `pp_oidc_tx`. Alongside it, per-IP token
+buckets: `/auth/login`, `/auth/callback` and `/auth/logout` at 30/min burst
+10, `/s/{token}` at 60/min burst 20 — a share token is a guessable secret
+whose hit answers 200 — and `/api/v1` at 1200/min burst 200. They are
+in-process, so N replicas allow N× the rate; that is written down in
+[deployment.md](../deployment.md) rather than left for an operator to
+discover. Upload bodies gained a ceiling too: `PP_MAX_UPLOAD_BYTES` (5G
+default) through `http.MaxBytesReader`, because `ParseMultipartForm`'s
+argument was never a limit — it is the in-memory spill threshold — and quota
+is checked only after the bytes land, from a default of unlimited.
+
+**The audit trail is a second table, not more verbs on the first.**
+`activity_events` cannot hold an authentication event: `space_id` and
+`actor_id` are both `NOT NULL`, an auth event belongs to no space, and the
+interesting one — a failed sign-in — may have no account to name.
+`security_events` plus `internal/audit` record `login`, `login_failed`,
+`logout`, `session_revoked`, `sessions_revoked`, `identity_adopted`,
+`admin_granted`, `admin_revoked`, `account_suspended`,
+`account_unsuspended`, `grant_created`, `grant_revoked`, `share_revoked`,
+`member_added` and `member_removed`, each with the client IP, a truncated user
+agent and chi's request id, so a row joins to the access-log line that
+produced it. `GET /api/v1/admin/security-events` pages it newest first,
+admin-only and deliberately instance-wide, since the value of a run of failed
+sign-ins is seeing it across accounts and addresses at once. Retention is
+`PP_AUDIT_RETENTION_DAYS` (365), purged by the same five-minute ticker that
+sweeps expired sessions and WOPI locks. Read auditing is still absent, and
+deliberately: a `downloaded` row per byte-serving request is the
+highest-volume event in the system and needs sampling and a retention policy
+of its own. See [data-model.md](data-model.md).
+
+**The first admin is a configuration value.** `PP_BOOTSTRAP_ADMIN_EMAIL`
+promotes whoever signs in with that address, on every sign-in — idempotent,
+and therefore also the recovery path for an install whose last admin was
+demoted. It requires a **verified** email claim, because the address is
+matched against a static configuration value and would otherwise be a standing
+authorization rule keyed on a field a self-service IdP may let its users edit.
+The same asymmetry existed one layer down: `TouchUserLogin` used to rewrite
+`users.email` from an unverified claim on every sign-in, and that column is
+what invitation acceptance matches on, what a direct share is granted to, and
+what this variable is compared against. It no longer does.
+
+**Provenance.** `middleware.ClientIPFromXFF(PP_TRUSTED_PROXIES...)` replaces
+chi's deprecated `RealIP`, which believed `True-Client-IP`, `X-Real-IP` and
+`X-Forwarded-For` from anybody; it is installed only when the variable names
+at least one CIDR, and everything reads the result through `audit.ClientIP`,
+where "nothing vouched for" means "believe the TCP peer". `config.Load`
+validates the CIDRs so a typo is a sentence rather than a panic out of chi,
+and nginx clears `True-Client-IP`, `CF-Connecting-IP` and `Forwarded`.
+Credentials also stopped reaching the logs: `redactingLogger` rewrites
+`r.RequestURI` — the raw string chi's Logger formats — so `/s/<token>`
+becomes `/s/REDACTED` and `access_token=` becomes `REDACTED`, while `r.URL`
+is left untouched because chi routes off `r.URL.Path` and the WOPI handler
+needs the credential it was handed. An earlier attempt swapped the URL as
+well and every share link answered 404 with a log line that looked perfect.
+nginx does the same job with a `map` and a custom `log_format`.
+
+**Edge and deployment.** `nginx.conf` became an envsubst template (the CSP has
+to name the Document Server's origin) and now sends CSP, HSTS,
+`X-Frame-Options: DENY`, `Referrer-Policy` and `nosniff`, with
+`server_tokens off`; the headers are repeated inside `location /assets/` and
+`location = /index.html` because nginx does not merge `add_header` across
+levels. Two CSP directives are deliberately loose — `object-src 'self'` for
+the PDF viewer's `<object>`, and `form-action`/`frame-src` naming
+`${PP_ONLYOFFICE_URL}` for the editor's cross-origin form POST — and
+`style-src 'unsafe-inline'` is the one that needs code changes to tighten.
+`/wopi/` is no longer proxied at all: no shipped topology used it, and it was
+the one route group with neither an origin check nor a rate limit. Compose
+splits one flat network into `edge`/`data`/`office`, so OnlyOffice can no
+longer open a connection to Postgres or SeaweedFS; `web` gains
+`no-new-privileges`, `cap_drop: ALL` plus `NET_BIND_SERVICE`, and an nginx
+master running as `nginx`. `apps/server/.dockerignore` now exists, because
+Docker reads that file from the root of the build context and these images
+build with `context: ../../apps/server` — so a bare `COPY . .` had been
+pulling `.env` and `data/blobs` into builder layers that a `--cache-to`
+registry export would publish.
+
+**Also closed, smaller:** `DeleteShare` is scoped by node, so a caller who can
+share one node can no longer revoke a share on another; `spaces.SetAdmin`
+refuses a non-member, which used to be able to seat an admin the People page
+does not list; `application/octet-stream` left `isOfficeMime`, where it had
+made the allowlist mean "any file with an unfamiliar extension"; and the two
+byte-serving endpoints that sent no `nosniff` and no `Content-Disposition` —
+WOPI `GetFile` and the anonymous share-file path — now send both.
+
+**Testing.** The guards are structural where they can be.
+`TestEveryAPIMutationChecksOrigin` walks the router and fails if any non-safe
+`/api/v1` method is not wrapped by `sameOrigin`;
+`TestWopiIsExemptFromOriginChecks` fails if the WOPI group ever _is_, because
+that would break every office save — the two together are the same
+"convention nobody can forget" that `TestEveryAPIRouteIsAuthenticated`
+established in M20. `csrf_test.go` covers the middleware itself: own origin
+accepted, a host that merely starts with the real one refused
+(`drive.example.com.evil.example`), a scheme downgrade and a different port
+refused, the `Referer` fallback compared by origin only, both headers absent
+refused, every unsafe method covered, safe methods untouched, and an
+unparseable `PP_EXTERNAL_URL` refusing everything rather than allowing it.
+`ratelimit_test.go` holds the bucket arithmetic — burst spent then refused,
+refill over time, keys isolated from each other, and idle buckets evicted so
+an attacker-controlled key is not a memory leak. `wopi_db_test.go` gained
+`TestWopiRefusesViewOnlyReads` (rank 1 cannot `GetFile`) and
+`TestWopiMachineTokenIsAuthorizedWithoutACapability` (the worker's fetch still
+works) beside the M20 cases for revocation, departure, suspension, downgrade
+and token/file binding. `logging_test.go` covers both halves of the
+redaction: that a share token and a WOPI `access_token` are replaced in the
+logged URI and ordinary paths are left alone, and — the regression a unit test
+on the helper alone would have missed — that routing and the handler still see
+the real values, since chi matches on `r.URL.Path` and the WOPI handler has to
+read the credential it was given.
 
 ## Testing Strategy
 
 - **Unit**: capability resolver matrix (ownership × grant × ancestor × link), blob CAS (put/get/dedup/gc), tree ops (move-cycle rejection, rename conflicts).
-- **Database-backed**: the invariants that live in SQL — owner inheritance, admin-has-no-access, member lifecycle, session lookup and revocation — run against a real Postgres and skip without `PP_TEST_DATABASE_URL`.
-- **Structural**: `TestEveryAPIRouteIsAuthenticated` walks the chi router and fails if an `/api/v1` route is not wrapped by the auth middleware. A convention nobody can forget is worth more than a convention everybody is told about.
+- **Database-backed**: the invariants that live in SQL — owner inheritance, admin-has-no-access, member lifecycle, session lookup and revocation, and WOPI access re-resolved against live grants — run against a real Postgres and skip without `PP_TEST_DATABASE_URL`.
+- **Structural**: three router walks. `TestEveryAPIRouteIsAuthenticated` fails if an `/api/v1` route is not wrapped by the auth middleware, `TestEveryAPIMutationChecksOrigin` fails if a non-safe `/api/v1` method is not wrapped by `sameOrigin`, and `TestWopiIsExemptFromOriginChecks` fails if the WOPI group ever is. A convention nobody can forget is worth more than a convention everybody is told about.
 - **Integration** (compose test profile): upload→download byte-identical roundtrip; WOPI flow against real OnlyOffice (open → PutFile → version increments); link share access without auth.
 - **Contract**: hand-typed TS interfaces in `apps/web/src/lib/api/types.ts` mirror the Go handlers; OpenAPI codegen deferred until the surface grows.
 - **Load sanity**: k6 — 100 concurrent uploads, 5-user co-edit; pass = no errors, no performance target yet.
@@ -422,9 +577,10 @@ open.
 - Persistent state: `data/` volume (blobs) + Postgres volume.
 - Backup: `pg_dump` + rsync of `data/blobs` — **documented, not implemented**. See
   [production-readiness.md](production-readiness.md), which collects everything
-  standing between M20 and an internal rollout: the P0 blockers (backup, mail
-  transport, OnlyOffice JWT, admin bootstrap, upload/rate limits, lock
-  enforcement on the REST path — the session/cookie item is closed), the P1
-  gaps against Google Drive (content search, audit-grade events, comments,
-  resumable upload, storage accounting, IdP group sync), and a proposed
-  phasing.
+  standing between M21 and an internal rollout: the P0 blockers that remain
+  (backup, mail transport, and lock enforcement on the REST version-upload
+  path — the session/cookie, OnlyOffice JWT, admin bootstrap and
+  upload/rate-limit items are closed, as are the sweep findings in its §8),
+  the P1 gaps against Google Drive (content search, read auditing and an audit
+  export, comments, resumable upload, storage accounting, IdP group sync), and
+  a proposed phasing.

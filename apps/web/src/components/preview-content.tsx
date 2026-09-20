@@ -212,7 +212,11 @@ function PreviewBody({ node }: { node: Node }) {
   if (mime.startsWith("image/")) {
     return <ImagePreview node={node} thumbUrl={previewUrl(node)} canRead={canRead} />;
   }
-  if (previewKind(node.mime) === "text") {
+  // The text artifact is the file's words, so the server gates `?kind=text`
+  // on download rather than view — only the thumbnail is a view-level
+  // artifact. Asking for it without the capability is a guaranteed 403
+  // rendered as "preview not ready", which is a lie about why.
+  if (canRead && previewKind(node.mime) === "text") {
     return <TextPreview url={previewUrl(node, "text")} />;
   }
   if (!canRead) {

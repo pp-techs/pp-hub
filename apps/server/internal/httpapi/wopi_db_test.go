@@ -119,7 +119,7 @@ func revokeShares(t *testing.T, q *store.Queries, nodeID pgtype.UUID) {
 		t.Fatalf("list shares: %v", err)
 	}
 	for _, sh := range rows {
-		if err := q.DeleteShare(ctx, sh.ID); err != nil {
+		if _, err := q.DeleteShare(ctx, store.DeleteShareParams{ID: sh.ID, NodeID: nodeID}); err != nil {
 			t.Fatalf("delete share: %v", err)
 		}
 	}
@@ -234,5 +234,75 @@ func TestWopiTokenIsBoundToItsFile(t *testing.T) {
 	rec := wopiRequest(t, srv.handleWopiGetFile, "GET", nodeIDString(t, other.ID), f.token)
 	if rec.Code != http.StatusForbidden {
 		t.Errorf("token for one file read another: %d", rec.Code)
+	}
+}
+
+// An editor session is a way to read the whole file, so it needs download —
+// not view. It used to accept view and mint a rank-1 token, which made the
+// editor a route around the no-download half of a grant: take the token,
+// GET /contents, keep the file. handleContent refuses the same caller.
+func TestWopiRefusesViewOnlyReads(t *testing.T) {
+	srv, q := wopiEnv(t)
+	ctx := context.Background()
+	f := newWopiFixture(t, srv, q, "viewonly")
+	id := nodeIDString(t, f.file.ID)
+
+	// Downgrade the grant to view, with downloads explicitly withheld.
+	revokeShares(t, q, f.file.ID)
+	if _, err := q.CreateShare(ctx, store.CreateShareParams{
+		NodeID: f.file.ID, Kind: store.ShareKindDirect, GranteeUserID: f.editor.ID,
+		Level: store.ShareLevelView, CanDownload: false, CreatedBy: f.editor.ID,
+	}); err != nil {
+		t.Fatalf("regrant view-only: %v", err)
+	}
+
+	// The token still says rank 3; wopiClaims clamps it to the caller's live
+	// access, which is now view.
+	if rec := wopiRequest(t, srv.handleWopiGetFile, "GET", id, f.token); rec.Code != http.StatusForbidden {
+		t.Errorf("view-only caller read the file bytes: %d %s", rec.Code, rec.Body)
+	}
+}
+
+// The preview worker's conversion fetch acts for nobody and must keep
+// working: it is minted by this deployment, scoped to one node, read-only and
+// short-lived, and the signing key is its authorization. Requiring a
+// capability would have nothing to resolve one against — so the rank floor
+// on reads must not apply to it.
+//
+// Asserted at the authorization boundary rather than through the handler,
+// because this fixture has no blob store and the byte-serving step below it
+// is not what is under test.
+func TestWopiMachineTokenIsAuthorizedWithoutACapability(t *testing.T) {
+	srv, q := wopiEnv(t)
+	f := newWopiFixture(t, srv, q, "machine")
+	id := nodeIDString(t, f.file.ID)
+
+	token, err := wopi.SignTokenWithTTL([]byte("wopi-test-key-32-bytes-long!!!!!"),
+		pgtype.UUID{}, f.file.ID, 1, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var (
+		resolved bool
+		machine  bool
+		rank     int
+	)
+	probe := func(w http.ResponseWriter, r *http.Request) {
+		c, ok := srv.wopiClaims(w, r)
+		resolved, machine, rank = ok, c.user == nil, c.claims.PermRank
+	}
+	rec := wopiRequest(t, probe, "GET", id, token)
+
+	if !resolved {
+		t.Fatalf("machine token refused: %d %s", rec.Code, rec.Body)
+	}
+	if !machine {
+		t.Error("the nil-UUID subject resolved to a user")
+	}
+	// Not clamped by a capability lookup, because there is no subject to
+	// resolve one for.
+	if rank != 1 {
+		t.Errorf("machine token rank = %d, want the 1 it was minted with", rank)
 	}
 }

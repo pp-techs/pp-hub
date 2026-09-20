@@ -115,6 +115,37 @@ export interface AdminUser {
   created_at: string;
 }
 
+/**
+ * One row of the instance security log.
+ *
+ * Almost everything is optional because the interesting rows are the ones
+ * with no account behind them: a `login_failed` has no `user_id` and no
+ * `user_email`, and carries the failure code in `subject` instead. Treat a
+ * missing user as ordinary, not as a malformed row.
+ */
+export interface SecurityEvent {
+  id: string;
+  kind: string;
+  user_id?: string;
+  user_email?: string;
+  user_name?: string;
+  /** Who or what the event was about when no account matched — e.g. the
+   *  attempted address, or the reason a sign-in was refused. */
+  subject?: string;
+  ip?: string;
+  user_agent?: string;
+  request_id?: string;
+  /** Per-kind payload the server writes as free-form JSON. Never `any`:
+   *  every consumer has to narrow it before reading a field. */
+  detail?: unknown;
+  created_at: string;
+}
+
+export interface SecurityEventPage {
+  events: SecurityEvent[];
+  total: number;
+}
+
 export interface Node {
   id: string;
   space_id: string;

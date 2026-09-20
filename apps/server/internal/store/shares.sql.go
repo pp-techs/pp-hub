@@ -60,13 +60,25 @@ func (q *Queries) CreateShare(ctx context.Context, arg CreateShareParams) (Share
 	return i, err
 }
 
-const deleteShare = `-- name: DeleteShare :exec
-DELETE FROM shares WHERE id = $1
+const deleteShare = `-- name: DeleteShare :execrows
+DELETE FROM shares WHERE id = $1 AND node_id = $2
 `
 
-func (q *Queries) DeleteShare(ctx context.Context, id pgtype.UUID) error {
-	_, err := q.db.Exec(ctx, deleteShare, id)
-	return err
+type DeleteShareParams struct {
+	ID     pgtype.UUID `json:"id"`
+	NodeID pgtype.UUID `json:"node_id"`
+}
+
+// The node is part of the predicate, not just the authorization check at the
+// edge: `CapShare` is resolved against {nodeID} in the URL, so without this a
+// caller who may share one node could delete a share row belonging to another
+// by naming its id.
+func (q *Queries) DeleteShare(ctx context.Context, arg DeleteShareParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteShare, arg.ID, arg.NodeID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const getDirectShare = `-- name: GetDirectShare :one

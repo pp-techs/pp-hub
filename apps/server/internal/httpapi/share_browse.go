@@ -23,11 +23,11 @@ var errOutsideShare = errors.New("node is not inside this share")
 // The banner needs to say who shared, what they granted, and when it lapses;
 // without those the page cannot explain why some actions are missing.
 type shareInfoDTO struct {
-	Node     nodeDTO `json:"node"`
-	Level    string  `json:"level"`
-	CanDownload bool  `json:"can_download"`
-	SharedBy  string `json:"shared_by,omitempty"`
-	ExpiresAt string `json:"expires_at,omitempty"`
+	Node        nodeDTO `json:"node"`
+	Level       string  `json:"level"`
+	CanDownload bool    `json:"can_download"`
+	SharedBy    string  `json:"shared_by,omitempty"`
+	ExpiresAt   string  `json:"expires_at,omitempty"`
 }
 
 // resolveShareNode returns a node inside the shared subtree, or errOutsideShare.
@@ -126,12 +126,20 @@ func (s *Server) handleShareChildren(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// handleShareNodeContent serves a file inside the share inline, so a view-only
-// link can still preview what it points at. It needs view, not download — the
-// same split the authenticated routes use, where /content is CapView and only
-// /download is CapDownload.
+// handleShareNodeContent serves a file inside the share inline.
+//
+// It needs download, not view. Serving the original bytes *is* the download,
+// whatever the Content-Disposition says: a `can_download: false` link that
+// answered this endpoint handed over a byte-identical copy of the file — and
+// of every file in the subtree, one `?node=` at a time — which made the
+// switch a label rather than a rule. The authenticated counterpart gets this
+// right (`handleContent` is `share.CapDownload`); the comment that used to
+// sit here claimed otherwise and was simply wrong.
+//
+// A no-download visitor is not left with nothing: the preview endpoints serve
+// artifacts derived from the file rather than the file.
 func (s *Server) handleShareNodeContent(w http.ResponseWriter, r *http.Request) {
-	s.serveShareFile(w, r, "inline", false)
+	s.serveShareFile(w, r, "inline", true)
 }
 
 // handleShareNodeDownload forces a download of a file inside the share.
