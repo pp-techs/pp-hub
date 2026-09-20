@@ -134,11 +134,11 @@ one this stack runs. Pushing the git tag `v0.1.0` publishes `:0.1.0`, `:0.1`
 and `:sha-<short>` — the image tag drops the `v`; a push to `main` publishes
 `:edge` and `:sha-<short>`.
 
-| Action        | What you do                                       |
-| ------------- | ------------------------------------------------- |
-| Deploy        | set `PP_IMAGE_TAG=0.2.0`, re-run `up -d`          |
-| Roll back     | set it back to `0.1.0`, re-run `up -d`            |
-| Build locally | `up -d --build`, which overrides the pulled image |
+| Action        | What you do                                      |
+| ------------- | ------------------------------------------------ |
+| Deploy        | set `PP_IMAGE_TAG=0.2.0`, re-run `up -d`         |
+| Roll back     | set it back to `0.1.0`, re-run `up -d`           |
+| Build locally | add `-f compose.build.yml`, then `up -d --build` |
 
 `PP_IMAGE_TAG` has no default, and no `:latest` is published — `flavor:
 latest=false` in the workflow, because `docker/metadata-action` ships one on
@@ -151,8 +151,15 @@ Building on the deployment host is the thing this replaces. It puts a bun
 install, a Vite build and two Go builds on a box sized for serving, makes
 every deploy's output depend on the machine that ran it, and turns a rollback
 into a rebuild — minutes of downtime to return to code that was already
-working. The `build:` blocks stay in the compose file for exactly one case:
-building a tag that does not exist yet.
+working. `compose.prod.yml` therefore has no `build:` at all; building a tag
+that does not exist yet is the `compose.build.yml` override, which only
+resolves from a full checkout:
+
+```bash
+docker compose -f deploy/compose/compose.prod.yml \
+  -f deploy/compose/compose.build.yml \
+  --env-file deploy/compose/.env.prod up -d --build
+```
 
 The web image is deployment-agnostic, which is what makes one tag correct
 everywhere: the SPA reads nothing from `import.meta.env`, and the single
@@ -467,11 +474,15 @@ Dokploy's recommended flow is a **clean compose file** — no Traefik labels, no
 written that way: it publishes no host ports and uses `expose` only, since
 binding 80/443 would collide with Dokploy's Traefik.
 
-1. Create a Compose application pointing at this repo.
-2. Paste or reference `deploy/compose/compose.prod.yml`.
-3. Put the contents of `.env.prod.example` into the Environment tab, filled
-   in — `PP_IMAGE_TAG` included. Add `s3` to the compose profiles if you are
-   running the bundled SeaweedFS.
+1. Create a Compose application and paste `deploy/compose/compose.prod.yml`
+   (source type **docker raw** works, and is the simplest: this file pulls,
+   so no checkout has to reach the server).
+2. Put the contents of `.env.prod.example` into the Environment tab, filled
+   in — `PP_IMAGE_TAG` included.
+3. Running the bundled SeaweedFS? Add **`COMPOSE_PROFILES=s3`** there too.
+   Dokploy's deploy command is fixed and carries no `--profile`, and compose
+   reads that variable from the env file. Without it, `PP_BLOB_BACKEND=s3`
+   starts a server pointing at an endpoint nothing is serving.
 4. GHCR is private by default: add a registry credential for
    `ghcr.io/pp-techs` (a PAT with `read:packages`), or make the three
    packages public. Without it the pull fails with `denied` and Dokploy
@@ -487,10 +498,15 @@ binding 80/443 would collide with Dokploy's Traefik.
 
 Do not bind ports 80 or 443 in the compose file — they belong to Traefik.
 
+Dokploy always deploys with `up -d --build`. That is why `build:` lives in
+`compose.build.yml` and not in `compose.prod.yml`: a build section would take
+precedence over the pinned tag, and on a raw application — where the compose
+file is the only thing copied to the server — the build fails outright with
+`unable to prepare context: path "/etc/dokploy/compose/apps/server" not
+found`. With no build section, `--build` is a no-op and the tag is pulled.
+
 Subsequent deploys are a `PP_IMAGE_TAG` change in the Environment tab and a
-redeploy. Dokploy's "rebuild on push" is the wrong lever here: the images are
-already built by CI, and rebuilding on the VPS reintroduces exactly what the
-tag exists to avoid.
+redeploy.
 
 ### Plain VPS
 

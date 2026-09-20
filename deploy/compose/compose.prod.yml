@@ -18,9 +18,11 @@
 # cannot be rolled back. Deploying is setting it and re-running the command
 # above; rolling back is setting it to the previous tag.
 #
-# `build:` is kept beside `image:` for the one case that needs it — building a
-# tag that does not exist yet, locally, with `up -d --build`. Plain `up -d`
-# pulls and never compiles.
+# This file only ever pulls. Building from a checkout is the override
+# `compose.build.yml`, kept separate because Dokploy runs `up -d --build`
+# unconditionally: a `build:` section here would win over the pinned tag, and
+# on a "docker raw" application — where the compose file is the only thing
+# copied to the server — the build context does not exist at all.
 #
 # Dokploy: paste this file, leave it unlabelled, and assign domains in the
 # Domains tab — Dokploy injects the Traefik labels and network itself.
@@ -38,9 +40,6 @@ services:
   # SameSite=Lax, so a split hostname means nobody can log in.
   web:
     image: "ghcr.io/pp-techs/pp-hub/web:${PP_IMAGE_TAG:?set in .env - a released tag, e.g. 0.1.0}"
-    build:
-      context: ../..
-      dockerfile: apps/web/Dockerfile
     restart: unless-stopped
     environment:
       # Named in the Content-Security-Policy's frame-src and form-action, and
@@ -75,9 +74,6 @@ services:
 
   server:
     image: "ghcr.io/pp-techs/pp-hub/server:${PP_IMAGE_TAG:?set in .env - a released tag, e.g. 0.1.0}"
-    build:
-      context: ../../apps/server
-      target: server
     restart: unless-stopped
     expose:
       - "8080"
@@ -165,9 +161,6 @@ services:
   #   docker compose -f compose.prod.yml run --rm worker --backfill
   worker:
     image: "ghcr.io/pp-techs/pp-hub/worker:${PP_IMAGE_TAG:?set in .env - a released tag, e.g. 0.1.0}"
-    build:
-      context: ../../apps/server
-      target: worker
     restart: unless-stopped
     environment:
       PP_DATABASE_URL: postgres://pphub:${POSTGRES_PASSWORD:?set in .env}@postgres:5432/pphub?sslmode=disable

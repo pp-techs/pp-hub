@@ -1,0 +1,34 @@
+# Build the production images from this checkout instead of pulling them.
+#
+#   docker compose -f compose.prod.yml -f compose.build.yml \
+#     --env-file .env.prod up -d --build
+#
+# An override, not part of compose.prod.yml, because `build:` beside `image:`
+# is a loaded gun on a deployment host: Dokploy runs `up -d --build`
+# unconditionally, so a build section there wins over the pinned tag — and on
+# a "docker raw" application, where the compose file is the only thing copied
+# to the server, the build context does not even exist:
+#
+#   unable to prepare context: path "/etc/dokploy/compose/apps/server" not found
+#
+# The contexts are relative to this directory, so it only works from a full
+# checkout — which is exactly the case it is for. The tag it produces is still
+# PP_IMAGE_TAG, so a local build shadows the registry copy of that tag; use a
+# tag that is not published (`PP_IMAGE_TAG=dev`) unless you mean to.
+
+services:
+  web:
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile
+      target: web
+
+  server:
+    build:
+      context: ../../apps/server
+      target: server
+
+  worker:
+    build:
+      context: ../../apps/server
+      target: worker
