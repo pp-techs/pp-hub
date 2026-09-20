@@ -119,11 +119,43 @@ anonymous visitors.
 ```bash
 cp deploy/compose/.env.prod.example deploy/compose/.env.prod   # then fill it in
 docker compose -f deploy/compose/compose.prod.yml \
-  --env-file deploy/compose/.env.prod up -d --build
+  --env-file deploy/compose/.env.prod up -d
 ```
 
 Required values have no defaults — compose refuses to start and names the
 missing variable rather than booting a half-configured stack.
+
+### Releases
+
+`up -d`, not `up -d --build`. The three application images are published by
+`.github/workflows/release.yml` to
+`ghcr.io/pp-techs/pp-hub/{web,server,worker}`, and `PP_IMAGE_TAG` names the
+one this stack runs. Pushing a `v*` tag publishes `:v0.1.0`, `:0.1` and
+`:sha-<short>`; a push to `main` publishes `:edge` and `:sha-<short>`.
+
+| Action        | What you do                                       |
+| ------------- | ------------------------------------------------- |
+| Deploy        | set `PP_IMAGE_TAG=v0.2.0`, re-run `up -d`         |
+| Roll back     | set it back to `v0.1.0`, re-run `up -d`           |
+| Build locally | `up -d --build`, which overrides the pulled image |
+
+`PP_IMAGE_TAG` has no default. `latest` is not a version: it cannot be rolled
+back to, two hosts pulling it can run different code, and nothing on the box
+can then say what is deployed. The variable being required is what makes
+"which commit is in production" a question with an answer.
+
+Building on the deployment host is the thing this replaces. It puts a bun
+install, a Vite build and two Go builds on a box sized for serving, makes
+every deploy's output depend on the machine that ran it, and turns a rollback
+into a rebuild — minutes of downtime to return to code that was already
+working. The `build:` blocks stay in the compose file for exactly one case:
+building a tag that does not exist yet.
+
+The web image is deployment-agnostic, which is what makes one tag correct
+everywhere: the SPA reads nothing from `import.meta.env`, and the single
+environment-specific value in `nginx.conf` (`PP_ONLYOFFICE_URL`, named in the
+CSP) is substituted by envsubst when the container starts. There is no
+per-environment build.
 
 Generate the master secret once and keep it:
 
@@ -434,17 +466,28 @@ binding 80/443 would collide with Dokploy's Traefik.
 
 1. Create a Compose application pointing at this repo.
 2. Paste or reference `deploy/compose/compose.prod.yml`.
-3. Put the contents of `.env.prod.example` into the Environment tab, filled in.
-4. In the Domains tab add two domains:
+3. Put the contents of `.env.prod.example` into the Environment tab, filled
+   in — `PP_IMAGE_TAG` included. Add `s3` to the compose profiles if you are
+   running the bundled SeaweedFS.
+4. GHCR is private by default: add a registry credential for
+   `ghcr.io/pp-techs` (a PAT with `read:packages`), or make the three
+   packages public. Without it the pull fails with `denied` and Dokploy
+   reports a deploy error with no obvious cause.
+5. In the Domains tab add two domains:
 
    | Service      | Container port | Example domain       |
    | ------------ | -------------- | -------------------- |
    | `web`        | 80             | `drive.example.com`  |
    | `onlyoffice` | 80             | `office.example.com` |
 
-5. Deploy, then run the backfill once (below).
+6. Deploy, then run the backfill once (below).
 
 Do not bind ports 80 or 443 in the compose file — they belong to Traefik.
+
+Subsequent deploys are a `PP_IMAGE_TAG` change in the Environment tab and a
+redeploy. Dokploy's "rebuild on push" is the wrong lever here: the images are
+already built by CI, and rebuilding on the VPS reintroduces exactly what the
+tag exists to avoid.
 
 ### Plain VPS
 

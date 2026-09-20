@@ -1,0 +1,87 @@
+# Build and publish the three deployable images.
+#
+# Production must never build on the VPS: a deploy that compiles is a deploy
+# whose output depends on the machine it ran on, and a rollback becomes a
+# rebuild rather than a tag change. compose.prod.yml pulls what this pushes.
+#
+#   git tag v0.1.0 && git push origin v0.1.0   → :v0.1.0, :0.1, :sha-<sha>
+#   push to main                               → :edge, :sha-<sha>
+#
+# linux/amd64 only. Every target this stack is deployed to is amd64, and a
+# second platform doubles build time for an image nobody pulls. Add
+# linux/arm64 to `platforms` below the day an arm VPS appears.
+name: release
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  images:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The web image carries no build-time configuration: the SPA reads
+          # nothing from import.meta.env, and the one deployment-specific
+          # value in nginx.conf (PP_ONLYOFFICE_URL, named in the CSP) is
+          # substituted by the official image's envsubst at startup. So one
+          # image is correct for every deployment, which is what makes a
+          # tagged release meaningful rather than per-environment.
+          - name: web
+            context: .
+            dockerfile: apps/web/Dockerfile
+            target: web
+          - name: server
+            context: apps/server
+            dockerfile: apps/server/Dockerfile
+            target: server
+          - name: worker
+            context: apps/server
+            dockerfile: apps/server/Dockerfile
+            target: worker
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.name }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=edge,enable={{is_default_branch}}
+            type=sha,prefix=sha-
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          target: ${{ matrix.target }}
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Registry-backed cache, not gha: the three images share the bun
+          # install and the Go module download, and the gha cache is scoped
+          # per branch so a release tag would start cold every time.
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.name }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.name }}:buildcache,mode=max
