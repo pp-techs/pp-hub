@@ -149,6 +149,23 @@ Migrations `0010_trash_retention.sql`.
 
 **Still not done:** comments (a whole subsystem — table, endpoints, two UIs), mail delivery for invitations (needs SMTP configuration), real PDF rasterisation and video thumbnails (need pdfium/ffmpeg in the image), collaborator presence and save status in the editor (need an OnlyOffice callback), resumable chunked upload (the `uploads` table is still unused, so the tray's pause stops the queue rather than a transfer in flight), and the Sharing/Storage/Integrations settings tabs (no defined requirements).
 
+## M12–M14 — Numbers That Were Skipped ⏭ never existed
+
+There is no M12, M13 or M14, and nothing was folded into another entry: the
+numbering simply skipped. `M12` was used exactly once anywhere in this
+repository — as the header comment of `0012_personal_folders.sql`
+(`-- M12: Personal folders.`), where those headers named the milestone rather
+than the file, which is why `0010_trash_retention.sql` and `0011_groups.sql`
+both say `M11`. The label and the migration went away together in M15, which
+retired `personal_folders` and `spaces.personal_root_id` in favour of
+ownership. M13 and M14 exist nowhere: no entry here, no commit, no migration
+header, no document. The work that did land between M11 and M15 was recorded
+where it belonged rather than numbered — real PDF and video thumbnails in the
+optional `cmd/worker` container are noted as delivered post-M5 in M5 above,
+and the S3 blob backend, the deployable images and the two compose files are
+in [storage.md](storage.md), [deployment.md](../deployment.md) and Rollout /
+Operations below.
+
 ## M15 — Owner-Anchored Permissions ✅ done
 
 Schema consolidated into a single baseline, `0001_init.sql`, replacing fifteen
@@ -279,6 +296,157 @@ recursion re-emitted each parent at every depth.
 `TestNestedOwnedNodesAreNotSeparateEntryPoints` pins it with its own 10s
 deadline — reverting the query fails it in 10.1s with
 `context deadline exceeded` rather than hanging the suite.
+
+## M17 — One Dialog Owns Access ✅ done
+
+No migration. On the server it is one new query and one narrowed one; the rest
+is the surface that sat on top of them.
+
+**Sharing was split across two dialogs that each answered half the question.**
+`share-panel.tsx` offered direct-by-email and link shares behind a bare
+`<input type="email">`, while group access lived in a folder-only
+`folder-access-dialog.tsx` behind "Who can open this…". The split was
+client-side invention: `Grant` only checks that the node and the group share a
+space, and the resolver treats a share row on a file exactly like one on a
+folder, so the server had always allowed a file to be given to a group and
+only the UI refused to offer it. The same narrowness showed in the share list,
+which rendered a group grant as a row labelled with the literal word "group",
+because `Share.kind` was a bare string rather than the closed union the server
+emits. Both are now one `share-dialog.tsx` on any node — groups, people and
+the public link in one merged access list, one level/download/re-share control
+applied to everyone picked — and `?panel=share` is gone with them
+(`PanelKind` is now just `versions`).
+
+**Grantees come from the space, never from a tenant-wide directory.** One
+`grantee-picker.tsx` combobox offers the space's groups above its members and
+filters locally, because `GET /spaces/{id}/groups` and
+`GET /spaces/{id}/members` are both member-readable and already cached — no
+new endpoint and no round trip per keystroke. This was also a leak: `SearchUsers`
+behind `GET /users/search` had no space scoping at all, so any signed-in user
+could enumerate every account on the instance, which under M11's "a space is a
+company" is a company boundary. It now joins `space_members` against the
+caller and matches only accounts sharing a space with them, lifted for an
+instance admin, pinned by `SearchIsLimitedToSharedSpaces` against a real
+Postgres. The group drawer's member-add picker moved off that search onto
+`GET /spaces/{id}/members` — which is what the server already enforced with a
+422 for an outsider; the picker simply no longer offers one to click. The
+invite modal keeps the tenant-wide search, since inviting somebody who is not
+a member yet is its one legitimate use.
+
+**The shared-folder indicator was reading the wrong list.** It took `isShared`
+from `useShared(spaceId)` — `GET /shared`, i.e. _shared with me_ — which by
+construction excludes every node the caller owns, so a folder you created and
+then shared out showed no indicator at all. It is now a server-set
+`node.shared`: `attachCaps` batch-resolves `NodesWithLiveShares` (any live
+direct, group or link row on the node itself, any grantee) alongside the caps
+batch it already ran, so one pass answers both "what may I do here" and "did
+anyone share this at all" for every row in a listing. The folder browser's
+separate `useShared` call — kept only to feed the old badge — is gone, while
+the "Shared with me" page still uses it for its actual list. The indicator is
+not an overlay: a shared folder renders `folder-type-public` in place of
+`default-folder`, rather than a glyph stamped on the corner of an icon that
+already means something.
+
+**Fixed on the way:** typing into either search input produced no visible
+characters. base-ui's `Menu` popup runs a bubble-phase keydown handler for
+roving focus and typeahead that calls `preventDefault()` on printable keys, so
+an `<Input>` nested inside `DropdownMenuContent` lost every keystroke while
+keeping focus throughout — which is why it looked like a render bug rather
+than an event one. The input now stops propagation on keydown, Escape
+excepted so the menu still closes. The defect was pre-existing in
+`member-picker.tsx` and had been copied into the new picker before it was
+found.
+
+## M18 — The Shell Is the shadcn Dashboard Shell ✅ done
+
+No migration; `apps/web` and `packages/ui` only.
+
+**A hand-rolled rail cannot do what a rail has to do.** `drive.tsx` is now
+`SidebarProvider` → `app-sidebar.tsx` (`variant="inset"`,
+`collapsible="offcanvas"`) → `SidebarInset`, so the rail collapses on ⌘/Ctrl+B,
+remembers that in a `sidebar_state` cookie and becomes a sheet below `md` —
+none of which the `<aside className="w-64">` it replaces could do at all.
+
+**The bigger win is that there is now one header.** `site-header.tsx` renders
+the sidebar trigger, a breadcrumb derived from the pathname, the ⌘K palette
+button and a portal slot; every surface fills that slot through
+`HeaderActions` instead of stacking a second 40px band of its own — Home and
+Account each used to, both an `h-10` strip with a border under it. The slot is
+a portal rather than a field in `ui-store` deliberately: a `ReactNode` is not
+UI state, and keeping it in `header-slot.tsx` means no effect writes on render
+and no stale node left behind when a route unmounts. `drive-header.tsx`,
+`drive-toolbar.tsx` (dead: defined, never imported), `quick-access.tsx` and
+`rail-item.tsx` are gone, the listing's own controls moved to
+`listing-controls.tsx`, rail rows are `SidebarMenuButton` /
+`SidebarMenuSubButton`, and `RailLabel` — which was never used in the rail —
+is `section-label.tsx`.
+
+**Page rhythm has one home.** `surface.tsx` (`@container/main`, `px-4 lg:px-6`,
+`py-4 md:py-6`) is the scrolling body of every surface _except_ the folder
+listing, which opts out on purpose: a file manager's rows have to reach the
+edges and scroll under a sticky header, so it keeps a full-bleed container
+clipped to the inset's corner. The container query rather than a breakpoint
+matters because the details panel narrows that column without the route
+knowing.
+
+**Two invariants are load-bearing, and both are written into the shell rather
+than left to be rediscovered.** `SidebarInset` has to stay a _direct sibling_
+of the sidebar: its margin, rounding and collapsed-state offset are all
+`md:peer-data-[variant=inset]:…`, and a `peer-` selector only matches a
+preceding sibling — so `HeaderSlotProvider` and `DriveWriteProvider` (M19)
+wrap `SidebarProvider` and never sit between it and the inset. And the shell
+has to pin `h-svh overflow-hidden` on the provider, because `SidebarProvider`
+is only `min-h-svh`: without it the listing grows the page instead of its own
+scroller, which is also what the marquee band measures against.
+
+## M19 — One Owner Decides Where a Write Lands ✅ done
+
+No migration; `apps/web` only.
+
+**The rail's New menu is a sibling of the folder listing, not a descendant of
+it, and it used to guess.** It hardcoded the space root, so uploading from
+inside a folder silently landed at the top of the space — two components
+deriving the same destination independently, and therefore able to disagree.
+`DriveWriteProvider` (`components/drive-write.tsx`) is now the sole owner,
+mounted in `drive.tsx` above the sidebar and the inset alike, and
+`writeTarget` (`lib/write-target.ts`) derives the destination from `?dir=` the
+way `folder-tree.tsx` already did. `?dir=` is the only truth both sides share,
+and a surface that has none — Home, Recent, Starred, Shared, Trash, Account —
+writes to the space root by definition rather than by fallback. The same
+function answers whether the write is allowed: any member may create at the
+space root and owns what they create there, while inside a folder it takes
+edit capability on that folder.
+
+**The provider owns the machinery too**, which is what stops it drifting back:
+both hidden file inputs (two, because `webkitdirectory` is a property of the
+element rather than of the click, so picking files and picking a folder cannot
+share one control) and the New-folder dialog move out of `drive.tsx` and
+`$spaceId/index.tsx`. `ui-store`'s `newFolderOpen` flag — the only way that
+dialog used to reach across the rail/listing boundary — went with them, and is
+now ordinary state inside the provider that owns both ends of it.
+
+**`folderActions()` (`components/folder-actions.tsx`) is `nodeActions()`'s
+counterpart for the folder itself**: New folder, Upload files, Upload folder,
+Paste, Select all, Sort by, View, Refresh and Folder information, rendered
+both by the rail's dropdown and by a new background `ContextMenu` on the
+listing. Its trigger is the scroller itself, so it answers on the gaps between
+rows, below the last one and over the empty state — everywhere the folder
+itself is what was clicked — while rows stop the event at their own trigger so
+only one menu ever opens. A background right-click also clears the selection,
+because a menu that acts on the folder must not read as acting on whatever was
+selected a moment ago.
+
+**Paste needs a source.** Nodes are Cut or Copied onto a small
+`ui-store.clipboard`, deliberately outside `partialize` so it never survives a
+reload: a clipboard that outlives the page offers to move nodes that may no
+longer be there. `pasteTargets` returns the nodes a paste would actually land,
+so the disabled state and the executor cannot disagree about which ones move —
+a cut is refused into the folder the node already sits in and into the node's
+own subtree, which would detach that subtree from the root, while a copy into
+the original's folder stays offered because that is the ordinary "make a copy".
+The ancestor walk carries a `seen` set, since `dirs` is a client-side trail
+and a cycle in it is not impossible. `tests/write-target.test.ts` covers the
+arithmetic.
 
 ## M20 — Sessions Are Rows ✅ done
 
@@ -562,6 +730,188 @@ on the helper alone would have missed — that routing and the handler still see
 the real values, since chi matches on `r.URL.Path` and the WOPI handler has to
 read the credential it was given.
 
+## Upcoming — M22 Onward 🚧 not done
+
+Everything above shipped; nothing below has, and none of it is scheduled — the
+numbering is the order the dependencies suggest, which is what
+[production-readiness.md](production-readiness.md) says about its own phasing,
+and the two follow the same ordering on purpose. Each entry names the section
+of that document holding the evidence rather than restating it, so there is
+one place to check whether a gap is still real before acting on it.
+
+### Phase A — Rollout Blockers
+
+What is left of the P0 register. Items 3, 4, 5, 6 and 8 closed in M20 and M21.
+
+#### M22 — Backup and Restore 🔜 planned
+
+P0 §1. There is no backup of any kind: no script, no Makefile target, no
+volume snapshot, no CI job — the intended procedure is the sentence in Rollout
+/ Operations below, and that sentence is the whole of it, so the milestone is
+implementing it rather than writing it down. `pg_data` and `blob_data` have to
+be captured **together and consistently**, because a database dump restored
+without its blobs is a directory listing of files that no longer exist and
+blobs restored without the database are content-addressed garbage with no
+names. Finishing it means both volumes captured as one point in time and a
+restore that has actually been performed, not merely scripted. It is first
+because it is the only item on the register whose absence is irreversible.
+
+#### M23 — Mail Transport 🔜 planned
+
+P0 §2. There is no mailer and no in-app substitute for one, and the
+consequences are already visible in the product: `handleCreateInvitation`
+mints a token and hands the URL back to the admin to deliver by hand — one
+copy-paste into a chat client per person — and an invitation cannot reach
+anybody who does not already have an account. A direct or group grant tells
+its recipient nothing either, even though the recipient is a known user with a
+known verified address. Finishing it means an SMTP transport and templates
+behind invitations and share notifications. It sits in Phase A rather than
+with the collaboration work because M29's notifications depend on it.
+
+#### M24 — The REST/WOPI Write Collision 🔜 needs a decision
+
+P0 §7, and the only P0 left that loses data during ordinary, well-intentioned
+use. `file_locks` exists with a 30-minute TTL and the WOPI endpoints honour it;
+nothing else does — no `GetLock` on the REST path, no lock route under
+`/api/v1`, and no ETag or `If-Match` on version upload — so while one person
+has a document open in OnlyOffice, another's `PUT /nodes/{id}/versions` is
+accepted against no lock at all, and the next save resolves that conflict by
+silently discarding one side of it. The decision comes before the code, and
+there are two answers. Either the REST path refuses a locked node, which is
+simple and correct but means an editor left open over lunch blocks a colleague
+with no recourse short of the TTL; or it takes a lock of its own, which is
+honest about concurrent writers but brings a second class of lock owner, a
+break-lock affordance and a conflict story for the write that lost. Finishing
+it means picking one of the two, and either way a precondition on the
+version-upload path so a client can be told it lost rather than assume it won.
+
+### Continuous
+
+#### M25 — Observability 🔜 planned
+
+P1, the metrics, `/healthz` and logging entries under "Smaller, but on the
+list". `log/slog` runs on the default text handler with no level control — no
+`slog.New` or `SetDefault` anywhere — and chi's request id is not bridged into
+log records, so the id that every `security_events` row carries cannot be used
+to find the lines around it. `/healthz` is a static 200 that touches neither
+Postgres nor the blob store, so it cannot fail when the thing it reports on
+has; there is no readiness split; and `cmd/worker` has no listener at all,
+which is why its compose service has no healthcheck. There are no metrics, no
+tracing and no error tracking. Nothing depends on this, which is why it is not
+in a phase — and everything after it is cheaper to diagnose once it is done.
+
+### Phase B — The Multi-Department Layer
+
+What changes when the user count crosses a couple of departments. Each item is
+additive to a pattern that already exists.
+
+#### M26 — Audit Completeness 🔜 planned
+
+P1, "`activity_events` is a feed, not an audit log", which M21 mostly closed.
+This milestone builds on the `security_events` table M21 added rather than
+adding another: that table already carries authentication, admin, suspension,
+grant, share and membership events with client IP, user agent and request id,
+under a retention window. The substantial remainder is read auditing, which
+M21 left out as a design decision rather than an oversight — a `downloaded`
+row per byte-serving request is the highest-volume event in the system by an
+order of magnitude and would be written on the hot path of the endpoints that
+matter most for latency, so doing it properly means sampling or aggregation
+and a retention policy of its own. The two smaller pieces are an export
+endpoint, since the console reads JSON pages, and something that watches the
+log rather than waiting to be read: a run of failed sign-ins from one address
+is visible to an admin who looks, and nothing looks on its own.
+
+#### M27 — Content-Indexed Search 🔜 planned
+
+P1, "Search only matches file names". `GET /api/v1/search` ranks a prefix match
+over a mid-string one and falls back to trigram similarity on `nodes.name`;
+that is all of it, and it is the difference between finding the contract and
+remembering which folder the contract is in — which stops working at about the
+point a second department joins. It is additive rather than new
+infrastructure: text extraction is a new `jobs.kind` on the DB-backed preview
+queue and its optional worker, and office documents already pass through
+OnlyOffice conversion on that same path. Finishing it means the job kind, an
+index over the extracted text, and a ranking that merges it with the name
+match.
+
+#### M28 — Directory Sync 🔜 planned
+
+P1, "Identity is managed by hand". Users exist only after a successful OIDC
+login and only `email`, `email_verified` and `name` are read from the token:
+there is no SCIM, no admin create-user, no pre-provisioning and no group sync
+from claims, so department structure that already exists in the IdP is
+re-entered as pp-hub groups by hand and kept in step the same way. M20's
+identity adoption is a recovery path for a changed issuer, not provisioning —
+nothing creates an account ahead of its owner's first sign-in. Finishing it
+means accounts and group membership arriving from the IdP; deprovisioning is
+the harder half and this does not solve it, since there is no `DeleteUser`,
+suspension is the terminal state, and the archive hand-off is per-space with
+no instance-level equivalent.
+
+### Phase C — Collaboration and Storage Honesty
+
+#### M29 — Comments and Notifications 🔜 planned
+
+P1, "No comments", plus the notification half of P0 §2. **Depends on M23**:
+there is no mail transport and no in-app substitute — no `notifications` table,
+no route, no SSE or websocket — so a comment nobody is told about is a comment
+nobody answers. Comments themselves are a whole subsystem — a table, endpoints
+and two UIs, the preview modal and the editor — and have been deferred in
+those words at every milestone since M10, which was accurate each time.
+Finishing it means both: threads on a node, and delivery for them.
+
+#### M30 — Resumable Upload and Honest Accounting 🔜 planned
+
+P1, "Uploads are not resumable" and "Storage accounting understates real
+usage". The `uploads` table is in the baseline and no Go code references it —
+dead schema — so the transfer tray's pause stops the queue rather than a
+transfer in flight, a large upload that drops near the end restarts at zero,
+and nothing sweeps abandoned rows because nothing writes them. The accounting
+half is worse than incomplete: `node_versions` grows without bound with
+nothing pruning it while quota counts only the current version, so the two
+numbers diverge over time and the disk fills while the meter says there is
+room. Finishing it means chunked upload against that table with a sweep for
+what is abandoned, and either a quota that counts every referenced blob or a
+version retention policy — ideally both. Per-user quota, file-count limits and
+egress accounting are named in the same section and are not part of this.
+
+#### M31 — Document Creation 🔜 planned
+
+P1, "No way to create a document". There is no blank-document template and no
+create-office-file path anywhere in `apps`, so every document has to be
+created somewhere else and uploaded before it can be co-edited — which leaves
+a real co-editing stack working as a viewer with write access rather than a
+place work starts. Finishing it means templates plus a create path that lands
+an empty document in the write target M19 resolves and opens the editor on it.
+
+### Named but Unscheduled
+
+Named in P1's "Smaller, but on the list" and assigned to no milestone. They
+are recorded here so they are found rather than rediscovered:
+
+- **The avatar upload is a shipped placeholder.** `handleUploadAvatar` bounds
+  and parses the body, then discards the file and returns a fake URL, with a
+  `// TODO: store to blob store and get URL` where the write belongs. It is a
+  stub behind a working-looking button: the UI reports success and the picture
+  never persists. M21's ceiling applies to it (`avatarMaxBytes`, 5 MiB), so
+  the bytes it throws away are at least bounded.
+- **`style-src 'unsafe-inline'`** is the one CSP directive in the nginx
+  template that is looser than it should be rather than looser on purpose.
+  Removing it takes changes in `apps/web` — the inline `style` props a few
+  components rely on — not an edit at the edge.
+- **No orphan-blob audit.** `gc.go` deletes the blob row before the file on
+  purpose, so a crash between them leaks a findable file rather than leaving a
+  row that promises bytes which are gone, and it defers that leak to "the next
+  full audit" — which does not exist.
+- **No antivirus or content scanning.** Uploaded bytes go from the multipart
+  part straight into the CAS with no scan hook, no sniffing (the type is
+  guessed from the extension) and no extension blocklist.
+- **No encryption at rest.** Local blobs are plaintext, the S3 backend sets no
+  SSE headers, and Postgres runs `sslmode=disable` inside the compose network.
+  Share and invite tokens _are_ stored hashed.
+- **The UI is English-only.** No i18n library, no locale files, no string
+  catalogue in `apps/web/src`.
+
 ## Testing Strategy
 
 - **Unit**: capability resolver matrix (ownership × grant × ancestor × link), blob CAS (put/get/dedup/gc), tree ops (move-cycle rejection, rename conflicts).
@@ -575,12 +925,14 @@ read the credential it was given.
 
 - Two compose files in `deploy/compose/`: `compose.dev.yml` (services only, app runs from source) and `compose.prod.yml` (everything, for a VPS or Dokploy). Config via `.env`, templated by `.env.example` in each location.
 - Persistent state: `data/` volume (blobs) + Postgres volume.
-- Backup: `pg_dump` + rsync of `data/blobs` — **documented, not implemented**. See
+- Backup: `pg_dump` + rsync of `data/blobs` — **documented, not implemented**;
+  this line is the documentation, and implementing it is M22. See
   [production-readiness.md](production-readiness.md), which collects everything
   standing between M21 and an internal rollout: the P0 blockers that remain
   (backup, mail transport, and lock enforcement on the REST version-upload
-  path — the session/cookie, OnlyOffice JWT, admin bootstrap and
-  upload/rate-limit items are closed, as are the sweep findings in its §8),
-  the P1 gaps against Google Drive (content search, read auditing and an audit
-  export, comments, resumable upload, storage accounting, IdP group sync), and
-  a proposed phasing.
+  path — M22, M23 and M24 in Upcoming above; the session/cookie, OnlyOffice
+  JWT, admin bootstrap and upload/rate-limit items are closed, as are the
+  sweep findings in its §8), the P1 gaps against Google Drive (content search,
+  read auditing and an audit export, comments, resumable upload, storage
+  accounting, IdP group sync — M25 through M31), and a proposed phasing, whose
+  order Upcoming follows.

@@ -647,7 +647,7 @@ Enforced in `spaces.Service`, not by the database alone:
 
 The development-phase migrations were consolidated into a single baseline,
 `0001_init.sql`, so the schema reads as one document rather than fifteen
-deltas. What changed relative to the M11–M14 model:
+deltas. What changed relative to the model M11 left behind:
 
 | Change                                     | Why                                                          |
 | :----------------------------------------- | :----------------------------------------------------------- |

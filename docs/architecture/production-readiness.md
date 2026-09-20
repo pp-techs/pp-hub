@@ -6,10 +6,14 @@ is what stands between that product and an internal rollout, assessed against
 the target deployment: **one company, 20–100 users, several departments,
 self-hosted, no compliance auditor yet**.
 
-It is a backlog, not a plan — the phasing at the end is a proposal, and nothing
-here is scheduled. Most claims carry a `file:line` so a reader can check
-whether it is still true before acting on it; where a line number would only
-rot, the function or query is named instead.
+It is the evidence, not the plan. [milestones.md](milestones.md) holds the
+plan: every gap below is now carried by a named milestone, **M22 through
+M31**, and each heading here says which. Nothing is scheduled — the numbers
+are an order the dependencies suggest, and the phasing at the end explains
+that order. What stays here is the reason each item is on the list and the
+`file:line` that lets a reader check whether it is still true before acting on
+it; where a line number would only rot, the function or query is named
+instead.
 
 The headline: the drive itself is finished. The permission model (M15) is
 stricter by default than Google Drive's, WOPI co-editing is real, and
@@ -22,27 +26,28 @@ until the day they are needed, and unrecoverable on that day.
 These are not features. Each one is either a way to lose data, a way to leak
 it, or a step an administrator cannot perform at all. Items 3, 4, 5 and 6 have
 been closed and are kept as a record of what was wrong and what replaced it;
-items 1, 2 and 7 stand. §8 is new: it is what two read-only sweeps found that
-was never on this register.
+items 1, 2 and 7 stand, and are **M22**, **M23** and **M24**. §8 is new: it is
+what two read-only sweeps found that was never on this register.
 
-### 1. There is no backup
+### 1. There is no backup — M22
 
 `deploy/` contains two compose files, two `.env` examples and
 `seaweedfs/s3.json`. Grep for `pg_dump|backup|snapshot|cron` across `deploy/`
-and `apps/server` returns one prose comment in `spaces/spaces.go:229`. There is
+and `apps/server` returns one prose comment in `spaces/spaces.go:241`. There is
 no Makefile, no CI, no volume snapshot script.
 
 `pg_data` and `blob_data` have to be backed up **together and consistently**: a
 database dump restored without its blobs is a directory listing of files that
 no longer exist, and blobs restored without the database are content-addressed
-garbage with no names. `docs/architecture/milestones.md:293` states the
-intended procedure (`pg_dump` + rsync of `data/blobs`) as a sentence; nothing
-implements it.
+garbage with no names. The Rollout / Operations section of
+[milestones.md](milestones.md) states the intended procedure (`pg_dump` +
+rsync of `data/blobs`) as a sentence marked "documented, not implemented";
+nothing implements it.
 
 This is first because it is the only item on this list whose absence is
 irreversible.
 
-### 2. There is no mail transport
+### 2. There is no mail transport — M23
 
 Grep `smtp|mailer|sendmail|gomail|sendgrid|notif` across `apps/server` and
 `deploy/` returns zero functional hits. `go.mod` has no mail dependency; there
@@ -52,14 +57,16 @@ The consequences are already visible in the product:
 
 - `handleCreateInvitation` mints a token, stores the hash, and returns
   `externalURL + "/invite/" + token` in the JSON response for the admin to copy
-  and deliver by hand (`space_settings.go:248-272`). Onboarding forty people is
+  and deliver by hand (`space_settings.go:242-275`). Onboarding forty people is
   forty copy-pastes into a chat client.
-- Sharing notifies nobody. `handleCreateShare` records an activity row and
-  returns the link to its creator (`share.go:119-152`); for `direct` and
-  `group` grants the recipient is a known user with a known email address and
-  still learns nothing.
+- Sharing notifies nobody. `handleCreateShare` records an activity row and a
+  `share_created` audit row, then returns the link to its creator
+  (`share.go:115-176`); for `direct` grants — and for a group grant through
+  `handleUpsertGrant` — the recipient is a known user with a known email
+  address and still learns nothing.
 - There is no in-app substitute: no `notifications` table in `0001_init.sql`,
-  no `/notifications` route in `server.go:54-140`, no SSE or websocket.
+  no `/notifications` route anywhere in `Server.Router` (`server.go:86-241`),
+  no SSE or websocket.
 
 At 20–100 users across departments, "share" that does not tell the recipient
 anything is not a sharing feature.
@@ -318,18 +325,21 @@ What honestly remains:
   thousand of them, and a space with `quota_bytes = 0` is unmetered by
   definition. Per-user quota remains absent entirely — there is no
   `users.quota_*` column — and the accounting gap under P1 ("storage
-  accounting understates real usage") is unchanged.
+  accounting understates real usage", **M30**) is unchanged.
 - **The HTTP server still sets only `ReadHeaderTimeout: 10s`**
   (`cmd/server/main.go`). There is no write or idle timeout, and no
   `middleware.Timeout`; the long `proxy_*_timeout` values in `nginx.conf` are
   there because a multi-gigabyte upload and an OnlyOffice conversion both need
   them, which is also why a blanket handler timeout is not a one-line change.
+  No milestone carries this one either — it belongs to whoever next touches
+  the server's lifecycle.
 
-### 7. A REST upload silently overwrites an open editing session
+### 7. A REST upload silently overwrites an open editing session — M24
 
 `file_locks` exists (`0001_init.sql:286-291`) with a 30-minute TTL, and the
 WOPI endpoints honour it (`handleWopiPutFile` and `handleWopiLockOps`).
-Nothing else does: grep of `fs.go` finds no `GetLock` call, and there is no
+Nothing else does: `GetLock` has three callers in the whole server and all
+three are in `internal/wopi` (`Lock`, `Unlock`, `CurrentLock`); there is no
 lock route under `/api/v1` in `Server.Router`. There is no ETag or `If-Match`
 on the version-upload path either.
 
@@ -483,14 +493,17 @@ an attacker could actually reach, not by how the fix reads.
 
 ## P1 — the gap against Google Drive
 
-Ordered by what a 20–100 person, multi-department deployment feels first.
+Ordered by what a 20–100 person, multi-department deployment feels first. Each
+heading names the milestone that carries it; the phasing at the end places
+that milestone in a phase.
 
-### Search only matches file names
+### Search only matches file names — M27
 
-Migration `0007` added `pg_trgm` and a GIN index on `nodes.name`
-(`milestones.md:78`). That is the whole of it: `GET /api/v1/search` ranks a
-prefix match over a mid-string one and falls back to trigram similarity on the
-name.
+`pg_trgm` and one GIN index on `nodes.name` — `nodes_name_trgm`, partial on
+`deleted_at IS NULL` (`0001_init.sql:4` and `:200`; M7 added both, back when
+the schema was a run of deltas rather than one squashed baseline). That is the
+whole of it: `GET /api/v1/search` ranks a prefix match over a mid-string one
+and falls back to trigram similarity on the name.
 
 Google Drive indexes document contents and OCRs images. For a company document
 store this is the difference between "find the contract" and "remember which
@@ -502,7 +515,7 @@ queue with an optional worker (`preview-pipeline.md`), and office documents
 already pass through OnlyOffice conversion, so a text-extraction job kind is an
 addition to a working pattern rather than new infrastructure.
 
-### `activity_events` is a feed, not an audit log — mostly closed in M21
+### `activity_events` is a feed, not an audit log — mostly closed in M21, the rest is M26
 
 `activity_events` is still a feed, and that has stopped being a complaint:
 M21 added a second table rather than more verbs to the first one. The reason
@@ -520,12 +533,12 @@ context the first one has never carried. See
 
 Where the four holes stand now:
 
-| Hole                         | Status                                                                                                                                                                           |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Reads and downloads          | **Still open, and deliberately so** — no `viewed`/`downloaded` kind anywhere; `handleDownload`, `handleContent` and `handleShareDownload` record nothing                         |
-| Authentication events        | **Closed** — `login`, `login_failed`, `logout`, `session_revoked`, `sessions_revoked`, `identity_adopted`, written by `internal/auth`                                            |
-| Permission and admin changes | **Closed** — `admin_granted`, `admin_revoked`, `account_suspended`, `account_unsuspended`, `grant_created`, `grant_revoked`, `share_revoked`, `member_added`, `member_removed`   |
-| Request context              | **Closed** — every row carries `ip` (through `audit.ClientIP`), a 400-byte-truncated `user_agent` and chi's `request_id`, so a row joins to the access-log line that produced it |
+| Hole                         | Status                                                                                                                                                                                          |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Reads and downloads          | **Still open, and deliberately so** — no `viewed`/`downloaded` kind anywhere; `handleDownload`, `handleContent` and `handleShareDownload` record nothing                                        |
+| Authentication events        | **Closed** — `login`, `login_failed`, `logout`, `session_revoked`, `sessions_revoked`, `identity_adopted`, written by `internal/auth`                                                           |
+| Permission and admin changes | **Closed** — `admin_granted`, `admin_revoked`, `account_suspended`, `account_unsuspended`, `grant_created`, `grant_revoked`, `share_created`, `share_revoked`, `member_added`, `member_removed` |
+| Request context              | **Closed** — every row carries `ip` (through `audit.ClientIP`), a 400-byte-truncated `user_agent` and chi's `request_id`, so a row joins to the access-log line that produced it                |
 
 `GET /api/v1/admin/security-events` pages the log newest first, admin-only and
 deliberately **not** space-scoped: the whole value of a run of failed sign-ins
@@ -552,33 +565,40 @@ player makes, every WOPI `GetFile` behind an editor keystroke — and it would
 have to be written on the hot path of the endpoints that matter most for
 latency. Doing it properly means sampling or aggregation and a retention
 policy of its own, which is a design decision rather than a missing call. So
-"who downloaded the payroll folder?" still has no answer, and that remains a
-Phase B item; what M21 bought is that "who _gained access_ to the payroll
-folder, and when, and who granted it?" does.
+"who downloaded the payroll folder?" still has no answer, and that decision is
+what M26 has to make before it can write any code; what M21 bought is that
+"who _gained access_ to the payroll folder, and when, and who granted it?"
+does.
 
-Still absent in this area: an export endpoint (the console reads JSON pages),
-and any alerting on the log — a hundred `login_failed` rows from one address
-is visible to an admin who looks, and nothing looks on its own.
+Still absent in this area, and the remainder of M26: an export endpoint (the
+console reads JSON pages), and any alerting on the log — a hundred
+`login_failed` rows from one address is visible to an admin who looks, and
+nothing looks on its own.
 
-### No comments
+### No comments — M29
 
 Drive's primary collaboration surface. No table, no endpoints, no UI — it has
-been deferred at every milestone since M10 (`milestones.md:127`, `:150`) as "a
+been deferred at every milestone since M10, whose own entry in
+[milestones.md](milestones.md) says so and whose successor repeats it, as "a
 whole subsystem", which is accurate.
 
-### Uploads are not resumable
+### Uploads are not resumable — M30
 
 The `uploads` table is in the schema (`0001_init.sql:229-242`) and **no Go code
 references it** — it is dead schema. The transfer tray's pause stops the queue
-rather than a transfer in flight (`milestones.md:150`). A 4 GB upload that
+rather than a transfer in flight, which M11's entry in
+[milestones.md](milestones.md) already records as still-not-done. A 4 GB upload that
 drops at 90% restarts at zero, and nothing sweeps abandoned rows because
 nothing writes them.
 
-### Storage accounting understates real usage
+### Storage accounting understates real usage — M30
 
 `node_versions` grows without bound (`0001_init.sql:207-220`); nothing prunes
 old versions and there is no version-count cap. Quota, meanwhile, is computed
-from the current version only (`fs.go:186-196`).
+from the current version only (`fs.Service.checkQuota`, `fs.go:175-202`: it
+sums space usage and then subtracts the outgoing current version's size, so
+every superseded version is invisible to the meter that is supposed to bound
+the disk).
 
 The two together mean the disk fills while the storage meter says there is room
 — the numbers are not merely incomplete, they diverge over time. Either quota
@@ -587,14 +607,14 @@ counts every referenced blob, or versions get a retention policy; ideally both.
 Also absent: per-user quota (no `users.quota_*` column, `0001_init.sql:33-50`),
 file-count limits, and any egress accounting.
 
-### No way to create a document
+### No way to create a document — M31
 
 Grep for a blank-document template or a create-office-file path across `apps`
 returns nothing. Every `.docx` has to be created somewhere else and uploaded
 before it can be co-edited — which makes the editor a viewer with write access
 rather than a place work starts.
 
-### Identity is managed by hand
+### Identity is managed by hand — M28
 
 Users exist only after a successful OIDC login (`auth.Service.resolveUser`),
 and only `email`, `email_verified` and `name` are read from the token. There
@@ -627,53 +647,74 @@ is decoded through a `boolish` type, because some providers send it as the
 string `"true"` and a strict decode would fail the whole claims read and take
 every other claim down with it.
 
-Deprovisioning is worse: `store/queries/users.sql` has no `DeleteUser`.
-Suspension (`handleAdminUpdateUser`) is the terminal state, and
-instance-level ownership transfer does not exist — `spaces.RemoveMember`'s
-archive behaviour is per-space only.
+Deprovisioning is worse, and **M28 does not cover it**: `store/queries/users.sql`
+has no `DeleteUser`. Suspension (`handleAdminUpdateUser`) is the terminal
+state, and instance-level ownership transfer does not exist —
+`spaces.RemoveMember`'s archive behaviour is per-space only. A directory sync
+that can create accounts and cannot retire them is half a sync, so this is
+either scope M28 grows or a gap that outlives it.
 
 ### Smaller, but on the list
 
+Two of these are **M25** and the rest have no milestone at all — said plainly
+here so they are not quietly absorbed into one that does not cover them.
+
 - **No antivirus or content scanning.** Uploads go from the multipart part
-  straight into the CAS (`fs.go:127-129` → `blob/blob.go:42-71`) with no scan
+  straight into the CAS (`fs.go:125-128` → `blob/blob.go:44-74`) with no scan
   hook, no MIME sniffing (type is guessed from the extension, `fs.go:139-142`)
-  and no extension blocklist.
+  and no extension blocklist. Unscheduled.
 - **No encryption at rest.** Local blobs are plaintext under `0755` dirs
   (`blob/blob.go:29-40`); the S3 backend sets no SSE headers; Postgres runs
   `sslmode=disable` inside the compose network (the `PP_DATABASE_URL` both
   the `server` and `worker` services are given in `compose.prod.yml`).
-  Share and invite tokens _are_ stored hashed.
-- **Security headers shipped in M21, with two documented exceptions.**
-  `apps/web/nginx.conf` now sends CSP, `X-Frame-Options: DENY`,
-  `Referrer-Policy: strict-origin-when-cross-origin`, HSTS and
+  Share and invite tokens _are_ stored hashed. Unscheduled.
+- **Security headers shipped in M21, with two deliberate exceptions and one
+  still to fix.** `apps/web/nginx.conf` now sends CSP, `X-Frame-Options:
+DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, HSTS and
   `X-Content-Type-Options: nosniff`, all with `always` so they survive the
   502s the config is designed to return, plus `server_tokens off`. Two CSP
   directives are looser than the standard advice on purpose — `object-src
-'self'` because the PDF viewer is an `<object>`, and
-  `form-action`/`frame-src` naming the Document Server's origin because the
-  editor handoff is a real cross-origin form POST — and one is looser than it
-  should be: `style-src 'unsafe-inline'`, which needs code changes in
-  `apps/web` to remove. See [deployment.md](../deployment.md).
-- **No metrics, tracing or error tracking.** Grep
+'self'` because the PDF viewer is an `<object>`, and `form-action` /
+  `frame-src` naming the Document Server's origin because the
+  editor handoff is a real cross-origin form POST. The third is not
+  deliberate: `style-src 'self' 'unsafe-inline'`, repeated on all three
+  `add_header` blocks in that file, is there for a handful of React `style`
+  props and sonner's runtime `<style>` injection, so tightening it is an
+  `apps/web` change rather than an nginx one — which is exactly why it is
+  still here and unscheduled. See [deployment.md](../deployment.md).
+- **No metrics, tracing or error tracking — M25.** Grep
   `prometheus|otel|opentelemetry|pprof|sentry` over `apps/server` and `deploy/`
-  returns nothing. `log/slog` uses the default text handler with no level
-  control (no `slog.New`/`SetDefault` anywhere), and the request id is not
-  bridged into log records.
-- **`/healthz` is a static 200** (registered at the top of `Server.Router`) —
-  it touches neither Postgres nor the blob store, so it cannot fail when the
-  thing it reports on has. There is no readiness split, and `cmd/worker` has
-  no HTTP listener at all, hence no healthcheck on that service in
-  `compose.prod.yml`.
-- **Avatar upload is a placeholder.** `handleUploadAvatar` bounds and parses
-  the body, then discards the file, stores a placeholder URL and carries a
-  `// TODO: store to blob store`. The M21 ceiling applies to it
-  (`avatarMaxBytes`, 5 MiB), which means the bytes it throws away are at
-  least bounded.
+  returns nothing. `log/slog` runs on the default text handler with no level
+  control — no `slog.New` or `slog.SetDefault` anywhere — and chi's request id
+  reaches `security_events` rows (`audit/audit.go:98`) but never a log record,
+  so the one identifier that could join a log line to an audit row exists on
+  only one side of the join.
+- **`/healthz` is a static 200 — M25.** Registered at `server.go:99`, it
+  writes `ok` and touches neither Postgres nor the blob store, so it cannot
+  fail when the thing it reports on has — and both the server `Dockerfile`
+  and `compose.prod.yml` point their healthcheck at it, which makes a
+  container that cannot reach its database report healthy. There is no
+  readiness split, and `cmd/worker` has no HTTP listener at all, which is why
+  its service in `compose.prod.yml` carries no healthcheck of any kind.
+- **Avatar upload is a stub behind a working-looking button.**
+  `handleUploadAvatar` (`users.go:73-94`) bounds the body with
+  `avatarMaxBytes` (5 MiB), parses the multipart form and opens the file —
+  then discards it, stores the constant string `/api/v1/users/me/avatar` as
+  that user's `avatar_url` and answers 200 with it, under a `// TODO: store to
+blob store`. Nothing serves that path. The M21 ceiling means the bytes it
+  throws away are at least bounded, but the shape of this one is worse than a
+  missing feature: the control reports success, so nobody discovers it is not
+  there. Unscheduled, and the only item on this page where the honest interim
+  fix may be removing the button until it does something.
 - **The UI is English-only.** No i18n library, no locale files, no string
-  catalogue in `apps/web/src`.
-- **No orphan-blob audit.** `gc.go:66-76` deliberately leaves a file behind
-  when it crashes between deleting the row and the file, and defers to "the
-  next full audit" — which does not exist.
+  catalogue in `apps/web/src`. Unscheduled.
+- **No orphan-blob audit.** `gc.Worker.Sweep` deletes the blob row before the
+  file (`gc/gc.go:64-67`) — deliberately, since the other order leaves a row
+  promising bytes that are gone, which reads as corruption — so a crash
+  between the two leaves a file with no row, and the comment defers it to "the
+  next full audit". There is no such audit: nothing walks the blob directory
+  against the `blobs` table. Unscheduled; the leak is bounded by how often the
+  process dies mid-sweep, which is also why it has never been urgent.
 
 ## Out of scope, deliberately
 
@@ -693,44 +734,63 @@ Restating so these are not rediscovered as gaps:
 
 ## Proposed phasing
 
-Nothing below is scheduled; it is the order the dependencies suggest.
+Nothing below is scheduled; it is the order the dependencies suggest. What has
+changed is that each phase now has named milestones carrying it, and those
+live in [milestones.md](milestones.md) under `## Upcoming — M22 Onward`. The
+division is deliberate: that document is the plan, this one is the evidence,
+and a milestone that cannot point back to a section here has not been argued
+for.
 
 **Phase A — rollout blockers.** P0 items 1–8, of which **3, 4, 5, 6 and 8 are
 done**: M20 brought the `sessions` table, M21 added `security_events`, so the
 schema changes this phase ever needed are already applied; the Document Server
 runs signed, the first admin is a configuration value, upload bodies and
 request rates have ceilings, and the sweep findings in §8 are closed. What
-remains is the work that is not code in this repository — **1 (backup)** and
-**2 (mail transport)** — plus **7**, which needs a decision rather than an
-implementation: either the REST version-upload path refuses a locked node
-(simple, correct, occasionally annoying) or it takes a lock of its own. 7 is
-also now the only P0 item that loses data.
+remains is the work that is not code in this repository — **M22** (§1, backup
+and restore) and **M23** (§2, mail transport) — plus **M24** (§7), which needs
+a decision rather than an implementation: either the REST version-upload path
+refuses a locked node (simple, correct, occasionally annoying) or it takes a
+lock of its own. M24 is also now the only P0 item that loses data.
 
-**Phase B — the multi-department layer.** The audit half of this phase is
+**Continuous — M25, observability.** Metrics, a `/healthz` that touches
+Postgres and the blob store, a level-controlled `slog` handler carrying the
+request id. It is cheap at any point and it makes every phase after it
+diagnosable, which is the argument for doing it early; it sits between the
+phases rather than inside one only because nothing depends on it. Its
+evidence is the two **M25** bullets under "Smaller, but on the list".
+
+**Phase B — the multi-department layer.** **M26 — audit completeness** is
 partly built: `security_events` carries authentication, admin, suspension,
-grant and membership changes with request context and a retention window, so
-what is left of it is read auditing (a design decision — see the section
-above), an export endpoint, and anything that watches the log rather than
-waiting to be read. Then content-indexed search as a new preview-pipeline job
-kind, then IdP group sync. These are what changes when the user count crosses
-a couple of departments, and each one is additive to a pattern that already
-exists.
+grant, share and membership changes with request context and a retention
+window, so what is left of it is read auditing (a design decision, not an
+oversight — see the section above), an export endpoint, and anything that
+watches the log rather than waiting to be read. Then **M27 — content-indexed
+search** as a new preview-pipeline job kind, then **M28 — directory sync**,
+which is the pre-provisioning and IdP-group-sync half of "Identity is managed
+by hand". These are what changes when the user count crosses a couple of
+departments, and each one is additive to a pattern that already exists.
 
-**Phase C — collaboration and storage honesty.** Comments, notifications
-(which needs Phase A's mail transport), resumable upload against the dead
-`uploads` table, version retention plus a quota that counts every referenced
-blob, and document creation from templates.
+**Phase C — collaboration and storage honesty.** **M29 — comments and
+notifications**, whose notification half needs M23's mail transport; **M30 —
+resumable upload and honest accounting**, which is the dead `uploads` table,
+version retention and a quota that counts every referenced blob; and **M31 —
+document creation** from a template.
 
-**Continuous.** Observability (metrics, a real `/healthz`, structured logs with
-the request id) is cheap at any point and makes every phase after it easier to
-diagnose. It is listed last only because nothing depends on it.
+**Named but unscheduled.** A gap with no milestone is still a gap, and the
+risk of a roadmap is that it stops being visible: the avatar-upload
+placeholder, `style-src 'unsafe-inline'`, the orphan-blob audit `gc.go` defers
+to, upload scanning, encryption at rest and an English-only UI. All six keep
+their evidence in "Smaller, but on the list", and
+[milestones.md](milestones.md) lists them under a heading of the same name, so
+a reader working from the plan meets them too.
 
 ## Verdict
 
 A pilot with one department is reasonable once Phase A is done — which now
-means a backup procedure and a way to tell people they have been shared
-something — provided everyone understands that search finds names rather than
-contents and that there are no comments. A company-wide rollout across several
-departments needs Phase B as well: content search, and the half of the audit
-story that answers "who read this", which is the question that gets asked
+means M22 and M23, a backup procedure and a way to tell people they have been
+shared something, with M24 decided one way or the other — provided everyone
+understands that search finds names rather than contents and that there are no
+comments. A company-wide rollout across several departments needs Phase B as
+well: M27's content search, and the half of the audit story M26 still owes,
+the half that answers "who read this", which is the question that gets asked
 within the first week rather than the first month.

@@ -14,6 +14,8 @@ pp-hub/
 │   │       │   ├── queries/        # TanStack Query hooks (per-resource)
 │   │       │   ├── query-client.ts # shared QueryClient
 │   │       │   ├── ui-store.ts     # zustand ephemeral UI state
+│   │       │   ├── safe-path.ts    # the SPA half of auth.safeNext: a same-origin path, or nothing
+│   │       │   ├── user-agent.ts   # "Chrome on macOS" from a UA string, for the session and log lists
 │   │       │   ├── selection.ts    # click → selection (replace / ⌘ toggle / ⇧ range)
 │   │       │   ├── use-marquee-selection.ts # drag a band over the listing to select
 │   │       │   ├── upload-store.ts # zustand upload queue (concurrency, retry, mkdir cache)
@@ -61,11 +63,12 @@ pp-hub/
 │   │       └── routes/             # TanStack Router file-based routes
 │   │           ├── login.tsx            # OIDC hand-off; ?redirect= survives the round trip
 │   │           ├── admin.users.tsx      # server administration: stats, suspend, admin flag
+│   │           ├── admin.security.tsx   # the security log: sign-ins, failures, access changes
 │   │           ├── invite/$token.tsx    # redeem a space invitation
 │   │           ├── s/$token.tsx         # anonymous share-link browser (no rail, no account)
 │   │           ├── edit/$nodeId.tsx     # full-page OnlyOffice editor (opened in a new tab)
 │   │           ├── drive.tsx            # drive shell: SidebarProvider + AppSidebar + SidebarInset
-│   │           ├── drive/account/       # route.tsx (tabs) + profile.tsx + preferences.tsx
+│   │           ├── drive/account/       # route.tsx (tabs) + profile / preferences / sessions
 │   │           └── drive/$spaceId/      # route.tsx (space guard) + index.tsx (listing)
 │   │               │                    #   + home / recent / starred / shared / trash
 │   │               └── settings/        # route.tsx (tabs) + general / people / danger
@@ -76,25 +79,35 @@ pp-hub/
 │       ├── .env.example            # → .env (git-ignored), sourced for local dev
 │       └── internal/
 │           ├── bootstrap/          # ✅ shared wiring for both entry points: config, pool, blobs
-│           ├── activity/           # ✅ event recording: who did what, to what
-│           ├── auth/               # ✅ OIDC login/callback/logout, DB-backed sessions (go-oidc)
+│           ├── activity/           # ✅ per-space feed: who did what, to what
+│           ├── audit/              # ✅ per-instance security log: sign-ins, failures, access changes
+│           │                       #    Distinct from activity on purpose — see data-model.md
+│           ├── auth/               # ✅ OIDC (PKCE + nonce) + DB-backed sessions (go-oidc)
 │           ├── gc/                 # ✅ blob reclaim + trash retention sweeps
-│           ├── config/             # ✅ env-based config
-│           ├── httpapi/            # ✅ chi routes (/healthz, /auth/*, /api/v1/*), RFC 7807 errors
+│           ├── config/             # ✅ env config; DeriveKey issues purpose-bound subkeys
+│           ├── httpapi/            # ✅ chi routes (/healthz, /auth/*, /api/v1/*, /wopi/*, /s/*)
+│           │   ├── server.go       # the router, and the middleware that makes it safe by group
+│           │   ├── csrf.go         # sameOrigin: every mutation, before authentication
+│           │   ├── ratelimit.go    # per-IP token buckets on the anonymous surfaces
+│           │   ├── limits.go       # request-body ceilings for anything that becomes file content
+│           │   ├── logging.go      # chi's logger with share and WOPI tokens redacted
+│           │   ├── sessions.go     # the account's own device list and its revoke endpoints
+│           │   ├── security_events.go # GET /admin/security-events
 │           │   ├── users.go        # user profile CRUD + search endpoints
 │           │   ├── groups.go       # groups API + the folder-grant endpoints
 │           │   └── spaces_members.go # space members API (list/add/remove, set-admin)
 │           ├── store/              # ✅ sqlc queries, embedded migrations runner
-│           │   └── migrations/     # the whole schema as one baseline: 0001_init.sql
+│           │   └── migrations/     # 0001_init.sql baseline, then one file per change:
+│           │                       #    0002_sessions.sql, 0003_security_events.sql
 │           ├── users/              # user service layer (profile, search)
 │           ├── spaces/             # space CRUD, membership, the Admin group, leaving a space
 │           │   ├── spaces.go       # RequireAdmin/SetAdmin/AddMember; RemoveMember archives what a leaver owned
 │           │   └── permissions_db_test.go # DB-backed; skipped unless PP_TEST_DATABASE_URL is set
 │           ├── groups/             # groups + the grants that open folders
 │           ├── fs/                 # file tree, versioning, move/copy/rename
-│           ├── blob/               # CAS Store interface + local impl (S3 impl later)
+│           ├── blob/               # CAS Store interface + local and S3 impls
 │           ├── share/              # grants — user, group, link — and the caps they resolve to
-│           ├── wopi/               # WOPI host endpoints, access tokens
+│           ├── wopi/               # WOPI host endpoints; access tokens signed with a derived subkey
 │           └── preview/            # renderers + job loop; jobs.kind routes, previews.kind is the artifact
 ├── packages/
 │   ├── ui/                         # @workspace/ui — shadcn/ui preset (base-ui) + design tokens (globals.css)
@@ -129,11 +142,23 @@ pp-hub/
   Shared rows: they were siblings of `$spaceId`, so there was no space to read.
   Add a surface as a child route; do not reintroduce a panel param.
 - **Settings tabs are routes.** Space settings (`settings/general|people|danger`)
-  and account settings (`account/profile|preferences`) both render
+  and account settings (`account/profile|preferences|sessions`) both render
   `settings-tabs.tsx`, a strip of `<Link>`s. A settings pane is a place: it has
   to survive a reload, be sendable to a colleague and answer the back button.
   `settings/route.tsx` refuses a non-admin in `beforeLoad` rather than
-  rendering a "you cannot" pane at a URL that resolved.
+  rendering a "you cannot" pane at a URL that resolved — and so do the two
+  `admin.*` routes, for the same reason: a page that resolves has already told
+  the caller the URL exists and what it is for.
+- **Safety lives on the route group, not in the handler.** `httpapi/server.go`
+  puts the rate limiter, the same-origin check and authentication on
+  `/api/v1` with `r.Use`, in that order, and a handler calls `caller(r)`
+  without re-checking anything. This is deliberate: there were once seventy-odd
+  handlers and thirty-odd hand-written guards, and nothing but eyesight
+  connected the two numbers. `routes_test.go` walks the router and fails if an
+  `/api/v1` route is missing either middleware — and fails if `/wopi/*` gains
+  the origin check, which would break the Document Server's own saves. A route
+  that must be public is registered outside the group, never exempted inside
+  it.
 - **Drive shell layout.** `routes/drive.tsx` is the shadcn dashboard shell:
   `SidebarProvider` (`--sidebar-width: 18rem`, `--header-height: 3rem`) holding
   `app-sidebar` (`variant="inset"`, `collapsible="offcanvas"`) beside a
