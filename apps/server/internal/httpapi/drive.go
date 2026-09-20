@@ -555,6 +555,24 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, nodeToDTO(node, &ver).withCaps(share.CapsOwner))
 }
 
+// lockedByEditor answers 409 when a live WOPI lock exists, and reports whether
+// the caller should stop. Both REST write paths that change which bytes are
+// current have to ask; the WOPI paths already do, with their own header
+// protocol (X-WOPI-Lock), which is why this is not shared with them.
+func (s *Server) lockedByEditor(w http.ResponseWriter, r *http.Request, nodeID pgtype.UUID) bool {
+	lockToken, err := s.wopi.CurrentLock(r.Context(), nodeID)
+	if err != nil {
+		Error(w, r, err)
+		return true
+	}
+	if lockToken != "" {
+		writeProblem(w, http.StatusConflict, "Conflict",
+			"this file is open in the editor; close it or wait for the lock to expire")
+		return true
+	}
+	return false
+}
+
 // handleUploadVersion replaces the contents of an existing file. Requires
 // CapEdit on that file.
 //
@@ -571,6 +589,16 @@ func (s *Server) handleUploadVersion(w http.ResponseWriter, r *http.Request) {
 	}
 	if node.Kind != store.NodeKindFile {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "not a file")
+		return
+	}
+	// A .docx open in OnlyOffice is a lock row with a 30-minute TTL, and the
+	// WOPI save path honours it. This path did not, so B's upload became A's
+	// next save's base and A's work was gone with no conflict anywhere.
+	//
+	// Refused rather than locked: there is no unlock on this path — no
+	// session to end, no REFRESH_LOCK — so a lock taken here would only be
+	// released by the sweep.
+	if s.lockedByEditor(w, r, node.ID) {
 		return
 	}
 	if !parseUpload(w, r, s.maxUploadBytes) {
@@ -965,6 +993,9 @@ func (s *Server) handleRestoreVersion(w http.ResponseWriter, r *http.Request) {
 	var versionID pgtype.UUID
 	if err := versionID.Scan(chi.URLParam(r, "versionID")); err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid version id")
+		return
+	}
+	if s.lockedByEditor(w, r, node.ID) {
 		return
 	}
 	if err := s.fs.RestoreVersion(r.Context(), node.ID, versionID); err != nil {

@@ -7,6 +7,7 @@ All tables carry `tenant_id` (default `'default'`). Postgres is the only metadat
 ```sql
 users(id, tenant_id, oidc_sub, oidc_iss, email, name,     -- OIDC-sourced fields
       display_name, avatar_url, bio,                      -- user-editable profile
+      avatar_blob, avatar_mime,                            -- the CAS hash and mime an avatar_url resolves to
       settings,                                            -- JSONB preferences
       is_admin, last_seen, suspended_at, created_at)
   UNIQUE (oidc_iss, oidc_sub)                              -- the identity key
@@ -18,6 +19,14 @@ alongside the OIDC-sourced ones in the baseline. The `is_admin` flag gates admin
 `last_seen` means last seen: `TouchSession` writes it in the same statement that slides a
 session's deadline, so it moves with actual use. It used to be stamped only by the sign-in path,
 which made the People table's "last active" column a login timestamp wearing another name.
+
+An avatar's bytes live in the CAS like everything else uploaded (M22–M24 pass): `avatar_blob`
+is the blake3 hash `handleUploadAvatar` resolved through `s.blobs.Put`, `avatar_mime` is the
+type sniffed from the bytes (never the filename — it is served back with this value), and
+`avatar_url` stays the rendered `/api/v1/users/{userID}/avatar?v=<hash prefix>` every DTO
+already copies through, so the query suffix is what busts a browser's cache of the previous
+picture. `GET /api/v1/users/{userID}/avatar` resolves `avatar_blob` back to bytes; re-uploading
+identical bytes does not re-`IncrBlobRef` the same hash twice, mirroring `fs.PutFile`.
 
 A user is identified by `(oidc_iss, oidc_sub)` — `GetUserByIdentity` — with `email_hash` unique
 per tenant. Those two facts collide when an operator changes the issuer URL: every returning

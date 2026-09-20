@@ -6,12 +6,15 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/activity"
 	"github.com/nhatbui/pp-hub/apps/server/internal/audit"
 	"github.com/nhatbui/pp-hub/apps/server/internal/auth"
+	"github.com/nhatbui/pp-hub/apps/server/internal/blob"
 	"github.com/nhatbui/pp-hub/apps/server/internal/fs"
 	"github.com/nhatbui/pp-hub/apps/server/internal/groups"
+	"github.com/nhatbui/pp-hub/apps/server/internal/mail"
 	"github.com/nhatbui/pp-hub/apps/server/internal/preview"
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 	"github.com/nhatbui/pp-hub/apps/server/internal/spaces"
@@ -32,6 +35,9 @@ type Server struct {
 	activity      *activity.Service
 	audit         *audit.Service
 	store         *store.Queries
+	pool          *pgxpool.Pool
+	blobs         blob.Store
+	mail          *mail.Sender
 	externalURL   string
 	onlyOfficeURL string
 	wopiServerURL string
@@ -55,6 +61,9 @@ type Deps struct {
 	Preview        *preview.Worker
 	Users          *users.Service
 	Store          *store.Queries
+	Pool           *pgxpool.Pool
+	Blobs          blob.Store
+	Mail           *mail.Sender
 	ExternalURL    string
 	OnlyOfficeURL  string
 	WopiServerURL  string
@@ -75,6 +84,9 @@ func NewServer(d Deps) *Server {
 		activity:       activity.NewService(d.Store),
 		audit:          audit.New(d.Store),
 		store:          d.Store,
+		pool:           d.Pool,
+		blobs:          d.Blobs,
+		mail:           d.Mail,
 		externalURL:    d.ExternalURL,
 		onlyOfficeURL:  d.OnlyOfficeURL,
 		wopiServerURL:  d.WopiServerURL,
@@ -100,6 +112,7 @@ func (s *Server) Router() http.Handler {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
+	r.Get("/readyz", s.handleReadyz)
 
 	// Rate limits, on the three surfaces an anonymous caller can reach. The
 	// sign-in endpoints cost an IdP round trip each; a share token is a
@@ -152,6 +165,7 @@ func (s *Server) Router() http.Handler {
 		r.Patch("/admin/users/{userID}", s.handleAdminUpdateUser)
 		r.Get("/users", s.handleListUsers)
 		r.Get("/users/search", s.handleSearchUsers)
+		r.Get("/users/{userID}/avatar", s.handleGetAvatar)
 
 		r.Route("/spaces", func(r chi.Router) {
 			r.Post("/", s.handleCreateSpace)

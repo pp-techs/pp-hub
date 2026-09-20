@@ -1,75 +1,159 @@
 # Production Readiness — Gap Analysis
 
-M1–M19 delivered the product; M20 closed one of the items below and M21 closed
-three more, plus a set of things nobody had written down. This document
-is what stands between that product and an internal rollout, assessed against
-the target deployment: **one company, 20–100 users, several departments,
-self-hosted, no compliance auditor yet**.
+M1–M19 delivered the product; M20 closed one of the items below, M21 closed
+three more plus a set of things nobody had written down, and M22–M24 closed
+the rest of the P0 register — backup and restore, an invitation mail
+transport, and the REST/WOPI write collision — along with two items that
+were never on it: the readiness split and the avatar-upload stub. This
+document is what stood between that product and an internal rollout,
+assessed against the target deployment: **one company, 20–100 users, several
+departments, self-hosted, no compliance auditor yet**.
 
 It is the evidence, not the plan. [milestones.md](milestones.md) holds the
-plan: every gap below is now carried by a named milestone, **M22 through
-M31**, and each heading here says which. Nothing is scheduled — the numbers
-are an order the dependencies suggest, and the phasing at the end explains
-that order. What stays here is the reason each item is on the list and the
-`file:line` that lets a reader check whether it is still true before acting on
-it; where a line number would only rot, the function or query is named
-instead.
+plan: every remaining gap below is carried by a named milestone, **M25
+through M31**, and each heading here says which. Nothing there is
+scheduled — the numbers are an order the dependencies suggest, and the
+phasing at the end explains that order. What stays here is the reason each
+item is (or was) on the list and the `file:line` that lets a reader check
+whether it is still true before acting on it; where a line number would only
+rot, the function or query is named instead.
 
-The headline: the drive itself is finished. The permission model (M15) is
-stricter by default than Google Drive's, WOPI co-editing is real, and
-versioning, trash retention, blob GC, quota and search all work. What is
-missing is the operational layer around it — the things that are invisible
-until the day they are needed, and unrecoverable on that day.
+The headline: the drive itself is finished, and as of M22–M24, so is the
+operational layer that makes it safe to put real work in it — a restorable
+backup, a readiness probe that actually fails when a dependency has, and a
+REST write that cannot silently discard an open editor's work. The permission
+model (M15) is stricter by default than Google Drive's, WOPI co-editing is
+real, and versioning, trash retention, blob GC, quota and search all work.
+What remains missing is the layer above that: content search, richer audit,
+directory sync, comments, and the honest storage accounting Phase B and C
+carry.
 
 ## P0 — blocks an internal rollout
 
 These are not features. Each one is either a way to lose data, a way to leak
-it, or a step an administrator cannot perform at all. Items 3, 4, 5 and 6 have
-been closed and are kept as a record of what was wrong and what replaced it;
-items 1, 2 and 7 stand, and are **M22**, **M23** and **M24**. §8 is new: it is
-what two read-only sweeps found that was never on this register.
+it, or a step an administrator cannot perform at all. Every item on this
+register is now closed and kept as a record of what was wrong and what
+replaced it: 3, 4, 5, 6 and 8 in M20 and M21; 1, 2 and 7 in **M22**, **M23**
+and **M24**, plus two items that had no milestone of their own — the
+static-200 healthchecks and the avatar-upload stub — closed alongside them,
+recorded under "Smaller, but on the list" below since neither was ever a P0
+item.
 
-### 1. There is no backup — M22
+### 1. There was no backup — closed in M22
 
-`deploy/` contains two compose files, two `.env` examples and
+What it was: `deploy/` held two compose files, two `.env` examples and
 `seaweedfs/s3.json`. Grep for `pg_dump|backup|snapshot|cron` across `deploy/`
-and `apps/server` returns one prose comment in `spaces/spaces.go:241`. There is
-no Makefile, no CI, no volume snapshot script.
+and `apps/server` returned one prose comment in `spaces/spaces.go:241`. There
+was no Makefile, no CI, no volume snapshot script — and `pg_data` and
+`blob_data` had to be captured **together and consistently**: a database dump
+restored without its blobs is a directory listing of files that no longer
+exist, and blobs restored without the database are content-addressed garbage
+with no names.
 
-`pg_data` and `blob_data` have to be backed up **together and consistently**: a
-database dump restored without its blobs is a directory listing of files that
-no longer exist, and blobs restored without the database are content-addressed
-garbage with no names. The Rollout / Operations section of
-[milestones.md](milestones.md) states the intended procedure (`pg_dump` +
-rsync of `data/blobs`) as a sentence marked "documented, not implemented";
-nothing implements it.
+What shipped: `deploy/backup/pp-backup.sh` and `deploy/backup/pp-restore.sh`,
+two POSIX `sh` scripts (`set -eu`) driving `docker compose` against
+`compose.prod.yml` — no volume is ever named directly, since the file carries
+no `name:` and a real volume name depends on the compose project, so every
+volume is reached through `docker compose run`/`exec` on the service that
+mounts it.
 
-This is first because it is the only item on this list whose absence is
-irreversible.
+- **Postgres is dumped before blobs are archived, never the other way.** The
+  pair that must never invert is a blob referenced by a row the dump already
+  captured but whose bytes are missing from the archive because the archive
+  ran first; dumping first and archiving second guarantees that never
+  happens. A blob written in between is harmless either way — at worst an
+  extra unreferenced file a future GC sweep reclaims.
+- **The blob backend is read from `.env.prod`, not assumed.** `local` tars
+  `/data/blobs` out of the `server` service; the bundled SeaweedFS (`s3` with
+  `PP_S3_ENDPOINT` naming `seaweedfs`) tars `/data` out of the `seaweedfs`
+  service; an external S3 bucket exits 2 with the reason — its own
+  versioning and replication is the backup — after the Postgres dump has
+  already been written, so relying on external S3 still leaves the database
+  covered.
+- **The backup verifies itself before declaring success.** `pg_restore
+--list` on the dump and `tar -tzf` on the archive both have to pass, or the
+  script exits non-zero with the artifact named — a corrupt backup answering
+  "done" is worse than no backup, because nobody checks it until the day it
+  is needed.
+- **The restore verifies the dump before touching anything.** `pg_restore
+--list` runs on the archive first; only then are `web`, `server` and
+  `worker` stopped, Postgres is restored (`--clean --if-exists --no-owner`,
+  no `--exit-on-error` — the notices from `--clean` against a fresh schema
+  are expected), blobs are extracted, and the stack comes back up with a
+  60-second poll of `/readyz` (M22 predates it only in numbering; both landed
+  together) before reporting success.
+- **`.env.prod` is explicitly out of scope**, and the backup says so on every
+  run: `POSTGRES_PASSWORD`, `PP_SESSION_KEY` and the OIDC secrets are the
+  operator's to keep, because a restore without them comes up as a different
+  instance.
+- **A restore has actually been performed against a built `compose.prod.yml`
+  stack**, not merely scripted: a drill user row and a marker blob were
+  written, `pp-backup.sh` captured both, `DROP SCHEMA public CASCADE` and
+  `rm -rf /data/blobs/*` destroyed them, and `pp-restore.sh` brought both
+  back — the row, the blob's bytes, and `schema_migrations`' newest version
+  all verified byte- and value-identical afterward. The one part of the
+  script that did **not** pass in that drill was the final readiness poll,
+  because the drill used an unreachable OIDC issuer and `cmd/server` blocks
+  its listener on discovery before `/readyz` exists to answer — exactly the
+  caveat this document's own verification steps name, and unrelated to
+  whether the data came back.
 
-### 2. There is no mail transport — M23
+Retention defaults to 14 days (`-k`), the output directory defaults to
+`backups/` at the repo root (`-o`), and neither is installed as a cron job —
+the suggested line is a comment in the script's header, for an operator to
+add.
 
-Grep `smtp|mailer|sendmail|gomail|sendgrid|notif` across `apps/server` and
-`deploy/` returns zero functional hits. `go.mod` has no mail dependency; there
-is no `net/smtp` import.
+### 2. There was no mail transport — closed in M23, invitations only
 
-The consequences are already visible in the product:
+What it was: grep `smtp|mailer|sendmail|gomail|sendgrid|notif` across
+`apps/server` and `deploy/` returned zero functional hits, `go.mod` had no
+mail dependency, and `handleCreateInvitation` minted a token and returned
+`externalURL + "/invite/" + token` in the JSON response for the admin to
+copy and deliver by hand — forty people onboarded was forty copy-pastes into
+a chat client.
 
-- `handleCreateInvitation` mints a token, stores the hash, and returns
-  `externalURL + "/invite/" + token` in the JSON response for the admin to copy
-  and deliver by hand (`space_settings.go:242-275`). Onboarding forty people is
-  forty copy-pastes into a chat client.
-- Sharing notifies nobody. `handleCreateShare` records an activity row and a
-  `share_created` audit row, then returns the link to its creator
-  (`share.go:115-176`); for `direct` grants — and for a group grant through
-  `handleUpsertGrant` — the recipient is a known user with a known email
-  address and still learns nothing.
-- There is no in-app substitute: no `notifications` table in `0001_init.sql`,
-  no `/notifications` route anywhere in `Server.Router` (`server.go:86-241`),
-  no SSE or websocket.
+**Decision taken: SMTP for invitations only.** Sharing still notifies
+nobody — `handleCreateShare` records an activity row and a `share_created`
+audit row, then returns the link to its creator (`share.go:115-176`), and a
+direct or group grant's recipient, a known user with a known verified
+address, still learns nothing. There is still no in-app substitute: no
+`notifications` table, no `/notifications` route, no SSE or websocket. That
+half is **M29**'s, which needs a notification story rather than a transport;
+M23 built the transport M29 will reuse.
 
-At 20–100 users across departments, "share" that does not tell the recipient
-anything is not a sharing feature.
+What shipped: `internal/mail`, a small `net/smtp` wrapper
+(`Settings`/`Sender`/`Send`) — dial, optional `STARTTLS` or implicit TLS,
+optional `PLAIN` auth, a hand-built RFC 5322 message, every failure wrapped
+with the stage it failed at (dial, starttls, auth, …) rather than a bare
+`smtp: EOF`. `To`/`Subject` are rejected on any `\r`/`\n` — both reach the
+raw header block verbatim, so an unescaped newline in either is a
+header-injection attempt.
+
+- **A half-configured transport fails startup, not a send.**
+  `config.validateSMTP` requires `PP_SMTP_FROM` whenever `PP_SMTP_HOST` is
+  set (every relay refuses a message with no sender), restricts
+  `PP_SMTP_TLS` to `starttls`/`implicit`/`none`, and bounds the port —
+  because the operator who set `PP_SMTP_HOST` believes mail works, and
+  finding out otherwise at the first invitation is worse than finding out at
+  startup. `Host == ""` is a supported, logged state, not an error.
+- **The invitation handler degrades to exactly the pre-M23 behaviour.**
+  `handleCreateInvitation` sends synchronously, bounded by a 15s context,
+  after the invitation row is already committed; a send failure is logged
+  and the response still carries the URL — the admin's fallback is the
+  product's old and only behaviour, not a new failure mode. The response
+  gains `mail_sent`, which the listing endpoint omits because it knows
+  nothing about delivery; the web client branches its toast on it and keeps
+  the clipboard copy in both paths.
+- **Verified end to end against a real relay**, not just the transport's
+  unit tests: `internal/mail/send_live_test.go` (skipped without
+  `PP_TEST_SMTP_ADDR`) sent one message through a MailHog catcher run for
+  this milestone, and the message arrived — `curl
+localhost:8025/api/v2/messages` reported it.
+
+What honestly remains: OAuth-only providers (Gmail without an app password,
+Microsoft 365 modern auth) are not supported by `net/smtp` — a relay in
+front of them is the answer, stated in [deployment.md](../deployment.md)
+rather than discovered at the first bounce.
 
 ### 3. The session cookie was a signature — closed in M20 and M21
 
@@ -334,18 +418,37 @@ What honestly remains:
   No milestone carries this one either — it belongs to whoever next touches
   the server's lifecycle.
 
-### 7. A REST upload silently overwrites an open editing session — M24
+### 7. A REST upload silently overwrote an open editing session — closed in M24
 
-`file_locks` exists (`0001_init.sql:286-291`) with a 30-minute TTL, and the
-WOPI endpoints honour it (`handleWopiPutFile` and `handleWopiLockOps`).
-Nothing else does: `GetLock` has three callers in the whole server and all
-three are in `internal/wopi` (`Lock`, `Unlock`, `CurrentLock`); there is no
-lock route under `/api/v1` in `Server.Router`. There is no ETag or `If-Match`
-on the version-upload path either.
+What it was: `file_locks` exists (`0001_init.sql:286-291`) with a 30-minute
+TTL, and the WOPI endpoints honour it (`handleWopiPutFile` and
+`handleWopiLockOps`). Nothing else did: `GetLock`'s only callers were all in
+`internal/wopi`, there was no lock route under `/api/v1`, and there was no
+ETag or `If-Match` on the version-upload path. So while A had a `.docx` open
+in OnlyOffice, B's `PUT /nodes/{id}/versions` was accepted against no lock
+at all, and A's work was gone on the next save with no conflict reported
+anywhere — the one item on this list that lost data during ordinary,
+well-intentioned use.
 
-So while A has a `.docx` open in OnlyOffice, B can `PUT /nodes/{id}/versions`
-and A's work is overwritten on the next save. This is the one item on the P0
-list that loses data during normal, well-intentioned use.
+**Decision taken: refuse, do not take a lock.** A REST upload has no lock
+lifecycle — no unlock call, no `REFRESH_LOCK` — so acquiring one here would
+create locks nothing releases except the 30-minute sweep.
+
+What shipped: `Server.lockedByEditor`, a shared check both write paths that
+change which bytes are current now call — `handleUploadVersion`, before
+`parseUpload` so a locked file is refused before a multi-gigabyte body is
+read, and `handleRestoreVersion`, since restoring a version repoints
+`current_version_id` just as directly. Either finds a live lock, it answers
+`409 Conflict` with a sentence a client can show ("this file is open in the
+editor; close it or wait for the lock to expire") rather than silently
+discarding one side of the conflict. Not in scope, deliberately: trash,
+move and rename of a locked node — none of them change file bytes, and
+`handleWopiPutFile` already refuses to commit into a tombstone.
+
+`TestRestVersionUploadRefusesALockedFile`
+(`internal/httpapi/locks_db_test.go`) holds the line against a real
+Postgres: a locked node refuses the upload and the version count stays put;
+the same node unlocked accepts it and the count goes up by one.
 
 ### 8. What the sweeps found — closed in M21
 
@@ -689,23 +792,34 @@ DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, HSTS and
   reaches `security_events` rows (`audit/audit.go:98`) but never a log record,
   so the one identifier that could join a log line to an audit row exists on
   only one side of the join.
-- **`/healthz` is a static 200 — M25.** Registered at `server.go:99`, it
-  writes `ok` and touches neither Postgres nor the blob store, so it cannot
-  fail when the thing it reports on has — and both the server `Dockerfile`
-  and `compose.prod.yml` point their healthcheck at it, which makes a
-  container that cannot reach its database report healthy. There is no
-  readiness split, and `cmd/worker` has no HTTP listener at all, which is why
-  its service in `compose.prod.yml` carries no healthcheck of any kind.
-- **Avatar upload is a stub behind a working-looking button.**
-  `handleUploadAvatar` (`users.go:73-94`) bounds the body with
-  `avatarMaxBytes` (5 MiB), parses the multipart form and opens the file —
-  then discards it, stores the constant string `/api/v1/users/me/avatar` as
-  that user's `avatar_url` and answers 200 with it, under a `// TODO: store to
-blob store`. Nothing serves that path. The M21 ceiling means the bytes it
-  throws away are at least bounded, but the shape of this one is worse than a
-  missing feature: the control reports success, so nobody discovers it is not
-  there. Unscheduled, and the only item on this page where the honest interim
-  fix may be removing the button until it does something.
+- **`/healthz` was a static 200 — the split closed alongside M22–M24.**
+  `/healthz` is still a static 200 — that is correct, it answers "is the
+  process up", which is what a restart policy needs — but it was also what
+  both the server `Dockerfile` and `compose.prod.yml` pointed their
+  healthcheck at, so a container that could not reach Postgres reported
+  healthy. `GET /readyz` (`httpapi/health.go`) now checks `pool.Ping` and
+  the new `blob.Store.Check` with a 3s timeout and answers 503 on either
+  failure; both the image and compose healthchecks point at it instead.
+  `cmd/worker` still has no listener, so it cannot answer an HTTP probe at
+  all — it now touches `/tmp/worker-healthy` every 30s while Postgres and
+  the blob store both check out and removes it when they do not, and the
+  worker's `HEALTHCHECK`/compose healthcheck reads the file's freshness with
+  `find -mmin`. Verified live: `/readyz` returned 200 with Postgres up, 503
+  within 3s of it being stopped, and 200 again once it came back.
+- **Avatar upload was a stub behind a working-looking button — closed
+  alongside M22–M24.** `handleUploadAvatar` bounded the body, parsed the
+  multipart form, opened the file — then discarded it, stored the constant
+  string `/api/v1/users/me/avatar` and answered 200. Nothing served that
+  path; the control reported success while doing nothing, which is worse
+  than a missing feature because nobody discovered it wasn't there. It now
+  sniffs the content type from the bytes (never the filename — the same
+  value is served back, so a caller who chose it could serve HTML from this
+  origin), stores through the same `Put` → `UpsertBlob` → `IncrBlobRef`
+  sequence `fs.PutFile` uses, decrements the previous avatar's ref only
+  after the new one is live, and serves it back from `GET
+/api/v1/users/{userID}/avatar` with `nosniff` and a cache-busting `?v=`
+  suffix. `TestAvatarRoundTripsThroughTheBlobStore` proves the round trip
+  byte-for-byte against a real Postgres and rejects a non-image upload with 415.
 - **The UI is English-only.** No i18n library, no locale files, no string
   catalogue in `apps/web/src`. Unscheduled.
 - **No orphan-blob audit.** `gc.Worker.Sweep` deletes the blob row before the
@@ -736,28 +850,34 @@ Restating so these are not rediscovered as gaps:
 
 Nothing below is scheduled; it is the order the dependencies suggest. What has
 changed is that each phase now has named milestones carrying it, and those
-live in [milestones.md](milestones.md) under `## Upcoming — M22 Onward`. The
+live in [milestones.md](milestones.md) under `## Upcoming — M25 Onward`. The
 division is deliberate: that document is the plan, this one is the evidence,
 and a milestone that cannot point back to a section here has not been argued
 for.
 
-**Phase A — rollout blockers.** P0 items 1–8, of which **3, 4, 5, 6 and 8 are
-done**: M20 brought the `sessions` table, M21 added `security_events`, so the
-schema changes this phase ever needed are already applied; the Document Server
-runs signed, the first admin is a configuration value, upload bodies and
-request rates have ceilings, and the sweep findings in §8 are closed. What
-remains is the work that is not code in this repository — **M22** (§1, backup
-and restore) and **M23** (§2, mail transport) — plus **M24** (§7), which needs
-a decision rather than an implementation: either the REST version-upload path
-refuses a locked node (simple, correct, occasionally annoying) or it takes a
-lock of its own. M24 is also now the only P0 item that loses data.
+**Phase A — rollout blockers — done.** P0 items 1–8, all closed: M20 brought
+the `sessions` table, M21 added `security_events`, so the schema changes this
+phase ever needed were already applied; the Document Server runs signed, the
+first admin is a configuration value, upload bodies and request rates have
+ceilings, and the sweep findings in §8 are closed. What remained was the work
+that was not code in this repository — **M22** (§1, backup and restore, now a
+drilled restore) and **M23** (§2, mail transport, invitations only) — plus
+**M24** (§7), whose decision landed as refuse-not-lock: the REST
+version-upload and version-restore paths now answer 409 against a live lock
+rather than taking one of their own, which is simple, correct, and
+occasionally makes an editor left open over lunch block a colleague with no
+recourse short of the TTL. Along the way, two items that were never on the P0
+register but read like rollout blockers to anyone testing the product closed
+too: the readiness split under "Smaller, but on the list" (`/readyz`, and a
+file-based signal for `cmd/worker`) and the avatar-upload stub.
 
-**Continuous — M25, observability.** Metrics, a `/healthz` that touches
-Postgres and the blob store, a level-controlled `slog` handler carrying the
-request id. It is cheap at any point and it makes every phase after it
-diagnosable, which is the argument for doing it early; it sits between the
-phases rather than inside one only because nothing depends on it. Its
-evidence is the two **M25** bullets under "Smaller, but on the list".
+**Continuous — M25, observability.** What remains of it after the readiness
+split above is metrics, tracing, error tracking, and a level-controlled
+`slog` handler carrying the request id. It is cheap at any point and it makes
+every phase after it diagnosable, which is the argument for doing it early;
+it sits between the phases rather than inside one only because nothing
+depends on it. Its evidence is the "No metrics, tracing or error tracking"
+bullet under "Smaller, but on the list".
 
 **Phase B — the multi-department layer.** **M26 — audit completeness** is
 partly built: `security_events` carries authentication, admin, suspension,
@@ -771,26 +891,30 @@ by hand". These are what changes when the user count crosses a couple of
 departments, and each one is additive to a pattern that already exists.
 
 **Phase C — collaboration and storage honesty.** **M29 — comments and
-notifications**, whose notification half needs M23's mail transport; **M30 —
-resumable upload and honest accounting**, which is the dead `uploads` table,
-version retention and a quota that counts every referenced blob; and **M31 —
-document creation** from a template.
+notifications**, whose notification half reuses M23's mail transport rather
+than waiting on it — M23 shipped invitations only, so M29 still owns the
+design of what a share or comment notification says and adds `notifications`
+as its own message kind; M30 — resumable upload and honest accounting, which
+is the dead `uploads` table, version retention and a quota that counts every
+referenced blob; and **M31 — document creation** from a template.
 
 **Named but unscheduled.** A gap with no milestone is still a gap, and the
-risk of a roadmap is that it stops being visible: the avatar-upload
-placeholder, `style-src 'unsafe-inline'`, the orphan-blob audit `gc.go` defers
-to, upload scanning, encryption at rest and an English-only UI. All six keep
-their evidence in "Smaller, but on the list", and
-[milestones.md](milestones.md) lists them under a heading of the same name, so
-a reader working from the plan meets them too.
+risk of a roadmap is that it stops being visible: `style-src
+'unsafe-inline'`, the orphan-blob audit `gc.go` defers to, upload scanning,
+encryption at rest and an English-only UI. All five keep their evidence in
+"Smaller, but on the list", and [milestones.md](milestones.md) lists them
+under a heading of the same name, so a reader working from the plan meets
+them too.
 
 ## Verdict
 
-A pilot with one department is reasonable once Phase A is done — which now
-means M22 and M23, a backup procedure and a way to tell people they have been
-shared something, with M24 decided one way or the other — provided everyone
-understands that search finds names rather than contents and that there are no
-comments. A company-wide rollout across several departments needs Phase B as
-well: M27's content search, and the half of the audit story M26 still owes,
-the half that answers "who read this", which is the question that gets asked
-within the first week rather than the first month.
+A pilot with one department is reasonable now that Phase A is done: a backup
+that has been restored from, invitations that reach an inbox when SMTP is
+configured, a locked file that a REST upload cannot silently overwrite, a
+`/readyz` that actually fails when a dependency has, and an avatar upload
+that survives a reload — provided everyone understands that search finds
+names rather than contents and that there are no comments. A company-wide
+rollout across several departments needs Phase B as well: M27's content
+search, and the half of the audit story M26 still owes, the half that
+answers "who read this", which is the question that gets asked within the
+first week rather than the first month.

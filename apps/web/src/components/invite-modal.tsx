@@ -111,6 +111,11 @@ export const InviteModal = createModal<InviteProps>(
                         toast.success(`${result.email} already has an account`, {
                           description: "They were added to the space directly.",
                         });
+                      } else if (result.mail_sent) {
+                        void navigator.clipboard?.writeText(result.url ?? "");
+                        toast.success("Invitation sent", {
+                          description: `Emailed to ${result.email}. The link is also on your clipboard.`,
+                        });
                       } else if (result.url) {
                         void navigator.clipboard?.writeText(result.url);
                         toast.success("Invitation created", {

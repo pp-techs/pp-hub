@@ -38,7 +38,10 @@ WHERE id = $1
 RETURNING *;
 
 -- name: SetUserAvatar :one
-UPDATE users SET avatar_url = $2 WHERE id = $1 RETURNING *;
+UPDATE users SET avatar_url = $2, avatar_blob = $3, avatar_mime = $4 WHERE id = $1 RETURNING *;
+
+-- name: GetUserAvatar :one
+SELECT avatar_blob, avatar_mime FROM users WHERE id = $1;
 
 -- name: SearchUsers :many
 -- Autocomplete over accounts the caller may legitimately see. A space is a

@@ -79,7 +79,7 @@ export interface Invitation {
   invited_by: string;
   expires_at?: string;
   created_at: string;
-  /** Returned once, at creation. There is no mail transport yet. */
+  /** Returned once, at creation — this listing endpoint omits it. */
   url?: string;
 }
 /** Creating an invitation for an existing account adds them directly. */
@@ -89,6 +89,12 @@ export interface InviteResult {
   id?: string;
   url?: string;
   as_admin?: boolean;
+  /**
+   * Set when SMTP is configured and delivery succeeded. `url` is always
+   * returned too — mail delivery can fail, and an admin still needs a way to
+   * hand the invite over by hand.
+   */
+  mail_sent?: boolean;
 }
 
 export interface AdminStats {

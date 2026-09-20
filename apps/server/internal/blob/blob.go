@@ -23,6 +23,10 @@ type Store interface {
 	Put(ctx context.Context, r io.Reader) (hash string, size int64, err error)
 	Get(ctx context.Context, hash string) (io.ReadCloser, error)
 	Delete(ctx context.Context, hash string) error // GC only
+	// Check reports whether the store can still accept writes. Nothing else
+	// answers this: a read-only or unmounted blob root fails one upload at a
+	// time, with no signal anywhere a probe can read.
+	Check(ctx context.Context) error
 }
 
 // LocalStore keeps blobs at <root>/<2-hex>/<hash>.
@@ -93,4 +97,21 @@ func (s *LocalStore) Delete(_ context.Context, hash string) error {
 		return nil
 	}
 	return err
+}
+
+func (s *LocalStore) Check(_ context.Context) error {
+	info, err := os.Stat(s.root)
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("blob root %s is not a directory", s.root)
+	}
+	// A write probe, not just a stat: the image pre-creates /data/blobs, so a
+	// missing or read-only mount still stats clean.
+	probe := filepath.Join(s.root, ".probe")
+	if err := os.WriteFile(probe, nil, 0o600); err != nil {
+		return err
+	}
+	return os.Remove(probe)
 }

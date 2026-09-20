@@ -21,7 +21,11 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/nhatbui/pp-hub/apps/server/internal/blob"
 	"github.com/nhatbui/pp-hub/apps/server/internal/bootstrap"
 	"github.com/nhatbui/pp-hub/apps/server/internal/config"
 	"github.com/nhatbui/pp-hub/apps/server/internal/preview"
@@ -76,6 +80,7 @@ func run() error {
 	}
 
 	w := preview.NewWorker(deps.Queries, deps.Blobs, renderers...)
+	go healthBeacon(ctx, deps.Pool, deps.Blobs)
 	slog.Info("worker starting", "kinds", w.Kinds())
 	w.Run(ctx)
 	return nil
@@ -118,4 +123,42 @@ func nonNil(rs ...preview.Renderer) []preview.Renderer {
 		}
 	}
 	return out
+}
+
+// workerHealthFile is the freshness signal the compose and image
+// healthchecks read; see the HEALTHCHECK in apps/server/Dockerfile's worker
+// stage and the worker service in compose.prod.yml.
+const workerHealthFile = "/tmp/worker-healthy"
+
+// healthBeacon touches workerHealthFile while Postgres and the blob store are
+// both reachable and removes it when they are not; the container healthcheck
+// reads its freshness. This container holds ffmpeg and poppler and exposes no
+// port by design, which is why the signal is a file and not an endpoint.
+//
+// It proves the dependencies, not the claim loop: a wedged drain would still
+// touch the file. Stated rather than hidden.
+func healthBeacon(ctx context.Context, pool *pgxpool.Pool, blobs blob.Store) {
+	t := time.NewTicker(30 * time.Second)
+	defer t.Stop()
+	for {
+		if err := func() error {
+			c, cancel := context.WithTimeout(ctx, 5*time.Second)
+			defer cancel()
+			if err := pool.Ping(c); err != nil {
+				return err
+			}
+			return blobs.Check(c)
+		}(); err != nil {
+			slog.Warn("worker dependency check failed", "err", err)
+			_ = os.Remove(workerHealthFile)
+		} else if err := os.WriteFile(workerHealthFile, []byte("ok\n"), 0o644); err != nil {
+			slog.Warn("worker health file not written", "err", err)
+		}
+		select {
+		case <-ctx.Done():
+			_ = os.Remove(workerHealthFile)
+			return
+		case <-t.C:
+		}
+	}
 }

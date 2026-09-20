@@ -121,10 +121,21 @@ services:
       PP_S3_ACCESS_KEY_ID: "${PP_S3_ACCESS_KEY_ID:-}"
       PP_S3_SECRET_ACCESS_KEY: "${PP_S3_SECRET_ACCESS_KEY:-}"
       PP_S3_PATH_STYLE: "${PP_S3_PATH_STYLE:-1}"
+
+      # Unset (PP_SMTP_HOST empty) is a supported state: invitations return
+      # their URL for an admin to copy, exactly as before this transport
+      # existed. Only the server sends mail — invitations are the one
+      # message today.
+      PP_SMTP_HOST: "${PP_SMTP_HOST:-}"
+      PP_SMTP_PORT: "${PP_SMTP_PORT:-587}"
+      PP_SMTP_USERNAME: "${PP_SMTP_USERNAME:-}"
+      PP_SMTP_PASSWORD: "${PP_SMTP_PASSWORD:-}"
+      PP_SMTP_FROM: "${PP_SMTP_FROM:-}"
+      PP_SMTP_TLS: "${PP_SMTP_TLS:-starttls}"
     volumes:
       - blob_data:/data/blobs
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/readyz || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -173,6 +184,16 @@ services:
     read_only: true
     tmpfs:
       - /tmp:size=4g,mode=1777
+    # No listener to probe: cmd/worker touches /tmp/worker-healthy on every
+    # successful Postgres+blob-store check and removes it on failure; this
+    # reads the file's freshness. The image's own HEALTHCHECK does the same
+    # thing for a bare `docker run` with no compose file.
+    healthcheck:
+      test: ["CMD-SHELL", "find /tmp/worker-healthy -mmin -2 | grep -q worker-healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     security_opt:
       - no-new-privileges:true
     cap_drop:

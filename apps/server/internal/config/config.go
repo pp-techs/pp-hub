@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/nhatbui/pp-hub/apps/server/internal/mail"
 )
 
 type Config struct {
@@ -83,6 +85,11 @@ type Config struct {
 	// unset every request appears to come from the proxy, so one caller can
 	// spend the whole instance's budget.
 	TrustedProxies []string
+	// SMTP configures the transactional-mail relay used for one thing today:
+	// space invitations. A zero-value Settings (Host == "") is a supported
+	// state — the invitation handler falls back to returning the URL, which
+	// is the whole product before this field existed.
+	SMTP mail.Settings
 }
 
 func Load() (*Config, error) {
@@ -93,6 +100,10 @@ func Load() (*Config, error) {
 	maxUpload, err := bytesEnv("PP_MAX_UPLOAD_BYTES", 5<<30)
 	if err != nil {
 		return nil, err
+	}
+	smtpPort, err := strconv.Atoi(env("PP_SMTP_PORT", "587"))
+	if err != nil {
+		return nil, fmt.Errorf("PP_SMTP_PORT must be a number: %w", err)
 	}
 	c := &Config{
 		Addr:             env("PP_ADDR", ":8080"),
@@ -122,6 +133,14 @@ func Load() (*Config, error) {
 		MaxUploadBytes:      maxUpload,
 		BootstrapAdminEmail: strings.ToLower(strings.TrimSpace(os.Getenv("PP_BOOTSTRAP_ADMIN_EMAIL"))),
 		AuditRetention:      time.Duration(daysEnv("PP_AUDIT_RETENTION_DAYS", 365)) * 24 * time.Hour,
+		SMTP: mail.Settings{
+			Host:     strings.TrimSpace(os.Getenv("PP_SMTP_HOST")),
+			Port:     smtpPort,
+			Username: os.Getenv("PP_SMTP_USERNAME"),
+			Password: os.Getenv("PP_SMTP_PASSWORD"),
+			From:     strings.TrimSpace(os.Getenv("PP_SMTP_FROM")),
+			TLS:      env("PP_SMTP_TLS", "starttls"),
+		},
 	}
 	// Validated here rather than at the router, because chi's
 	// ClientIPFromXFF panics on a bad prefix at startup and a typo in an
@@ -160,6 +179,12 @@ func Load() (*Config, error) {
 	if err := c.validateBlobBackend(); err != nil {
 		return nil, err
 	}
+	if err := c.validateSMTP(); err != nil {
+		return nil, err
+	}
+	if c.SMTP.Host == "" {
+		slog.Warn("PP_SMTP_HOST unset: invitations are not emailed, an admin must deliver the link by hand")
+	}
 	return c, nil
 }
 
@@ -192,6 +217,27 @@ func (c *Config) validateBlobBackend() error {
 	default:
 		return fmt.Errorf("PP_BLOB_BACKEND must be \"local\" or \"s3\", got %q", c.BlobBackend)
 	}
+}
+
+// validateSMTP fails fast on a half-configured transport rather than
+// silently not sending: the operator who set PP_SMTP_HOST believes mail
+// works.
+func (c *Config) validateSMTP() error {
+	if c.SMTP.Host == "" {
+		return nil
+	}
+	if c.SMTP.From == "" {
+		return fmt.Errorf("PP_SMTP_HOST is set but PP_SMTP_FROM is empty: every relay refuses a message with no sender")
+	}
+	switch c.SMTP.TLS {
+	case "starttls", "implicit", "none":
+	default:
+		return fmt.Errorf(`PP_SMTP_TLS must be "starttls", "implicit" or "none", got %q`, c.SMTP.TLS)
+	}
+	if c.SMTP.Port < 1 || c.SMTP.Port > 65535 {
+		return fmt.Errorf("PP_SMTP_PORT must be between 1 and 65535, got %d", c.SMTP.Port)
+	}
+	return nil
 }
 
 // daysEnv reads a day count. Unlike bytesEnv this falls back rather than

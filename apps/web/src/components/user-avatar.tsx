@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import { Camera } from "lucide-react";
+import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/avatar";
 import { Button } from "@workspace/ui/components/button";
 import { useUploadAvatar } from "@/lib/queries";
@@ -26,7 +27,11 @@ export function UserAvatar({ src, name, email, size = "md", editable = false }: 
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) upload.mutate(file);
+    if (!file) return;
+    upload.mutate(file, {
+      onSuccess: () => toast.success("Avatar updated"),
+      onError: (err) => toast.error("Could not update your avatar", { description: err.message }),
+    });
   };
 
   return (

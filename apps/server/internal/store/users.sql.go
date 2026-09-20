@@ -14,7 +14,7 @@ import (
 const adoptUserIdentity = `-- name: AdoptUserIdentity :one
 UPDATE users SET oidc_iss = $2, oidc_sub = $3, email = $4, name = $5, last_seen = now()
 WHERE id = $1
-RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at
+RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime
 `
 
 type AdoptUserIdentityParams struct {
@@ -58,6 +58,8 @@ func (q *Queries) AdoptUserIdentity(ctx context.Context, arg AdoptUserIdentityPa
 		&i.EmailHash,
 		&i.SuspendedAt,
 		&i.CreatedAt,
+		&i.AvatarBlob,
+		&i.AvatarMime,
 	)
 	return i, err
 }
@@ -76,7 +78,7 @@ func (q *Queries) CountUsers(ctx context.Context, tenantID string) (int64, error
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (oidc_sub, oidc_iss, email, name)
 VALUES ($1, $2, $3, $4)
-RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at
+RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime
 `
 
 type CreateUserParams struct {
@@ -110,6 +112,8 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.EmailHash,
 		&i.SuspendedAt,
 		&i.CreatedAt,
+		&i.AvatarBlob,
+		&i.AvatarMime,
 	)
 	return i, err
 }
@@ -165,7 +169,7 @@ func (q *Queries) GetSpaceMembers(ctx context.Context, spaceID pgtype.UUID) ([]G
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at FROM users WHERE id = $1 LIMIT 1
+SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime FROM users WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetUser(ctx context.Context, id pgtype.UUID) (User, error) {
@@ -187,12 +191,30 @@ func (q *Queries) GetUser(ctx context.Context, id pgtype.UUID) (User, error) {
 		&i.EmailHash,
 		&i.SuspendedAt,
 		&i.CreatedAt,
+		&i.AvatarBlob,
+		&i.AvatarMime,
 	)
 	return i, err
 }
 
+const getUserAvatar = `-- name: GetUserAvatar :one
+SELECT avatar_blob, avatar_mime FROM users WHERE id = $1
+`
+
+type GetUserAvatarRow struct {
+	AvatarBlob string `json:"avatar_blob"`
+	AvatarMime string `json:"avatar_mime"`
+}
+
+func (q *Queries) GetUserAvatar(ctx context.Context, id pgtype.UUID) (GetUserAvatarRow, error) {
+	row := q.db.QueryRow(ctx, getUserAvatar, id)
+	var i GetUserAvatarRow
+	err := row.Scan(&i.AvatarBlob, &i.AvatarMime)
+	return i, err
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at FROM users WHERE email = $1 LIMIT 1
+SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime FROM users WHERE email = $1 LIMIT 1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -214,12 +236,14 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.EmailHash,
 		&i.SuspendedAt,
 		&i.CreatedAt,
+		&i.AvatarBlob,
+		&i.AvatarMime,
 	)
 	return i, err
 }
 
 const getUserByIdentity = `-- name: GetUserByIdentity :one
-SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at FROM users WHERE oidc_iss = $1 AND oidc_sub = $2
+SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime FROM users WHERE oidc_iss = $1 AND oidc_sub = $2
 `
 
 type GetUserByIdentityParams struct {
@@ -246,6 +270,8 @@ func (q *Queries) GetUserByIdentity(ctx context.Context, arg GetUserByIdentityPa
 		&i.EmailHash,
 		&i.SuspendedAt,
 		&i.CreatedAt,
+		&i.AvatarBlob,
+		&i.AvatarMime,
 	)
 	return i, err
 }
@@ -267,7 +293,7 @@ func (q *Queries) IsSpaceMember(ctx context.Context, arg IsSpaceMemberParams) (b
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at FROM users
+SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime FROM users
 WHERE tenant_id = $1
 ORDER BY created_at DESC
 LIMIT $2 OFFSET $3
@@ -304,6 +330,8 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 			&i.EmailHash,
 			&i.SuspendedAt,
 			&i.CreatedAt,
+			&i.AvatarBlob,
+			&i.AvatarMime,
 		); err != nil {
 			return nil, err
 		}
@@ -412,16 +440,23 @@ func (q *Queries) SetUserAdmin(ctx context.Context, arg SetUserAdminParams) erro
 }
 
 const setUserAvatar = `-- name: SetUserAvatar :one
-UPDATE users SET avatar_url = $2 WHERE id = $1 RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at
+UPDATE users SET avatar_url = $2, avatar_blob = $3, avatar_mime = $4 WHERE id = $1 RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime
 `
 
 type SetUserAvatarParams struct {
-	ID        pgtype.UUID `json:"id"`
-	AvatarUrl string      `json:"avatar_url"`
+	ID         pgtype.UUID `json:"id"`
+	AvatarUrl  string      `json:"avatar_url"`
+	AvatarBlob string      `json:"avatar_blob"`
+	AvatarMime string      `json:"avatar_mime"`
 }
 
 func (q *Queries) SetUserAvatar(ctx context.Context, arg SetUserAvatarParams) (User, error) {
-	row := q.db.QueryRow(ctx, setUserAvatar, arg.ID, arg.AvatarUrl)
+	row := q.db.QueryRow(ctx, setUserAvatar,
+		arg.ID,
+		arg.AvatarUrl,
+		arg.AvatarBlob,
+		arg.AvatarMime,
+	)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -439,6 +474,8 @@ func (q *Queries) SetUserAvatar(ctx context.Context, arg SetUserAvatarParams) (U
 		&i.EmailHash,
 		&i.SuspendedAt,
 		&i.CreatedAt,
+		&i.AvatarBlob,
+		&i.AvatarMime,
 	)
 	return i, err
 }
@@ -446,7 +483,7 @@ func (q *Queries) SetUserAvatar(ctx context.Context, arg SetUserAvatarParams) (U
 const touchUserLogin = `-- name: TouchUserLogin :one
 UPDATE users SET email = $2, name = $3, last_seen = now()
 WHERE id = $1
-RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at
+RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime
 `
 
 type TouchUserLoginParams struct {
@@ -475,6 +512,8 @@ func (q *Queries) TouchUserLogin(ctx context.Context, arg TouchUserLoginParams) 
 		&i.EmailHash,
 		&i.SuspendedAt,
 		&i.CreatedAt,
+		&i.AvatarBlob,
+		&i.AvatarMime,
 	)
 	return i, err
 }
@@ -483,7 +522,7 @@ const updateUserProfile = `-- name: UpdateUserProfile :one
 UPDATE users
 SET display_name = $2, bio = $3, settings = COALESCE($4, settings)
 WHERE id = $1
-RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at
+RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime
 `
 
 type UpdateUserProfileParams struct {
@@ -517,6 +556,8 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		&i.EmailHash,
 		&i.SuspendedAt,
 		&i.CreatedAt,
+		&i.AvatarBlob,
+		&i.AvatarMime,
 	)
 	return i, err
 }

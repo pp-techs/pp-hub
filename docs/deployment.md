@@ -243,6 +243,34 @@ limit with you. That is a deliberate trade against making Redis a dependency
 of a deployment that otherwise does not need it, and it is stated here rather
 than hidden because an operator running replicas should know.
 
+### Mail (invitations)
+
+`PP_SMTP_HOST` is empty by default, which is a supported state: unset, an
+invitation still works exactly as before — `handleCreateInvitation` returns
+the URL for an admin to copy and paste. Setting it turns on delivery for
+**invitations only**; sharing still notifies nobody (M29).
+
+- **`PP_SMTP_HOST`** — the relay's hostname. Leaving it unset is a
+  deliberately supported state, logged once at startup
+  (`PP_SMTP_HOST unset: invitations are not emailed, an admin must deliver
+the link by hand`).
+- **`PP_SMTP_PORT`** — default `587`.
+- **`PP_SMTP_USERNAME`** / **`PP_SMTP_PASSWORD`** — optional; leave both
+  empty for an unauthenticated relay or a local catcher.
+- **`PP_SMTP_FROM`** — **required whenever `PP_SMTP_HOST` is set**. Every
+  relay refuses a message with no sender, and a half-configured transport
+  fails at startup rather than at the first invitation, so the operator who
+  set `PP_SMTP_HOST` finds out immediately if they forgot this one.
+- **`PP_SMTP_TLS`** — `starttls` (default), `implicit` (SMTPS, usually port 465) or `none` (plaintext, for a local catcher in development only). Any
+  other value is a startup error.
+
+`net/smtp` does not speak OAuth, so Gmail without an app password or
+Microsoft 365 modern auth are not supported directly — point `PP_SMTP_HOST`
+at a relay in front of them instead. A message the relay rejects (bad
+auth, unreachable host, …) does not fail the invitation request: the error
+is logged and the response still carries the URL, which is the same
+fallback the product always had.
+
 ### Response headers and the CSP
 
 `nginx.conf` sends, on every response and with `always` so they survive the
@@ -510,6 +538,33 @@ move existing blobs.
 waits on OIDC. `cmd/worker` never runs DDL — it calls `store.AwaitSchema` and
 polls. Two processes racing DDL on a cold start can both apply the same file.
 
+**Health and readiness.** `/healthz` is a constant 200 — "is the process
+up", which is what a restart policy needs — and it is deliberately not what
+either compose healthcheck uses. Both `server`'s image `HEALTHCHECK` and the
+compose healthcheck point at `GET /readyz`, which pings Postgres and calls
+`blob.Store.Check` with a 3s timeout and answers 503 if either fails, so a
+container that cannot reach its database or its blob root is reported
+unhealthy rather than healthy. `cmd/worker` has no listener at all; it
+touches `/tmp/worker-healthy` every 30s while both dependencies check out
+and removes it when they do not, and its healthcheck reads the file's
+freshness with `find -mmin -2`.
+
+**Backup and restore.** `deploy/backup/pp-backup.sh` dumps Postgres, then
+archives the blob backend named by `PP_BLOB_BACKEND` — `local` tars
+`/data/blobs` out of the `server` service, the bundled SeaweedFS profile
+tars `/data` out of `seaweedfs`, and an external S3 bucket is refused with
+an explanation (its own versioning/replication is the backup) rather than a
+silent no-op — never the reverse order, verifies both artifacts before
+calling itself done, and prunes backups past `-k` days (default 14).
+`deploy/backup/pp-restore.sh` takes a backup directory, requires `--force`,
+verifies the Postgres dump before stopping anything, restores both, and
+polls `/readyz` for up to 60s. Neither script hardcodes a volume name —
+`compose.prod.yml` carries no `name:`, so every volume is reached through
+`docker compose run`/`exec` on the service that mounts it, not by guessing
+the project-prefixed name Compose or Dokploy assigned it. `.env.prod` is
+never part of the backup; keep it (and its secrets) separately, or a
+restore comes up as a different instance.
+
 **The server blocks on OIDC discovery** for up to two minutes at startup, then
 exits and is restarted. `web` therefore depends on `server` for _start order
 only_, never `condition: service_healthy` — otherwise an IdP outage takes the
@@ -648,5 +703,3 @@ service. The worker is bursty — it spawns `pdftoppm`/`ffmpeg` per job with a
   they came from the Document Server. Deliberate: the token binds one node,
   one subject and one rank, and the rank is re-resolved against live access on
   every call, so replaying it gains nothing.
-- **No backup job.** `pg_data` and `blob_data` both need one; a database dump
-  without the blobs restores metadata pointing at content that is gone.

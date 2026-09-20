@@ -2,6 +2,8 @@ package config
 
 import (
 	"testing"
+
+	"github.com/nhatbui/pp-hub/apps/server/internal/mail"
 )
 
 // A ceiling an operator typed wrongly must stop the server, not silently
@@ -82,5 +84,42 @@ func TestDeriveKeyFollowsTheMaster(t *testing.T) {
 	b := (&Config{SecretKey: []byte("another-secret-of-thirty-two-byt")}).DeriveKey("p")
 	if string(a) == string(b) {
 		t.Fatal("two masters derived the same subkey")
+	}
+}
+
+// A half-configured transport must fail startup rather than silently not
+// sending: the operator who set PP_SMTP_HOST believes mail works.
+func TestValidateSMTPRejectsAHalfConfiguredTransport(t *testing.T) {
+	cases := map[string]mail.Settings{
+		"host without from": {Host: "smtp.example.com", Port: 587, TLS: "starttls"},
+		"bad TLS mode":      {Host: "smtp.example.com", Port: 587, From: "pp-hub@example.com", TLS: "sslv3"},
+		"bad port":          {Host: "smtp.example.com", Port: 0, From: "pp-hub@example.com", TLS: "starttls"},
+	}
+	for name, s := range cases {
+		c := &Config{SMTP: s}
+		if err := c.validateSMTP(); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+}
+
+// Disabled (Host == "") is a supported state, not an error: the invitation
+// handler falls back to returning the URL, which is the whole product before
+// SMTP existed.
+func TestValidateSMTPAcceptsDisabled(t *testing.T) {
+	c := &Config{}
+	if err := c.validateSMTP(); err != nil {
+		t.Fatalf("disabled SMTP rejected: %v", err)
+	}
+}
+
+// A fully-configured transport must pass — this is the shape Load() builds
+// when every PP_SMTP_* variable is set.
+func TestValidateSMTPAcceptsAFullyConfiguredTransport(t *testing.T) {
+	c := &Config{SMTP: mail.Settings{
+		Host: "smtp.example.com", Port: 587, From: "pp-hub@example.com", TLS: "starttls",
+	}}
+	if err := c.validateSMTP(); err != nil {
+		t.Fatalf("valid SMTP rejected: %v", err)
 	}
 }

@@ -20,6 +20,7 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/fs"
 	"github.com/nhatbui/pp-hub/apps/server/internal/gc"
 	"github.com/nhatbui/pp-hub/apps/server/internal/httpapi"
+	"github.com/nhatbui/pp-hub/apps/server/internal/mail"
 	"github.com/nhatbui/pp-hub/apps/server/internal/preview"
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 	"github.com/nhatbui/pp-hub/apps/server/internal/spaces"
@@ -112,6 +113,7 @@ func run() error {
 		}
 	}()
 	usersSvc := users.NewService(queries)
+	mailSvc := mail.New(cfg.SMTP)
 	api := httpapi.NewServer(httpapi.Deps{
 		Auth:           authSvc,
 		Spaces:         spacesSvc,
@@ -121,6 +123,9 @@ func run() error {
 		Preview:        previewWorker,
 		Users:          usersSvc,
 		Store:          queries,
+		Pool:           deps.Pool,
+		Blobs:          blobs,
+		Mail:           mailSvc,
 		ExternalURL:    cfg.ExternalURL,
 		OnlyOfficeURL:  cfg.OnlyOfficeURL,
 		WopiServerURL:  cfg.WopiServerURL,

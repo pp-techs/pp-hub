@@ -1,11 +1,13 @@
 package httpapi
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"strings"
@@ -29,6 +31,9 @@ type invitationDTO struct {
 	ExpiresAt string `json:"expires_at,omitempty"`
 	CreatedAt string `json:"created_at"`
 	URL       string `json:"url,omitempty"`
+	// MailSent is set only by creation, never by the listing endpoint, which
+	// knows nothing about delivery.
+	MailSent bool `json:"mail_sent,omitempty"`
 }
 
 func (s *Server) handleUpdateSpace(w http.ResponseWriter, r *http.Request) {
@@ -264,6 +269,27 @@ func (s *Server) handleCreateInvitation(w http.ResponseWriter, r *http.Request) 
 		SpaceID: space.ID, ActorID: u.ID, Kind: activity.KindInvited,
 		NodeName: email, Detail: map[string]any{"role": roleStr},
 	})
+	inviteURL := s.externalURL + "/invite/" + token
+	mailSent := false
+	if s.mail.Enabled() {
+		// Synchronous: the admin who clicked Invite is the one who needs to
+		// know whether to fall back to copying the link, and there is no job
+		// queue for mail. A slow relay therefore slows this response, bounded
+		// here rather than by the client giving up.
+		mailCtx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+		subject := "You've been invited to " + space.Name + " on pp-hub"
+		body := "Hi,\n\n" + inviterName(u) + " invited you to the " + space.Name +
+			" space on pp-hub.\n\nOpen this link to accept. It can be used once and expires in 14 days:\n\n" +
+			inviteURL + "\n\nIf you were not expecting this, ignore this message.\n"
+		if err := s.mail.Send(mailCtx, email, subject, body); err != nil {
+			// Not a failure of the request: the invitation exists and its URL
+			// is in the response, which is exactly the pre-M23 behaviour.
+			slog.ErrorContext(r.Context(), "invitation email not sent", "email", email, "err", err)
+		} else {
+			mailSent = true
+		}
+		cancel()
+	}
 	writeJSON(w, http.StatusCreated, invitationDTO{
 		ID:        uuidString(inv.ID),
 		SpaceID:   uuidString(inv.SpaceID),
@@ -271,8 +297,22 @@ func (s *Server) handleCreateInvitation(w http.ResponseWriter, r *http.Request) 
 		AsAdmin:   inv.AsAdmin,
 		ExpiresAt: optionalTime(inv.ExpiresAt),
 		CreatedAt: inv.CreatedAt.Time.Format(timeLayout),
-		URL:       s.externalURL + "/invite/" + token,
+		URL:       inviteURL,
+		MailSent:  mailSent,
 	})
+}
+
+// inviterName is the display name an invitation email attributes the invite
+// to: DisplayName when the invitee set one, else the IdP-provided Name, else
+// the account's email.
+func inviterName(u *store.User) string {
+	if u.DisplayName != "" {
+		return u.DisplayName
+	}
+	if u.Name != "" {
+		return u.Name
+	}
+	return u.Email
 }
 
 func (s *Server) handleRevokeInvitation(w http.ResponseWriter, r *http.Request) {

@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
@@ -71,13 +72,30 @@ func (s *Service) UpdateProfile(ctx context.Context, id pgtype.UUID, displayName
 	return toProfile(u), nil
 }
 
-// SetAvatar sets the user's avatar URL.
-func (s *Service) SetAvatar(ctx context.Context, id pgtype.UUID, avatarURL string) error {
+// SetAvatar records the avatar's rendered URL together with the blob it
+// resolves to. The URL is stored rather than derived because every DTO in the
+// API copies avatar_url straight through.
+func (s *Service) SetAvatar(ctx context.Context, id pgtype.UUID, avatarURL, blobHash, mime string) error {
 	_, err := s.q.SetUserAvatar(ctx, store.SetUserAvatarParams{
-		ID:        id,
-		AvatarUrl: avatarURL,
+		ID:         id,
+		AvatarUrl:  avatarURL,
+		AvatarBlob: blobHash,
+		AvatarMime: mime,
 	})
 	return err
+}
+
+// Avatar returns the blob hash and content type of a user's avatar, or
+// ("", "", nil) when they have none.
+func (s *Service) Avatar(ctx context.Context, id pgtype.UUID) (hash, mime string, err error) {
+	row, err := s.q.GetUserAvatar(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", "", ErrNotFound
+	}
+	if err != nil {
+		return "", "", err
+	}
+	return row.AvatarBlob, row.AvatarMime, nil
 }
 
 // Search returns users matching a query string for autocomplete.

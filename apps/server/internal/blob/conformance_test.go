@@ -144,6 +144,15 @@ func runStoreConformance(t *testing.T, newStore func(t *testing.T) Store) {
 			t.Fatal("large round-trip mismatch")
 		}
 	})
+
+	// /readyz calls this on every request cycle, so a healthy store must
+	// answer cleanly and cheaply on both backends.
+	t.Run("CheckPassesOnAHealthyStore", func(t *testing.T) {
+		s := newStore(t)
+		if err := s.Check(t.Context()); err != nil {
+			t.Fatalf("Check on a healthy store: %v", err)
+		}
+	})
 }
 
 func TestLocalStoreConformance(t *testing.T) {

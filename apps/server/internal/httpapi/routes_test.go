@@ -28,6 +28,7 @@ var clientRoutes = []string{
 	"PATCH /api/v1/admin/users/{userID}",
 	"POST /api/v1/invitations/accept",
 	"GET /api/v1/users/search",
+	"GET /api/v1/users/{userID}/avatar",
 	"GET /api/v1/search",
 	"GET /api/v1/activity",
 	"GET /api/v1/recent",

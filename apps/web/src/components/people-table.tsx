@@ -273,7 +273,12 @@ export function PeopleTable({ space, groupFilter, onGroupFilterChange }: PeopleT
                   { email: inv.email, as_admin: inv.as_admin },
                   {
                     onSuccess: (result) => {
-                      if (result.url) {
+                      if (result.mail_sent) {
+                        void navigator.clipboard?.writeText(result.url ?? "");
+                        toast.success("New invitation sent", {
+                          description: `Emailed to ${inv.email} — the previous link no longer works. It's also on your clipboard.`,
+                        });
+                      } else if (result.url) {
                         void navigator.clipboard?.writeText(result.url);
                         toast.success("New invitation link copied", {
                           description: `Send it to ${inv.email} — the previous link no longer works.`,

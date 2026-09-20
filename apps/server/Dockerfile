@@ -47,6 +47,12 @@ RUN apk add --no-cache poppler-utils ffmpeg \
     && adduser -D app && mkdir -p /data/blobs && chown -R app:app /data
 USER app
 COPY --from=build-worker /out/worker /usr/local/bin/worker
+# No listener to probe, so the worker touches /tmp/worker-healthy on every
+# successful dependency check (see healthBeacon in cmd/worker) and this
+# checks the file's freshness instead. `find -mmin` over arithmetic on
+# `stat -c %Y` because busybox supports it without shell quoting games.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD find /tmp/worker-healthy -mmin -2 | grep -q worker-healthy || exit 1
 ENTRYPOINT ["worker"]
 
 # The API server. Deliberately last, so a bare `docker build` still produces
@@ -63,6 +69,10 @@ EXPOSE 8080
 # something that has no compose file (a bare `docker run`, Kubernetes).
 # 127.0.0.1, not localhost: busybox wget resolves ::1 first, and a listener
 # that is not dual-stack answers nothing there.
+#
+# /readyz, not /healthz: a constant-200 liveness probe would restart nothing
+# when Postgres or the blob store go unreachable, which is the exact bug this
+# healthcheck exists to catch.
 HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=10 \
-    CMD wget -qO- http://127.0.0.1:8080/healthz || exit 1
+    CMD wget -qO- http://127.0.0.1:8080/readyz || exit 1
 ENTRYPOINT ["server"]

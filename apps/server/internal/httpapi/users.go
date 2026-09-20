@@ -1,10 +1,16 @@
 package httpapi
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 
+	"github.com/nhatbui/pp-hub/apps/server/internal/blob"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 	"github.com/nhatbui/pp-hub/apps/server/internal/users"
 )
@@ -69,7 +75,15 @@ func (s *Server) handleUpdateMyProfile(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, profileToDTO(profile))
 }
 
-// handleUploadAvatar handles avatar upload (multipart → blob).
+// avatarMimes are the types an avatar may be. Sniffed from the bytes, never
+// taken from the filename: the file is served back with this value, so a
+// caller who could choose it could serve HTML from our origin.
+var avatarMimes = map[string]bool{
+	"image/png": true, "image/jpeg": true, "image/gif": true, "image/webp": true,
+}
+
+// handleUploadAvatar stores an avatar's bytes in the CAS and points the
+// caller's profile at them.
 func (s *Server) handleUploadAvatar(w http.ResponseWriter, r *http.Request) {
 	u := caller(r)
 	if !parseUpload(w, r, avatarMaxBytes) {
@@ -82,15 +96,99 @@ func (s *Server) handleUploadAvatar(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	// TODO: store to blob store and get URL
-	// For now, use a placeholder - in real impl, stream to blob.Put
-	avatarURL := "/api/v1/users/me/avatar" // placeholder
-
-	if err := s.users.SetAvatar(r.Context(), u.ID, avatarURL); err != nil {
-		writeProblem(w, http.StatusInternalServerError, "Error", "avatar update failed")
+	head := make([]byte, 512)
+	n, err := io.ReadFull(file, head)
+	if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
+		Error(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"avatar_url": avatarURL})
+	head = head[:n]
+	mimeType := http.DetectContentType(head)
+	if !avatarMimes[mimeType] {
+		writeProblem(w, http.StatusUnsupportedMediaType, "Unsupported Media Type",
+			"an avatar must be a PNG, JPEG, GIF or WebP image")
+		return
+	}
+
+	prev, _, err := s.users.Avatar(r.Context(), u.ID)
+	if err != nil && !errors.Is(err, users.ErrNotFound) {
+		Error(w, r, err)
+		return
+	}
+
+	hash, size, err := s.blobs.Put(r.Context(), io.MultiReader(bytes.NewReader(head), file))
+	if err != nil {
+		Error(w, r, fmt.Errorf("blob put: %w", err))
+		return
+	}
+	// Mirrors fs.PutFile's Put → UpsertBlob → IncrBlobRef sequence — skipped
+	// when re-uploading the identical image, so ref_count is not inflated and
+	// gc.Worker.Sweep does not think the blob is briefly unreferenced.
+	if hash != prev {
+		if err := s.store.UpsertBlob(r.Context(), store.UpsertBlobParams{Hash: hash, Size: size}); err != nil {
+			Error(w, r, err)
+			return
+		}
+		if err := s.store.IncrBlobRef(r.Context(), hash); err != nil {
+			Error(w, r, err)
+			return
+		}
+	}
+
+	// The query suffix exists so a new avatar is not masked by the browser's
+	// cache of the old one.
+	url := fmt.Sprintf("/api/v1/users/%s/avatar?v=%s", uuidString(u.ID), hash[:12])
+	if err := s.users.SetAvatar(r.Context(), u.ID, url, hash, mimeType); err != nil {
+		Error(w, r, err)
+		return
+	}
+	if prev != "" && prev != hash {
+		// The new avatar is already live; the direction of a ref-count drift
+		// here is the safe one (too high — GC never over-collects), so this
+		// is logged rather than failing the request.
+		if err := s.store.DecrBlobRef(r.Context(), prev); err != nil {
+			slog.ErrorContext(r.Context(), "avatar: decrementing previous blob ref failed", "err", err)
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"avatar_url": url})
+}
+
+// handleGetAvatar streams a user's avatar.
+//
+// Authenticated but not narrowed to shared spaces: member lists, group
+// drawers and the people table already render every colleague's avatar_url,
+// and the route is keyed on a UUID the caller must already hold. nosniff plus
+// the stored, sniffed type is what keeps an uploaded file from being
+// interpreted as anything else.
+func (s *Server) handleGetAvatar(w http.ResponseWriter, r *http.Request) {
+	userID, err := uuidParam(r, "userID")
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid user id")
+		return
+	}
+	hash, mimeType, err := s.users.Avatar(r.Context(), userID)
+	if err != nil && !errors.Is(err, users.ErrNotFound) {
+		Error(w, r, err)
+		return
+	}
+	if hash == "" {
+		writeProblem(w, http.StatusNotFound, "Not Found", "no avatar")
+		return
+	}
+	rc, err := s.blobs.Get(r.Context(), hash)
+	if err != nil {
+		if errors.Is(err, blob.ErrNotExist) {
+			writeProblem(w, http.StatusNotFound, "Not Found", "no avatar")
+			return
+		}
+		Error(w, r, err)
+		return
+	}
+	defer rc.Close()
+	w.Header().Set("Content-Type", mimeType)
+	w.Header().Set("Cache-Control", "private, max-age=3600")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	_, _ = io.Copy(w, rc)
 }
 
 // handleSearchUsers handles user search for autocomplete.

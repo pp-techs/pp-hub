@@ -383,4 +383,6 @@ type User struct {
 	EmailHash   string             `json:"email_hash"`
 	SuspendedAt pgtype.Timestamptz `json:"suspended_at"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	AvatarBlob  string             `json:"avatar_blob"`
+	AvatarMime  string             `json:"avatar_mime"`
 }

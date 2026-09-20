@@ -172,6 +172,18 @@ func (s *S3Store) Delete(ctx context.Context, hash string) error {
 	return nil
 }
 
+// Check reports whether the bucket is reachable. HeadBucket is a cheap,
+// side-effect-free call that fails exactly when the bucket is missing, the
+// credentials are wrong, or the endpoint is unreachable — the three ways an
+// S3-backed deployment goes unusable.
+func (s *S3Store) Check(ctx context.Context) error {
+	_, err := s.cli.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: aws.String(s.bucket)})
+	if err != nil {
+		return fmt.Errorf("s3: head bucket: %w", err)
+	}
+	return nil
+}
+
 // isNotFound covers the several shapes S3 uses to say "no such object":
 // GetObject returns NoSuchKey, HeadObject returns a bare 404 NotFound, and
 // implementations differ on which they send.

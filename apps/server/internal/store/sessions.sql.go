@@ -117,7 +117,7 @@ func (q *Queries) DeleteUserSessions(ctx context.Context, userID pgtype.UUID) (i
 }
 
 const getSessionByHash = `-- name: GetSessionByHash :one
-SELECT s.id, s.user_id, s.token_hash, s.user_agent, s.ip, s.created_at, s.last_used_at, s.expires_at, u.id, u.tenant_id, u.oidc_sub, u.oidc_iss, u.email, u.name, u.display_name, u.avatar_url, u.bio, u.settings, u.is_admin, u.last_seen, u.email_hash, u.suspended_at, u.created_at
+SELECT s.id, s.user_id, s.token_hash, s.user_agent, s.ip, s.created_at, s.last_used_at, s.expires_at, u.id, u.tenant_id, u.oidc_sub, u.oidc_iss, u.email, u.name, u.display_name, u.avatar_url, u.bio, u.settings, u.is_admin, u.last_seen, u.email_hash, u.suspended_at, u.created_at, u.avatar_blob, u.avatar_mime
 FROM sessions s
 JOIN users u ON u.id = s.user_id
 WHERE s.token_hash = $1 AND s.expires_at > now()
@@ -158,6 +158,8 @@ func (q *Queries) GetSessionByHash(ctx context.Context, tokenHash []byte) (GetSe
 		&i.User.EmailHash,
 		&i.User.SuspendedAt,
 		&i.User.CreatedAt,
+		&i.User.AvatarBlob,
+		&i.User.AvatarMime,
 	)
 	return i, err
 }

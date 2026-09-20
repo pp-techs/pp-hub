@@ -124,7 +124,7 @@ Two modals (`preview-modal`, `move-dialog`) held `useState` across reopenings
 because better-modal keeps closed modals mounted; both now key their state to
 their subject via `useKeyedState`.
 
-**Not done, and why:** the design's Sharing, Storage and Integrations settings tabs have no server behind them, so they are omitted rather than shipped as empty panes. There is no mail transport, so an invitation link is copied to the inviter's clipboard for them to send. Comments (preview modal) and collaborator presence (editor chrome) have no API.
+**Not done, and why:** the design's Sharing, Storage and Integrations settings tabs have no server behind them, so they are omitted rather than shipped as empty panes. There is no mail transport, so an invitation link is copied to the inviter's clipboard for them to send (an SMTP transport for invitations shipped in **M23**). Comments (preview modal) and collaborator presence (editor chrome) have no API.
 
 ## M11 — Reclaim, Quota, Retention & the Long Tail ✅ done
 
@@ -730,75 +730,112 @@ on the helper alone would have missed — that routing and the handler still see
 the real values, since chi matches on `r.URL.Path` and the WOPI handler has to
 read the credential it was given.
 
-## Upcoming — M22 Onward 🚧 not done
+## M22 — Backup and Restore ✅ done
 
-Everything above shipped; nothing below has, and none of it is scheduled — the
-numbering is the order the dependencies suggest, which is what
+P0 §1. There was no backup of any kind: no script, no Makefile target, no
+volume snapshot, no CI job. `pg_data` and `blob_data` had to be captured
+**together and consistently**, because a database dump restored without its
+blobs is a directory listing of files that no longer exist and blobs
+restored without the database are content-addressed garbage with no names.
+
+**What shipped.** `deploy/backup/pp-backup.sh` and `pp-restore.sh`, two
+POSIX `sh` scripts driving `docker compose` against `compose.prod.yml` —
+no volume is ever named directly, since the file carries no top-level
+`name:`, so every volume is reached through `docker compose run`/`exec` on
+the service that mounts it. Postgres is dumped before blobs are archived,
+never the reverse, because the one ordering that must never invert is a
+blob a fresh Postgres row already references but whose bytes missed the
+archive; both the dump and the archive are verified (`pg_restore --list`,
+`tar -tzf`) before the script calls itself done, and retention defaults to
+14 days. `pp-restore.sh` verifies the archive before stopping anything,
+restores with `pg_restore --clean --if-exists --no-owner`, restores blobs,
+brings the stack back up and polls `/readyz` for 60s. `.env.prod` — the
+Postgres password, `PP_SESSION_KEY`, OIDC secrets — is explicitly out of
+scope and the backup says so on every run, because a restore without it
+comes up as a different instance.
+
+**A restore has actually been performed**, not merely scripted: against a
+built `compose.prod.yml` stack, a drill user row and a marker blob were
+written, backed up, destroyed (`DROP SCHEMA public CASCADE`, `rm -rf
+/data/blobs/*`), and restored — the row, the blob's bytes, and
+`schema_migrations`' newest version all came back identical.
+
+## M23 — Mail Transport, Invitations Only ✅ done
+
+P0 §2. There was no mailer and no in-app substitute for one:
+`handleCreateInvitation` minted a token and handed the URL back to the
+admin to deliver by hand — one copy-paste into a chat client per person.
+
+**Decision taken: SMTP for invitations only.** Sharing still notifies
+nobody, and there is still no in-app substitute — no `notifications` table,
+no route, no SSE or websocket. That half is M29's; it needs a notification
+story, not a transport, and it reuses the one built here rather than waiting
+on it.
+
+**What shipped.** `internal/mail`, a small `net/smtp` wrapper — dial,
+optional STARTTLS or implicit TLS, optional PLAIN auth, header-injection
+rejected on any `\r`/`\n` in the recipient or subject. `config.validateSMTP`
+fails startup rather than a send on a half-configured transport (host set,
+no `PP_SMTP_FROM`; an unrecognised `PP_SMTP_TLS`; a port out of range);
+`Host == ""` is a supported, logged state. `handleCreateInvitation` sends
+synchronously under a 15s timeout after the invitation row is committed; a
+send failure is logged and the response still carries the URL, so the
+admin's fallback is the product's old and only behaviour rather than a new
+failure mode. The response gains `mail_sent`; the web client branches its
+toast on it and keeps the clipboard copy in both paths. Verified against a
+real relay, not just unit tests: a message sent through a MailHog catcher
+arrived.
+
+## M24 — The REST/WOPI Write Collision ✅ done
+
+P0 §7, the only P0 item that lost data during ordinary, well-intentioned
+use. `file_locks` exists with a 30-minute TTL and the WOPI endpoints honour
+it; nothing else did — no `GetLock` on the REST path, no lock route under
+`/api/v1` — so while one person had a document open in OnlyOffice, another's
+`PUT /nodes/{id}/versions` was accepted against no lock at all, and the next
+save silently discarded one side of the conflict.
+
+**Decision taken: refuse, do not take a lock.** A REST upload has no lock
+lifecycle — no unlock call, no `REFRESH_LOCK` — so a lock taken here would
+only be released by the sweep, which is worse than the occasional annoyance
+of an editor left open over lunch blocking a colleague.
+
+**What shipped.** `Server.lockedByEditor`, called from both
+`handleUploadVersion` (before `parseUpload`, so a locked file is refused
+before a multi-gigabyte body is read) and `handleRestoreVersion` (restoring
+a version repoints `current_version_id` just as directly). Either finds a
+live lock, it answers `409 Conflict` with a sentence a client can show.
+Deliberately out of scope: trash, move and rename of a locked node — none
+change file bytes, and `handleWopiPutFile` already refuses a tombstone.
+`TestRestVersionUploadRefusesALockedFile` holds the line against a real
+Postgres.
+
+## Upcoming — M25 Onward 🚧 not done
+
+Everything above shipped, including the P0 register in full as of M24;
+nothing below has, and none of it is scheduled — the numbering is the order
+the dependencies suggest, which is what
 [production-readiness.md](production-readiness.md) says about its own phasing,
 and the two follow the same ordering on purpose. Each entry names the section
 of that document holding the evidence rather than restating it, so there is
 one place to check whether a gap is still real before acting on it.
 
-### Phase A — Rollout Blockers
-
-What is left of the P0 register. Items 3, 4, 5, 6 and 8 closed in M20 and M21.
-
-#### M22 — Backup and Restore 🔜 planned
-
-P0 §1. There is no backup of any kind: no script, no Makefile target, no
-volume snapshot, no CI job — the intended procedure is the sentence in Rollout
-/ Operations below, and that sentence is the whole of it, so the milestone is
-implementing it rather than writing it down. `pg_data` and `blob_data` have to
-be captured **together and consistently**, because a database dump restored
-without its blobs is a directory listing of files that no longer exist and
-blobs restored without the database are content-addressed garbage with no
-names. Finishing it means both volumes captured as one point in time and a
-restore that has actually been performed, not merely scripted. It is first
-because it is the only item on the register whose absence is irreversible.
-
-#### M23 — Mail Transport 🔜 planned
-
-P0 §2. There is no mailer and no in-app substitute for one, and the
-consequences are already visible in the product: `handleCreateInvitation`
-mints a token and hands the URL back to the admin to deliver by hand — one
-copy-paste into a chat client per person — and an invitation cannot reach
-anybody who does not already have an account. A direct or group grant tells
-its recipient nothing either, even though the recipient is a known user with a
-known verified address. Finishing it means an SMTP transport and templates
-behind invitations and share notifications. It sits in Phase A rather than
-with the collaboration work because M29's notifications depend on it.
-
-#### M24 — The REST/WOPI Write Collision 🔜 needs a decision
-
-P0 §7, and the only P0 left that loses data during ordinary, well-intentioned
-use. `file_locks` exists with a 30-minute TTL and the WOPI endpoints honour it;
-nothing else does — no `GetLock` on the REST path, no lock route under
-`/api/v1`, and no ETag or `If-Match` on version upload — so while one person
-has a document open in OnlyOffice, another's `PUT /nodes/{id}/versions` is
-accepted against no lock at all, and the next save resolves that conflict by
-silently discarding one side of it. The decision comes before the code, and
-there are two answers. Either the REST path refuses a locked node, which is
-simple and correct but means an editor left open over lunch blocks a colleague
-with no recourse short of the TTL; or it takes a lock of its own, which is
-honest about concurrent writers but brings a second class of lock owner, a
-break-lock affordance and a conflict story for the write that lost. Finishing
-it means picking one of the two, and either way a precondition on the
-version-upload path so a client can be told it lost rather than assume it won.
-
 ### Continuous
 
 #### M25 — Observability 🔜 planned
 
-P1, the metrics, `/healthz` and logging entries under "Smaller, but on the
-list". `log/slog` runs on the default text handler with no level control — no
-`slog.New` or `SetDefault` anywhere — and chi's request id is not bridged into
-log records, so the id that every `security_events` row carries cannot be used
-to find the lines around it. `/healthz` is a static 200 that touches neither
-Postgres nor the blob store, so it cannot fail when the thing it reports on
-has; there is no readiness split; and `cmd/worker` has no listener at all,
-which is why its compose service has no healthcheck. There are no metrics, no
-tracing and no error tracking. Nothing depends on this, which is why it is not
-in a phase — and everything after it is cheaper to diagnose once it is done.
+P1, the metrics and logging entries under "Smaller, but on the list". The
+readiness split this entry used to name — a `/healthz` that touched neither
+Postgres nor the blob store, and no healthcheck at all for `cmd/worker` — is
+done: `GET /readyz` checks both, and the worker signals through a freshness
+file since it has no listener; see [production-readiness.md](production-readiness.md)
+§"Smaller, but on the list". What is left: `log/slog` runs on the default
+text handler with no level control — no `slog.New` or `SetDefault`
+anywhere — and chi's request id is not bridged into log records, so the id
+that every `security_events` row carries cannot be used to find the lines
+around it. There are no metrics, no tracing and no error tracking. Nothing
+depends on this, which is why it is not in a phase — and everything after it
+is cheaper to diagnose once it is done.
 
 ### Phase B — The Multi-Department Layer
 
@@ -852,13 +889,16 @@ no instance-level equivalent.
 
 #### M29 — Comments and Notifications 🔜 planned
 
-P1, "No comments", plus the notification half of P0 §2. **Depends on M23**:
-there is no mail transport and no in-app substitute — no `notifications` table,
-no route, no SSE or websocket — so a comment nobody is told about is a comment
-nobody answers. Comments themselves are a whole subsystem — a table, endpoints
-and two UIs, the preview modal and the editor — and have been deferred in
-those words at every milestone since M10, which was accurate each time.
-Finishing it means both: threads on a node, and delivery for them.
+P1, "No comments", plus the notification half of P0 §2. **M23 built the
+transport, not the feature**: `internal/mail` exists and sends, but only from
+`handleCreateInvitation` — there is still no `notifications` table, no route,
+no SSE or websocket, so a comment nobody is told about is still a comment
+nobody answers. Comments themselves are a whole subsystem — a table,
+endpoints and two UIs, the preview modal and the editor — and have been
+deferred in those words at every milestone since M10, which was accurate
+each time. Finishing it means both: threads on a node, and delivery for
+them, reusing `internal/mail` for the mail half rather than building a
+second transport.
 
 #### M30 — Resumable Upload and Honest Accounting 🔜 planned
 
@@ -889,12 +929,6 @@ an empty document in the write target M19 resolves and opens the editor on it.
 Named in P1's "Smaller, but on the list" and assigned to no milestone. They
 are recorded here so they are found rather than rediscovered:
 
-- **The avatar upload is a shipped placeholder.** `handleUploadAvatar` bounds
-  and parses the body, then discards the file and returns a fake URL, with a
-  `// TODO: store to blob store and get URL` where the write belongs. It is a
-  stub behind a working-looking button: the UI reports success and the picture
-  never persists. M21's ceiling applies to it (`avatarMaxBytes`, 5 MiB), so
-  the bytes it throws away are at least bounded.
 - **`style-src 'unsafe-inline'`** is the one CSP directive in the nginx
   template that is looser than it should be rather than looser on purpose.
   Removing it takes changes in `apps/web` — the inline `style` props a few
@@ -925,14 +959,17 @@ are recorded here so they are found rather than rediscovered:
 
 - Two compose files in `deploy/compose/`: `compose.dev.yml` (services only, app runs from source) and `compose.prod.yml` (everything, for a VPS or Dokploy). Config via `.env`, templated by `.env.example` in each location.
 - Persistent state: `data/` volume (blobs) + Postgres volume.
-- Backup: `pg_dump` + rsync of `data/blobs` — **documented, not implemented**;
-  this line is the documentation, and implementing it is M22. See
-  [production-readiness.md](production-readiness.md), which collects everything
-  standing between M21 and an internal rollout: the P0 blockers that remain
-  (backup, mail transport, and lock enforcement on the REST version-upload
-  path — M22, M23 and M24 in Upcoming above; the session/cookie, OnlyOffice
-  JWT, admin bootstrap and upload/rate-limit items are closed, as are the
-  sweep findings in its §8), the P1 gaps against Google Drive (content search,
-  read auditing and an audit export, comments, resumable upload, storage
-  accounting, IdP group sync — M25 through M31), and a proposed phasing, whose
-  order Upcoming follows.
+- Backup: `deploy/backup/pp-backup.sh` and `pp-restore.sh` — **implemented in
+  M22**, dumping Postgres before archiving blobs (never the reverse), self-
+  verifying, and driven entirely through `docker compose run`/`exec` so no
+  volume name is ever hardcoded. See
+  [production-readiness.md](production-readiness.md), which collects
+  everything that stood between M21 and an internal rollout: the P0
+  register, now fully closed (M22–M24 closed backup, mail transport and lock
+  enforcement on the REST version-upload path; the session/cookie,
+  OnlyOffice JWT, admin bootstrap and upload/rate-limit items were closed in
+  M20–M21, as were the sweep findings in its §8, and the readiness split and
+  avatar-upload stub closed alongside M22–M24), the P1 gaps against Google
+  Drive still open (content search, read auditing and an audit export,
+  comments, resumable upload, storage accounting, IdP group sync — M25
+  through M31), and a proposed phasing, whose order Upcoming follows.
