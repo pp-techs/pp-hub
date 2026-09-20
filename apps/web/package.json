@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vp dev",
-    "build": "tsc && vp build",
+    "build": "tsr generate && tsc && vp build",
     "preview": "vp preview",
     "test": "vp test"
   },
@@ -26,6 +26,7 @@
     "@svgr/core": "^8.1.0",
     "@svgr/plugin-jsx": "^8.1.0",
     "@tailwindcss/vite": "^4.1.0",
+    "@tanstack/router-cli": "^1.160.0",
     "@tanstack/router-plugin": "^1.160.0",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",
