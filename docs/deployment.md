@@ -130,16 +130,19 @@ missing variable rather than booting a half-configured stack.
 `up -d`, not `up -d --build`. The three application images are published by
 `.github/workflows/release.yml` to
 `ghcr.io/pp-techs/pp-hub/{web,server,worker}`, and `PP_IMAGE_TAG` names the
-one this stack runs. Pushing a `v*` tag publishes `:v0.1.0`, `:0.1` and
-`:sha-<short>`; a push to `main` publishes `:edge` and `:sha-<short>`.
+one this stack runs. Pushing the git tag `v0.1.0` publishes `:0.1.0`, `:0.1`
+and `:sha-<short>` — the image tag drops the `v`; a push to `main` publishes
+`:edge` and `:sha-<short>`.
 
 | Action        | What you do                                       |
 | ------------- | ------------------------------------------------- |
-| Deploy        | set `PP_IMAGE_TAG=v0.2.0`, re-run `up -d`         |
-| Roll back     | set it back to `v0.1.0`, re-run `up -d`           |
+| Deploy        | set `PP_IMAGE_TAG=0.2.0`, re-run `up -d`          |
+| Roll back     | set it back to `0.1.0`, re-run `up -d`            |
 | Build locally | `up -d --build`, which overrides the pulled image |
 
-`PP_IMAGE_TAG` has no default. `latest` is not a version: it cannot be rolled
+`PP_IMAGE_TAG` has no default, and no `:latest` is published — `flavor:
+latest=false` in the workflow, because `docker/metadata-action` ships one on
+every semver tag otherwise. `latest` is not a version: it cannot be rolled
 back to, two hosts pulling it can run different code, and nothing on the box
 can then say what is deployed. The variable being required is what makes
 "which commit is in production" a question with an answer.

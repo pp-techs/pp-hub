@@ -37,7 +37,7 @@ services:
   # Same-origin is required — the session cookie is host-only with
   # SameSite=Lax, so a split hostname means nobody can log in.
   web:
-    image: "ghcr.io/pp-techs/pp-hub/web:${PP_IMAGE_TAG:?set in .env - a released tag, e.g. v0.1.0}"
+    image: "ghcr.io/pp-techs/pp-hub/web:${PP_IMAGE_TAG:?set in .env - a released tag, e.g. 0.1.0}"
     build:
       context: ../..
       dockerfile: apps/web/Dockerfile
@@ -74,7 +74,7 @@ services:
       - NET_BIND_SERVICE
 
   server:
-    image: "ghcr.io/pp-techs/pp-hub/server:${PP_IMAGE_TAG:?set in .env - a released tag, e.g. v0.1.0}"
+    image: "ghcr.io/pp-techs/pp-hub/server:${PP_IMAGE_TAG:?set in .env - a released tag, e.g. 0.1.0}"
     build:
       context: ../../apps/server
       target: server
@@ -164,7 +164,7 @@ services:
   # After first deploy, sweep files that predate it:
   #   docker compose -f compose.prod.yml run --rm worker --backfill
   worker:
-    image: "ghcr.io/pp-techs/pp-hub/worker:${PP_IMAGE_TAG:?set in .env - a released tag, e.g. v0.1.0}"
+    image: "ghcr.io/pp-techs/pp-hub/worker:${PP_IMAGE_TAG:?set in .env - a released tag, e.g. 0.1.0}"
     build:
       context: ../../apps/server
       target: worker
