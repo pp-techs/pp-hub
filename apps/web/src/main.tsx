@@ -4,6 +4,7 @@ import { RouterProvider, createRouter } from "@tanstack/react-router";
 import "@workspace/ui/globals.css";
 import { setUnauthorizedHandler } from "@/lib/api";
 import { queryClient } from "@/lib/query-client";
+import { activateLocale, detectLocale } from "@/lib/i18n";
 import { ThemeProvider } from "@/components/theme-provider";
 import { routeTree } from "./routeTree.gen";
 
@@ -41,6 +42,14 @@ declare module "@tanstack/react-router" {
     router: typeof router;
   }
 }
+
+// The catalog is awaited before the first render on purpose. The alternative
+// — paint in English, swap when the import resolves — is a visible flash on
+// every load for every non-English user, and the catalog is a same-origin,
+// hashed, cacheable chunk. `detectLocale()` reads this device's echo of the
+// account preference, so the guess is already right for a returning user;
+// `LocaleProvider` reconciles it once `/users/me` answers.
+await activateLocale(detectLocale());
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

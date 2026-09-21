@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { createModal } from "@buiducnhat/better-modal";
 import { useQueryClient } from "@tanstack/react-query";
 import { FileStack } from "lucide-react";
@@ -53,7 +54,9 @@ function suffixed(name: string): string {
 export const UploadConflictDialog = createModal<{ conflicts: UploadConflict[] }, ConflictChoice>(
   "upload-conflict",
   ({ conflicts, modal }) => {
-    const one = conflicts.length === 1;
+    const count = conflicts.length;
+    const one = count === 1;
+    const { t } = useLingui();
     // A closed modal stays mounted, so a list expanded for one batch would
     // still be expanded the next time a different batch collides.
     const [expanded, setExpanded] = useKeyedState(
@@ -63,20 +66,29 @@ export const UploadConflictDialog = createModal<{ conflicts: UploadConflict[] },
 
     const hidden = conflicts.length - VISIBLE;
     const shown = expanded ? conflicts : conflicts.slice(0, VISIBLE);
+    // The name a "keep both" upload lands under. With several collisions
+    // there is no single name to quote, so the shape stands in for one — and
+    // the word inside it is the user's, not a filename, so it is translated.
+    const kept = one ? suffixed(conflicts[0].name) : t`name (2)`;
 
     return (
       <Dialog open={modal.visible} onOpenChange={(open) => !open && modal.resolve(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{one ? "That name is taken" : "Those names are taken"}</DialogTitle>
+            <DialogTitle>
+              {one ? <Trans>That name is taken</Trans> : <Trans>Those names are taken</Trans>}
+            </DialogTitle>
             <DialogDescription>
-              {one
-                ? "A file with this name is already in this folder."
-                : `${conflicts.length} of these files are already in this folder.`}{" "}
-              <strong className="font-medium">Keep both</strong> uploads alongside, named “
-              {one ? suffixed(conflicts[0].name) : "name (2)"}”.{" "}
-              <strong className="font-medium">Replace</strong> adds a new version to the file that
-              is already there, keeping its owner, its link and its history.
+              {one ? (
+                <Trans>A file with this name is already in this folder.</Trans>
+              ) : (
+                <Plural value={count} other="# of these files are already in this folder." />
+              )}{" "}
+              <Trans>
+                <strong className="font-medium">Keep both</strong> uploads alongside, named “{kept}
+                ”. <strong className="font-medium">Replace</strong> adds a new version to the file
+                that is already there, keeping its owner, its link and its history.
+              </Trans>
             </DialogDescription>
           </DialogHeader>
 
@@ -97,7 +109,7 @@ export const UploadConflictDialog = createModal<{ conflicts: UploadConflict[] },
                   className="text-muted-foreground hover:text-foreground h-7 px-2 text-xs underline-offset-4 hover:underline"
                   onClick={() => setExpanded(true)}
                 >
-                  and {hidden} more
+                  <Plural value={hidden} other="and # more" />
                 </button>
               </li>
             )}
@@ -105,12 +117,16 @@ export const UploadConflictDialog = createModal<{ conflicts: UploadConflict[] },
 
           <DialogFooter>
             <Button variant="outline" onClick={() => modal.resolve(null)}>
-              Cancel
+              <Trans>Cancel</Trans>
             </Button>
+            {/* eslint-disable-next-line lingui/no-unlocalized-strings -- choice union value */}
             <Button variant="secondary" onClick={() => modal.resolve("replace")}>
-              Replace
+              <Trans>Replace</Trans>
             </Button>
-            <Button onClick={() => modal.resolve("keep-both")}>Keep both</Button>
+            {/* eslint-disable-next-line lingui/no-unlocalized-strings -- choice union value */}
+            <Button onClick={() => modal.resolve("keep-both")}>
+              <Trans>Keep both</Trans>
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -173,19 +189,23 @@ export function useUploadWithConflicts(): (
 
   return useCallback(
     async (items: UploadItem[], spaceId: string, parentId?: string): Promise<UploadOutcome> => {
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- outcome union value
       if (items.length === 0) return "uploaded";
 
       const existing = queryClient.getQueryData<Node[]>(keys.children(spaceId, parentId));
       const conflicts = findUploadConflicts(items, existing);
       if (conflicts.length === 0) {
         enqueue(items, spaceId, parentId);
+        // eslint-disable-next-line lingui/no-unlocalized-strings -- outcome union value
         return "uploaded";
       }
 
       const choice = await UploadConflictDialog.show({ conflicts });
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- outcome union value
       if (choice === null) return "cancelled";
       if (choice === "keep-both") {
         enqueue(items, spaceId, parentId);
+        // eslint-disable-next-line lingui/no-unlocalized-strings -- outcome union value
         return "uploaded";
       }
 
@@ -197,6 +217,7 @@ export function useUploadWithConflicts(): (
         spaceId,
         parentId,
       );
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- outcome union value
       return "uploaded";
     },
     [queryClient, enqueue],

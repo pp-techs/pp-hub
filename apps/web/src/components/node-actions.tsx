@@ -17,6 +17,8 @@ import {
   Trash2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { msg } from "@lingui/core/macro";
+import type { MessageDescriptor } from "@lingui/core";
 import {
   canOpenInTab,
   canRestructure,
@@ -31,10 +33,19 @@ import { ShareDialog } from "@/components/share-dialog";
 
 export interface NodeAction {
   key: string;
-  label: string;
+  /**
+   * A message descriptor, not a rendered string. `nodeActions` is a plain
+   * function — it is called from `useMemo` and from menus that are not
+   * components — so it must not reach a hook or a catalog: rendered text
+   * here would freeze whichever language loaded first. The menu that draws
+   * the item calls `i18n._(action.label)`, which is what makes it follow a
+   * language switch.
+   */
+  label: MessageDescriptor;
   icon: LucideIcon;
   /** Rendered right-aligned in a menu. Display only — the shortcuts are bound
-   *  by the listing, which is what actually has keyboard focus. */
+   *  by the listing, which is what actually has keyboard focus. Key names, so
+   *  not translated. */
   shortcut?: string;
   destructive?: boolean;
   /** Separator is drawn before this item when rendering a menu. */
@@ -56,6 +67,7 @@ export interface NodeActionHandlers {
 }
 
 export function downloadUrl(node: Node) {
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- API route path
   return `/api/v1/nodes/${node.id}/download`;
 }
 
@@ -89,8 +101,9 @@ export function nodeActions(
   if (node.kind === "file") {
     actions.push({
       key: "preview",
-      label: "Preview",
+      label: msg`Preview`,
       icon: Eye,
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- keyboard key name
       shortcut: "Space",
       run: () => handlers.onPreview(node),
     });
@@ -99,7 +112,7 @@ export function nodeActions(
     if (canOpenInTab(node) && caps.download) {
       actions.push({
         key: "open-tab",
-        label: "Open in new tab",
+        label: msg`Open in new tab`,
         icon: ExternalLink,
         shortcut: "⌘↵",
         run: () => openInTab(node),
@@ -111,7 +124,7 @@ export function nodeActions(
       // which of the two they are getting.
       actions.push({
         key: "edit",
-        label: caps.edit ? "Edit" : "Open",
+        label: caps.edit ? msg`Edit` : msg`Open`,
         icon: SquarePen,
         run: () => openEditor(node),
       });
@@ -119,30 +132,33 @@ export function nodeActions(
     if (caps.download) {
       actions.push({
         key: "download",
-        label: "Download",
+        label: msg`Download`,
         icon: Download,
+        // eslint-disable-next-line lingui/no-unlocalized-strings -- keyboard key name
         shortcut: "⌘D",
+        // eslint-disable-next-line lingui/no-unlocalized-strings -- window.open target
         run: () => window.open(downloadUrl(node), "_blank"),
       });
     }
     actions.push({
       key: "versions",
-      label: "Versions",
+      label: msg`Versions`,
       icon: History,
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- panel id
       run: () => openPanel("versions", node),
     });
   }
 
   actions.push({
     key: "details",
-    label: "Information",
+    label: msg`Information`,
     icon: Info,
     startsGroup: node.kind === "file",
     run: () => handlers.onShowDetails(node),
   });
   actions.push({
     key: "star",
-    label: starred ? "Remove star" : "Add star",
+    label: starred ? msg`Remove star` : msg`Add star`,
     icon: starred ? StarOff : Star,
     run: () => handlers.onToggleStar(node, !starred),
   });
@@ -151,8 +167,9 @@ export function nodeActions(
   if (caps.share) {
     actions.push({
       key: "share",
-      label: "Share",
+      label: msg`Share`,
       icon: Link2,
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- keyboard key name
       shortcut: "⌘⇧S",
       run: () => void ShareDialog.show({ node }),
     });
@@ -160,8 +177,9 @@ export function nodeActions(
   if (restructure) {
     actions.push({
       key: "rename",
-      label: "Rename",
+      label: msg`Rename`,
       icon: Pencil,
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- keyboard key name
       shortcut: "F2",
       run: () => handlers.onRename(node),
     });
@@ -169,7 +187,7 @@ export function nodeActions(
   if (caps.edit) {
     actions.push({
       key: "move",
-      label: "Move to…",
+      label: msg`Move to…`,
       icon: FolderInput,
       run: () => handlers.onMove(node),
     });
@@ -186,22 +204,24 @@ export function nodeActions(
   if (caps.edit) {
     actions.push({
       key: "cut",
-      label: "Cut",
+      label: msg`Cut`,
       icon: Scissors,
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- clipboard mode
       run: () => handlers.onClipboard(node, "cut"),
     });
   }
   if (caps.download) {
     actions.push({
       key: "clipboard-copy",
-      label: "Copy",
+      label: msg`Copy`,
       icon: ClipboardCopy,
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- clipboard mode
       run: () => handlers.onClipboard(node, "copy"),
     });
     if (canWriteHere) {
       actions.push({
         key: "copy",
-        label: "Make a copy",
+        label: msg`Make a copy`,
         icon: Copy,
         run: () => handlers.onCopy(node),
       });
@@ -210,7 +230,7 @@ export function nodeActions(
   if (restructure) {
     actions.push({
       key: "trash",
-      label: "Move to trash",
+      label: msg`Move to trash`,
       icon: Trash2,
       shortcut: "⌫",
       destructive: true,
@@ -225,6 +245,9 @@ export function nodeActions(
  * Memoized `nodeActions` for the listing rows: the action objects (and their
  * closures) are rebuilt only when the row's own node, capabilities or
  * handlers change — not when an unrelated row's selection state flips.
+ *
+ * The active language is not an input: the labels are descriptors, resolved
+ * by the menu at render, so a language switch needs no new action objects.
  */
 export function useNodeActions(
   node: Node,

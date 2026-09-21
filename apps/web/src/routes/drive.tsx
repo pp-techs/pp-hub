@@ -3,6 +3,8 @@ import { FolderPlus, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { CSSProperties, FormEvent } from "react";
 import { toast } from "sonner";
+import { Trans, useLingui } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
 import { Button } from "@workspace/ui/components/button";
 import { Label } from "@workspace/ui/components/label";
 import { Textarea } from "@workspace/ui/components/textarea";
@@ -25,8 +27,9 @@ import { SiteHeader } from "@/components/site-header";
 import { TransferTray } from "@/components/transfer-tray";
 import { CommandPalette } from "@/components/command-palette";
 import { SidebarInset, SidebarProvider } from "@workspace/ui/components/sidebar";
+import { pageTitle } from "@/lib/i18n";
 export const Route = createFileRoute("/drive")({
-  head: () => ({ meta: [{ title: "Drive · pp-hub" }] }),
+  head: () => ({ meta: [{ title: pageTitle(msg`Drive`) }] }),
   beforeLoad: async ({ context, location }) => {
     const { queryClient } = context;
     // The spaces list doesn't depend on who signs in, so it goes out
@@ -121,12 +124,16 @@ function LandingPage() {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8">
       <FolderPlus className="text-muted-foreground size-16" />
-      <h1 className="text-xl font-semibold">Welcome to pp-hub</h1>
+      <h1 className="text-xl font-semibold">
+        <Trans>Welcome to pp-hub</Trans>
+      </h1>
       <p className="text-muted-foreground max-w-sm text-center">
-        Create your first space to start organizing your files and collaborating with your team.
+        <Trans>
+          Create your first space to start organizing your files and collaborating with your team.
+        </Trans>
       </p>
       <Button onClick={() => setNewSpaceOpen(true)}>
-        <Plus data-icon="inline-start" /> Create space
+        <Plus data-icon="inline-start" /> <Trans>Create space</Trans>
       </Button>
     </div>
   );
@@ -137,6 +144,7 @@ function NewSpaceDialog() {
   const open = useUiStore((s) => s.newSpaceOpen);
   const setOpen = useUiStore((s) => s.setNewSpaceOpen);
   const create = useCreateSpace();
+  const { t } = useLingui();
 
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
@@ -162,9 +170,13 @@ function NewSpaceDialog() {
     >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Create a space</DialogTitle>
+          <DialogTitle>
+            <Trans>Create a space</Trans>
+          </DialogTitle>
           <DialogDescription>
-            Spaces are isolated file areas with their own members, permissions and storage.
+            <Trans>
+              Spaces are isolated file areas with their own members, permissions and storage.
+            </Trans>
           </DialogDescription>
         </DialogHeader>
         <form
@@ -192,7 +204,7 @@ function NewSpaceDialog() {
                   });
                 },
                 onError: (e) =>
-                  toast.error("Could not create the space", {
+                  toast.error(t`Could not create the space`, {
                     description: e.message,
                   }),
               },
@@ -200,44 +212,52 @@ function NewSpaceDialog() {
           }}
         >
           <div className="flex flex-col gap-1">
-            <Label htmlFor="new-space-name">Name</Label>
+            <Label htmlFor="new-space-name">
+              <Trans>Name</Trans>
+            </Label>
             <Input
               id="new-space-name"
               autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Marketing"
+              placeholder={t`Marketing`}
               required
             />
           </div>
 
           <div className="flex flex-col gap-1">
-            <Label htmlFor="new-space-slug">Slug</Label>
+            <Label htmlFor="new-space-slug">
+              <Trans>Slug</Trans>
+            </Label>
             <Input
               id="new-space-slug"
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
-              placeholder="marketing"
+              placeholder={t`marketing`}
             />
             <p className="text-muted-foreground text-[10px]">
-              Lowercase letters, numbers and dashes. Optional.
+              <Trans>Lowercase letters, numbers and dashes. Optional.</Trans>
             </p>
           </div>
 
           <div className="flex flex-col gap-1">
-            <Label htmlFor="new-space-description">Description</Label>
+            <Label htmlFor="new-space-description">
+              <Trans>Description</Trans>
+            </Label>
             <Textarea
               id="new-space-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="What lives in this space?"
+              placeholder={t`What lives in this space?`}
             />
           </div>
 
           <div className="flex flex-col gap-1">
-            <Label>New members are admins by default</Label>
+            <Label>
+              <Trans>New members are admins by default</Trans>
+            </Label>
             <p className="text-muted-foreground text-[10px]">
-              When turned on, everyone you invite joins as an admin.
+              <Trans>When turned on, everyone you invite joins as an admin.</Trans>
             </p>
             <label className="flex items-center gap-2">
               <input
@@ -245,12 +265,16 @@ function NewSpaceDialog() {
                 checked={defaultAsAdmin}
                 onChange={(e) => setDefaultAsAdmin(e.target.checked)}
               />
-              <span className="text-sm">Enable</span>
+              <span className="text-sm">
+                <Trans>Enable</Trans>
+              </span>
             </label>
           </div>
 
           <div className="flex flex-col gap-1">
-            <Label htmlFor="new-space-quota">Storage quota (GB)</Label>
+            <Label htmlFor="new-space-quota">
+              <Trans>Storage quota (GB)</Trans>
+            </Label>
             <Input
               id="new-space-quota"
               type="number"
@@ -258,16 +282,16 @@ function NewSpaceDialog() {
               step="1"
               value={quotaGb}
               onChange={(e) => setQuotaGb(e.target.value)}
-              placeholder="Unlimited"
+              placeholder={t`Unlimited`}
             />
             <p className="text-muted-foreground text-[10px]">
-              Leave empty for unlimited. Cannot be changed after creation.
+              <Trans>Leave empty for unlimited. Cannot be changed after creation.</Trans>
             </p>
           </div>
 
           <DialogFooter>
             <Button type="submit" disabled={create.isPending}>
-              {create.isPending ? "Creating…" : "Create"}
+              {create.isPending ? <Trans>Creating…</Trans> : <Trans>Create</Trans>}
             </Button>
           </DialogFooter>
         </form>

@@ -1,4 +1,5 @@
 import { TriangleAlert } from "lucide-react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,6 +15,11 @@ import type { Node } from "@/lib/api";
 interface ConfirmDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /**
+   * Already-translated text: every caller phrases its own prompt, and most
+   * interpolate a name into it, so the sentence is built where it is known
+   * rather than assembled from fragments here.
+   */
   title: string;
   description: string;
   confirmLabel?: string;
@@ -39,11 +45,12 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   description,
-  confirmLabel = "Confirm",
+  confirmLabel,
   confirmVariant = "destructive",
   onConfirm,
   warning,
 }: ConfirmDialogProps) {
+  const { t } = useLingui();
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
@@ -60,7 +67,9 @@ export function ConfirmDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel>
+            <Trans>Cancel</Trans>
+          </AlertDialogCancel>
           <AlertDialogAction
             variant={confirmVariant}
             onClick={(e) => {
@@ -69,7 +78,7 @@ export function ConfirmDialog({
               onOpenChange(false);
             }}
           >
-            {confirmLabel}
+            {confirmLabel ?? t`Confirm`}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

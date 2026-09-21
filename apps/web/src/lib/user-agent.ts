@@ -3,6 +3,7 @@
 // Shared by the account's session list and the admin security log: both
 // answer "which device was this?", and two copies of the table would drift
 // until the same browser was named differently on the two pages.
+// The browser and platform names below are proper nouns and are never translated.
 
 /** Edge and Opera also say "Chrome", and Chrome also says "Safari" — order is the test. */
 const BROWSERS: [match: RegExp, name: string][] = [

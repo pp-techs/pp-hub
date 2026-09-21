@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import type { MessageDescriptor } from "@lingui/core";
 import { ArrowRight, CornerDownLeft, Loader2, Users } from "lucide-react";
 import {
   Command,
@@ -28,10 +31,15 @@ import { useDebounced } from "@/lib/use-debounced";
 import { PreviewModal } from "@/components/preview-modal";
 import { NodeIcon } from "@/components/node-icon";
 
-const KIND_FILTERS: { value: SearchKind | "all"; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "file", label: "Files" },
-  { value: "dir", label: "Folders" },
+/**
+ * Descriptors rather than strings: this is module scope, evaluated once at
+ * import time, so a rendered label here would pin whichever language loaded
+ * first and never follow a switch.
+ */
+const KIND_FILTERS: { value: SearchKind | "all"; label: MessageDescriptor }[] = [
+  { value: "all", label: msg`All` },
+  { value: "file", label: msg`Files` },
+  { value: "dir", label: msg`Folders` },
 ];
 
 /**
@@ -42,6 +50,7 @@ const KIND_FILTERS: { value: SearchKind | "all"; label: string }[] = [
  * list is already in the cache and a round trip for three rows is waste.
  */
 export function CommandPalette() {
+  const { t, i18n } = useLingui();
   const open = useUiStore((s) => s.paletteOpen);
   const setOpen = useUiStore((s) => s.setPaletteOpen);
   const navigate = useNavigate();
@@ -87,7 +96,9 @@ export function CommandPalette() {
     });
   };
 
-  const tooShort = settled.trim().length < MIN_QUERY_LENGTH;
+  // Named local so the extracted message reads `{queryText}` rather than `{0}`.
+  const queryText = settled.trim();
+  const tooShort = queryText.length < MIN_QUERY_LENGTH;
 
   const matchedSpaces = useMemo(() => {
     if (tooShort || kind === "file") return [];
@@ -104,8 +115,8 @@ export function CommandPalette() {
     <CommandDialog
       open={open}
       onOpenChange={setOpen}
-      title="Search"
-      description="Search files, folders and spaces"
+      title={t`Search`}
+      description={t`Search files, folders and spaces`}
       className="top-[20%] gap-0 sm:max-w-xl"
     >
       <Command shouldFilter={false} loop className="rounded-none bg-transparent">
@@ -113,8 +124,8 @@ export function CommandPalette() {
           autoFocus
           value={query}
           onValueChange={setQuery}
-          placeholder="Search files, folders and spaces"
-          aria-label="Search files, folders and spaces"
+          placeholder={t`Search files, folders and spaces`}
+          aria-label={t`Search files, folders and spaces`}
         >
           {search.isFetching && (
             <InputGroupAddon align="inline-end">
@@ -129,6 +140,7 @@ export function CommandPalette() {
             size="sm"
             value={[kind ?? "all"]}
             onValueChange={(val) => {
+              // eslint-disable-next-line lingui/no-unlocalized-strings -- search filter value
               const next = val[0] ?? kind ?? "all";
               setKind(next === "all" ? undefined : (next as SearchKind));
             }}
@@ -139,7 +151,7 @@ export function CommandPalette() {
                 value={filter.value}
                 className="h-6 px-2 text-[11px]"
               >
-                {filter.label}
+                {i18n._(filter.label)}
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
@@ -147,19 +159,25 @@ export function CommandPalette() {
 
         <CommandList className="max-h-80">
           <CommandEmpty className={cn(search.isError && "text-destructive")}>
-            {tooShort
-              ? `Type at least ${MIN_QUERY_LENGTH} characters to search.`
-              : search.isError
-                ? (search.error as Error).message
-                : search.isFetching && matchedSpaces.length === 0 && matchedNodes.length === 0
-                  ? "Searching…"
-                  : `No matches for “${settled.trim()}”`}
+            {tooShort ? (
+              <Plural
+                value={MIN_QUERY_LENGTH}
+                one="Type at least # character to search."
+                other="Type at least # characters to search."
+              />
+            ) : search.isError ? (
+              (search.error as Error).message
+            ) : search.isFetching && matchedSpaces.length === 0 && matchedNodes.length === 0 ? (
+              <Trans>Searching…</Trans>
+            ) : (
+              <Trans>No matches for “{queryText}”</Trans>
+            )}
           </CommandEmpty>
 
           {!tooShort && !search.isError && (
             <>
               {matchedSpaces.length > 0 && (
-                <CommandGroup heading="Spaces">
+                <CommandGroup heading={t`Spaces`}>
                   {matchedSpaces.map((space) => (
                     <CommandItem
                       key={`space:${space.id}`}
@@ -169,7 +187,7 @@ export function CommandPalette() {
                       <Users className="text-muted-foreground size-3.5 shrink-0" />
                       <span className="truncate">{space.name}</span>
                       <CommandShortcut className="flex items-center gap-1.5 text-[10px] font-normal tracking-normal text-muted-foreground">
-                        <span className="truncate">{space.is_admin ? "Admin" : "Member"}</span>
+                        <span className="truncate">{space.is_admin ? t`Admin` : t`Member`}</span>
                         <CornerDownLeft className="text-muted-foreground hidden size-3 shrink-0 group-data-selected/command-item:inline-block" />
                       </CommandShortcut>
                     </CommandItem>
@@ -180,7 +198,7 @@ export function CommandPalette() {
               {matchedSpaces.length > 0 && matchedNodes.length > 0 && <CommandSeparator />}
 
               {matchedNodes.length > 0 && (
-                <CommandGroup heading="Files and folders">
+                <CommandGroup heading={t`Files and folders`}>
                   {matchedNodes.map((node) => {
                     const hint = [node.space_name, node.parent_name].filter(Boolean).join(" / ");
                     return (
@@ -206,12 +224,14 @@ export function CommandPalette() {
 
         <div className="border-border text-muted-foreground flex h-8 items-center gap-3 border-t px-3 text-[10px]">
           <span className="flex items-center gap-1">
-            <ArrowRight className="size-3 rotate-90" /> navigate
+            <ArrowRight className="size-3 rotate-90" /> <Trans>navigate</Trans>
           </span>
           <span className="flex items-center gap-1">
-            <CornerDownLeft className="size-3" /> open
+            <CornerDownLeft className="size-3" /> <Trans>open</Trans>
           </span>
-          <span className="ml-auto">esc to close</span>
+          <span className="ml-auto">
+            <Trans>esc to close</Trans>
+          </span>
         </div>
       </Command>
     </CommandDialog>

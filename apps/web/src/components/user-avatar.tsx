@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { useLingui } from "@lingui/react/macro";
 import { Camera } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/avatar";
@@ -14,12 +15,16 @@ interface UserAvatarProps {
 }
 
 const sizeClasses = {
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- Tailwind class names
   sm: "h-8 w-8",
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- Tailwind class names
   md: "h-16 w-16",
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- Tailwind class names
   lg: "h-24 w-24",
 };
 
 export function UserAvatar({ src, name, email, size = "md", editable = false }: UserAvatarProps) {
+  const { t } = useLingui();
   const inputRef = useRef<HTMLInputElement>(null);
   const upload = useUploadAvatar();
 
@@ -29,8 +34,8 @@ export function UserAvatar({ src, name, email, size = "md", editable = false }: 
     const file = e.target.files?.[0];
     if (!file) return;
     upload.mutate(file, {
-      onSuccess: () => toast.success("Avatar updated"),
-      onError: (err) => toast.error("Could not update your avatar", { description: err.message }),
+      onSuccess: () => toast.success(t`Avatar updated`),
+      onError: (err) => toast.error(t`Could not update your avatar`, { description: err.message }),
     });
   };
 

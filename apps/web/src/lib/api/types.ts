@@ -15,6 +15,16 @@ export interface Session {
   current: boolean;
 }
 
+/**
+ * Account-level settings, stored in the `users.settings` JSONB column and
+ * carried on the identity response so the language is known before the first
+ * paint. Every field is optional; absent means "never chosen", which is what
+ * leaves browser detection in charge.
+ */
+export interface UserPreferences {
+  locale?: string;
+}
+
 export interface UserProfile {
   id: string;
   email: string;
@@ -25,6 +35,7 @@ export interface UserProfile {
   is_admin: boolean;
   created_at: string;
   last_seen?: string;
+  preferences: UserPreferences;
 }
 
 export interface UserSearchResult {

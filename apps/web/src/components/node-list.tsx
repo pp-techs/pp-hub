@@ -1,4 +1,5 @@
 import { memo, type MouseEvent } from "react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { MoreHorizontal } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import {
@@ -15,7 +16,8 @@ import {
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
 import { cn } from "@workspace/ui/lib/utils";
-import { fmtDate, fmtSize, type Node } from "@/lib/api";
+import type { Node } from "@/lib/api";
+import { useFormatters } from "@/lib/format";
 import {
   useNodeActions,
   type NodeAction,
@@ -55,19 +57,19 @@ export function NodeList({
       <thead className="bg-background border-border text-muted-foreground sticky top-0 z-10 border-b text-[11px] tracking-wider uppercase">
         <tr className="h-9">
           <th scope="col" className="min-w-60 px-3 font-medium">
-            Name
+            <Trans>Name</Trans>
           </th>
           <th scope="col" className="w-36 px-2 text-right font-medium">
-            Modified
+            <Trans>Modified</Trans>
           </th>
           <th scope="col" className="w-24 px-2 text-right font-medium">
-            Size
+            <Trans>Size</Trans>
           </th>
           <th scope="col" className="w-32 px-2 font-medium">
-            Owner
+            <Trans>Owner</Trans>
           </th>
           <th scope="col" className="w-20 px-3 text-right font-medium">
-            Actions
+            <Trans>Actions</Trans>
           </th>
         </tr>
       </thead>
@@ -111,7 +113,11 @@ const NodeListRow = memo(function NodeListRow({
   ...handlers
 }: NodeListRowProps) {
   const openPanel = useUiStore((s) => s.openPanel);
+  const { t, i18n } = useLingui();
+  const f = useFormatters();
   const actions = useNodeActions(node, handlers, openPanel, starred, canWriteHere);
+  // Named local so the extracted message reads `{nodeName}` rather than `{0}`.
+  const nodeName = node.name;
 
   return (
     <ContextMenu>
@@ -142,17 +148,17 @@ const NodeListRow = memo(function NodeListRow({
             </div>
           </td>
           <td className="text-muted-foreground px-2 text-right tabular-nums">
-            {node.modified_at ? fmtDate(node.modified_at) : "—"}
+            {node.modified_at ? f.date(node.modified_at) : "—"}
           </td>
           <td className="text-muted-foreground px-2 text-right tabular-nums">
-            {node.size != null ? fmtSize(node.size) : "—"}
+            {node.size != null ? f.size(node.size) : "—"}
           </td>
           {/* Inside a team folder `owner` is only a byline — access comes from
               the folder's grants, not from whoever uploaded. Printing a name
               here would invite the reader to think that person controls the
               row, so the column names the holder instead. */}
           <td className="text-muted-foreground truncate px-2">
-            {node.in_team ? "Team" : (node.owner ?? "—")}
+            {node.in_team ? t`Team` : (node.owner ?? "—")}
           </td>
           <td className="px-3 text-right">
             <DropdownMenu>
@@ -161,7 +167,7 @@ const NodeListRow = memo(function NodeListRow({
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    aria-label={`Actions for ${node.name}`}
+                    aria-label={t`Actions for ${nodeName}`}
                     className={cn(
                       "opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100",
                       selected && "opacity-100",
@@ -182,7 +188,7 @@ const NodeListRow = memo(function NodeListRow({
                       action.run();
                     }}
                   >
-                    <action.icon /> {action.label}
+                    <action.icon /> {i18n._(action.label)}
                     {action.shortcut && (
                       <span className="text-muted-foreground ml-auto pl-4 text-[10px]">
                         {action.shortcut}
@@ -206,6 +212,7 @@ const NodeListRow = memo(function NodeListRow({
 });
 
 function ContextMenuItemWithSeparator({ action }: { action: NodeAction }) {
+  const { i18n } = useLingui();
   return (
     <>
       {action.startsGroup && <ContextMenuSeparator />}
@@ -213,7 +220,7 @@ function ContextMenuItemWithSeparator({ action }: { action: NodeAction }) {
         variant={action.destructive ? "destructive" : undefined}
         onClick={action.run}
       >
-        <action.icon data-icon="inline-start" /> {action.label}
+        <action.icon data-icon="inline-start" /> {i18n._(action.label)}
         {action.shortcut && (
           <span className="text-muted-foreground ml-auto pl-4 text-[10px]">{action.shortcut}</span>
         )}

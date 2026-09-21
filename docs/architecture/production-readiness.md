@@ -820,8 +820,17 @@ DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, HSTS and
 /api/v1/users/{userID}/avatar` with `nosniff` and a cache-busting `?v=`
   suffix. `TestAvatarRoundTripsThroughTheBlobStore` proves the round trip
   byte-for-byte against a real Postgres and rejects a non-image upload with 415.
-- **The UI is English-only.** No i18n library, no locale files, no string
-  catalogue in `apps/web/src`. Unscheduled.
+- **The UI is localized — closed by M32.** Lingui + gettext `.po`, English and
+  Vietnamese, with catalogs at `apps/web/src/locales/` compiled into the
+  bundle by `@lingui/vite-plugin`. Language is an account preference on the
+  existing `users.settings` JSONB column, read off `GET /users/me` so it is
+  known before first paint and written through
+  `PATCH /api/v1/users/me/preferences`; the OnlyOffice ribbon follows via
+  `?ui=` on the edit session. Translation happens in a self-hosted Weblate
+  against the repository. What is _not_ covered: the server still emits
+  English only — invitation mail, problem+json details and `/login?error=`
+  codes — though the client already turns those codes into translated
+  sentences. See [i18n.md](i18n.md).
 - **No orphan-blob audit.** `gc.Worker.Sweep` deletes the blob row before the
   file (`gc/gc.go:64-67`) — deliberately, since the other order leaves a row
   promising bytes that are gone, which reads as corruption — so a crash

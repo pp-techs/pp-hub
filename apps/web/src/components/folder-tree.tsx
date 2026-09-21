@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import { useState } from "react";
 import { Link, useSearch } from "@tanstack/react-router";
 import { ChevronRight, Folder, FolderOpen, Loader2 } from "lucide-react";
@@ -19,6 +20,7 @@ interface FolderTreeItemProps {
 
 function FolderTreeItem({ node, currentDirId, spaceId }: FolderTreeItemProps) {
   const [expanded, setExpanded] = useState(false);
+  const { t } = useLingui();
   // Keyed on this node's own id, gated on `expanded`: collapsed items must not
   // query at all. They used to call `useTree(spaceId, undefined)` while
   // collapsed — the same key as the space's root tree — so every rendered row
@@ -34,7 +36,7 @@ function FolderTreeItem({ node, currentDirId, spaceId }: FolderTreeItemProps) {
       <div className="flex items-center gap-0.5">
         <button
           type="button"
-          aria-label={expanded ? "Collapse" : "Expand"}
+          aria-label={expanded ? t`Collapse` : t`Expand`}
           aria-expanded={expanded}
           className="text-sidebar-foreground/70 hover:text-sidebar-accent-foreground shrink-0"
           onClick={(e) => {
@@ -111,7 +113,9 @@ export function FolderTree({ spaceId }: { spaceId: string }) {
   if (rootDirs.length === 0) {
     return (
       <SidebarMenuSub>
-        <li className="text-muted-foreground px-2 py-1 text-xs">No folders yet.</li>
+        <li className="text-muted-foreground px-2 py-1 text-xs">
+          <Trans>No folders yet.</Trans>
+        </li>
       </SidebarMenuSub>
     );
   }

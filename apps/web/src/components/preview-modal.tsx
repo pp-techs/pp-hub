@@ -1,9 +1,11 @@
 import { createModal } from "@buiducnhat/better-modal";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { ChevronLeft, ChevronRight, Download, ExternalLink, X } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@workspace/ui/components/dialog";
 import { Button } from "@workspace/ui/components/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs";
-import { canOpenInTab, capsOf, fmtDate, fmtSize, openInTab, type Node } from "@/lib/api";
+import { canOpenInTab, capsOf, openInTab, type Node } from "@/lib/api";
+import { useFormatters } from "@/lib/format";
 import { PreviewContent } from "@/components/preview-content";
 import { VersionList } from "@/components/version-list";
 import { NodeIcon } from "@/components/node-icon";
@@ -20,6 +22,8 @@ type Props = {
 };
 
 export const PreviewModal = createModal<Props, void>("preview", ({ node, siblings, modal }) => {
+  const { t } = useLingui();
+  const f = useFormatters();
   const files = siblings?.filter((n) => n.kind === "file") ?? [];
   const startIndex = Math.max(
     0,
@@ -33,6 +37,9 @@ export const PreviewModal = createModal<Props, void>("preview", ({ node, sibling
   // Falls back to the node it was opened with when there is no listing.
   const current = files[index] ?? node;
   const canPage = files.length > 1;
+  const position = index + 1;
+  const total = files.length;
+  const versionNo = current.version;
 
   const step = (delta: number) => setIndex((i) => (i + delta + files.length) % files.length);
 
@@ -56,7 +63,7 @@ export const PreviewModal = createModal<Props, void>("preview", ({ node, sibling
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label="Close preview"
+            aria-label={t`Close preview`}
             onClick={() => modal.resolve(undefined)}
           >
             <X />
@@ -68,8 +75,8 @@ export const PreviewModal = createModal<Props, void>("preview", ({ node, sibling
             </DialogTitle>
             <span className="text-muted-foreground truncate text-[10px] tabular-nums">
               {[
-                current.size != null ? fmtSize(current.size) : null,
-                current.version ? `version ${current.version}` : null,
+                current.size != null ? f.size(current.size) : null,
+                current.version ? t`version ${versionNo}` : null,
               ]
                 .filter(Boolean)
                 .join(" · ")}
@@ -81,15 +88,22 @@ export const PreviewModal = createModal<Props, void>("preview", ({ node, sibling
               <Button
                 variant="ghost"
                 size="icon-sm"
-                aria-label="Previous file"
+                aria-label={t`Previous file`}
                 onClick={() => step(-1)}
               >
                 <ChevronLeft />
               </Button>
               <span className="text-muted-foreground text-xs tabular-nums">
-                {index + 1} of {files.length}
+                <Trans>
+                  {position} of {total}
+                </Trans>
               </span>
-              <Button variant="ghost" size="icon-sm" aria-label="Next file" onClick={() => step(1)}>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={t`Next file`}
+                onClick={() => step(1)}
+              >
                 <ChevronRight />
               </Button>
             </div>
@@ -98,7 +112,7 @@ export const PreviewModal = createModal<Props, void>("preview", ({ node, sibling
           <div className="ml-auto flex shrink-0 items-center gap-1">
             {canOpenInTab(current) && capsOf(current).download && (
               <Button variant="ghost" size="sm" onClick={() => openInTab(current)}>
-                <ExternalLink data-icon="inline-start" /> Open
+                <ExternalLink data-icon="inline-start" /> <Trans>Open</Trans>
               </Button>
             )}
             {capsOf(current).download && (
@@ -107,7 +121,7 @@ export const PreviewModal = createModal<Props, void>("preview", ({ node, sibling
                 size="sm"
                 render={<a href={`/api/v1/nodes/${current.id}/download`} />}
               >
-                <Download data-icon="inline-start" /> Download
+                <Download data-icon="inline-start" /> <Trans>Download</Trans>
               </Button>
             )}
           </div>
@@ -123,17 +137,21 @@ export const PreviewModal = createModal<Props, void>("preview", ({ node, sibling
           <aside className="border-border flex w-80 shrink-0 flex-col border-l">
             <Tabs defaultValue="details" className="flex min-h-0 flex-1 flex-col">
               <TabsList className="border-border shrink-0 rounded-none border-b px-2">
-                <TabsTrigger value="details">Details</TabsTrigger>
-                <TabsTrigger value="versions">Versions</TabsTrigger>
+                <TabsTrigger value="details">
+                  <Trans>Details</Trans>
+                </TabsTrigger>
+                <TabsTrigger value="versions">
+                  <Trans>Versions</Trans>
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="details" className="min-h-0 flex-1 overflow-y-auto p-3">
                 <dl className="divide-border divide-y">
-                  <Row label="Type" value={current.mime ?? "File"} />
-                  <Row label="Size" value={current.size != null ? fmtSize(current.size) : "—"} />
-                  <Row label="Owner" value={current.owner ?? "—"} />
-                  <Row label="Modified" value={fmtDate(current.modified_at)} />
-                  <Row label="Version" value={current.version ?? "—"} />
+                  <Row label={t`Type`} value={current.mime ?? t`File`} />
+                  <Row label={t`Size`} value={current.size != null ? f.size(current.size) : "—"} />
+                  <Row label={t`Owner`} value={current.owner ?? "—"} />
+                  <Row label={t`Modified`} value={f.date(current.modified_at)} />
+                  <Row label={t`Version`} value={current.version ?? "—"} />
                 </dl>
               </TabsContent>
 

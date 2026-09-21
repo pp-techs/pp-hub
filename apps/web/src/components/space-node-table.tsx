@@ -1,4 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
+import { Trans } from "@lingui/react/macro";
 import { Button } from "@workspace/ui/components/button";
 import {
   Table,
@@ -15,7 +16,8 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@workspace/ui/components/empty";
-import { opensInEditor, fmtRelative, fmtSize, openEditor, type SearchResult } from "@/lib/api";
+import { opensInEditor, openEditor, type SearchResult } from "@/lib/api";
+import { useFormatters } from "@/lib/format";
 import { PreviewModal } from "@/components/preview-modal";
 import { NodeIcon } from "@/components/node-icon";
 
@@ -45,6 +47,7 @@ export function SpaceNodeTable({
   extraColumn,
 }: SpaceNodeTableProps) {
   const navigate = useNavigate();
+  const f = useFormatters();
 
   const open = (node: SearchResult) => {
     if (node.kind === "dir") {
@@ -60,7 +63,12 @@ export function SpaceNodeTable({
     }
   };
 
-  if (isPending) return <p className="text-muted-foreground py-8 text-xs">Loading…</p>;
+  if (isPending)
+    return (
+      <p className="text-muted-foreground py-8 text-xs">
+        <Trans>Loading…</Trans>
+      </p>
+    );
 
   if (nodes.length === 0) {
     return (
@@ -78,11 +86,19 @@ export function SpaceNodeTable({
     <Table className="text-xs">
       <TableHeader>
         <TableRow>
-          <TableHead>Name</TableHead>
-          <TableHead className="w-40">Location</TableHead>
+          <TableHead>
+            <Trans>Name</Trans>
+          </TableHead>
+          <TableHead className="w-40">
+            <Trans>Location</Trans>
+          </TableHead>
           {extraColumn && <TableHead className="w-36">{extraColumn.header}</TableHead>}
-          <TableHead className="w-32">Modified</TableHead>
-          <TableHead className="w-24">Size</TableHead>
+          <TableHead className="w-32">
+            <Trans>Modified</Trans>
+          </TableHead>
+          <TableHead className="w-24">
+            <Trans>Size</Trans>
+          </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -109,10 +125,10 @@ export function SpaceNodeTable({
               </TableCell>
             )}
             <TableCell className="text-muted-foreground tabular-nums">
-              {fmtRelative(n.modified_at)}
+              {f.relative(n.modified_at)}
             </TableCell>
             <TableCell className="text-muted-foreground tabular-nums">
-              {n.kind === "file" && n.size != null ? fmtSize(n.size) : "—"}
+              {n.kind === "file" && n.size != null ? f.size(n.size) : "—"}
             </TableCell>
           </TableRow>
         ))}

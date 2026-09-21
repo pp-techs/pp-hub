@@ -1,3 +1,4 @@
+import { Trans } from "@lingui/react/macro";
 import { Search } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { cn } from "@workspace/ui/lib/utils";
@@ -25,9 +26,12 @@ export function NavSearch({ className }: { className?: string }) {
     >
       <div className="flex min-w-0 items-center gap-1.5 max-sm:justify-center max-sm:w-full">
         <Search className="size-3.5 shrink-0" />
-        <span className="truncate max-sm:hidden">Search...</span>
+        <span className="truncate max-sm:hidden">
+          <Trans>Search...</Trans>
+        </span>
       </div>
       <kbd className="border-border bg-muted/50 text-muted-foreground pointer-events-none shrink-0 rounded border px-1 py-0.5 font-mono text-[10px] leading-none max-sm:hidden">
+        {/* eslint-disable-next-line lingui/no-unlocalized-strings -- key glyphs */}
         ⌘K
       </kbd>
     </Button>

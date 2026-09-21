@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { LinkProps } from "@tanstack/react-router";
+import { useLingui } from "@lingui/react/macro";
 import { cn } from "@workspace/ui/lib/utils";
 
 export interface SettingsTab {
@@ -20,9 +21,11 @@ export interface SettingsTab {
  * active tab, and a second copy of it in component state could disagree.
  */
 export function SettingsTabs({ tabs }: { tabs: SettingsTab[] }) {
+  const { t } = useLingui();
+
   return (
     <nav
-      aria-label="Settings sections"
+      aria-label={t`Settings sections`}
       className="border-border flex h-9 shrink-0 items-end gap-4 border-b px-4"
     >
       {tabs.map((tab) => (

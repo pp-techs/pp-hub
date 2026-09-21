@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import { useNavigate } from "@tanstack/react-router";
 import { ChevronsUpDown, Plus, Settings, Users } from "lucide-react";
 import {
@@ -41,6 +42,7 @@ export function SpaceSwitcher({ spaceId }: { spaceId: string | undefined }) {
   const navigate = useNavigate();
   const setNewSpaceOpen = useUiStore((s) => s.setNewSpaceOpen);
   const { isMobile } = useSidebar();
+  const { t } = useLingui();
 
   const current = spaces.data?.find((s) => s.id === spaceId);
 
@@ -52,7 +54,7 @@ export function SpaceSwitcher({ spaceId }: { spaceId: string | undefined }) {
             render={
               <SidebarMenuButton
                 size="lg"
-                aria-label="Switch space"
+                aria-label={t`Switch space`}
                 className="data-popup-open:bg-sidebar-accent data-popup-open:text-sidebar-accent-foreground"
               >
                 <div className="bg-foreground text-background flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg text-[11px] font-semibold">
@@ -60,11 +62,11 @@ export function SpaceSwitcher({ spaceId }: { spaceId: string | undefined }) {
                 </div>
                 <div className="grid flex-1 text-left leading-tight">
                   <span className="truncate text-sm font-medium">
-                    {current?.name ?? "Select a space"}
+                    {current?.name ?? t`Select a space`}
                   </span>
                   {current?.is_admin && (
                     <span className="text-muted-foreground truncate text-[10px] tracking-wider uppercase">
-                      Admin
+                      <Trans>Admin</Trans>
                     </span>
                   )}
                 </div>
@@ -79,7 +81,7 @@ export function SpaceSwitcher({ spaceId }: { spaceId: string | undefined }) {
           >
             <DropdownMenuGroup>
               <DropdownMenuLabel className="text-muted-foreground text-[11px] tracking-wider uppercase">
-                Spaces
+                <Trans>Spaces</Trans>
               </DropdownMenuLabel>
               {spaces.data?.map((space) => (
                 <DropdownMenuItem
@@ -96,7 +98,7 @@ export function SpaceSwitcher({ spaceId }: { spaceId: string | undefined }) {
                   <span className="truncate">{space.name}</span>
                   {space.is_admin && (
                     <span className="text-muted-foreground ml-auto text-[10px] uppercase">
-                      Admin
+                      <Trans>Admin</Trans>
                     </span>
                   )}
                 </DropdownMenuItem>
@@ -116,7 +118,7 @@ export function SpaceSwitcher({ spaceId }: { spaceId: string | undefined }) {
                     })
                   }
                 >
-                  <Settings /> Space settings
+                  <Settings /> <Trans>Space settings</Trans>
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() =>
@@ -127,13 +129,13 @@ export function SpaceSwitcher({ spaceId }: { spaceId: string | undefined }) {
                     })
                   }
                 >
-                  <Users /> People
+                  <Users /> <Trans>People</Trans>
                 </DropdownMenuItem>
               </>
             )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => setNewSpaceOpen(true)}>
-              <Plus /> Create new space
+              <Plus /> <Trans>Create new space</Trans>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

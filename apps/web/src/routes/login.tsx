@@ -1,4 +1,8 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
+import { Trans, useLingui } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import type { MessageDescriptor } from "@lingui/core";
+import type * as React from "react";
 import { FileText, HardDrive, Lock, LogIn, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -13,6 +17,7 @@ import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/al
 import { Button } from "@workspace/ui/components/button";
 import { fetchMe } from "@/lib/queries";
 import { safePath } from "@/lib/safe-path";
+import { pageTitle } from "@/lib/i18n";
 
 /**
  * Why a sign-in attempt came back here.
@@ -23,20 +28,30 @@ import { safePath } from "@/lib/safe-path";
  * with a code instead, and this is where the code becomes a sentence.
  * Anything unrecognised is an OAuth error parameter passed through by the
  * provider.
+ *
+ * The map holds message *descriptors*, not rendered strings: this is module
+ * scope, evaluated once at import time, long before a catalog is active.
+ * Rendered text here would pin whichever language happened to load first and
+ * would never follow a language switch. `i18n._(descriptor)` at render time
+ * is what makes it reactive.
  */
-const ERRORS: Record<string, string> = {
-  state: "That sign-in link expired or was already used. Start again from this page.",
-  exchange: "The identity provider refused to complete the sign-in. Try again.",
-  token: "The identity provider's response could not be verified. Try again.",
-  access_denied: "Sign-in was cancelled.",
-  suspended: "This account is suspended. Contact an administrator.",
-  "email-taken":
-    "An account already exists with this email address under a different identity provider. Contact an administrator.",
-  internal: "Something went wrong on our side. Try again in a moment.",
+const ERRORS: Record<string, MessageDescriptor> = {
+  state: msg`That sign-in link expired or was already used. Start again from this page.`,
+  exchange: msg`The identity provider refused to complete the sign-in. Try again.`,
+  token: msg`The identity provider's response could not be verified. Try again.`,
+  access_denied: msg`Sign-in was cancelled.`,
+  suspended: msg`This account is suspended. Contact an administrator.`,
+  "email-taken": msg`An account already exists with this email address under a different identity provider. Contact an administrator.`,
+  internal: msg`Something went wrong on our side. Try again in a moment.`,
 };
 
 export const Route = createFileRoute("/login")({
-  head: () => ({ meta: [{ title: "Sign in · pp-hub" }] }),
+  // `head` runs outside React, at navigation time, so it reaches the i18n
+  // singleton directly instead of a hook. Because it re-runs per navigation
+  // and not per render, a title set here follows the language on the next
+  // route change rather than instantly — an accepted trade for not
+  // re-rendering the document head on every keystroke.
+  head: () => ({ meta: [{ title: pageTitle(msg`Sign in`) }] }),
   validateSearch: (search: Record<string, unknown>): { redirect?: string; error?: string } => ({
     // Only a same-origin path is honoured: an absolute URL — or the
     // protocol-relative shapes a bare "/" prefix test lets through — would
@@ -60,6 +75,7 @@ export const Route = createFileRoute("/login")({
 function BrandMark() {
   return (
     <div className="bg-foreground text-background flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg text-[11px] font-semibold">
+      {/* eslint-disable-next-line lingui/no-unlocalized-strings -- product monogram */}
       pp
     </div>
   );
@@ -71,7 +87,7 @@ function Feature({
   children,
 }: {
   icon: LucideIcon;
-  title: string;
+  title: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -88,6 +104,7 @@ function Feature({
 }
 
 function LoginPage() {
+  const { i18n } = useLingui();
   const { redirect: target, error } = Route.useSearch();
   const href = target ? `/auth/login?next=${encodeURIComponent(target)}` : "/auth/login";
 
@@ -106,26 +123,31 @@ function LoginPage() {
         <section className="hidden flex-col gap-6 lg:flex">
           <div className="flex items-center gap-2.5">
             <BrandMark />
-            <span className="text-sm font-medium tracking-tight">pp-hub</span>
+            <span className="text-sm font-medium tracking-tight">
+              {/* eslint-disable-next-line lingui/no-unlocalized-strings -- product name */}
+              pp-hub
+            </span>
           </div>
           <div className="grid gap-2">
             <h1 className="font-heading max-w-sm text-xl font-semibold tracking-tight">
-              Your workspace, on your own server.
+              <Trans>Your workspace, on your own server.</Trans>
             </h1>
             <p className="text-muted-foreground max-w-sm text-xs/relaxed">
-              Minimal self-hosted workspace: drive, office, spaces. Nothing leaves the machine you
-              run it on.
+              <Trans>
+                Minimal self-hosted workspace: drive, office, spaces. Nothing leaves the machine you
+                run it on.
+              </Trans>
             </p>
           </div>
           <ul className="grid max-w-sm gap-4">
-            <Feature icon={HardDrive} title="Drive">
-              Upload, organise and share files, with every version kept.
+            <Feature icon={HardDrive} title={<Trans>Drive</Trans>}>
+              <Trans>Upload, organise and share files, with every version kept.</Trans>
             </Feature>
-            <Feature icon={FileText} title="Office">
-              Edit documents and spreadsheets together in the browser.
+            <Feature icon={FileText} title={<Trans>Office</Trans>}>
+              <Trans>Edit documents and spreadsheets together in the browser.</Trans>
             </Feature>
-            <Feature icon={Users} title="Spaces">
-              Separate teams, each with its own groups and invitations.
+            <Feature icon={Users} title={<Trans>Spaces</Trans>}>
+              <Trans>Separate teams, each with its own groups and invitations.</Trans>
             </Feature>
           </ul>
         </section>
@@ -135,16 +157,22 @@ function LoginPage() {
             <div className="lg:hidden">
               <BrandMark />
             </div>
-            <CardTitle className="text-base tracking-tight">Sign in to pp-hub</CardTitle>
+            <CardTitle className="text-base tracking-tight">
+              <Trans>Sign in to pp-hub</Trans>
+            </CardTitle>
             <CardDescription>
-              Continue with the identity provider your administrator configured.
+              <Trans>Continue with the identity provider your administrator configured.</Trans>
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             {error && (
               <Alert variant="destructive">
-                <AlertTitle>Could not sign you in</AlertTitle>
-                <AlertDescription>{ERRORS[error] ?? "Sign-in failed. Try again."}</AlertDescription>
+                <AlertTitle>
+                  <Trans>Could not sign you in</Trans>
+                </AlertTitle>
+                <AlertDescription>
+                  {ERRORS[error] ? i18n._(ERRORS[error]) : i18n._(msg`Sign-in failed. Try again.`)}
+                </AlertDescription>
               </Alert>
             )}
             {/* Server-side OIDC handshake; no tokens in the SPA. `next` survives
@@ -153,19 +181,21 @@ function LoginPage() {
                 rather than always on "/". */}
             <Button size="lg" className="w-full" render={<a href={href} />}>
               <LogIn data-icon="inline-start" />
-              Continue with SSO
+              <Trans>Continue with SSO</Trans>
             </Button>
           </CardContent>
           <CardFooter className="text-muted-foreground gap-2 text-[10px]">
             <Lock className="size-3 shrink-0" />
-            <span>Accounts are provisioned by an administrator.</span>
+            <span>
+              <Trans>Accounts are provisioned by an administrator.</Trans>
+            </span>
           </CardFooter>
         </Card>
 
         {/* The left panel carries the pitch on wide screens; below `lg` it is
             gone, and the card alone says nothing about what is behind it. */}
         <p className="text-muted-foreground max-w-sm justify-self-center text-center text-xs/relaxed lg:hidden">
-          Minimal self-hosted workspace: drive, office, spaces.
+          <Trans>Minimal self-hosted workspace: drive, office, spaces.</Trans>
         </p>
       </div>
     </main>

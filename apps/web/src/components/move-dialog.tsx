@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { createModal } from "@buiducnhat/better-modal";
 import { ChevronRight, Folder, HardDrive, Loader2, TriangleAlert, Users } from "lucide-react";
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
+import { msg, plural } from "@lingui/core/macro";
+import type { I18n } from "@lingui/core";
 import { Button } from "@workspace/ui/components/button";
 import {
   Dialog,
@@ -54,6 +57,10 @@ export const MoveDialog = createModal<Props, Destination | null>(
     // Every node in a selection shares a parent, so one is enough to compare.
     const currentParent = nodes[0]?.parent_id;
     const unchanged = target === currentParent;
+    // Pulled out of the JSX so the placeholders read as `{name}` and
+    // `{count}` for a translator rather than a bare index.
+    const name = nodes[0]?.name;
+    const count = nodes.length;
     const impact = useMoveImpact(
       nodes.map((n) => n.id),
       target,
@@ -64,9 +71,15 @@ export const MoveDialog = createModal<Props, Destination | null>(
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {nodes.length === 1 ? `Move “${nodes[0].name}”` : `Move ${nodes.length} items`}
+              {count === 1 ? (
+                <Trans>Move “{name}”</Trans>
+              ) : (
+                <Plural value={count} other="Move # items" />
+              )}
             </DialogTitle>
-            <DialogDescription>Choose a destination folder in {spaceName}.</DialogDescription>
+            <DialogDescription>
+              <Trans>Choose a destination folder in {spaceName}.</Trans>
+            </DialogDescription>
           </DialogHeader>
 
           <div className="border-border max-h-72 min-h-40 overflow-y-auto rounded-md border p-1">
@@ -93,10 +106,10 @@ export const MoveDialog = createModal<Props, Destination | null>(
 
           <DialogFooter>
             <Button variant="outline" onClick={() => modal.resolve(null)}>
-              Cancel
+              <Trans>Cancel</Trans>
             </Button>
             <Button disabled={unchanged} onClick={() => modal.resolve(target)}>
-              {unchanged ? "Already here" : "Move"}
+              {unchanged ? <Trans>Already here</Trans> : <Trans>Move</Trans>}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -111,30 +124,50 @@ export const MoveDialog = createModal<Props, Destination | null>(
  * inside your own tree stays a two-click operation.
  */
 function AccessChange({ impact }: { impact: MoveImpact | undefined }) {
+  const { i18n } = useLingui();
   if (!impact || (impact.losing.length === 0 && impact.gaining.length === 0)) return null;
+  // Named locals so each placeholder reaches a translator as `{gaining}` /
+  // `{losing}` rather than a bare index.
+  const gaining = names(impact.gaining, i18n);
+  const losing = names(impact.losing, i18n);
   return (
     <div className="space-y-1 text-xs">
       {impact.gaining.length > 0 && (
         <p className="text-muted-foreground flex items-start gap-1.5">
           <Users className="mt-0.5 size-3.5 shrink-0" />
-          <span>Gains access: {names(impact.gaining)}.</span>
+          <span>
+            <Trans>Gains access: {gaining}.</Trans>
+          </span>
         </p>
       )}
       {impact.losing.length > 0 && (
         <p className="text-destructive flex items-start gap-1.5">
           <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
-          <span>Loses access: {names(impact.losing)}.</span>
+          <span>
+            <Trans>Loses access: {losing}.</Trans>
+          </span>
         </p>
       )}
     </div>
   );
 }
 
-/** Three names, then a count: a folder shared with a big group is one line. */
-function names(ps: Principal[]): string {
-  const shown = ps.slice(0, 3).map((p) => (p.kind === "link" ? "the public link" : p.name));
+/**
+ * Three names, then a count: a folder shared with a big group is one line.
+ *
+ * Takes the i18n instance rather than reaching for a hook: it is called from
+ * the render of `AccessChange`, which already holds one, and a plain helper
+ * cannot hold a hook of its own.
+ */
+function names(ps: Principal[], i18n: I18n): string {
+  const shown = ps
+    .slice(0, 3)
+    .map((p) => (p.kind === "link" ? i18n._(msg`the public link`) : p.name));
   const rest = ps.length - shown.length;
-  return rest > 0 ? `${shown.join(", ")} and ${rest} more` : shown.join(", ");
+  const listed = shown.join(", ");
+  return rest > 0
+    ? i18n._(msg`${listed} and ${plural(rest, { one: "# more", other: "# more" })}`)
+    : listed;
 }
 
 function destinationRow(active: boolean) {
@@ -203,6 +236,7 @@ function DestinationItem({
   onSelect,
 }: ItemProps) {
   const [expanded, setExpanded] = useState(false);
+  const { t } = useLingui();
   const active = target === id;
 
   return (
@@ -212,7 +246,7 @@ function DestinationItem({
       <div className={destinationRow(active)} style={{ paddingLeft: depth * 16 }}>
         <button
           type="button"
-          aria-label={expanded ? "Collapse" : "Expand"}
+          aria-label={expanded ? t`Collapse` : t`Expand`}
           aria-expanded={expanded}
           className="shrink-0"
           onClick={() => setExpanded((v) => !v)}

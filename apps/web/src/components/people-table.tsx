@@ -1,5 +1,8 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import type { MessageDescriptor } from "@lingui/core";
 import { Download, Lock, Mail, Plus, Trash2, UserPlus, X } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
@@ -27,8 +30,8 @@ import {
   TableRow,
 } from "@workspace/ui/components/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/avatar";
-import { fmtDate, fmtRelative } from "@/lib/api";
 import type { Group, Invitation, Space, SpaceMember } from "@/lib/api";
+import { useFormatters } from "@/lib/format";
 import {
   useAddGroupMember,
   useCreateInvitation,
@@ -44,12 +47,19 @@ import {
 } from "@/lib/queries";
 import { InviteModal } from "@/components/invite-modal";
 
-const STATUS_FILTERS = [
-  { label: "Status: All", value: "all" },
-  { label: "Status: Active", value: "active" },
-  { label: "Status: Pending", value: "pending" },
+/**
+ * Descriptors rather than rendered strings: this is module scope, evaluated
+ * once at import time and before any catalog is active, so text here would
+ * pin the first language loaded and never follow a switch. The table resolves
+ * them with `i18n._()` at render.
+ */
+const STATUS_FILTERS: { label: MessageDescriptor; value: string }[] = [
+  { label: msg`Status: All`, value: "all" },
+  { label: msg`Status: Active`, value: "active" },
+  { label: msg`Status: Pending`, value: "pending" },
 ];
 
+// eslint-disable-next-line lingui/no-unlocalized-strings -- sentinel for "no group filter", not copy
 const ALL_GROUPS = "all";
 
 interface PeopleTableProps {
@@ -74,6 +84,7 @@ interface PeopleTableProps {
  * table says who is in the group; the folder says what the group reaches.
  */
 export function PeopleTable({ space, groupFilter, onGroupFilterChange }: PeopleTableProps) {
+  const { t, i18n } = useLingui();
   const spaceId = space.id;
   const isAdmin = space.is_admin;
 
@@ -93,17 +104,22 @@ export function PeopleTable({ space, groupFilter, onGroupFilterChange }: PeopleT
   const removeFromGroup = useRemoveGroupMember(spaceId);
 
   const [query, setQuery] = useState("");
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- status discriminator, see STATUS_FILTERS
   const [statusFilter, setStatusFilter] = useState("all");
 
   const pending = invitations.data ?? [];
 
-  const groupItems = useMemo(
-    () => [
-      { label: "Group: All", value: ALL_GROUPS },
-      ...groups.map((g) => ({ label: `Group: ${g.name}`, value: g.id })),
-    ],
-    [groups],
-  );
+  // Not memoised: the labels are translated per render so they follow a
+  // language switch, and a three- or ten-item map costs nothing next to the
+  // table itself.
+  const groupItems = [
+    { label: t`Group: All`, value: ALL_GROUPS },
+    ...groups.map((g) => {
+      const groupName = g.name;
+      return { label: t`Group: ${groupName}`, value: g.id };
+    }),
+  ];
+  const statusItems = STATUS_FILTERS.map((f) => ({ label: i18n._(f.label), value: f.value }));
 
   const visibleMembers = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -135,18 +151,30 @@ export function PeopleTable({ space, groupFilter, onGroupFilterChange }: PeopleT
   const total = members.length + pending.length;
 
   if (isLoading) {
-    return <p className="text-muted-foreground text-xs">Loading people…</p>;
+    return (
+      <p className="text-muted-foreground text-xs">
+        <Trans>Loading people…</Trans>
+      </p>
+    );
   }
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex flex-col gap-0.5">
-          <h2 className="font-heading text-sm font-medium">People</h2>
+          <h2 className="font-heading text-sm font-medium">
+            <Trans>People</Trans>
+          </h2>
           <p className="text-muted-foreground text-[10px] tabular-nums">
-            {plural(members.length, "member")}
-            {pending.length > 0 && ` · ${pending.length} pending`} ·{" "}
-            {plural(groups.length, "group")}
+            <Plural value={members.length} one="# member" other="# members" />
+            {pending.length > 0 && (
+              <>
+                {" · "}
+                <Plural value={pending.length} one="# pending" other="# pending" />
+              </>
+            )}
+            {" · "}
+            <Plural value={groups.length} one="# group" other="# groups" />
           </p>
         </div>
 
@@ -161,7 +189,7 @@ export function PeopleTable({ space, groupFilter, onGroupFilterChange }: PeopleT
                 })
               }
             >
-              <UserPlus data-icon="inline-start" /> Invite people
+              <UserPlus data-icon="inline-start" /> <Trans>Invite people</Trans>
             </Button>
           )}
           <Button
@@ -169,7 +197,7 @@ export function PeopleTable({ space, groupFilter, onGroupFilterChange }: PeopleT
             disabled={total === 0}
             onClick={() => exportCsv(visibleMembers, visiblePending, byUser)}
           >
-            <Download data-icon="inline-start" /> Export CSV
+            <Download data-icon="inline-start" /> <Trans>Export CSV</Trans>
           </Button>
         </div>
       </div>
@@ -178,36 +206,50 @@ export function PeopleTable({ space, groupFilter, onGroupFilterChange }: PeopleT
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Filter by name or email"
-          aria-label="Filter people by name or email"
+          placeholder={t`Filter by name or email`}
+          aria-label={t`Filter people by name or email`}
           className="max-w-64"
         />
         <FilterSelect
           value={groupFilter ?? ALL_GROUPS}
           onChange={(v) => onGroupFilterChange(v === ALL_GROUPS ? undefined : v)}
           items={groupItems}
-          label="Filter by group"
+          label={t`Filter by group`}
         />
         <FilterSelect
           value={statusFilter}
           onChange={setStatusFilter}
-          items={STATUS_FILTERS}
-          label="Filter by status"
+          items={statusItems}
+          label={t`Filter by status`}
         />
         <span className="text-muted-foreground ml-auto shrink-0 text-[10px] tabular-nums">
-          Showing {shown} of {total}
+          <Trans>
+            Showing {shown} of {total}
+          </Trans>
         </span>
       </div>
 
       <Table className="text-xs">
         <TableHeader>
           <TableRow>
-            <TableHead>Member</TableHead>
-            <TableHead className="w-16">Admin</TableHead>
-            <TableHead className="w-64">Groups</TableHead>
-            <TableHead className="w-24">Joined</TableHead>
-            <TableHead className="w-24">Last active</TableHead>
-            <TableHead className="w-20 text-right">Files owned</TableHead>
+            <TableHead>
+              <Trans>Member</Trans>
+            </TableHead>
+            <TableHead className="w-16">
+              <Trans>Admin</Trans>
+            </TableHead>
+            <TableHead className="w-64">
+              <Trans>Groups</Trans>
+            </TableHead>
+            <TableHead className="w-24">
+              <Trans>Joined</Trans>
+            </TableHead>
+            <TableHead className="w-24">
+              <Trans>Last active</Trans>
+            </TableHead>
+            <TableHead className="w-20 text-right">
+              <Trans>Files owned</Trans>
+            </TableHead>
             {isAdmin && <TableHead className="w-10" />}
           </TableRow>
         </TableHeader>
@@ -227,37 +269,40 @@ export function PeopleTable({ space, groupFilter, onGroupFilterChange }: PeopleT
                   { onError: (e) => toast.error(e.message) },
                 )
               }
-              onAddToGroup={(group) =>
+              onAddToGroup={(group) => {
+                const groupName = group.name;
                 addToGroup.mutate(
                   { groupId: group.id, userId: member.user_id },
                   {
-                    onSuccess: () => toast.success(`Added to ${group.name}`),
+                    onSuccess: () => toast.success(t`Added to ${groupName}`),
                     onError: (e) => toast.error(e.message),
                   },
-                )
-              }
-              onRemoveFromGroup={(group) =>
+                );
+              }}
+              onRemoveFromGroup={(group) => {
+                const groupName = group.name;
                 removeFromGroup.mutate(
                   { groupId: group.id, userId: member.user_id },
                   {
-                    onSuccess: () => toast.success(`Removed from ${group.name}`),
+                    onSuccess: () => toast.success(t`Removed from ${groupName}`),
                     onError: (e) => toast.error(e.message),
                   },
-                )
-              }
+                );
+              }}
               onOpenGroup={(group) => onGroupFilterChange(group.id)}
-              onRemove={() =>
+              onRemove={() => {
+                const memberEmail = member.email;
                 removeMember.mutate(
                   { spaceId, userId: member.user_id },
                   {
                     onSuccess: () =>
-                      toast.success(`Removed ${member.email}`, {
-                        description: "Anything they owned here is filed in the Archive.",
+                      toast.success(t`Removed ${memberEmail}`, {
+                        description: t`Anything they owned here is filed in the Archive.`,
                       }),
                     onError: (e) => toast.error(e.message),
                   },
-                )
-              }
+                );
+              }}
             />
           ))}
 
@@ -268,40 +313,42 @@ export function PeopleTable({ space, groupFilter, onGroupFilterChange }: PeopleT
               external={isExternal(inv.email, me?.email)}
               canManage={isAdmin}
               busy={invite.isPending}
-              onResend={() =>
+              onResend={() => {
+                const inviteeEmail = inv.email;
                 invite.mutate(
                   { email: inv.email, as_admin: inv.as_admin },
                   {
                     onSuccess: (result) => {
                       if (result.mail_sent) {
                         void navigator.clipboard?.writeText(result.url ?? "");
-                        toast.success("New invitation sent", {
-                          description: `Emailed to ${inv.email} — the previous link no longer works. It's also on your clipboard.`,
+                        toast.success(t`New invitation sent`, {
+                          description: t`Emailed to ${inviteeEmail} — the previous link no longer works. It's also on your clipboard.`,
                         });
                       } else if (result.url) {
                         void navigator.clipboard?.writeText(result.url);
-                        toast.success("New invitation link copied", {
-                          description: `Send it to ${inv.email} — the previous link no longer works.`,
+                        toast.success(t`New invitation link copied`, {
+                          description: t`Send it to ${inviteeEmail} — the previous link no longer works.`,
                         });
                       }
                     },
                     onError: (e) => toast.error(e.message),
                   },
-                )
-              }
-              onRevoke={() =>
+                );
+              }}
+              onRevoke={() => {
+                const inviteeEmail = inv.email;
                 revokeInvite.mutate(inv.id, {
-                  onSuccess: () => toast.success(`Revoked the invitation for ${inv.email}`),
+                  onSuccess: () => toast.success(t`Revoked the invitation for ${inviteeEmail}`),
                   onError: (e) => toast.error(e.message),
-                })
-              }
+                });
+              }}
             />
           ))}
 
           {shown === 0 && (
             <TableRow>
               <TableCell colSpan={isAdmin ? 7 : 6} className="text-muted-foreground py-6 text-xs">
-                No one matches these filters.
+                <Trans>No one matches these filters.</Trans>
               </TableCell>
             </TableRow>
           )}
@@ -367,7 +414,10 @@ function MemberRow({
   onOpenGroup,
   onRemove,
 }: MemberRowProps) {
+  const { t } = useLingui();
+  const f = useFormatters();
   const name = member.display_name || member.name || member.email;
+  const memberEmail = member.email;
   const joinable = groups.filter(
     (g) => !g.is_everyone && !g.is_admin && !held.some((h) => h.id === g.id),
   );
@@ -383,7 +433,11 @@ function MemberRow({
           <div className="flex min-w-0 flex-col leading-tight">
             <span className="flex items-center gap-1 truncate font-medium">
               <span className="truncate">{name}</span>
-              {isSelf && <Badge variant="secondary">You</Badge>}
+              {isSelf && (
+                <Badge variant="secondary">
+                  <Trans>You</Trans>
+                </Badge>
+              )}
               {external && <ExternalChip />}
             </span>
             <span className="text-muted-foreground truncate text-[10px]">{member.email}</span>
@@ -399,13 +453,13 @@ function MemberRow({
           size="sm"
           checked={member.is_admin}
           disabled={!canManage || isSelf}
-          aria-label={`Admin of this space: ${name}`}
+          aria-label={t`Admin of this space: ${name}`}
           title={
             isSelf
-              ? "You cannot change your own admin rights"
+              ? t`You cannot change your own admin rights`
               : member.is_admin
-                ? "Remove admin rights"
-                : "Make admin"
+                ? t`Remove admin rights`
+                : t`Make admin`
           }
           onCheckedChange={onAdminToggle}
         />
@@ -415,6 +469,7 @@ function MemberRow({
         <div className="flex flex-wrap items-center gap-1">
           {held.map((g) => {
             const automatic = g.is_everyone || g.is_admin;
+            const groupName = g.name;
             return (
               <span
                 key={g.id}
@@ -431,7 +486,7 @@ function MemberRow({
                 {canManage && !automatic && (
                   <button
                     type="button"
-                    aria-label={`Remove ${member.email} from ${g.name}`}
+                    aria-label={t`Remove ${memberEmail} from ${groupName}`}
                     className="hover:text-destructive shrink-0"
                     onClick={() => onRemoveFromGroup(g)}
                   >
@@ -446,7 +501,7 @@ function MemberRow({
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
-                  <Button variant="ghost" size="icon-xs" aria-label={`Add ${name} to a group`} />
+                  <Button variant="ghost" size="icon-xs" aria-label={t`Add ${name} to a group`} />
                 }
               >
                 <Plus />
@@ -464,10 +519,10 @@ function MemberRow({
       </TableCell>
 
       <TableCell className="text-muted-foreground tabular-nums">
-        {fmtDate(member.created_at)}
+        {f.date(member.created_at)}
       </TableCell>
       <TableCell className="text-muted-foreground tabular-nums">
-        {member.last_seen ? fmtRelative(member.last_seen) : "never"}
+        {member.last_seen ? f.relative(member.last_seen) : t`never`}
       </TableCell>
       <TableCell className="text-right tabular-nums">
         {member.files_owned.toLocaleString()}
@@ -480,8 +535,8 @@ function MemberRow({
             size="icon-xs"
             disabled={isSelf}
             onClick={onRemove}
-            aria-label={`Remove ${member.email} from the space`}
-            title={isSelf ? "You cannot remove yourself" : "Remove from space"}
+            aria-label={t`Remove ${memberEmail} from the space`}
+            title={isSelf ? t`You cannot remove yourself` : t`Remove from space`}
           >
             <Trash2 />
           </Button>
@@ -508,6 +563,9 @@ function PendingRow({
   onResend,
   onRevoke,
 }: PendingRowProps) {
+  const { t } = useLingui();
+  const f = useFormatters();
+  const invitedOn = f.date(invitation.created_at);
   return (
     <TableRow className="bg-muted/20">
       <TableCell>
@@ -521,7 +579,7 @@ function PendingRow({
           <span className="flex min-w-0 items-center gap-1">
             <span className="text-muted-foreground truncate italic">{invitation.email}</span>
             <Badge variant="outline" className="text-primary border-primary/30 bg-primary/10">
-              Pending
+              <Trans>Pending</Trans>
             </Badge>
             {external && <ExternalChip />}
           </span>
@@ -532,13 +590,13 @@ function PendingRow({
           size="sm"
           checked={invitation.as_admin}
           disabled
-          aria-label="Will join as admin"
-          title={invitation.as_admin ? "Will join as an admin" : "Will join as a member"}
+          aria-label={t`Will join as admin`}
+          title={invitation.as_admin ? t`Will join as an admin` : t`Will join as a member`}
         />
       </TableCell>
       <TableCell className="text-muted-foreground">—</TableCell>
       <TableCell className="text-muted-foreground tabular-nums">
-        Invited {fmtDate(invitation.created_at)}
+        <Trans>Invited {invitedOn}</Trans>
       </TableCell>
       <TableCell className="text-muted-foreground">—</TableCell>
       <TableCell className="text-muted-foreground text-right">—</TableCell>
@@ -546,10 +604,10 @@ function PendingRow({
         <TableCell>
           <div className="flex items-center justify-end gap-1">
             <Button variant="ghost" size="xs" disabled={busy} onClick={onResend}>
-              Resend
+              <Trans>Resend</Trans>
             </Button>
             <Button variant="destructive" size="xs" disabled={busy} onClick={onRevoke}>
-              Revoke
+              <Trans>Revoke</Trans>
             </Button>
           </div>
         </TableCell>
@@ -560,13 +618,14 @@ function PendingRow({
 
 /** Flags an address outside the signed-in user's own mail domain. */
 function ExternalChip() {
+  const { t } = useLingui();
   return (
     <Badge
       variant="outline"
       className="shrink-0"
-      title="This address is on a different mail domain from yours"
+      title={t`This address is on a different mail domain from yours`}
     >
-      External
+      <Trans>External</Trans>
     </Badge>
   );
 }
@@ -579,22 +638,21 @@ function isExternal(email: string, myEmail?: string): boolean {
 
 /** Downloads the rows currently on screen, filters included. */
 function exportCsv(members: SpaceMember[], pending: Invitation[], byUser: Map<string, Group[]>) {
-  const header = [
-    "Name",
-    "Email",
-    "Admin",
-    "Groups",
-    "Status",
-    "Joined",
-    "Last active",
-    "Files owned",
-  ];
+  // The CSV is data, not interface: the header row and the `Yes`/`No`,
+  // `active`/`pending` cells are the column contract a spreadsheet or an
+  // importer reads, so they stay in English however the app is displayed.
+  // Translating them would change the file's schema with the reader's
+  // language.
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- CSV column headers: the file's schema
+  const header = "Name,Email,Admin,Groups,Status,Joined,Last active,Files owned".split(",");
   const rows = [
     ...members.map((m) => [
       m.display_name || m.name || "",
       m.email,
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- CSV admin cell, a machine value
       m.is_admin ? "Yes" : "No",
       (byUser.get(m.user_id) ?? []).map((g) => g.name).join(" | "),
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- CSV status cell, a machine value
       "active",
       m.created_at,
       m.last_seen ?? "",
@@ -603,8 +661,10 @@ function exportCsv(members: SpaceMember[], pending: Invitation[], byUser: Map<st
     ...pending.map((i) => [
       " ",
       i.email,
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- CSV admin cell, a machine value
       i.as_admin ? "Yes" : "No",
       "",
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- CSV status cell, a machine value
       "pending",
       i.created_at,
       "",
@@ -614,8 +674,10 @@ function exportCsv(members: SpaceMember[], pending: Invitation[], byUser: Map<st
 
   const csv = [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
   const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- DOM tag name
   const a = document.createElement("a");
   a.href = url;
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- download filename, matches the English column contract
   a.download = "people.csv";
   a.click();
   URL.revokeObjectURL(url);
@@ -628,8 +690,4 @@ function exportCsv(members: SpaceMember[], pending: Invitation[], byUser: Map<st
 function csvCell(value: string): string {
   const safe = /^[=+\-@]/.test(value) ? `'${value}` : value;
   return `"${safe.replace(/"/g, '""')}"`;
-}
-
-function plural(n: number, noun: string): string {
-  return `${n} ${noun}${n === 1 ? "" : "s"}`;
 }

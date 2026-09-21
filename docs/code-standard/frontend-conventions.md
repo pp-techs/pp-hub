@@ -102,6 +102,57 @@ vp run ready    # vp check && tests && build for the whole monorepo
 - **Sign-out goes through `signOut(qc)`** (`queries/auth.ts`), never an inline `logout()` call. It returns `true` when it has started a navigation off this origin — the provider advertised `end_session_url`, and skipping the IdP hands the same account straight back on the next sign-in — and `false` when sign-out finished here and the caller should route to `/login` itself. The ordering inside is not incidental: on the branch that stays put the query cache is cleared, because cached data outliving a sign-out is somebody else's data on a shared machine; on the branch that leaves, the unauthorized handler is disabled first and the cache is left alone, since a mounted query refetching into the just-revoked session would otherwise race a router navigation to `/login` against the cross-origin assignment and win — landing on the sign-in page with the IdP session still standing.
 - Auth transport: same-origin httpOnly cookie session; the SPA never stores tokens in localStorage and never reads the session cookie.
 
+## Localization
+
+Lingui + gettext `.po`, English and Vietnamese. Full rationale and the Weblate
+wiring are in [i18n.md](../architecture/i18n.md); these are the rules that
+bind day-to-day code.
+
+- **JSX text is `<Trans>`** (`@lingui/react/macro`). Attributes, toasts and
+  plain variables use `const { t } = useLingui()` and the `` t`…` `` template
+  tag — never `t("…")`, which is not the macro.
+- **A module-scope constant holds `MessageDescriptor`s, never rendered text.**
+  Module scope runs once at import time, before a catalog exists, so a
+  rendered label there freezes whichever language loaded first and never
+  follows a switch. Build them with `msg` (`@lingui/core/macro`) and resolve
+  at render with `i18n._(descriptor)`. Keep the `Record<Union, …>` annotation
+  so exhaustiveness still checks. This is the single most common way a string
+  silently stops translating, which is why `lingui/t-call-in-function` is an
+  error rather than a warning.
+  A list built _inside_ a component is not module scope — pass plain
+  translated strings there and skip the indirection.
+- **A sentence is one message.** Never splice translated fragments: word
+  order, conjunctions and agreement are not English's to lend. The activity
+  feed used to read `{actor} {verb} {node} in {space}` from a verb map; it is
+  now one complete message per `ActivityKind`.
+- **Counts use ICU**, `<Plural>` or `plural()` — never
+  `` `${n} item${n === 1 ? "" : "s"}` ``. Vietnamese has only the `other`
+  category; do not "fix" a `vi` plural by adding `one`.
+- **Route `head` titles use `pageTitle(msg\`…\`)`** from `@/lib/i18n`. `head`runs outside React, so it reaches the singleton rather than a hook, and
+titles follow the language on the next navigation rather than instantly.`pageTitle`appends`· pp-hub` itself.
+- **Formatting goes through `useFormatters()`** (`@/lib/format`), which binds
+  the active locale and re-renders on a switch. `lib/api/` takes an optional
+  trailing `locale` argument and never imports the i18n runtime — the
+  dependency points one way, the same way components never call `api`
+  directly.
+- **`packages/ui` never imports an i18n library.** A design-system package
+  cannot know which one its consumer picked. The primitives read their
+  screen-reader labels from `UiStringsProvider`
+  (`@workspace/ui/lib/strings`), whose defaults are English, and the app fills
+  it in from `LocaleProvider`.
+- **Language is the one account-level preference.** It is a fact about a
+  person, so it lives on `users.settings` and rides in on `GET /users/me`;
+  theme and the default listing stay device-local because they are facts about
+  a machine. Every applied locale is also mirrored to `localStorage`, and that
+  echo is what the first paint reads — the account answer arrives one round
+  trip too late to avoid a flash.
+- **Never translate**: the product name, file extensions, MIME types, HTTP
+  methods, URL paths, cache keys, CSS classes, `data-*` values, browser and
+  platform names, developer-facing `Error`/`console` text, or the language
+  names in `LOCALES` — those are written in the language they name.
+- After adding strings: `bun run i18n:extract` and `bun run i18n:template`
+  from `apps/web`, and commit the catalogs.
+
 ## Style
 
 - Formatting/linting: Oxlint + Oxfmt via `vp check` — do not add competing formatters.

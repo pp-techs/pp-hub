@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Plus } from "lucide-react";
 import {
   DropdownMenu,
@@ -26,6 +27,7 @@ import { folderActions } from "@/components/folder-actions";
  * surface and cannot know which folder is open.
  */
 export function NavCreate() {
+  const { i18n } = useLingui();
   const write = useDriveWrite();
   const actions = folderActions(write).filter((a) => a.group === "create");
 
@@ -39,7 +41,9 @@ export function NavCreate() {
                 render={
                   <SidebarMenuButton className="bg-primary text-primary-foreground duration-200 ease-linear hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground">
                     <Plus />
-                    <span>New</span>
+                    <span>
+                      <Trans>New</Trans>
+                    </span>
                   </SidebarMenuButton>
                 }
               />
@@ -50,7 +54,7 @@ export function NavCreate() {
                     disabled={action.disabled}
                     onClick={action.run}
                   >
-                    <action.icon /> {action.label}
+                    <action.icon /> {i18n._(action.label)}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>

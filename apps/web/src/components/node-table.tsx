@@ -1,3 +1,4 @@
+import { Trans } from "@lingui/react/macro";
 import {
   Table,
   TableBody,
@@ -13,7 +14,8 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@workspace/ui/components/empty";
-import { fmtDate, fmtSize, type Node } from "@/lib/api";
+import type { Node } from "@/lib/api";
+import { useFormatters } from "@/lib/format";
 import { NodeIcon } from "@/components/node-icon";
 
 interface NodeTableProps {
@@ -42,8 +44,14 @@ export function NodeTable({
   renderActions,
   allShared,
 }: NodeTableProps) {
+  const f = useFormatters();
+
   if (isPending) {
-    return <p className="text-muted-foreground py-8 text-xs">Loading…</p>;
+    return (
+      <p className="text-muted-foreground py-8 text-xs">
+        <Trans>Loading…</Trans>
+      </p>
+    );
   }
 
   if (nodes.length === 0) {
@@ -62,10 +70,18 @@ export function NodeTable({
     <Table className="text-xs">
       <TableHeader>
         <TableRow>
-          <TableHead>Name</TableHead>
-          <TableHead className="w-36">Modified</TableHead>
-          <TableHead className="w-24">Size</TableHead>
-          <TableHead className="w-36">Owner</TableHead>
+          <TableHead>
+            <Trans>Name</Trans>
+          </TableHead>
+          <TableHead className="w-36">
+            <Trans>Modified</Trans>
+          </TableHead>
+          <TableHead className="w-24">
+            <Trans>Size</Trans>
+          </TableHead>
+          <TableHead className="w-36">
+            <Trans>Owner</Trans>
+          </TableHead>
           {renderActions ? <TableHead className="w-24" /> : null}
         </TableRow>
       </TableHeader>
@@ -79,10 +95,10 @@ export function NodeTable({
               </div>
             </TableCell>
             <TableCell className="text-muted-foreground tabular-nums">
-              {fmtDate(n.modified_at)}
+              {f.date(n.modified_at)}
             </TableCell>
             <TableCell className="text-muted-foreground tabular-nums">
-              {n.size != null ? fmtSize(n.size) : "—"}
+              {n.size != null ? f.size(n.size) : "—"}
             </TableCell>
             <TableCell className="text-muted-foreground truncate">{n.owner ?? "—"}</TableCell>
             {renderActions ? <TableCell>{renderActions(n)}</TableCell> : null}

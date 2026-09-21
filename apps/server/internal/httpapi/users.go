@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/blob"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
@@ -18,15 +19,16 @@ import (
 // --- User Profile handlers ---
 
 type userProfileDTO struct {
-	ID          string `json:"id"`
-	Email       string `json:"email"`
-	Name        string `json:"name"`
-	DisplayName string `json:"display_name"`
-	AvatarURL   string `json:"avatar_url"`
-	Bio         string `json:"bio"`
-	IsAdmin     bool   `json:"is_admin"`
-	CreatedAt   string `json:"created_at"`
-	LastSeen    string `json:"last_seen,omitempty"`
+	ID          string            `json:"id"`
+	Email       string            `json:"email"`
+	Name        string            `json:"name"`
+	DisplayName string            `json:"display_name"`
+	AvatarURL   string            `json:"avatar_url"`
+	Bio         string            `json:"bio"`
+	IsAdmin     bool              `json:"is_admin"`
+	CreatedAt   string            `json:"created_at"`
+	LastSeen    string            `json:"last_seen,omitempty"`
+	Preferences users.Preferences `json:"preferences"`
 }
 
 type updateProfileRequest struct {
@@ -45,7 +47,36 @@ func profileToDTO(p users.Profile) userProfileDTO {
 		IsAdmin:     p.IsAdmin,
 		CreatedAt:   p.CreatedAt,
 		LastSeen:    p.LastSeen,
+		Preferences: p.Preferences,
 	}
+}
+
+// handleUpdateMyPreferences applies a partial patch to the caller's
+// account-level settings.
+//
+// PATCH with pointer fields, like handleUpdateSpace: a client that knows
+// about only one preference must not blank the ones it has never heard of,
+// and that property is what lets this document grow without a migration or a
+// version field. It is deliberately not part of PUT /users/me, which is a
+// full replace of display_name and bio.
+func (s *Server) handleUpdateMyPreferences(w http.ResponseWriter, r *http.Request) {
+	u := caller(r)
+	var patch users.PreferencesPatch
+	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid body")
+		return
+	}
+	if patch.Locale != nil && !users.ValidLocale(strings.TrimSpace(*patch.Locale)) {
+		writeProblem(w, http.StatusBadRequest, "Bad Request",
+			"locale must be a language tag such as \"vi\" or \"vi-VN\"")
+		return
+	}
+	prefs, err := s.users.UpdatePreferences(r.Context(), u.ID, patch)
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, prefs)
 }
 
 // handleGetMyProfile returns the current user's full profile.

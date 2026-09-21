@@ -44,12 +44,23 @@ export function writeTarget(input: {
   dirName?: string;
   /** Edit capability on `dir`, once resolved. */
   dirCanEdit?: boolean;
+  /**
+   * What to call a destination whose real name is not known yet — the space
+   * or folder row has not loaded, or a deep link named an id nothing has
+   * resolved. The caller supplies them because this label is interpolated
+   * into user-facing toasts, and this module is a pure resolver that must not
+   * reach for the i18n runtime. The English defaults keep every existing
+   * caller and the unit tests unchanged.
+   */
+  fallbacks?: { space: string; dir: string };
 }): WriteTarget {
   const { spaceId, dir } = input;
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- English defaults; DriveWriteProvider passes translated ones
+  const fallback = input.fallbacks ?? { space: "this space", dir: "this folder" };
   return {
     spaceId,
     dir,
-    label: [input.spaceName ?? "this space", dir ? (input.dirName ?? "this folder") : undefined]
+    label: [input.spaceName ?? fallback.space, dir ? (input.dirName ?? fallback.dir) : undefined]
       .filter(Boolean)
       .join(" / "),
     // Any member may create at the space root and owns what they create there;

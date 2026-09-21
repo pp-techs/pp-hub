@@ -11,6 +11,8 @@ import {
   Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { msg, plural } from "@lingui/core/macro";
+import type { MessageDescriptor } from "@lingui/core";
 import type { NodeView, SortField, SortOrder } from "@/lib/api";
 import type { DriveWrite } from "@/components/drive-write";
 
@@ -19,12 +21,19 @@ export type FolderActionGroup = "create" | "clipboard" | "selection" | "display"
 /** One choice in a radio submenu — sort field, sort order or view. */
 export interface FolderActionChoice {
   value: string;
-  label: string;
+  label: MessageDescriptor;
 }
 
 export interface FolderAction {
   key: string;
-  label: string;
+  /**
+   * A message descriptor, not a rendered string. `folderActions` is a plain
+   * function and the choice lists below are module scope, so neither may
+   * reach a hook or a catalog: rendered text here would freeze whichever
+   * language loaded first. The menu that draws the item calls
+   * `i18n._(action.label)`, which is what makes it follow a language switch.
+   */
+  label: MessageDescriptor;
   icon: LucideIcon;
   group: FolderActionGroup;
   disabled?: boolean;
@@ -53,7 +62,7 @@ export function folderActions(write: DriveWrite, listing?: ListingContext): Fold
   const actions: FolderAction[] = [
     {
       key: "new-folder",
-      label: "New folder",
+      label: msg`New folder`,
       icon: FolderPlus,
       group: "create",
       disabled: !write.canWrite,
@@ -66,7 +75,7 @@ export function folderActions(write: DriveWrite, listing?: ListingContext): Fold
       ? [
           {
             key: "new-team-folder",
-            label: "New team folder",
+            label: msg`New team folder`,
             icon: Users,
             group: "create",
             run: write.newTeamFolder,
@@ -75,7 +84,7 @@ export function folderActions(write: DriveWrite, listing?: ListingContext): Fold
       : []),
     {
       key: "upload-files",
-      label: "Upload files",
+      label: msg`Upload files`,
       icon: CloudUpload,
       group: "create",
       disabled: !write.canWrite,
@@ -83,7 +92,7 @@ export function folderActions(write: DriveWrite, listing?: ListingContext): Fold
     },
     {
       key: "upload-folder",
-      label: "Upload folder",
+      label: msg`Upload folder`,
       icon: FolderUp,
       group: "create",
       disabled: !write.canWrite,
@@ -104,7 +113,7 @@ export function folderActions(write: DriveWrite, listing?: ListingContext): Fold
   actions.push(
     {
       key: "select-all",
-      label: "Select all",
+      label: msg`Select all`,
       icon: SquareDashedMousePointer,
       group: "selection",
       disabled: listing.count === 0,
@@ -112,7 +121,7 @@ export function folderActions(write: DriveWrite, listing?: ListingContext): Fold
     },
     {
       key: "sort",
-      label: "Sort by",
+      label: msg`Sort by`,
       icon: ArrowDownAZ,
       group: "display",
       choices: {
@@ -126,7 +135,7 @@ export function folderActions(write: DriveWrite, listing?: ListingContext): Fold
     },
     {
       key: "view",
-      label: "View",
+      label: msg`View`,
       icon: LayoutGrid,
       group: "display",
       choices: {
@@ -137,7 +146,7 @@ export function folderActions(write: DriveWrite, listing?: ListingContext): Fold
     },
     {
       key: "refresh",
-      label: "Refresh",
+      label: msg`Refresh`,
       icon: RefreshCw,
       group: "info",
       run: listing.onRefresh,
@@ -149,7 +158,7 @@ export function folderActions(write: DriveWrite, listing?: ListingContext): Fold
   if (write.dir !== undefined) {
     actions.push({
       key: "folder-info",
-      label: "Folder information",
+      label: msg`Folder information`,
       icon: Info,
       group: "info",
       disabled: !listing.canDescribeFolder,
@@ -177,22 +186,24 @@ export interface ListingContext {
 }
 
 const SORT_CHOICES: FolderActionChoice[] = [
-  { value: "name:asc", label: "Name (A–Z)" },
-  { value: "name:desc", label: "Name (Z–A)" },
-  { value: "modified:desc", label: "Modified (newest)" },
-  { value: "modified:asc", label: "Modified (oldest)" },
-  { value: "size:desc", label: "Size (largest)" },
-  { value: "size:asc", label: "Size (smallest)" },
+  { value: "name:asc", label: msg`Name (A–Z)` },
+  { value: "name:desc", label: msg`Name (Z–A)` },
+  { value: "modified:desc", label: msg`Modified (newest)` },
+  { value: "modified:asc", label: msg`Modified (oldest)` },
+  { value: "size:desc", label: msg`Size (largest)` },
+  { value: "size:asc", label: msg`Size (smallest)` },
 ];
 
 const VIEW_CHOICES: FolderActionChoice[] = [
-  { value: "grid", label: "Grid" },
-  { value: "list", label: "List" },
+  { value: "grid", label: msg`Grid` },
+  { value: "list", label: msg`List` },
 ];
 
 /** Says what is on the clipboard, because a bare "Paste" does not. */
-function pasteLabel(write: DriveWrite): string {
+function pasteLabel(write: DriveWrite): MessageDescriptor {
   const n = write.pasteable.length;
-  if (n === 0) return "Paste";
-  return n === 1 ? "Paste 1 item" : `Paste ${n} items`;
+  if (n === 0) return msg`Paste`;
+  // One ICU message rather than a singular/plural pair picked here: the count
+  // categories a language needs are not the two English has.
+  return msg({ message: plural(n, { one: "Paste # item", other: "Paste # items" }) });
 }

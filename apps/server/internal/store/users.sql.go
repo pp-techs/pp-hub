@@ -561,3 +561,41 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 	)
 	return i, err
 }
+
+const updateUserSettings = `-- name: UpdateUserSettings :one
+UPDATE users SET settings = $2 WHERE id = $1 RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime
+`
+
+type UpdateUserSettingsParams struct {
+	ID       pgtype.UUID `json:"id"`
+	Settings []byte      `json:"settings"`
+}
+
+// Preferences are their own statement rather than a fourth argument to
+// UpdateUserProfile: that one is a full replace of display_name and bio, so
+// routing a language change through it would make "change your language"
+// capable of blanking a bio written from another tab.
+func (q *Queries) UpdateUserSettings(ctx context.Context, arg UpdateUserSettingsParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateUserSettings, arg.ID, arg.Settings)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.OidcSub,
+		&i.OidcIss,
+		&i.Email,
+		&i.Name,
+		&i.DisplayName,
+		&i.AvatarUrl,
+		&i.Bio,
+		&i.Settings,
+		&i.IsAdmin,
+		&i.LastSeen,
+		&i.EmailHash,
+		&i.SuspendedAt,
+		&i.CreatedAt,
+		&i.AvatarBlob,
+		&i.AvatarMime,
+	)
+	return i, err
+}

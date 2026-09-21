@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { useSearch } from "@tanstack/react-router";
+import { Trans, useLingui } from "@lingui/react/macro";
+import { plural } from "@lingui/core/macro";
 import { toast } from "sonner";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
@@ -60,6 +62,7 @@ const DriveWriteContext = createContext<DriveWrite | null>(null);
  */
 export function DriveWriteProvider({ children }: { children: ReactNode }) {
   const spaceId = useActiveSpaceId();
+  const { t } = useLingui();
   // `?dir=` belongs to the folder listing; every other surface resolves to the
   // space root, which is what it writes to.
   const { dir } = useSearch({ strict: false }) as { dir?: string };
@@ -78,6 +81,11 @@ export function DriveWriteProvider({ children }: { children: ReactNode }) {
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
 
+  // Fallback names for a destination whose row has not loaded yet. They are
+  // interpolated into toasts, so they are translated here rather than in
+  // `write-target.ts`, which stays a pure resolver with no i18n dependency.
+  const fallbacks = useMemo(() => ({ space: t`this space`, dir: t`this folder` }), [t]);
+
   const target = useMemo(
     () =>
       writeTarget({
@@ -86,10 +94,12 @@ export function DriveWriteProvider({ children }: { children: ReactNode }) {
         dir,
         dirName: dir ? dirs[dir]?.name : undefined,
         dirCanEdit: folder.data?.caps?.edit,
+        fallbacks,
       }),
-    [spaceId, space?.name, dir, dirs, folder.data?.caps?.edit],
+    [spaceId, space?.name, dir, dirs, folder.data?.caps?.edit, fallbacks],
   );
   const pasteable = useMemo(() => pasteTargets(clipboard, target, dirs), [clipboard, target, dirs]);
+  const destination = target.label;
 
   const pickFiles = useCallback(
     (list: FileList | null) => {
@@ -100,19 +110,18 @@ export function DriveWriteProvider({ children }: { children: ReactNode }) {
       // about same-named files first is the destination's, not the picker's.
       void upload(items, into, parent).then((outcome) => {
         if (outcome === "cancelled") {
-          toast("Upload cancelled");
+          toast(t`Upload cancelled`);
           return;
         }
+        const count = items.length;
         // The transfer tray reports progress but not the destination, and an
         // upload started from Home or Recent lands somewhere the user cannot see.
         toast.success(
-          items.length === 1
-            ? `Uploading 1 file to ${label}`
-            : `Uploading ${items.length} files to ${label}`,
+          t`Uploading ${plural(count, { one: "# file", other: "# files" })} to ${label}`,
         );
       });
     },
-    [upload, target],
+    [upload, target, t],
   );
 
   const paste = useCallback(() => {
@@ -129,19 +138,27 @@ export function DriveWriteProvider({ children }: { children: ReactNode }) {
           .then(() => {
             done += 1;
           })
-          .catch((e: Error) =>
-            toast.error(`Could not paste “${node.name}”`, { description: e.message }),
-          ),
+          .catch((e: Error) => {
+            const nodeName = node.name;
+            toast.error(t`Could not paste “${nodeName}”`, { description: e.message });
+          }),
       ),
     ).then(() => {
       if (done === 0) return;
-      const what = done === 1 ? "1 item" : `${done} items`;
-      toast.success(`${cut ? "Moved" : "Copied"} ${what} to ${target.label}`);
+      // The plural is written inside each `t` rather than hoisted into a
+      // variable: only an inline macro becomes one ICU message. A hoisted
+      // `plural()` is a second message spliced into this one, which is
+      // exactly the fragment a translator cannot reorder.
+      toast.success(
+        cut
+          ? t`Moved ${plural(done, { one: "# item", other: "# items" })} to ${destination}`
+          : t`Copied ${plural(done, { one: "# item", other: "# items" })} to ${destination}`,
+      );
       // A cut is consumed by its paste; a copy stays on the clipboard so the
       // same nodes can be pasted into a second folder.
       if (cut) clearClipboard();
     });
-  }, [pasteable, clipboard, move, copy, target.dir, target.label, clearClipboard]);
+  }, [pasteable, clipboard, move, copy, target.dir, destination, clearClipboard, t]);
 
   // Creation lives here rather than in the menu because the menu is rendered
   // in two places: the rail's New and the listing's background. Note what is
@@ -149,17 +166,21 @@ export function DriveWriteProvider({ children }: { children: ReactNode }) {
   // the user happens to be browsing has no say in where it lands.
   const newTeamFolder = useCallback(() => {
     if (!spaceId) return;
-    void TeamFolderDialog.show({ spaceId, spaceName: space?.name ?? "this space" }).then((name) => {
-      if (!name) return;
-      mkteam.mutate(name, {
-        onSuccess: (made) =>
-          toast.success(`Created team folder “${made.name}”`, {
-            description: "Nobody can see it yet — access to a team folder is given through Share.",
-          }),
-        onError: (e) => toast.error("Could not create team folder", { description: e.message }),
-      });
-    });
-  }, [spaceId, space?.name, mkteam]);
+    void TeamFolderDialog.show({ spaceId, spaceName: space?.name ?? t`this space` }).then(
+      (name) => {
+        if (!name) return;
+        mkteam.mutate(name, {
+          onSuccess: (made) => {
+            const folderName = made.name;
+            toast.success(t`Created team folder “${folderName}”`, {
+              description: t`Nobody can see it yet — access to a team folder is given through Share.`,
+            });
+          },
+          onError: (e) => toast.error(t`Could not create team folder`, { description: e.message }),
+        });
+      },
+    );
+  }, [spaceId, space?.name, mkteam, t]);
 
   const value = useMemo<DriveWrite>(
     () => ({
@@ -196,19 +217,24 @@ export function DriveWriteProvider({ children }: { children: ReactNode }) {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>New folder</DialogTitle>
-            <DialogDescription>Create a folder in {target.label}.</DialogDescription>
+            <DialogTitle>
+              <Trans>New folder</Trans>
+            </DialogTitle>
+            <DialogDescription>
+              <Trans>Create a folder in {destination}.</Trans>
+            </DialogDescription>
           </DialogHeader>
           <form
             onSubmit={(e: FormEvent) => {
               e.preventDefault();
               mkdir.mutate(newFolderName.trim(), {
                 onSuccess: (made) => {
+                  const createdName = made.name;
                   setNewFolderOpen(false);
                   setNewFolderName("");
-                  toast.success(`Created “${made.name}” in ${target.label}`);
+                  toast.success(t`Created “${createdName}” in ${destination}`);
                 },
-                onError: (e) => toast.error("Could not create folder", { description: e.message }),
+                onError: (e) => toast.error(t`Could not create folder`, { description: e.message }),
               });
             }}
           >
@@ -216,12 +242,12 @@ export function DriveWriteProvider({ children }: { children: ReactNode }) {
               autoFocus
               value={newFolderName}
               onChange={(e) => setNewFolderName(e.target.value)}
-              placeholder="Folder name"
+              placeholder={t`Folder name`}
               required
             />
             <DialogFooter className="mt-4">
               <Button type="submit" disabled={!newFolderName.trim() || mkdir.isPending}>
-                Create
+                <Trans>Create</Trans>
               </Button>
             </DialogFooter>
           </form>
@@ -233,6 +259,7 @@ export function DriveWriteProvider({ children }: { children: ReactNode }) {
 
 export function useDriveWrite(): DriveWrite {
   const value = useContext(DriveWriteContext);
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- developer-facing Error text
   if (!value) throw new Error("useDriveWrite must be used inside DriveWriteProvider");
   return value;
 }

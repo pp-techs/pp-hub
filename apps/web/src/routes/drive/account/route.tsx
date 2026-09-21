@@ -1,4 +1,7 @@
 import { Outlet, createFileRoute } from "@tanstack/react-router";
+import { useLingui } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { pageTitle } from "@/lib/i18n";
 import { SettingsTabs } from "@/components/settings-tabs";
 
 /**
@@ -15,18 +18,20 @@ import { SettingsTabs } from "@/components/settings-tabs";
  * signed in so one can be ended from another.
  */
 export const Route = createFileRoute("/drive/account")({
-  head: () => ({ meta: [{ title: "Account · pp-hub" }] }),
+  head: () => ({ meta: [{ title: pageTitle(msg`Account`) }] }),
   component: AccountLayout,
 });
 
 function AccountLayout() {
+  const { t } = useLingui();
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <SettingsTabs
         tabs={[
-          { label: "Profile", to: "/drive/account/profile" },
-          { label: "Preferences", to: "/drive/account/preferences" },
-          { label: "Sessions", to: "/drive/account/sessions" },
+          { label: t`Profile`, to: "/drive/account/profile" },
+          { label: t`Preferences`, to: "/drive/account/preferences" },
+          { label: t`Sessions`, to: "/drive/account/sessions" },
         ]}
       />
       <Outlet />

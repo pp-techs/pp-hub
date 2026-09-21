@@ -443,8 +443,14 @@ export function shareDownloadAllUrl(token: string, dir?: string): string {
 
 // ─── WOPI ───────────────────────────────────────────────────────────────────
 
-export async function createEditSession(nodeId: string): Promise<EditSession> {
-  const res = await api.post(`api/v1/nodes/${nodeId}/edit-session`);
+export async function createEditSession(nodeId: string, locale?: string): Promise<EditSession> {
+  // `ui` is what the Document Server reads into `editorConfig.lang`, so the
+  // OnlyOffice ribbon comes up in the language the app is currently in
+  // rather than the account column, which is empty for anyone who never
+  // chose one. The server ignores the parameter when it is absent or not a
+  // locale it ships.
+  const query = locale ? `?ui=${encodeURIComponent(locale)}` : "";
+  const res = await api.post(`api/v1/nodes/${nodeId}/edit-session${query}`);
   if (!res.ok) throw new ApiError(res.status, await res.text());
   return res.json() as Promise<EditSession>;
 }

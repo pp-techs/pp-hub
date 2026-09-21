@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useSearch } from "@tanstack/react-router";
+import { Trans, useLingui } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import type { MessageDescriptor } from "@lingui/core";
 import { Archive, ChevronRight, Clock, HardDrive, House, Star, Trash2, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
@@ -22,7 +25,7 @@ type Row = {
     | "/drive/$spaceId/recent"
     | "/drive/$spaceId/starred"
     | "/drive/$spaceId/trash";
-  label: string;
+  label: MessageDescriptor;
   icon: LucideIcon;
 };
 
@@ -30,14 +33,19 @@ type Row = {
  * The space's own surfaces, each a child route of `/drive/$spaceId`. Grouped
  * the way they are used rather than alphabetically: where you start, what the
  * space collects for you, and what you are throwing away.
+ *
+ * The labels are descriptors, not rendered strings: these arrays are module
+ * scope and are built once at import time, before a catalog is active, so a
+ * rendered label here would freeze the first language loaded. `NavRow`
+ * resolves them per render instead.
  */
-const homeRow: Row = { to: "/drive/$spaceId/home", label: "Home", icon: House };
+const homeRow: Row = { to: "/drive/$spaceId/home", label: msg`Home`, icon: House };
 const smartRows: Row[] = [
-  { to: "/drive/$spaceId/shared", label: "Shared with me", icon: Users },
-  { to: "/drive/$spaceId/recent", label: "Recent", icon: Clock },
-  { to: "/drive/$spaceId/starred", label: "Starred", icon: Star },
+  { to: "/drive/$spaceId/shared", label: msg`Shared with me`, icon: Users },
+  { to: "/drive/$spaceId/recent", label: msg`Recent`, icon: Clock },
+  { to: "/drive/$spaceId/starred", label: msg`Starred`, icon: Star },
 ];
-const cleanupRows: Row[] = [{ to: "/drive/$spaceId/trash", label: "Trash", icon: Trash2 }];
+const cleanupRows: Row[] = [{ to: "/drive/$spaceId/trash", label: msg`Trash`, icon: Trash2 }];
 
 /**
  * Every navigable row in the rail, on the Sidebar primitives so collapse, the
@@ -45,6 +53,7 @@ const cleanupRows: Row[] = [{ to: "/drive/$spaceId/trash", label: "Trash", icon:
  */
 export function NavSpace({ spaceId }: { spaceId: string }) {
   const space = useSpace(spaceId);
+  const { t } = useLingui();
   const rememberDir = useUiStore((s) => s.rememberDir);
   const archiveId = space?.archive_root_id;
   const [driveOpen, setDriveOpen] = useState(true);
@@ -59,9 +68,13 @@ export function NavSpace({ spaceId }: { spaceId: string }) {
   // through the same `?dir=` listing as everything else. Its name has to be in
   // the dirs cache before the header ever asks for it — the breadcrumb has no
   // other way to learn what a node it never listed is called.
+  //
+  // `t` changes identity when the catalog does, so the cached name is
+  // rewritten on a language switch rather than keeping whichever language was
+  // active the first time the space loaded.
   useEffect(() => {
-    if (archiveId) rememberDir({ id: archiveId, name: "Archive", parent_id: undefined });
-  }, [archiveId, rememberDir]);
+    if (archiveId) rememberDir({ id: archiveId, name: t`Archive`, parent_id: undefined });
+  }, [archiveId, rememberDir, t]);
 
   return (
     <>
@@ -81,10 +94,12 @@ export function NavSpace({ spaceId }: { spaceId: string }) {
                 }
               >
                 <HardDrive />
-                <span>My Drive</span>
+                <span>
+                  <Trans>My Drive</Trans>
+                </span>
               </SidebarMenuButton>
               <SidebarMenuAction
-                aria-label={driveOpen ? "Collapse My Drive" : "Expand My Drive"}
+                aria-label={driveOpen ? t`Collapse My Drive` : t`Expand My Drive`}
                 aria-expanded={driveOpen}
                 onClick={() => setDriveOpen((v) => !v)}
               >
@@ -100,7 +115,7 @@ export function NavSpace({ spaceId }: { spaceId: string }) {
         <SidebarGroupContent>
           <SidebarMenu>
             {smartRows.map((row) => (
-              <NavRow key={row.label} row={row} spaceId={spaceId} />
+              <NavRow key={row.to} row={row} spaceId={spaceId} />
             ))}
           </SidebarMenu>
         </SidebarGroupContent>
@@ -110,7 +125,7 @@ export function NavSpace({ spaceId }: { spaceId: string }) {
         <SidebarGroupContent>
           <SidebarMenu>
             {cleanupRows.map((row) => (
-              <NavRow key={row.label} row={row} spaceId={spaceId} />
+              <NavRow key={row.to} row={row} spaceId={spaceId} />
             ))}
 
             {/* Only an admin holds the grant that opens the archive
@@ -125,7 +140,9 @@ export function NavSpace({ spaceId }: { spaceId: string }) {
                   }
                 >
                   <Archive />
-                  <span>Archive</span>
+                  <span>
+                    <Trans>Archive</Trans>
+                  </span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             )}
@@ -138,14 +155,16 @@ export function NavSpace({ spaceId }: { spaceId: string }) {
 
 function NavRow({ row, spaceId }: { row: Row; spaceId: string }) {
   const location = useLocation();
+  const { i18n } = useLingui();
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
+        // eslint-disable-next-line lingui/no-unlocalized-strings -- route param token
         isActive={location.pathname === row.to.replace("$spaceId", spaceId)}
         render={<Link to={row.to} params={{ spaceId }} />}
       >
         <row.icon />
-        <span>{row.label}</span>
+        <span>{i18n._(row.label)}</span>
       </SidebarMenuButton>
     </SidebarMenuItem>
   );

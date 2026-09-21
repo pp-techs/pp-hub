@@ -1,5 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { toast } from "sonner";
 import { ChevronsUpDown, LogOut, Shield, ShieldAlert, User } from "lucide-react";
 import {
@@ -30,8 +31,9 @@ export function NavUser() {
   const qc = useQueryClient();
   const me = useMe();
   const { isMobile } = useSidebar();
+  const { t } = useLingui();
 
-  const name = me.data?.display_name || me.data?.name || "User";
+  const name = me.data?.display_name || me.data?.name || t`User`;
   const initials = (me.data?.name || me.data?.email || "?").charAt(0).toUpperCase();
 
   /**
@@ -43,7 +45,7 @@ export function NavUser() {
       if (await signOut(qc)) return;
       void navigate({ to: "/login" });
     } catch {
-      toast.error("Could not sign out. Please try again.");
+      toast.error(t`Could not sign out. Please try again.`);
     }
   }
 
@@ -55,7 +57,7 @@ export function NavUser() {
             render={
               <SidebarMenuButton
                 size="lg"
-                aria-label="Account menu"
+                aria-label={t`Account menu`}
                 className="data-popup-open:bg-sidebar-accent data-popup-open:text-sidebar-accent-foreground"
               >
                 <Avatar className="size-8 rounded-lg">
@@ -86,7 +88,7 @@ export function NavUser() {
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => void navigate({ to: "/drive/account/profile" })}>
-              <User /> Account
+              <User /> <Trans>Account</Trans>
             </DropdownMenuItem>
             {/* The two server-administration surfaces are reachable nowhere
                 else in the shell, and the routes gate on `is_admin`
@@ -96,16 +98,16 @@ export function NavUser() {
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => void navigate({ to: "/admin/users" })}>
-                  <Shield /> Server administration
+                  <Shield /> <Trans>Server administration</Trans>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => void navigate({ to: "/admin/security" })}>
-                  <ShieldAlert /> Security log
+                  <ShieldAlert /> <Trans>Security log</Trans>
                 </DropdownMenuItem>
               </>
             )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => void handleSignOut()}>
-              <LogOut /> Sign out
+              <LogOut /> <Trans>Sign out</Trans>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

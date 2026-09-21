@@ -1,6 +1,7 @@
 import { useParams } from "@tanstack/react-router";
-import { fmtSize } from "@/lib/api";
+import { Trans } from "@lingui/react/macro";
 import { useSpaces } from "@/lib/queries";
+import { useFormatters } from "@/lib/format";
 
 /**
  * Storage consumption for the active space, pinned to the rail's footer.
@@ -12,6 +13,7 @@ import { useSpaces } from "@/lib/queries";
  */
 export function StorageMeter() {
   const spaces = useSpaces();
+  const f = useFormatters();
   const { spaceId } = useParams({ strict: false }) as { spaceId?: string };
   const space = spaces.data?.find((s) => s.id === spaceId);
 
@@ -21,12 +23,14 @@ export function StorageMeter() {
   const pct = metered
     ? Math.min(100, Math.round((space.used_bytes / space.quota_bytes) * 100))
     : null;
+  const used = f.size(space.used_bytes);
+  const quota = f.size(space.quota_bytes);
 
   return (
     <div className="flex flex-col gap-1.5 px-2 py-1 group-data-[collapsible=icon]:hidden">
       <div className="flex items-center justify-between">
         <span className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
-          Storage
+          <Trans>Storage</Trans>
         </span>
         {pct !== null && (
           <span className="text-muted-foreground text-[10px] tabular-nums">{pct}%</span>
@@ -37,10 +41,16 @@ export function StorageMeter() {
           <div className="bg-primary h-full rounded-full" style={{ width: `${pct}%` }} />
         </div>
       )}
+      {/* One message per phrasing, not "used" glued onto a formatted size:
+          the two halves swap order in plenty of languages. */}
       <div className="text-muted-foreground text-[10px] tabular-nums">
-        {metered
-          ? `${fmtSize(space.used_bytes)} of ${fmtSize(space.quota_bytes)}`
-          : `${fmtSize(space.used_bytes)} used`}
+        {metered ? (
+          <Trans>
+            {used} of {quota}
+          </Trans>
+        ) : (
+          <Trans>{used} used</Trans>
+        )}
       </div>
     </div>
   );

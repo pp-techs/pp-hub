@@ -25,6 +25,10 @@ type Profile struct {
 	IsAdmin     bool   `json:"is_admin"`
 	CreatedAt   string `json:"created_at"`
 	LastSeen    string `json:"last_seen,omitempty"`
+	// Preferences rides on the identity response on purpose: the SPA needs the
+	// language before its first paint, and a second round trip for it is a
+	// visible flash of English on every load.
+	Preferences Preferences `json:"preferences"`
 }
 
 // SearchResult is a minimal user representation for autocomplete.
@@ -177,6 +181,7 @@ func toProfile(u store.User) Profile {
 		IsAdmin:     u.IsAdmin,
 		CreatedAt:   u.CreatedAt.Time.Format(timeLayout),
 		LastSeen:    lastSeen,
+		Preferences: decodePreferences(u.Settings),
 	}
 }
 

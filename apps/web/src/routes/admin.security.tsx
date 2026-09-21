@@ -1,6 +1,9 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Trans, useLingui } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import type { I18n, MessageDescriptor } from "@lingui/core";
 import { ArrowLeft } from "lucide-react";
 import { Badge } from "@workspace/ui/components/badge";
 import { Button } from "@workspace/ui/components/button";
@@ -20,54 +23,75 @@ import {
   TableRow,
 } from "@workspace/ui/components/table";
 import { cn } from "@workspace/ui/lib/utils";
-import { fmtDate, fmtRelative, type SecurityEvent } from "@/lib/api";
+import { type SecurityEvent } from "@/lib/api";
 import { requireAuth, SECURITY_PAGE_SIZE, useSecurityEvents } from "@/lib/queries";
 import { describeAgent } from "@/lib/user-agent";
+import { useFormatters } from "@/lib/format";
+import { i18n as globalI18n, pageTitle } from "@/lib/i18n";
 import { SectionLabel } from "@/components/section-label";
 
 export const Route = createFileRoute("/admin/security")({
-  head: () => ({ meta: [{ title: "Security log · pp-hub" }] }),
+  head: () => ({ meta: [{ title: pageTitle(msg`Security log`) }] }),
   // Gate here, not in the component. A page that resolves and then says
   // "admin only" has already told the caller that this URL exists and what it
   // is for; the redirect says nothing.
   beforeLoad: async ({ context, location }) => {
     const me = await requireAuth(context.queryClient, location.href);
     if (!me.is_admin) {
-      toast.error("Only an administrator can read the security log.");
+      // `beforeLoad` runs outside React, so the singleton answers here the
+      // same way it does for `pageTitle` above.
+      toast.error(globalI18n._(msg`Only an administrator can read the security log.`));
       throw redirect({ to: "/drive" });
     }
   },
   component: SecurityLogPage,
 });
 
-/** The `kind` values the server writes, in the order this page offers them. */
-const KINDS = [
-  "login",
-  "login_failed",
-  "logout",
-  "session_revoked",
-  "sessions_revoked",
-  "identity_adopted",
-  "admin_granted",
-  "admin_revoked",
-  "account_suspended",
-  "account_unsuspended",
-  "grant_created",
-  "grant_revoked",
-  "share_created",
-  "share_revoked",
-  "member_added",
-  "member_removed",
-] as const;
-
 /** "All" is a sentinel, not a kind: the server filters on an exact string, so
  *  the parameter is omitted rather than sent empty. */
+// eslint-disable-next-line lingui/no-unlocalized-strings -- filter sentinel, not a server kind
 const ALL = "all";
 
-const KIND_ITEMS = [
-  { label: "All events", value: ALL },
-  ...KINDS.map((kind) => ({ label: kind.replace(/_/g, " "), value: kind })),
-];
+/**
+ * The `kind` values the server writes, in the order this page offers them,
+ * and what each one is called on screen. Descriptors, not strings: this is
+ * module scope, evaluated at import time before a catalog is active, so a
+ * rendered label here would freeze the first language loaded.
+ *
+ * Spelling every kind out rather than de-underscoring the identifier is what
+ * makes them translatable at all — `member_added` is a column value, not a
+ * phrase any other language can derive. The keys are the list of kinds: a
+ * second array beside this one could only drift out of step with it.
+ */
+const KIND_LABELS = {
+  login: msg`login`,
+  login_failed: msg`login failed`,
+  logout: msg`logout`,
+  session_revoked: msg`session revoked`,
+  sessions_revoked: msg`sessions revoked`,
+  identity_adopted: msg`identity adopted`,
+  admin_granted: msg`admin granted`,
+  admin_revoked: msg`admin revoked`,
+  account_suspended: msg`account suspended`,
+  account_unsuspended: msg`account unsuspended`,
+  grant_created: msg`grant created`,
+  grant_revoked: msg`grant revoked`,
+  share_created: msg`share created`,
+  share_revoked: msg`share revoked`,
+  member_added: msg`member added`,
+  member_removed: msg`member removed`,
+} satisfies Record<string, MessageDescriptor>;
+
+const ALL_EVENTS = msg`All events`;
+
+/**
+ * A kind the server wrote but this build does not know about still has to
+ * render as something readable, so the identifier is the fallback.
+ */
+function kindLabel(i18n: I18n, kind: string): string {
+  const descriptor = KIND_LABELS[kind as keyof typeof KIND_LABELS];
+  return descriptor ? i18n._(descriptor) : kind.replace(/_/g, " ");
+}
 
 /**
  * The instance security log: who signed in, who failed to, and every change
@@ -83,6 +107,7 @@ const KIND_ITEMS = [
  * `login_failed` is the one kind rendered in the destructive variant.
  */
 function SecurityLogPage() {
+  const { t, i18n } = useLingui();
   const [kind, setKind] = useState<string>(ALL);
   const [offset, setOffset] = useState(0);
   const filter = kind === ALL ? undefined : kind;
@@ -92,6 +117,13 @@ function SecurityLogPage() {
   const total = data?.total ?? 0;
   const from = total === 0 ? 0 : offset + 1;
   const to = offset + events.length;
+  // Rebuilt every render rather than memoised: it has to follow the active
+  // catalog, and seventeen lookups is cheaper than getting that wrong.
+  const kindItems = [
+    { label: i18n._(ALL_EVENTS), value: ALL },
+    ...Object.entries(KIND_LABELS).map(([k, label]) => ({ label: i18n._(label), value: k })),
+  ];
+  const filterLabel = filter ? kindLabel(i18n, filter) : null;
 
   return (
     <main className="bg-background text-foreground flex min-h-svh flex-col">
@@ -99,30 +131,34 @@ function SecurityLogPage() {
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label="Back to Drive"
+          aria-label={t`Back to Drive`}
           render={<Link to="/drive" />}
         >
           <ArrowLeft />
         </Button>
         <div className="flex flex-col">
-          <span className="text-sm font-medium">Security log</span>
+          <span className="text-sm font-medium">
+            <Trans>Security log</Trans>
+          </span>
           <span className="text-muted-foreground text-[10px]">
-            Sign-ins, failures and access changes across this install
+            <Trans>Sign-ins, failures and access changes across this install</Trans>
           </span>
         </div>
         <Button variant="ghost" size="sm" className="ml-auto" render={<Link to="/admin/users" />}>
-          Users
+          <Trans>Users</Trans>
         </Button>
       </header>
 
       <div className="flex flex-col gap-6 p-4">
         <section className="flex flex-col gap-2">
           <div className="flex items-center justify-between gap-2">
-            <SectionLabel>Events</SectionLabel>
+            <SectionLabel>
+              <Trans>Events</Trans>
+            </SectionLabel>
             <div className="flex items-center gap-2">
               <Select
                 value={kind}
-                items={KIND_ITEMS}
+                items={kindItems}
                 onValueChange={(v) => {
                   setKind((v as string) ?? ALL);
                   // A filter is a different result set; keeping the offset
@@ -130,11 +166,11 @@ function SecurityLogPage() {
                   setOffset(0);
                 }}
               >
-                <SelectTrigger aria-label="Filter by event kind" className="w-48">
+                <SelectTrigger aria-label={t`Filter by event kind`} className="w-48">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {KIND_ITEMS.map((item) => (
+                  {kindItems.map((item) => (
                     <SelectItem key={item.value} value={item.value}>
                       {item.label}
                     </SelectItem>
@@ -145,20 +181,36 @@ function SecurityLogPage() {
           </div>
 
           {isLoading ? (
-            <p className="text-muted-foreground text-xs">Loading…</p>
+            <p className="text-muted-foreground text-xs">
+              <Trans>Loading…</Trans>
+            </p>
           ) : events.length === 0 ? (
             <p className="text-muted-foreground text-xs">
-              No events recorded{filter ? ` for ${filter.replace(/_/g, " ")}` : ""}.
+              {filterLabel ? (
+                <Trans>No events recorded for {filterLabel}.</Trans>
+              ) : (
+                <Trans>No events recorded.</Trans>
+              )}
             </p>
           ) : (
             <Table className="text-xs">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-32">When</TableHead>
-                  <TableHead className="w-40">Event</TableHead>
-                  <TableHead>Who</TableHead>
-                  <TableHead className="w-36">IP</TableHead>
-                  <TableHead className="w-44">Device</TableHead>
+                  <TableHead className="w-32">
+                    <Trans>When</Trans>
+                  </TableHead>
+                  <TableHead className="w-40">
+                    <Trans>Event</Trans>
+                  </TableHead>
+                  <TableHead>
+                    <Trans>Who</Trans>
+                  </TableHead>
+                  <TableHead className="w-36">
+                    <Trans>IP</Trans>
+                  </TableHead>
+                  <TableHead className="w-44">
+                    <Trans>Device</Trans>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -171,7 +223,9 @@ function SecurityLogPage() {
 
           <div className="flex items-center justify-between gap-2">
             <span className="text-muted-foreground text-[10px] tabular-nums">
-              {from}–{to} of {total}
+              <Trans>
+                {from}–{to} of {total}
+              </Trans>
             </span>
             <div className="flex items-center gap-1">
               <Button
@@ -180,7 +234,7 @@ function SecurityLogPage() {
                 disabled={offset === 0}
                 onClick={() => setOffset((o) => Math.max(0, o - SECURITY_PAGE_SIZE))}
               >
-                Previous
+                <Trans>Previous</Trans>
               </Button>
               <Button
                 variant="outline"
@@ -188,7 +242,7 @@ function SecurityLogPage() {
                 disabled={to >= total}
                 onClick={() => setOffset((o) => o + SECURITY_PAGE_SIZE)}
               >
-                Next
+                <Trans>Next</Trans>
               </Button>
             </div>
           </div>
@@ -199,6 +253,8 @@ function SecurityLogPage() {
 }
 
 function EventRow({ event }: { event: SecurityEvent }) {
+  const { i18n } = useLingui();
+  const f = useFormatters();
   const failed = event.kind === "login_failed";
   // A failed sign-in has no account behind it, so `subject` — the address
   // tried, or the reason it was refused — is the only identity there is.
@@ -207,13 +263,11 @@ function EventRow({ event }: { event: SecurityEvent }) {
 
   return (
     <TableRow className={cn(failed && "bg-destructive/5")}>
-      <TableCell className="text-muted-foreground tabular-nums" title={fmtDate(event.created_at)}>
-        {fmtRelative(event.created_at)}
+      <TableCell className="text-muted-foreground tabular-nums" title={f.date(event.created_at)}>
+        {f.relative(event.created_at)}
       </TableCell>
       <TableCell>
-        <Badge variant={failed ? "destructive" : "secondary"}>
-          {event.kind.replace(/_/g, " ")}
-        </Badge>
+        <Badge variant={failed ? "destructive" : "secondary"}>{kindLabel(i18n, event.kind)}</Badge>
       </TableCell>
       <TableCell>
         <div className="flex min-w-0 flex-col">

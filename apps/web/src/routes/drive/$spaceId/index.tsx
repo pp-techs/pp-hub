@@ -2,6 +2,8 @@ import { useQueries } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, MouseEvent } from "react";
+import { Trans, useLingui } from "@lingui/react/macro";
+import { msg, plural } from "@lingui/core/macro";
 import { FolderOpen } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@workspace/ui/components/button";
@@ -36,7 +38,6 @@ import {
 import {
   opensInEditor,
   openEditor,
-  sortNodes,
   type Node,
   type NodeView,
   type SortField,
@@ -60,6 +61,8 @@ import { nextSelection } from "@/lib/selection";
 import { useMarqueeSelection } from "@/lib/use-marquee-selection";
 import { useKeyedState } from "@/lib/use-keyed-state";
 import { useUiStore } from "@/lib/ui-store";
+import { useFormatters } from "@/lib/format";
+import { pageTitle } from "@/lib/i18n";
 import { NodePanels } from "@/components/node-panels";
 import { PreviewModal } from "@/components/preview-modal";
 import { DetailsPanel } from "@/components/preview-panel";
@@ -78,7 +81,7 @@ import { downloadUrl } from "@/components/node-actions";
 const EMPTY_SET = new Set<string>();
 
 export const Route = createFileRoute("/drive/$spaceId/")({
-  head: () => ({ meta: [{ title: "Drive · pp-hub" }] }),
+  head: () => ({ meta: [{ title: pageTitle(msg`Drive`) }] }),
   validateSearch: (
     search: Record<string, unknown>,
   ): {
@@ -88,12 +91,15 @@ export const Route = createFileRoute("/drive/$spaceId/")({
     view?: NodeView;
   } => ({
     dir: typeof search.dir === "string" ? search.dir : undefined,
+    // eslint-disable-next-line lingui/no-unlocalized-strings -- SortField ids
     sort: ["name", "modified", "size"].includes(search.sort as string)
       ? (search.sort as SortField)
       : undefined,
+    // eslint-disable-next-line lingui/no-unlocalized-strings -- SortOrder ids
     order: ["asc", "desc"].includes(search.order as string)
       ? (search.order as SortOrder)
       : undefined,
+    // eslint-disable-next-line lingui/no-unlocalized-strings -- NodeView ids
     view: ["grid", "list"].includes(search.view as string) ? (search.view as NodeView) : undefined,
   }),
   loaderDeps: ({ search: { dir } }) => ({ dir }),
@@ -104,6 +110,8 @@ export const Route = createFileRoute("/drive/$spaceId/")({
 });
 
 function FolderView() {
+  const { t } = useLingui();
+  const f = useFormatters();
   const { spaceId } = Route.useParams();
   const { dir, sort: sortParam, order: orderParam, view: viewParam } = Route.useSearch();
   const navigate = useNavigate();
@@ -178,8 +186,8 @@ function FolderView() {
     const filtered = q
       ? withoutArchive.filter((n) => n.name.toLowerCase().includes(q))
       : withoutArchive;
-    return sortNodes(filtered, sort, order);
-  }, [children.data, filterQuery, sort, order, dir, space?.archive_root_id]);
+    return f.sort(filtered, sort, order);
+  }, [children.data, filterQuery, sort, order, dir, space?.archive_root_id, f]);
   const { sortedDirs, sortedFiles } = useMemo(() => {
     const dirs: Node[] = [];
     const files: Node[] = [];
@@ -286,7 +294,7 @@ function FolderView() {
       if (nodes.length === 0) return;
       const target = await MoveDialog.show({
         spaceId,
-        spaceName: space?.name ?? "this space",
+        spaceName: space?.name ?? t`this space`,
         nodes,
       });
       if (target === null) return; // cancelled — undefined means the space root
@@ -299,17 +307,18 @@ function FolderView() {
             .then(() => {
               moved += 1;
             })
-            .catch((e: Error) =>
-              toast.error(`Could not move “${node.name}”`, { description: e.message }),
-            ),
+            .catch((e: Error) => {
+              const nodeName = node.name;
+              toast.error(t`Could not move “${nodeName}”`, { description: e.message });
+            }),
         ),
       );
       if (moved > 0) {
-        toast.success(moved === 1 ? "Moved 1 item" : `Moved ${moved} items`);
+        toast.success(plural(moved, { one: "Moved # item", other: "Moved # items" }));
         setSelectedIds(new Set());
       }
     },
-    [move, spaceId, space?.name],
+    [move, spaceId, space?.name, t],
   );
 
   const handleDeleteConfirmed = useCallback(() => {
@@ -329,6 +338,10 @@ function FolderView() {
     () => (confirmNodes ?? []).filter((n) => n.kind === "dir"),
     [confirmNodes],
   );
+  // Named locals so the trash confirmation reaches a translator as
+  // `{nodeName}` and `{count}` rather than as bare indexes.
+  const count = confirmNodes?.length ?? 0;
+  const nodeName = count === 1 ? (confirmNodes?.[0]?.name ?? "") : "";
   const confirmFolderDetails = useQueries({
     queries: confirmFolders.map((n) => nodeOptions(n.id)),
   });
@@ -343,21 +356,27 @@ function FolderView() {
     () => ({
       onPreview: handlePreview,
       onShowDetails: handleShowDetails,
-      onCopy: (node: Node) =>
+      onCopy: (node: Node) => {
+        const nodeName = node.name;
         copy.mutate(
           { nodeId: node.id, parentId: dir },
           {
-            onSuccess: (made) => toast.success(`Copied as “${made.name}”`),
+            onSuccess: (made) => {
+              const copyName = made.name;
+              toast.success(t`Copied as “${copyName}”`);
+            },
             onError: (e) =>
-              toast.error(`Could not copy “${node.name}”`, { description: e.message }),
+              toast.error(t`Could not copy “${nodeName}”`, { description: e.message }),
           },
-        ),
+        );
+      },
       onClipboard: (node: Node, mode: "cut" | "copy") => {
+        const nodeName = node.name;
         setClipboard({ mode, spaceId, nodes: [node] });
         toast.success(
           mode === "cut"
-            ? `“${node.name}” cut — paste it in another folder`
-            : `“${node.name}” copied — paste it in another folder`,
+            ? t`“${nodeName}” cut — paste it in another folder`
+            : t`“${nodeName}” copied — paste it in another folder`,
         );
       },
       onToggleStar: (node: Node, next: boolean) =>
@@ -380,6 +399,7 @@ function FolderView() {
       handleRename,
       handleMove,
       handleDeleteRequest,
+      t,
     ],
   );
 
@@ -475,7 +495,9 @@ function FolderView() {
               }
             >
               {children.isPending ? (
-                <p className="text-muted-foreground p-4 text-xs">Loading…</p>
+                <p className="text-muted-foreground p-4 text-xs">
+                  <Trans>Loading…</Trans>
+                </p>
               ) : sorted.length === 0 ? (
                 <Empty className="py-12">
                   <EmptyHeader>
@@ -483,12 +505,18 @@ function FolderView() {
                       <FolderOpen className="text-muted-foreground size-10" />
                     </EmptyMedia>
                     <EmptyTitle>
-                      {filterQuery.trim() ? "No matching files or folders" : "This folder is empty"}
+                      {filterQuery.trim() ? (
+                        <Trans>No matching files or folders</Trans>
+                      ) : (
+                        <Trans>This folder is empty</Trans>
+                      )}
                     </EmptyTitle>
                     <EmptyDescription>
-                      {filterQuery.trim()
-                        ? "Try a different search."
-                        : "Right-click here, or use New, to add something."}
+                      {filterQuery.trim() ? (
+                        <Trans>Try a different search.</Trans>
+                      ) : (
+                        <Trans>Right-click here, or use New, to add something.</Trans>
+                      )}
                     </EmptyDescription>
                   </EmptyHeader>
                 </Empty>
@@ -526,6 +554,7 @@ function FolderView() {
               <SelectionBar
                 selected={selectedNodes}
                 onClear={() => setSelectedIds(new Set())}
+                // eslint-disable-next-line lingui/no-unlocalized-strings -- window.open target
                 onDownload={(node) => window.open(downloadUrl(node), "_blank")}
                 onShare={(node) => void ShareDialog.show({ node })}
                 onRename={handleRename}
@@ -556,8 +585,12 @@ function FolderView() {
       <Dialog open={!!renameNode} onOpenChange={(v) => !v && setRenameNode(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Rename</DialogTitle>
-            <DialogDescription>Enter a new name for this item.</DialogDescription>
+            <DialogTitle>
+              <Trans>Rename</Trans>
+            </DialogTitle>
+            <DialogDescription>
+              <Trans>Enter a new name for this item.</Trans>
+            </DialogDescription>
           </DialogHeader>
           <form
             onSubmit={(e: FormEvent) => {
@@ -580,7 +613,7 @@ function FolderView() {
                 type="submit"
                 disabled={!renameName.trim() || renameNode?.name === renameName.trim()}
               >
-                Save
+                <Trans>Save</Trans>
               </Button>
             </DialogFooter>
           </form>
@@ -592,13 +625,17 @@ function FolderView() {
       <ConfirmDialog
         open={!!confirmNodes}
         onOpenChange={(v) => !v && setConfirmNodes(null)}
-        title="Move to trash"
+        title={t`Move to trash`}
         description={
           confirmNodes?.length === 1
-            ? `Are you sure you want to move "${confirmNodes[0].name}" to trash?`
-            : `Are you sure you want to move ${confirmNodes?.length ?? 0} items to trash?`
+            ? t`Are you sure you want to move "${nodeName}" to trash?`
+            : plural(count, {
+                one: "Are you sure you want to move # item to trash?",
+                other: "Are you sure you want to move # items to trash?",
+              })
         }
-        confirmLabel="Move to trash"
+        confirmLabel={t`Move to trash`}
+        // eslint-disable-next-line lingui/no-unlocalized-strings -- Button variant id
         confirmVariant="destructive"
         onConfirm={handleDeleteConfirmed}
         node={confirmNodes?.length === 1 ? confirmNodes[0] : null}
@@ -616,10 +653,20 @@ function FolderView() {
  */
 function foreignOwnedWarning(count: number, folders: number): string | undefined {
   if (count <= 0) return undefined;
-  const items = `${count} ${count === 1 ? "item" : "items"} other people created`;
+  // One whole sentence per case rather than a count spliced into a fragment:
+  // "N items" is not a phrase every language assembles the same way, and the
+  // plural categories it needs are not the two English has.
   return folders === 1
-    ? `This folder holds ${items}. They lose access until you restore it.`
-    : `These folders hold ${items}. They lose access until you restore them.`;
+    ? plural(count, {
+        one: "This folder holds # item other people created. They lose access until you restore it.",
+        other:
+          "This folder holds # items other people created. They lose access until you restore it.",
+      })
+    : plural(count, {
+        one: "These folders hold # item other people created. They lose access until you restore them.",
+        other:
+          "These folders hold # items other people created. They lose access until you restore them.",
+      });
 }
 
 /**
@@ -633,6 +680,7 @@ function BackgroundMenuItem({
   action: FolderAction;
   startsGroup: boolean;
 }) {
+  const { i18n } = useLingui();
   const choices = action.choices;
   return (
     <>
@@ -640,13 +688,13 @@ function BackgroundMenuItem({
       {choices ? (
         <ContextMenuSub>
           <ContextMenuSubTrigger>
-            <action.icon /> {action.label}
+            <action.icon /> {i18n._(action.label)}
           </ContextMenuSubTrigger>
           <ContextMenuSubContent className="w-48">
             <ContextMenuRadioGroup value={choices.value} onValueChange={choices.onSelect}>
               {choices.items.map((item) => (
                 <ContextMenuRadioItem key={item.value} value={item.value}>
-                  {item.label}
+                  {i18n._(item.label)}
                 </ContextMenuRadioItem>
               ))}
             </ContextMenuRadioGroup>
@@ -654,7 +702,7 @@ function BackgroundMenuItem({
         </ContextMenuSub>
       ) : (
         <ContextMenuItem disabled={action.disabled} onClick={action.run}>
-          <action.icon /> {action.label}
+          <action.icon /> {i18n._(action.label)}
         </ContextMenuItem>
       )}
     </>

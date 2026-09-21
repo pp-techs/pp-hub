@@ -1,5 +1,8 @@
 import { Fragment } from "react";
 import { Link, useLocation, useParams, useSearch } from "@tanstack/react-router";
+import { useLingui } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import type { MessageDescriptor } from "@lingui/core";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -14,19 +17,26 @@ import { useUiStore } from "@/lib/ui-store";
 import { HeaderSlot } from "@/components/header-slot";
 import { NavSearch } from "@/components/nav-search";
 
-const SECTIONS: Record<string, string> = {
-  account: "Account",
-  home: "Home",
-  recent: "Recent",
-  starred: "Starred",
-  shared: "Shared with me",
-  trash: "Trash",
-  settings: "Settings",
-  general: "General",
-  people: "People",
-  danger: "Danger zone",
-  profile: "Profile",
-  preferences: "Preferences",
+/**
+ * Path segment -> the label the breadcrumb shows. Descriptors rather than
+ * strings: this is module scope and runs before any catalog is active, so a
+ * rendered label here would freeze the first language loaded.
+ *
+ * A new surface adds its segment here, never a prop on the route.
+ */
+const SECTIONS: Record<string, MessageDescriptor> = {
+  account: msg`Account`,
+  home: msg`Home`,
+  recent: msg`Recent`,
+  starred: msg`Starred`,
+  shared: msg`Shared with me`,
+  trash: msg`Trash`,
+  settings: msg`Settings`,
+  general: msg`General`,
+  people: msg`People`,
+  danger: msg`Danger zone`,
+  profile: msg`Profile`,
+  preferences: msg`Preferences`,
 };
 
 /** How deep a folder trail we are willing to resolve one level at a time. */
@@ -42,7 +52,7 @@ export function SiteHeader() {
     .split("/")
     .slice(2)
     .map((segment) => SECTIONS[segment])
-    .filter((label): label is string => Boolean(label));
+    .filter((label): label is MessageDescriptor => Boolean(label));
 
   const onListing = sections.length === 0;
 
@@ -71,13 +81,15 @@ export function SiteHeader() {
   );
 }
 
-function SectionBreadcrumb({ sections }: { sections: string[] }) {
+function SectionBreadcrumb({ sections }: { sections: MessageDescriptor[] }) {
+  const { i18n } = useLingui();
   return (
     <>
-      {sections.map((label, i) => {
+      {sections.map((descriptor, i) => {
         const isLast = i === sections.length - 1;
+        const label = i18n._(descriptor);
         return (
-          <Fragment key={label}>
+          <Fragment key={descriptor.id ?? label}>
             {i > 0 && <BreadcrumbSeparator />}
             <BreadcrumbItem className="min-w-0">
               <BreadcrumbPage
@@ -108,6 +120,7 @@ function ListingBreadcrumb({
   dir?: string;
   cachedDirs: Record<string, { name: string; parent?: string }>;
 }) {
+  const { t } = useLingui();
   // Fixed slots keep the hook order stable. Each fetches the node at one level;
   // `parent_id === undefined` marks the space root, where the trail stops.
   const level0 = useNode(dir);
@@ -141,7 +154,7 @@ function ListingBreadcrumb({
     .reverse();
 
   const crumbs: Crumb[] = [
-    { key: "my-drive", label: "My Drive" },
+    { key: "my-drive", label: t`My Drive` },
     ...trail.map((seg) => ({
       key: `dir-${seg.id}`,
       label: seg.name,

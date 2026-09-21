@@ -169,6 +169,7 @@ System design, component interactions, data flows, deployment, and external inte
 | [permissions.md](architecture/permissions.md)                   | Ownership vs grants, Admin/Everyone groups, capabilities, who may fetch bytes, archive on departure           |
 | [preview-pipeline.md](architecture/preview-pipeline.md)         | Preview job flow, job vs preview kinds, the optional worker, caching, backfill                                |
 | [milestones.md](architecture/milestones.md)                     | M1–M24 delivery history **and** the M25–M31 roadmap (Continuous / Phase B / C), testing strategy, rollout/ops |
+| [i18n.md](architecture/i18n.md)                                 | Lingui + gettext `.po`, locale precedence, account preferences, Weblate wiring, OnlyOffice `ui=`              |
 | [production-readiness.md](architecture/production-readiness.md) | P0 rollout blockers, P1 gaps vs Google Drive, the `file:line` evidence under each roadmap milestone, phasing  |
 
 ## Codebase

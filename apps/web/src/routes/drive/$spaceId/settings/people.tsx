@@ -1,11 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
 import { useSpace } from "@/lib/queries";
+import { pageTitle } from "@/lib/i18n";
 import { Surface } from "@/components/surface";
 import { PeopleTable } from "@/components/people-table";
 import { GroupDrawer } from "@/components/group-drawer";
 
 export const Route = createFileRoute("/drive/$spaceId/settings/people")({
-  head: () => ({ meta: [{ title: "People · Space settings · pp-hub" }] }),
+  head: () => ({ meta: [{ title: pageTitle(msg`People`, msg`Space settings`) }] }),
   validateSearch: (search: Record<string, unknown>): { group?: string } => ({
     group: typeof search.group === "string" ? search.group : undefined,
   }),
@@ -35,7 +38,12 @@ function PeoplePage() {
       replace: true,
     });
 
-  if (!space) return <p className="text-muted-foreground p-4 text-xs">Loading…</p>;
+  if (!space)
+    return (
+      <p className="text-muted-foreground p-4 text-xs">
+        <Trans>Loading…</Trans>
+      </p>
+    );
 
   return (
     <div className="flex min-h-0 flex-1">

@@ -1,6 +1,8 @@
 import { createFileRoute, useNavigate, useParams } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
+import { Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
 import { Check, Mail } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import {
@@ -12,9 +14,10 @@ import {
 } from "@workspace/ui/components/empty";
 import { acceptInvitation } from "@/lib/api";
 import { requireAuth } from "@/lib/queries";
+import { pageTitle } from "@/lib/i18n";
 
 export const Route = createFileRoute("/invite/$token")({
-  head: () => ({ meta: [{ title: "Invitation · pp-hub" }] }),
+  head: () => ({ meta: [{ title: pageTitle(msg`Invitation`) }] }),
   // Redeeming names an account, not an address, so sign-in comes first. The
   // guard bounces to login and back, landing here with a session.
   beforeLoad: async ({ context, location }) => {
@@ -52,22 +55,31 @@ function AcceptInvite() {
             )}
           </EmptyMedia>
           <EmptyTitle>
-            {accept.isError ? "This invitation is not valid" : "You have been invited"}
+            {accept.isError ? (
+              <Trans>This invitation is not valid</Trans>
+            ) : (
+              <Trans>You have been invited</Trans>
+            )}
           </EmptyTitle>
           <EmptyDescription>
-            {accept.isError
-              ? (accept.error as Error).message
-              : "Accepting adds your account to the space. The invitation is tied to the address it was sent to."}
+            {accept.isError ? (
+              (accept.error as Error).message
+            ) : (
+              <Trans>
+                Accepting adds your account to the space. The invitation is tied to the address it
+                was sent to.
+              </Trans>
+            )}
           </EmptyDescription>
         </EmptyHeader>
         {!accept.isError && (
           <Button disabled={accept.isPending} onClick={() => accept.mutate()}>
-            {accept.isPending ? "Joining…" : "Accept invitation"}
+            {accept.isPending ? <Trans>Joining…</Trans> : <Trans>Accept invitation</Trans>}
           </Button>
         )}
         {accept.isError && (
           <Button variant="outline" onClick={() => void navigate({ to: "/drive" })}>
-            Go to Drive
+            <Trans>Go to Drive</Trans>
           </Button>
         )}
       </Empty>

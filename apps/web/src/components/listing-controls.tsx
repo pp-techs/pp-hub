@@ -1,4 +1,7 @@
 import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useLingui } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import type { MessageDescriptor } from "@lingui/core";
 import { ArrowDown, ArrowUp, Info, LayoutGrid, List } from "lucide-react";
 import {
   DropdownMenu,
@@ -12,10 +15,14 @@ import { cn } from "@workspace/ui/lib/utils";
 import { useUiStore } from "@/lib/ui-store";
 import type { NodeView, SortField, SortOrder } from "@/lib/api";
 
-const sortLabels: Record<SortField, string> = {
-  name: "Name",
-  modified: "Modified",
-  size: "Size",
+/**
+ * Descriptors rather than strings: module scope runs before any catalog is
+ * active, so a rendered label here would freeze the first language loaded.
+ */
+const sortLabels: Record<SortField, MessageDescriptor> = {
+  name: msg`Name`,
+  modified: msg`Modified`,
+  size: msg`Size`,
 };
 
 /**
@@ -28,6 +35,7 @@ const sortLabels: Record<SortField, string> = {
  * and detailsOpen is ui-store state.
  */
 export function ListingControls({ spaceId }: { spaceId: string }) {
+  const { t, i18n } = useLingui();
   const navigate = useNavigate();
   const prefs = useUiStore((s) => s.listingPrefs);
   const detailsOpen = useUiStore((s) => s.detailsOpen);
@@ -61,7 +69,7 @@ export function ListingControls({ spaceId }: { spaceId: string }) {
         <DropdownMenuTrigger
           render={
             <Button variant="ghost" size="sm" className="h-7 text-xs">
-              {sortLabels[sort]}
+              {i18n._(sortLabels[sort])}
             </Button>
           }
         />
@@ -69,7 +77,7 @@ export function ListingControls({ spaceId }: { spaceId: string }) {
           <DropdownMenuRadioGroup value={sort} onValueChange={(v) => setSearch({ sort: v })}>
             {(Object.keys(sortLabels) as SortField[]).map((field) => (
               <DropdownMenuRadioItem key={field} value={field}>
-                {sortLabels[field]}
+                {i18n._(sortLabels[field])}
               </DropdownMenuRadioItem>
             ))}
           </DropdownMenuRadioGroup>
@@ -79,7 +87,8 @@ export function ListingControls({ spaceId }: { spaceId: string }) {
       <Button
         variant="ghost"
         size="icon-sm"
-        aria-label={order === "asc" ? "Sort ascending" : "Sort descending"}
+        aria-label={order === "asc" ? t`Sort ascending` : t`Sort descending`}
+        // eslint-disable-next-line lingui/no-unlocalized-strings -- URL search param value
         onClick={() => setSearch({ order: order === "asc" ? "desc" : "asc" })}
       >
         {order === "asc" ? <ArrowUp /> : <ArrowDown />}
@@ -89,9 +98,10 @@ export function ListingControls({ spaceId }: { spaceId: string }) {
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label="Grid view"
+          aria-label={t`Grid view`}
           aria-pressed={view === "grid"}
           className={cn(view === "grid" && "bg-accent text-foreground")}
+          // eslint-disable-next-line lingui/no-unlocalized-strings -- URL search param value
           onClick={() => setSearch({ view: "grid" })}
         >
           <LayoutGrid />
@@ -99,9 +109,10 @@ export function ListingControls({ spaceId }: { spaceId: string }) {
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label="List view"
+          aria-label={t`List view`}
           aria-pressed={view === "list"}
           className={cn(view === "list" && "bg-accent text-foreground")}
+          // eslint-disable-next-line lingui/no-unlocalized-strings -- URL search param value
           onClick={() => setSearch({ view: "list" })}
         >
           <List />
@@ -113,7 +124,7 @@ export function ListingControls({ spaceId }: { spaceId: string }) {
       <Button
         variant="ghost"
         size="icon-sm"
-        aria-label="Details"
+        aria-label={t`Details`}
         aria-pressed={detailsOpen}
         className={cn(detailsOpen && "bg-accent text-foreground")}
         onClick={toggleDetails}

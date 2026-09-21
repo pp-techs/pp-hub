@@ -3,10 +3,17 @@ import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
 import { cn } from "cn";
 import { ChevronRightIcon, MoreHorizontalIcon } from "lucide-react";
+import { useUiStrings } from "@workspace/ui/lib/strings";
 
 function Breadcrumb({ className, ...props }: React.ComponentProps<"nav">) {
+  const strings = useUiStrings();
   return (
-    <nav aria-label="breadcrumb" data-slot="breadcrumb" className={cn(className)} {...props} />
+    <nav
+      aria-label={strings.breadcrumb}
+      data-slot="breadcrumb"
+      className={cn(className)}
+      {...props}
+    />
   );
 }
 
@@ -77,6 +84,7 @@ function BreadcrumbSeparator({ children, className, ...props }: React.ComponentP
 }
 
 function BreadcrumbEllipsis({ className, ...props }: React.ComponentProps<"span">) {
+  const strings = useUiStrings();
   return (
     <span
       data-slot="breadcrumb-ellipsis"
@@ -86,7 +94,7 @@ function BreadcrumbEllipsis({ className, ...props }: React.ComponentProps<"span"
       {...props}
     >
       <MoreHorizontalIcon />
-      <span className="sr-only">More</span>
+      <span className="sr-only">{strings.more}</span>
     </span>
   );
 }

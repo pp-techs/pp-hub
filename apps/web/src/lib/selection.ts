@@ -52,13 +52,3 @@ export function nextSelection(
 
   return { ids: new Set([nodeId]), anchorId: nodeId };
 }
-
-/** "2 folders and 1 file", with empty halves and plurals handled. */
-export function describeSelection(nodes: Node[]): string {
-  const folders = nodes.filter((n) => n.kind === "dir").length;
-  const files = nodes.length - folders;
-  const parts: string[] = [];
-  if (folders > 0) parts.push(`${folders} ${folders === 1 ? "folder" : "folders"}`);
-  if (files > 0) parts.push(`${files} ${files === 1 ? "file" : "files"}`);
-  return parts.join(" and ");
-}

@@ -924,6 +924,47 @@ a real co-editing stack working as a viewer with write access rather than a
 place work starts. Finishing it means templates plus a create path that lands
 an empty document in the write target M19 resolves and opens the editor on it.
 
+#### M32 — The UI Speaks More Than One Language ✅ done
+
+Named for years under "Named but Unscheduled" as _"The UI is English-only. No
+i18n library, no locale files, no string catalogue in `apps/web/src`"_, which
+is no longer true. The SPA ships English and Vietnamese through Lingui, with
+gettext `.po` catalogs in `apps/web/src/locales/` that
+`@lingui/vite-plugin` compiles into the bundle — so there is no runtime ICU
+parser and no catalog fetch.
+
+Three decisions carry the design. **Message ids are hashed from the source
+text**, so migrating ~900 strings already written inline in JSX cost no
+key-naming at all, and `@lingui/format-po` still writes the English as
+`msgid`, so a Weblate translator reads `New folder` rather than `MbT6FE`.
+**Language is an account preference, not a device one** — it is a fact about
+a person — so it lives on the `users.settings` JSONB column that has existed
+since `0001_init.sql` and is read off `GET /users/me`, with
+`PATCH /api/v1/users/me/preferences` merging partial writes so a client that
+knows one preference cannot blank the rest. Because the account answer
+arrives one round trip after first paint, every applied locale is mirrored
+into `localStorage`, and that echo — not the account — is what the first
+frame reads; without it every returning Vietnamese user would see a flash of
+English. **Module-scope label maps hold `MessageDescriptor`s, never rendered
+text**: a constant evaluated at import time freezes whichever catalog loaded
+first, and `lingui/t-call-in-function` is an error so nobody rediscovers
+that. Sentences that used to be spliced from fragments — the activity feed's
+`{actor} {verb} {node} in {space}`, the selection summary's "2 folders and 1
+file" — are now single ICU messages, because word order is not English's to
+lend.
+
+The OnlyOffice ribbon follows through `?ui=<locale>` on the edit session,
+resolved into the Document Server's `editorConfig.lang`. Translation runs in
+a self-hosted Weblate (GPL-3, no seat cap) against the repository itself, and
+`apps/web/tests/catalogs.test.ts` holds the invariant Weblate cannot: that a
+catalog arriving by any other route still has balanced ICU braces and the
+placeholder set of its source.
+
+Deliberately out: **the server is still English only** — invitation mail,
+problem+json details and `/login?error=` codes — though the client already
+turns those codes into translated sentences, which is the pattern to extend.
+See [i18n.md](i18n.md).
+
 ### Named but Unscheduled
 
 Named in P1's "Smaller, but on the list" and assigned to no milestone. They
@@ -943,8 +984,6 @@ are recorded here so they are found rather than rediscovered:
 - **No encryption at rest.** Local blobs are plaintext, the S3 backend sets no
   SSE headers, and Postgres runs `sslmode=disable` inside the compose network.
   Share and invite tokens _are_ stored hashed.
-- **The UI is English-only.** No i18n library, no locale files, no string
-  catalogue in `apps/web/src`.
 
 ## Testing Strategy
 

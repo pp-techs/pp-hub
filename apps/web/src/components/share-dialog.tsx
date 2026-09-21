@@ -1,4 +1,6 @@
 import { createModal } from "@buiducnhat/better-modal";
+import { Plural, Select, Trans, useLingui } from "@lingui/react/macro";
+import { plural } from "@lingui/core/macro";
 import { toast } from "sonner";
 import { Copy, Link2, Lock, ShieldCheck, Users, X } from "lucide-react";
 import {
@@ -43,10 +45,13 @@ import { GranteePicker, type Grantee } from "@/components/grantee-picker";
 
 type Props = { node: Node };
 
+/**
+ * The server's problem+json message when there is one, else whatever the
+ * failure carried. `fallback` arrives already translated: only the caller
+ * knows which act failed.
+ */
 const message = (e: unknown, fallback: string) =>
   e instanceof ApiError ? e.message : ((e as Error)?.message ?? fallback);
-
-const items = (n: number) => `${n} item${n === 1 ? "" : "s"}`;
 
 /**
  * Who can reach one node, and the one place to change it.
@@ -63,6 +68,9 @@ const items = (n: number) => `${n} item${n === 1 ? "" : "s"}`;
  */
 export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) => {
   const live = modal.visible;
+  const { t } = useLingui();
+  // Named local so the placeholder reaches a translator as `{nodeName}`.
+  const nodeName = node.name;
   const me = useMe();
   const { data: groups = [] } = useGroups(live ? node.space_id : null);
   const { data: members = [] } = useSpaceMembers(live ? node.space_id : null);
@@ -78,6 +86,7 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
   // useState would carry the previous item's picks into the next opening and
   // could hand access to something nobody chose.
   const [picked, setPicked] = useKeyedState<string, Grantee[]>(node.id, []);
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- access-level enum from the API
   const [level, setLevel] = useKeyedState<string, "view" | "edit">(node.id, "view");
   const [canDownload, setCanDownload] = useKeyedState<string, boolean>(node.id, false);
   const [canShare, setCanShare] = useKeyedState<string, boolean>(node.id, false);
@@ -132,6 +141,7 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
       continue;
     }
     options.push({
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- grantee kind discriminator
       kind: "user",
       id: m.user_id,
       label: m.display_name || m.name || m.email,
@@ -159,6 +169,7 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
           ? upsertGrant.mutateAsync({ groupId: g.id, caps })
           : createShare.mutateAsync({
               nodeId: node.id,
+              // eslint-disable-next-line lingui/no-unlocalized-strings -- share kind discriminator
               body: { kind: "direct", email: g.email, ...caps },
             }),
       ),
@@ -168,14 +179,21 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
     results.forEach((r, i) => {
       if (r.status === "rejected") {
         failed.push(picked[i].label);
-        firstError ||= message(r.reason, "Could not share");
+        firstError ||= message(r.reason, t`Could not share`);
       }
     });
     const shared = picked.length - failed.length;
     if (shared > 0) {
-      toast.success(`${shared === 1 ? picked[0].label : `${shared} grantees`} can now ${level}`);
+      // One whole sentence per level rather than a verb spliced onto a
+      // subject: "can now view" does not survive being assembled elsewhere.
+      const who =
+        shared === 1
+          ? picked[0].label
+          : t`${plural(shared, { one: "# grantee", other: "# grantees" })}`;
+      toast.success(level === "edit" ? t`${who} can now edit` : t`${who} can now view`);
     }
     if (failed.length > 0) {
+      // Names and a server message, no phrasing of our own to translate.
       toast.error(`${failed.join(", ")}: ${firstError}`);
     }
     setPicked(failed.length > 0 ? picked.filter((g) => failed.includes(g.label)) : []);
@@ -186,7 +204,9 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
       {
         nodeId: node.id,
         body: {
+          // eslint-disable-next-line lingui/no-unlocalized-strings -- share kind discriminator
           kind: "link",
+          // eslint-disable-next-line lingui/no-unlocalized-strings -- access-level enum from the API
           level: "view",
           can_download: linkCanDownload,
           can_share: false,
@@ -196,11 +216,14 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
       {
         onSuccess: (sh: Share) => {
           if (!sh.url) return;
-          toast.success("Link created (shown once)", {
-            action: { label: "Copy", onClick: () => void navigator.clipboard.writeText(sh.url!) },
+          toast.success(t`Link created (shown once)`, {
+            action: {
+              label: t`Copy`,
+              onClick: () => void navigator.clipboard.writeText(sh.url!),
+            },
           });
         },
-        onError: (e) => toast.error(message(e, "Could not create link")),
+        onError: (e) => toast.error(message(e, t`Could not create link`)),
       },
     );
   }
@@ -209,34 +232,58 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
     revokeShare.mutate(
       { nodeId: node.id, shareId: s.id },
       {
-        onSuccess: () => toast.success("Access revoked"),
-        onError: (e) => toast.error(message(e, "Could not revoke")),
+        onSuccess: () => toast.success(t`Access revoked`),
+        onError: (e) => toast.error(message(e, t`Could not revoke`)),
       },
     );
   }
 
   const capsLabel = (c: GrantCaps) =>
-    [c.level, c.can_download && "download", c.can_share && "re-share"].filter(Boolean).join(" · ");
+    [
+      c.level === "edit" ? t`edit` : t`view`,
+      c.can_download && t`download`,
+      c.can_share && t`re-share`,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+
+  // The revoke confirmation is one sentence with three holes in it, so the
+  // pieces are named here: a translator sees `{revokeWho}`, a select on the
+  // node kind and a plural on the count, not three spliced fragments.
+  const revokeWho = pendingRevoke?.grantee_email ?? t`This person`;
+  const revokeOwned = pendingRevoke?.grantee_owned ?? 0;
+  const nodeKind = node.kind;
 
   return (
     <Dialog open={live} onOpenChange={(open) => !open && modal.resolve(null)}>
       <DialogContent className="max-h-[85svh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Share “{node.name}”</DialogTitle>
+          <DialogTitle>
+            <Trans>Share “{nodeName}”</Trans>
+          </DialogTitle>
           <DialogDescription>
-            {node.team_folder
-              ? "Everyone listed here reaches this team folder and everything inside it. Nobody reaches it otherwise, including space admins."
-              : node.kind === "dir"
-                ? "Access given here also opens everything inside this folder."
-                : "Give a group or a colleague access to this file."}
+            {node.team_folder ? (
+              <Trans>
+                Everyone listed here reaches this team folder and everything inside it. Nobody
+                reaches it otherwise, including space admins.
+              </Trans>
+            ) : node.kind === "dir" ? (
+              <Trans>Access given here also opens everything inside this folder.</Trans>
+            ) : (
+              <Trans>Give a group or a colleague access to this file.</Trans>
+            )}
           </DialogDescription>
         </DialogHeader>
 
         <section className="flex flex-col gap-3 rounded-lg border bg-muted/20 p-4">
           <div>
-            <h3 className="text-sm font-semibold">Give access</h3>
+            <h3 className="text-sm font-semibold">
+              <Trans>Give access</Trans>
+            </h3>
             <p className="text-muted-foreground mt-1 text-xs">
-              Groups and people come from this space. The access below applies to everyone picked.
+              <Trans>
+                Groups and people come from this space. The access below applies to everyone picked.
+              </Trans>
             </p>
           </div>
 
@@ -267,7 +314,7 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
                   {g.label}
                   <button
                     type="button"
-                    aria-label={`Remove ${g.label}`}
+                    aria-label={t`Remove ${{ name: g.label }}`}
                     onClick={() => setPicked(picked.filter((p) => p.id !== g.id))}
                   >
                     <X className="h-3 w-3" />
@@ -282,7 +329,7 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
           <div className="flex flex-wrap items-end gap-4">
             <div className="grid gap-1.5">
               <Label id="share-level-label" className="text-xs">
-                Access level
+                <Trans>Access level</Trans>
               </Label>
               <ToggleGroup
                 aria-labelledby="share-level-label"
@@ -291,8 +338,12 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
                 value={[level]}
                 onValueChange={(val) => val.length > 0 && setLevel(val[0] as "view" | "edit")}
               >
-                <ToggleGroupItem value="view">Can view</ToggleGroupItem>
-                <ToggleGroupItem value="edit">Can edit</ToggleGroupItem>
+                <ToggleGroupItem value="view">
+                  <Trans>Can view</Trans>
+                </ToggleGroupItem>
+                <ToggleGroupItem value="edit">
+                  <Trans>Can edit</Trans>
+                </ToggleGroupItem>
               </ToggleGroup>
             </div>
             <div className="flex flex-col gap-2 pb-1">
@@ -304,9 +355,11 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
                   onCheckedChange={(v) => setCanDownload(Boolean(v))}
                 />
                 <Label htmlFor="share-download" className="text-xs font-normal">
-                  Allow download
+                  <Trans>Allow download</Trans>
                   {level === "edit" && (
-                    <span className="text-muted-foreground ml-1">(included with edit)</span>
+                    <span className="text-muted-foreground ml-1">
+                      <Trans>(included with edit)</Trans>
+                    </span>
                   )}
                 </Label>
               </div>
@@ -317,7 +370,7 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
                   onCheckedChange={(v) => setCanShare(Boolean(v))}
                 />
                 <Label htmlFor="share-reshare" className="text-xs font-normal">
-                  Allow re-sharing
+                  <Trans>Allow re-sharing</Trans>
                 </Label>
               </div>
             </div>
@@ -327,7 +380,7 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
               disabled={picked.length === 0 || busy}
               onClick={() => void submit()}
             >
-              Share
+              <Trans>Share</Trans>
             </Button>
           </div>
         </section>
@@ -336,25 +389,36 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
 
         <section className="grid gap-2">
           <div>
-            <h3 className="text-sm font-semibold">Current access</h3>
+            <h3 className="text-sm font-semibold">
+              <Trans>Current access</Trans>
+            </h3>
             <p className="text-muted-foreground mt-1 text-xs">
-              Nobody else reaches this — not even a space admin — unless a line here says so.
+              <Trans>
+                Nobody else reaches this — not even a space admin — unless a line here says so.
+              </Trans>
             </p>
           </div>
 
           <div className="bg-background rounded-md border">
             {grants.isPending || shares.isPending ? (
-              <p className="text-muted-foreground p-3 text-sm">Loading access…</p>
+              <p className="text-muted-foreground p-3 text-sm">
+                <Trans>Loading access…</Trans>
+              </p>
             ) : grantRows.length + directShares.length + linkShares.length === 0 ? (
               <p className="text-muted-foreground p-3 text-sm">
-                No one else has access yet — only you, and anyone who can reach a folder above this.
+                <Trans>
+                  No one else has access yet — only you, and anyone who can reach a folder above
+                  this.
+                </Trans>
               </p>
             ) : (
               <ul className="divide-y">
                 {grantRows.length > 0 && !inTeam && (
                   <li className="text-muted-foreground bg-muted/20 px-3 py-2 text-xs">
-                    Revoking a group’s access leaves anything its members created in here — those
-                    items stay with whoever made them.
+                    <Trans>
+                      Revoking a group’s access leaves anything its members created in here — those
+                      items stay with whoever made them.
+                    </Trans>
                   </li>
                 )}
                 {grantRows.map((g) => (
@@ -366,17 +430,19 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
                         {g.is_everyone && (
                           <Badge variant="secondary" className="gap-1 font-normal">
                             <Lock className="h-3 w-3" />
-                            Everyone
+                            <Trans>Everyone</Trans>
                           </Badge>
                         )}
                         {g.is_admin && (
                           <Badge variant="secondary" className="gap-1 font-normal">
                             <ShieldCheck className="h-3 w-3" />
-                            Admins
+                            <Trans>Admins</Trans>
                           </Badge>
                         )}
                       </p>
-                      <p className="text-muted-foreground text-[10px] uppercase">Group</p>
+                      <p className="text-muted-foreground text-[10px] uppercase">
+                        <Trans>Group</Trans>
+                      </p>
                     </div>
                     <span className="text-muted-foreground shrink-0 text-xs whitespace-nowrap">
                       {capsLabel(g)}
@@ -385,11 +451,12 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
                       variant="ghost"
                       size="icon-xs"
                       className="shrink-0"
-                      aria-label={`Remove ${g.group_name}'s access`}
+                      aria-label={t`Remove ${{ name: g.group_name }}'s access`}
                       onClick={() =>
                         revokeGrant.mutate(g.group_id, {
-                          onSuccess: () => toast.success(`${g.group_name} no longer has access`),
-                          onError: (e) => toast.error(message(e, "Could not revoke")),
+                          onSuccess: () =>
+                            toast.success(t`${{ name: g.group_name }} no longer has access`),
+                          onError: (e) => toast.error(message(e, t`Could not revoke`)),
                         })
                       }
                     >
@@ -404,6 +471,7 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
                   // the confirmation — there is nothing left behind to warn
                   // about.
                   const owned = !inTeam && s.kind === "direct" ? (s.grantee_owned ?? 0) : 0;
+                  const grantee = s.grantee_email ?? t`the public link`;
                   return (
                     <li key={s.id} className="flex items-center gap-3 p-3 text-sm">
                       <Avatar size="sm">
@@ -419,14 +487,25 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
                       </Avatar>
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-medium">
-                          {s.kind === "link" ? "Anyone with the link" : s.grantee_email}
+                          {s.kind === "link" ? (
+                            <Trans>Anyone with the link</Trans>
+                          ) : (
+                            s.grantee_email
+                          )}
                         </p>
                         <p className="text-muted-foreground text-[10px] uppercase">
-                          {s.kind === "link" ? "Public link" : "Direct share"}
+                          {s.kind === "link" ? (
+                            <Trans>Public link</Trans>
+                          ) : (
+                            <Trans>Direct share</Trans>
+                          )}
                         </p>
                         {owned > 0 && (
                           <p className="text-muted-foreground mt-0.5 text-xs">
-                            Created {items(owned)} in here — those stay theirs.
+                            <Trans>
+                              Created <Plural value={owned} one="# item" other="# items" /> in here
+                              — those stay theirs.
+                            </Trans>
                           </p>
                         )}
                       </div>
@@ -440,14 +519,14 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
                           rel="noreferrer"
                           className="text-primary inline-flex shrink-0 items-center gap-1 text-xs underline"
                         >
-                          <Copy className="size-3.5" /> Open
+                          <Copy className="size-3.5" /> <Trans>Open</Trans>
                         </a>
                       )}
                       <Button
                         variant="ghost"
                         size="icon-xs"
                         className="shrink-0"
-                        aria-label={`Revoke access for ${s.grantee_email ?? "the public link"}`}
+                        aria-label={t`Revoke access for ${grantee}`}
                         onClick={() => (owned > 0 ? setPendingRevoke(s) : revoke(s))}
                       >
                         <X />
@@ -464,16 +543,20 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
 
         <section className="flex flex-col gap-3 rounded-lg border bg-muted/20 p-4">
           <div>
-            <h3 className="text-sm font-semibold">Public link</h3>
+            <h3 className="text-sm font-semibold">
+              <Trans>Public link</Trans>
+            </h3>
             <p className="text-muted-foreground mt-1 text-xs">
-              Anyone holding the link can view this item without signing in. A link never carries
-              editing, and nobody can re-share it onward — download is the one choice it offers.
+              <Trans>
+                Anyone holding the link can view this item without signing in. A link never carries
+                editing, and nobody can re-share it onward — download is the one choice it offers.
+              </Trans>
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="grid gap-1.5">
               <Label htmlFor="link-download-toggle" className="text-xs">
-                Access
+                <Trans>Access</Trans>
               </Label>
               <div className="flex items-center gap-2 pt-1.5">
                 <Checkbox
@@ -482,13 +565,13 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
                   onCheckedChange={(v) => setLinkCanDownload(Boolean(v))}
                 />
                 <Label htmlFor="link-download-toggle" className="text-xs font-normal">
-                  Allow download
+                  <Trans>Allow download</Trans>
                 </Label>
               </div>
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="link-expiry" className="text-xs">
-                Expiration
+                <Trans>Expiration</Trans>
               </Label>
               <Input
                 id="link-expiry"
@@ -499,7 +582,7 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
                 aria-describedby="link-expiry-help"
               />
               <span id="link-expiry-help" className="text-muted-foreground text-xs">
-                Seconds; use 0 for no expiration.
+                <Trans>Seconds; use 0 for no expiration.</Trans>
               </span>
             </div>
           </div>
@@ -510,7 +593,7 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
             disabled={createShare.isPending}
             onClick={createLink}
           >
-            Create public link
+            <Trans>Create public link</Trans>
           </Button>
         </section>
 
@@ -523,16 +606,22 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
         >
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Remove access</AlertDialogTitle>
+              <AlertDialogTitle>
+                <Trans>Remove access</Trans>
+              </AlertDialogTitle>
               <AlertDialogDescription>
-                {pendingRevoke?.grantee_email ?? "This person"} loses access to this{" "}
-                {node.kind === "dir" ? "folder" : "file"}, but keeps the{" "}
-                {items(pendingRevoke?.grantee_owned ?? 0)} they created inside it — ownership is
-                theirs, so those appear at their own top level.
+                <Trans>
+                  {revokeWho} loses access to this{" "}
+                  <Select value={nodeKind} _dir="folder" other="file" />, but keeps the{" "}
+                  <Plural value={revokeOwned} one="# item" other="# items" /> they created inside it
+                  — ownership is theirs, so those appear at their own top level.
+                </Trans>
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogCancel>
+                <Trans>Cancel</Trans>
+              </AlertDialogCancel>
               <AlertDialogAction
                 variant="destructive"
                 onClick={(e) => {
@@ -541,7 +630,7 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
                   setPendingRevoke(null);
                 }}
               >
-                Remove access
+                <Trans>Remove access</Trans>
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

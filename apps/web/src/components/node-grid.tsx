@@ -1,5 +1,6 @@
 import { memo, useState } from "react";
 import type { MouseEvent } from "react";
+import { Plural, useLingui } from "@lingui/react/macro";
 import { MoreVertical } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import {
@@ -16,7 +17,8 @@ import {
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
 import { cn } from "@workspace/ui/lib/utils";
-import { fmtDate, fmtSize, hasThumbnail, previewUrl, thumbnailFit, type Node } from "@/lib/api";
+import { hasThumbnail, previewUrl, thumbnailFit, type Node } from "@/lib/api";
+import { useFormatters } from "@/lib/format";
 import { useNodeActions, type NodeActionHandlers } from "@/components/node-actions";
 import { NodeIcon } from "@/components/node-icon";
 import { useUiStore } from "@/lib/ui-store";
@@ -26,6 +28,7 @@ import { useUiStore } from "@/lib/ui-store";
  * opening the details panel drops 5 columns to 4 without the route having to
  * tell the grid anything.
  */
+// eslint-disable-next-line lingui/no-unlocalized-strings -- Tailwind class names
 const GRID = "grid grid-cols-2 gap-3 @lg:grid-cols-3 @2xl:grid-cols-4 @4xl:grid-cols-5";
 
 interface NodeGridProps extends NodeActionHandlers {
@@ -57,7 +60,9 @@ function GroupLabel({
       <span className="text-border">·</span>
       <span className="tabular-nums">{count}</span>
       {selected > 0 && (
-        <span className="text-primary tabular-nums normal-case">{selected} selected</span>
+        <span className="text-primary tabular-nums normal-case">
+          <Plural value={selected} one="# selected" other="# selected" />
+        </span>
       )}
     </div>
   );
@@ -73,6 +78,7 @@ export function NodeGrid({
   onDoubleClick,
   ...handlers
 }: NodeGridProps) {
+  const { t } = useLingui();
   const countSelected = (nodes: Node[]) => {
     let count = 0;
     for (const n of nodes) if (selectedIds.has(n.id)) count++;
@@ -96,14 +102,14 @@ export function NodeGrid({
     <div className="@container flex flex-col gap-6 p-4">
       {dirs.length > 0 && (
         <section>
-          <GroupLabel label="Folders" count={dirs.length} selected={countSelected(dirs)} />
+          <GroupLabel label={t`Folders`} count={dirs.length} selected={countSelected(dirs)} />
           <div className={GRID}>{dirs.map(card)}</div>
         </section>
       )}
 
       {files.length > 0 && (
         <section>
-          <GroupLabel label="Files" count={files.length} selected={countSelected(files)} />
+          <GroupLabel label={t`Files`} count={files.length} selected={countSelected(files)} />
           <div className={GRID}>{files.map(card)}</div>
         </section>
       )}
@@ -169,6 +175,8 @@ const NodeCard = memo(function NodeCard({
   onDoubleClick,
   ...handlers
 }: NodeCardProps) {
+  const { t, i18n } = useLingui();
+  const f = useFormatters();
   const openPanel = useUiStore((s) => s.openPanel);
   const actions = useNodeActions(node, handlers, openPanel, starred, canWriteHere);
   const isDir = node.kind === "dir";
@@ -176,13 +184,13 @@ const NodeCard = memo(function NodeCard({
   // Size and date only live in the tooltip: the Stitch card carries the name
   // alone, and the details panel and list view are where numbers belong.
   const meta = isDir
-    ? [node.modified_at ? fmtDate(node.modified_at) : "Folder"]
+    ? [node.modified_at ? f.date(node.modified_at) : t`Folder`]
     : [
-        node.size != null ? fmtSize(node.size) : null,
-        node.modified_at ? fmtDate(node.modified_at) : null,
+        node.size != null ? f.size(node.size) : null,
+        node.modified_at ? f.date(node.modified_at) : null,
       ];
-  const label = node.name;
-  const title = [label, ...meta.filter(Boolean)].join("\n");
+  const nodeName = node.name;
+  const title = [nodeName, ...meta.filter(Boolean)].join("\n");
 
   const kebab = (
     <DropdownMenu>
@@ -191,7 +199,7 @@ const NodeCard = memo(function NodeCard({
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label={`Actions for ${node.name}`}
+            aria-label={t`Actions for ${nodeName}`}
             className="text-muted-foreground hover:text-foreground size-6 shrink-0 rounded-full"
             onClick={(e) => e.stopPropagation()}
           />
@@ -209,7 +217,7 @@ const NodeCard = memo(function NodeCard({
               action.run();
             }}
           >
-            <action.icon /> {action.label}
+            <action.icon /> {i18n._(action.label)}
             {action.shortcut && (
               <span className="text-muted-foreground ml-auto pl-4 text-[10px]">
                 {action.shortcut}
@@ -223,7 +231,7 @@ const NodeCard = memo(function NodeCard({
 
   const name = (
     <span className="flex min-w-0 items-center gap-1.5 truncate text-xs font-medium" title={title}>
-      <span className="truncate">{label}</span>
+      <span className="truncate">{nodeName}</span>
     </span>
   );
 
@@ -276,7 +284,7 @@ const NodeCard = memo(function NodeCard({
               variant={action.destructive ? "destructive" : undefined}
               onClick={action.run}
             >
-              <action.icon data-icon="inline-start" /> {action.label}
+              <action.icon data-icon="inline-start" /> {i18n._(action.label)}
               {action.shortcut && (
                 <span className="text-muted-foreground ml-auto pl-4 text-[10px]">
                   {action.shortcut}

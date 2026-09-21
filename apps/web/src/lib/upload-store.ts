@@ -1,5 +1,7 @@
 import { create } from "zustand";
+import { msg } from "@lingui/core/macro";
 import { ApiError, createFolder, getChildren, uploadFileWithProgress } from "@/lib/api";
+import { i18n } from "@/lib/i18n";
 
 export type TransferStatus = "queued" | "uploading" | "done" | "error" | "cancelled";
 
@@ -115,6 +117,7 @@ export const useUploadStore = create<UploadState>()((set, get) => ({
       path,
       size: file.size,
       loaded: 0,
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- TransferStatus id
       status: "queued",
       spaceId,
       rootParentId,
@@ -140,6 +143,7 @@ export const useUploadStore = create<UploadState>()((set, get) => ({
       set({
         transfers: replaceAt(get().transfers, found.index, {
           ...found.transfer,
+          // eslint-disable-next-line lingui/no-unlocalized-strings -- TransferStatus id
           status: "cancelled",
         }),
       });
@@ -154,6 +158,7 @@ export const useUploadStore = create<UploadState>()((set, get) => ({
       set({
         transfers: replaceAt(get().transfers, found.index, {
           ...found.transfer,
+          // eslint-disable-next-line lingui/no-unlocalized-strings -- TransferStatus id
           status: "queued",
           loaded: 0,
           error: undefined,
@@ -291,6 +296,7 @@ async function run(id: string): Promise<void> {
   if (!found || found.transfer.status !== "queued" || !file) return;
   const { transfer } = found;
 
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- TransferStatus id
   patch(id, { status: "uploading", startedAt: Date.now(), loaded: 0 });
 
   try {
@@ -317,11 +323,13 @@ async function run(id: string): Promise<void> {
     );
     aborts.set(id, abort);
     await promise;
+    // eslint-disable-next-line lingui/no-unlocalized-strings -- TransferStatus id
     patch(id, { status: "done", loaded: transfer.size });
     notify(transfer.spaceId, parentId);
   } catch (e) {
     // A cancel already moved the row to its final state; do not overwrite it.
     if (transferAt(id)?.transfer.status === "cancelled") return;
+    // eslint-disable-next-line lingui/no-unlocalized-strings -- TransferStatus id
     patch(id, { status: "error", error: describe(e) });
   } finally {
     aborts.delete(id);
@@ -397,9 +405,16 @@ async function resolveDir(
   }
 }
 
+/**
+ * What a failed row says when the transport offered no message of its own.
+ * A descriptor, not a String: this module is imported long before a catalog
+ * is active, so `i18n._` resolves it at the moment the upload fails.
+ */
+const UPLOAD_FAILED = msg`Upload failed`;
+
 function describe(e: unknown): string {
   if (e instanceof ApiError) {
-    return e.status === 0 ? e.message : `${e.message || "Upload failed"} (${e.status})`;
+    return e.status === 0 ? e.message : `${e.message || i18n._(UPLOAD_FAILED)} (${e.status})`;
   }
-  return e instanceof Error ? e.message : "Upload failed";
+  return e instanceof Error ? e.message : i18n._(UPLOAD_FAILED);
 }

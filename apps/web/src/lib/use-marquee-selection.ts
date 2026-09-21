@@ -101,17 +101,23 @@ export function useMarqueeSelection(
       };
       const up = (e: MouseEvent) => {
         cleanupRef.current = null;
+        // eslint-disable-next-line lingui/no-unlocalized-strings -- DOM event name
         window.removeEventListener("mousemove", move);
+        // eslint-disable-next-line lingui/no-unlocalized-strings -- DOM event name
         window.removeEventListener("mouseup", up);
         setRect(null);
         if (!dragged) latest.current.onChange(new Set(), e.shiftKey || e.metaKey || e.ctrlKey);
       };
 
       cleanupRef.current = () => {
+        // eslint-disable-next-line lingui/no-unlocalized-strings -- DOM event name
         window.removeEventListener("mousemove", move);
+        // eslint-disable-next-line lingui/no-unlocalized-strings -- DOM event name
         window.removeEventListener("mouseup", up);
       };
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- DOM event name
       window.addEventListener("mousemove", move);
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- DOM event name
       window.addEventListener("mouseup", up);
     },
     [container],

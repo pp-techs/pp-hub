@@ -37,6 +37,13 @@ SET display_name = $2, bio = $3, settings = COALESCE($4, settings)
 WHERE id = $1
 RETURNING *;
 
+-- Preferences are their own statement rather than a fourth argument to
+-- UpdateUserProfile: that one is a full replace of display_name and bio, so
+-- routing a language change through it would make "change your language"
+-- capable of blanking a bio written from another tab.
+-- name: UpdateUserSettings :one
+UPDATE users SET settings = $2 WHERE id = $1 RETURNING *;
+
 -- name: SetUserAvatar :one
 UPDATE users SET avatar_url = $2, avatar_blob = $3, avatar_mime = $4 WHERE id = $1 RETURNING *;
 

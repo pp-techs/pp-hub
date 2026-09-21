@@ -74,6 +74,7 @@ export const useUiStore = create<UiState>()(
       lastSpaceId: null,
       filterQuery: "",
       setFilterQuery: (v) => set({ filterQuery: v }),
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- NodeView/SortField/SortOrder ids
       listingPrefs: { view: "grid", sort: "name", order: "asc" },
       setListingPrefs: (next) => set((s) => ({ listingPrefs: { ...s.listingPrefs, ...next } })),
       openPanel: (kind, node) => set({ panel: { kind, node } }),

@@ -1,9 +1,12 @@
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import type { I18n } from "@lingui/core";
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, ChevronDown, ChevronUp, RotateCcw, X } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { cn } from "@workspace/ui/lib/utils";
-import { fmtSize } from "@/lib/api";
+import { useFormatters } from "@/lib/format";
 import { keys } from "@/lib/queries";
 import { onUploadSettled, useUploadStore, type Transfer } from "@/lib/upload-store";
 
@@ -17,6 +20,8 @@ import { onUploadSettled, useUploadStore, type Transfer } from "@/lib/upload-sto
  */
 export function TransferTray() {
   const qc = useQueryClient();
+  const { t } = useLingui();
+  const f = useFormatters();
   const transfers = useUploadStore((s) => s.transfers);
   const paused = useUploadStore((s) => s.paused);
   const collapsed = useUploadStore((s) => s.collapsed);
@@ -61,28 +66,32 @@ export function TransferTray() {
   }
   const finished = activeCount === 0;
   const pct = totalBytes > 0 ? Math.round((loadedBytes / totalBytes) * 100) : 0;
+  const loadedSize = f.size(loadedBytes);
+  const totalSize = f.size(totalBytes);
 
   return (
     <div className="border-border bg-popover ring-foreground/10 fixed right-4 bottom-4 z-50 w-90 overflow-hidden rounded-lg shadow-md ring-1">
       <div className="border-border flex h-9 items-center gap-2 border-b px-3">
         <div className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-xs font-medium">{title(transfers, done, failed)}</span>
+          <span className="truncate text-xs font-medium">
+            <TrayTitle transfers={transfers} done={done} failed={failed} />
+          </span>
           <span className="text-muted-foreground truncate text-[10px] tabular-nums">
             {finished
-              ? `${fmtSize(loadedBytes)} transferred`
-              : `${fmtSize(loadedBytes)} of ${fmtSize(totalBytes)} · ${pct}%`}
+              ? t`${loadedSize} transferred`
+              : t`${loadedSize} of ${totalSize}` + ` · ${pct}%`}
           </span>
         </div>
         <Button
           variant="ghost"
           size="icon-xs"
-          aria-label={collapsed ? "Expand transfers" : "Collapse transfers"}
+          aria-label={collapsed ? t`Expand transfers` : t`Collapse transfers`}
           aria-expanded={!collapsed}
           onClick={() => setCollapsed(!collapsed)}
         >
           {collapsed ? <ChevronUp /> : <ChevronDown />}
         </Button>
-        <Button variant="ghost" size="icon-xs" aria-label="Close transfers" onClick={dismiss}>
+        <Button variant="ghost" size="icon-xs" aria-label={t`Close transfers`} onClick={dismiss}>
           <X />
         </Button>
       </div>
@@ -102,15 +111,19 @@ export function TransferTray() {
           <div className="border-border flex h-8 items-center justify-between border-t px-2">
             {finished ? (
               <span className="text-muted-foreground px-1 text-[10px]">
-                {failed > 0 ? `${failed} failed` : "All transfers complete"}
+                {failed > 0 ? (
+                  <Plural value={failed} one="# failed" other="# failed" />
+                ) : (
+                  <Trans>All transfers complete</Trans>
+                )}
               </span>
             ) : (
               <Button variant="ghost" size="xs" onClick={() => setPaused(!paused)}>
-                {paused ? "Resume queue" : "Pause queue"}
+                {paused ? <Trans>Resume queue</Trans> : <Trans>Pause queue</Trans>}
               </Button>
             )}
             <Button variant="ghost" size="xs" disabled={done === 0} onClick={clearCompleted}>
-              Clear completed
+              <Trans>Clear completed</Trans>
             </Button>
           </div>
         </>
@@ -119,11 +132,33 @@ export function TransferTray() {
   );
 }
 
-function title(transfers: Transfer[], done: number, failed: number): string {
+function TrayTitle({
+  transfers,
+  done,
+  failed,
+}: {
+  transfers: Transfer[];
+  done: number;
+  failed: number;
+}) {
   const pending = transfers.filter((t) => t.status === "uploading" || t.status === "queued").length;
-  if (pending > 0) return `Uploading ${done + 1} of ${transfers.length}`;
-  if (failed > 0) return `${done} uploaded, ${failed} failed`;
-  return `Uploaded ${done} ${done === 1 ? "file" : "files"}`;
+  const current = done + 1;
+  const total = transfers.length;
+  if (pending > 0) {
+    return (
+      <Trans>
+        Uploading {current} of {total}
+      </Trans>
+    );
+  }
+  if (failed > 0) {
+    return (
+      <Trans>
+        {done} uploaded, {failed} failed
+      </Trans>
+    );
+  }
+  return <Plural value={done} one="Uploaded # file" other="Uploaded # files" />;
 }
 
 interface RowProps {
@@ -132,51 +167,56 @@ interface RowProps {
   onRetry: (id: string) => void;
 }
 
-function TransferRow({ transfer: t, onCancel, onRetry }: RowProps) {
-  const pct = t.size > 0 ? Math.round((t.loaded / t.size) * 100) : 0;
+function TransferRow({ transfer, onCancel, onRetry }: RowProps) {
+  const { t } = useLingui();
+  const pct = transfer.size > 0 ? Math.round((transfer.loaded / transfer.size) * 100) : 0;
+  const fileName = transfer.name;
 
   return (
     <li
       className={cn(
         "border-border relative flex h-10 items-center gap-2 border-b px-3 last:border-b-0",
-        t.status === "error" && "bg-destructive/10",
+        transfer.status === "error" && "bg-destructive/10",
       )}
     >
       <div className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-xs" title={t.path ? `${t.path}/${t.name}` : t.name}>
-          {t.name}
+        <span
+          className="truncate text-xs"
+          title={transfer.path ? `${transfer.path}/${transfer.name}` : transfer.name}
+        >
+          {transfer.name}
         </span>
         <span
           className={cn(
             "truncate text-[10px] tabular-nums",
-            t.status === "error" ? "text-destructive" : "text-muted-foreground",
+            transfer.status === "error" ? "text-destructive" : "text-muted-foreground",
           )}
         >
-          {statusLine(t, pct)}
+          <StatusLine transfer={transfer} pct={pct} />
         </span>
       </div>
 
-      {t.status === "done" && <CheckCircle2 className="text-primary size-3.5 shrink-0" />}
-      {t.status === "uploading" && (
+      {transfer.status === "done" && <CheckCircle2 className="text-primary size-3.5 shrink-0" />}
+      {transfer.status === "uploading" && (
         <span className="text-muted-foreground shrink-0 text-[10px] tabular-nums">{pct}%</span>
       )}
-      {t.status === "error" && (
-        <Button variant="ghost" size="xs" onClick={() => onRetry(t.id)}>
-          <RotateCcw data-icon="inline-start" /> Retry
+      {transfer.status === "error" && (
+        <Button variant="ghost" size="xs" onClick={() => onRetry(transfer.id)}>
+          <RotateCcw data-icon="inline-start" /> <Trans>Retry</Trans>
         </Button>
       )}
-      {(t.status === "queued" || t.status === "uploading") && (
+      {(transfer.status === "queued" || transfer.status === "uploading") && (
         <Button
           variant="ghost"
           size="icon-xs"
-          aria-label={`Cancel ${t.name}`}
-          onClick={() => onCancel(t.id)}
+          aria-label={t`Cancel ${fileName}`}
+          onClick={() => onCancel(transfer.id)}
         >
           <X />
         </Button>
       )}
 
-      {t.status === "uploading" && (
+      {transfer.status === "uploading" && (
         <div
           className="bg-primary absolute bottom-0 left-0 h-0.5 transition-[width]"
           style={{ width: `${pct}%` }}
@@ -186,25 +226,40 @@ function TransferRow({ transfer: t, onCancel, onRetry }: RowProps) {
   );
 }
 
-function statusLine(t: Transfer, pct: number): string {
-  switch (t.status) {
+function StatusLine({ transfer, pct }: { transfer: Transfer; pct: number }) {
+  const { t, i18n } = useLingui();
+  const f = useFormatters();
+
+  switch (transfer.status) {
     case "done":
-      return `${fmtSize(t.size)}${t.path ? ` · ${t.path}` : ""}`;
-    case "uploading":
-      return `${fmtSize(t.loaded)} of ${fmtSize(t.size)}${rate(t, pct)}`;
+      return <>{`${f.size(transfer.size)}${transfer.path ? ` · ${transfer.path}` : ""}`}</>;
+    case "uploading": {
+      const loadedSize = f.size(transfer.loaded);
+      const totalSize = f.size(transfer.size);
+      const progress = t`${loadedSize} of ${totalSize}`;
+      return <>{progress + rate(transfer, pct, f.size, i18n)}</>;
+    }
     case "queued":
-      return "Waiting";
+      return <Trans>Waiting</Trans>;
     case "cancelled":
-      return "Cancelled";
+      return <Trans>Cancelled</Trans>;
     case "error":
-      return t.error ?? "Upload failed";
+      return <>{transfer.error ?? t`Upload failed`}</>;
   }
 }
 
-/** Average rate since the transfer started. Omitted until there is a sample. */
-function rate(t: Transfer, pct: number): string {
+/**
+ * Average rate since the transfer started. Omitted until there is a sample.
+ *
+ * Takes the i18n instance for the same reason `move-dialog`'s `names` does:
+ * the caller's render already holds one, and a plain helper cannot hold a
+ * hook. The per-second suffix is a message, not punctuation — it is a word in
+ * some languages.
+ */
+function rate(t: Transfer, pct: number, size: (n: number) => string, i18n: I18n): string {
   if (!t.startedAt || pct === 0) return "";
   const seconds = (Date.now() - t.startedAt) / 1000;
   if (seconds < 1) return "";
-  return ` · ${fmtSize(Math.round(t.loaded / seconds))}/s`;
+  const perSecond = size(Math.round(t.loaded / seconds));
+  return ` · ${i18n._(msg`${perSecond}/s`)}`;
 }

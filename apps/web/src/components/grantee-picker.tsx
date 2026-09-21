@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { ChevronsUpDown, Lock, ShieldCheck, Users } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import {
@@ -42,12 +43,8 @@ function matches(g: Grantee, needle: string) {
  * would buy nothing, and scoping the search to the space is what keeps one
  * company's staff list out of another's autocomplete.
  */
-export function GranteePicker({
-  options,
-  onPick,
-  placeholder = "Add people or groups…",
-  disabled,
-}: GranteePickerProps) {
+export function GranteePicker({ options, onPick, placeholder, disabled }: GranteePickerProps) {
+  const { t } = useLingui();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
 
@@ -68,12 +65,12 @@ export function GranteePicker({
         disabled={disabled}
         render={<Button variant="outline" className="w-full justify-between font-normal" />}
       >
-        {placeholder}
+        {placeholder ?? t`Add people or groups…`}
         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-[320px] p-2" align="start">
         <Input
-          placeholder="Search groups and people…"
+          placeholder={t`Search groups and people…`}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="mb-2"
@@ -91,10 +88,14 @@ export function GranteePicker({
         <DropdownMenuGroup className="max-h-[260px] overflow-y-auto">
           {visible.length === 0 && (
             <p className="text-muted-foreground py-2 text-center text-sm">
-              {options.length === 0 ? "Everyone here already has access." : "Nothing matches."}
+              {options.length === 0 ? t`Everyone here already has access.` : t`Nothing matches.`}
             </p>
           )}
-          {groups.length > 0 && <DropdownMenuLabel className="text-xs">Groups</DropdownMenuLabel>}
+          {groups.length > 0 && (
+            <DropdownMenuLabel className="text-xs">
+              <Trans>Groups</Trans>
+            </DropdownMenuLabel>
+          )}
           {groups.map((g) => (
             <DropdownMenuItem
               key={g.id}
@@ -114,7 +115,11 @@ export function GranteePicker({
               )}
             </DropdownMenuItem>
           ))}
-          {people.length > 0 && <DropdownMenuLabel className="text-xs">People</DropdownMenuLabel>}
+          {people.length > 0 && (
+            <DropdownMenuLabel className="text-xs">
+              <Trans>People</Trans>
+            </DropdownMenuLabel>
+          )}
           {people.map((p) => (
             <DropdownMenuItem
               key={p.id}

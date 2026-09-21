@@ -1,4 +1,5 @@
 import { Outlet, createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
+import { Trans } from "@lingui/react/macro";
 import { Button } from "@workspace/ui/components/button";
 import { fetchSpaces } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
@@ -29,12 +30,14 @@ function SpaceGone() {
   const navigate = useNavigate();
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8">
-      <h1 className="text-sm font-medium">Space not found</h1>
+      <h1 className="text-sm font-medium">
+        <Trans>Space not found</Trans>
+      </h1>
       <p className="text-muted-foreground text-xs">
-        It may have been deleted, or you no longer have access.
+        <Trans>It may have been deleted, or you no longer have access.</Trans>
       </p>
       <Button variant="outline" onClick={() => void navigate({ to: "/drive" })}>
-        Back to Drive
+        <Trans>Back to Drive</Trans>
       </Button>
     </div>
   );

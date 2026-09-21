@@ -1,5 +1,6 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { lingui } from "@lingui/vite-plugin";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
@@ -11,11 +12,17 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   plugins: [
     tanstackRouter({ target: "react", autoCodeSplitting: true }),
-    react(),
+    // `@vitejs/plugin-react` deliberately ignores the project's Babel config,
+    // so the Lingui macro has to be named here. It rewrites `<Trans>`/`t` into
+    // `i18n._({id, message})` with an id hashed from the source text.
+    react({ babel: { plugins: ["@lingui/babel-plugin-lingui-macro"] } }),
     tailwindcss(),
     // vscode-icons file glyphs, compiled to inline SVG components at build
     // time so the drive never calls out to the Iconify API.
     Icons({ compiler: "jsx", jsx: "react" }),
+    // Compiles `src/locales/*/messages.po` during transform, so the bundle
+    // carries pre-compiled message trees and no runtime ICU parser.
+    lingui({ failOnCompileError: true }),
   ],
   resolve: {
     alias: {

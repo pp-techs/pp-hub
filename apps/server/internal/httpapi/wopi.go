@@ -14,6 +14,7 @@ import (
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
+	"github.com/nhatbui/pp-hub/apps/server/internal/users"
 	"github.com/nhatbui/pp-hub/apps/server/internal/wopi"
 )
 
@@ -329,7 +330,17 @@ func (s *Server) handleEditSession(w http.ResponseWriter, r *http.Request) {
 	}
 	nodeIDStr, _ := node.ID.Value()
 	wopiSrc := s.wopiServerURL + "/wopi/files/" + nodeIDStr.(string)
-	editorURL := s.onlyOfficeURL + "/hosting/wopi/" + wopiDocumentType(node.Name) + "/" + mode + "?WOPISrc=" + url.QueryEscape(wopiSrc)
+	editorURL := s.onlyOfficeURL + "/hosting/wopi/" + wopiDocumentType(node.Name) + "/" + mode +
+		"?WOPISrc=" + url.QueryEscape(wopiSrc)
+	// `ui` is the WOPI discovery placeholder UI_LLCC resolved to a real value;
+	// the Document Server reads it straight into editorConfig.lang. The caller
+	// sends its active locale rather than the server reading users.locale,
+	// because that column is empty for anyone who never chose one and the
+	// browser's own detection is then the only truthful answer. Omitted when
+	// absent or malformed, which leaves OnlyOffice on its en-US default.
+	if ui := strings.TrimSpace(r.URL.Query().Get("ui")); ui != "" && users.ValidLocale(ui) {
+		editorURL += "&ui=" + url.QueryEscape(ui)
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"editor_url":       editorURL,
 		"wopi_src":         wopiSrc,

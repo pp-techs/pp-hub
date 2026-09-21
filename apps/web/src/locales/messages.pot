@@ -1,0 +1,2969 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-09-21 01:22+0700\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language: \n"
+"Language-Team: \n"
+"Plural-Forms: \n"
+
+#: src/routes/drive/$spaceId/index.tsx:379
+msgid "“{nodeName}” copied — paste it in another folder"
+msgstr ""
+
+#: src/routes/drive/$spaceId/index.tsx:378
+msgid "“{nodeName}” cut — paste it in another folder"
+msgstr ""
+
+#: src/components/share-dialog.tsx:361
+msgid "(included with edit)"
+msgstr ""
+
+#. placeholder {0}: groups.length
+#: src/components/people-table.tsx:177
+msgid "{0, plural, one {# group} other {# groups}}"
+msgstr ""
+
+#. placeholder {0}: n.child_count
+#: src/components/trash-panel.tsx:352
+msgid "{0, plural, one {# item} other {# items}}"
+msgstr ""
+
+#. placeholder {0}: trash.data?.length ?? 0
+#: src/components/trash-panel.tsx:206
+msgid "{0, plural, one {# item} other {# items}} · {totalSize} · deleted items still count toward storage"
+msgstr ""
+
+#. placeholder {0}: group.member_count
+#. placeholder {0}: members.length
+#: src/components/group-drawer.tsx:179
+#: src/components/people-table.tsx:169
+msgid "{0, plural, one {# member} other {# members}}"
+msgstr ""
+
+#. placeholder {0}: pending.length
+#: src/components/people-table.tsx:173
+msgid "{0, plural, one {# pending} other {# pending}}"
+msgstr ""
+
+#. placeholder {0}: group.member_count
+#. placeholder {1}: group.grant_count
+#: src/components/group-drawer.tsx:289
+msgid "{0, plural, one {# person} other {# people}} will lose access to {1, plural, one {# folder} other {# folders}}. This cannot be undone."
+msgstr ""
+
+#. placeholder {0}: selected.length
+#: src/components/selection-bar.tsx:57
+msgid "{0, plural, one {# selected} other {# selected}}"
+msgstr ""
+
+#. placeholder {0}: group.grant_count
+#: src/components/group-drawer.tsx:181
+msgid "{0, plural, one {opens # folder} other {opens # folders}}"
+msgstr ""
+
+#. placeholder {0}: purgeTargets.length
+#: src/components/trash-panel.tsx:179
+msgid "{0, plural, one {Permanently delete # item? This cannot be undone.} other {Permanently delete # items? This cannot be undone.}}"
+msgstr ""
+
+#. placeholder {0}: trash.data?.length ?? 0
+#: src/components/trash-panel.tsx:187
+msgid "{0, plural, one {Permanently delete the # item in the trash, including everything inside deleted folders. This cannot be undone.} other {Permanently delete all # items in the trash, including everything inside deleted folders. This cannot be undone.}}"
+msgstr ""
+
+#: src/components/trash-panel.tsx:343
+msgid "{buried, plural, one {# item of yours inside} other {# items of yours inside}}"
+msgstr ""
+
+#: src/routes/drive/$spaceId/index.tsx:632
+msgid "{count, plural, one {Are you sure you want to move # item to trash?} other {Are you sure you want to move # items to trash?}}"
+msgstr ""
+
+#: src/routes/drive/account/sessions.tsx:43
+msgid "{count, plural, one {The other signed-in device will have to sign in again.} other {All # other signed-in devices will have to sign in again.}}"
+msgstr ""
+
+#: src/routes/drive/$spaceId/index.tsx:665
+msgid "{count, plural, one {These folders hold # item other people created. They lose access until you restore them.} other {These folders hold # items other people created. They lose access until you restore them.}}"
+msgstr ""
+
+#: src/routes/drive/$spaceId/index.tsx:660
+msgid "{count, plural, one {This folder holds # item other people created. They lose access until you restore it.} other {This folder holds # items other people created. They lose access until you restore it.}}"
+msgstr ""
+
+#: src/components/upload-conflict-dialog.tsx:85
+msgid "{count, plural, other {# of these files are already in this folder.}}"
+msgstr ""
+
+#: src/components/move-dialog.tsx:77
+msgid "{count, plural, other {Move # items}}"
+msgstr ""
+
+#: src/components/trash-panel.tsx:476
+msgid "{days, plural, one {# day} other {# days}}"
+msgstr ""
+
+#: src/components/transfer-tray.tsx:161
+msgid "{done, plural, one {Uploaded # file} other {Uploaded # files}}"
+msgstr ""
+
+#: src/components/transfer-tray.tsx:156
+msgid "{done} uploaded, {failed} failed"
+msgstr ""
+
+#: src/routes/admin.users.tsx:263
+msgid "{email} reinstated"
+msgstr ""
+
+#: src/routes/admin.users.tsx:263
+msgid "{email} suspended"
+msgstr ""
+
+#: src/components/transfer-tray.tsx:115
+#: src/routes/admin.users.tsx:142
+msgid "{failed, plural, one {# failed} other {# failed}}"
+msgstr ""
+
+#: src/components/preview-panel.tsx:100
+msgid "{files, plural, one {# file selected} other {# files selected}}"
+msgstr ""
+
+#: src/components/storage-breakdown.tsx:63
+msgid "{files, plural, one {# file} other {# files}}"
+msgstr ""
+
+#: src/components/preview-panel.tsx:102
+msgid "{folders, plural, one {# folder selected} other {# folders selected}}"
+msgstr ""
+
+#: src/components/preview-panel.tsx:104
+msgid "{folders, plural, one {# folder} other {# folders}} and {files, plural, one {# file} other {# files}} selected"
+msgstr ""
+
+#: src/routes/admin.security.tsx:226
+msgid "{from}–{to} of {total}"
+msgstr ""
+
+#: src/components/upload-conflict-dialog.tsx:112
+msgid "{hidden, plural, other {and # more}}"
+msgstr ""
+
+#: src/components/invite-modal.tsx:121
+msgid "{invitedEmail} already has an account"
+msgstr ""
+
+#: src/routes/drive/account/sessions.tsx:178
+msgid "{ip} · last active {lastActive} · signed in {signedIn}"
+msgstr ""
+
+#: src/routes/s/$token.tsx:152
+msgid "{itemCount, plural, one {# item} other {# items}}"
+msgstr ""
+
+#: src/components/storage-breakdown.tsx:78
+msgid "{label} — {size}"
+msgstr ""
+
+#: src/components/move-dialog.tsx:169
+msgid "{listed} and {rest, plural, one {# more} other {# more}}"
+msgstr ""
+
+#: src/components/transfer-tray.tsx:82
+#: src/components/transfer-tray.tsx:239
+msgid "{loadedSize} of {totalSize}"
+msgstr ""
+
+#: src/components/transfer-tray.tsx:81
+msgid "{loadedSize} transferred"
+msgstr ""
+
+#: src/components/command-palette.tsx:163
+msgid "{MIN_QUERY_LENGTH, plural, one {Type at least # character to search.} other {Type at least # characters to search.}}"
+msgstr ""
+
+#: src/routes/drive/$spaceId/index.tsx:317
+msgid "{moved, plural, one {Moved # item} other {Moved # items}}"
+msgstr ""
+
+#: src/routes/admin.users.tsx:293
+msgid "{n, plural, one {# suspended} other {# suspended}}"
+msgstr ""
+
+#: src/components/folder-actions.tsx:208
+msgid "{n, plural, one {Paste # item} other {Paste # items}}"
+msgstr ""
+
+#: src/components/share-dialog.tsx:458
+msgid "{name} no longer has access"
+msgstr ""
+
+#: src/components/trash-panel.tsx:319
+msgid "{nodeName} was deleted by someone else"
+msgstr ""
+
+#: src/components/transfer-tray.tsx:264
+msgid "{perSecond}/s"
+msgstr ""
+
+#: src/components/preview-modal.tsx:97
+msgid "{position} of {total}"
+msgstr ""
+
+#: src/components/trash-panel.tsx:430
+msgid "{purged, plural, one {# item permanently deleted.} other {# items permanently deleted.}}"
+msgstr ""
+
+#: src/components/trash-panel.tsx:165
+msgid "{purged, plural, one {Permanently deleted # item} other {Permanently deleted # items}}"
+msgstr ""
+
+#: src/components/trash-panel.tsx:498
+msgid "{rescued, plural, one {# item created by other people moved to their owner’s top level instead.} other {# items created by other people moved to their owner’s top level instead.}}"
+msgstr ""
+
+#: src/components/share-dialog.tsx:613
+msgid "{revokeWho} loses access to this {nodeKind, select, dir {folder} other {file}}, but keeps the {revokeOwned, plural, one {# item} other {# items}} they created inside it — ownership is theirs, so those appear at their own top level."
+msgstr ""
+
+#: src/components/node-grid.tsx:64
+msgid "{selected, plural, one {# selected} other {# selected}}"
+msgstr ""
+
+#: src/components/share-dialog.tsx:192
+msgid "{shared, plural, one {# grantee} other {# grantees}}"
+msgstr ""
+
+#: src/routes/s/$token.tsx:108
+msgid "{sharedBy} shared this file"
+msgstr ""
+
+#: src/routes/s/$token.tsx:106
+msgid "{sharedBy} shared this folder"
+msgstr ""
+
+#: src/components/continue-cards.tsx:27
+msgid "{spaceName} · created {when}"
+msgstr ""
+
+#: src/components/continue-cards.tsx:52
+msgid "{spaceName} · deleted {when}"
+msgstr ""
+
+#: src/components/continue-cards.tsx:72
+msgid "{spaceName} · invited {when}"
+msgstr ""
+
+#: src/components/continue-cards.tsx:77
+msgid "{spaceName} · joined {when}"
+msgstr ""
+
+#: src/components/continue-cards.tsx:37
+msgid "{spaceName} · moved {when}"
+msgstr ""
+
+#: src/components/continue-cards.tsx:32
+msgid "{spaceName} · renamed {when}"
+msgstr ""
+
+#: src/components/continue-cards.tsx:47
+msgid "{spaceName} · restored {when}"
+msgstr ""
+
+#: src/components/continue-cards.tsx:67
+msgid "{spaceName} · reverted {when}"
+msgstr ""
+
+#: src/components/continue-cards.tsx:57
+msgid "{spaceName} · shared {when}"
+msgstr ""
+
+#: src/components/continue-cards.tsx:42
+msgid "{spaceName} · trashed {when}"
+msgstr ""
+
+#: src/components/continue-cards.tsx:62
+msgid "{spaceName} · unshared {when}"
+msgstr ""
+
+#: src/components/continue-cards.tsx:85
+msgid "{spaceName} · updated {when}"
+msgstr ""
+
+#: src/components/continue-cards.tsx:22
+msgid "{spaceName} · uploaded {when}"
+msgstr ""
+
+#: src/components/storage-breakdown.tsx:60
+msgid "{totalSize} used"
+msgstr ""
+
+#: src/routes/admin.users.tsx:130
+msgid "{trashed, plural, one {# in trash} other {# in trash}}"
+msgstr ""
+
+#: src/components/storage-meter.tsx:48
+msgid "{used} of {quota}"
+msgstr ""
+
+#: src/components/storage-meter.tsx:52
+msgid "{used} used"
+msgstr ""
+
+#: src/routes/drive/$spaceId/settings/general.tsx:224
+msgid "{usedSize} in use of {quotaSize}."
+msgstr ""
+
+#: src/routes/drive/$spaceId/settings/general.tsx:228
+msgid "{usedSize} in use."
+msgstr ""
+
+#: src/components/share-dialog.tsx:193
+msgid "{who} can now edit"
+msgstr ""
+
+#: src/components/share-dialog.tsx:193
+msgid "{who} can now view"
+msgstr ""
+
+#: src/components/activity-feed.tsx:130
+msgid "<0>{actor}</0> added <1>{nodeName}</1> to <2>{spaceName}</2>"
+msgstr ""
+
+#: src/components/activity-feed.tsx:55
+msgid "<0>{actor}</0> created <1>{nodeName}</1> in <2>{spaceName}</2>"
+msgstr ""
+
+#: src/components/activity-feed.tsx:123
+msgid "<0>{actor}</0> invited <1>{nodeName}</1> to <2>{spaceName}</2>"
+msgstr ""
+
+#: src/components/activity-feed.tsx:69
+msgid "<0>{actor}</0> moved <1>{nodeName}</1> in <2>{spaceName}</2>"
+msgstr ""
+
+#: src/components/activity-feed.tsx:76
+msgid "<0>{actor}</0> moved <1>{nodeName}</1> to trash in <2>{spaceName}</2>"
+msgstr ""
+
+#: src/components/activity-feed.tsx:90
+msgid "<0>{actor}</0> permanently deleted <1>{nodeName}</1> in <2>{spaceName}</2>"
+msgstr ""
+
+#: src/components/activity-feed.tsx:62
+msgid "<0>{actor}</0> renamed <1>{nodeName}</1> in <2>{spaceName}</2>"
+msgstr ""
+
+#: src/components/activity-feed.tsx:83
+msgid "<0>{actor}</0> restored <1>{nodeName}</1> in <2>{spaceName}</2>"
+msgstr ""
+
+#: src/components/activity-feed.tsx:111
+msgid "<0>{actor}</0> reverted <1>{nodeName}</1> in <2>{spaceName}</2>"
+msgstr ""
+
+#: src/components/activity-feed.tsx:104
+msgid "<0>{actor}</0> revoked access to <1>{nodeName}</1> in <2>{spaceName}</2>"
+msgstr ""
+
+#: src/components/activity-feed.tsx:97
+msgid "<0>{actor}</0> shared <1>{nodeName}</1> in <2>{spaceName}</2>"
+msgstr ""
+
+#: src/components/activity-feed.tsx:140
+msgid "<0>{actor}</0> updated <1>{nodeName}</1> in <2>{spaceName}</2>"
+msgstr ""
+
+#: src/components/activity-feed.tsx:48
+msgid "<0>{actor}</0> uploaded <1>{nodeName}</1> in <2>{spaceName}</2>"
+msgstr ""
+
+#: src/components/upload-conflict-dialog.tsx:87
+msgid "<0>Keep both</0> uploads alongside, named “{kept}”. <1>Replace</1> adds a new version to the file that is already there, keeping its owner, its link and its history."
+msgstr ""
+
+#: src/components/upload-conflict-dialog.tsx:83
+msgid "A file with this name is already in this folder."
+msgstr ""
+
+#: src/components/team-folder-dialog.tsx:56
+msgid "A top-level folder in {spaceName} that nobody owns personally: access to everything inside it is managed through Share, so removing someone really removes them, even from files they uploaded. It stays with the team when whoever created it leaves."
+msgstr ""
+
+#: src/routes/invite/$token.tsx:77
+msgid "Accept invitation"
+msgstr ""
+
+#: src/routes/invite/$token.tsx:68
+msgid "Accepting adds your account to the space. The invitation is tied to the address it was sent to."
+msgstr ""
+
+#: src/components/share-dialog.tsx:559
+msgid "Access"
+msgstr ""
+
+#: src/components/share-dialog.tsx:271
+msgid "Access given here also opens everything inside this folder."
+msgstr ""
+
+#: src/components/group-drawer.tsx:63
+msgid "Access is given group → folder. Membership of the space opens nothing on its own."
+msgstr ""
+
+#: src/components/share-dialog.tsx:332
+msgid "Access level"
+msgstr ""
+
+#: src/components/share-dialog.tsx:235
+msgid "Access revoked"
+msgstr ""
+
+#: src/components/nav-user.tsx:91
+#: src/components/site-header.tsx:28
+#: src/routes/drive/account/preferences.tsx:23
+#: src/routes/drive/account/profile.tsx:20
+#: src/routes/drive/account/route.tsx:21
+#: src/routes/drive/account/sessions.tsx:26
+msgid "Account"
+msgstr ""
+
+#: src/components/nav-user.tsx:60
+msgid "Account menu"
+msgstr ""
+
+#: src/routes/admin.security.tsx:75
+msgid "account suspended"
+msgstr ""
+
+#: src/routes/admin.security.tsx:76
+msgid "account unsuspended"
+msgstr ""
+
+#: src/routes/login.tsx:190
+msgid "Accounts are provisioned by an administrator."
+msgstr ""
+
+#: src/routes/drive/$spaceId/home.tsx:112
+#: src/routes/drive/$spaceId/recent.tsx:55
+msgid "Action"
+msgstr ""
+
+#: src/components/node-list.tsx:72
+msgid "Actions"
+msgstr ""
+
+#: src/components/node-grid.tsx:202
+#: src/components/node-list.tsx:170
+msgid "Actions for {nodeName}"
+msgstr ""
+
+#: src/routes/admin.users.tsx:233
+msgid "Active"
+msgstr ""
+
+#: src/routes/drive/$spaceId/home.tsx:161
+msgid "Activity"
+msgstr ""
+
+#: src/components/invite-modal.tsx:106
+msgid "Add"
+msgstr ""
+
+#: src/components/people-table.tsx:504
+msgid "Add {name} to a group"
+msgstr ""
+
+#: src/components/member-picker.tsx:38
+msgid "Add member..."
+msgstr ""
+
+#: src/components/grantee-picker.tsx:68
+msgid "Add people or groups…"
+msgstr ""
+
+#: src/components/group-drawer.tsx:217
+msgid "Add someone to this group…"
+msgstr ""
+
+#: src/components/node-actions.tsx:161
+msgid "Add star"
+msgstr ""
+
+#: src/components/invite-modal.tsx:98
+msgid "Added {who}"
+msgstr ""
+
+#: src/components/preview-panel.tsx:214
+msgid "Added by {ownerName}"
+msgstr ""
+
+#: src/components/people-table.tsx:277
+msgid "Added to {groupName}"
+msgstr ""
+
+#: src/components/command-palette.tsx:190
+#: src/components/people-table.tsx:239
+#: src/components/space-switcher.tsx:69
+#: src/components/space-switcher.tsx:101
+#: src/routes/drive/account/profile.tsx:188
+msgid "Admin"
+msgstr ""
+
+#: src/routes/admin.users.tsx:80
+msgid "Admin access required."
+msgstr ""
+
+#: src/routes/admin.security.tsx:73
+msgid "admin granted"
+msgstr ""
+
+#: src/components/people-table.tsx:456
+msgid "Admin of this space: {name}"
+msgstr ""
+
+#: src/routes/admin.security.tsx:74
+msgid "admin revoked"
+msgstr ""
+
+#: src/components/share-dialog.tsx:439
+msgid "Admins"
+msgstr ""
+
+#: src/components/invite-modal.tsx:71
+msgid "Admins change space settings and manage people."
+msgstr ""
+
+#: src/components/command-palette.tsx:40
+msgid "All"
+msgstr ""
+
+#: src/routes/admin.users.tsx:295
+msgid "all active"
+msgstr ""
+
+#: src/routes/admin.security.tsx:85
+msgid "All events"
+msgstr ""
+
+#: src/components/transfer-tray.tsx:117
+msgid "All transfers complete"
+msgstr ""
+
+#: src/components/share-dialog.tsx:358
+#: src/components/share-dialog.tsx:568
+msgid "Allow download"
+msgstr ""
+
+#: src/components/share-dialog.tsx:373
+msgid "Allow re-sharing"
+msgstr ""
+
+#: src/components/move-dialog.tsx:112
+msgid "Already here"
+msgstr ""
+
+#: src/routes/login.tsx:44
+msgid "An account already exists with this email address under a different identity provider. Contact an administrator."
+msgstr ""
+
+#: src/components/share-dialog.tsx:550
+msgid "Anyone holding the link can view this item without signing in. A link never carries editing, and nobody can re-share it onward — download is the one choice it offers."
+msgstr ""
+
+#: src/components/preview-panel.tsx:250
+#: src/components/share-dialog.tsx:491
+msgid "Anyone with the link"
+msgstr ""
+
+#: src/routes/s/$token.tsx:218
+msgid "Anyone with this link can view and download these files. You cannot edit or upload, and you cannot see who else has access."
+msgstr ""
+
+#: src/components/people-table.tsx:300
+msgid "Anything they owned here is filed in the Archive."
+msgstr ""
+
+#: src/routes/drive/account/preferences.tsx:126
+msgid "Appearance"
+msgstr ""
+
+#: src/components/nav-space.tsx:76
+#: src/components/nav-space.tsx:144
+msgid "Archive"
+msgstr ""
+
+#: src/routes/drive/$spaceId/index.tsx:631
+msgid "Are you sure you want to move \"{nodeName}\" to trash?"
+msgstr ""
+
+#: src/routes/drive/account/preferences.tsx:53
+msgid "Ascending"
+msgstr ""
+
+#: src/components/storage-breakdown.tsx:32
+msgid "Audio"
+msgstr ""
+
+#: src/components/group-drawer.tsx:174
+msgid "Automatic"
+msgstr ""
+
+#: src/components/user-avatar.tsx:37
+msgid "Avatar updated"
+msgstr ""
+
+#: src/routes/admin.security.tsx:134
+#: src/routes/admin.users.tsx:83
+#: src/routes/admin.users.tsx:100
+#: src/routes/drive/$spaceId/route.tsx:40
+#: src/routes/edit/$nodeId.tsx:74
+msgid "Back to Drive"
+msgstr ""
+
+#: src/routes/drive/account/profile.tsx:124
+msgid "Bio"
+msgstr ""
+
+#: src/components/locale-provider.tsx:85
+#: src/routes/s/$token.tsx:177
+msgid "Breadcrumb"
+msgstr ""
+
+#: src/routes/drive/$spaceId/home.tsx:73
+msgid "Browse files"
+msgstr ""
+
+#: src/components/invite-modal.tsx:143
+msgid "By email"
+msgstr ""
+
+#: src/components/preview-panel.tsx:256
+msgid "Can download"
+msgstr ""
+
+#: src/components/share-dialog.tsx:345
+msgid "Can edit"
+msgstr ""
+
+#: src/components/preview-panel.tsx:257
+msgid "Can share"
+msgstr ""
+
+#: src/components/share-dialog.tsx:342
+msgid "Can view"
+msgstr ""
+
+#: src/components/confirm-dialog.tsx:71
+#: src/components/group-drawer.tsx:381
+#: src/components/move-dialog.tsx:109
+#: src/components/share-dialog.tsx:623
+#: src/components/team-folder-dialog.tsx:87
+#: src/components/upload-conflict-dialog.tsx:120
+#: src/routes/drive/account/sessions.tsx:53
+msgid "Cancel"
+msgstr ""
+
+#: src/components/transfer-tray.tsx:212
+msgid "Cancel {fileName}"
+msgstr ""
+
+#: src/components/transfer-tray.tsx:245
+msgid "Cancelled"
+msgstr ""
+
+#: src/components/move-dialog.tsx:81
+msgid "Choose a destination folder in {spaceName}."
+msgstr ""
+
+#: src/components/transfer-tray.tsx:126
+msgid "Clear completed"
+msgstr ""
+
+#: src/components/selection-bar.tsx:93
+msgid "Clear selection"
+msgstr ""
+
+#: src/components/locale-provider.tsx:80
+msgid "Close"
+msgstr ""
+
+#: src/components/preview-panel.tsx:84
+msgid "Close details"
+msgstr ""
+
+#: src/components/preview-modal.tsx:66
+msgid "Close preview"
+msgstr ""
+
+#: src/components/transfer-tray.tsx:94
+msgid "Close transfers"
+msgstr ""
+
+#: src/components/folder-tree.tsx:39
+#: src/components/move-dialog.tsx:249
+msgid "Collapse"
+msgstr ""
+
+#: src/components/nav-space.tsx:102
+msgid "Collapse My Drive"
+msgstr ""
+
+#: src/components/transfer-tray.tsx:88
+msgid "Collapse transfers"
+msgstr ""
+
+#: src/components/confirm-dialog.tsx:81
+msgid "Confirm"
+msgstr ""
+
+#: src/routes/drive/$spaceId/home.tsx:84
+msgid "Continue where you left off"
+msgstr ""
+
+#: src/routes/login.tsx:184
+msgid "Continue with SSO"
+msgstr ""
+
+#: src/routes/login.tsx:164
+msgid "Continue with the identity provider your administrator configured."
+msgstr ""
+
+#: src/components/drive-write.tsx:155
+msgid "Copied {done, plural, one {# item} other {# items}} to {destination}"
+msgstr ""
+
+#: src/routes/drive/$spaceId/index.tsx:366
+msgid "Copied as “{copyName}”"
+msgstr ""
+
+#: src/components/node-actions.tsx:216
+#: src/components/share-dialog.tsx:221
+msgid "Copy"
+msgstr ""
+
+#: src/components/group-drawer.tsx:234
+msgid "Could not add them to the group"
+msgstr ""
+
+#: src/routes/drive/$spaceId/index.tsx:369
+msgid "Could not copy “{nodeName}”"
+msgstr ""
+
+#: src/components/drive-write.tsx:237
+msgid "Could not create folder"
+msgstr ""
+
+#: src/components/share-dialog.tsx:226
+msgid "Could not create link"
+msgstr ""
+
+#: src/components/drive-write.tsx:179
+msgid "Could not create team folder"
+msgstr ""
+
+#: src/components/group-drawer.tsx:349
+msgid "Could not create the group"
+msgstr ""
+
+#: src/routes/drive.tsx:207
+msgid "Could not create the space"
+msgstr ""
+
+#: src/components/group-drawer.tsx:305
+#: src/routes/drive/$spaceId/settings/danger.tsx:102
+msgid "Could not delete"
+msgstr ""
+
+#: src/components/trash-panel.tsx:157
+msgid "Could not delete “{name}”"
+msgstr ""
+
+#: src/components/trash-panel.tsx:441
+msgid "Could not empty the trash"
+msgstr ""
+
+#: src/components/invite-modal.tsx:137
+msgid "Could not invite"
+msgstr ""
+
+#: src/routes/drive/account/sessions.tsx:119
+msgid "Could not load your sessions."
+msgstr ""
+
+#: src/routes/drive/$spaceId/index.tsx:312
+msgid "Could not move “{nodeName}”"
+msgstr ""
+
+#: src/components/drive-write.tsx:143
+msgid "Could not paste “{nodeName}”"
+msgstr ""
+
+#: src/components/trash-panel.tsx:132
+msgid "Could not restore “{name}”"
+msgstr ""
+
+#: src/components/share-dialog.tsx:236
+#: src/components/share-dialog.tsx:459
+msgid "Could not revoke"
+msgstr ""
+
+#: src/routes/drive/$spaceId/settings/general.tsx:103
+#: src/routes/drive/account/profile.tsx:98
+msgid "Could not save"
+msgstr ""
+
+#: src/components/share-dialog.tsx:182
+msgid "Could not share"
+msgstr ""
+
+#: src/routes/drive/account/sessions.tsx:84
+msgid "Could not sign out other devices"
+msgstr ""
+
+#: src/routes/drive/account/sessions.tsx:134
+msgid "Could not sign out that device"
+msgstr ""
+
+#: src/components/nav-user.tsx:48
+msgid "Could not sign out. Please try again."
+msgstr ""
+
+#: src/routes/login.tsx:171
+msgid "Could not sign you in"
+msgstr ""
+
+#: src/components/user-avatar.tsx:38
+msgid "Could not update your avatar"
+msgstr ""
+
+#: src/components/drive-write.tsx:250
+#: src/components/team-folder-dialog.tsx:90
+#: src/routes/drive.tsx:294
+msgid "Create"
+msgstr ""
+
+#: src/components/drive-write.tsx:224
+msgid "Create a folder in {destination}."
+msgstr ""
+
+#: src/routes/drive.tsx:174
+msgid "Create a space"
+msgstr ""
+
+#: src/components/group-drawer.tsx:384
+msgid "Create group"
+msgstr ""
+
+#: src/components/space-switcher.tsx:138
+msgid "Create new space"
+msgstr ""
+
+#: src/components/share-dialog.tsx:596
+msgid "Create public link"
+msgstr ""
+
+#: src/routes/drive.tsx:136
+msgid "Create space"
+msgstr ""
+
+#: src/routes/drive.tsx:131
+msgid "Create your first space to start organizing your files and collaborating with your team."
+msgstr ""
+
+#: src/components/group-drawer.tsx:345
+msgid "Created \"{created}\""
+msgstr ""
+
+#: src/components/drive-write.tsx:235
+msgid "Created “{createdName}” in {destination}"
+msgstr ""
+
+#: src/components/share-dialog.tsx:505
+msgid "Created {owned, plural, one {# item} other {# items}} in here — those stay theirs."
+msgstr ""
+
+#: src/components/drive-write.tsx:175
+msgid "Created team folder “{folderName}”"
+msgstr ""
+
+#: src/routes/drive.tsx:294
+msgid "Creating…"
+msgstr ""
+
+#: src/components/version-list.tsx:56
+msgid "Current"
+msgstr ""
+
+#: src/components/share-dialog.tsx:393
+msgid "Current access"
+msgstr ""
+
+#: src/components/node-actions.tsx:207
+msgid "Cut"
+msgstr ""
+
+#: src/components/site-header.tsx:37
+#: src/routes/drive/$spaceId/settings/danger.tsx:24
+#: src/routes/drive/$spaceId/settings/route.tsx:47
+msgid "Danger zone"
+msgstr ""
+
+#: src/routes/drive/account/preferences.tsx:38
+msgid "Dark"
+msgstr ""
+
+#: src/routes/drive/account/preferences.tsx:140
+msgid "Default listing"
+msgstr ""
+
+#: src/components/selection-bar.tsx:88
+msgid "Delete"
+msgstr ""
+
+#: src/components/group-drawer.tsx:282
+msgid "Delete \"{groupName}\"?"
+msgstr ""
+
+#: src/components/group-drawer.tsx:191
+msgid "Delete {groupName}"
+msgstr ""
+
+#: src/components/trash-panel.tsx:394
+#: src/components/trash-panel.tsx:410
+#: src/components/trash-panel.tsx:412
+msgid "Delete forever"
+msgstr ""
+
+#: src/components/group-drawer.tsx:292
+msgid "Delete group"
+msgstr ""
+
+#: src/routes/drive/$spaceId/settings/danger.tsx:80
+#: src/routes/drive/$spaceId/settings/danger.tsx:88
+#: src/routes/drive/$spaceId/settings/danger.tsx:90
+msgid "Delete space"
+msgstr ""
+
+#: src/routes/drive/$spaceId/settings/danger.tsx:52
+msgid "Delete this space"
+msgstr ""
+
+#: src/components/trash-panel.tsx:291
+msgid "Deleted"
+msgstr ""
+
+#: src/components/group-drawer.tsx:301
+msgid "Deleted \"{groupName}\""
+msgstr ""
+
+#. placeholder {0}: r.grants_revoked
+#: src/components/group-drawer.tsx:300
+msgid "Deleted \"{groupName}\" and revoked {0, plural, one {# grant} other {# grants}}"
+msgstr ""
+
+#: src/routes/drive/$spaceId/settings/danger.tsx:96
+msgid "Deleted “{spaceName}”"
+msgstr ""
+
+#: src/components/trash-panel.tsx:288
+msgid "Deleted by"
+msgstr ""
+
+#: src/components/trash-panel.tsx:336
+msgid "Deleted by someone else — you see it because your items are inside"
+msgstr ""
+
+#: src/routes/drive/account/preferences.tsx:54
+msgid "Descending"
+msgstr ""
+
+#: src/components/group-drawer.tsx:369
+#: src/routes/drive.tsx:245
+#: src/routes/drive/$spaceId/settings/general.tsx:144
+msgid "Description"
+msgstr ""
+
+#: src/components/listing-controls.tsx:127
+#: src/components/preview-modal.tsx:141
+#: src/components/preview-panel.tsx:82
+#: src/components/preview-panel.tsx:196
+msgid "Details"
+msgstr ""
+
+#: src/routes/admin.security.tsx:212
+msgid "Device"
+msgstr ""
+
+#: src/routes/drive/account/sessions.tsx:132
+msgid "Device signed out"
+msgstr ""
+
+#: src/components/share-dialog.tsx:500
+msgid "Direct share"
+msgstr ""
+
+#: src/routes/drive/account/preferences.tsx:164
+msgid "Direction"
+msgstr ""
+
+#: src/routes/drive/$spaceId/settings/general.tsx:238
+#: src/routes/drive/account/profile.tsx:158
+msgid "Discard"
+msgstr ""
+
+#: src/routes/drive/account/preferences.tsx:88
+msgid "Display language"
+msgstr ""
+
+#: src/routes/drive/account/profile.tsx:109
+msgid "Display name"
+msgstr ""
+
+#: src/components/locale-provider.tsx:84
+msgid "Displays the mobile sidebar."
+msgstr ""
+
+#: src/components/storage-breakdown.tsx:33
+msgid "Documents"
+msgstr ""
+
+#: src/components/share-dialog.tsx:244
+msgid "download"
+msgstr ""
+
+#: src/components/node-actions.tsx:135
+#: src/components/preview-modal.tsx:124
+#: src/components/preview-panel.tsx:171
+#: src/components/selection-bar.tsx:64
+#: src/components/version-list.tsx:71
+#: src/routes/edit/$nodeId.tsx:126
+#: src/routes/s/$token.tsx:170
+msgid "Download"
+msgstr ""
+
+#: src/routes/s/$token.tsx:346
+msgid "Download {nodeName}"
+msgstr ""
+
+#: src/routes/s/$token.tsx:170
+msgid "Download all"
+msgstr ""
+
+#: src/components/preview-content.tsx:260
+msgid "Downloads are off for this file, so it can only be opened by its owner."
+msgstr ""
+
+#: src/routes/drive.tsx:32
+#: src/routes/drive/$spaceId/index.tsx:84
+#: src/routes/login.tsx:143
+msgid "Drive"
+msgstr ""
+
+#: src/components/drop-zone.tsx:75
+msgid "Drop files to upload"
+msgstr ""
+
+#: src/components/trash-panel.tsx:469
+msgid "Due"
+msgstr ""
+
+#: src/routes/drive/account/sessions.tsx:96
+msgid "Each row is a live session. Signing one out takes effect immediately — the device is asked to sign in again the next time it reaches the server."
+msgstr ""
+
+#: src/components/preview-panel.tsx:253
+#: src/components/share-dialog.tsx:243
+msgid "edit"
+msgstr ""
+
+#: src/components/node-actions.tsx:127
+msgid "Edit"
+msgstr ""
+
+#: src/routes/login.tsx:147
+msgid "Edit documents and spreadsheets together in the browser."
+msgstr ""
+
+#: src/routes/edit/$nodeId.tsx:18
+msgid "Editing"
+msgstr ""
+
+#: src/routes/drive/account/profile.tsx:137
+msgid "Email"
+msgstr ""
+
+#: src/components/invite-modal.tsx:151
+msgid "Email to invite"
+msgstr ""
+
+#: src/components/invite-modal.tsx:127
+msgid "Emailed to {invitedEmail}. The link is also on your clipboard."
+msgstr ""
+
+#: src/components/people-table.tsx:325
+msgid "Emailed to {inviteeEmail} — the previous link no longer works. It's also on your clipboard."
+msgstr ""
+
+#: src/components/trash-panel.tsx:428
+msgid "Emptied the trash"
+msgstr ""
+
+#: src/routes/drive/$spaceId/settings/general.tsx:212
+msgid "Empty keeps trashed items until someone deletes them. A number purges them automatically — and permanently — once it passes."
+msgstr ""
+
+#: src/routes/drive/$spaceId/settings/general.tsx:195
+msgid "Empty means unlimited."
+msgstr ""
+
+#: src/components/trash-panel.tsx:230
+#: src/components/trash-panel.tsx:420
+#: src/components/trash-panel.tsx:422
+msgid "Empty trash"
+msgstr ""
+
+#: src/routes/drive.tsx:269
+msgid "Enable"
+msgstr ""
+
+#: src/routes/drive/$spaceId/index.tsx:592
+msgid "Enter a new name for this item."
+msgstr ""
+
+#: src/components/command-palette.tsx:233
+msgid "esc to close"
+msgstr ""
+
+#: src/routes/admin.security.tsx:203
+msgid "Event"
+msgstr ""
+
+#: src/routes/admin.security.tsx:156
+msgid "Events"
+msgstr ""
+
+#: src/components/versions-panel.tsx:26
+msgid "Every saved revision of this file."
+msgstr ""
+
+#: src/routes/admin.users.tsx:110
+msgid "Every user and space on this install"
+msgstr ""
+
+#: src/components/share-dialog.tsx:433
+msgid "Everyone"
+msgstr ""
+
+#: src/components/grantee-picker.tsx:91
+msgid "Everyone here already has access."
+msgstr ""
+
+#: src/components/group-drawer.tsx:201
+msgid "Everyone in this space belongs to this group, and it updates itself as people join and leave. Give it the folders the whole company should see."
+msgstr ""
+
+#: src/components/share-dialog.tsx:266
+msgid "Everyone listed here reaches this team folder and everything inside it. Nobody reaches it otherwise, including space admins."
+msgstr ""
+
+#: src/routes/drive/$spaceId/home.tsx:78
+msgid "Everything in {spaceName}"
+msgstr ""
+
+#: src/routes/drive/$spaceId/shared.tsx:35
+msgid "Everywhere your access to this space begins. Open one to see what is inside."
+msgstr ""
+
+#: src/components/folder-tree.tsx:39
+#: src/components/move-dialog.tsx:249
+msgid "Expand"
+msgstr ""
+
+#: src/components/nav-space.tsx:102
+msgid "Expand My Drive"
+msgstr ""
+
+#: src/components/transfer-tray.tsx:88
+msgid "Expand transfers"
+msgstr ""
+
+#: src/components/share-dialog.tsx:574
+msgid "Expiration"
+msgstr ""
+
+#: src/components/people-table.tsx:200
+msgid "Export CSV"
+msgstr ""
+
+#: src/components/people-table.tsx:628
+msgid "External"
+msgstr ""
+
+#: src/components/preview-modal.tsx:150
+#: src/components/preview-panel.tsx:199
+msgid "File"
+msgstr ""
+
+#: src/routes/s/$token.tsx:131
+msgid "file names and details only"
+msgstr ""
+
+#: src/components/command-palette.tsx:41
+#: src/components/node-grid.tsx:112
+#: src/routes/admin.users.tsx:128
+msgid "Files"
+msgstr ""
+
+#: src/components/command-palette.tsx:201
+msgid "Files and folders"
+msgstr ""
+
+#: src/components/people-table.tsx:251
+msgid "Files owned"
+msgstr ""
+
+#: src/routes/drive/$spaceId/home.tsx:110
+#: src/routes/drive/$spaceId/recent.tsx:53
+msgid "Files you upload or edit in this space show up here."
+msgstr ""
+
+#: src/routes/admin.security.tsx:169
+msgid "Filter by event kind"
+msgstr ""
+
+#: src/components/people-table.tsx:217
+msgid "Filter by group"
+msgstr ""
+
+#: src/components/people-table.tsx:209
+#: src/routes/admin.users.tsx:160
+msgid "Filter by name or email"
+msgstr ""
+
+#: src/components/people-table.tsx:223
+msgid "Filter by status"
+msgstr ""
+
+#: src/components/trash-panel.tsx:240
+#: src/components/trash-panel.tsx:241
+msgid "Filter deleted items"
+msgstr ""
+
+#: src/components/people-table.tsx:210
+msgid "Filter people by name or email"
+msgstr ""
+
+#: src/routes/admin.users.tsx:161
+msgid "Filter users"
+msgstr ""
+
+#: src/components/group-drawer.tsx:362
+#: src/components/team-folder-dialog.tsx:80
+msgid "Finance"
+msgstr ""
+
+#: src/components/node-grid.tsx:187
+#: src/components/preview-panel.tsx:199
+msgid "Folder"
+msgstr ""
+
+#: src/components/folder-actions.tsx:161
+msgid "Folder information"
+msgstr ""
+
+#: src/components/drive-write.tsx:245
+msgid "Folder name"
+msgstr ""
+
+#: src/components/command-palette.tsx:42
+#: src/components/node-grid.tsx:105
+msgid "Folders"
+msgstr ""
+
+#: src/components/drop-zone.tsx:81
+msgid "Folders are uploaded with their structure preserved"
+msgstr ""
+
+#: src/components/group-drawer.tsx:109
+msgid "Folders this group opens"
+msgstr ""
+
+#: src/routes/drive/$spaceId/settings/general.tsx:209
+msgid "Forever"
+msgstr ""
+
+#: src/components/move-dialog.tsx:139
+msgid "Gains access: {gaining}."
+msgstr ""
+
+#: src/components/site-header.tsx:35
+#: src/routes/drive/$spaceId/settings/general.tsx:19
+#: src/routes/drive/$spaceId/settings/route.tsx:44
+msgid "General"
+msgstr ""
+
+#: src/components/share-dialog.tsx:273
+msgid "Give a group or a colleague access to this file."
+msgstr ""
+
+#: src/components/share-dialog.tsx:281
+msgid "Give access"
+msgstr ""
+
+#: src/routes/__root.tsx:39
+#: src/routes/invite/$token.tsx:82
+msgid "Go to Drive"
+msgstr ""
+
+#: src/routes/admin.security.tsx:77
+msgid "grant created"
+msgstr ""
+
+#: src/routes/admin.security.tsx:78
+msgid "grant revoked"
+msgstr ""
+
+#: src/components/folder-actions.tsx:198
+#: src/routes/drive/account/preferences.tsx:42
+msgid "Grid"
+msgstr ""
+
+#: src/components/listing-controls.tsx:101
+msgid "Grid view"
+msgstr ""
+
+#: src/components/share-dialog.tsx:444
+msgid "Group"
+msgstr ""
+
+#: src/components/people-table.tsx:119
+msgid "Group: {groupName}"
+msgstr ""
+
+#: src/components/people-table.tsx:116
+msgid "Group: All"
+msgstr ""
+
+#: src/components/grantee-picker.tsx:96
+#: src/components/group-drawer.tsx:60
+#: src/components/people-table.tsx:242
+msgid "Groups"
+msgstr ""
+
+#: src/components/share-dialog.tsx:284
+msgid "Groups and people come from this space. The access below applies to everyone picked."
+msgstr ""
+
+#: src/components/group-drawer.tsx:129
+msgid "Groups decide what people can open. Give a group a file or folder from that item’s “Share” dialog."
+msgstr ""
+
+#: src/components/nav-space.tsx:42
+#: src/components/site-header.tsx:29
+#: src/routes/drive/$spaceId/home.tsx:19
+msgid "Home"
+msgstr ""
+
+#: src/routes/drive/account/profile.tsx:112
+msgid "How your name appears on files, shares and member lists."
+msgstr ""
+
+#: src/routes/drive/$spaceId/settings/general.tsx:109
+msgid "Identity"
+msgstr ""
+
+#: src/routes/admin.security.tsx:72
+msgid "identity adopted"
+msgstr ""
+
+#: src/components/storage-breakdown.tsx:31
+msgid "Images"
+msgstr ""
+
+#: src/components/node-actions.tsx:154
+msgid "Information"
+msgstr ""
+
+#: src/routes/invite/$token.tsx:20
+msgid "Invitation"
+msgstr ""
+
+#: src/components/invite-modal.tsx:131
+msgid "Invitation created"
+msgstr ""
+
+#: src/components/invite-modal.tsx:126
+msgid "Invitation sent"
+msgstr ""
+
+#: src/components/invite-modal.tsx:156
+msgid "Invite"
+msgstr ""
+
+#: src/components/invite-modal.tsx:56
+#: src/components/people-table.tsx:192
+msgid "Invite people"
+msgstr ""
+
+#: src/components/people-table.tsx:599
+msgid "Invited {invitedOn}"
+msgstr ""
+
+#: src/routes/admin.security.tsx:209
+msgid "IP"
+msgstr ""
+
+#: src/components/version-list.tsx:85
+msgid "It is now the current version."
+msgstr ""
+
+#: src/routes/drive/$spaceId/route.tsx:37
+msgid "It may have been deleted, or you no longer have access."
+msgstr ""
+
+#: src/routes/s/$token.tsx:85
+msgid "It may have expired, been revoked, or never existed. Ask whoever sent it for a new one."
+msgstr ""
+
+#: src/components/trash-panel.tsx:508
+msgid "Items here are removed automatically once their retention window passes."
+msgstr ""
+
+#: src/components/trash-panel.tsx:45
+msgid "Items other people created are not destroyed — they move to their owner’s top level."
+msgstr ""
+
+#: src/components/trash-panel.tsx:509
+msgid "Items you move to trash stay here until you restore or delete them."
+msgstr ""
+
+#: src/components/trash-panel.tsx:118
+msgid "Its original folder is also in the trash, so it went to the top level."
+msgstr ""
+
+#: src/components/invite-modal.tsx:69
+msgid "Join as admin"
+msgstr ""
+
+#: src/components/people-table.tsx:245
+msgid "Joined"
+msgstr ""
+
+#: src/routes/drive/account/profile.tsx:84
+msgid "Joined {joined}"
+msgstr ""
+
+#: src/routes/drive/account/profile.tsx:80
+msgid "Joined {joined} · last seen {lastSeen}"
+msgstr ""
+
+#: src/components/invite-modal.tsx:59
+msgid "Joining the space opens no files on its own — what someone can see is what their groups have been given. Add them to a group on the People table afterwards."
+msgstr ""
+
+#: src/routes/invite/$token.tsx:77
+msgid "Joining…"
+msgstr ""
+
+#: src/components/upload-conflict-dialog.tsx:128
+msgid "Keep both"
+msgstr ""
+
+#: src/components/trash-panel.tsx:460
+msgid "Kept"
+msgstr ""
+
+#: src/routes/drive/account/preferences.tsx:84
+msgid "Language"
+msgstr ""
+
+#: src/routes/drive/account/preferences.tsx:105
+msgid "Language changed here, but could not be saved to your account."
+msgstr ""
+
+#: src/components/people-table.tsx:248
+msgid "Last active"
+msgstr ""
+
+#: src/routes/drive/account/preferences.tsx:48
+msgid "Last modified"
+msgstr ""
+
+#: src/routes/admin.users.tsx:181
+msgid "Last seen"
+msgstr ""
+
+#: src/routes/drive.tsx:288
+msgid "Leave empty for unlimited. Cannot be changed after creation."
+msgstr ""
+
+#: src/routes/drive/account/preferences.tsx:37
+msgid "Light"
+msgstr ""
+
+#: src/routes/drive/$spaceId/settings/general.tsx:179
+msgid "Limits"
+msgstr ""
+
+#: src/components/share-dialog.tsx:219
+msgid "Link created (shown once)"
+msgstr ""
+
+#: src/routes/s/$token.tsx:136
+msgid "Link expires {expiresOn}"
+msgstr ""
+
+#: src/components/folder-actions.tsx:199
+#: src/routes/drive/account/preferences.tsx:43
+msgid "List"
+msgstr ""
+
+#: src/components/listing-controls.tsx:112
+msgid "List view"
+msgstr ""
+
+#: src/components/share-dialog.tsx:405
+msgid "Loading access…"
+msgstr ""
+
+#: src/components/group-drawer.tsx:82
+msgid "Loading groups…"
+msgstr ""
+
+#: src/components/people-table.tsx:156
+msgid "Loading people…"
+msgstr ""
+
+#: src/components/group-drawer.tsx:244
+#: src/components/node-table.tsx:52
+#: src/components/preview-content.tsx:208
+#: src/components/preview-panel.tsx:238
+#: src/components/space-node-table.tsx:69
+#: src/components/trash-panel.tsx:204
+#: src/components/trash-panel.tsx:247
+#: src/components/version-list.tsx:29
+#: src/routes/admin.security.tsx:185
+#: src/routes/admin.users.tsx:168
+#: src/routes/drive/$spaceId/home.tsx:152
+#: src/routes/drive/$spaceId/home.tsx:165
+#: src/routes/drive/$spaceId/index.tsx:499
+#: src/routes/drive/$spaceId/settings/danger.tsx:41
+#: src/routes/drive/$spaceId/settings/general.tsx:30
+#: src/routes/drive/$spaceId/settings/people.tsx:44
+#: src/routes/drive/account/profile.tsx:30
+#: src/routes/drive/account/sessions.tsx:114
+#: src/routes/edit/$nodeId.tsx:88
+#: src/routes/s/$token.tsx:251
+msgid "Loading…"
+msgstr ""
+
+#: src/components/space-node-table.tsx:93
+msgid "Location"
+msgstr ""
+
+#: src/routes/admin.security.tsx:67
+msgid "login"
+msgstr ""
+
+#: src/routes/admin.security.tsx:68
+msgid "login failed"
+msgstr ""
+
+#: src/routes/admin.security.tsx:69
+msgid "logout"
+msgstr ""
+
+#: src/components/move-dialog.tsx:147
+msgid "Loses access: {losing}."
+msgstr ""
+
+#: src/routes/drive/$spaceId/settings/general.tsx:138
+msgid "Lowercase letters, numbers and dashes. Leave empty for none."
+msgstr ""
+
+#: src/routes/drive.tsx:239
+msgid "Lowercase letters, numbers and dashes. Optional."
+msgstr ""
+
+#: src/components/node-actions.tsx:224
+msgid "Make a copy"
+msgstr ""
+
+#: src/components/people-table.tsx:462
+#: src/routes/admin.users.tsx:251
+msgid "Make admin"
+msgstr ""
+
+#: src/components/preview-panel.tsx:211
+msgid "Managed by"
+msgstr ""
+
+#: src/routes/drive/account/profile.tsx:141
+msgid "Managed by your identity provider — change it there."
+msgstr ""
+
+#: src/routes/drive.tsx:236
+#: src/routes/drive/$spaceId/settings/general.tsx:135
+msgid "marketing"
+msgstr ""
+
+#: src/routes/drive.tsx:223
+msgid "Marketing"
+msgstr ""
+
+#: src/routes/drive/account/preferences.tsx:36
+msgid "Match the system"
+msgstr ""
+
+#: src/components/command-palette.tsx:190
+#: src/components/people-table.tsx:236
+#: src/routes/drive/account/profile.tsx:188
+msgid "Member"
+msgstr ""
+
+#: src/routes/admin.security.tsx:81
+msgid "member added"
+msgstr ""
+
+#: src/routes/admin.security.tsx:82
+msgid "member removed"
+msgstr ""
+
+#: src/components/group-drawer.tsx:105
+msgid "Members"
+msgstr ""
+
+#: src/routes/drive/$spaceId/settings/general.tsx:157
+msgid "Membership"
+msgstr ""
+
+#: src/routes/login.tsx:198
+msgid "Minimal self-hosted workspace: drive, office, spaces."
+msgstr ""
+
+#: src/routes/login.tsx:136
+msgid "Minimal self-hosted workspace: drive, office, spaces. Nothing leaves the machine you run it on."
+msgstr ""
+
+#: src/components/listing-controls.tsx:24
+#: src/components/node-list.tsx:63
+#: src/components/node-table.tsx:77
+#: src/components/preview-modal.tsx:153
+#: src/components/preview-panel.tsx:222
+#: src/components/space-node-table.tsx:97
+#: src/routes/s/$token.tsx:282
+msgid "Modified"
+msgstr ""
+
+#: src/components/folder-actions.tsx:191
+msgid "Modified (newest)"
+msgstr ""
+
+#: src/components/folder-actions.tsx:192
+msgid "Modified (oldest)"
+msgstr ""
+
+#: src/components/locale-provider.tsx:81
+msgid "More"
+msgstr ""
+
+#: src/components/move-dialog.tsx:112
+#: src/components/selection-bar.tsx:79
+msgid "Move"
+msgstr ""
+
+#: src/components/move-dialog.tsx:75
+msgid "Move “{name}”"
+msgstr ""
+
+#: src/components/node-actions.tsx:233
+#: src/routes/drive/$spaceId/index.tsx:628
+#: src/routes/drive/$spaceId/index.tsx:637
+msgid "Move to trash"
+msgstr ""
+
+#: src/components/node-actions.tsx:190
+msgid "Move to…"
+msgstr ""
+
+#: src/components/drive-write.tsx:154
+msgid "Moved {done, plural, one {# item} other {# items}} to {destination}"
+msgstr ""
+
+#: src/components/nav-space.tsx:98
+#: src/components/site-header.tsx:157
+msgid "My Drive"
+msgstr ""
+
+#: src/components/group-drawer.tsx:356
+#: src/components/listing-controls.tsx:23
+#: src/components/node-list.tsx:60
+#: src/components/node-table.tsx:74
+#: src/components/space-node-table.tsx:90
+#: src/components/team-folder-dialog.tsx:74
+#: src/components/trash-panel.tsx:282
+#: src/routes/drive.tsx:216
+#: src/routes/drive/account/preferences.tsx:47
+#: src/routes/s/$token.tsx:279
+msgid "Name"
+msgstr ""
+
+#: src/components/upload-conflict-dialog.tsx:72
+msgid "name (2)"
+msgstr ""
+
+#: src/components/folder-actions.tsx:189
+msgid "Name (A–Z)"
+msgstr ""
+
+#: src/components/folder-actions.tsx:190
+msgid "Name (Z–A)"
+msgstr ""
+
+#: src/components/group-drawer.tsx:331
+msgid "Name it after the people, not the folder — one group usually opens several."
+msgstr ""
+
+#: src/components/command-palette.tsx:227
+msgid "navigate"
+msgstr ""
+
+#: src/components/people-table.tsx:525
+#: src/routes/admin.users.tsx:222
+msgid "never"
+msgstr ""
+
+#: src/components/nav-create.tsx:45
+msgid "New"
+msgstr ""
+
+#: src/components/drive-write.tsx:221
+#: src/components/folder-actions.tsx:65
+msgid "New folder"
+msgstr ""
+
+#: src/components/group-drawer.tsx:72
+#: src/components/group-drawer.tsx:328
+msgid "New group"
+msgstr ""
+
+#: src/components/people-table.tsx:329
+msgid "New invitation link copied"
+msgstr ""
+
+#: src/components/people-table.tsx:324
+msgid "New invitation sent"
+msgstr ""
+
+#: src/routes/drive.tsx:257
+#: src/routes/drive/$spaceId/settings/general.tsx:161
+msgid "New members are admins by default"
+msgstr ""
+
+#: src/components/folder-actions.tsx:78
+#: src/components/team-folder-dialog.tsx:53
+msgid "New team folder"
+msgstr ""
+
+#: src/routes/admin.security.tsx:245
+msgid "Next"
+msgstr ""
+
+#: src/components/preview-modal.tsx:104
+msgid "Next file"
+msgstr ""
+
+#: src/components/trash-panel.tsx:254
+msgid "No deleted items match"
+msgstr ""
+
+#: src/routes/admin.security.tsx:190
+msgid "No events recorded for {filterLabel}."
+msgstr ""
+
+#: src/routes/admin.security.tsx:192
+msgid "No events recorded."
+msgstr ""
+
+#: src/components/folder-tree.tsx:117
+msgid "No folders yet."
+msgstr ""
+
+#: src/components/group-drawer.tsx:119
+msgid "No groups yet."
+msgstr ""
+
+#: src/components/command-palette.tsx:173
+msgid "No matches for “{queryText}”"
+msgstr ""
+
+#: src/routes/drive/$spaceId/index.tsx:509
+msgid "No matching files or folders"
+msgstr ""
+
+#: src/components/share-dialog.tsx:409
+msgid "No one else has access yet — only you, and anyone who can reach a folder above this."
+msgstr ""
+
+#: src/components/people-table.tsx:351
+msgid "No one matches these filters."
+msgstr ""
+
+#: src/components/preview-content.tsx:280
+msgid "No preview available — use Download to view this file."
+msgstr ""
+
+#: src/routes/drive/$spaceId/settings/general.tsx:241
+#: src/routes/drive/account/profile.tsx:161
+msgid "No unsaved changes"
+msgstr ""
+
+#: src/components/member-picker.tsx:63
+msgid "No users found."
+msgstr ""
+
+#: src/components/drive-write.tsx:176
+msgid "Nobody can see it yet — access to a team folder is given through Share."
+msgstr ""
+
+#: src/components/share-dialog.tsx:396
+msgid "Nobody else reaches this — not even a space admin — unless a line here says so."
+msgstr ""
+
+#: src/components/group-drawer.tsx:249
+msgid "Nobody in this group yet — it opens nothing for anyone."
+msgstr ""
+
+#: src/routes/admin.users.tsx:144
+msgid "none failed"
+msgstr ""
+
+#: src/components/preview-panel.tsx:264
+msgid "Not shared."
+msgstr ""
+
+#: src/components/trash-panel.tsx:376
+msgid "Not yours to restore"
+msgstr ""
+
+#: src/components/activity-feed.tsx:169
+msgid "Nothing has happened yet."
+msgstr ""
+
+#: src/components/grantee-picker.tsx:91
+msgid "Nothing matches."
+msgstr ""
+
+#: src/routes/drive/$spaceId/home.tsx:109
+#: src/routes/drive/$spaceId/recent.tsx:52
+msgid "Nothing recent yet"
+msgstr ""
+
+#: src/routes/drive/$spaceId/shared.tsx:44
+msgid "Nothing shared with you here"
+msgstr ""
+
+#: src/routes/drive/$spaceId/home.tsx:139
+#: src/routes/drive/$spaceId/starred.tsx:27
+msgid "Nothing starred"
+msgstr ""
+
+#: src/components/storage-breakdown.tsx:48
+msgid "Nothing stored yet."
+msgstr ""
+
+#: src/routes/login.tsx:146
+msgid "Office"
+msgstr ""
+
+#: src/routes/drive/account/profile.tsx:199
+msgid "Only a space admin can add or remove members, so leaving is a request to one of them."
+msgstr ""
+
+#: src/routes/drive/$spaceId/settings/route.tsx:25
+msgid "Only a space admin can open settings"
+msgstr ""
+
+#: src/routes/admin.security.tsx:43
+msgid "Only an administrator can read the security log."
+msgstr ""
+
+#: src/routes/edit/$nodeId.tsx:173
+msgid "OnlyOffice editor"
+msgstr ""
+
+#: src/components/command-palette.tsx:230
+msgid "open"
+msgstr ""
+
+#: src/components/node-actions.tsx:127
+#: src/components/preview-content.tsx:273
+#: src/components/preview-modal.tsx:115
+#: src/components/preview-panel.tsx:161
+#: src/components/share-dialog.tsx:522
+msgid "Open"
+msgstr ""
+
+#: src/components/node-actions.tsx:115
+#: src/components/preview-content.tsx:147
+msgid "Open in new tab"
+msgstr ""
+
+#: src/routes/edit/$nodeId.tsx:139
+msgid "Opening editor…"
+msgstr ""
+
+#: src/components/trash-panel.tsx:285
+msgid "Original location"
+msgstr ""
+
+#: src/components/storage-breakdown.tsx:34
+msgid "Other"
+msgstr ""
+
+#: src/routes/admin.users.tsx:118
+msgid "Overview"
+msgstr ""
+
+#: src/components/node-list.tsx:69
+#: src/components/node-table.tsx:83
+#: src/components/preview-modal.tsx:152
+#: src/components/preview-panel.tsx:219
+msgid "Owner"
+msgstr ""
+
+#: src/routes/__root.tsx:35
+msgid "Page not found."
+msgstr ""
+
+#: src/components/folder-actions.tsx:205
+msgid "Paste"
+msgstr ""
+
+#: src/components/transfer-tray.tsx:122
+msgid "Pause queue"
+msgstr ""
+
+#: src/components/preview-content.tsx:139
+msgid "PDF preview of {name}"
+msgstr ""
+
+#: src/components/people-table.tsx:582
+msgid "Pending"
+msgstr ""
+
+#: src/components/grantee-picker.tsx:120
+#: src/components/people-table.tsx:166
+#: src/components/site-header.tsx:36
+#: src/components/space-switcher.tsx:132
+#: src/routes/drive/$spaceId/settings/people.tsx:11
+#: src/routes/drive/$spaceId/settings/route.tsx:45
+msgid "People"
+msgstr ""
+
+#. placeholder {0}: node.child_count
+#: src/components/trash-panel.tsx:484
+msgid "Permanently delete “{name}” and the {0, plural, one {# item} other {# items}} inside it? This cannot be undone."
+msgstr ""
+
+#: src/components/trash-panel.tsx:488
+msgid "Permanently delete “{name}”? This cannot be undone."
+msgstr ""
+
+#: src/routes/drive/$spaceId/settings/danger.tsx:89
+msgid "Permanently delete \"{spaceName}\" and all of its contents? This cannot be undone."
+msgstr ""
+
+#: src/components/invite-modal.tsx:160
+msgid "pp-hub does not send mail yet. The invitation link is copied to your clipboard so you can send it yourself; it expires in 14 days."
+msgstr ""
+
+#: src/components/site-header.tsx:39
+#: src/routes/drive/account/preferences.tsx:23
+#: src/routes/drive/account/route.tsx:33
+msgid "Preferences"
+msgstr ""
+
+#: src/routes/drive/account/preferences.tsx:131
+msgid "Press D anywhere outside a text field to flip between light and dark."
+msgstr ""
+
+#: src/components/node-actions.tsx:104
+#: src/components/preview-panel.tsx:161
+msgid "Preview"
+msgstr ""
+
+#: src/routes/s/$token.tsx:332
+msgid "Preview {nodeName}"
+msgstr ""
+
+#: src/components/preview-content.tsx:73
+msgid "Preview not available yet — it is generated shortly after upload."
+msgstr ""
+
+#: src/routes/admin.users.tsx:138
+msgid "Preview queue"
+msgstr ""
+
+#: src/routes/admin.security.tsx:237
+msgid "Previous"
+msgstr ""
+
+#: src/components/preview-modal.tsx:91
+msgid "Previous file"
+msgstr ""
+
+#: src/components/site-header.tsx:38
+#: src/routes/drive/account/profile.tsx:20
+#: src/routes/drive/account/profile.tsx:104
+#: src/routes/drive/account/route.tsx:32
+msgid "Profile"
+msgstr ""
+
+#: src/routes/drive/account/profile.tsx:36
+msgid "Profile not found."
+msgstr ""
+
+#: src/routes/drive/account/profile.tsx:97
+msgid "Profile saved"
+msgstr ""
+
+#: src/components/share-dialog.tsx:498
+#: src/components/share-dialog.tsx:547
+msgid "Public link"
+msgstr ""
+
+#: src/components/trash-panel.tsx:294
+msgid "Purges in"
+msgstr ""
+
+#: src/components/share-dialog.tsx:245
+msgid "re-share"
+msgstr ""
+
+#: src/routes/edit/$nodeId.tsx:96
+msgid "read-only"
+msgstr ""
+
+#: src/components/nav-space.tsx:45
+#: src/components/site-header.tsx:30
+#: src/routes/drive/$spaceId/home.tsx:95
+#: src/routes/drive/$spaceId/recent.tsx:13
+msgid "Recent"
+msgstr ""
+
+#: src/routes/admin.users.tsx:135
+msgid "referenced blobs"
+msgstr ""
+
+#: src/components/folder-actions.tsx:149
+msgid "Refresh"
+msgstr ""
+
+#: src/routes/admin.users.tsx:270
+msgid "Reinstate"
+msgstr ""
+
+#: src/components/people-table.tsx:489
+msgid "Remove {memberEmail} from {groupName}"
+msgstr ""
+
+#: src/components/people-table.tsx:538
+msgid "Remove {memberEmail} from the space"
+msgstr ""
+
+#: src/components/share-dialog.tsx:317
+msgid "Remove {name}"
+msgstr ""
+
+#: src/components/group-drawer.tsx:268
+msgid "Remove {name} from {groupName}"
+msgstr ""
+
+#: src/components/share-dialog.tsx:454
+msgid "Remove {name}'s access"
+msgstr ""
+
+#: src/components/share-dialog.tsx:610
+#: src/components/share-dialog.tsx:633
+msgid "Remove access"
+msgstr ""
+
+#: src/components/people-table.tsx:461
+msgid "Remove admin rights"
+msgstr ""
+
+#: src/components/people-table.tsx:539
+msgid "Remove from space"
+msgstr ""
+
+#: src/components/node-actions.tsx:161
+msgid "Remove star"
+msgstr ""
+
+#: src/components/people-table.tsx:299
+msgid "Removed {memberEmail}"
+msgstr ""
+
+#: src/components/people-table.tsx:287
+msgid "Removed from {groupName}"
+msgstr ""
+
+#: src/routes/drive/$spaceId/settings/danger.tsx:55
+msgid "Removes “{spaceName}” and everything in it — every file, version, share and member. The blobs are released and cannot be recovered."
+msgstr ""
+
+#: src/components/node-actions.tsx:180
+#: src/components/selection-bar.tsx:74
+#: src/routes/drive/$spaceId/index.tsx:589
+msgid "Rename"
+msgstr ""
+
+#: src/components/trash-panel.tsx:120
+msgid "Renamed to “{restored}” — the old name was taken."
+msgstr ""
+
+#: src/components/upload-conflict-dialog.tsx:124
+msgid "Replace"
+msgstr ""
+
+#: src/components/people-table.tsx:607
+msgid "Resend"
+msgstr ""
+
+#: src/components/trash-panel.tsx:386
+#: src/components/version-list.tsx:94
+msgid "Restore"
+msgstr ""
+
+#: src/components/trash-panel.tsx:222
+msgid "Restore {selectedCount}"
+msgstr ""
+
+#: src/components/trash-panel.tsx:123
+msgid "Restored “{restored}”"
+msgstr ""
+
+#: src/components/version-list.tsx:84
+msgid "Restored version {versionNo}"
+msgstr ""
+
+#: src/components/transfer-tray.tsx:122
+msgid "Resume queue"
+msgstr ""
+
+#: src/components/transfer-tray.tsx:205
+msgid "Retry"
+msgstr ""
+
+#: src/components/people-table.tsx:610
+#: src/routes/drive/account/sessions.tsx:185
+msgid "Revoke"
+msgstr ""
+
+#: src/components/share-dialog.tsx:529
+msgid "Revoke access for {grantee}"
+msgstr ""
+
+#: src/routes/admin.users.tsx:251
+msgid "Revoke admin"
+msgstr ""
+
+#: src/components/people-table.tsx:341
+msgid "Revoked the invitation for {inviteeEmail}"
+msgstr ""
+
+#: src/components/share-dialog.tsx:418
+msgid "Revoking a group’s access leaves anything its members created in here — those items stay with whoever made them."
+msgstr ""
+
+#: src/routes/drive/$spaceId/index.tsx:518
+msgid "Right-click here, or use New, to add something."
+msgstr ""
+
+#: src/routes/drive/$spaceId/index.tsx:616
+msgid "Save"
+msgstr ""
+
+#: src/routes/drive/$spaceId/settings/general.tsx:235
+#: src/routes/drive/account/profile.tsx:147
+msgid "Save changes"
+msgstr ""
+
+#: src/routes/edit/$nodeId.tsx:96
+msgid "saved by OnlyOffice"
+msgstr ""
+
+#: src/routes/drive/account/preferences.tsx:90
+msgid "Saved to your account, so it follows you to any browser you sign in from."
+msgstr ""
+
+#: src/components/command-palette.tsx:118
+msgid "Search"
+msgstr ""
+
+#: src/components/command-palette.tsx:119
+#: src/components/command-palette.tsx:127
+#: src/components/command-palette.tsx:128
+msgid "Search files, folders and spaces"
+msgstr ""
+
+#: src/components/grantee-picker.tsx:73
+msgid "Search groups and people…"
+msgstr ""
+
+#: src/components/invite-modal.tsx:86
+msgid "Search people…"
+msgstr ""
+
+#: src/components/member-picker.tsx:43
+msgid "Search users..."
+msgstr ""
+
+#: src/components/nav-search.tsx:30
+msgid "Search..."
+msgstr ""
+
+#: src/components/member-picker.tsx:58
+msgid "Searching..."
+msgstr ""
+
+#: src/components/command-palette.tsx:171
+msgid "Searching…"
+msgstr ""
+
+#: src/components/share-dialog.tsx:585
+msgid "Seconds; use 0 for no expiration."
+msgstr ""
+
+#: src/components/nav-user.tsx:104
+#: src/routes/admin.security.tsx:34
+#: src/routes/admin.security.tsx:141
+msgid "Security log"
+msgstr ""
+
+#: src/components/trash-panel.tsx:320
+msgid "Select {nodeName}"
+msgstr ""
+
+#: src/components/preview-panel.tsx:98
+msgid "Select a file or folder to see its details."
+msgstr ""
+
+#: src/components/space-switcher.tsx:65
+msgid "Select a space"
+msgstr ""
+
+#: src/components/folder-actions.tsx:116
+msgid "Select all"
+msgstr ""
+
+#: src/components/trash-panel.tsx:271
+msgid "Select all deleted items"
+msgstr ""
+
+#: src/components/selection-bar.tsx:50
+msgid "Selection actions"
+msgstr ""
+
+#: src/components/people-table.tsx:330
+msgid "Send it to {inviteeEmail} — the previous link no longer works."
+msgstr ""
+
+#: src/routes/login.tsx:150
+msgid "Separate teams, each with its own groups and invitations."
+msgstr ""
+
+#: src/routes/s/$token.tsx:388
+msgid "Served by pp-hub · self-hosted"
+msgstr ""
+
+#: src/routes/drive/account/profile.tsx:73
+msgid "Server admin"
+msgstr ""
+
+#: src/components/nav-user.tsx:101
+#: src/routes/admin.users.tsx:35
+#: src/routes/admin.users.tsx:107
+msgid "Server administration"
+msgstr ""
+
+#: src/routes/admin.security.tsx:70
+msgid "session revoked"
+msgstr ""
+
+#: src/routes/drive/account/route.tsx:34
+#: src/routes/drive/account/sessions.tsx:26
+msgid "Sessions"
+msgstr ""
+
+#: src/routes/admin.security.tsx:71
+msgid "sessions revoked"
+msgstr ""
+
+#: src/components/site-header.tsx:34
+msgid "Settings"
+msgstr ""
+
+#: src/routes/drive/$spaceId/settings/general.tsx:102
+msgid "Settings saved"
+msgstr ""
+
+#: src/components/settings-tabs.tsx:28
+msgid "Settings sections"
+msgstr ""
+
+#: src/components/node-actions.tsx:170
+#: src/components/preview-panel.tsx:180
+#: src/components/selection-bar.tsx:69
+#: src/components/share-dialog.tsx:383
+#: src/routes/edit/$nodeId.tsx:111
+msgid "Share"
+msgstr ""
+
+#: src/components/share-dialog.tsx:262
+msgid "Share “{nodeName}”"
+msgstr ""
+
+#: src/routes/admin.security.tsx:79
+msgid "share created"
+msgstr ""
+
+#: src/routes/admin.security.tsx:80
+msgid "share revoked"
+msgstr ""
+
+#: src/routes/s/$token.tsx:34
+msgid "Shared"
+msgstr ""
+
+#: src/components/nav-space.tsx:44
+#: src/components/site-header.tsx:32
+#: src/routes/drive/$spaceId/shared.tsx:11
+#: src/routes/drive/$spaceId/shared.tsx:32
+msgid "Shared with me"
+msgstr ""
+
+#: src/routes/s/$token.tsx:378
+msgid "Shared with you"
+msgstr ""
+
+#: src/components/preview-panel.tsx:235
+msgid "Sharing"
+msgstr ""
+
+#: src/components/people-table.tsx:226
+msgid "Showing {shown} of {total}"
+msgstr ""
+
+#: src/routes/drive/$spaceId/settings/general.tsx:117
+msgid "Shown in the switcher and every breadcrumb."
+msgstr ""
+
+#: src/components/locale-provider.tsx:83
+msgid "Sidebar"
+msgstr ""
+
+#: src/routes/login.tsx:54
+#: src/routes/s/$token.tsx:381
+msgid "Sign in"
+msgstr ""
+
+#: src/routes/login.tsx:161
+msgid "Sign in to pp-hub"
+msgstr ""
+
+#: src/components/nav-user.tsx:110
+msgid "Sign out"
+msgstr ""
+
+#: src/routes/drive/account/sessions.tsx:56
+#: src/routes/drive/account/sessions.tsx:108
+msgid "Sign out everywhere else"
+msgstr ""
+
+#: src/routes/drive/account/sessions.tsx:40
+msgid "Sign out everywhere else?"
+msgstr ""
+
+#: src/routes/login.tsx:174
+msgid "Sign-in failed. Try again."
+msgstr ""
+
+#: src/routes/login.tsx:42
+msgid "Sign-in was cancelled."
+msgstr ""
+
+#: src/routes/admin.security.tsx:144
+msgid "Sign-ins, failures and access changes across this install"
+msgstr ""
+
+#: src/routes/drive/account/sessions.tsx:83
+msgid "Signed out everywhere else"
+msgstr ""
+
+#: src/routes/drive/account/sessions.tsx:92
+msgid "Signed-in devices"
+msgstr ""
+
+#: src/components/listing-controls.tsx:25
+#: src/components/node-list.tsx:66
+#: src/components/node-table.tsx:80
+#: src/components/preview-modal.tsx:151
+#: src/components/preview-panel.tsx:201
+#: src/components/space-node-table.tsx:100
+#: src/components/trash-panel.tsx:297
+#: src/routes/drive/account/preferences.tsx:49
+#: src/routes/s/$token.tsx:285
+msgid "Size"
+msgstr ""
+
+#: src/components/folder-actions.tsx:193
+msgid "Size (largest)"
+msgstr ""
+
+#: src/components/folder-actions.tsx:194
+msgid "Size (smallest)"
+msgstr ""
+
+#: src/routes/drive.tsx:230
+msgid "Slug"
+msgstr ""
+
+#: src/components/invite-modal.tsx:79
+msgid "Someone with an account"
+msgstr ""
+
+#: src/routes/login.tsx:45
+msgid "Something went wrong on our side. Try again in a moment."
+msgstr ""
+
+#: src/components/listing-controls.tsx:90
+msgid "Sort ascending"
+msgstr ""
+
+#: src/components/folder-actions.tsx:124
+#: src/routes/drive/account/preferences.tsx:157
+msgid "Sort by"
+msgstr ""
+
+#: src/components/listing-controls.tsx:90
+msgid "Sort descending"
+msgstr ""
+
+#: src/routes/drive/$spaceId/settings/general.tsx:114
+msgid "Space name"
+msgstr ""
+
+#: src/routes/drive/$spaceId/route.tsx:34
+msgid "Space not found"
+msgstr ""
+
+#: src/components/space-switcher.tsx:121
+#: src/routes/drive/$spaceId/settings/danger.tsx:24
+#: src/routes/drive/$spaceId/settings/general.tsx:19
+#: src/routes/drive/$spaceId/settings/people.tsx:11
+#: src/routes/drive/$spaceId/settings/route.tsx:18
+msgid "Space settings"
+msgstr ""
+
+#: src/components/command-palette.tsx:180
+#: src/components/space-switcher.tsx:84
+#: src/routes/admin.users.tsx:126
+#: src/routes/admin.users.tsx:178
+#: src/routes/login.tsx:149
+msgid "Spaces"
+msgstr ""
+
+#: src/routes/drive.tsx:177
+msgid "Spaces are isolated file areas with their own members, permissions and storage."
+msgstr ""
+
+#: src/routes/drive/$spaceId/home.tsx:140
+#: src/routes/drive/$spaceId/starred.tsx:28
+msgid "Star a file from its ⋯ menu to keep it here."
+msgstr ""
+
+#: src/components/nav-space.tsx:46
+#: src/components/site-header.tsx:31
+#: src/routes/drive/$spaceId/home.tsx:125
+#: src/routes/drive/$spaceId/starred.tsx:11
+msgid "Starred"
+msgstr ""
+
+#: src/routes/admin.users.tsx:184
+msgid "Status"
+msgstr ""
+
+#: src/components/people-table.tsx:58
+msgid "Status: Active"
+msgstr ""
+
+#: src/components/people-table.tsx:57
+msgid "Status: All"
+msgstr ""
+
+#: src/components/people-table.tsx:59
+msgid "Status: Pending"
+msgstr ""
+
+#: src/components/storage-meter.tsx:33
+#: src/routes/drive/$spaceId/home.tsx:148
+msgid "Storage"
+msgstr ""
+
+#: src/routes/drive.tsx:276
+#: src/routes/drive/$spaceId/settings/general.tsx:184
+msgid "Storage quota (GB)"
+msgstr ""
+
+#: src/routes/admin.users.tsx:133
+msgid "Storage used"
+msgstr ""
+
+#: src/routes/admin.users.tsx:270
+msgid "Suspend"
+msgstr ""
+
+#: src/routes/admin.users.tsx:233
+msgid "Suspended"
+msgstr ""
+
+#: src/components/space-switcher.tsx:57
+msgid "Switch space"
+msgstr ""
+
+#: src/components/node-list.tsx:161
+msgid "Team"
+msgstr ""
+
+#: src/components/preview-panel.tsx:211
+msgid "Team folder"
+msgstr ""
+
+#: src/routes/drive/account/profile.tsx:130
+msgid "Tell your colleagues what you work on"
+msgstr ""
+
+#: src/components/upload-conflict-dialog.tsx:79
+msgid "That name is taken"
+msgstr ""
+
+#: src/routes/login.tsx:39
+msgid "That sign-in link expired or was already used. Start again from this page."
+msgstr ""
+
+#: src/routes/login.tsx:40
+msgid "The identity provider refused to complete the sign-in. Try again."
+msgstr ""
+
+#: src/routes/login.tsx:41
+msgid "The identity provider's response could not be verified. Try again."
+msgstr ""
+
+#: src/components/invite-modal.tsx:132
+msgid "The link is on your clipboard — send it to them."
+msgstr ""
+
+#: src/components/move-dialog.tsx:165
+#: src/components/share-dialog.tsx:474
+msgid "the public link"
+msgstr ""
+
+#: src/routes/drive/account/preferences.tsx:130
+msgid "Theme"
+msgstr ""
+
+#: src/routes/s/$token.tsx:267
+msgid "There is nothing shared here yet."
+msgstr ""
+
+#: src/components/invite-modal.tsx:122
+msgid "They were added to the space directly."
+msgstr ""
+
+#: src/components/drop-zone.tsx:78
+msgid "They will be added to {destination}"
+msgstr ""
+
+#: src/routes/login.tsx:43
+msgid "This account is suspended. Contact an administrator."
+msgstr ""
+
+#: src/components/people-table.tsx:626
+msgid "This address is on a different mail domain from yours"
+msgstr ""
+
+#: src/components/preview-content.tsx:143
+msgid "This browser can't display PDFs inline."
+msgstr ""
+
+#: src/routes/drive/account/sessions.tsx:173
+msgid "This device"
+msgstr ""
+
+#: src/routes/drive/account/sessions.tsx:48
+msgid "This device stays signed in."
+msgstr ""
+
+#: src/components/preview-content.tsx:269
+msgid "This file opens in the office editor."
+msgstr ""
+
+#: src/routes/s/$token.tsx:113
+msgid "This file was shared with you"
+msgstr ""
+
+#: src/components/drive-write.tsx:87
+msgid "this folder"
+msgstr ""
+
+#: src/routes/drive/$spaceId/index.tsx:511
+#: src/routes/s/$token.tsx:264
+msgid "This folder is empty"
+msgstr ""
+
+#: src/routes/s/$token.tsx:111
+msgid "This folder was shared with you"
+msgstr ""
+
+#: src/components/group-drawer.tsx:209
+msgid "This group holds the space admins. Use the Admin switch in the table to change it."
+msgstr ""
+
+#: src/components/group-drawer.tsx:290
+msgid "This group opens no folders, so nobody loses access."
+msgstr ""
+
+#: src/routes/invite/$token.tsx:59
+msgid "This invitation is not valid"
+msgstr ""
+
+#: src/routes/s/$token.tsx:223
+msgid "This link does not allow downloads, so it shows the names, sizes and dates of these files but cannot open their contents."
+msgstr ""
+
+#: src/routes/s/$token.tsx:82
+msgid "This link is not available"
+msgstr ""
+
+#: src/components/share-dialog.tsx:253
+msgid "This person"
+msgstr ""
+
+#: src/components/drive-write.tsx:87
+#: src/components/drive-write.tsx:169
+#: src/routes/drive/$spaceId/home.tsx:61
+#: src/routes/drive/$spaceId/index.tsx:297
+msgid "this space"
+msgstr ""
+
+#: src/components/preview-content.tsx:162
+msgid "This video can't be played here — use Download."
+msgstr ""
+
+#: src/components/upload-conflict-dialog.tsx:79
+msgid "Those names are taken"
+msgstr ""
+
+#: src/components/locale-provider.tsx:82
+msgid "Toggle sidebar"
+msgstr ""
+
+#: src/components/trash-panel.tsx:358
+msgid "Top level"
+msgstr ""
+
+#: src/components/nav-space.tsx:48
+#: src/components/site-header.tsx:33
+#: src/components/trash-panel.tsx:200
+#: src/routes/drive/$spaceId/trash.tsx:8
+msgid "Trash"
+msgstr ""
+
+#: src/components/trash-panel.tsx:254
+msgid "Trash is empty"
+msgstr ""
+
+#: src/routes/drive/$spaceId/settings/general.tsx:201
+msgid "Trash retention (days)"
+msgstr ""
+
+#: src/components/trash-panel.tsx:257
+#: src/routes/drive/$spaceId/index.tsx:516
+msgid "Try a different search."
+msgstr ""
+
+#: src/components/preview-modal.tsx:150
+#: src/components/preview-panel.tsx:199
+msgid "Type"
+msgstr ""
+
+#: src/routes/drive/$spaceId/settings/danger.tsx:64
+msgid "Type the space name to confirm"
+msgstr ""
+
+#: src/routes/drive/account/sessions.tsx:161
+msgid "Unknown IP"
+msgstr ""
+
+#: src/routes/drive.tsx:285
+#: src/routes/drive/$spaceId/settings/general.tsx:192
+msgid "Unlimited"
+msgstr ""
+
+#: src/routes/drive/$spaceId/settings/general.tsx:241
+#: src/routes/drive/account/profile.tsx:161
+msgid "Unsaved changes"
+msgstr ""
+
+#: src/components/drive-write.tsx:113
+msgid "Upload cancelled"
+msgstr ""
+
+#: src/components/transfer-tray.tsx:247
+#: src/lib/upload-store.ts:413
+msgid "Upload failed"
+msgstr ""
+
+#: src/components/folder-actions.tsx:87
+msgid "Upload files"
+msgstr ""
+
+#: src/components/folder-actions.tsx:95
+msgid "Upload folder"
+msgstr ""
+
+#: src/routes/login.tsx:144
+msgid "Upload, organise and share files, with every version kept."
+msgstr ""
+
+#: src/components/drive-write.tsx:120
+msgid "Uploading {count, plural, one {# file} other {# files}} to {label}"
+msgstr ""
+
+#: src/components/transfer-tray.tsx:149
+msgid "Uploading {current} of {total}"
+msgstr ""
+
+#: src/routes/drive/$spaceId/settings/general.tsx:129
+msgid "URL slug"
+msgstr ""
+
+#: src/routes/drive/account/preferences.tsx:143
+msgid "Used when a link says nothing about how to draw the folder. A link that carries a view or a sort keeps the one it was copied with."
+msgstr ""
+
+#: src/components/nav-user.tsx:36
+#: src/routes/admin.users.tsx:175
+msgid "User"
+msgstr ""
+
+#: src/routes/admin.security.tsx:148
+#: src/routes/admin.users.tsx:122
+#: src/routes/admin.users.tsx:155
+msgid "Users"
+msgstr ""
+
+#: src/components/preview-modal.tsx:154
+msgid "Version"
+msgstr ""
+
+#: src/routes/edit/$nodeId.tsx:92
+msgid "version {version}"
+msgstr ""
+
+#: src/components/preview-modal.tsx:79
+msgid "version {versionNo}"
+msgstr ""
+
+#: src/components/version-list.tsx:52
+msgid "Version {versionNo}"
+msgstr ""
+
+#: src/components/node-actions.tsx:145
+#: src/components/preview-modal.tsx:144
+#: src/components/preview-panel.tsx:186
+#: src/components/preview-panel.tsx:226
+#: src/routes/edit/$nodeId.tsx:120
+msgid "Versions"
+msgstr ""
+
+#: src/components/version-list.tsx:103
+msgid "Versions are immutable. Restoring makes the selected version current; it does not delete anything."
+msgstr ""
+
+#: src/components/versions-panel.tsx:23
+msgid "Versions of “{nodeName}”"
+msgstr ""
+
+#: src/components/storage-breakdown.tsx:30
+msgid "Video"
+msgstr ""
+
+#: src/components/preview-panel.tsx:253
+#: src/components/share-dialog.tsx:243
+msgid "view"
+msgstr ""
+
+#: src/components/folder-actions.tsx:138
+#: src/routes/drive/account/preferences.tsx:150
+msgid "View"
+msgstr ""
+
+#: src/routes/drive/$spaceId/home.tsx:102
+#: src/routes/drive/$spaceId/home.tsx:132
+msgid "View all"
+msgstr ""
+
+#: src/routes/s/$token.tsx:129
+msgid "view and download"
+msgstr ""
+
+#: src/components/transfer-tray.tsx:243
+msgid "Waiting"
+msgstr ""
+
+#: src/routes/drive.tsx:128
+msgid "Welcome to pp-hub"
+msgstr ""
+
+#: src/routes/drive.tsx:251
+#: src/routes/drive/$spaceId/settings/general.tsx:150
+msgid "What lives in this space?"
+msgstr ""
+
+#: src/routes/admin.security.tsx:200
+msgid "When"
+msgstr ""
+
+#: src/routes/drive/$spaceId/shared.tsx:45
+msgid "When a group you are in is given a folder, or someone shares one with you, it appears here."
+msgstr ""
+
+#: src/routes/drive/$spaceId/settings/general.tsx:163
+msgid "When on, everyone you invite can change these settings. Change it per-person on the People tab."
+msgstr ""
+
+#: src/routes/drive.tsx:260
+msgid "When turned on, everyone you invite joins as an admin."
+msgstr ""
+
+#: src/routes/admin.security.tsx:206
+msgid "Who"
+msgstr ""
+
+#: src/components/group-drawer.tsx:375
+msgid "Who belongs in here, and why"
+msgstr ""
+
+#: src/components/people-table.tsx:594
+msgid "Will join as a member"
+msgstr ""
+
+#: src/components/people-table.tsx:593
+msgid "Will join as admin"
+msgstr ""
+
+#: src/components/people-table.tsx:594
+msgid "Will join as an admin"
+msgstr ""
+
+#: src/components/people-table.tsx:438
+#: src/routes/admin.users.tsx:208
+msgid "You"
+msgstr ""
+
+#: src/routes/drive/account/profile.tsx:194
+msgid "You are not in any space yet."
+msgstr ""
+
+#: src/routes/s/$token.tsx:214
+msgid "You are viewing a shared link"
+msgstr ""
+
+#: src/components/people-table.tsx:459
+msgid "You cannot change your own admin rights"
+msgstr ""
+
+#: src/components/people-table.tsx:539
+msgid "You cannot remove yourself"
+msgstr ""
+
+#: src/routes/drive/$spaceId/home.tsx:33
+#: src/routes/drive/$spaceId/recent.tsx:27
+msgid "You created"
+msgstr ""
+
+#: src/routes/drive/$spaceId/home.tsx:38
+#: src/routes/drive/$spaceId/recent.tsx:32
+msgid "You deleted"
+msgstr ""
+
+#: src/routes/invite/$token.tsx:61
+msgid "You have been invited"
+msgstr ""
+
+#: src/routes/drive/$spaceId/home.tsx:42
+#: src/routes/drive/$spaceId/recent.tsx:36
+msgid "You invited"
+msgstr ""
+
+#: src/routes/drive/$spaceId/home.tsx:43
+#: src/routes/drive/$spaceId/recent.tsx:37
+msgid "You joined"
+msgstr ""
+
+#: src/routes/drive/$spaceId/home.tsx:35
+#: src/routes/drive/$spaceId/recent.tsx:29
+msgid "You moved"
+msgstr ""
+
+#: src/routes/drive/$spaceId/home.tsx:34
+#: src/routes/drive/$spaceId/recent.tsx:28
+msgid "You renamed"
+msgstr ""
+
+#: src/routes/drive/$spaceId/home.tsx:37
+#: src/routes/drive/$spaceId/recent.tsx:31
+msgid "You restored"
+msgstr ""
+
+#: src/routes/drive/$spaceId/home.tsx:41
+#: src/routes/drive/$spaceId/recent.tsx:35
+msgid "You reverted"
+msgstr ""
+
+#: src/routes/drive/$spaceId/home.tsx:40
+#: src/routes/drive/$spaceId/recent.tsx:34
+msgid "You revoked"
+msgstr ""
+
+#: src/routes/drive/$spaceId/home.tsx:39
+#: src/routes/drive/$spaceId/recent.tsx:33
+msgid "You shared"
+msgstr ""
+
+#: src/routes/drive/$spaceId/home.tsx:36
+#: src/routes/drive/$spaceId/recent.tsx:30
+msgid "You trashed"
+msgstr ""
+
+#: src/routes/drive/$spaceId/home.tsx:32
+#: src/routes/drive/$spaceId/recent.tsx:26
+msgid "You uploaded"
+msgstr ""
+
+#: src/routes/drive/account/profile.tsx:168
+msgid "Your spaces"
+msgstr ""
+
+#: src/routes/login.tsx:133
+msgid "Your workspace, on your own server."
+msgstr ""

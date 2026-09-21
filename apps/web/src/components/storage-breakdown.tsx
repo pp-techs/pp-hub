@@ -1,4 +1,7 @@
-import { fmtSize, type UsageCategory } from "@/lib/api";
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import type { MessageDescriptor } from "@lingui/core";
+import { type UsageCategory } from "@/lib/api";
 import {
   Card,
   CardAction,
@@ -7,6 +10,7 @@ import {
   CardTitle,
 } from "@workspace/ui/components/card";
 import { cn } from "@workspace/ui/lib/utils";
+import { useFormatters } from "@/lib/format";
 
 /**
  * Storage split by MIME family.
@@ -16,42 +20,65 @@ import { cn } from "@workspace/ui/lib/utils";
  * filling the disk, and the others stay quiet. There is no categorical colour
  * scale in the token set, and inventing one here would put a second hue into
  * a deliberately achromatic system.
+ *
+ * Descriptors rather than strings: this is module scope, evaluated at import
+ * time before any catalog is active, so rendered labels here would pin the
+ * first language loaded. The `Record` annotation is what keeps a new MIME
+ * family from silently shipping without a label.
  */
-const LABELS: Record<UsageCategory["category"], string> = {
-  video: "Video",
-  image: "Images",
-  audio: "Audio",
-  document: "Documents",
-  other: "Other",
+const LABELS: Record<UsageCategory["category"], MessageDescriptor> = {
+  video: msg`Video`,
+  image: msg`Images`,
+  audio: msg`Audio`,
+  document: msg`Documents`,
+  other: msg`Other`,
 };
 
+// eslint-disable-next-line lingui/no-unlocalized-strings -- Tailwind class names
 const SHADES = ["bg-neutral-400", "bg-neutral-500", "bg-neutral-600", "bg-neutral-700"];
 
 export function StorageBreakdown({ usage }: { usage: UsageCategory[] }) {
+  const { i18n, t } = useLingui();
+  const f = useFormatters();
   const total = usage.reduce((sum, u) => sum + u.bytes, 0);
 
   if (total === 0) {
-    return <p className="text-muted-foreground text-xs">Nothing stored yet.</p>;
+    return (
+      <p className="text-muted-foreground text-xs">
+        <Trans>Nothing stored yet.</Trans>
+      </p>
+    );
   }
+
+  const totalSize = f.size(total);
+  const files = usage.reduce((n, u) => n + u.files, 0);
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="tabular-nums">{fmtSize(total)} used</CardTitle>
+        <CardTitle className="tabular-nums">
+          <Trans>{totalSize} used</Trans>
+        </CardTitle>
         <CardAction className="text-muted-foreground text-[10px] tabular-nums">
-          {usage.reduce((n, u) => n + u.files, 0)} files
+          <Plural value={files} one="# file" other="# files" />
         </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
         <div className="bg-muted flex h-1.5 w-full overflow-hidden rounded-full">
-          {usage.map((u, i) => (
-            <div
-              key={u.category}
-              className={cn("h-full", i === 0 ? "bg-primary" : SHADES[(i - 1) % SHADES.length])}
-              style={{ width: `${(u.bytes / total) * 100}%` }}
-              title={`${LABELS[u.category]} — ${fmtSize(u.bytes)}`}
-            />
-          ))}
+          {usage.map((u, i) => {
+            // Named locals so the extracted message reads `{label} — {size}`
+            // rather than `{0} — {1}`.
+            const label = i18n._(LABELS[u.category]);
+            const size = f.size(u.bytes);
+            return (
+              <div
+                key={u.category}
+                className={cn("h-full", i === 0 ? "bg-primary" : SHADES[(i - 1) % SHADES.length])}
+                style={{ width: `${(u.bytes / total) * 100}%` }}
+                title={t`${label} — ${size}`}
+              />
+            );
+          })}
         </div>
 
         <ul className="flex flex-col gap-1">
@@ -64,9 +91,9 @@ export function StorageBreakdown({ usage }: { usage: UsageCategory[] }) {
                   i === 0 ? "bg-primary" : SHADES[(i - 1) % SHADES.length],
                 )}
               />
-              <span className="truncate">{LABELS[u.category]}</span>
+              <span className="truncate">{i18n._(LABELS[u.category])}</span>
               <span className="text-muted-foreground ml-auto shrink-0 tabular-nums">
-                {fmtSize(u.bytes)}
+                {f.size(u.bytes)}
               </span>
             </li>
           ))}

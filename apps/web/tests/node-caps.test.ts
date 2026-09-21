@@ -63,10 +63,14 @@ test("a copy needs somewhere to land", () => {
 });
 
 test("an office file says Open to a reader and Edit to an editor", () => {
+  // Action labels are `MessageDescriptor`s so that the static menus defined at
+  // module scope are not frozen to whichever catalog loaded first. The English
+  // source text travels on the descriptor, which is what a consumer renders
+  // through `i18n._()` in the source locale — so that is what is asserted.
   const label = (caps: NodeCaps) =>
     nodeActions(file(caps, { name: "brief.docx" }), handlers, () => {}, false, true).find(
       (a) => a.key === "edit",
-    )?.label;
+    )?.label.message;
   expect(label(CAPS.reader)).toBe("Open");
   expect(label(CAPS.editor)).toBe("Edit");
 });

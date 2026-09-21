@@ -1,4 +1,5 @@
 import { createModal } from "@buiducnhat/better-modal";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Users } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import {
@@ -41,6 +42,7 @@ export const TeamFolderDialog = createModal<Props, string | null>(
     // meant for one space cannot resurface in another.
     const [name, setName] = useKeyedState(`${spaceId}:${modal.visible}`, "");
     const trimmed = name.trim();
+    const { t } = useLingui();
 
     return (
       <Dialog open={modal.visible} onOpenChange={(open) => !open && modal.resolve(null)}>
@@ -48,12 +50,14 @@ export const TeamFolderDialog = createModal<Props, string | null>(
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Users className="size-4 shrink-0" />
-              New team folder
+              <Trans>New team folder</Trans>
             </DialogTitle>
             <DialogDescription>
-              A top-level folder in {spaceName} that nobody owns personally: access to everything
-              inside it is managed through Share, so removing someone really removes them, even from
-              files they uploaded. It stays with the team when whoever created it leaves.
+              <Trans>
+                A top-level folder in {spaceName} that nobody owns personally: access to everything
+                inside it is managed through Share, so removing someone really removes them, even
+                from files they uploaded. It stays with the team when whoever created it leaves.
+              </Trans>
             </DialogDescription>
           </DialogHeader>
 
@@ -66,22 +70,24 @@ export const TeamFolderDialog = createModal<Props, string | null>(
             }}
           >
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="team-folder-name">Name</Label>
+              <Label htmlFor="team-folder-name">
+                <Trans>Name</Trans>
+              </Label>
               <Input
                 id="team-folder-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Finance"
+                placeholder={t`Finance`}
                 autoFocus
                 required
               />
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => modal.resolve(null)}>
-                Cancel
+                <Trans>Cancel</Trans>
               </Button>
               <Button type="submit" disabled={!trimmed}>
-                Create
+                <Trans>Create</Trans>
               </Button>
             </DialogFooter>
           </form>

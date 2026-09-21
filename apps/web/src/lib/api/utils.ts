@@ -1,9 +1,11 @@
 import type { Node } from "./types";
 // Utilities shared across the app.
 
+// Byte-multiple symbols are written the same way in every locale we ship;
+// what differs is the decimal separator, which Intl.NumberFormat owns.
 const SIZE_UNITS = ["B", "KB", "MB", "GB", "TB", "PB"];
 
-export function fmtSize(n: number): string {
+export function fmtSize(n: number, locale?: string): string {
   if (n < 1024) return `${n} B`;
   let value = n;
   let unit = 0;
@@ -11,7 +13,11 @@ export function fmtSize(n: number): string {
     value /= 1024;
     unit += 1;
   }
-  return `${value.toFixed(1)} ${SIZE_UNITS[unit]}`;
+  const num = new Intl.NumberFormat(locale, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(value);
+  return `${num} ${SIZE_UNITS[unit]}`;
 }
 
 const OFFICE_EXTS = new Set([
@@ -195,16 +201,28 @@ export type SortOrder = "asc" | "desc";
 
 /**
  * Sort nodes: folders always first, then by the active field + direction.
+ *
+ * `locale` reaches `localeCompare` because Vietnamese collates diacritics
+ * ("Đ" after "D", not after "Z") and the host's default locale is not
+ * necessarily the one the app is being read in.
  */
-export function sortNodes(nodes: Node[], field: SortField, order: SortOrder): Node[] {
+export function sortNodes(
+  nodes: Node[],
+  field: SortField,
+  order: SortOrder,
+  locale?: string,
+): Node[] {
+  const collator = new Intl.Collator(locale);
   return [...nodes].sort((a, b) => {
     if (a.kind !== b.kind) return a.kind === "dir" ? -1 : 1;
     let cmp = 0;
     switch (field) {
       case "name":
-        cmp = a.name.localeCompare(b.name);
+        cmp = collator.compare(a.name, b.name);
         break;
       case "modified":
+        // ISO-8601 timestamps sort lexicographically; this is an ordering of
+        // machine strings, not of text a reader sees, so it stays locale-free.
         cmp = (a.modified_at ?? "").localeCompare(b.modified_at ?? "");
         break;
       case "size":
@@ -231,28 +249,31 @@ const RELATIVE_STEPS: [limit: number, unit: Intl.RelativeTimeFormatUnit, per: nu
  * absolute date beyond it — past a few days "17 days ago" is harder to read
  * than the date itself.
  */
-export function fmtRelative(iso: string | undefined): string {
+export function fmtRelative(iso: string | undefined, locale?: string): string {
   if (!iso) return "—";
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return "—";
   const elapsed = (Date.now() - then) / 1000;
-  if (elapsed < 45) return "just now";
-  if (elapsed >= 604800) return fmtDate(iso);
+  if (elapsed >= 604800) return fmtDate(iso, locale);
 
-  const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+  // `numeric: "auto"` renders a zero offset as the locale's own word for it
+  // ("now", "bây giờ"), so this branch needs no string of its own — which is
+  // what keeps the transport layer free of translatable text.
+  if (elapsed < 45) return rtf.format(0, "second");
   for (const [limit, unit, per] of RELATIVE_STEPS) {
     if (elapsed < limit) return rtf.format(-Math.round(elapsed / per), unit);
   }
-  return fmtDate(iso);
+  return fmtDate(iso, locale);
 }
 
-export function fmtDate(iso: string | undefined): string {
+export function fmtDate(iso: string | undefined, locale?: string): string {
   if (!iso) return "—";
   const d = new Date(iso);
   const now = new Date();
   const sameYear = d.getFullYear() === now.getFullYear();
   return d.toLocaleDateString(
-    undefined,
+    locale,
     sameYear
       ? { month: "short", day: "numeric" }
       : { year: "numeric", month: "short", day: "numeric" },

@@ -1,8 +1,10 @@
 import { Outlet, createRootRouteWithContext, Link } from "@tanstack/react-router";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { Trans } from "@lingui/react/macro";
 import type { QueryClient } from "@tanstack/react-query";
 import { Button } from "@workspace/ui/components/button";
 import { ModalContainer } from "@buiducnhat/better-modal";
+import { LocaleProvider } from "@/components/locale-provider";
 
 interface RouterContext {
   queryClient: QueryClient;
@@ -18,8 +20,10 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
-      <ModalContainer />
+      <LocaleProvider>
+        <Outlet />
+        <ModalContainer />
+      </LocaleProvider>
     </QueryClientProvider>
   );
 }
@@ -27,9 +31,13 @@ function RootComponent() {
 function NotFound() {
   return (
     <main className="flex min-h-svh flex-col items-center justify-center gap-4 p-6">
-      <p className="text-muted-foreground text-sm">Page not found.</p>
+      <p className="text-muted-foreground text-sm">
+        <Trans>Page not found.</Trans>
+      </p>
       <Link to="/drive">
-        <Button>Go to Drive</Button>
+        <Button>
+          <Trans>Go to Drive</Trans>
+        </Button>
       </Link>
     </main>
   );

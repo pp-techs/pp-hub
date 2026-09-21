@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { describeSelection, nextSelection, type Selection } from "../src/lib/selection.ts";
+import { nextSelection, type Selection } from "../src/lib/selection.ts";
 import type { Node } from "../src/lib/api/types.ts";
 
 const order = ["a", "b", "c", "d"].map(
@@ -52,15 +52,4 @@ test("shift-click with no anchor, or off the listing, replaces", () => {
     range: true,
   });
   expect([...staleAnchor.ids]).toEqual(["c"]);
-});
-
-test.each([
-  [[], ""],
-  [["a"], "1 folder"],
-  [["b"], "1 file"],
-  [["b", "c"], "2 files"],
-  [["a", "b", "c"], "1 folder and 2 files"],
-])("describeSelection(%o) === %s", (ids, expected) => {
-  const nodes = order.filter((n) => (ids as string[]).includes(n.id));
-  expect(describeSelection(nodes)).toBe(expected);
 });

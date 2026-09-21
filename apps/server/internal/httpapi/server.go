@@ -148,6 +148,7 @@ func (s *Server) Router() http.Handler {
 		r.Get("/users/me", s.handleGetMyProfile)
 		r.Put("/users/me", s.handleUpdateMyProfile)
 		r.Post("/users/me/avatar", s.handleUploadAvatar)
+		r.Patch("/users/me/preferences", s.handleUpdateMyPreferences)
 		r.Route("/users/me/sessions", func(r chi.Router) {
 			r.Get("/", s.handleListSessions)
 			r.Delete("/", s.handleRevokeOtherSessions)

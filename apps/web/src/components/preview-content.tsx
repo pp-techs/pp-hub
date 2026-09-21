@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { Trans, useLingui } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
 import { ExternalLink } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import type { Node } from "@/lib/api";
@@ -22,19 +24,24 @@ type PreviewState = { status: "loading" } | { status: "missing" } | { status: "r
  * we resolve it here rather than letting an <iframe> render that JSON body.
  */
 function usePreviewBlob(url: string): PreviewState {
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- union discriminator
   const [state, setState] = useState<PreviewState>({ status: "loading" });
 
   useEffect(() => {
     let cancelled = false;
+    // eslint-disable-next-line lingui/no-unlocalized-strings -- union discriminator
     setState({ status: "loading" });
 
     fetch(url)
       .then(async (r) => {
+        // eslint-disable-next-line lingui/no-unlocalized-strings -- developer-facing Error text
         if (!r.ok) throw new Error(`preview ${r.status}`);
         const blob = await r.blob();
+        // eslint-disable-next-line lingui/no-unlocalized-strings -- union discriminator
         if (!cancelled) setState({ status: "ready", blob });
       })
       .catch(() => {
+        // eslint-disable-next-line lingui/no-unlocalized-strings -- union discriminator
         if (!cancelled) setState({ status: "missing" });
       });
 
@@ -56,7 +63,14 @@ function Message({ children }: { children: React.ReactNode }) {
   );
 }
 
-const NOT_READY = "Preview not available yet — it is generated shortly after upload.";
+/**
+ * Said by two viewers — an image whose bytes will not load, and a text
+ * artifact the worker has not written yet — so it is one message rather than
+ * two. A descriptor, not a string: this is module scope, evaluated at import
+ * time before a catalog exists, and rendered text here would freeze whichever
+ * language loaded first. Each caller resolves it with `i18n._` at render.
+ */
+const NOT_READY = msg`Preview not available yet — it is generated shortly after upload.`;
 
 // ── Image preview ─────────────────────────────────────────────────────────────
 
@@ -82,10 +96,11 @@ function ImagePreview({
   thumbUrl: string;
   canRead: boolean;
 }) {
+  const { i18n } = useLingui();
   const [src, setSrc] = useState(canRead ? contentUrl(node) : thumbUrl);
   const [failed, setFailed] = useState(false);
 
-  if (failed) return <Message>{NOT_READY}</Message>;
+  if (failed) return <Message>{i18n._(NOT_READY)}</Message>;
   return (
     <Stage>
       <img
@@ -113,18 +128,23 @@ function ImagePreview({
  * children instead of a blank frame.
  */
 function PdfPreview({ node }: { node: Node }) {
+  const { t } = useLingui();
+  const name = node.name;
+
   return (
     <object
       data={contentUrl(node)}
       type="application/pdf"
       className="h-full min-h-[60vh] w-full"
-      aria-label={`PDF preview of ${node.name}`}
+      aria-label={t`PDF preview of ${name}`}
     >
       <Message>
-        <span>This browser can&apos;t display PDFs inline.</span>
+        <span>
+          <Trans>This browser can&apos;t display PDFs inline.</Trans>
+        </span>
         <Button variant="outline" size="sm" className="gap-1" onClick={() => openInTab(node)}>
           <ExternalLink className="size-3.5" />
-          Open in new tab
+          <Trans>Open in new tab</Trans>
         </Button>
       </Message>
     </object>
@@ -136,7 +156,13 @@ function PdfPreview({ node }: { node: Node }) {
 /** Plays the stored file itself; `/content` answers Range requests so it seeks. */
 function VideoPreview({ node }: { node: Node }) {
   const [failed, setFailed] = useState(false);
-  if (failed) return <Message>This video can&apos;t be played here — use Download.</Message>;
+  if (failed) {
+    return (
+      <Message>
+        <Trans>This video can&apos;t be played here — use Download.</Trans>
+      </Message>
+    );
+  }
   return (
     <Stage>
       <video
@@ -153,6 +179,7 @@ function VideoPreview({ node }: { node: Node }) {
 // ── Text preview ──────────────────────────────────────────────────────────────
 
 function TextPreview({ url }: { url: string }) {
+  const { i18n } = useLingui();
   const state = usePreviewBlob(url);
   const [text, setText] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
@@ -174,8 +201,13 @@ function TextPreview({ url }: { url: string }) {
     };
   }, [state]);
 
-  if (state.status === "missing" || failed) return <Message>{NOT_READY}</Message>;
-  if (text === null) return <Message>Loading…</Message>;
+  if (state.status === "missing" || failed) return <Message>{i18n._(NOT_READY)}</Message>;
+  if (text === null)
+    return (
+      <Message>
+        <Trans>Loading…</Trans>
+      </Message>
+    );
   return (
     <pre className="bg-muted m-4 overflow-auto rounded-md p-3 text-xs whitespace-pre-wrap">
       {text}
@@ -207,8 +239,10 @@ function PreviewBody({ node }: { node: Node }) {
   // What the browser can render inline is a property of the MIME type.
   if (canRead) {
     if (mime === "application/pdf") return <PdfPreview node={node} />;
+    // eslint-disable-next-line lingui/no-unlocalized-strings -- MIME type prefix
     if (mime.startsWith("video/")) return <VideoPreview node={node} />;
   }
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- MIME type prefix
   if (mime.startsWith("image/")) {
     return <ImagePreview node={node} thumbUrl={previewUrl(node)} canRead={canRead} />;
   }
@@ -217,24 +251,33 @@ function PreviewBody({ node }: { node: Node }) {
   // artifact. Asking for it without the capability is a guaranteed 403
   // rendered as "preview not ready", which is a lie about why.
   if (canRead && previewKind(node.mime) === "text") {
+    // eslint-disable-next-line lingui/no-unlocalized-strings -- preview artifact kind
     return <TextPreview url={previewUrl(node, "text")} />;
   }
   if (!canRead) {
     return (
-      <Message>Downloads are off for this file, so it can only be opened by its owner.</Message>
+      <Message>
+        <Trans>Downloads are off for this file, so it can only be opened by its owner.</Trans>
+      </Message>
     );
   }
 
   if (isOfficeFile(node.name)) {
     return (
       <Message>
-        <span>This file opens in the office editor.</span>
+        <span>
+          <Trans>This file opens in the office editor.</Trans>
+        </span>
         <Button variant="outline" size="sm" className="gap-1" onClick={() => openEditor(node)}>
           <ExternalLink className="size-3.5" />
-          Open
+          <Trans>Open</Trans>
         </Button>
       </Message>
     );
   }
-  return <Message>No preview available — use Download to view this file.</Message>;
+  return (
+    <Message>
+      <Trans>No preview available — use Download to view this file.</Trans>
+    </Message>
+  );
 }

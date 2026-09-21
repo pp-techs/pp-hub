@@ -1,3 +1,4 @@
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { Download, FolderInput, Link2, Pencil, Trash2, X } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { canRestructure, capsOf, commonCaps, type Node } from "@/lib/api";
@@ -35,6 +36,7 @@ export function SelectionBar({
   onMove,
   onDelete,
 }: SelectionBarProps) {
+  const { t } = useLingui();
   if (selected.length === 0) return null;
 
   const only = selected.length === 1 ? selected[0] : null;
@@ -45,34 +47,36 @@ export function SelectionBar({
   return (
     <div
       role="toolbar"
-      aria-label="Selection actions"
+      aria-label={t`Selection actions`}
       // The bar acts on the selection, so a click inside it must not count as
       // a click on the listing's background, which clears it.
       data-keeps-selection=""
       className="border-border bg-popover absolute bottom-6 left-1/2 z-30 flex h-10 -translate-x-1/2 items-center gap-2 rounded-lg border px-3 shadow-sm"
     >
-      <span className="text-xs font-medium whitespace-nowrap">{selected.length} selected</span>
+      <span className="text-xs font-medium whitespace-nowrap">
+        <Plural value={selected.length} one="# selected" other="# selected" />
+      </span>
       <span className="bg-border h-4 w-px" />
 
       <div className="flex items-center gap-1">
         {only?.kind === "file" && onlyCaps.download && (
           <Button variant="ghost" size="sm" onClick={() => onDownload(only)}>
-            <Download data-icon="inline-start" /> Download
+            <Download data-icon="inline-start" /> <Trans>Download</Trans>
           </Button>
         )}
         {only && onlyCaps.share && (
           <Button variant="ghost" size="sm" onClick={() => onShare(only)}>
-            <Link2 data-icon="inline-start" /> Share
+            <Link2 data-icon="inline-start" /> <Trans>Share</Trans>
           </Button>
         )}
         {only && canRename && (
           <Button variant="ghost" size="sm" onClick={() => onRename(only)}>
-            <Pencil data-icon="inline-start" /> Rename
+            <Pencil data-icon="inline-start" /> <Trans>Rename</Trans>
           </Button>
         )}
         {bulk.edit && (
           <Button variant="ghost" size="sm" onClick={() => onMove(selected)}>
-            <FolderInput data-icon="inline-start" /> Move
+            <FolderInput data-icon="inline-start" /> <Trans>Move</Trans>
           </Button>
         )}
       </div>
@@ -81,12 +85,12 @@ export function SelectionBar({
         <>
           <span className="bg-border h-4 w-px" />
           <Button variant="destructive" size="sm" onClick={() => onDelete(selected)}>
-            <Trash2 data-icon="inline-start" /> Delete
+            <Trash2 data-icon="inline-start" /> <Trans>Delete</Trans>
           </Button>
         </>
       )}
 
-      <Button variant="ghost" size="icon-sm" aria-label="Clear selection" onClick={onClear}>
+      <Button variant="ghost" size="icon-sm" aria-label={t`Clear selection`} onClick={onClear}>
         <X />
       </Button>
     </div>

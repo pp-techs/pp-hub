@@ -1,4 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Trans, useLingui } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import { toast } from "sonner";
+import type { MessageDescriptor } from "@lingui/core";
 import { Label } from "@workspace/ui/components/label";
 import {
   Select,
@@ -9,55 +13,122 @@ import {
 } from "@workspace/ui/components/select";
 import type { NodeView, SortField, SortOrder } from "@/lib/api";
 import { useUiStore } from "@/lib/ui-store";
+import { LOCALES, pageTitle, type Locale } from "@/lib/i18n";
 import { Surface } from "@/components/surface";
 import { useTheme } from "@/components/theme-provider";
+import { useLocale, useSetLocale } from "@/components/locale-provider";
 import { SectionLabel } from "@/components/section-label";
 
 export const Route = createFileRoute("/drive/account/preferences")({
-  head: () => ({ meta: [{ title: "Preferences · Account · pp-hub" }] }),
+  head: () => ({ meta: [{ title: pageTitle(msg`Preferences`, msg`Account`) }] }),
   component: PreferencesPage,
 });
 
-const THEMES = [
-  { label: "Match the system", value: "system" },
-  { label: "Light", value: "light" },
-  { label: "Dark", value: "dark" },
+/**
+ * Option labels are message descriptors, not strings. These lists live at
+ * module scope and are evaluated once at import time — before any catalog is
+ * active — so rendered text here would freeze whichever language loaded first
+ * and would never follow a switch. `Field` resolves them at render.
+ */
+type Choice = { label: MessageDescriptor; value: string };
+
+const THEMES: Choice[] = [
+  { label: msg`Match the system`, value: "system" },
+  { label: msg`Light`, value: "light" },
+  { label: msg`Dark`, value: "dark" },
 ];
 
-const VIEWS = [
-  { label: "Grid", value: "grid" },
-  { label: "List", value: "list" },
+const VIEWS: Choice[] = [
+  { label: msg`Grid`, value: "grid" },
+  { label: msg`List`, value: "list" },
 ];
 
-const SORTS = [
-  { label: "Name", value: "name" },
-  { label: "Last modified", value: "modified" },
-  { label: "Size", value: "size" },
+const SORTS: Choice[] = [
+  { label: msg`Name`, value: "name" },
+  { label: msg`Last modified`, value: "modified" },
+  { label: msg`Size`, value: "size" },
 ];
 
-const ORDERS = [
-  { label: "Ascending", value: "asc" },
-  { label: "Descending", value: "desc" },
+const ORDERS: Choice[] = [
+  { label: msg`Ascending`, value: "asc" },
+  { label: msg`Descending`, value: "desc" },
 ];
 
 /**
- * How this browser draws the app. Everything here is local to the device —
- * there is no per-user preferences endpoint, and a theme that travelled between
- * machines would be a surprise rather than a feature.
+ * How the app is drawn and read.
+ *
+ * The two sections differ in where they are stored, and deliberately so.
+ * Theme and the default listing stay local to this browser: a theme that
+ * travelled between machines would be a surprise rather than a feature.
+ * Language is the opposite — it is a fact about the person, not the device,
+ * so it lives on the account (`users.settings`) and follows them to any
+ * browser they sign in from.
  */
 function PreferencesPage() {
+  const { i18n } = useLingui();
   const { theme, setTheme } = useTheme();
+  const locale = useLocale();
+  const setLocale = useSetLocale();
   const prefs = useUiStore((s) => s.listingPrefs);
   const setPrefs = useUiStore((s) => s.setListingPrefs);
+
+  // Language names are written in the language they name — a reader looking
+  // for their own language finds "Tiếng Việt", not "Vietnamese" spelled in a
+  // language they cannot read. So these labels are never translated.
+  const localeItems = Object.entries(LOCALES).map(([value, label]) => ({ label, value }));
 
   return (
     <Surface className="max-w-xl">
       <section className="flex flex-col gap-3">
-        <SectionLabel>Appearance</SectionLabel>
+        <SectionLabel>
+          <Trans>Language</Trans>
+        </SectionLabel>
+        <div className="flex items-center justify-between gap-4">
+          <Label htmlFor="pref-locale" className="font-normal">
+            <Trans>Display language</Trans>
+            <span className="text-muted-foreground block text-[10px]">
+              <Trans>
+                Saved to your account, so it follows you to any browser you sign in from.
+              </Trans>
+            </span>
+          </Label>
+          <Select
+            value={locale}
+            items={localeItems}
+            onValueChange={(v) => {
+              const next = ((v as string) ?? locale) as Locale;
+              void setLocale(next).catch(() => {
+                // The catalog is already active — only the account write
+                // failed, so say what did not stick rather than reverting a
+                // language the reader can now see working.
+                toast.error(
+                  i18n._(msg`Language changed here, but could not be saved to your account.`),
+                );
+              });
+            }}
+          >
+            <SelectTrigger id="pref-locale" className="w-44 shrink-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {localeItems.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <SectionLabel>
+          <Trans>Appearance</Trans>
+        </SectionLabel>
         <Field
           id="pref-theme"
-          label="Theme"
-          hint="Press D anywhere outside a text field to flip between light and dark."
+          label={msg`Theme`}
+          hint={msg`Press D anywhere outside a text field to flip between light and dark.`}
           value={theme}
           items={THEMES}
           onChange={(v) => setTheme(v as "system" | "light" | "dark")}
@@ -65,28 +136,32 @@ function PreferencesPage() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <SectionLabel>Default listing</SectionLabel>
+        <SectionLabel>
+          <Trans>Default listing</Trans>
+        </SectionLabel>
         <p className="text-muted-foreground text-[10px]">
-          Used when a link says nothing about how to draw the folder. A link that carries a view or
-          a sort keeps the one it was copied with.
+          <Trans>
+            Used when a link says nothing about how to draw the folder. A link that carries a view
+            or a sort keeps the one it was copied with.
+          </Trans>
         </p>
         <Field
           id="pref-view"
-          label="View"
+          label={msg`View`}
           value={prefs.view}
           items={VIEWS}
           onChange={(v) => setPrefs({ view: v as NodeView })}
         />
         <Field
           id="pref-sort"
-          label="Sort by"
+          label={msg`Sort by`}
           value={prefs.sort}
           items={SORTS}
           onChange={(v) => setPrefs({ sort: v as SortField })}
         />
         <Field
           id="pref-order"
-          label="Direction"
+          label={msg`Direction`}
           value={prefs.order}
           items={ORDERS}
           onChange={(v) => setPrefs({ order: v as SortOrder })}
@@ -105,24 +180,31 @@ function Field({
   onChange,
 }: {
   id: string;
-  label: string;
-  hint?: string;
+  label: MessageDescriptor;
+  hint?: MessageDescriptor;
   value: string;
-  items: { label: string; value: string }[];
+  items: Choice[];
   onChange: (value: string) => void;
 }) {
+  const { i18n } = useLingui();
+  const resolved = items.map((item) => ({ label: i18n._(item.label), value: item.value }));
+
   return (
     <div className="flex items-center justify-between gap-4">
       <Label htmlFor={id} className="font-normal">
-        {label}
-        {hint && <span className="text-muted-foreground block text-[10px]">{hint}</span>}
+        {i18n._(label)}
+        {hint && <span className="text-muted-foreground block text-[10px]">{i18n._(hint)}</span>}
       </Label>
-      <Select value={value} items={items} onValueChange={(v) => onChange((v as string) ?? value)}>
+      <Select
+        value={value}
+        items={resolved}
+        onValueChange={(v) => onChange((v as string) ?? value)}
+      >
         <SelectTrigger id={id} className="w-44 shrink-0">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {items.map((item) => (
+          {resolved.map((item) => (
             <SelectItem key={item.value} value={item.value}>
               {item.label}
             </SelectItem>

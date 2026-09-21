@@ -1,16 +1,21 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { Trans, useLingui } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
 import { ArrowLeft, Download, History, Link2 } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
-import { capsOf, createEditSession, fmtSize, type EditSession } from "@/lib/api";
+import { capsOf, createEditSession, type EditSession } from "@/lib/api";
 import { nodeOptions, requireAuth, useNode } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
+import { useFormatters } from "@/lib/format";
+import { pageTitle } from "@/lib/i18n";
+import { useLocale } from "@/components/locale-provider";
 import { NodePanels } from "@/components/node-panels";
 import { NodeIcon } from "@/components/node-icon";
 import { ShareDialog } from "@/components/share-dialog";
 
 export const Route = createFileRoute("/edit/$nodeId")({
-  head: () => ({ meta: [{ title: "Editing · pp-hub" }] }),
+  head: () => ({ meta: [{ title: pageTitle(msg`Editing`) }] }),
   beforeLoad: async ({ context, location }) => {
     await requireAuth(context.queryClient, location.href);
   },
@@ -30,15 +35,25 @@ export const Route = createFileRoute("/edit/$nodeId")({
  * actions (share, version history, download) that operate on the node.
  */
 function EditPage() {
+  const { t } = useLingui();
+  const f = useFormatters();
+  const locale = useLocale();
   const { nodeId } = Route.useParams();
   const node = useNode(nodeId);
   const openPanel = useUiStore((s) => s.openPanel);
   const [session, setSession] = useState<EditSession | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Named so the extracted message reads `version {version}` rather than
+  // `version {0}`: the placeholder name is all a translator gets.
+  const version = node.data?.version;
 
   useEffect(() => {
     let cancelled = false;
-    createEditSession(nodeId)
+    // The Document Server takes its ribbon language from `ui`, so the
+    // session is minted for the language the app is in right now. Switching
+    // language mints a new one, and the frame below remounts on the new
+    // token so the editor actually comes back in that language.
+    createEditSession(nodeId, locale)
       .then((s) => {
         if (!cancelled) setSession(s);
       })
@@ -48,7 +63,7 @@ function EditPage() {
     return () => {
       cancelled = true;
     };
-  }, [nodeId]);
+  }, [nodeId, locale]);
 
   return (
     <div className="bg-background text-foreground flex h-svh flex-col">
@@ -56,7 +71,7 @@ function EditPage() {
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label="Back to Drive"
+          aria-label={t`Back to Drive`}
           render={
             <Link
               to={node.data ? ("/drive/$spaceId" as const) : ("/drive" as const)}
@@ -70,15 +85,15 @@ function EditPage() {
 
         {node.data && <NodeIcon node={node.data} className="size-4 shrink-0" />}
         <div className="flex min-w-0 flex-col">
-          <span className="truncate text-sm font-medium">{node.data?.name ?? "Loading…"}</span>
+          <span className="truncate text-sm font-medium">{node.data?.name ?? t`Loading…`}</span>
           <span className="text-muted-foreground truncate text-[10px] tabular-nums">
             {node.data
               ? [
-                  node.data.version ? `version ${node.data.version}` : null,
-                  node.data.size != null ? fmtSize(node.data.size) : null,
+                  version ? t`version ${version}` : null,
+                  node.data.size != null ? f.size(node.data.size) : null,
                   // A reader gets the document, not the editor, and the
                   // ribbon alone is a subtle thing to read that from.
-                  session && !session.can_write ? "read-only" : "saved by OnlyOffice",
+                  session && !session.can_write ? t`read-only` : t`saved by OnlyOffice`,
                 ]
                   .filter(Boolean)
                   .join(" · ")
@@ -93,7 +108,7 @@ function EditPage() {
               size="sm"
               onClick={() => node.data && void ShareDialog.show({ node: node.data })}
             >
-              <Link2 data-icon="inline-start" /> Share
+              <Link2 data-icon="inline-start" /> <Trans>Share</Trans>
             </Button>
           )}
           <Button
@@ -102,13 +117,13 @@ function EditPage() {
             disabled={!node.data}
             onClick={() => node.data && openPanel("versions", node.data)}
           >
-            <History data-icon="inline-start" /> Versions
+            <History data-icon="inline-start" /> <Trans>Versions</Trans>
           </Button>
           {node.data && capsOf(node.data).download && (
             <Button
               variant="ghost"
               size="icon-sm"
-              aria-label="Download"
+              aria-label={t`Download`}
               render={<a href={`/api/v1/nodes/${nodeId}/download`} />}
             >
               <Download />
@@ -121,10 +136,10 @@ function EditPage() {
         <p className="text-destructive flex flex-1 items-center justify-center text-sm">{error}</p>
       ) : !session ? (
         <p className="text-muted-foreground flex flex-1 items-center justify-center text-sm">
-          Opening editor…
+          <Trans>Opening editor…</Trans>
         </p>
       ) : (
-        <EditorFrame session={session} />
+        <EditorFrame key={session.token} session={session} />
       )}
 
       <NodePanels />
@@ -134,6 +149,7 @@ function EditPage() {
 
 /** Posts the WOPI form once on mount; the iframe (its target) renders the editor. */
 function EditorFrame({ session }: { session: EditSession }) {
+  const { t } = useLingui();
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
@@ -154,7 +170,7 @@ function EditorFrame({ session }: { session: EditSession }) {
       </form>
       <iframe
         name="pp-office-frame"
-        title="OnlyOffice editor"
+        title={t`OnlyOffice editor`}
         className="min-h-0 flex-1 border-0"
         allow="clipboard-write"
         allowFullScreen

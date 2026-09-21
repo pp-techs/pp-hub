@@ -1,6 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import type * as React from "react";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
@@ -14,7 +17,6 @@ import {
   TableRow,
 } from "@workspace/ui/components/table";
 import { cn } from "@workspace/ui/lib/utils";
-import { fmtRelative, fmtSize } from "@/lib/api";
 import {
   adminStatsOptions,
   requireAuth,
@@ -24,11 +26,13 @@ import {
   useUsers,
   usersOptions,
 } from "@/lib/queries";
+import { useFormatters } from "@/lib/format";
+import { pageTitle } from "@/lib/i18n";
 import { UserAvatar } from "@/components/user-avatar";
 import { SectionLabel } from "@/components/section-label";
 
 export const Route = createFileRoute("/admin/users")({
-  head: () => ({ meta: [{ title: "Server administration · pp-hub" }] }),
+  head: () => ({ meta: [{ title: pageTitle(msg`Server administration`) }] }),
   beforeLoad: async ({ context, location }) => {
     await requireAuth(context.queryClient, location.href);
   },
@@ -54,6 +58,8 @@ function AdminPage() {
   const { data, isLoading } = useUsers(100, 0);
   const update = useUpdateAdminUser();
   const [query, setQuery] = useState("");
+  const { t } = useLingui();
+  const f = useFormatters();
 
   const users = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -70,13 +76,20 @@ function AdminPage() {
   if (me && !me.is_admin) {
     return (
       <main className="flex min-h-svh flex-col items-center justify-center gap-3 p-6">
-        <p className="text-muted-foreground text-sm">Admin access required.</p>
+        <p className="text-muted-foreground text-sm">
+          <Trans>Admin access required.</Trans>
+        </p>
         <Button variant="outline" render={<Link to="/drive" />}>
-          Back to Drive
+          <Trans>Back to Drive</Trans>
         </Button>
       </main>
     );
   }
+
+  // Named locals so the ICU messages read `{trashed, plural, …}` rather than
+  // `{0, plural, …}`: the placeholder name is the only hint a translator has.
+  const trashed = stats.data?.trashed ?? 0;
+  const failed = stats.data?.jobs_failed ?? 0;
 
   return (
     <main className="bg-background text-foreground flex min-h-svh flex-col">
@@ -84,76 +97,99 @@ function AdminPage() {
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label="Back to Drive"
+          aria-label={t`Back to Drive`}
           render={<Link to="/drive" />}
         >
           <ArrowLeft />
         </Button>
         <div className="flex flex-col">
-          <span className="text-sm font-medium">Server administration</span>
+          <span className="text-sm font-medium">
+            <Trans>Server administration</Trans>
+          </span>
           <span className="text-muted-foreground text-[10px]">
-            Every user and space on this install
+            <Trans>Every user and space on this install</Trans>
           </span>
         </div>
       </header>
 
       <div className="flex flex-col gap-6 p-4">
         <section>
-          <SectionLabel>Overview</SectionLabel>
+          <SectionLabel>
+            <Trans>Overview</Trans>
+          </SectionLabel>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             <StatTile
-              label="Users"
+              label={<Trans>Users</Trans>}
               value={stats.data?.users}
               note={suspendedNote(stats.data?.suspended_users)}
             />
-            <StatTile label="Spaces" value={stats.data?.spaces} />
+            <StatTile label={<Trans>Spaces</Trans>} value={stats.data?.spaces} />
             <StatTile
-              label="Files"
+              label={<Trans>Files</Trans>}
               value={stats.data?.files}
-              note={`${stats.data?.trashed ?? 0} in trash`}
+              note={<Plural value={trashed} one="# in trash" other="# in trash" />}
             />
             <StatTile
-              label="Storage used"
-              value={stats.data ? fmtSize(stats.data.storage_bytes) : undefined}
-              note="referenced blobs"
+              label={<Trans>Storage used</Trans>}
+              value={stats.data ? f.size(stats.data.storage_bytes) : undefined}
+              note={<Trans>referenced blobs</Trans>}
             />
             <StatTile
-              label="Preview queue"
+              label={<Trans>Preview queue</Trans>}
               value={stats.data?.jobs_pending}
-              note={stats.data?.jobs_failed ? `${stats.data.jobs_failed} failed` : "none failed"}
-              alert={!!stats.data?.jobs_failed}
+              note={
+                failed ? (
+                  <Plural value={failed} one="# failed" other="# failed" />
+                ) : (
+                  <Trans>none failed</Trans>
+                )
+              }
+              alert={failed > 0}
             />
           </div>
         </section>
 
         <section className="flex flex-col gap-2">
           <div className="flex items-center justify-between gap-2">
-            <SectionLabel>Users</SectionLabel>
+            <SectionLabel>
+              <Trans>Users</Trans>
+            </SectionLabel>
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Filter by name or email"
-              aria-label="Filter users"
+              placeholder={t`Filter by name or email`}
+              aria-label={t`Filter users`}
               className="max-w-64"
             />
           </div>
 
           {isLoading ? (
-            <p className="text-muted-foreground text-xs">Loading…</p>
+            <p className="text-muted-foreground text-xs">
+              <Trans>Loading…</Trans>
+            </p>
           ) : (
             <Table className="text-xs">
               <TableHeader>
                 <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead className="w-20">Spaces</TableHead>
-                  <TableHead className="w-32">Last seen</TableHead>
-                  <TableHead className="w-24">Status</TableHead>
+                  <TableHead>
+                    <Trans>User</Trans>
+                  </TableHead>
+                  <TableHead className="w-20">
+                    <Trans>Spaces</Trans>
+                  </TableHead>
+                  <TableHead className="w-32">
+                    <Trans>Last seen</Trans>
+                  </TableHead>
+                  <TableHead className="w-24">
+                    <Trans>Status</Trans>
+                  </TableHead>
                   <TableHead className="w-48" />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {users.map((u) => {
                   const isSelf = u.id === me?.id;
+                  const email = u.email;
                   return (
                     <TableRow key={u.id} className={cn(u.suspended && "bg-destructive/5")}>
                       <TableCell>
@@ -167,7 +203,11 @@ function AdminPage() {
                           <div className="flex min-w-0 flex-col">
                             <span className="flex items-center gap-1 truncate font-medium">
                               {u.display_name || u.name}
-                              {isSelf && <Badge>You</Badge>}
+                              {isSelf && (
+                                <Badge>
+                                  <Trans>You</Trans>
+                                </Badge>
+                              )}
                             </span>
                             <span className="text-muted-foreground truncate text-[10px]">
                               {u.email}
@@ -179,7 +219,7 @@ function AdminPage() {
                         {u.spaces ?? "—"}
                       </TableCell>
                       <TableCell className="text-muted-foreground tabular-nums">
-                        {u.last_seen ? fmtRelative(u.last_seen) : "never"}
+                        {u.last_seen ? f.relative(u.last_seen) : <Trans>never</Trans>}
                       </TableCell>
                       <TableCell>
                         <span
@@ -190,7 +230,7 @@ function AdminPage() {
                               : "text-muted-foreground",
                           )}
                         >
-                          {u.suspended ? "Suspended" : "Active"}
+                          {u.suspended ? <Trans>Suspended</Trans> : <Trans>Active</Trans>}
                         </span>
                       </TableCell>
                       <TableCell>
@@ -208,7 +248,7 @@ function AdminPage() {
                               )
                             }
                           >
-                            {u.is_admin ? "Revoke admin" : "Make admin"}
+                            {u.is_admin ? <Trans>Revoke admin</Trans> : <Trans>Make admin</Trans>}
                           </Button>
                           <Button
                             variant={u.suspended ? "ghost" : "destructive"}
@@ -220,16 +260,14 @@ function AdminPage() {
                                 {
                                   onSuccess: () =>
                                     toast.success(
-                                      u.suspended
-                                        ? `${u.email} reinstated`
-                                        : `${u.email} suspended`,
+                                      u.suspended ? t`${email} reinstated` : t`${email} suspended`,
                                     ),
                                   onError: (e) => toast.error(e.message),
                                 },
                               )
                             }
                           >
-                            {u.suspended ? "Reinstate" : "Suspend"}
+                            {u.suspended ? <Trans>Reinstate</Trans> : <Trans>Suspend</Trans>}
                           </Button>
                         </div>
                       </TableCell>
@@ -245,15 +283,23 @@ function AdminPage() {
   );
 }
 
-function suspendedNote(n?: number): string | undefined {
+/**
+ * Rendered rather than returned as a string: `# suspended` is a plural, and
+ * a plural only survives translation as ICU inside the tree.
+ */
+function suspendedNote(n?: number): React.ReactNode {
   if (n === undefined) return undefined;
-  return n > 0 ? `${n} suspended` : "all active";
+  return n > 0 ? (
+    <Plural value={n} one="# suspended" other="# suspended" />
+  ) : (
+    <Trans>all active</Trans>
+  );
 }
 
 interface StatTileProps {
-  label: string;
+  label: React.ReactNode;
   value?: number | string;
-  note?: string;
+  note?: React.ReactNode;
   alert?: boolean;
 }
 

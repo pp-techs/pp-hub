@@ -5,6 +5,7 @@ import type {
   SecurityEventPage,
   Session,
   SpaceMember,
+  UserPreferences,
   UserProfile,
   UserSearchResult,
 } from "./types";
@@ -23,6 +24,16 @@ export async function updateMyProfile(body: {
 }): Promise<UserProfile> {
   const res = await api.put("api/v1/users/me", { json: body });
   if (!res.ok) throw new ApiError(res.status, "Failed to update profile");
+  return res.json();
+}
+
+/**
+ * Account-level preferences. PATCH, not PUT: the server merges, so a client
+ * sending only `locale` leaves every other preference alone.
+ */
+export async function updatePreferences(patch: Partial<UserPreferences>): Promise<UserPreferences> {
+  const res = await api.patch("api/v1/users/me/preferences", { json: patch });
+  if (!res.ok) throw new ApiError(res.status, "Failed to update preferences");
   return res.json();
 }
 

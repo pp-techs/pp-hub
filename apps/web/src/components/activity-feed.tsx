@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+import { Trans } from "@lingui/react/macro";
 import {
   ArchiveRestore,
   FilePlus2,
@@ -24,26 +26,123 @@ import {
   TimelineSeparator,
   TimelineTitle,
 } from "@workspace/ui/components/reui/timeline";
-import { fmtRelative, type ActivityEvent, type ActivityKind } from "@/lib/api";
+import type { ActivityEvent, ActivityKind } from "@/lib/api";
+import { useFormatters } from "@/lib/format";
 
 /**
- * Past-tense phrasing for each verb. Kept here rather than on the server so
- * the wording is a UI concern and the stored event stays a bare fact.
+ * One whole sentence per verb, not a verb fragment spliced into a template.
+ * Kept here rather than on the server so the wording is a UI concern and the
+ * stored event stays a bare fact.
+ *
+ * A fragment map plus `{actor} {verb} {node} in {space}` cannot be
+ * translated: word order is part of the sentence, and a language that puts
+ * the verb last has nowhere to put it. Each entry is a render function rather
+ * than a message descriptor because the sentence carries markup, and because
+ * `<Trans>` resolves its text at render time it follows a language switch
+ * even though the map itself is built once at import.
  */
-const PHRASES: Record<ActivityKind, string> = {
-  uploaded: "uploaded",
-  created: "created",
-  renamed: "renamed",
-  moved: "moved",
-  trashed: "moved to trash",
-  restored: "restored",
-  purged: "permanently deleted",
-  shared: "shared",
-  unshared: "revoked access to",
-  reverted: "reverted",
-  invited: "invited",
-  joined: "joined",
+type Sentence = (parts: { actor: string; nodeName: string; spaceName: string }) => ReactNode;
+
+const SENTENCES: Record<ActivityKind, Sentence> = {
+  uploaded: ({ actor, nodeName, spaceName }) => (
+    <Trans>
+      <strong className="font-medium">{actor}</strong> uploaded{" "}
+      <strong className="font-medium">{nodeName}</strong> in{" "}
+      <span className="text-muted-foreground">{spaceName}</span>
+    </Trans>
+  ),
+  created: ({ actor, nodeName, spaceName }) => (
+    <Trans>
+      <strong className="font-medium">{actor}</strong> created{" "}
+      <strong className="font-medium">{nodeName}</strong> in{" "}
+      <span className="text-muted-foreground">{spaceName}</span>
+    </Trans>
+  ),
+  renamed: ({ actor, nodeName, spaceName }) => (
+    <Trans>
+      <strong className="font-medium">{actor}</strong> renamed{" "}
+      <strong className="font-medium">{nodeName}</strong> in{" "}
+      <span className="text-muted-foreground">{spaceName}</span>
+    </Trans>
+  ),
+  moved: ({ actor, nodeName, spaceName }) => (
+    <Trans>
+      <strong className="font-medium">{actor}</strong> moved{" "}
+      <strong className="font-medium">{nodeName}</strong> in{" "}
+      <span className="text-muted-foreground">{spaceName}</span>
+    </Trans>
+  ),
+  trashed: ({ actor, nodeName, spaceName }) => (
+    <Trans>
+      <strong className="font-medium">{actor}</strong> moved{" "}
+      <strong className="font-medium">{nodeName}</strong> to trash in{" "}
+      <span className="text-muted-foreground">{spaceName}</span>
+    </Trans>
+  ),
+  restored: ({ actor, nodeName, spaceName }) => (
+    <Trans>
+      <strong className="font-medium">{actor}</strong> restored{" "}
+      <strong className="font-medium">{nodeName}</strong> in{" "}
+      <span className="text-muted-foreground">{spaceName}</span>
+    </Trans>
+  ),
+  purged: ({ actor, nodeName, spaceName }) => (
+    <Trans>
+      <strong className="font-medium">{actor}</strong> permanently deleted{" "}
+      <strong className="font-medium">{nodeName}</strong> in{" "}
+      <span className="text-muted-foreground">{spaceName}</span>
+    </Trans>
+  ),
+  shared: ({ actor, nodeName, spaceName }) => (
+    <Trans>
+      <strong className="font-medium">{actor}</strong> shared{" "}
+      <strong className="font-medium">{nodeName}</strong> in{" "}
+      <span className="text-muted-foreground">{spaceName}</span>
+    </Trans>
+  ),
+  unshared: ({ actor, nodeName, spaceName }) => (
+    <Trans>
+      <strong className="font-medium">{actor}</strong> revoked access to{" "}
+      <strong className="font-medium">{nodeName}</strong> in{" "}
+      <span className="text-muted-foreground">{spaceName}</span>
+    </Trans>
+  ),
+  reverted: ({ actor, nodeName, spaceName }) => (
+    <Trans>
+      <strong className="font-medium">{actor}</strong> reverted{" "}
+      <strong className="font-medium">{nodeName}</strong> in{" "}
+      <span className="text-muted-foreground">{spaceName}</span>
+    </Trans>
+  ),
+  // `invited` and `joined` carry an email address in `node_name`, not a node
+  // name, so these two read as membership sentences rather than file ones.
+  // `joined` is recorded both when an admin adds someone and when an invited
+  // person accepts — "added" is the one verb that reads correctly for both,
+  // since the actor is the one who performed the act in either case.
+  invited: ({ actor, nodeName, spaceName }) => (
+    <Trans>
+      <strong className="font-medium">{actor}</strong> invited{" "}
+      <strong className="font-medium">{nodeName}</strong> to{" "}
+      <span className="text-muted-foreground">{spaceName}</span>
+    </Trans>
+  ),
+  joined: ({ actor, nodeName, spaceName }) => (
+    <Trans>
+      <strong className="font-medium">{actor}</strong> added{" "}
+      <strong className="font-medium">{nodeName}</strong> to{" "}
+      <span className="text-muted-foreground">{spaceName}</span>
+    </Trans>
+  ),
 };
+
+/** A kind this build does not know yet still reads as a sentence. */
+const UNKNOWN: Sentence = ({ actor, nodeName, spaceName }) => (
+  <Trans>
+    <strong className="font-medium">{actor}</strong> updated{" "}
+    <strong className="font-medium">{nodeName}</strong> in{" "}
+    <span className="text-muted-foreground">{spaceName}</span>
+  </Trans>
+);
 
 /** One glyph per verb, so the feed reads at a glance without the sentence. */
 const ICONS: Record<ActivityKind, LucideIcon> = {
@@ -62,8 +161,14 @@ const ICONS: Record<ActivityKind, LucideIcon> = {
 };
 
 export function ActivityFeed({ events }: { events: ActivityEvent[] }) {
+  const f = useFormatters();
+
   if (events.length === 0) {
-    return <p className="text-muted-foreground text-xs">Nothing has happened yet.</p>;
+    return (
+      <p className="text-muted-foreground text-xs">
+        <Trans>Nothing has happened yet.</Trans>
+      </p>
+    );
   }
 
   return (
@@ -75,6 +180,7 @@ export function ActivityFeed({ events }: { events: ActivityEvent[] }) {
         <Timeline defaultValue={events.length}>
           {events.map((e, i) => {
             const Icon = ICONS[e.kind] ?? History;
+            const sentence = SENTENCES[e.kind] ?? UNKNOWN;
             return (
               <TimelineItem
                 key={e.id}
@@ -84,9 +190,11 @@ export function ActivityFeed({ events }: { events: ActivityEvent[] }) {
                 <TimelineHeader>
                   <TimelineSeparator className="group-data-[orientation=vertical]/timeline:-left-6 group-data-[orientation=vertical]/timeline:h-[calc(100%-1.25rem-0.25rem)] group-data-[orientation=vertical]/timeline:translate-y-5" />
                   <TimelineTitle render={<p />} className="text-xs font-normal">
-                    <span className="font-medium">{e.actor}</span> {PHRASES[e.kind] ?? e.kind}
-                    {e.node_name && <span className="font-medium"> {e.node_name}</span>}
-                    <span className="text-muted-foreground"> in {e.space_name}</span>
+                    {sentence({
+                      actor: e.actor,
+                      nodeName: e.node_name ?? "",
+                      spaceName: e.space_name,
+                    })}
                   </TimelineTitle>
                   <TimelineIndicator className="bg-primary/10 text-primary group-data-completed/timeline-item:bg-primary group-data-completed/timeline-item:text-primary-foreground flex size-5 items-center justify-center border-none group-data-[orientation=vertical]/timeline:-left-6">
                     <Icon className="size-3" />
@@ -94,7 +202,7 @@ export function ActivityFeed({ events }: { events: ActivityEvent[] }) {
                 </TimelineHeader>
                 <TimelineContent>
                   <TimelineDate className="mt-0.5 mb-0 text-[10px] tabular-nums">
-                    {fmtRelative(e.created_at)}
+                    {f.relative(e.created_at)}
                   </TimelineDate>
                 </TimelineContent>
               </TimelineItem>

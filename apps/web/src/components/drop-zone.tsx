@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import type { DragEvent, ReactNode } from "react";
+import { Trans } from "@lingui/react/macro";
 import { UploadCloud } from "lucide-react";
 import { collectDropItems } from "@/lib/drop-items";
 import { useUploadWithConflicts } from "@/components/upload-conflict-dialog";
@@ -34,6 +35,7 @@ export function DropZone({ spaceId, parentId, destination, disabled, children }:
     setOver(false);
   };
 
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- DataTransfer type name
   const carriesFiles = (e: DragEvent) => [...e.dataTransfer.types].includes("Files");
 
   return (
@@ -69,10 +71,14 @@ export function DropZone({ spaceId, parentId, destination, disabled, children }:
         <div className="bg-primary/5 absolute inset-0 z-40 flex items-center justify-center p-2">
           <div className="border-primary flex h-full w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed">
             <UploadCloud className="text-primary size-10" />
-            <p className="text-sm font-medium">Drop files to upload</p>
-            <p className="text-muted-foreground text-xs">They will be added to {destination}</p>
+            <p className="text-sm font-medium">
+              <Trans>Drop files to upload</Trans>
+            </p>
+            <p className="text-muted-foreground text-xs">
+              <Trans>They will be added to {destination}</Trans>
+            </p>
             <p className="text-muted-foreground text-[10px]">
-              Folders are uploaded with their structure preserved
+              <Trans>Folders are uploaded with their structure preserved</Trans>
             </p>
           </div>
         </div>
