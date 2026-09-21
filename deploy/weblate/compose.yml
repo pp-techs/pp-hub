@@ -44,7 +44,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql
     env_file:
-      - ./environment
+      - ./.env
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
@@ -69,7 +69,7 @@ services:
       - weblate-data:/app/data
       - weblate-cache:/app/cache
     env_file:
-      - ./environment
+      - ./.env
     ports:
       # Bound to loopback: this is an authenticated admin surface with write
       # access to the repository, and it has no business on a public
