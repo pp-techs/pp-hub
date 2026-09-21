@@ -15,15 +15,35 @@ Three layers, one direction only — components never call `api` directly:
   surface and the rail never has to guess. Never reintroduce a `?panel=`-style
   search param for a whole surface: that is what made Home, Recent and Starred
   blank the rail.
-- **A settings tab is a route**, rendered through `settings-tabs.tsx`. Panes
-  have to survive a reload, be sendable to a colleague and answer the back
-  button, so the router owns which one is open — never component state.
-- **Gate in `beforeLoad`, not in the pane.** An admin-only page redirects with
-  a toast; rendering "only an admin can…" at a URL that already resolved tells
-  the caller a page exists where it does not.
+- **A settings pane is an address, not component state.** The whole app has
+  one settings dialog, and which pane it shows is `#settings/<slug>` in the
+  URL — nothing else. A pane has to survive a reload, be sendable to a
+  colleague and answer the back button, so the router owns it; a second copy
+  in component state could disagree. This used to be a route per pane under
+  `/drive/account` and `/drive/$spaceId/settings`; the mechanism changed, the
+  invariant did not.
+- **The settings dialog never closes itself.** `settings-hash-bridge.tsx`
+  (mounted in `drive.tsx`) is the only caller of `SettingsModal.show/hide`,
+  and it reads the hash. Every exit inside the dialog is a navigation —
+  `closeSettings()` strips the fragment, the bridge then hides the modal.
+  Calling `modal.hide()` directly leaves an address that still names a pane,
+  and the next reload reopens it.
+- **The dialog's nav is plain markup, not the `Sidebar` primitive.**
+  `ModalContainer` sits at the router root, outside the drive shell's
+  `SidebarProvider`, so `Sidebar`/`SidebarMenuButton` would throw on
+  `useSidebar()`. Nesting a second provider is worse: it registers a second
+  ⌘B handler that toggles the rail behind the dialog.
+- **Gate by filtering the pane list, not by rendering a refusal.** The Space
+  band disappears for a non-admin, and a deep link to one of its panes is
+  replaced with the default pane. An admin-only _page_ redirects in
+  `beforeLoad` with a toast, for the same reason: rendering "only an admin
+  can…" at an address that already resolved tells the caller a surface exists
+  where it does not.
 - **Ephemeral view state belongs in the URL when it is shareable** (`?dir=`,
-  `?group=`, `?view=`) and in `ui-store` only when it is not (selection, open
-  panels).
+  `?view=`, `?sort=`) and in component state or `ui-store` when it is not.
+  The member table's group filter used to be `?group=`; inside a dialog whose
+  address already names the pane, filtering is a glance rather than a place,
+  so it is plain `useState` now.
 
 ## Drive Shell
 

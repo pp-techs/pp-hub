@@ -25,7 +25,7 @@ pp-hub/
 │   │       ├── components/         # app-level UI panels
 │   │       │   ├── share-dialog.tsx      # the one access surface: groups, people, link (better-modal)
 │   │       │   ├── people-table.tsx      # space membership: admin switch, groups, pending handover
-│   │       │   ├── group-drawer.tsx      # People page drawer: groups and who is in them
+│   │       │   ├── group-list.tsx        # Groups pane: the space's groups and who is in them
 │   │       │   ├── invite-modal.tsx      # the one way into a space: an email + the admin toggle (better-modal)
 │   │       │   ├── no-admin-banner.tsx   # "this space has no administrator", above the space Outlet
 │   │       │   ├── grantee-picker.tsx    # picks a group or a space member, filtered locally
@@ -40,7 +40,13 @@ pp-hub/
 │   │       │   ├── transfer-tray.tsx     # upload queue tray, mounted by the shell
 │   │       │   ├── command-palette.tsx   # ⌘K search across every space
 │   │       │   ├── continue-cards.tsx    # Home: the few files you were last in
-│   │       │   ├── settings-tabs.tsx     # link-based tab strip for every settings page
+│   │       │   ├── settings/             # the one settings dialog (see below)
+│   │       │   │   ├── settings-modal.tsx       # shell: nav, header, unsaved-changes guard
+│   │       │   │   ├── settings-hash-bridge.tsx # `#settings/<pane>` → open/closed modal
+│   │       │   │   ├── panes.ts                 # registry: slug, group, label, icon, gate
+│   │       │   │   ├── settings-dirty.tsx       # a pane reports unsaved edits to the shell
+│   │       │   │   └── panes/                   # account-{general,profile,security}
+│   │       │   │                                #   space-{general,members,groups,danger}
 │   │       │   ├── space-node-table.tsx  # flat listings within a space (Recent, Starred)
 │   │       │   ├── activity-feed.tsx     # the event timeline
 │   │       │   ├── storage-breakdown.tsx # usage by MIME family
@@ -67,10 +73,8 @@ pp-hub/
 │   │           ├── s/$token.tsx         # anonymous share-link browser (no rail, no account)
 │   │           ├── edit/$nodeId.tsx     # full-page OnlyOffice editor (opened in a new tab)
 │   │           ├── drive.tsx            # drive shell: SidebarProvider + AppSidebar + SidebarInset
-│   │           ├── drive/account/       # route.tsx (tabs) + profile / preferences / sessions
 │   │           └── drive/$spaceId/      # route.tsx (space guard) + index.tsx (listing)
-│   │               │                    #   + home / recent / starred / shared / trash
-│   │               └── settings/        # route.tsx (tabs) + general / people / danger
+│   │                                    #   + home / recent / starred / shared / trash
 │   └── server/                     # Go backend — own go.mod
 │       ├── cmd/server/             # entry point: OIDC wait, http.Server; owns migrations
 │       ├── cmd/worker/             # optional preview worker (pdftoppm/ffmpeg); --backfill
@@ -137,20 +141,24 @@ pp-hub/
 
 - **The space is a URL segment, never state.** Every drive surface is a child
   route of `drive/$spaceId/`: `index.tsx` is the listing, and `home`, `recent`,
-  `starred`, `shared`, `trash` and `settings/*` sit beside it. So `spaceId` is
+  `starred`, `shared` and `trash` sit beside it. So `spaceId` is
   in the params on every one of them, and the rail can read it without a
   fallback. This replaced a `?panel=` search param, which is why Home, Recent
   and Starred used to blank the switcher, the Files tree and the Trash and
   Shared rows: they were siblings of `$spaceId`, so there was no space to read.
   Add a surface as a child route; do not reintroduce a panel param.
-- **Settings tabs are routes.** Space settings (`settings/general|people|danger`)
-  and account settings (`account/profile|preferences|sessions`) both render
-  `settings-tabs.tsx`, a strip of `<Link>`s. A settings pane is a place: it has
-  to survive a reload, be sendable to a colleague and answer the back button.
-  `settings/route.tsx` refuses a non-admin in `beforeLoad` rather than
-  rendering a "you cannot" pane at a URL that resolved — and so do the two
-  `admin.*` routes, for the same reason: a page that resolves has already told
-  the caller the URL exists and what it is for.
+- **Settings is one dialog, addressed by the hash.** Seven panes —
+  `general|profile|security` about the account, `space|members|groups|danger`
+  about the space — live in a single dialog, opened by appending
+  `#settings/<pane>` to whatever page you are on. A pane is still a place: it
+  survives a reload, is sendable to a colleague and answers the back button.
+  What changed is the mechanism, not the invariant. `settings-hash-bridge.tsx`
+  is the only thing that opens or closes the modal, and it reads the hash;
+  every exit is a navigation, never `SettingsModal.hide()`. The space band is
+  filtered out for a non-admin and a deep link to one of its panes is replaced
+  with the default pane rather than answered — the same reasoning that makes
+  the two `admin.*` routes redirect in `beforeLoad`: a surface that resolves
+  has already told the caller it exists and what it is for.
 - **Safety lives on the route group, not in the handler.** `httpapi/server.go`
   puts the rate limiter, the same-origin check and authentication on
   `/api/v1` with `r.Use`, in that order, and a handler calls `caller(r)`
@@ -179,12 +187,13 @@ pp-hub/
     provider (`HeaderSlotProvider` is one) wraps `SidebarProvider`, never sits
     between it and the inset.
     The rail reads its space through `useActiveSpaceId()`, which is the route
-    param everywhere except `/drive/account` — an account belongs to no space, so
-    there the rail keeps pointing at the last one opened.
+    param on every drive surface and the last space opened at `/drive` itself.
+    The settings dialog uses the same hook: it renders from the modal
+    container at the router root, so it has no params of its own.
 - **One header, filled by the route.** `site-header.tsx` is rendered once by
   the shell: the `SidebarTrigger`, a breadcrumb derived from the pathname plus
   the `dirs` cache, then `nav-search` and a `HeaderSlot`. A surface no longer
-  renders a header row of its own — `home.tsx` and `account/route.tsx` each
+  renders a header row of its own — `home.tsx` and the old account layout each
   used to add a second 40px band under it. Controls that belong to one route go
   through `header-slot.tsx`: the shell publishes the slot node, the route
   portals into it (`ListingControls` from the listing, "Browse files" from
@@ -258,10 +267,12 @@ pp-hub/
   where numbers belong. Column count comes from a container query on the grid
   itself (2→5 columns), so opening the details panel drops 5 columns to 4
   without the route passing anything down.
-- **People is one table, and the only membership surface.** `people-table.tsx`
+- **Members is one table, and the only membership surface.** `people-table.tsx`
   owns members, the Admin switch, the group chips and a **Pending handover**
-  section fed by `GET /spaces/{id}/departures`; `group-drawer.tsx` owns the
-  group list beside it, and `invite-modal.tsx` is the only way into a space —
+  section fed by `GET /spaces/{id}/departures`; `group-list.tsx` owns the
+  groups, now a pane of its own beside Members rather than a 20rem drawer
+  glued to it — filtering the table by group and administering the groups are
+  different questions. `invite-modal.tsx` is the only way into a space —
   now an email address and the admin toggle, since `POST /spaces/{id}/members`
   takes `{email, as_admin}` and membership itself is decided in Logto. Admin
   _is_ membership of the automatic `Admin`
@@ -300,8 +311,8 @@ pp-hub/
   register `afterEach(cleanup)` themselves. `apps/web/tsconfig.json` includes
   `tests` so JSX in a test type-checks.
 - **Two kinds of administration.** A _space admin_ — a member of that space's
-  automatic `Admin` group — administers one space
-  (`/drive/$spaceId/settings/*`, reached from the space menu in the rail); a
+  automatic `Admin` group — administers one space (the Space band of the
+  settings dialog, `#settings/space|members|groups|danger`); a
   _server admin_ administers the install (`/admin/users`). Neither implies the
   other, and neither carries file access: an admin reads a colleague's file
   only through a grant. The server enforces that separately from what the UI

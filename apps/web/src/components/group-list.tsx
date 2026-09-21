@@ -33,7 +33,7 @@ import {
 import { GranteePicker, type Grantee } from "@/components/grantee-picker";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 
-interface GroupDrawerProps {
+interface GroupListProps {
   space: Space;
   /** The group being inspected, or undefined for the group list alone. */
   selectedId: string | undefined;
@@ -41,24 +41,25 @@ interface GroupDrawerProps {
 }
 
 /**
- * The right-hand column of the People page: the space's groups, and who is in
+ * The Groups pane of the settings dialog: the space's groups, and who is in
  * the one selected.
  *
- * Selection lives in the URL rather than in state, so a group is a place a
- * colleague can be sent to. The list doubles as the table's group filter.
+ * Selection is the caller's state rather than an address of its own. Which
+ * group is being inspected is a glance inside an already-addressed pane, not
+ * somewhere a colleague is sent.
+ *
+ * The pane owns neither padding nor scrolling — the dialog's content column
+ * supplies both, the same way every other pane relies on it.
  */
-export function GroupDrawer({ space, selectedId, onSelect }: GroupDrawerProps) {
+export function GroupList({ space, selectedId, onSelect }: GroupListProps) {
   const { t } = useLingui();
   const { data: groups = [], isLoading } = useGroups(space.id);
   const selected = groups.find((g) => g.id === selectedId);
 
   return (
-    <div className="flex h-full flex-col gap-3 overflow-y-auto p-4">
+    <div className="flex max-w-3xl flex-col gap-3">
       <div className="flex items-start justify-between gap-2">
         <div className="flex flex-col gap-0.5">
-          <h3 className="font-heading text-xs font-medium">
-            <Trans>Groups</Trans>
-          </h3>
           <p className="text-muted-foreground text-[10px]">
             <Trans>
               Access is given group → folder. Membership of the space opens nothing on its own.
@@ -125,7 +126,7 @@ export function GroupDrawer({ space, selectedId, onSelect }: GroupDrawerProps) {
         <GroupMembers space={space} group={selected} onDeleted={() => onSelect(undefined)} />
       )}
 
-      <p className="text-muted-foreground border-border mt-auto rounded-sm border p-2 text-[10px]">
+      <p className="text-muted-foreground border-border rounded-sm border p-2 text-[10px]">
         <Trans>
           Groups decide what people can open. Give a group a file or folder from that item’s “Share”
           dialog.
@@ -158,7 +159,7 @@ function GroupMembers({
 
   // The server maintains Everyone and Admin, so their membership is a result,
   // not a setting: Everyone follows the space, Admin follows the switch on the
-  // People table.
+  // Members pane.
   const automatic = group.is_everyone || group.is_admin;
   const canEditMembers = space.is_admin && !automatic;
 

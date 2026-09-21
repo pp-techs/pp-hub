@@ -60,10 +60,12 @@ export default defineConfig({
             "path",
             "queryKey",
             // Discriminators and option values inside action/choice records:
-            // `group: "create"`, `value: "name:asc"`. The label beside them is
-            // a descriptor; these are the machine half of the same object.
+            // `group: "create"`, `value: "name:asc"`, `slug: "danger"`. The
+            // label beside them is a descriptor; these are the machine half
+            // of the same object.
             "group",
             "value",
+            "slug",
             // Component behaviour tokens, not copy: a Button variant, a
             // Sidebar mode, a router preload strategy.
             "confirmVariant",
@@ -103,8 +105,11 @@ export default defineConfig({
             "*.addEventListener",
             "*.removeEventListener",
             "*.getElementById",
-            // Panel ids. `openPanel("versions")` names a surface, not a label.
+            // Surface ids. `openPanel("versions")` and
+            // `openSettings("danger")` name a place, not a label.
             "openPanel",
+            "openSettings",
+            "selectSettingsPane",
             // Route paths, modal ids and redirect targets — addresses, not copy.
             "createFileRoute",
             "createModal",
@@ -137,12 +142,15 @@ export default defineConfig({
         // node-icon maps extensions to icon identifiers; user-agent returns
         // proper nouns (Chrome, macOS); theme-provider holds storage keys and
         // a media query; i18n.ts holds locale tags and the language names,
-        // which are deliberately written in the language they name.
+        // which are deliberately written in the language they name;
+        // use-settings-hash holds the URL fragment vocabulary of the settings
+        // dialog and nothing a reader ever sees.
         files: [
           "apps/web/src/components/node-icon.tsx",
           "apps/web/src/components/theme-provider.tsx",
           "apps/web/src/lib/user-agent.ts",
           "apps/web/src/lib/i18n.ts",
+          "apps/web/src/lib/use-settings-hash.ts",
         ],
         rules: { "lingui/no-unlocalized-strings": "off" },
       },

@@ -26,6 +26,7 @@ import { HeaderSlotProvider } from "@/components/header-slot";
 import { SiteHeader } from "@/components/site-header";
 import { TransferTray } from "@/components/transfer-tray";
 import { CommandPalette } from "@/components/command-palette";
+import { SettingsHashBridge } from "@/components/settings/settings-hash-bridge";
 import { SidebarInset, SidebarProvider } from "@workspace/ui/components/sidebar";
 import { pageTitle } from "@/lib/i18n";
 export const Route = createFileRoute("/drive")({
@@ -113,6 +114,10 @@ function DriveLayout() {
           {/* Mounted by the shell so uploads survive navigating between folders. */}
           <TransferTray />
           <CommandPalette />
+          {/* Renders nothing: it only turns `#settings/<pane>` into an open
+              settings dialog. It lives here rather than at the root because
+              the fragment means nothing on the login page or a share link. */}
+          <SettingsHashBridge />
         </SidebarProvider>
       </DriveWriteProvider>
     </HeaderSlotProvider>

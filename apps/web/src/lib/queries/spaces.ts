@@ -12,10 +12,16 @@ export function useSpaces() {
   });
 }
 
-/** The one space a route is about, from the list the rail already holds. */
-export function useSpace(spaceId: string) {
+/**
+ * The one space a surface is about, from the list the rail already holds.
+ *
+ * `undefined` is accepted because the settings dialog asks before a space has
+ * ever been opened, and "no active space" is an ordinary answer there rather
+ * than a caller bug.
+ */
+export function useSpace(spaceId: string | undefined) {
   const spaces = useSpaces();
-  return spaces.data?.find((s) => s.id === spaceId);
+  return spaceId ? spaces.data?.find((s) => s.id === spaceId) : undefined;
 }
 
 /** Route-loader form: the spaces list through the shared query cache. */

@@ -111,7 +111,7 @@ export function useSpaceMembers(spaceId: string | null) {
  * below invalidates the member, group and departure roots rather than just
  * the member list. Admin *is* membership of the automatic Admin group and
  * joining a space *is* joining Everyone: narrowing the invalidation to
- * `members` left the People table showing a promoted admin with no Admin chip
+ * `members` left the Members pane showing a promoted admin with no Admin chip
  * until a reload.
  *
  * `keys.spaces` goes with them because the space DTO carries `admin_count`,

@@ -1,6 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
 import { createModal } from "@buiducnhat/better-modal";
 import { toast } from "sonner";
 import { Monitor, Smartphone, Tablet } from "lucide-react";
@@ -17,15 +15,8 @@ import {
 import type { Session } from "@/lib/api";
 import { useRevokeOtherSessions, useRevokeSession, useSessions } from "@/lib/queries";
 import { useFormatters } from "@/lib/format";
-import { pageTitle } from "@/lib/i18n";
 import { describeAgent } from "@/lib/user-agent";
-import { Surface } from "@/components/surface";
 import { SectionLabel } from "@/components/section-label";
-
-export const Route = createFileRoute("/drive/account/sessions")({
-  head: () => ({ meta: [{ title: pageTitle(msg`Sessions`, msg`Account`) }] }),
-  component: SessionsPage,
-});
 
 /** Form factor -> icon. These are icon components, not labels: nothing to translate. */
 const FORM_ICONS = { desktop: Monitor, phone: Smartphone, tablet: Tablet } as const;
@@ -64,11 +55,11 @@ const RevokeOthersDialog = createModal<{ count: number }, boolean>(
 /**
  * Every device currently holding a live session, and the means to end one.
  *
- * The point of the page is the row you do not recognise: sessions are rows in
+ * The point of the pane is the row you do not recognise: sessions are rows in
  * the database now, so an old laptop can be signed out from here rather than
  * by rotating a secret and knocking everybody out at once.
  */
-function SessionsPage() {
+export function AccountSecurityPane() {
   const { t } = useLingui();
   const { data: sessions, isLoading, isError } = useSessions();
   const revoke = useRevokeSession();
@@ -86,60 +77,58 @@ function SessionsPage() {
   }
 
   return (
-    <Surface className="max-w-2xl">
-      <section className="flex flex-col gap-3">
-        <SectionLabel>
-          <Trans>Signed-in devices</Trans>
-        </SectionLabel>
-        <div className="flex items-start justify-between gap-4">
-          <p className="text-muted-foreground text-[10px]">
-            <Trans>
-              Each row is a live session. Signing one out takes effect immediately — the device is
-              asked to sign in again the next time it reaches the server.
-            </Trans>
-          </p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="shrink-0"
-            disabled={others.length === 0 || revokeOthers.isPending}
-            onClick={() => void signOutEverywhereElse()}
-          >
-            <Trans>Sign out everywhere else</Trans>
-          </Button>
-        </div>
+    <section className="flex max-w-2xl flex-col gap-3">
+      <SectionLabel>
+        <Trans>Signed-in devices</Trans>
+      </SectionLabel>
+      <div className="flex items-start justify-between gap-4">
+        <p className="text-muted-foreground text-[10px]">
+          <Trans>
+            Each row is a live session. Signing one out takes effect immediately — the device is
+            asked to sign in again the next time it reaches the server.
+          </Trans>
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          className="shrink-0"
+          disabled={others.length === 0 || revokeOthers.isPending}
+          onClick={() => void signOutEverywhereElse()}
+        >
+          <Trans>Sign out everywhere else</Trans>
+        </Button>
+      </div>
 
-        {isLoading && (
-          <p className="text-muted-foreground text-xs">
-            <Trans>Loading…</Trans>
-          </p>
-        )}
-        {isError && (
-          <p className="text-destructive text-xs">
-            <Trans>Could not load your sessions.</Trans>
-          </p>
-        )}
+      {isLoading && (
+        <p className="text-muted-foreground text-xs">
+          <Trans>Loading…</Trans>
+        </p>
+      )}
+      {isError && (
+        <p className="text-destructive text-xs">
+          <Trans>Could not load your sessions.</Trans>
+        </p>
+      )}
 
-        {sessions && (
-          <ul className="border-border divide-border divide-y rounded-md border">
-            {sessions.map((session) => (
-              <SessionRow
-                key={session.id}
-                session={session}
-                busy={revoke.isPending && revoke.variables === session.id}
-                onRevoke={() =>
-                  revoke.mutate(session.id, {
-                    onSuccess: () => toast.success(t`Device signed out`),
-                    onError: (e) =>
-                      toast.error(t`Could not sign out that device`, { description: e.message }),
-                  })
-                }
-              />
-            ))}
-          </ul>
-        )}
-      </section>
-    </Surface>
+      {sessions && (
+        <ul className="border-border divide-border divide-y rounded-md border">
+          {sessions.map((session) => (
+            <SessionRow
+              key={session.id}
+              session={session}
+              busy={revoke.isPending && revoke.variables === session.id}
+              onRevoke={() =>
+                revoke.mutate(session.id, {
+                  onSuccess: () => toast.success(t`Device signed out`),
+                  onError: (e) =>
+                    toast.error(t`Could not sign out that device`, { description: e.message }),
+                })
+              }
+            />
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

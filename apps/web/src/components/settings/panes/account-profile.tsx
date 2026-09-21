@@ -1,38 +1,31 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { Trans, useLingui } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
 import { useState } from "react";
+import { Link } from "@tanstack/react-router";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { toast } from "sonner";
+import { Badge } from "@workspace/ui/components/badge";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 import { Textarea } from "@workspace/ui/components/textarea";
-import { Badge } from "@workspace/ui/components/badge";
 import type { UserProfile } from "@/lib/api";
 import { useMe, useSpaces, useUpdateProfile } from "@/lib/queries";
 import { useFormatters } from "@/lib/format";
-import { pageTitle } from "@/lib/i18n";
-import { Surface } from "@/components/surface";
 import { UserAvatar } from "@/components/user-avatar";
 import { SectionLabel } from "@/components/section-label";
+import { useSettingsDirty } from "@/components/settings/settings-dirty";
 
-export const Route = createFileRoute("/drive/account/profile")({
-  head: () => ({ meta: [{ title: pageTitle(msg`Profile`, msg`Account`) }] }),
-  component: ProfilePage,
-});
-
-function ProfilePage() {
+export function AccountProfilePane() {
   const { data: profile, isLoading } = useMe();
 
   if (isLoading)
     return (
-      <p className="text-muted-foreground p-4 text-xs">
+      <p className="text-muted-foreground text-xs">
         <Trans>Loading…</Trans>
       </p>
     );
   if (!profile)
     return (
-      <p className="text-muted-foreground p-4 text-xs">
+      <p className="text-muted-foreground text-xs">
         <Trans>Profile not found.</Trans>
       </p>
     );
@@ -49,6 +42,7 @@ function ProfileForm({ profile }: { profile: UserProfile }) {
   const [bio, setBio] = useState(profile.bio);
 
   const dirty = displayName !== (profile.display_name || profile.name) || bio !== profile.bio;
+  useSettingsDirty(dirty);
 
   // Joined/last-seen is one sentence, not a stem plus an appended tail: the
   // two halves have to be a single message so a translation can reorder them.
@@ -56,7 +50,7 @@ function ProfileForm({ profile }: { profile: UserProfile }) {
   const lastSeen = profile.last_seen ? f.relative(profile.last_seen) : null;
 
   return (
-    <Surface className="max-w-xl">
+    <div className="flex max-w-xl flex-col gap-6">
       <div className="flex items-center gap-4">
         <UserAvatar
           src={profile.avatar_url}
@@ -176,6 +170,8 @@ function ProfileForm({ profile }: { profile: UserProfile }) {
               >
                 {monogram(space.name)}
               </span>
+              {/* No explicit close: a navigation that does not name a hash
+                  drops the one in the address, and the dialog follows it. */}
               <Link
                 to="/drive/$spaceId"
                 params={{ spaceId: space.id }}
@@ -201,7 +197,7 @@ function ProfileForm({ profile }: { profile: UserProfile }) {
           </Trans>
         </p>
       </section>
-    </Surface>
+    </div>
   );
 }
 

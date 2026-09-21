@@ -25,18 +25,11 @@ import { NavSearch } from "@/components/nav-search";
  * A new surface adds its segment here, never a prop on the route.
  */
 const SECTIONS: Record<string, MessageDescriptor> = {
-  account: msg`Account`,
   home: msg`Home`,
   recent: msg`Recent`,
   starred: msg`Starred`,
   shared: msg`Shared with me`,
   trash: msg`Trash`,
-  settings: msg`Settings`,
-  general: msg`General`,
-  people: msg`People`,
-  danger: msg`Danger zone`,
-  profile: msg`Profile`,
-  preferences: msg`Preferences`,
 };
 
 /** How deep a folder trail we are willing to resolve one level at a time. */

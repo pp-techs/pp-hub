@@ -101,7 +101,8 @@ export const InviteModal = createModal<InviteProps>(
             <DialogDescription>
               <Trans>
                 Joining the space opens no files on its own — what someone can see is what their
-                groups have been given. Add them to a group on the People table afterwards.
+                groups have been given. Add them to a group on the Groups pane of Settings
+                afterwards.
               </Trans>
             </DialogDescription>
           </DialogHeader>

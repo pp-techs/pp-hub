@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
 import { toast } from "sonner";
@@ -13,39 +12,33 @@ import {
 } from "@workspace/ui/components/select";
 import type { NodeView, SortField, SortOrder } from "@/lib/api";
 import { useUiStore } from "@/lib/ui-store";
-import { LOCALES, pageTitle, type Locale } from "@/lib/i18n";
-import { Surface } from "@/components/surface";
+import { LOCALES, type Locale } from "@/lib/i18n";
 import { useTheme } from "@/components/theme-provider";
 import { useLocale, useSetLocale } from "@/components/locale-provider";
 import { SectionLabel } from "@/components/section-label";
 
-export const Route = createFileRoute("/drive/account/preferences")({
-  head: () => ({ meta: [{ title: pageTitle(msg`Preferences`, msg`Account`) }] }),
-  component: PreferencesPage,
-});
-
 /**
  * Option labels are message descriptors, not strings. These lists live at
- * module scope and are evaluated once at import time — before any catalog is
- * active — so rendered text here would freeze whichever language loaded first
- * and would never follow a switch. `Field` resolves them at render.
+ * module scope, which runs once at import time and before any catalog is
+ * active, so a rendered label here would freeze whichever language happened
+ * to load first and never follow a switch.
  */
 type Choice = { label: MessageDescriptor; value: string };
 
 const THEMES: Choice[] = [
-  { label: msg`Match the system`, value: "system" },
+  { label: msg`System`, value: "system" },
   { label: msg`Light`, value: "light" },
   { label: msg`Dark`, value: "dark" },
 ];
 
 const VIEWS: Choice[] = [
-  { label: msg`Grid`, value: "grid" },
   { label: msg`List`, value: "list" },
+  { label: msg`Grid`, value: "grid" },
 ];
 
 const SORTS: Choice[] = [
   { label: msg`Name`, value: "name" },
-  { label: msg`Last modified`, value: "modified" },
+  { label: msg`Modified`, value: "modified" },
   { label: msg`Size`, value: "size" },
 ];
 
@@ -57,14 +50,14 @@ const ORDERS: Choice[] = [
 /**
  * How the app is drawn and read.
  *
- * The two sections differ in where they are stored, and deliberately so.
+ * The three sections differ in where they are stored, and deliberately so.
  * Theme and the default listing stay local to this browser: a theme that
  * travelled between machines would be a surprise rather than a feature.
  * Language is the opposite — it is a fact about the person, not the device,
  * so it lives on the account (`users.settings`) and follows them to any
  * browser they sign in from.
  */
-function PreferencesPage() {
+export function AccountGeneralPane() {
   const { i18n } = useLingui();
   const { theme, setTheme } = useTheme();
   const locale = useLocale();
@@ -78,13 +71,15 @@ function PreferencesPage() {
   const localeItems = Object.entries(LOCALES).map(([value, label]) => ({ label, value }));
 
   return (
-    <Surface className="max-w-xl">
+    <div className="flex max-w-xl flex-col gap-6">
       <section className="flex flex-col gap-3">
         <SectionLabel>
           <Trans>Language</Trans>
         </SectionLabel>
         <div className="flex items-center justify-between gap-4">
-          <Label htmlFor="pref-locale" className="font-normal">
+          {/* `Label` is a row by default; the hint belongs under the name,
+              not beside it, or the pair competes with the control opposite. */}
+          <Label htmlFor="pref-locale" className="flex-col items-start gap-0.5 font-normal">
             <Trans>Display language</Trans>
             <span className="text-muted-foreground block text-[10px]">
               <Trans>
@@ -167,7 +162,7 @@ function PreferencesPage() {
           onChange={(v) => setPrefs({ order: v as SortOrder })}
         />
       </section>
-    </Surface>
+    </div>
   );
 }
 
@@ -191,7 +186,7 @@ function Field({
 
   return (
     <div className="flex items-center justify-between gap-4">
-      <Label htmlFor={id} className="font-normal">
+      <Label htmlFor={id} className="flex-col items-start gap-0.5 font-normal">
         {i18n._(label)}
         {hint && <span className="text-muted-foreground block text-[10px]">{i18n._(hint)}</span>}
       </Label>

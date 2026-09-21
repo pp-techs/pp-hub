@@ -222,7 +222,7 @@ member's folder, ownership inherits down a subtree, promote/demote both take
 effect with a last-admin floor, and a departure archives roots while revoking
 grants.
 
-## M16 — Login → Account → Space, One Shape ✅ done
+## M16 — Login → Account → Space, One Shape ✅ done · settings surfaces superseded by M34
 
 No migration. A routing and surface-ownership milestone, fixing three defects
 that shared one cause: surfaces that belong to a space did not live under the
@@ -255,6 +255,11 @@ refused in `beforeLoad` rather than shown "only an admin can…" at a URL that
 already resolved. `/profile` — a top-level route that dropped the rail, the
 breadcrumb and any way back — is replaced by `/drive/account/{profile,preferences}`
 inside the shell.
+
+> **M34 superseded this paragraph.** The invariant it establishes — the router
+> owns which pane is open, never component state — still holds; the ten routes
+> and two tab strips it created do not. Settings is one hash-addressed dialog
+> now.
 
 **Feeds are per-space, in SQL.** `GET /api/v1/recent`, `/starred` and `/shared`
 take the optional `?space=` that `/activity` and `/usage` already had, via
@@ -912,6 +917,70 @@ design, so an unlinked space is stable rather than emptied. See
 [logto-org-sync.md](logto-org-sync.md) for the whole design, and
 [deployment.md](../deployment.md) for what an operator must configure in Logto
 first.
+
+## M34 — One Settings Dialog ✅ done
+
+No migration, no API change. M16 gave settings an address; it also gave it
+two of everything. Account settings were three routes under `/drive/account`
+behind a tab strip, space settings three more under `/drive/$spaceId/settings`
+behind a second copy of the same strip, and the two were entered from two
+different rail menus — the account menu in the footer and the space menu in
+the header — so the answer to "where do I change something" depended on which
+thing you wanted to change before you could look for it. Both strips consumed
+the whole content column, which meant opening Preferences to flip a theme
+navigated away from the folder being worked in.
+
+There is now one dialog, and **the hash is what opens it**:
+`#settings/general|profile|security|space|members|groups|danger` appended to
+whatever page the reader is on. Slugs are flat and globally unique, so parsing
+an address is one compare and one lookup and a pane can be regrouped in the
+dialog without breaking a pasted link. The invariant M16 paid for is intact —
+a pane survives a reload, is sendable to a colleague and answers the back
+button — and the history semantics are explicit about it: opening pushes, so
+Back closes; switching pane replaces, so Back does not walk out through every
+pane that was glanced at.
+
+**The flow is one-way, which is the whole design.** `settings-hash-bridge.tsx`
+is the only caller of `SettingsModal.show/hide`, and it reads the hash; every
+exit inside the dialog is a navigation that strips the fragment, and the
+bridge then hides the modal. The obvious alternative — open imperatively and
+write the hash afterwards — has two sources of truth, and Back and reload are
+exactly the two cases it gets wrong. The bridge is mounted in the drive shell
+rather than the root, so the fragment stays inert on `/login` and `/s/{token}`.
+
+Two things that look incidental are not. The dialog's nav is **plain markup,
+not the `Sidebar` primitive**: `ModalContainer` sits at the router root,
+outside the drive shell's `SidebarProvider`, so `useSidebar()` would throw —
+and nesting a second provider is worse, because it registers a second ⌘B
+handler that toggles the rail behind the dialog. And **unsaved edits block the
+two dismissals a dialog makes cheap**: Escape and a click on the backdrop do
+nothing while a pane is dirty, where the close button and a pane switch ask
+first. A page took a deliberate navigation to leave; a dialog does not, so the
+guard is new rather than inherited.
+
+Space panes are admin-only, gated by **filtering the pane list** rather than
+rendering a refusal: the band disappears, and a deep link to one of its panes
+is replaced with the default pane — the same reasoning M16 applied to
+`beforeLoad`, at a surface that has no `beforeLoad` of its own. The filter
+waits for the spaces query to settle, because treating "not loaded yet" as
+"not an admin" would bounce a legitimate deep link before the permission it
+needs had been fetched.
+
+Membership picked up a real change on the way. `people-table.tsx` and the
+group drawer beside it were joined by `?group=`, which made one search param
+mean two things: which group the table filters to, and which group the drawer
+is administering. They are now separate panes — Members and Groups — and the
+filter is plain component state, because inside a dialog whose address already
+names the pane, a filter is a glance rather than a place. `?group=` is gone,
+and `group-drawer.tsx` is `group-list.tsx`.
+
+Deleted rather than redirected: ten route files and `settings-tabs.tsx`. A
+stale `/drive/account/profile` bookmark now matches `/drive/$spaceId` and
+lands on "Space not found" inside the shell, which is an acceptable end state
+for an internal tool and cheaper than a redirect table nobody will maintain.
+The rail's account menu is the single entry point, opening **upward** from the
+footer row it belongs to and carrying the avatar, and the space switcher went
+back to switching spaces.
 
 ## Upcoming — M25 Onward 🚧 not done
 

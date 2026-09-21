@@ -1,6 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useNavigate } from "@tanstack/react-router";
-import { ChevronsUpDown, Plus, Settings, Users } from "lucide-react";
+import { ChevronsUpDown, Plus } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,9 +33,13 @@ function monogram(name: string) {
  * the only place to change space — the space list is not duplicated anywhere
  * further down.
  *
+ * Switching is all it does. Space settings and People used to hang off it as
+ * well, which split the answer to "where do I change something" between this
+ * menu and the account one below it; both now live in the settings dialog.
+ *
  * `spaceId` is passed in rather than read from the route: the rail is mounted
- * above `/drive/$spaceId` and also renders on `/drive/account`, where the
- * space is the one the user will go back to.
+ * above `/drive/$spaceId`, and the space shown is the one the user is in or
+ * will go back to.
  */
 export function SpaceSwitcher({ spaceId }: { spaceId: string | undefined }) {
   const spaces = useSpaces();
@@ -108,35 +112,6 @@ export function SpaceSwitcher({ spaceId }: { spaceId: string | undefined }) {
                 </DropdownMenuItem>
               ))}
             </DropdownMenuGroup>
-            {current?.is_admin && (
-              <>
-                <DropdownMenuSeparator />
-                {/* The only way into space settings. It used to be a gear in
-                    the main header, which sat next to a Members icon that
-                    opened a second, competing copy of the same screen. */}
-                <DropdownMenuItem
-                  onClick={() =>
-                    void navigate({
-                      to: "/drive/$spaceId/settings/general",
-                      params: { spaceId: current.id },
-                    })
-                  }
-                >
-                  <Settings /> <Trans>Space settings</Trans>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() =>
-                    void navigate({
-                      to: "/drive/$spaceId/settings/people",
-                      params: { spaceId: current.id },
-                      search: { group: undefined },
-                    })
-                  }
-                >
-                  <Users /> <Trans>People</Trans>
-                </DropdownMenuItem>
-              </>
-            )}
             {canCreateSpaces && (
               <>
                 <DropdownMenuSeparator />
