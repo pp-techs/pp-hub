@@ -4,6 +4,16 @@ import { useSpaces } from "@/lib/queries";
 import { useFormatters } from "@/lib/format";
 
 /**
+ * Share of the quota in use, or null when the space is unmetered
+ * (`quota_bytes === 0`) and there is therefore no ratio to draw. Shared with
+ * the details panel's space sheet so the two cannot disagree about the bar.
+ */
+export function storagePct(space: { used_bytes: number; quota_bytes: number }): number | null {
+  if (space.quota_bytes <= 0) return null;
+  return Math.min(100, Math.round((space.used_bytes / space.quota_bytes) * 100));
+}
+
+/**
  * Storage consumption for the active space, pinned to the rail's footer.
  * `quota_bytes` is 0 for an unmetered space, in which case there is no ratio
  * to draw and only the used figure is shown.
@@ -20,9 +30,7 @@ export function StorageMeter() {
   if (!space) return null;
 
   const metered = space.quota_bytes > 0;
-  const pct = metered
-    ? Math.min(100, Math.round((space.used_bytes / space.quota_bytes) * 100))
-    : null;
+  const pct = storagePct(space);
   const used = f.size(space.used_bytes);
   const quota = f.size(space.quota_bytes);
 

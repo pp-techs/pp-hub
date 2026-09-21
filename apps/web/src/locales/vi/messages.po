@@ -79,7 +79,7 @@ msgstr "{address} giờ đã là thành viên"
 msgid "{buried, plural, one {# item of yours inside} other {# items of yours inside}}"
 msgstr "{buried, plural, one {# mục của bạn bên trong} other {# mục của bạn bên trong}}"
 
-#: src/routes/drive/$spaceId/index.tsx:632
+#: src/routes/drive/$spaceId/index.tsx:639
 msgid "{count, plural, one {Are you sure you want to move # item to trash?} other {Are you sure you want to move # items to trash?}}"
 msgstr "{count, plural, one {Bạn có chắc muốn chuyển # mục vào thùng rác không?} other {Bạn có chắc muốn chuyển # mục vào thùng rác không?}}"
 
@@ -87,11 +87,11 @@ msgstr "{count, plural, one {Bạn có chắc muốn chuyển # mục vào thùn
 msgid "{count, plural, one {The other signed-in device will have to sign in again.} other {All # other signed-in devices will have to sign in again.}}"
 msgstr "{count, plural, one {Tất cả # thiết bị đã đăng nhập khác sẽ phải đăng nhập lại.} other {Tất cả # thiết bị đã đăng nhập khác sẽ phải đăng nhập lại.}}"
 
-#: src/routes/drive/$spaceId/index.tsx:665
+#: src/routes/drive/$spaceId/index.tsx:672
 msgid "{count, plural, one {These folders hold # item other people created. They lose access until you restore them.} other {These folders hold # items other people created. They lose access until you restore them.}}"
 msgstr "{count, plural, one {Các thư mục này chứa # mục do người khác tạo. Họ sẽ mất quyền truy cập cho đến khi bạn khôi phục.} other {Các thư mục này chứa # mục do người khác tạo. Họ sẽ mất quyền truy cập cho đến khi bạn khôi phục.}}"
 
-#: src/routes/drive/$spaceId/index.tsx:660
+#: src/routes/drive/$spaceId/index.tsx:667
 msgid "{count, plural, one {This folder holds # item other people created. They lose access until you restore it.} other {This folder holds # items other people created. They lose access until you restore it.}}"
 msgstr "{count, plural, one {Thư mục này chứa # mục do người khác tạo. Họ sẽ mất quyền truy cập cho đến khi bạn khôi phục.} other {Thư mục này chứa # mục do người khác tạo. Họ sẽ mất quyền truy cập cho đến khi bạn khôi phục.}}"
 
@@ -128,7 +128,7 @@ msgstr "Đã tạm khoá {email}"
 msgid "{failed, plural, one {# failed} other {# failed}}"
 msgstr "{failed, plural, one {# thất bại} other {# thất bại}}"
 
-#: src/components/preview-panel.tsx:100
+#: src/components/preview-panel.tsx:128
 msgid "{files, plural, one {# file selected} other {# files selected}}"
 msgstr "{files, plural, one {Đã chọn # tệp} other {Đã chọn # tệp}}"
 
@@ -136,11 +136,15 @@ msgstr "{files, plural, one {Đã chọn # tệp} other {Đã chọn # tệp}}"
 msgid "{files, plural, one {# file} other {# files}}"
 msgstr "{files, plural, one {# tệp} other {# tệp}}"
 
-#: src/components/preview-panel.tsx:102
+#: src/components/preview-panel.tsx:130
 msgid "{folders, plural, one {# folder selected} other {# folders selected}}"
 msgstr "{folders, plural, one {Đã chọn # thư mục} other {Đã chọn # thư mục}}"
 
-#: src/components/preview-panel.tsx:104
+#: src/components/preview-panel.tsx:226
+msgid "{folders, plural, one {# folder} other {# folders}} and {files, plural, one {# file} other {# files}}"
+msgstr "{folders, plural, one {# thư mục} other {# thư mục}} và {files, plural, one {# tệp} other {# tệp}}"
+
+#: src/components/preview-panel.tsx:132
 msgid "{folders, plural, one {# folder} other {# folders}} and {files, plural, one {# file} other {# files}} selected"
 msgstr "Đã chọn {folders, plural, one {# thư mục} other {# thư mục}} và {files, plural, one {# tệp} other {# tệp}}"
 
@@ -189,7 +193,7 @@ msgstr "{moved, plural, one {Đã di chuyển # mục} other {Đã di chuyển #
 msgid "{n, plural, one {# suspended} other {# suspended}}"
 msgstr "{n, plural, one {# đã tạm khoá} other {# đã tạm khoá}}"
 
-#: src/components/folder-actions.tsx:208
+#: src/components/folder-actions.tsx:210
 msgid "{n, plural, one {Paste # item} other {Paste # items}}"
 msgstr "{n, plural, one {Dán # mục} other {Dán # mục}}"
 
@@ -309,11 +313,13 @@ msgstr "Đã dùng {totalSize}"
 msgid "{trashed, plural, one {# in trash} other {# in trash}}"
 msgstr "{trashed, plural, one {# trong thùng rác} other {# trong thùng rác}}"
 
-#: src/components/storage-meter.tsx:48
+#: src/components/preview-panel.tsx:209
+#: src/components/storage-meter.tsx:56
 msgid "{used} of {quota}"
 msgstr "{used} trên {quota}"
 
-#: src/components/storage-meter.tsx:52
+#: src/components/preview-panel.tsx:213
+#: src/components/storage-meter.tsx:60
 msgid "{used} used"
 msgstr "Đã dùng {used}"
 
@@ -479,7 +485,7 @@ msgstr "Thêm người vào nhóm này…"
 msgid "Add star"
 msgstr "Gắn sao"
 
-#: src/components/preview-panel.tsx:214
+#: src/components/preview-panel.tsx:339
 msgid "Added by {ownerName}"
 msgstr "Được thêm bởi {ownerName}"
 
@@ -489,6 +495,7 @@ msgstr "Đã thêm vào {groupName}"
 
 #: src/components/command-palette.tsx:190
 #: src/components/people-table.tsx:221
+#: src/components/preview-panel.tsx:233
 #: src/components/settings/panes/account-profile.tsx:184
 #: src/components/space-switcher.tsx:77
 #: src/components/space-switcher.tsx:109
@@ -560,7 +567,7 @@ msgstr "Địa chỉ đã có tài khoản sẽ tham gia ngay. Mọi địa ch�
 msgid "Anyone holding the link can view this item without signing in. A link never carries editing, and nobody can re-share it onward — download is the one choice it offers."
 msgstr "Bất kỳ ai có liên kết đều có thể xem mục này mà không cần đăng nhập. Liên kết không bao giờ kèm quyền chỉnh sửa và không ai có thể chia sẻ lại — tải xuống là lựa chọn duy nhất mà nó cung cấp."
 
-#: src/components/preview-panel.tsx:250
+#: src/components/preview-panel.tsx:375
 #: src/components/share-dialog.tsx:491
 msgid "Anyone with the link"
 msgstr "Bất kỳ ai có liên kết"
@@ -578,7 +585,7 @@ msgstr "Giao diện"
 msgid "Archive"
 msgstr "Kho lưu trữ tạm"
 
-#: src/routes/drive/$spaceId/index.tsx:631
+#: src/routes/drive/$spaceId/index.tsx:638
 msgid "Are you sure you want to move \"{nodeName}\" to trash?"
 msgstr "Bạn có chắc muốn chuyển \"{nodeName}\" vào thùng rác không?"
 
@@ -619,7 +626,7 @@ msgstr "Đường dẫn"
 msgid "Browse files"
 msgstr "Duyệt tệp"
 
-#: src/components/preview-panel.tsx:256
+#: src/components/preview-panel.tsx:381
 msgid "Can download"
 msgstr "Có thể tải xuống"
 
@@ -627,7 +634,7 @@ msgstr "Có thể tải xuống"
 msgid "Can edit"
 msgstr "Có thể chỉnh sửa"
 
-#: src/components/preview-panel.tsx:257
+#: src/components/preview-panel.tsx:382
 msgid "Can share"
 msgstr "Có thể chia sẻ"
 
@@ -669,7 +676,7 @@ msgstr "Bỏ chọn"
 msgid "Close"
 msgstr "Đóng"
 
-#: src/components/preview-panel.tsx:84
+#: src/components/preview-panel.tsx:108
 msgid "Close details"
 msgstr "Đóng chi tiết"
 
@@ -706,6 +713,10 @@ msgstr "Hoàn tất bàn giao cho {leaverName}?"
 #: src/components/confirm-dialog.tsx:81
 msgid "Confirm"
 msgstr "Xác nhận"
+
+#: src/components/preview-panel.tsx:224
+msgid "Contents"
+msgstr "Nội dung"
 
 #: src/routes/drive/$spaceId/home.tsx:84
 msgid "Continue where you left off"
@@ -974,8 +985,9 @@ msgstr "Mô tả"
 
 #: src/components/listing-controls.tsx:127
 #: src/components/preview-modal.tsx:141
-#: src/components/preview-panel.tsx:82
-#: src/components/preview-panel.tsx:196
+#: src/components/preview-panel.tsx:106
+#: src/components/preview-panel.tsx:220
+#: src/components/preview-panel.tsx:321
 msgid "Details"
 msgstr "Chi tiết"
 
@@ -1000,11 +1012,11 @@ msgstr "Hướng"
 msgid "Discard"
 msgstr "Huỷ bỏ"
 
-#: src/components/settings/settings-modal.tsx:187
+#: src/components/settings/settings-modal.tsx:189
 msgid "Discard changes"
 msgstr "Bỏ thay đổi"
 
-#: src/components/settings/settings-modal.tsx:185
+#: src/components/settings/settings-modal.tsx:187
 msgid "Discard unsaved changes?"
 msgstr "Bỏ các thay đổi chưa lưu?"
 
@@ -1030,7 +1042,7 @@ msgstr "tải xuống"
 
 #: src/components/node-actions.tsx:135
 #: src/components/preview-modal.tsx:124
-#: src/components/preview-panel.tsx:171
+#: src/components/preview-panel.tsx:296
 #: src/components/selection-bar.tsx:64
 #: src/components/version-list.tsx:71
 #: src/routes/edit/$nodeId.tsx:126
@@ -1068,7 +1080,7 @@ msgstr "Hạn"
 msgid "Each row is a live session. Signing one out takes effect immediately — the device is asked to sign in again the next time it reaches the server."
 msgstr "Mỗi dòng là một phiên đang hoạt động. Đăng xuất một phiên sẽ có hiệu lực ngay — thiết bị sẽ được yêu cầu đăng nhập lại trong lần kết nối tới máy chủ tiếp theo."
 
-#: src/components/preview-panel.tsx:253
+#: src/components/preview-panel.tsx:378
 #: src/components/share-dialog.tsx:243
 msgid "edit"
 msgstr "chỉnh sửa"
@@ -1115,7 +1127,7 @@ msgstr "Dọn sạch thùng rác"
 msgid "Enable"
 msgstr "Bật"
 
-#: src/routes/drive/$spaceId/index.tsx:592
+#: src/routes/drive/$spaceId/index.tsx:599
 msgid "Enter a new name for this item."
 msgstr "Nhập tên mới cho mục này."
 
@@ -1189,7 +1201,7 @@ msgid "External"
 msgstr "Bên ngoài"
 
 #: src/components/preview-modal.tsx:150
-#: src/components/preview-panel.tsx:199
+#: src/components/preview-panel.tsx:324
 msgid "File"
 msgstr "Tệp"
 
@@ -1249,7 +1261,7 @@ msgid "Finance"
 msgstr "Tài chính"
 
 #: src/components/node-grid.tsx:187
-#: src/components/preview-panel.tsx:199
+#: src/components/preview-panel.tsx:324
 msgid "Folder"
 msgstr "Thư mục"
 
@@ -1311,7 +1323,7 @@ msgstr "đã cấp quyền"
 msgid "grant revoked"
 msgstr "đã thu hồi quyền"
 
-#: src/components/folder-actions.tsx:198
+#: src/components/folder-actions.tsx:200
 #: src/components/settings/panes/account-general.tsx:36
 msgid "Grid"
 msgstr "Lưới"
@@ -1493,7 +1505,7 @@ msgstr "Đã tạo liên kết (chỉ hiển thị một lần)"
 msgid "Link expires {expiresOn}"
 msgstr "Liên kết hết hạn {expiresOn}"
 
-#: src/components/folder-actions.tsx:199
+#: src/components/folder-actions.tsx:201
 #: src/components/settings/panes/account-general.tsx:35
 msgid "List"
 msgstr "Danh sách"
@@ -1517,7 +1529,7 @@ msgstr "Đang tải người dùng…"
 #: src/components/group-list.tsx:245
 #: src/components/node-table.tsx:52
 #: src/components/preview-content.tsx:208
-#: src/components/preview-panel.tsx:238
+#: src/components/preview-panel.tsx:363
 #: src/components/settings/panes/account-profile.tsx:23
 #: src/components/settings/panes/account-security.tsx:104
 #: src/components/settings/panes/space-danger.tsx:33
@@ -1532,7 +1544,7 @@ msgstr "Đang tải người dùng…"
 #: src/routes/admin.users.tsx:168
 #: src/routes/drive/$spaceId/home.tsx:152
 #: src/routes/drive/$spaceId/home.tsx:165
-#: src/routes/drive/$spaceId/index.tsx:499
+#: src/routes/drive/$spaceId/index.tsx:506
 #: src/routes/edit/$nodeId.tsx:88
 #: src/routes/s/$token.tsx:251
 msgid "Loading…"
@@ -1575,7 +1587,7 @@ msgstr "Tạo bản sao"
 msgid "Make admin"
 msgstr "Đặt làm quản trị viên"
 
-#: src/components/preview-panel.tsx:211
+#: src/components/preview-panel.tsx:336
 msgid "Managed by"
 msgstr "Quản lý bởi"
 
@@ -1598,6 +1610,7 @@ msgstr "Tiếp thị"
 
 #: src/components/command-palette.tsx:190
 #: src/components/people-table.tsx:218
+#: src/components/preview-panel.tsx:233
 #: src/components/settings/panes/account-profile.tsx:184
 msgid "Member"
 msgstr "Thành viên"
@@ -1611,6 +1624,7 @@ msgid "member removed"
 msgstr "đã xoá thành viên"
 
 #: src/components/group-list.tsx:106
+#: src/components/preview-panel.tsx:232
 #: src/components/settings/panes.ts:91
 msgid "Members"
 msgstr "Thành viên"
@@ -1631,18 +1645,18 @@ msgstr "Không gian làm việc tự lưu trữ tối giản: kho lưu trữ, v�
 #: src/components/node-list.tsx:63
 #: src/components/node-table.tsx:77
 #: src/components/preview-modal.tsx:153
-#: src/components/preview-panel.tsx:222
+#: src/components/preview-panel.tsx:347
 #: src/components/settings/panes/account-general.tsx:41
 #: src/components/space-node-table.tsx:97
 #: src/routes/s/$token.tsx:282
 msgid "Modified"
 msgstr "Đã sửa đổi"
 
-#: src/components/folder-actions.tsx:191
+#: src/components/folder-actions.tsx:193
 msgid "Modified (newest)"
 msgstr "Sửa đổi (mới nhất)"
 
-#: src/components/folder-actions.tsx:192
+#: src/components/folder-actions.tsx:194
 msgid "Modified (oldest)"
 msgstr "Sửa đổi (cũ nhất)"
 
@@ -1660,8 +1674,8 @@ msgid "Move “{name}”"
 msgstr "Di chuyển “{name}”"
 
 #: src/components/node-actions.tsx:233
-#: src/routes/drive/$spaceId/index.tsx:628
-#: src/routes/drive/$spaceId/index.tsx:637
+#: src/routes/drive/$spaceId/index.tsx:635
+#: src/routes/drive/$spaceId/index.tsx:644
 msgid "Move to trash"
 msgstr "Chuyển vào thùng rác"
 
@@ -1695,11 +1709,11 @@ msgstr "Tên"
 msgid "name (2)"
 msgstr "tên (2)"
 
-#: src/components/folder-actions.tsx:189
+#: src/components/folder-actions.tsx:191
 msgid "Name (A–Z)"
 msgstr "Tên (A–Z)"
 
-#: src/components/folder-actions.tsx:190
+#: src/components/folder-actions.tsx:192
 msgid "Name (Z–A)"
 msgstr "Tên (Z–A)"
 
@@ -1772,7 +1786,7 @@ msgstr "Chưa có nhóm nào."
 msgid "No matches for “{queryText}”"
 msgstr "Không có kết quả cho “{queryText}”"
 
-#: src/routes/drive/$spaceId/index.tsx:509
+#: src/routes/drive/$spaceId/index.tsx:516
 msgid "No matching files or folders"
 msgstr "Không có tệp hoặc thư mục nào khớp"
 
@@ -1813,7 +1827,7 @@ msgstr "Chưa có ai trong nhóm này — nhóm chưa mở quyền gì cho ai."
 msgid "none failed"
 msgstr "không có lỗi nào"
 
-#: src/components/preview-panel.tsx:264
+#: src/components/preview-panel.tsx:389
 msgid "Not shared."
 msgstr "Chưa chia sẻ."
 
@@ -1878,7 +1892,7 @@ msgstr "mở"
 #: src/components/node-actions.tsx:127
 #: src/components/preview-content.tsx:273
 #: src/components/preview-modal.tsx:115
-#: src/components/preview-panel.tsx:161
+#: src/components/preview-panel.tsx:286
 #: src/components/share-dialog.tsx:522
 msgid "Open"
 msgstr "Mở"
@@ -1907,7 +1921,7 @@ msgstr "Tổng quan"
 #: src/components/node-list.tsx:69
 #: src/components/node-table.tsx:83
 #: src/components/preview-modal.tsx:152
-#: src/components/preview-panel.tsx:219
+#: src/components/preview-panel.tsx:344
 msgid "Owner"
 msgstr "Chủ sở hữu"
 
@@ -1915,7 +1929,7 @@ msgstr "Chủ sở hữu"
 msgid "Page not found."
 msgstr "Không tìm thấy trang."
 
-#: src/components/folder-actions.tsx:205
+#: src/components/folder-actions.tsx:207
 msgid "Paste"
 msgstr "Dán"
 
@@ -1933,6 +1947,7 @@ msgstr "Chờ bàn giao"
 
 #: src/components/grantee-picker.tsx:120
 #: src/components/people-table.tsx:161
+#: src/components/preview-panel.tsx:189
 msgid "People"
 msgstr "Mọi người"
 
@@ -1964,7 +1979,7 @@ msgid "Press D anywhere outside a text field to flip between light and dark."
 msgstr "Nhấn D ở bất kỳ đâu ngoài ô nhập văn bản để chuyển giữa giao diện sáng và tối."
 
 #: src/components/node-actions.tsx:104
-#: src/components/preview-panel.tsx:161
+#: src/components/preview-panel.tsx:286
 msgid "Preview"
 msgstr "Xem trước"
 
@@ -2093,7 +2108,7 @@ msgstr "Xoá “{spaceName}” và mọi thứ bên trong — mọi tệp, phiê
 
 #: src/components/node-actions.tsx:180
 #: src/components/selection-bar.tsx:74
-#: src/routes/drive/$spaceId/index.tsx:589
+#: src/routes/drive/$spaceId/index.tsx:596
 msgid "Rename"
 msgstr "Đổi tên"
 
@@ -2150,11 +2165,11 @@ msgstr "Thu hồi quyền quản trị"
 msgid "Revoking a group’s access leaves anything its members created in here — those items stay with whoever made them."
 msgstr "Thu hồi quyền truy cập của một nhóm vẫn giữ lại mọi thứ mà thành viên nhóm đã tạo ở đây — các mục đó thuộc về người đã tạo ra chúng."
 
-#: src/routes/drive/$spaceId/index.tsx:518
+#: src/routes/drive/$spaceId/index.tsx:525
 msgid "Right-click here, or use New, to add something."
 msgstr "Nhấp chuột phải vào đây, hoặc dùng Mới, để thêm nội dung."
 
-#: src/routes/drive/$spaceId/index.tsx:616
+#: src/routes/drive/$spaceId/index.tsx:623
 msgid "Save"
 msgstr "Lưu"
 
@@ -2211,7 +2226,7 @@ msgstr "Nhật ký bảo mật"
 msgid "Select {nodeName}"
 msgstr "Chọn {nodeName}"
 
-#: src/components/preview-panel.tsx:98
+#: src/components/preview-panel.tsx:126
 msgid "Select a file or folder to see its details."
 msgstr "Chọn một tệp hoặc thư mục để xem chi tiết."
 
@@ -2263,7 +2278,7 @@ msgid "sessions revoked"
 msgstr "phiên đã bị thu hồi"
 
 #: src/components/nav-user.tsx:103
-#: src/components/settings/settings-modal.tsx:98
+#: src/components/settings/settings-modal.tsx:100
 msgid "Settings"
 msgstr "Cài đặt"
 
@@ -2271,13 +2286,13 @@ msgstr "Cài đặt"
 msgid "Settings saved"
 msgstr "Đã lưu cài đặt"
 
-#: src/components/settings/settings-modal.tsx:107
-#: src/components/settings/settings-modal.tsx:156
+#: src/components/settings/settings-modal.tsx:109
+#: src/components/settings/settings-modal.tsx:158
 msgid "Settings sections"
 msgstr "Mục cài đặt"
 
 #: src/components/node-actions.tsx:170
-#: src/components/preview-panel.tsx:180
+#: src/components/preview-panel.tsx:305
 #: src/components/selection-bar.tsx:69
 #: src/components/share-dialog.tsx:383
 #: src/routes/edit/$nodeId.tsx:111
@@ -2311,7 +2326,7 @@ msgstr "Được chia sẻ với tôi"
 msgid "Shared with you"
 msgstr "Được chia sẻ với bạn"
 
-#: src/components/preview-panel.tsx:235
+#: src/components/preview-panel.tsx:360
 msgid "Sharing"
 msgstr "Chia sẻ"
 
@@ -2373,7 +2388,7 @@ msgstr "Thiết bị đã đăng nhập"
 #: src/components/node-list.tsx:66
 #: src/components/node-table.tsx:80
 #: src/components/preview-modal.tsx:151
-#: src/components/preview-panel.tsx:201
+#: src/components/preview-panel.tsx:326
 #: src/components/settings/panes/account-general.tsx:42
 #: src/components/space-node-table.tsx:100
 #: src/components/trash-panel.tsx:297
@@ -2381,11 +2396,11 @@ msgstr "Thiết bị đã đăng nhập"
 msgid "Size"
 msgstr "Kích thước"
 
-#: src/components/folder-actions.tsx:193
+#: src/components/folder-actions.tsx:195
 msgid "Size (largest)"
 msgstr "Kích thước (lớn nhất)"
 
-#: src/components/folder-actions.tsx:194
+#: src/components/folder-actions.tsx:196
 msgid "Size (smallest)"
 msgstr "Kích thước (nhỏ nhất)"
 
@@ -2410,6 +2425,10 @@ msgstr "Sắp xếp theo"
 msgid "Sort descending"
 msgstr "Sắp xếp giảm dần"
 
+#: src/components/folder-actions.tsx:161
+msgid "Space information"
+msgstr "Thông tin không gian"
+
 #: src/components/settings/panes/space-general.tsx:106
 msgid "Space name"
 msgstr "Tên không gian"
@@ -2419,6 +2438,7 @@ msgid "Space not found"
 msgstr "Không tìm thấy không gian"
 
 #: src/components/nav-user.tsx:112
+#: src/components/preview-panel.tsx:183
 msgid "Space settings"
 msgstr "Cài đặt không gian"
 
@@ -2454,7 +2474,8 @@ msgstr "Đã gắn sao"
 msgid "Status"
 msgstr "Trạng thái"
 
-#: src/components/storage-meter.tsx:33
+#: src/components/preview-panel.tsx:198
+#: src/components/storage-meter.tsx:41
 #: src/routes/drive/$spaceId/home.tsx:148
 msgid "Storage"
 msgstr "Lưu trữ"
@@ -2488,7 +2509,7 @@ msgstr "Hệ thống"
 msgid "Team"
 msgstr "Đội"
 
-#: src/components/preview-panel.tsx:211
+#: src/components/preview-panel.tsx:336
 msgid "Team folder"
 msgstr "Thư mục đội"
 
@@ -2593,7 +2614,7 @@ msgstr "Tệp này đã được chia sẻ với bạn"
 msgid "this folder"
 msgstr "thư mục này"
 
-#: src/routes/drive/$spaceId/index.tsx:511
+#: src/routes/drive/$spaceId/index.tsx:518
 #: src/routes/s/$token.tsx:264
 msgid "This folder is empty"
 msgstr "Thư mục này trống"
@@ -2618,7 +2639,7 @@ msgstr "Liên kết này không cho phép tải xuống, nên chỉ hiển thị
 msgid "This link is not available"
 msgstr "Liên kết này không khả dụng"
 
-#: src/components/settings/settings-modal.tsx:186
+#: src/components/settings/settings-modal.tsx:188
 msgid "This pane has changes that were never saved. Leaving now throws them away."
 msgstr "Mục này có thay đổi chưa được lưu. Rời đi bây giờ sẽ bỏ hết."
 
@@ -2673,12 +2694,12 @@ msgid "Trash retention (days)"
 msgstr "Thời gian giữ trong thùng rác (ngày)"
 
 #: src/components/trash-panel.tsx:257
-#: src/routes/drive/$spaceId/index.tsx:516
+#: src/routes/drive/$spaceId/index.tsx:523
 msgid "Try a different search."
 msgstr "Hãy thử tìm kiếm khác."
 
 #: src/components/preview-modal.tsx:150
-#: src/components/preview-panel.tsx:199
+#: src/components/preview-panel.tsx:324
 msgid "Type"
 msgstr "Loại"
 
@@ -2766,8 +2787,8 @@ msgstr "Phiên bản {versionNo}"
 
 #: src/components/node-actions.tsx:145
 #: src/components/preview-modal.tsx:144
-#: src/components/preview-panel.tsx:186
-#: src/components/preview-panel.tsx:226
+#: src/components/preview-panel.tsx:311
+#: src/components/preview-panel.tsx:351
 #: src/routes/edit/$nodeId.tsx:120
 msgid "Versions"
 msgstr "Phiên bản"
@@ -2784,7 +2805,7 @@ msgstr "Phiên bản của “{nodeName}”"
 msgid "Video"
 msgstr "Video"
 
-#: src/components/preview-panel.tsx:253
+#: src/components/preview-panel.tsx:378
 #: src/components/share-dialog.tsx:243
 msgid "view"
 msgstr "xem"
@@ -2928,6 +2949,10 @@ msgstr "Bạn đã chuyển vào thùng rác"
 #: src/routes/drive/$spaceId/recent.tsx:26
 msgid "You uploaded"
 msgstr "Bạn đã tải lên"
+
+#: src/components/preview-panel.tsx:233
+msgid "Your access"
+msgstr "Quyền của bạn"
 
 #: src/components/settings/panes/account-profile.tsx:162
 msgid "Your spaces"

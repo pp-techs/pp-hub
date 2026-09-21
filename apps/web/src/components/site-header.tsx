@@ -163,7 +163,7 @@ function ListingBreadcrumb({
           <Fragment key={crumb.key}>
             {i > 0 && <BreadcrumbSeparator />}
             <BreadcrumbItem className="min-w-0">
-              {isLast || !crumb.dirId || !spaceId ? (
+              {isLast || !spaceId ? (
                 <BreadcrumbPage className="truncate font-medium">{crumb.label}</BreadcrumbPage>
               ) : (
                 <BreadcrumbLink
@@ -186,5 +186,10 @@ function ListingBreadcrumb({
 interface Crumb {
   key: string;
   label: string;
+  /**
+   * Absent on the root crumb, which is still a link: `dir: undefined` is what
+   * clears `?dir=` and lands back at the top of the space. Only the last
+   * crumb renders as plain text — it is where you already are.
+   */
   dirId?: string;
 }

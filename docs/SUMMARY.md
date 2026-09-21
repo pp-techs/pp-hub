@@ -54,12 +54,28 @@ both hidden file inputs and the New-folder dialog, which move out of
 only way the dialog used to reach across that boundary — is gone.
 `folderActions()` (`components/folder-actions.tsx`) is `nodeActions()`'s
 counterpart for the folder itself: New folder, Upload files/folder, Paste,
-Select all, Sort by, View, Refresh and Folder information, rendered by both
-the rail's dropdown and a new background `ContextMenu` on the listing (right-
-click the empty state or the gap below the last row). Paste needs a source,
+Select all, Sort by, View, Refresh and Folder information — Space
+information at the root, where the details panel describes the space rather
+than a folder — rendered by both the rail's dropdown and a new background
+`ContextMenu` on the listing (right-click the empty state or the gap below
+the last row). Paste needs a source,
 so nodes can be Cut or Copied onto a small `ui-store.clipboard` — deliberately
 outside `partialize`, so it never survives a reload — and a folder can never
 paste a cut node into itself or its own subtree (`lib/write-target.ts`).
+
+**The space root is a subject, not a hole.** A space root has no node row —
+top-level nodes are `parent_id IS NULL`, a set rather than a child of
+anything — so `(i)` there used to answer "Select a file or folder to see its
+details" and the background menu dropped its information entry entirely.
+`DetailsPanel` now takes a `DetailsSubject` (`{ kind: "nodes" }` or
+`{ kind: "space" }`) and renders a space sheet at the root: name,
+description, storage against quota, what the listing is showing, the member
+count and your access, with Space settings / People for an admin. Nothing is
+fabricated and nothing new is fetched but the member list. The `My Drive`
+breadcrumb was inert for the same reason — it was built without a `dirId`
+and only a crumb with one rendered as a link — so from inside a folder there
+was no way back to the top of the space through the header; every crumb but
+the last is a link now, the root's clearing `?dir=`.
 
 **M20 — a session is a row, not a signature.** The cookie was
 `v1.<uuid>.<expiry>.<hmac>`: self-contained, thirty days, and nothing to

@@ -136,11 +136,16 @@ export const PreviewModal = createModal<Props, void>("preview", ({ node, sibling
 
           <aside className="border-border flex w-80 shrink-0 flex-col border-l">
             <Tabs defaultValue="details" className="flex min-h-0 flex-1 flex-col">
-              <TabsList className="border-border shrink-0 rounded-none border-b px-2">
-                <TabsTrigger value="details">
+              {/* The line variant, not the pill one restyled: a `w-fit`
+                  segmented control with its corners squared off and a border
+                  hung on it drew a grey box that stopped short of the panel
+                  edge. Here the strip spans the sidebar and the active tab is
+                  marked by the underline the variant already draws. */}
+              <TabsList variant="line" className="h-9 w-full justify-start gap-4 border-b px-3">
+                <TabsTrigger value="details" className="flex-none">
                   <Trans>Details</Trans>
                 </TabsTrigger>
-                <TabsTrigger value="versions">
+                <TabsTrigger value="versions" className="flex-none">
                   <Trans>Versions</Trans>
                 </TabsTrigger>
               </TabsList>

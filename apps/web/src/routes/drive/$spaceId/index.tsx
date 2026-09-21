@@ -65,7 +65,7 @@ import { useFormatters } from "@/lib/format";
 import { pageTitle } from "@/lib/i18n";
 import { NodePanels } from "@/components/node-panels";
 import { PreviewModal } from "@/components/preview-modal";
-import { DetailsPanel } from "@/components/preview-panel";
+import { DetailsPanel, type DetailsSubject } from "@/components/preview-panel";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DropZone } from "@/components/drop-zone";
 import { NodeGrid } from "@/components/node-grid";
@@ -420,7 +420,8 @@ function FolderView() {
       order,
       view,
       count: sorted.length,
-      canDescribeFolder: Boolean(currentFolder.data),
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- subject discriminant, never shown
+      infoSubject: dir === undefined ? "space" : currentFolder.data ? "folder" : null,
       onSort: (nextSort, nextOrder) => setSearch({ sort: nextSort, order: nextOrder }),
       onView: (nextView) => setSearch({ view: nextView }),
       onSelectAll: () => {
@@ -428,8 +429,8 @@ function FolderView() {
         setSelectedIds(new Set(sorted.map((n) => n.id)));
       },
       onRefresh: () => void invalidateChildren(),
-      // With nothing selected the details panel describes the folder itself,
-      // which is what this asks for.
+      // With nothing selected the panel describes the surface itself — the
+      // folder being browsed, or the space at its root.
       onFolderInfo: () => {
         setSelectedIds(new Set());
         setDetailsOpen(true);
@@ -440,6 +441,7 @@ function FolderView() {
       order,
       view,
       sorted,
+      dir,
       currentFolder.data,
       setSearch,
       setSelectedIds,
@@ -450,11 +452,16 @@ function FolderView() {
 
   const backgroundActions = folderActions(write, listing);
 
-  // The panel follows the selection, and with none it describes the folder the
-  // listing is showing — at the space root there is no such node, and it says
-  // so itself.
-  const panelNodes =
-    selectedNodes.length > 0 ? selectedNodes : currentFolder.data ? [currentFolder.data] : [];
+  // The panel follows the selection; with none it describes the folder being
+  // browsed, or — at the space root, where no such node exists — the space.
+  /* eslint-disable lingui/no-unlocalized-strings -- subject discriminants, never shown */
+  const panelSubject: DetailsSubject =
+    selectedNodes.length > 0
+      ? { kind: "nodes", nodes: selectedNodes }
+      : dir === undefined
+        ? { kind: "space", spaceId, folders: sortedDirs.length, files: sortedFiles.length }
+        : { kind: "nodes", nodes: currentFolder.data ? [currentFolder.data] : [] };
+  /* eslint-enable lingui/no-unlocalized-strings */
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -577,7 +584,7 @@ function FolderView() {
 
         {detailsOpen && (
           <aside className="border-border w-80 shrink-0 border-l">
-            <DetailsPanel nodes={panelNodes} onClose={() => setDetailsOpen(false)} />
+            <DetailsPanel subject={panelSubject} onClose={() => setDetailsOpen(false)} />
           </aside>
         )}
       </div>

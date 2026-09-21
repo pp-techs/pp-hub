@@ -1,4 +1,4 @@
-import { Download, Eye, History, Link2, X } from "lucide-react";
+import { Building2, Download, Eye, History, Link2, Settings2, Users, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@workspace/ui/components/button";
@@ -13,13 +13,16 @@ import {
   previewUrl,
   thumbnailFit,
   type Node,
+  type Space,
 } from "@/lib/api";
 import { useFormatters } from "@/lib/format";
-import { useShares, useVersions } from "@/lib/queries";
+import { useShares, useSpace, useSpaceMembers, useVersions } from "@/lib/queries";
+import { useSettingsNavigation } from "@/lib/use-settings-hash";
 import { useUiStore } from "@/lib/ui-store";
 import { NodeIcon } from "@/components/node-icon";
 import { PreviewModal } from "@/components/preview-modal";
 import { ShareDialog } from "@/components/share-dialog";
+import { storagePct } from "@/components/storage-meter";
 
 /** Uppercase section heading inside the panel. */
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -65,28 +68,53 @@ function PanelAction({
 }
 
 /**
- * Right-hand details panel. It follows the selection rather than opening on
- * its own: one node gets the full sheet, several get a count, none gets a
- * prompt. The panel's own visibility is the toolbar's (i) toggle.
+ * What the panel is describing. A space root has no node row of its own —
+ * top-level nodes are `parent_id IS NULL`, a set rather than a child of
+ * anything — so it is a subject in its own right rather than a fabricated
+ * folder. `nodes: []` is the third, momentary state: the folder named by
+ * `?dir=` has not been fetched yet.
  */
-export function DetailsPanel({ nodes, onClose }: { nodes: Node[]; onClose: () => void }) {
+export type DetailsSubject =
+  | { kind: "nodes"; nodes: Node[] }
+  | { kind: "space"; spaceId: string; folders: number; files: number };
+
+/**
+ * Right-hand details panel. It follows the selection rather than opening on
+ * its own: one node gets the full sheet, several get a count, and with none
+ * the surface itself is the subject — the folder being browsed, or the space
+ * at its root. The panel's own visibility is the toolbar's (i) toggle.
+ */
+export function DetailsPanel({
+  subject,
+  onClose,
+}: {
+  subject: DetailsSubject;
+  onClose: () => void;
+}) {
   const { t } = useLingui();
+  const space = useSpace(subject.kind === "space" ? subject.spaceId : undefined);
+  const nodes = subject.kind === "nodes" ? subject.nodes : [];
   const single = nodes.length === 1 ? nodes[0]! : null;
   const folders = nodes.filter((n) => n.kind === "dir").length;
   const files = nodes.length - folders;
+  const title = subject.kind === "space" ? space?.name : single?.name;
 
   return (
     <div className="flex h-full flex-col overflow-y-auto">
       <div className="border-border flex h-10 shrink-0 items-center gap-2 border-b px-3">
-        <span className="flex-1 truncate text-xs font-medium" title={single?.name}>
-          {single ? single.name : t`Details`}
+        <span className="flex-1 truncate text-xs font-medium" title={title}>
+          {title ?? t`Details`}
         </span>
         <Button variant="ghost" size="icon-sm" aria-label={t`Close details`} onClick={onClose}>
           <X />
         </Button>
       </div>
 
-      {single ? (
+      {subject.kind === "space" ? (
+        // Nothing rather than a sheet of em-dashes: the spaces query answers
+        // in one round trip and every row here comes from it.
+        space && <SpaceDetails space={space} folders={subject.folders} files={subject.files} />
+      ) : single ? (
         <NodeDetails node={single} />
       ) : (
         <p className="text-muted-foreground p-3 text-xs">
@@ -108,6 +136,103 @@ export function DetailsPanel({ nodes, onClose }: { nodes: Node[]; onClose: () =>
           )}
         </p>
       )}
+    </div>
+  );
+}
+
+/**
+ * The space sheet, shown at the root of a space where there is no folder to
+ * describe. Every figure is already in cache from the listing except the
+ * member count, whose endpoint is member-readable and only queried while this
+ * is mounted.
+ *
+ * `folders`/`files` count what the listing is showing — the Archive is
+ * excluded and an active filter narrows them — because the panel sits beside
+ * those rows and should not contradict them.
+ */
+function SpaceDetails({ space, folders, files }: { space: Space; folders: number; files: number }) {
+  const { t } = useLingui();
+  const f = useFormatters();
+  const { openSettings } = useSettingsNavigation();
+  const members = useSpaceMembers(space.id);
+
+  const pct = storagePct(space);
+  const used = f.size(space.used_bytes);
+  const quota = f.size(space.quota_bytes);
+
+  return (
+    <div className="flex flex-col gap-4 p-3">
+      <div className="flex items-center gap-3">
+        <div className="bg-muted/50 flex size-10 shrink-0 items-center justify-center rounded-md">
+          <Building2 className="text-muted-foreground size-5" />
+        </div>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium">{space.name}</p>
+          {space.description && (
+            <p className="text-muted-foreground line-clamp-2 text-[11px]">{space.description}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Both panes are admin-only — the settings dialog bounces a member to
+          the account pane — so a member is offered neither. */}
+      {space.is_admin && (
+        <div className="border-border flex items-stretch gap-1 border-y py-1">
+          <PanelAction
+            icon={Settings2}
+            label={t`Space settings`}
+            // eslint-disable-next-line lingui/no-unlocalized-strings -- settings pane slug
+            onClick={() => openSettings("space")}
+          />
+          <PanelAction
+            icon={Users}
+            label={t`People`}
+            // eslint-disable-next-line lingui/no-unlocalized-strings -- settings pane slug
+            onClick={() => openSettings("members")}
+          />
+        </div>
+      )}
+
+      <div>
+        <SectionLabel>
+          <Trans>Storage</Trans>
+        </SectionLabel>
+        {pct !== null && (
+          <div className="bg-muted mb-1.5 h-1 w-full overflow-hidden rounded-full">
+            <div className="bg-primary h-full rounded-full" style={{ width: `${pct}%` }} />
+          </div>
+        )}
+        {/* One message per phrasing, not "used" glued onto a formatted size:
+            the two halves swap order in plenty of languages. */}
+        <p className="text-muted-foreground text-[11px] tabular-nums">
+          {pct !== null ? (
+            <Trans>
+              {used} of {quota}
+            </Trans>
+          ) : (
+            <Trans>{used} used</Trans>
+          )}
+        </p>
+      </div>
+
+      <div>
+        <SectionLabel>
+          <Trans>Details</Trans>
+        </SectionLabel>
+        <div className="divide-border divide-y">
+          <DetailRow
+            label={t`Contents`}
+            value={
+              <Trans>
+                <Plural value={folders} one="# folder" other="# folders" /> and{" "}
+                <Plural value={files} one="# file" other="# files" />
+              </Trans>
+            }
+          />
+          <DetailRow label={t`Members`} value={members.data ? members.data.length : "—"} />
+          <DetailRow label={t`Your access`} value={space.is_admin ? t`Admin` : t`Member`} />
+        </div>
+      </div>
     </div>
   );
 }

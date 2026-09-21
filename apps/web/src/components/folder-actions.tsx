@@ -153,18 +153,17 @@ export function folderActions(write: DriveWrite, listing?: ListingContext): Fold
     },
   );
 
-  // At the space root there is no folder to describe; the space's own
-  // information lives in its settings.
-  if (write.dir !== undefined) {
-    actions.push({
-      key: "folder-info",
-      label: msg`Folder information`,
-      icon: Info,
-      group: "info",
-      disabled: !listing.canDescribeFolder,
-      run: listing.onFolderInfo,
-    });
-  }
+  // At the space root the subject is the space itself, which the details
+  // panel describes; inside a folder it is that folder, once its own row has
+  // arrived.
+  actions.push({
+    key: "folder-info",
+    label: listing.infoSubject === "space" ? msg`Space information` : msg`Folder information`,
+    icon: Info,
+    group: "info",
+    disabled: listing.infoSubject === null,
+    run: listing.onFolderInfo,
+  });
 
   return actions;
 }
@@ -176,8 +175,11 @@ export interface ListingContext {
   view: NodeView;
   /** Rows currently listed, so Select all can be disabled when there are none. */
   count: number;
-  /** False until the current folder's own row has been fetched. */
-  canDescribeFolder: boolean;
+  /**
+   * What the (i) panel would describe here: the space at a root listing, the
+   * current folder once its own row has been fetched, nothing until then.
+   */
+  infoSubject: "space" | "folder" | null;
   onSort: (sort: SortField, order: SortOrder) => void;
   onView: (view: NodeView) => void;
   onSelectAll: () => void;
