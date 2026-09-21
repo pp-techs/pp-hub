@@ -1,0 +1,71 @@
+# Weblate configuration for pp-hub translation.
+#
+#   cp environment.example environment
+#
+# Compose reads this through `env_file`, so it is a plain KEY=VALUE file with
+# no quoting and no shell expansion. Upstream's annotated original is at
+# https://github.com/WeblateOrg/docker-compose/blob/main/environment
+
+# ─── Site ────────────────────────────────────────────────────────────────────
+
+# Required. Weblate refuses to start without it, and it is what ends up in the
+# links it emails. Use the host:port you actually reach it on.
+WEBLATE_SITE_DOMAIN=localhost:8090
+WEBLATE_SITE_TITLE=pp-hub translation
+
+WEBLATE_ADMIN_NAME=pp-hub maintainer
+WEBLATE_ADMIN_EMAIL=you@example.com
+# Leave empty and Weblate generates one into /app/data/initial.pwd:
+#   docker compose -f deploy/weblate/compose.yml exec weblate cat /app/data/initial.pwd
+WEBLATE_ADMIN_PASSWORD=
+
+WEBLATE_DEBUG=0
+WEBLATE_LOGLEVEL=INFO
+WEBLATE_ALLOWED_HOSTS=*
+
+# Closed by default. This instance has push access to a private repository, so
+# anyone who can register can eventually land a commit in it. Invite
+# translators from the admin UI instead.
+WEBLATE_REGISTRATION_OPEN=0
+WEBLATE_REQUIRE_LOGIN=1
+
+# ─── Postgres ────────────────────────────────────────────────────────────────
+# Weblate's own database. Nothing to do with pp-hub's Postgres — do not point
+# it at that one.
+
+POSTGRES_USER=weblate
+POSTGRES_DB=weblate
+# Change this. It is only reachable on the compose network, but a default
+# password that nobody ever edits is how a default password gets published.
+POSTGRES_PASSWORD=change-me
+POSTGRES_HOST=database
+POSTGRES_PORT=
+
+# ─── Cache ───────────────────────────────────────────────────────────────────
+
+REDIS_HOST=cache
+REDIS_PORT=6379
+
+# ─── Mail ────────────────────────────────────────────────────────────────────
+# Needed for invitations and notifications. Weblate expects a server on 587
+# that understands TLS. Without it, invite links have to be copied by hand.
+
+WEBLATE_EMAIL_HOST=127.0.0.1
+WEBLATE_EMAIL_HOST_USER=
+WEBLATE_EMAIL_HOST_PASSWORD=
+WEBLATE_SERVER_EMAIL=weblate@example.com
+WEBLATE_DEFAULT_FROM_EMAIL=weblate@example.com
+
+# ─── Machine translation (optional) ──────────────────────────────────────────
+# Free on self-hosted, with your own provider key. A suggestion a human still
+# has to approve is worth more than an empty string.
+#WEBLATE_MT_GOOGLE_KEY=
+#WEBLATE_MT_DEEPL_KEY=
+
+# ─── Behind a TLS terminator ─────────────────────────────────────────────────
+# compose.yml binds to loopback on purpose. If you put this on a real hostname,
+# terminate TLS in front of it and uncomment these.
+#WEBLATE_ENABLE_HTTPS=1
+#WEBLATE_IP_PROXY_HEADER=HTTP_X_FORWARDED_FOR
+#WEBLATE_TRUSTED_PROXY_ADDRESSES=proxy
+#WEBLATE_SECURE_PROXY_SSL_HEADER=HTTP_X_FORWARDED_PROTO,https

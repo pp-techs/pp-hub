@@ -18,6 +18,10 @@ dist-ssr
 !.env.example
 !.env.*.example
 
+# Weblate's compose env_file is named `environment`, not `.env`, so the rules
+# above do not reach it — and it carries the admin and database passwords.
+deploy/weblate/environment
+
 # Editor directories and files
 .vscode/*
 !.vscode/settings.json

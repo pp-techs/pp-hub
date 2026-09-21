@@ -955,7 +955,14 @@ lend.
 
 The OnlyOffice ribbon follows through `?ui=<locale>` on the edit session,
 resolved into the Document Server's `editorConfig.lang`. Translation runs in
-a self-hosted Weblate (GPL-3, no seat cap) against the repository itself, and
+a self-hosted Weblate (GPL-3, no seat cap), which is provisioned rather than
+merely recommended: `deploy/weblate/compose.yml` stands it up outside the
+product stack, and `deploy/weblate/pp-weblate-setup.sh` creates the project
+and component over the REST API, so the settings that are easy to get wrong
+and invisible once wrong — bilingual `po` rather than `po-mono`, an empty
+`template`, the `icu-message-format` flag — live in git instead of in a web
+form. Standing it up against this commit confirmed the catalog independently:
+677 of 677 Vietnamese messages, zero failing checks. And
 `apps/web/tests/catalogs.test.ts` holds the invariant Weblate cannot: that a
 catalog arriving by any other route still has balanced ICU braces and the
 placeholder set of its source.

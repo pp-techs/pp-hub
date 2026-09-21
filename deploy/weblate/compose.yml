@@ -1,0 +1,81 @@
+# Weblate — the translation platform, NOT part of the pp-hub product stack.
+#
+# This deliberately lives in its own compose file rather than in
+# compose.prod.yml. Weblate is infrastructure for the people who translate
+# pp-hub, not for the people who run it: a self-hoster deploying the drive has
+# no reason to stand up a Django app, a second Postgres and a Valkey to read
+# their own files. It is also sized quite differently — Weblate's documented
+# minimum is 2 CPU / 3 GB RAM on its own.
+#
+# Bring it up wherever the translation work happens (a maintainer's machine, or
+# one small VM), point it at this repository, and let it push a branch back:
+#
+#   cp environment.example environment   # then edit it
+#   docker compose -f deploy/weblate/compose.yml up -d
+#   docker compose -f deploy/weblate/compose.yml exec weblate cat /app/data/initial.pwd
+#
+# The component it should serve is created by ./pp-weblate-setup.sh, so the
+# configuration that matters is reviewable in git instead of typed into a form.
+# See docs/architecture/i18n.md.
+#
+# Upstream reference: https://github.com/WeblateOrg/docker-compose
+
+services:
+  cache:
+    image: valkey/valkey:9.1.2
+    volumes:
+      - redis-data:/data
+    command: [valkey-server, --save, "60", "1", --loglevel, warning]
+    restart: unless-stopped
+    read_only: true
+
+  database:
+    # Weblate v3 bundled a Postgres inside its own image and v4 removed it, so
+    # this is external from the start — there is no migration to do later.
+    image: postgres:18-alpine
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    env_file:
+      - ./environment
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  weblate:
+    # CalVer, not semver — Weblate switched numbering, so there is no 5.x to
+    # pin. Note for x86 hosts: 2026.8 made NumPy a hard dependency and the
+    # bundled build needs an x86-64-v2 CPU, or the container will not start.
+    image: weblate/weblate:2026.9.1.1
+    depends_on:
+      cache:
+        condition: service_started
+      database:
+        condition: service_healthy
+    volumes:
+      # Required even with an external Postgres: Weblate keeps its file
+      # storage, its SSH key and the generated admin password in here. Losing
+      # this volume means re-adding the deploy key to GitHub.
+      - weblate-data:/app/data
+      - weblate-cache:/app/cache
+    env_file:
+      - ./environment
+    ports:
+      # Bound to loopback: this is an authenticated admin surface with write
+      # access to the repository, and it has no business on a public
+      # interface without a TLS terminator in front of it. For a public
+      # deployment use upstream's docker-compose-https.yml as the model.
+      - "127.0.0.1:${PP_WEBLATE_PORT:-8090}:8080"
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /run
+      - /tmp
+
+volumes:
+  weblate-cache: {}
+  weblate-data: {}
+  postgres-data: {}
+  redis-data: {}

@@ -826,8 +826,12 @@ DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, HSTS and
   existing `users.settings` JSONB column, read off `GET /users/me` so it is
   known before first paint and written through
   `PATCH /api/v1/users/me/preferences`; the OnlyOffice ribbon follows via
-  `?ui=` on the edit session. Translation happens in a self-hosted Weblate
-  against the repository. What is _not_ covered: the server still emits
+  `?ui=` on the edit session. Translation runs in a self-hosted Weblate,
+  provisioned by `deploy/weblate/` — a compose stack plus
+  `pp-weblate-setup.sh`, which creates the project and component over the
+  REST API so the configuration is reviewable rather than typed into a form.
+  It is deliberately outside the product stack; a self-hoster running the
+  drive never starts it. What is _not_ covered: the server still emits
   English only — invitation mail, problem+json details and `/login?error=`
   codes — though the client already turns those codes into translated
   sentences. See [i18n.md](i18n.md).
