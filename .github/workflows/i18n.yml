@@ -1,0 +1,55 @@
+# Catalogs must match the source they were extracted from.
+#
+# Weblate reads apps/web/src/locales/en/messages.po to decide what there is to
+# translate. If a developer adds a <Trans> and does not re-extract, that string
+# is invisible to every translator — and the omission is silent, because the
+# app renders its own source text as the fallback and looks perfectly fine in
+# English. The same applies in reverse: a message deleted from the source but
+# left in the catalog keeps being translated by someone.
+#
+# So the catalogs are treated as generated artifacts that happen to be
+# committed, and this asserts they are current. `--clean` is included because
+# a stale entry is as much a drift as a missing one.
+name: i18n
+
+on:
+  pull_request:
+    paths:
+      - "apps/web/src/**"
+      - "apps/web/lingui.config.ts"
+      - "apps/web/package.json"
+      - ".github/workflows/i18n.yml"
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  catalogs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.2"
+
+      - run: bun install --frozen-lockfile --ignore-scripts
+
+      # Translations are not touched: extract only ever rewrites msgid and the
+      # source-language msgstr, so a drift here is always the developer's, not
+      # a translator's.
+      - name: Re-extract catalogs
+        working-directory: apps/web
+        run: |
+          bun run i18n:extract
+          bun run i18n:template
+
+      - name: Fail if the catalogs were not current
+        run: |
+          if ! git diff --quiet -- apps/web/src/locales; then
+            echo "::error::Message catalogs are out of date. Run 'bun run i18n:extract' and 'bun run i18n:template' in apps/web and commit the result."
+            git --no-pager diff --stat -- apps/web/src/locales
+            git --no-pager diff -- apps/web/src/locales | head -200
+            exit 1
+          fi
+          echo "Catalogs are in sync with the source."

@@ -72,7 +72,7 @@ else
 	echo "project $PROJECT: creating"
 	api POST /projects/ "$(
 		cat <<-JSON
-			{"name": "pp-hub", "slug": "$PROJECT", "web": "$WEB"}
+			{"name": "pp-hub", "slug": "$PROJECT", "web": "$WEB", "enable_hooks": true}
 		JSON
 	)" >/dev/null
 fi
@@ -102,6 +102,26 @@ echo "component $PROJECT/$COMPONENT: creating"
 #                        `#: file.tsx:12` lines. Those references are the only
 #                        context a translator gets for a bare "Open" or
 #                        "Cancel", so they are kept deliberately.
+#   merge_style "merge" — NOT the default, and not optional here. Weblate has
+#                        one working branch and publishes it under another
+#                        name: `git push origin $BRANCH:l10n/weblate`. The
+#                        default "rebase" rewrites its commits on every
+#                        upstream update, so that push stops being a
+#                        fast-forward, gets rejected, and auto_lock_error
+#                        locks the component. "merge" keeps l10n/weblate a
+#                        strict descendant, which is what makes
+#                        `git merge --ff-only` safe to repeat forever.
+#   push_on_commit     — already the default; pinned so a future change to
+#                        DEFAULT_PUSH_ON_COMMIT cannot silently break the loop.
+#   commit_pending_age — hours. Weblate commits lazily and the default is 24,
+#                        which means a translator's morning work reaches the
+#                        repository tomorrow. 1 bounds it to an hour.
+#   manage_units false — already the default. Keeps a translator from adding
+#                        msgid entries that the next `lingui extract` would
+#                        silently discard.
+#   git_force_push     — already false, but a component migrated from the old
+#                        "Git with force push" backend carries true, and force
+#                        pushing this branch would lose commits.
 # `po_remove_obsolete` is deliberately absent: it does not exist before
 # 2026.x and is a hard 400 there, and its default is already what we want.
 RESP=$(api POST "/projects/$PROJECT/components/" "$(
@@ -122,7 +142,13 @@ RESP=$(api POST "/projects/$PROJECT/components/" "$(
 		  "new_lang": "add",
 		  "check_flags": "icu-message-format",
 		  "source_language": "en",
-		  "language_regex": "^(en|vi)\$"
+		  "language_regex": "^(en|vi)\$",
+		  "merge_style": "merge",
+		  "push_on_commit": true,
+		  "commit_pending_age": 1,
+		  "auto_lock_error": true,
+		  "manage_units": false,
+		  "vcs_params": {"git_force_push": false}
 		}
 	JSON
 )")
