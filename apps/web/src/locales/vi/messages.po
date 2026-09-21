@@ -611,7 +611,7 @@ msgstr "Đã cập nhật ảnh đại diện"
 #: src/routes/drive/$spaceId/route.tsx:51
 #: src/routes/edit/$nodeId.tsx:74
 msgid "Back to Drive"
-msgstr "Quay lại kho lưu trữ"
+msgstr "Quay lại Drive"
 
 #: src/components/settings/panes/account-profile.tsx:118
 msgid "Bio"
@@ -695,7 +695,7 @@ msgstr "Thu gọn"
 
 #: src/components/nav-space.tsx:102
 msgid "Collapse My Drive"
-msgstr "Thu gọn Kho của tôi"
+msgstr "Thu gọn Drive của tôi"
 
 #: src/components/transfer-tray.tsx:88
 msgid "Collapse transfers"
@@ -1066,7 +1066,7 @@ msgstr "Tính năng tải xuống đã tắt cho tệp này, nên chỉ chủ s�
 #: src/routes/drive/$spaceId/index.tsx:84
 #: src/routes/login.tsx:143
 msgid "Drive"
-msgstr "Kho lưu trữ"
+msgstr "Drive"
 
 #: src/components/drop-zone.tsx:75
 msgid "Drop files to upload"
@@ -1182,7 +1182,7 @@ msgstr "Mở rộng"
 
 #: src/components/nav-space.tsx:102
 msgid "Expand My Drive"
-msgstr "Mở rộng Kho của tôi"
+msgstr "Mở rộng Drive của tôi"
 
 #: src/components/transfer-tray.tsx:88
 msgid "Expand transfers"
@@ -1313,7 +1313,7 @@ msgstr "Cấp quyền"
 
 #: src/routes/__root.tsx:39
 msgid "Go to Drive"
-msgstr "Đến Kho lưu trữ"
+msgstr "Đến Drive"
 
 #: src/routes/admin.security.tsx:77
 msgid "grant created"
@@ -1635,11 +1635,11 @@ msgstr "Tư cách thành viên"
 
 #: src/routes/login.tsx:198
 msgid "Minimal self-hosted workspace: drive, office, spaces."
-msgstr "Không gian làm việc tự lưu trữ tối giản: kho lưu trữ, văn phòng, không gian."
+msgstr "Không gian làm việc tự lưu trữ tối giản: Drive, Office, không gian."
 
 #: src/routes/login.tsx:136
 msgid "Minimal self-hosted workspace: drive, office, spaces. Nothing leaves the machine you run it on."
-msgstr "Không gian làm việc tự lưu trữ tối giản: kho lưu trữ, văn phòng, không gian. Không dữ liệu nào rời khỏi máy bạn chạy nó."
+msgstr "Không gian làm việc tự lưu trữ tối giản: Drive, Office, không gian. Không dữ liệu nào rời khỏi máy bạn chạy nó."
 
 #: src/components/listing-controls.tsx:24
 #: src/components/node-list.tsx:63
@@ -1690,7 +1690,7 @@ msgstr "Đã di chuyển {done, plural, one {# mục} other {# mục}} vào {des
 #: src/components/nav-space.tsx:98
 #: src/components/site-header.tsx:150
 msgid "My Drive"
-msgstr "Kho của tôi"
+msgstr "Drive của tôi"
 
 #: src/components/group-list.tsx:357
 #: src/components/listing-controls.tsx:23
@@ -2604,7 +2604,7 @@ msgstr "Thiết bị này luôn ở trạng thái đăng nhập."
 
 #: src/components/preview-content.tsx:269
 msgid "This file opens in the office editor."
-msgstr "Tệp này mở trong trình soạn thảo văn phòng."
+msgstr "Tệp này mở trong trình soạn thảo Office."
 
 #: src/routes/s/$token.tsx:113
 msgid "This file was shared with you"
