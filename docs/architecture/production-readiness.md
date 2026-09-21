@@ -4,10 +4,14 @@ M1–M19 delivered the product; M20 closed one of the items below, M21 closed
 three more plus a set of things nobody had written down, and M22–M24 closed
 the rest of the P0 register — backup and restore, an invitation mail
 transport, and the REST/WOPI write collision — along with two items that
-were never on it: the readiness split and the avatar-upload stub. This
-document is what stood between that product and an internal rollout,
-assessed against the target deployment: **one company, 20–100 users, several
-departments, self-hosted, no compliance auditor yet**.
+were never on it: the readiness split and the avatar-upload stub. **M33 then
+un-closed half of §2**: membership moved to a Logto organization, the space
+invitation it was built to deliver no longer exists, and `internal/mail` was
+deleted with it. §2 below is left as it was assessed and closed; the
+heading says what happened to it. This document is what stood between that
+product and an internal rollout, assessed against the target deployment:
+**one company, 20–100 users, several departments, self-hosted, no compliance
+auditor yet**.
 
 It is the evidence, not the plan. [milestones.md](milestones.md) holds the
 plan: every remaining gap below is carried by a named milestone, **M25
@@ -103,7 +107,17 @@ Retention defaults to 14 days (`-k`), the output directory defaults to
 the suggested line is a comment in the script's header, for an operator to
 add.
 
-### 2. There was no mail transport — closed in M23, invitations only
+### 2. There was no mail transport — closed in M23, reopened by M33
+
+> **The transport is gone.** M33 made space membership a projection of a Logto
+> organization, so the space invitation — the only message this transport ever
+> sent — no longer exists, and `internal/mail`, `config.validateSMTP` and the
+> `PP_SMTP_*` variables were deleted with it. Invitation email is now Logto's,
+> through an email connector and its `OrganizationInvitation` template
+> ([logto-org-sync.md](logto-org-sync.md), [deployment.md](../deployment.md)).
+> The assessment below is kept as it was written: it is why the item was
+> closed, and the notification half it deferred to **M29** is now that
+> milestone's whole problem, transport included.
 
 What it was: grep `smtp|mailer|sendmail|gomail|sendgrid|notif` across
 `apps/server` and `deploy/` returned zero functional hits, `go.mod` had no
@@ -506,10 +520,11 @@ an attacker could actually reach, not by how the fix reads.
 5. **An unverified email claim could rewrite `users.email`.** The adoption
    path in `resolveUser` had always required `email_verified`; the ordinary
    path had not, and rewrote the stored address from the claim on every
-   sign-in. Since that column is what invitation acceptance matches on, what a
-   direct share is granted to, and what `PP_BOOTSTRAP_ADMIN_EMAIL` is compared
-   against, an IdP that lets a user set their own address turned it into a way
-   to collect somebody else's invitations — or, with a bootstrap admin
+   sign-in. Since that column is what a direct share is granted to, what the
+   member-add path resolves an address against, and what
+   `PP_BOOTSTRAP_ADMIN_EMAIL` is compared against, an IdP that lets a user set
+   their own address turned it into a way to be handed somebody else's access —
+   or, with a bootstrap admin
    configured, to take the instance. The asymmetry was the bug; both paths now
    require verification, and admin promotion requires it separately.
 6. **The client's IP address was the client's choice.** The chain began with
@@ -719,11 +734,21 @@ rather than a place work starts.
 
 ### Identity is managed by hand — M28
 
-Users exist only after a successful OIDC login (`auth.Service.resolveUser`),
-and only `email`, `email_verified` and `name` are read from the token. There
-is no SCIM, no admin create-user, no pre-provisioning, and no group sync from
-OIDC claims — so department structure that already exists in the IdP has to be
-re-entered as pp-hub groups and kept in step manually.
+**M33 delivered the membership half of this.** Space membership and admin
+status now arrive from a Logto organization, and reconciliation pre-creates
+`users` rows from the Management API response — so pre-provisioning exists,
+keyed on `(oidc_iss, oidc_sub)`, and the company roster is no longer re-entered
+by hand. **The rule this section used to state — nothing creates an account
+ahead of its owner's first login — was deliberately reversed there**: it was
+right while pp-hub owned identity, and wrong once the IdP is authoritative,
+because the key is exact and comes from the system that issued it.
+
+What is still managed by hand is everything below the company line. There is
+no SCIM, no admin create-user, and **no group sync**: a Logto organization
+template is tenant-wide and cannot express a per-space, user-created group, so
+department structure that already exists in the IdP is still re-entered as
+pp-hub groups and kept in step manually. Only `email`, `email_verified`,
+`name`, `organizations` and `organization_roles` are read from the token.
 
 Identity is keyed on `(oidc_iss, oidc_sub)`, but since M20 that key is no
 longer the only way in: a miss falls back to the **verified** email and
@@ -731,21 +756,23 @@ re-points the existing account (`AdoptUserIdentity`), because `oidc_iss` is a
 URL an operator can change and changing it used to make every returning user
 look brand new — the insert then collided with the unique index on
 `(tenant_id, email_hash)` and sign-in answered 500 for everybody. A genuine
-collision answers `email-taken` on the sign-in page rather than a 500. This is
-a recovery path, not provisioning: nothing here creates an account ahead of
-its owner's first login.
+collision answers `email-taken` on the sign-in page rather than a 500. That is
+a recovery path for a changed issuer, and it is separate from the
+pre-provisioning above, which only ever inserts an identity Logto has already
+issued.
 
 Both directions of that key are now gated on `email_verified`, which M21
 made symmetric. The adoption path above always required a verified claim; the
 ordinary hit did not — `resolveUser` passed the claimed address straight into
 `TouchUserLogin` on every sign-in, so `users.email` was rewritten from
-whatever the IdP said. That address is not decoration: it is what invitation
-acceptance matches on, what a direct share is granted to, and what
-`PP_BOOTSTRAP_ADMIN_EMAIL` is compared against. At a self-service IdP a user
-who could set their own address could therefore set it to the bootstrap
-admin's and be promoted, or to a colleague's and collect their pending
-invitations. Now an unverified claim leaves the stored address alone and logs
-that it was ignored; only a verified one updates it. `email_verified` itself
+whatever the IdP said. That address is not decoration: it is what a direct
+share is granted to, what the member-add path resolves against an upstream
+account, and what `PP_BOOTSTRAP_ADMIN_EMAIL` is compared against. At a
+self-service IdP a user who could set their own address could therefore set it
+to the bootstrap admin's and be promoted, or to a colleague's and be handed
+what was meant for them. Now an unverified claim leaves the stored address
+alone and logs that it was ignored; only a verified one updates it.
+`email_verified` itself
 is decoded through a `boolish` type, because some providers send it as the
 string `"true"` and a strict decode would fail the whole claims read and take
 every other claim down with it.
@@ -770,7 +797,7 @@ here so they are not quietly absorbed into one that does not cover them.
   (`blob/blob.go:29-40`); the S3 backend sets no SSE headers; Postgres runs
   `sslmode=disable` inside the compose network (the `PP_DATABASE_URL` both
   the `server` and `worker` services are given in `compose.prod.yml`).
-  Share and invite tokens _are_ stored hashed. Unscheduled.
+  Share tokens and session tokens _are_ stored hashed. Unscheduled.
 - **Security headers shipped in M21, with two deliberate exceptions and one
   still to fix.** `apps/web/nginx.conf` now sends CSP, `X-Frame-Options:
 DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, HSTS and
@@ -832,8 +859,9 @@ DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, HSTS and
   REST API so the configuration is reviewable rather than typed into a form.
   It is deliberately outside the product stack; a self-hoster running the
   drive never starts it. What is _not_ covered: the server still emits
-  English only — invitation mail, problem+json details and `/login?error=`
-  codes — though the client already turns those codes into translated
+  English only — problem+json details and `/login?error=` codes, and the
+  organization invitation is whatever Logto's template says — though the
+  client already turns those codes into translated
   sentences. See [i18n.md](i18n.md).
 - **No orphan-blob audit.** `gc.Worker.Sweep` deletes the blob row before the
   file (`gc/gc.go:64-67`) — deliberately, since the other order leaves a row
@@ -874,7 +902,8 @@ phase ever needed were already applied; the Document Server runs signed, the
 first admin is a configuration value, upload bodies and request rates have
 ceilings, and the sweep findings in §8 are closed. What remained was the work
 that was not code in this repository — **M22** (§1, backup and restore, now a
-drilled restore) and **M23** (§2, mail transport, invitations only) — plus
+drilled restore) and **M23** (§2, mail transport, invitations only — since
+deleted by M33, which moved that email to Logto) — plus
 **M24** (§7), whose decision landed as refuse-not-lock: the REST
 version-upload and version-restore paths now answer 409 against a live lock
 rather than taking one of their own, which is simple, correct, and
@@ -904,10 +933,11 @@ by hand". These are what changes when the user count crosses a couple of
 departments, and each one is additive to a pattern that already exists.
 
 **Phase C — collaboration and storage honesty.** **M29 — comments and
-notifications**, whose notification half reuses M23's mail transport rather
-than waiting on it — M23 shipped invitations only, so M29 still owns the
-design of what a share or comment notification says and adds `notifications`
-as its own message kind; M30 — resumable upload and honest accounting, which
+notifications**, which is now the whole of that problem rather than half of
+it: M33 deleted the transport M23 built, because the invitation it carried
+moved to Logto, so M29 owns the notification story, what a share or comment
+notification says, the `notifications` table _and_ the transport that delivers
+any of it; M30 — resumable upload and honest accounting, which
 is the dead `uploads` table, version retention and a quota that counts every
 referenced blob; and **M31 — document creation** from a template.
 
@@ -922,8 +952,8 @@ them too.
 ## Verdict
 
 A pilot with one department is reasonable now that Phase A is done: a backup
-that has been restored from, invitations that reach an inbox when SMTP is
-configured, a locked file that a REST upload cannot silently overwrite, a
+that has been restored from, a locked file that a REST upload cannot silently
+overwrite, a
 `/readyz` that actually fails when a dependency has, and an avatar upload
 that survives a reload — provided everyone understands that search finds
 names rather than contents and that there are no comments. A company-wide

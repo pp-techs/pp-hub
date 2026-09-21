@@ -108,7 +108,7 @@ Closes the gaps between the shipped app and the Stitch screens that needed no ne
 ## M10 — Space Settings & Admin Console ✅ done
 
 - Migration `0009_space_settings.sql`: `spaces` gains slug / description / default_role / archived_at; `space_invitations`; `users.suspended_at`.
-- **Invitations exist because `space_members.user_id` references a user row.** An invited address may have no account, so the promise of membership cannot live in that table. Only the token hash is stored; the plaintext is shown once, like a share link. Re-inviting the same address **replaces** the pending row (partial unique index on `(space_id, lower(email)) WHERE accepted_at IS NULL`), so only the newest link works.
+- **Invitations exist because `space_members.user_id` references a user row.** An invited address may have no account, so the promise of membership cannot live in that table. Only the token hash is stored; the plaintext is shown once, like a share link. Re-inviting the same address **replaces** the pending row (partial unique index on `(space_id, lower(email)) WHERE accepted_at IS NULL`), so only the newest link works. **All of the invitation half of this milestone was superseded in M33**, which made membership a projection of a Logto organization: `space_invitations`, the four routes below and `/invite/$token` are gone, and an invitation is now a Logto organization invitation. The prose here is kept as it shipped.
 - Inviting an address that already has an account adds them as a member directly — an invitation would be a pointless extra step for someone who can already sign in.
 - Accepting checks that the invitation's address matches the signed-in account: it is addressed to an email, not to whoever holds the link.
 - `PATCH|DELETE /api/v1/spaces/{id}`, `GET|POST /spaces/{id}/invitations`, `DELETE /spaces/{id}/invitations/{inviteID}`, `POST /invitations/accept`, `GET /admin/stats`, `PATCH /admin/users/{userID}`.
@@ -760,7 +760,14 @@ written, backed up, destroyed (`DROP SCHEMA public CASCADE`, `rm -rf
 /data/blobs/*`), and restored — the row, the blob's bytes, and
 `schema_migrations`' newest version all came back identical.
 
-## M23 — Mail Transport, Invitations Only ✅ done
+## M23 — Mail Transport, Invitations Only ✅ done · superseded by M33
+
+> The only message `internal/mail` ever sent was the space invitation, and
+> **M33 moved invitation email to Logto**. The package and the `PP_SMTP_*`
+> variables are deleted; there is no SMTP transport in the product today. The
+> entry below is left as it shipped rather than rewritten — it is why P0 §2
+> was closed, and M29 still needs a transport, which it will have to choose
+> again.
 
 P0 §2. There was no mailer and no in-app substitute for one:
 `handleCreateInvitation` minted a token and handed the URL back to the
@@ -809,6 +816,102 @@ Deliberately out of scope: trash, move and rename of a locked node — none
 change file bytes, and `handleWopiPutFile` already refuses a tombstone.
 `TestRestVersionUploadRefusesALockedFile` holds the line against a real
 Postgres.
+
+## M33 — Membership Is a Logto Organization ✅ done
+
+Membership was defined twice. An operator created the person in Logto so they
+could sign in, then invited the same address into a space in pp-hub so they
+could see anything: two consoles, two mental models, two lists that drifted
+apart the first time somebody was off-boarded in one of them.
+
+**Decision taken: a Logto organization is the source of truth for who belongs
+to a company.** pp-hub stops being a second place where that is decided and
+becomes the place where it is applied. `spaces.idp_org_id` names the
+organization a space mirrors, and `space_members` becomes a **projection** of
+its member list — a table still, because ten SQL sites join it to scope a
+query and thirteen Go guards read it, but one with exactly one writer. The
+organization role `admin` maps onto the automatic `Admin` group; user-created
+groups, grants, ownership, quota and the Archive are untouched, because a
+tenant-wide organization template cannot express a per-space group and should
+not try.
+
+**This supersedes the invitation work in M9 and M23** — `space_invitations`,
+the four invitation routes, `POST /invitations/accept`, `/invite/$token`,
+`internal/mail` and the `PP_SMTP_*` variables are all gone. Those entries
+stay as written: they were true when they shipped, and rewriting them would
+hide the fact that a local invitation system existed, was used, and was
+replaced rather than merely never built. An invitation is now a Logto
+organization invitation, delivered by Logto's own email connector and its
+`OrganizationInvitation` template, which is also why deleting `internal/mail`
+does not remove mail configuration — it moves it upstream.
+
+**What shipped.** `internal/orgsync`: a Management API client over an
+in-process `client_credentials` token (refreshed ahead of expiry and on a 401,
+paginating on `Link`/`Total-Number`), `ReconcileUser` from the sign-in claims
+and `ReconcileOrg` as the job body. Three signals feed it — the
+`organizations`/`organization_roles` ID-token claims, a
+`Organization.Membership.Updated` webhook at `POST /hooks/logto`, and an
+hourly ticker — and **none of them applies a delta**: every one re-reads the
+organization and converges, because webhook payloads arrive unordered and
+incremental application would be a correctness bug waiting for concurrency.
+The webhook is mounted outside `/api/v1` deliberately: that group's auth and
+same-origin middlewares are asserted by a router walk, and an unauthenticated
+route inside it would mean loosening the test that protects the whole API. It
+verifies an HMAC-SHA256 of the **raw** body in constant time, enqueues
+`jobs(kind='org_reconcile')` and returns 2xx rather than doing the work inline.
+
+`RemoveMember`'s five steps split in two, which is the other half of this
+milestone. **Revocation is immediate** — group rows then the membership row,
+on whichever sync path noticed, idempotent — and it is sufficient, because
+content access requires current membership, so the grants left standing grant
+nothing. **Teardown is confirmed**: `space_departures` queues the destructive
+half (grant revocation, the ownership climb, owned roots into the Archive, the
+archive grant re-seated) behind `POST /spaces/{id}/departures/{userID}/complete`
+and an admin's decision, because an accidental click in the Logto Console must
+not be able to trigger something irreversible. `POST /spaces/{id}/members`
+takes `{"email", "as_admin"}` and answers **201 added** or **202 invited**,
+with 409/422/503 for already-a-member, an unlinked space and an unreachable
+IdP; the space DTO gains `admin_count` and `idp_org_id`, and the People page
+grows a pending-departures queue and an admin-less banner.
+
+**A space is allowed to end up with no admin**, which is new and deliberate.
+pp-hub's own write path still refuses to remove or demote the last one
+(`ErrLastAdmin`, checked before the Management API call), but a removal
+performed in the Console is a fact, not a request. Auto-promoting
+`spaces.owner_id` would invent a privilege nobody asked for and break the rule
+that admin means exactly one thing; writing the role back would put pp-hub in
+a loop with whoever is editing the Console. So the space says so in a banner
+and an instance admin resolves it.
+
+Reconciliation also pre-creates `users` rows from the Management API response,
+keyed on `(oidc_iss, oidc_sub)`. That **reverses M28's standing rule** that
+nothing creates an account ahead of its owner's first sign-in — right while
+pp-hub owned identity, wrong once the IdP is authoritative, since the key is
+exact and comes from the system that issued it. Without it the People page
+would show a subset of the organization and reproduce the very
+two-lists-disagreeing problem this milestone exists to remove.
+
+**Verified.** HMAC verification against a fixed vector — valid, tampered,
+missing header, empty body. Convergence against a real Postgres in
+`permissions_db_test.go` (skipped without `PP_TEST_DATABASE_URL`): add, remove
+and role flip, running reconcile twice changing nothing, and the departure
+lifecycle asserting that revocation blocks access immediately while only
+`CompleteDeparture` moves content into the Archive. The Management API client
+against an `httptest` server covering pagination and a 401 → token refresh;
+no live Logto in the suite. And as delivered evidence, a smoke run on
+`compose.dev.yml --profile idp`: organization, M2M app and webhook created in
+the Console, sign in, the space shows the right members, remove the user
+upstream, 403 within one webhook delivery with a pending departure row, then
+complete the departure and find the content in the Archive.
+
+**Backfill was considered and refused.** Creating an organization per existing
+space and pushing its members up is a real tool, but the project is
+pre-production: linking a space to an organization is one `UPDATE` in
+development, and reconciling a space whose `idp_org_id` is NULL is a no-op by
+design, so an unlinked space is stable rather than emptied. See
+[logto-org-sync.md](logto-org-sync.md) for the whole design, and
+[deployment.md](../deployment.md) for what an operator must configure in Logto
+first.
 
 ## Upcoming — M25 Onward 🚧 not done
 
@@ -873,32 +976,36 @@ match.
 
 #### M28 — Directory Sync 🔜 planned
 
-P1, "Identity is managed by hand". Users exist only after a successful OIDC
-login and only `email`, `email_verified` and `name` are read from the token:
-there is no SCIM, no admin create-user, no pre-provisioning and no group sync
-from claims, so department structure that already exists in the IdP is
-re-entered as pp-hub groups by hand and kept in step the same way. M20's
-identity adoption is a recovery path for a changed issuer, not provisioning —
-nothing creates an account ahead of its owner's first sign-in. Finishing it
-means accounts and group membership arriving from the IdP; deprovisioning is
-the harder half and this does not solve it, since there is no `DeleteUser`,
-suspension is the terminal state, and the archive hand-off is per-space with
-no instance-level equivalent.
+P1, "Identity is managed by hand". **M33 delivered the membership half of
+this**: accounts are pre-provisioned from a Logto organization's member list
+and space membership plus admin status arrive from the IdP, so the rule this
+entry used to state — nothing creates an account ahead of its owner's first
+sign-in — no longer holds, and neither does re-entering the company roster by
+hand. What is left is the rest of the directory: no SCIM, no admin
+create-user, and **no group sync** — a Logto organization template is
+tenant-wide and cannot express a per-space, user-created group, so department
+structure below the company line is still built in pp-hub and kept in step by
+hand. Deprovisioning is the harder half and M33 only moved it: a departure is
+revoked immediately and torn down per space on an admin's confirmation, but
+there is still no `DeleteUser`, suspension is still the terminal state, and
+there is no instance-level equivalent of the archive hand-off.
 
 ### Phase C — Collaboration and Storage Honesty
 
 #### M29 — Comments and Notifications 🔜 planned
 
-P1, "No comments", plus the notification half of P0 §2. **M23 built the
-transport, not the feature**: `internal/mail` exists and sends, but only from
-`handleCreateInvitation` — there is still no `notifications` table, no route,
-no SSE or websocket, so a comment nobody is told about is still a comment
-nobody answers. Comments themselves are a whole subsystem — a table,
+P1, "No comments", plus the notification half of P0 §2, and it is now the
+whole of it. **M23 built a transport and M33 deleted it**: `internal/mail`
+existed only to send the space invitation, invitation email moved to Logto's
+own connector, and the package and its `PP_SMTP_*` variables went with it —
+so there is again no mailer, alongside the `notifications` table, route, SSE
+or websocket that never existed. A comment nobody is told about is still a
+comment nobody answers. Comments themselves are a whole subsystem — a table,
 endpoints and two UIs, the preview modal and the editor — and have been
 deferred in those words at every milestone since M10, which was accurate
-each time. Finishing it means both: threads on a node, and delivery for
-them, reusing `internal/mail` for the mail half rather than building a
-second transport.
+each time. Finishing it means all of it: threads on a node, a notification
+story, and a transport chosen again — a relay of our own, or the IdP's
+connector if Logto's templating turns out to stretch that far.
 
 #### M30 — Resumable Upload and Honest Accounting 🔜 planned
 
@@ -967,8 +1074,9 @@ form. Standing it up against this commit confirmed the catalog independently:
 catalog arriving by any other route still has balanced ICU braces and the
 placeholder set of its source.
 
-Deliberately out: **the server is still English only** — invitation mail,
-problem+json details and `/login?error=` codes — though the client already
+Deliberately out: **the server is still English only** — problem+json details
+and `/login?error=` codes, and now also whatever Logto's own invitation
+template says — though the client already
 turns those codes into translated sentences, which is the pattern to extend.
 See [i18n.md](i18n.md).
 
@@ -990,12 +1098,12 @@ are recorded here so they are found rather than rediscovered:
   guessed from the extension) and no extension blocklist.
 - **No encryption at rest.** Local blobs are plaintext, the S3 backend sets no
   SSE headers, and Postgres runs `sslmode=disable` inside the compose network.
-  Share and invite tokens _are_ stored hashed.
+  Share tokens and session tokens _are_ stored hashed.
 
 ## Testing Strategy
 
 - **Unit**: capability resolver matrix (ownership × grant × ancestor × link), blob CAS (put/get/dedup/gc), tree ops (move-cycle rejection, rename conflicts).
-- **Database-backed**: the invariants that live in SQL — owner inheritance, admin-has-no-access, member lifecycle, session lookup and revocation, and WOPI access re-resolved against live grants — run against a real Postgres and skip without `PP_TEST_DATABASE_URL`.
+- **Database-backed**: the invariants that live in SQL — owner inheritance, admin-has-no-access, member lifecycle, organization convergence and the departure queue, session lookup and revocation, and WOPI access re-resolved against live grants — run against a real Postgres and skip without `PP_TEST_DATABASE_URL`.
 - **Structural**: three router walks. `TestEveryAPIRouteIsAuthenticated` fails if an `/api/v1` route is not wrapped by the auth middleware, `TestEveryAPIMutationChecksOrigin` fails if a non-safe `/api/v1` method is not wrapped by `sameOrigin`, and `TestWopiIsExemptFromOriginChecks` fails if the WOPI group ever is. A convention nobody can forget is worth more than a convention everybody is told about.
 - **Integration** (compose test profile): upload→download byte-identical roundtrip; WOPI flow against real OnlyOffice (open → PutFile → version increments); link share access without auth.
 - **Contract**: hand-typed TS interfaces in `apps/web/src/lib/api/types.ts` mirror the Go handlers; OpenAPI codegen deferred until the surface grows.

@@ -20,8 +20,8 @@ import type { UserProfile } from "@/lib/api";
  *
  * Reading the profile through `getQueryData` plus a cache subscription rather
  * than `useMe()` is deliberate — this sits above the router, so a `useQuery`
- * here would fire an identity request on `/login`, `/s/{token}` and
- * `/invite/{token}`, which are all legitimately signed out.
+ * here would fire an identity request on `/login` and `/s/{token}`, which
+ * are both legitimately signed out.
  */
 function useAccountLocale() {
   const qc = useQueryClient();

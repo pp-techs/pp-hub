@@ -1,3 +1,4 @@
+import type { FormEvent } from "react";
 import { toast } from "sonner";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { UserPlus } from "lucide-react";
@@ -13,40 +14,82 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@workspace/ui/components/dialog";
-import type { UserSearchResult } from "@/lib/api";
+import { ApiError } from "@/lib/api";
 import { useKeyedState } from "@/lib/use-keyed-state";
-import { useAddSpaceMember, useCreateInvitation } from "@/lib/queries";
-import { MemberPicker } from "@/components/member-picker";
-import { SectionLabel } from "@/components/section-label";
+import { useAddSpaceMember } from "@/lib/queries";
 
 interface InviteProps extends Record<string, unknown> {
   spaceId: string;
-  /** Accounts already in the space, hidden from the picker. */
-  memberIds: string[];
   /** Seeds the admin switch from the space's own default. */
   defaultAsAdmin: boolean;
 }
 
 /**
- * Adds someone to the space — by picking an existing account, or by emailing
- * an address that has none.
+ * Adds an address to the space.
+ *
+ * An email address is the whole form, because membership is the identity
+ * provider's to decide: pp-hub asks it to put the address in the space's
+ * organization and mirrors whatever comes back. An address it already knows
+ * is a member the moment this returns; one it does not gets an organization
+ * invitation by mail and shows up here once it is accepted. There is no
+ * account picker any more — there is nothing local left to pick from.
  *
  * The only way into a space: `settings/people` opens it, nothing else does.
  */
 export const InviteModal = createModal<InviteProps>(
   "invite-people",
-  ({ spaceId, memberIds, defaultAsAdmin, modal }) => {
+  ({ spaceId, defaultAsAdmin, modal }) => {
     const { t } = useLingui();
     const addMember = useAddSpaceMember();
-    const invite = useCreateInvitation(spaceId);
 
     // better-modal keeps a closed modal mounted, so plain `useState` would
     // hold the last invite's typed address for the life of the app. The key is
     // the opening itself: reopening for the same space still starts blank.
     const opening = `${spaceId}:${modal.visible}`;
     const [asAdmin, setAsAdmin] = useKeyedState(opening, defaultAsAdmin);
-    const [picked, setPicked] = useKeyedState<string, UserSearchResult | null>(opening, null);
     const [email, setEmail] = useKeyedState(opening, "");
+
+    /**
+     * Each refusal means something different to the person reading it, and
+     * only one of them is worth retrying. 422 in particular is not this
+     * screen's to fix: the space mirrors no organization, so there is nowhere
+     * to put the address until an instance administrator links one.
+     */
+    const reason = (error: Error): string => {
+      const status = error instanceof ApiError ? error.status : 0;
+      if (status === 409) return t`They are already a member of this space.`;
+      if (status === 422) {
+        return t`This space is not linked to an organization yet, so nobody can be added to it. An instance administrator has to link it first — there is nothing to fix from this screen.`;
+      }
+      if (status === 503) {
+        return t`The identity provider could not be reached. Nothing was changed; try again in a moment.`;
+      }
+      return error.message;
+    };
+
+    const submit = (e: FormEvent) => {
+      e.preventDefault();
+      const address = email.trim();
+      addMember.mutate(
+        { spaceId, email: address, as_admin: asAdmin },
+        {
+          onSuccess: (result) => {
+            if (result.status === "invited") {
+              toast.success(t`Invitation sent to ${address}`, {
+                description: t`They have no account yet, so the identity provider emailed them one. They join this space as soon as they accept.`,
+              });
+            } else {
+              toast.success(t`${address} is now a member`, {
+                description: t`They already had an account, so they were added straight away.`,
+              });
+            }
+            modal.resolve(undefined);
+          },
+          onError: (error) =>
+            toast.error(t`Could not add ${address}`, { description: reason(error) }),
+        },
+      );
+    };
 
     return (
       <Dialog open={modal.visible} onOpenChange={(open) => !open && modal.resolve(undefined)}>
@@ -63,7 +106,7 @@ export const InviteModal = createModal<InviteProps>(
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex flex-col gap-4">
+          <form className="flex flex-col gap-4" onSubmit={submit}>
             <div className="flex items-center justify-between gap-2">
               <Label htmlFor="invite-as-admin" className="cursor-pointer text-sm font-normal">
                 <Trans>Join as admin</Trans>
@@ -75,95 +118,29 @@ export const InviteModal = createModal<InviteProps>(
             </div>
 
             <div className="flex flex-col gap-1">
-              <SectionLabel>
-                <Trans>Someone with an account</Trans>
-              </SectionLabel>
-              <div className="flex items-center gap-2">
-                <div className="min-w-0 flex-1">
-                  <MemberPicker
-                    onSelect={setPicked}
-                    excludeIds={memberIds}
-                    placeholder={picked ? picked.display_name || picked.name : t`Search people…`}
-                  />
-                </div>
-                <Button
-                  disabled={!picked || addMember.isPending}
-                  onClick={() =>
-                    picked &&
-                    addMember.mutate(
-                      { spaceId, user_id: picked.id, as_admin: asAdmin },
-                      {
-                        onSuccess: () => {
-                          const who = picked.display_name || picked.name;
-                          toast.success(t`Added ${who}`);
-                          modal.resolve(undefined);
-                        },
-                        onError: (e) => toast.error(e.message),
-                      },
-                    )
-                  }
-                >
-                  <Trans>Add</Trans>
-                </Button>
-              </div>
-            </div>
-
-            <form
-              className="flex flex-col gap-1"
-              onSubmit={(e) => {
-                e.preventDefault();
-                invite.mutate(
-                  { email: email.trim(), as_admin: asAdmin },
-                  {
-                    onSuccess: (result) => {
-                      const invitedEmail = result.email;
-                      if (result.added_member) {
-                        toast.success(t`${invitedEmail} already has an account`, {
-                          description: t`They were added to the space directly.`,
-                        });
-                      } else if (result.mail_sent) {
-                        void navigator.clipboard?.writeText(result.url ?? "");
-                        toast.success(t`Invitation sent`, {
-                          description: t`Emailed to ${invitedEmail}. The link is also on your clipboard.`,
-                        });
-                      } else if (result.url) {
-                        void navigator.clipboard?.writeText(result.url);
-                        toast.success(t`Invitation created`, {
-                          description: t`The link is on your clipboard — send it to them.`,
-                        });
-                      }
-                      modal.resolve(undefined);
-                    },
-                    onError: (e) => toast.error(t`Could not invite`, { description: e.message }),
-                  },
-                );
-              }}
-            >
-              <SectionLabel>
-                <Trans>By email</Trans>
-              </SectionLabel>
               <div className="flex items-center gap-2">
                 <Input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@example.com"
-                  aria-label={t`Email to invite`}
+                  aria-label={t`Email address to add`}
                   className="min-w-0 flex-1"
                   required
+                  autoFocus
                 />
-                <Button type="submit" disabled={invite.isPending || !email.trim()}>
-                  <UserPlus data-icon="inline-start" /> <Trans>Invite</Trans>
+                <Button type="submit" disabled={addMember.isPending || !email.trim()}>
+                  <UserPlus data-icon="inline-start" /> <Trans>Add</Trans>
                 </Button>
               </div>
               <p className="text-muted-foreground text-[10px]">
                 <Trans>
-                  pp-hub does not send mail yet. The invitation link is copied to your clipboard so
-                  you can send it yourself; it expires in 14 days.
+                  An address that already has an account joins immediately. Any other address is
+                  emailed an invitation by the identity provider and appears here once accepted.
                 </Trans>
               </p>
-            </form>
-          </div>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
     );

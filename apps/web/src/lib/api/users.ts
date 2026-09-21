@@ -1,13 +1,14 @@
 // User management API endpoints.
 import { api, ApiError } from "./client";
 import type {
+  AddMemberResult,
   AdminUser,
   SecurityEventPage,
   Session,
+  SpaceDeparture,
   SpaceMember,
   UserPreferences,
   UserProfile,
-  UserSearchResult,
 } from "./types";
 
 // ─── Profile ─────────────────────────────────────────────────────────────────
@@ -65,14 +66,6 @@ export async function revokeOtherSessions(): Promise<void> {
   if (!res.ok) throw new ApiError(res.status, "Failed to revoke sessions");
 }
 
-// ─── User Search ─────────────────────────────────────────────────────────────
-
-export async function searchUsers(q: string, limit = 20): Promise<UserSearchResult[]> {
-  const res = await api.get("api/v1/users/search", { searchParams: { q, limit } });
-  if (!res.ok) throw new ApiError(res.status, "Search failed");
-  return res.json();
-}
-
 // ─── Admin: List Users ───────────────────────────────────────────────────────
 
 /**
@@ -118,15 +111,26 @@ export async function getSpaceMembers(spaceId: string): Promise<SpaceMember[]> {
   return res.json();
 }
 
+/**
+ * Adds an address to the space's organization. The identity provider decides
+ * what that means: an address it already knows becomes a member immediately
+ * (`added`), one it does not gets an organization invitation by mail
+ * (`invited`).
+ *
+ * The failures are worth telling apart, and mapping them to a sentence is the
+ * caller's job: 409 they are already in, 422 the space mirrors no
+ * organization, 503 the identity provider is unreachable.
+ */
 export async function addSpaceMember(
   spaceId: string,
-  body: { user_id: string; as_admin: boolean },
-): Promise<void> {
+  body: { email: string; as_admin: boolean },
+): Promise<AddMemberResult> {
   const res = await api.post(`api/v1/spaces/${spaceId}/members`, { json: body });
   if (!res.ok) {
     const text = await res.text();
     throw new ApiError(res.status, text || "Failed to add member");
   }
+  return res.json();
 }
 
 export async function setMemberAdmin(
@@ -143,4 +147,26 @@ export async function setMemberAdmin(
 export async function removeSpaceMember(spaceId: string, userId: string): Promise<void> {
   const res = await api.delete(`api/v1/spaces/${spaceId}/members/${userId}`);
   if (!res.ok) throw new ApiError(res.status, "Failed to remove member");
+}
+
+// ─── Space Departures ────────────────────────────────────────────────────────
+
+/**
+ * People removed from the space's organization whose content is still waiting
+ * to be handed over. Admin-only.
+ */
+export async function getSpaceDepartures(spaceId: string): Promise<SpaceDeparture[]> {
+  const res = await api.get(`api/v1/spaces/${spaceId}/departures`);
+  if (!res.ok) throw new ApiError(res.status, "Failed to get pending handovers");
+  return res.json();
+}
+
+/**
+ * Runs the destructive half of a departure: revokes their grants, re-homes
+ * what they created inside other people's folders and files the roots they
+ * owned into the Archive. Irreversible.
+ */
+export async function completeDeparture(spaceId: string, userId: string): Promise<void> {
+  const res = await api.post(`api/v1/spaces/${spaceId}/departures/${userId}/complete`);
+  if (!res.ok) throw new ApiError(res.status, "Failed to complete the handover");
 }

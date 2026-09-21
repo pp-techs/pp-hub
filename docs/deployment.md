@@ -204,6 +204,11 @@ Register with your OIDC provider:
 - redirect URI: `https://drive.example.com/auth/callback`
 - post-logout redirect: `https://drive.example.com`
 
+That is the login half. Membership needs more of the same tenant — an M2M
+application, an organization template, an email connector, a webhook and two
+consent scopes — all of it in
+[Logto: identity and membership](#logto-identity-and-membership).
+
 ### The security and limit variables
 
 Four variables added with the M21 security pass. None is required; each has a
@@ -285,33 +290,105 @@ limit with you. That is a deliberate trade against making Redis a dependency
 of a deployment that otherwise does not need it, and it is stated here rather
 than hidden because an operator running replicas should know.
 
-### Mail (invitations)
+### Logto: identity and membership
 
-`PP_SMTP_HOST` is empty by default, which is a supported state: unset, an
-invitation still works exactly as before — `handleCreateInvitation` returns
-the URL for an admin to copy and paste. Setting it turns on delivery for
-**invitations only**; sharing still notifies nobody (M29).
+Space membership is a projection of a Logto organization, so Logto is no
+longer only the login provider — it is where "who works here" is decided and
+where the invitation email comes from. Five things must exist in the Logto
+tenant before any of it works, and each one fails in its own way if it is
+missing. See [logto-org-sync.md](architecture/logto-org-sync.md) for the
+design; this is the checklist.
 
-- **`PP_SMTP_HOST`** — the relay's hostname. Leaving it unset is a
-  deliberately supported state, logged once at startup
-  (`PP_SMTP_HOST unset: invitations are not emailed, an admin must deliver
-the link by hand`).
-- **`PP_SMTP_PORT`** — default `587`.
-- **`PP_SMTP_USERNAME`** / **`PP_SMTP_PASSWORD`** — optional; leave both
-  empty for an unauthenticated relay or a local catcher.
-- **`PP_SMTP_FROM`** — **required whenever `PP_SMTP_HOST` is set**. Every
-  relay refuses a message with no sender, and a half-configured transport
-  fails at startup rather than at the first invitation, so the operator who
-  set `PP_SMTP_HOST` finds out immediately if they forgot this one.
-- **`PP_SMTP_TLS`** — `starttls` (default), `implicit` (SMTPS, usually port 465) or `none` (plaintext, for a local catcher in development only). Any
-  other value is a startup error.
+1. **A machine-to-machine application**, granted the **Logto Management API**
+   role that carries the `all` permission. This is what reads an
+   organization's member list and writes membership, roles and invitations
+   back. Its id and secret are `PP_LOGTO_M2M_CLIENT_ID` /
+   `PP_LOGTO_M2M_CLIENT_SECRET`, and pp-hub exchanges them for a token with
+   `client_credentials` against `PP_LOGTO_API_RESOURCE`. Without the `all`
+   permission the exchange succeeds and every call answers 403, so the symptom
+   is membership that never converges rather than a startup error.
+2. **An organization template with the roles `admin` and `member`.** The
+   template is tenant-wide — every organization shares one role set — and the
+   `admin` role is the one pp-hub maps onto a space's automatic `Admin` group.
+   Rename it and set `PP_LOGTO_ORG_ROLE_ADMIN` to match, or nobody is an admin
+   anywhere.
+3. **An email connector, with the `OrganizationInvitation` template filled
+   in.** Adding a member by an address that has no account upstream creates a
+   Logto organization invitation, and Logto sends it. pp-hub mints no token and
+   has no fallback to copy and paste: without the connector, the invitation
+   call fails and `POST /spaces/{id}/members` answers **503** for an address
+   that has no upstream account.
+4. **A webhook subscribed to `Organization.Membership.Updated`**, pointing at
+   `POST {PP_EXTERNAL_URL}/hooks/logto`. Copy its signing key into
+   `PP_LOGTO_WEBHOOK_KEY`; the handler verifies an HMAC-SHA256 of the raw body
+   against `logto-signature-sha-256` and drops anything that does not match —
+   including every delivery, if the key is unset.
+   The endpoint is deliberately **outside `/api/v1`** — that group is
+   authenticated and same-origin-checked by a router test, and an
+   unauthenticated endpoint inside it would mean loosening the test that
+   protects the whole API. A lost delivery is not a correctness problem: the
+   hourly reconcile and the next sign-in both converge the same way.
+5. **Two user-consent scopes on the sign-in application** (the one behind
+   `PP_OIDC_CLIENT_ID`): `urn:logto:scope:organizations` and
+   `urn:logto:scope:organization_roles`. They put `organizations` and
+   `organization_roles` in the ID token, which is how a returning user's
+   membership is corrected with no outbound call at all. Omit them and
+   sign-in still works, but the sign-in reconciliation path — the one that
+   heals a lost webhook — silently does nothing.
 
-`net/smtp` does not speak OAuth, so Gmail without an app password or
-Microsoft 365 modern auth are not supported directly — point `PP_SMTP_HOST`
-at a relay in front of them instead. A message the relay rejects (bad
-auth, unreachable host, …) does not fail the invitation request: the error
-is logged and the response still carries the URL, which is the same
-fallback the product always had.
+The variables come in three supported shapes, and the server names which one
+it is in at startup.
+
+**All unset** — `PP_LOGTO_* unset: organization sync is off`. The app runs, no
+organization is mirrored, and space membership cannot be changed from the app
+at all. Space creation stays open to everyone, because pp-hub is then the only
+place a space can come from.
+
+**Endpoint only, no credentials** — `orgsync: sign-in claims only`. A real
+mode, not a mistake: the ID token carries `organizations` and
+`organization_roles`, so membership converges every time somebody signs in,
+with no outbound call. Organizations are authoritative, so space creation is
+closed to ordinary members. What it cannot do is change membership from the
+app (the members endpoints answer **503**), act on a webhook, or notice
+somebody who never signs in. This is the shape to run before anybody has
+created the M2M application.
+
+**Endpoint plus credentials** — the full sync: write path, webhook and hourly
+sweep.
+
+Anything else is a startup error rather than a feature that quietly does
+nothing: credentials without `PP_LOGTO_ENDPOINT`, one credential without the
+other, an endpoint that is not an absolute URL, or `PP_LOGTO_WEBHOOK_KEY`
+without credentials — a delivery can only be acted on through the Management
+API, so verifying one and dropping it would read as working.
+
+| Variable                     | Required                                    | What it is                                                                                                                                               |
+| ---------------------------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PP_LOGTO_ENDPOINT`          | for any sync                                | The Logto **base** URL — `https://<tenant>.logto.app`, not the OIDC issuer, and **no `/oidc` suffix**. Must be absolute                                  |
+| `PP_LOGTO_M2M_CLIENT_ID`     | for the write path, webhook and sweep       | The M2M application's id. Omit both credentials for sign-in-claims-only mode                                                                             |
+| `PP_LOGTO_M2M_CLIENT_SECRET` | with the id, never alone                    | Its secret                                                                                                                                               |
+| `PP_LOGTO_API_RESOURCE`      | no — default below                          | Management API resource indicator: `https://<tenant-id>.logto.app/api` on Cloud, `https://default.logto.app/api` (the default) on OSS                    |
+| `PP_LOGTO_WEBHOOK_KEY`       | no; requires the credentials when it is set | The webhook's signing key. Unset, every delivery is refused and a warning says so; membership then converges at the next sign-in and on the hourly sweep |
+| `PP_LOGTO_ORG_ROLE_ADMIN`    | no — default `admin`                        | Which organization role means admin                                                                                                                      |
+
+Two of these are easy to get subtly wrong, and both fail at the first API call
+rather than at startup:
+
+- **`PP_LOGTO_ENDPOINT` is not `PP_OIDC_ISSUER`.** The issuer ends in `/oidc`;
+  this one must not. They point at the same host in the ordinary deployment
+  and are still different values.
+- **`PP_LOGTO_API_RESOURCE` is an identifier, not an address pp-hub fetches.**
+  On Cloud it contains the **tenant id**, which is not the vanity subdomain in
+  your console URL; on self-hosted OSS it is the literal
+  `https://default.logto.app/api` regardless of where Logto actually runs.
+  A wrong value produces a token the Management API rejects.
+
+A space and an organization are linked by `spaces.idp_org_id`. Nothing
+discovers that link for you: in development, set the column by hand once
+(`UPDATE spaces SET idp_org_id = '<org-id>' WHERE id = '<space-id>'`).
+Reconciling a space with a NULL `idp_org_id` is a no-op by design, so an
+unlinked space keeps whatever members it has and `POST /spaces/{id}/members`
+answers **422** there.
 
 ### Response headers and the CSP
 
@@ -534,7 +611,7 @@ The app itself runs from source; compose provides only what it talks to.
 docker compose -f deploy/compose/compose.dev.yml up -d
 
 cd apps/server
-cp .env.example .env          # once, then fill in PP_OIDC_*
+cp .env.example .env          # once, then fill in PP_OIDC_* and PP_LOGTO_*
 set -a && source .env && set +a
 go run ./cmd/server
 
@@ -563,6 +640,26 @@ machine, so the TCP peer is already the right answer.
 local database — it is the only way to get an admin console — but your IdP
 has to assert `email_verified` for that address, or the promotion is refused
 and the reason is in the server log.
+
+**The `PP_LOGTO_*` variables matter in development too.** Left unset the
+server starts with organization sync off — the warning says so — and then
+nobody can be added to a space at all, because membership has no local
+substitute. The quickest tenant is `--profile idp` (below): the console on
+`http://localhost:3002` creates the organization, the M2M application and the
+organization template, `PP_LOGTO_ENDPOINT` is `http://localhost:3001` — no
+`/oidc` — and `PP_LOGTO_API_RESOURCE` can stay at its default
+`https://default.logto.app/api`, which is an identifier and not somewhere
+anything connects. Then link the space by hand:
+`UPDATE spaces SET idp_org_id = '<org-id>' WHERE id = '<space-id>'`.
+
+Two development-only wrinkles. **A webhook cannot reach `localhost`** from
+Logto Cloud, so either run the local IdP — where both sides are on your
+machine — or expose the server through a tunnel and point the webhook at that;
+without it, membership still converges, just at sign-in and on the hourly
+ticker rather than instantly. And **the two consent scopes are per
+application**: an app registered before this feature existed has neither, and
+adding them to the wrong one of several dev applications looks exactly like a
+broken reconciler.
 
 If port 5432 is already taken on your host, set `PP_POSTGRES_PORT` in
 `deploy/compose/.env` and use the same port in `PP_DATABASE_URL`.

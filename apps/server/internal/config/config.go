@@ -12,8 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/nhatbui/pp-hub/apps/server/internal/mail"
 )
 
 type Config struct {
@@ -85,11 +83,11 @@ type Config struct {
 	// unset every request appears to come from the proxy, so one caller can
 	// spend the whole instance's budget.
 	TrustedProxies []string
-	// SMTP configures the transactional-mail relay used for one thing today:
-	// space invitations. A zero-value Settings (Host == "") is a supported
-	// state — the invitation handler falls back to returning the URL, which
-	// is the whole product before this field existed.
-	SMTP mail.Settings
+	// Logto configures the organization sync. Membership is a mirror of a
+	// Logto organization, so this is not optional decoration: with it
+	// unset, a linked space has no upstream to reconcile against and its
+	// membership can only be changed by the reconciler that never runs.
+	Logto LogtoSettings
 }
 
 func Load() (*Config, error) {
@@ -101,10 +99,7 @@ func Load() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	smtpPort, err := strconv.Atoi(env("PP_SMTP_PORT", "587"))
-	if err != nil {
-		return nil, fmt.Errorf("PP_SMTP_PORT must be a number: %w", err)
-	}
+	logtoResource := env("PP_LOGTO_API_RESOURCE", "https://default.logto.app/api")
 	c := &Config{
 		Addr:             env("PP_ADDR", ":8080"),
 		DatabaseURL:      env("PP_DATABASE_URL", "postgres://pphub:pphub@localhost:5432/pphub?sslmode=disable"),
@@ -133,13 +128,13 @@ func Load() (*Config, error) {
 		MaxUploadBytes:      maxUpload,
 		BootstrapAdminEmail: strings.ToLower(strings.TrimSpace(os.Getenv("PP_BOOTSTRAP_ADMIN_EMAIL"))),
 		AuditRetention:      time.Duration(daysEnv("PP_AUDIT_RETENTION_DAYS", 365)) * 24 * time.Hour,
-		SMTP: mail.Settings{
-			Host:     strings.TrimSpace(os.Getenv("PP_SMTP_HOST")),
-			Port:     smtpPort,
-			Username: os.Getenv("PP_SMTP_USERNAME"),
-			Password: os.Getenv("PP_SMTP_PASSWORD"),
-			From:     strings.TrimSpace(os.Getenv("PP_SMTP_FROM")),
-			TLS:      env("PP_SMTP_TLS", "starttls"),
+		Logto: LogtoSettings{
+			Endpoint:     strings.TrimRight(strings.TrimSpace(os.Getenv("PP_LOGTO_ENDPOINT")), "/"),
+			ClientID:     strings.TrimSpace(os.Getenv("PP_LOGTO_M2M_CLIENT_ID")),
+			ClientSecret: os.Getenv("PP_LOGTO_M2M_CLIENT_SECRET"),
+			APIResource:  logtoResource,
+			WebhookKey:   os.Getenv("PP_LOGTO_WEBHOOK_KEY"),
+			AdminRole:    env("PP_LOGTO_ORG_ROLE_ADMIN", "admin"),
 		},
 	}
 	// Validated here rather than at the router, because chi's
@@ -179,11 +174,8 @@ func Load() (*Config, error) {
 	if err := c.validateBlobBackend(); err != nil {
 		return nil, err
 	}
-	if err := c.validateSMTP(); err != nil {
+	if err := c.Logto.validate(); err != nil {
 		return nil, err
-	}
-	if c.SMTP.Host == "" {
-		slog.Warn("PP_SMTP_HOST unset: invitations are not emailed, an admin must deliver the link by hand")
 	}
 	return c, nil
 }
@@ -219,23 +211,82 @@ func (c *Config) validateBlobBackend() error {
 	}
 }
 
-// validateSMTP fails fast on a half-configured transport rather than
-// silently not sending: the operator who set PP_SMTP_HOST believes mail
-// works.
-func (c *Config) validateSMTP() error {
-	if c.SMTP.Host == "" {
+// LogtoSettings is everything needed to read and write a Logto tenant's
+// organizations. Membership is a projection of them, so an install with this
+// unset can still serve files but cannot change who may see them.
+type LogtoSettings struct {
+	// Endpoint is Logto's base URL — *not* the OIDC issuer, which carries a
+	// /oidc suffix. The Management API and the token endpoint both hang off
+	// this.
+	Endpoint string
+	// ClientID / ClientSecret are a machine-to-machine application holding
+	// the Logto Management API's `all` permission.
+	ClientID     string
+	ClientSecret string
+	// APIResource is the audience the M2M token is minted for. It differs
+	// between Cloud (https://<tenant-id>.logto.app/api) and the open-source
+	// build (https://default.logto.app/api), and a wrong value produces a
+	// token Logto accepts and then refuses to authorize — so it is
+	// configuration, not a constant.
+	APIResource string
+	// WebhookKey signs the delivery bodies. Empty disables the endpoint
+	// outright rather than accepting unsigned ones: an unauthenticated route
+	// that mutates membership is worse than no route.
+	WebhookKey string
+	// AdminRole is the organization role that maps onto the space's Admin
+	// group. Configurable because the role name lives in the operator's
+	// organization template, not here.
+	AdminRole string
+}
+
+// Configured reports whether organizations own membership on this install.
+// True as soon as an endpoint is named, because that is what makes the
+// sign-in claims arrive — and once membership comes from organizations, so
+// do spaces, whether or not the Management API is reachable.
+func (l LogtoSettings) Configured() bool { return l.Endpoint != "" }
+
+// Enabled reports whether the Management API can be reached. Everything the
+// sync does on the write side is gated on this; the read side degrades to
+// the sign-in claims, which need no credentials at all.
+func (l LogtoSettings) Enabled() bool {
+	return l.Configured() && l.ClientID != "" && l.ClientSecret != ""
+}
+
+// validate refuses a half-configured tenant rather than failing at the first
+// membership change an admin attempts, which is both the least convenient
+// moment to discover it and the hardest to attribute.
+//
+// "Half-configured" deliberately does not include an endpoint with no
+// credentials. That is a real, supported mode: the sign-in path reconciles
+// from the ID token's organization claims and makes no outbound call, so an
+// install can mirror organizations before anybody has created a
+// machine-to-machine application. What it cannot do is write, or converge
+// somebody who is not signing in — and it says so rather than pretending.
+func (l LogtoSettings) validate() error {
+	if l.Endpoint == "" {
+		if l.ClientID != "" || l.ClientSecret != "" {
+			return fmt.Errorf("PP_LOGTO_M2M_CLIENT_ID is set but PP_LOGTO_ENDPOINT is empty")
+		}
+		slog.Warn("PP_LOGTO_* unset: organization sync is off",
+			"effect", "space membership cannot be changed from the app and no organization is mirrored")
 		return nil
 	}
-	if c.SMTP.From == "" {
-		return fmt.Errorf("PP_SMTP_HOST is set but PP_SMTP_FROM is empty: every relay refuses a message with no sender")
+	if !strings.HasPrefix(l.Endpoint, "http://") && !strings.HasPrefix(l.Endpoint, "https://") {
+		return fmt.Errorf("PP_LOGTO_ENDPOINT must be an absolute URL, got %q", l.Endpoint)
 	}
-	switch c.SMTP.TLS {
-	case "starttls", "implicit", "none":
-	default:
-		return fmt.Errorf(`PP_SMTP_TLS must be "starttls", "implicit" or "none", got %q`, c.SMTP.TLS)
+	switch {
+	case l.ClientID == "" && l.ClientSecret == "":
+		slog.Warn("PP_LOGTO_ENDPOINT is set without M2M credentials: organization sync runs from sign-in claims only",
+			"effect", "membership converges when a person signs in; it cannot be changed from the app, and somebody who never signs in is never reconciled")
+	case l.ClientID == "" || l.ClientSecret == "":
+		return fmt.Errorf("PP_LOGTO_M2M_CLIENT_ID and PP_LOGTO_M2M_CLIENT_SECRET must be set together")
 	}
-	if c.SMTP.Port < 1 || c.SMTP.Port > 65535 {
-		return fmt.Errorf("PP_SMTP_PORT must be between 1 and 65535, got %d", c.SMTP.Port)
+	if l.WebhookKey != "" && !l.Enabled() {
+		return fmt.Errorf("PP_LOGTO_WEBHOOK_KEY is set but the M2M credentials are not: a delivery can only be acted on through the Management API")
+	}
+	if l.Enabled() && l.WebhookKey == "" {
+		slog.Warn("PP_LOGTO_WEBHOOK_KEY unset: /hooks/logto refuses every delivery",
+			"effect", "membership changes made in Logto are only picked up at the next sign-in or hourly reconcile")
 	}
 	return nil
 }

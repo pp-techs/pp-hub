@@ -24,11 +24,11 @@ pp-hub/
 │   │       │   └── use-keyed-state.ts # state that resets when its subject changes
 │   │       ├── components/         # app-level UI panels
 │   │       │   ├── share-dialog.tsx      # the one access surface: groups, people, link (better-modal)
-│   │       │   ├── people-table.tsx      # space membership: admin switch, groups, pending invites
+│   │       │   ├── people-table.tsx      # space membership: admin switch, groups, pending handover
 │   │       │   ├── group-drawer.tsx      # People page drawer: groups and who is in them
-│   │       │   ├── invite-modal.tsx      # the one way into a space (better-modal)
+│   │       │   ├── invite-modal.tsx      # the one way into a space: an email + the admin toggle (better-modal)
+│   │       │   ├── no-admin-banner.tsx   # "this space has no administrator", above the space Outlet
 │   │       │   ├── grantee-picker.tsx    # picks a group or a space member, filtered locally
-│   │       │   ├── member-picker.tsx     # tenant user search, invite-only (see /users/search scoping)
 │   │       │   ├── user-avatar.tsx       # avatar with fallback
 │   │       │   ├── confirm-dialog.tsx    # confirmation modal
 │   │       │   ├── app-sidebar.tsx       # the rail: header + nav bands + footer, one Sidebar
@@ -64,7 +64,6 @@ pp-hub/
 │   │           ├── login.tsx            # OIDC hand-off; ?redirect= survives the round trip
 │   │           ├── admin.users.tsx      # server administration: stats, suspend, admin flag
 │   │           ├── admin.security.tsx   # the security log: sign-ins, failures, access changes
-│   │           ├── invite/$token.tsx    # redeem a space invitation
 │   │           ├── s/$token.tsx         # anonymous share-link browser (no rail, no account)
 │   │           ├── edit/$nodeId.tsx     # full-page OnlyOffice editor (opened in a new tab)
 │   │           ├── drive.tsx            # drive shell: SidebarProvider + AppSidebar + SidebarInset
@@ -85,7 +84,7 @@ pp-hub/
 │           ├── auth/               # ✅ OIDC (PKCE + nonce) + DB-backed sessions (go-oidc)
 │           ├── gc/                 # ✅ blob reclaim + trash retention sweeps
 │           ├── config/             # ✅ env config; DeriveKey issues purpose-bound subkeys
-│           ├── httpapi/            # ✅ chi routes (/healthz, /auth/*, /api/v1/*, /wopi/*, /s/*)
+│           ├── httpapi/            # ✅ chi routes (/healthz, /auth/*, /api/v1/*, /wopi/*, /s/*, /hooks/logto)
 │           │   ├── server.go       # the router, and the middleware that makes it safe by group
 │           │   ├── csrf.go         # sameOrigin: every mutation, before authentication
 │           │   ├── ratelimit.go    # per-IP token buckets on the anonymous surfaces
@@ -93,15 +92,18 @@ pp-hub/
 │           │   ├── logging.go      # chi's logger with share and WOPI tokens redacted
 │           │   ├── sessions.go     # the account's own device list and its revoke endpoints
 │           │   ├── security_events.go # GET /admin/security-events
-│           │   ├── users.go        # user profile CRUD + search endpoints
+│           │   ├── users.go        # user profile CRUD
 │           │   ├── groups.go       # groups API + the folder-grant endpoints
-│           │   └── spaces_members.go # space members API (list/add/remove, set-admin)
+│           │   ├── logto_hook.go   # POST /hooks/logto — HMAC over the raw body, then enqueue
+│           │   └── spaces_members.go # space members API (list/add/remove, set-admin) + the departure queue
 │           ├── store/              # ✅ sqlc queries, embedded migrations runner
 │           │   └── migrations/     # 0001_init.sql baseline, then one file per change:
-│           │                       #    0002_sessions.sql, 0003_security_events.sql
-│           ├── users/              # user service layer (profile, search)
+│           │                       #    0002_sessions.sql, 0003_security_events.sql,
+│           │                       #    0004_user_avatars.sql, 0005_logto_orgs.sql
+│           ├── users/              # user service layer (profile)
+│           ├── orgsync/            # ✅ Logto Management API client + the reconciler that owns space_members
 │           ├── spaces/             # space CRUD, membership, the Admin group, leaving a space
-│           │   ├── spaces.go       # RequireAdmin/SetAdmin/AddMember; RemoveMember archives what a leaver owned
+│           │   ├── spaces.go       # RequireAdmin/SetAdmin/AddMember; RevokeMembership is immediate, CompleteDeparture archives what a leaver owned
 │           │   └── permissions_db_test.go # DB-backed; skipped unless PP_TEST_DATABASE_URL is set
 │           ├── groups/             # groups + the grants that open folders
 │           ├── fs/                 # file tree, versioning, move/copy/rename
@@ -257,16 +259,22 @@ pp-hub/
   itself (2→5 columns), so opening the details panel drops 5 columns to 4
   without the route passing anything down.
 - **People is one table, and the only membership surface.** `people-table.tsx`
-  owns members, pending invitations, the Admin switch and the group chips;
-  `group-drawer.tsx` owns the group list beside it, and `invite-modal.tsx` is
-  the only way into a space. Admin _is_ membership of the automatic `Admin`
+  owns members, the Admin switch, the group chips and a **Pending handover**
+  section fed by `GET /spaces/{id}/departures`; `group-drawer.tsx` owns the
+  group list beside it, and `invite-modal.tsx` is the only way into a space —
+  now an email address and the admin toggle, since `POST /spaces/{id}/members`
+  takes `{email, as_admin}` and membership itself is decided in Logto. Admin
+  _is_ membership of the automatic `Admin`
   group, so the switch and the chip are one fact — which is why all three
   membership mutations invalidate `["spaces", id]` rather than just the member
   list, and why that group is read-only in the drawer. What a group _opens_ is
   still set on the folder, in its access dialog: this table answers who is in
-  the group, the folder answers what the group reaches. Listing invitations is
-  admin-gated server-side, so the query is `enabled` on the admin check rather
-  than firing and 403-ing.
+  the group, the folder answers what the group reaches. The departures query is
+  admin-gated server-side, so it is `enabled` on the admin check rather than
+  firing and 403-ing, and **Complete handover** goes through
+  `confirm-dialog.tsx` because it is irreversible — revocation already
+  happened, this is the teardown. See
+  [permissions.md](../architecture/permissions.md).
 - **Node menu actions have one definition.** `node-actions.tsx` builds the
   action list; the list view, grid view and their right-click menus all render
   from it. Add an action there, not in a menu.

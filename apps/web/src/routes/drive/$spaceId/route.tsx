@@ -1,8 +1,9 @@
 import { Outlet, createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
 import { Trans } from "@lingui/react/macro";
 import { Button } from "@workspace/ui/components/button";
-import { fetchSpaces } from "@/lib/queries";
+import { fetchSpaces, useSpace } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
+import { NoAdminBanner } from "@/components/no-admin-banner";
 
 export const Route = createFileRoute("/drive/$spaceId")({
   beforeLoad: async ({ context, params }) => {
@@ -21,9 +22,19 @@ export const Route = createFileRoute("/drive/$spaceId")({
 });
 
 function SpaceLayout() {
-  // The shell above owns the header; this layout is only here to resolve the
-  // space in `beforeLoad` and hold the surfaces.
-  return <Outlet />;
+  const { spaceId } = Route.useParams();
+  const space = useSpace(spaceId);
+
+  // The shell above owns the header; this layout resolves the space in
+  // `beforeLoad` and holds its surfaces — plus the one notice that belongs to
+  // the space itself rather than to any surface inside it, which is why it
+  // hangs here and not on the settings page a non-admin cannot open.
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      {space?.admin_count === 0 && <NoAdminBanner />}
+      <Outlet />
+    </div>
+  );
 }
 
 function SpaceGone() {

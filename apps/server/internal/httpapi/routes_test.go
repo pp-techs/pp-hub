@@ -26,8 +26,6 @@ var clientRoutes = []string{
 	"GET /api/v1/users",
 	"GET /api/v1/admin/stats",
 	"PATCH /api/v1/admin/users/{userID}",
-	"POST /api/v1/invitations/accept",
-	"GET /api/v1/users/search",
 	"GET /api/v1/users/{userID}/avatar",
 	"GET /api/v1/search",
 	"GET /api/v1/activity",
@@ -40,9 +38,6 @@ var clientRoutes = []string{
 	"GET /api/v1/spaces/",
 	"PATCH /api/v1/spaces/{spaceID}/",
 	"DELETE /api/v1/spaces/{spaceID}/",
-	"GET /api/v1/spaces/{spaceID}/invitations",
-	"POST /api/v1/spaces/{spaceID}/invitations",
-	"DELETE /api/v1/spaces/{spaceID}/invitations/{inviteID}",
 
 	// Groups and the grants that give them access to folders.
 	"GET /api/v1/spaces/{spaceID}/groups/",
@@ -63,8 +58,10 @@ var clientRoutes = []string{
 	"POST /api/v1/spaces/{spaceID}/files",
 	"GET /api/v1/spaces/{spaceID}/members/",
 	"POST /api/v1/spaces/{spaceID}/members/",
-	"PATCH /api/v1/spaces/{spaceID}/members/{userID}/",
+	"POST /api/v1/spaces/{spaceID}/members/{userID}/set-admin",
 	"DELETE /api/v1/spaces/{spaceID}/members/{userID}/",
+	"GET /api/v1/spaces/{spaceID}/departures",
+	"POST /api/v1/spaces/{spaceID}/departures/{userID}/complete",
 
 	"GET /api/v1/nodes/{nodeID}/",
 	"GET /api/v1/nodes/{nodeID}/download",

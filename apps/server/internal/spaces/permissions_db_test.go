@@ -197,7 +197,7 @@ func TestSetAdminPromotesDemotesAndKeepsALastAdmin(t *testing.T) {
 	if err := sp.SetAdmin(ctx, space.ID, admin.ID, false); !errors.Is(err, spaces.ErrLastAdmin) {
 		t.Errorf("demoting the last admin = %v, want ErrLastAdmin", err)
 	}
-	if err := sp.RemoveMember(ctx, space.ID, admin.ID, admin.ID); !errors.Is(err, spaces.ErrLastAdmin) {
+	if err := sp.RequireNotLastAdmin(ctx, space.ID, admin.ID); !errors.Is(err, spaces.ErrLastAdmin) {
 		t.Errorf("removing the last admin = %v, want ErrLastAdmin", err)
 	}
 }
@@ -239,9 +239,7 @@ func TestRemoveMemberArchivesTheirRootsAndRevokesGrants(t *testing.T) {
 		t.Fatalf("grant: %v", err)
 	}
 
-	if err := sp.RemoveMember(ctx, space.ID, leaver.ID, admin.ID); err != nil {
-		t.Fatalf("remove member: %v", err)
-	}
+	depart(t, ctx, sp, space.ID, leaver.ID, admin.ID)
 
 	moved, err := q.GetNodeAny(ctx, dir.ID)
 	if err != nil {
@@ -304,9 +302,7 @@ func TestRemovingTheSpaceCreatorLeavesTheArchiveWalkable(t *testing.T) {
 		t.Fatalf("add admin: %v", err)
 	}
 
-	if err := sp.RemoveMember(ctx, space.ID, creator.ID, successor.ID); err != nil {
-		t.Fatalf("remove the creator: %v", err)
-	}
+	depart(t, ctx, sp, space.ID, creator.ID, successor.ID)
 
 	archive, err := q.GetNodeAny(ctx, space.ArchiveRootID)
 	if err != nil {
@@ -841,9 +837,7 @@ func TestTeamFolderSurvivesItsCreatorsDeparture(t *testing.T) {
 		t.Fatalf("manager grant: %v", err)
 	}
 
-	if err := sp.RemoveMember(ctx, space.ID, founder.ID, successor.ID); err != nil {
-		t.Fatalf("remove founder: %v", err)
-	}
+	depart(t, ctx, sp, space.ID, founder.ID, successor.ID)
 
 	after, err := q.GetNode(ctx, team.ID)
 	if err != nil {
@@ -864,4 +858,18 @@ func keys(m map[string]bool) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// depart runs both halves of a departure: the revocation every sync path
+// performs immediately, then the handover an admin confirms. Together they
+// are what RemoveMember used to do in one call, and the assertions below are
+// about the state they leave behind.
+func depart(t *testing.T, ctx context.Context, sp *spaces.Service, spaceID, userID, actorID pgtype.UUID) {
+	t.Helper()
+	if err := sp.RevokeMembership(ctx, spaceID, userID); err != nil {
+		t.Fatalf("revoke membership: %v", err)
+	}
+	if err := sp.CompleteDeparture(ctx, spaceID, userID, actorID); err != nil {
+		t.Fatalf("complete departure: %v", err)
+	}
 }

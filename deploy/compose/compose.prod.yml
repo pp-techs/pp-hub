@@ -130,16 +130,15 @@ services:
       PP_S3_SECRET_ACCESS_KEY: "${PP_S3_SECRET_ACCESS_KEY:-}"
       PP_S3_PATH_STYLE: "${PP_S3_PATH_STYLE:-1}"
 
-      # Unset (PP_SMTP_HOST empty) is a supported state: invitations return
-      # their URL for an admin to copy, exactly as before this transport
-      # existed. Only the server sends mail — invitations are the one
-      # message today.
-      PP_SMTP_HOST: "${PP_SMTP_HOST:-}"
-      PP_SMTP_PORT: "${PP_SMTP_PORT:-587}"
-      PP_SMTP_USERNAME: "${PP_SMTP_USERNAME:-}"
-      PP_SMTP_PASSWORD: "${PP_SMTP_PASSWORD:-}"
-      PP_SMTP_FROM: "${PP_SMTP_FROM:-}"
-      PP_SMTP_TLS: "${PP_SMTP_TLS:-starttls}"
+      # Membership mirrors a Logto organization. Unset (PP_LOGTO_ENDPOINT
+      # empty) is a supported state: the server serves files and changes no
+      # memberships. Half-configured is refused at startup.
+      PP_LOGTO_ENDPOINT: "${PP_LOGTO_ENDPOINT:-}"
+      PP_LOGTO_M2M_CLIENT_ID: "${PP_LOGTO_M2M_CLIENT_ID:-}"
+      PP_LOGTO_M2M_CLIENT_SECRET: "${PP_LOGTO_M2M_CLIENT_SECRET:-}"
+      PP_LOGTO_API_RESOURCE: "${PP_LOGTO_API_RESOURCE:-https://default.logto.app/api}"
+      PP_LOGTO_WEBHOOK_KEY: "${PP_LOGTO_WEBHOOK_KEY:-}"
+      PP_LOGTO_ORG_ROLE_ADMIN: "${PP_LOGTO_ORG_ROLE_ADMIN:-admin}"
     volumes:
       - blob_data:/data/blobs
     healthcheck:

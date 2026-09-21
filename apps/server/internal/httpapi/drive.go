@@ -15,6 +15,7 @@ import (
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/activity"
 	"github.com/nhatbui/pp-hub/apps/server/internal/fs"
+	"github.com/nhatbui/pp-hub/apps/server/internal/orgsync"
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 	"github.com/nhatbui/pp-hub/apps/server/internal/spaces"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
@@ -31,6 +32,17 @@ type spaceDTO struct {
 	// IsAdmin: the caller is in the space's Admin group — the only thing
 	// "admin" means anymore (M15).
 	IsAdmin bool `json:"is_admin"`
+	// AdminCount is how many people are in that group. It is on the wire
+	// because a space can legitimately reach zero: the identity provider
+	// owns membership now and can remove the last admin without asking, and
+	// the only recovery is an instance admin. Every member therefore has to
+	// be able to see the state, not just the administrators who no longer
+	// exist.
+	AdminCount int64 `json:"admin_count"`
+	// IdpOrgID is the organization this space mirrors. Absent on an
+	// unlinked space, which nothing reconciles and whose membership no
+	// endpoint will change.
+	IdpOrgID string `json:"idp_org_id,omitempty"`
 	// ArchiveRootID is where departed members' content lands; admins browse
 	// it there. Empty only on a space whose creation failed partway.
 	ArchiveRootID string `json:"archive_root_id,omitempty"`
@@ -104,7 +116,7 @@ func uuidParam(r *http.Request, name string) (pgtype.UUID, error) {
 	return id, id.Scan(chi.URLParam(r, name))
 }
 
-func spaceToDTO(sp store.Space, isAdmin bool) spaceDTO {
+func spaceToDTO(sp store.Space, isAdmin bool, adminCount int64) spaceDTO {
 	return spaceDTO{
 		ID:                 uuidString(sp.ID),
 		Name:               sp.Name,
@@ -112,6 +124,8 @@ func spaceToDTO(sp store.Space, isAdmin bool) spaceDTO {
 		UsedBytes:          sp.UsedBytes,
 		QuotaBytes:         sp.QuotaBytes,
 		IsAdmin:            isAdmin,
+		AdminCount:         adminCount,
+		IdpOrgID:           sp.IdpOrgID.String,
 		CreatedAt:          sp.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
 		Slug:               sp.Slug,
 		Description:        sp.Description,
@@ -120,6 +134,17 @@ func spaceToDTO(sp store.Space, isAdmin bool) spaceDTO {
 		ArchiveRootID:      uuidString(sp.ArchiveRootID),
 		AllowPublicLinks:   sp.AllowPublicLinks,
 	}
+}
+
+// adminCount is the figure spaceToDTO needs and nothing else does. A failed
+// count answers 0, which renders as "this space has no administrator" — the
+// safe direction to be wrong in, since it prompts a human to look.
+func (s *Server) adminCount(r *http.Request, spaceID pgtype.UUID) int64 {
+	n, err := s.store.CountSpaceAdmins(r.Context(), spaceID)
+	if err != nil {
+		return 0
+	}
+	return int64(n)
 }
 
 func nodeToDTO(n store.Node, ver *store.NodeVersion) nodeDTO {
@@ -200,8 +225,36 @@ func nodeToDTOMeta(n store.NodeWithMeta) nodeDTO {
 
 // --- Spaces handlers ---
 
+// canCreateSpaces reports whether this caller may mint a space by hand.
+//
+// The rule is one line because the decision is: if the identity provider
+// owns who belongs to which company, then it owns which companies exist, and
+// the only exception is the operator who has to be able to make an unlinked
+// one. It is also on the profile DTO, so the client hides the action rather
+// than offering a button that answers 403.
+func (s *Server) canCreateSpaces(u *store.User) bool {
+	return !s.orgs.Configured() || u.IsAdmin
+}
+
+// handleCreateSpace makes a space by hand.
+//
+// Once organizations own membership this is no longer an ordinary user's
+// action. A space is a company; companies come from the identity provider,
+// and a member who can mint one has made themselves its admin — which is
+// exactly the authority the organization role was supposed to decide. The
+// result is also a space nothing reconciles, so it drifts from the directory
+// by construction.
+//
+// It stays open to an instance admin, who needs it for a local space with no
+// organization behind it, and to everybody on an install with no Logto tenant
+// configured at all — there, pp-hub is still the only place spaces exist.
 func (s *Server) handleCreateSpace(w http.ResponseWriter, r *http.Request) {
 	u := caller(r)
+	if !s.canCreateSpaces(u) {
+		writeProblem(w, http.StatusForbidden, "Forbidden",
+			"spaces come from identity-provider organizations on this server; ask an administrator to create the organization, and the space appears when its first member signs in")
+		return
+	}
 	var body struct {
 		Name           string `json:"name"`
 		Slug           string `json:"slug"`
@@ -238,7 +291,7 @@ func (s *Server) handleCreateSpace(w http.ResponseWriter, r *http.Request) {
 	s.activity.Record(r.Context(), activity.Event{
 		SpaceID: sp.ID, ActorID: u.ID, Kind: activity.KindCreated, NodeName: sp.Name,
 	})
-	writeJSON(w, http.StatusCreated, spaceToDTO(sp, true)) // creator is admin of the space they create
+	writeJSON(w, http.StatusCreated, spaceToDTO(sp, true, 1)) // creator is the space's only admin
 }
 
 func (s *Server) handleListSpaces(w http.ResponseWriter, r *http.Request) {
@@ -250,7 +303,7 @@ func (s *Server) handleListSpaces(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]spaceDTO, 0, len(list))
 	for _, sp := range list {
-		out = append(out, spaceToDTO(sp, s.spaces.IsAdmin(r.Context(), sp.ID, u.ID)))
+		out = append(out, spaceToDTO(sp, s.spaces.IsAdmin(r.Context(), sp.ID, u.ID), s.adminCount(r, sp.ID)))
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -1187,8 +1240,23 @@ func (s *Server) spaceError(w http.ResponseWriter, r *http.Request, err error) {
 		writeProblem(w, http.StatusNotFound, "Not Found", "space not found")
 	case errors.Is(err, spaces.ErrNotMember), errors.Is(err, spaces.ErrForbidden):
 		writeProblem(w, http.StatusForbidden, "Forbidden", err.Error())
-	case errors.Is(err, spaces.ErrLastAdmin):
+	case errors.Is(err, spaces.ErrLastAdmin), errors.Is(err, spaces.ErrMemberExists):
 		writeProblem(w, http.StatusConflict, "Conflict", err.Error())
+	case errors.Is(err, orgsync.ErrNotLinked):
+		writeProblem(w, http.StatusUnprocessableEntity, "Unprocessable Entity",
+			"this space mirrors no identity-provider organization, so its membership cannot be changed here")
+	case errors.Is(err, orgsync.ErrDisabled):
+		writeProblem(w, http.StatusServiceUnavailable, "Service Unavailable",
+			"this server holds no management credentials for the identity provider, so membership can only be changed there; it reaches pp-hub when the person next signs in")
+	case errors.Is(err, orgsync.ErrUnreachable):
+		writeProblem(w, http.StatusServiceUnavailable, "Service Unavailable",
+			"the identity provider is unreachable, so membership cannot be changed right now")
+	case orgsync.Status(err) != 0:
+		// Upstream said no. Its status is the honest one to relay — a flat
+		// 500 would send an operator looking through this server's logs for
+		// a fault that is in their Logto tenant.
+		writeProblem(w, http.StatusBadGateway, "Bad Gateway",
+			"the identity provider rejected the change: "+err.Error())
 	default:
 		Error(w, r, err)
 	}

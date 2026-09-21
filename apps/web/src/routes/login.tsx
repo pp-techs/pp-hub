@@ -147,7 +147,7 @@ function LoginPage() {
               <Trans>Edit documents and spreadsheets together in the browser.</Trans>
             </Feature>
             <Feature icon={Users} title={<Trans>Spaces</Trans>}>
-              <Trans>Separate teams, each with its own groups and invitations.</Trans>
+              <Trans>Separate teams, each with its own groups and shared folders.</Trans>
             </Feature>
           </ul>
         </section>

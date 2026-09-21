@@ -1,6 +1,22 @@
 # Data Model
 
-All tables carry `tenant_id` (default `'default'`). Postgres is the only metadata store.
+Postgres is the only metadata store.
+
+**`tenant_id` is a dormant column, not a mechanism**, and the sentence that
+used to stand here — "all tables carry `tenant_id`" — was never true. It sits
+on the tables the baseline `0001_init.sql` created (`users`, `spaces`,
+`groups`, `nodes`, `uploads`, `shares`, `jobs`, `activity_events`) as
+`TEXT NOT NULL DEFAULT 'default'`, and on nothing added since: `sessions`
+(`0002`), `security_events` (`0003`) and `space_departures` (`0005`) have no
+such column. No INSERT anywhere supplies a value, so the default is the only
+value in the database. It is read by exactly three predicates in
+`queries/users.sql` — `SearchUsers`, `ListUsers`, `CountUsers` —
+whose only call sites pass the literal `"default"`
+(`internal/httpapi/users.go:239,270,276`). There is no tenant middleware, no
+request-scoped tenant, no `PP_TENANT*` variable and no row-level security.
+Multi-tenancy is a project nobody has started; a space is the unit the product
+actually models, and an organization links to that — see
+[logto-org-sync.md](logto-org-sync.md).
 
 ## Users Table
 
@@ -140,7 +156,8 @@ about the feed's schema, scoping or readers wanted to become an audit log.
 
 The development-phase migrations were consolidated into one baseline,
 `migrations/0001_init.sql`, so the schema reads as a single document. It is the
-authority; the sketches below are a map of it.
+authority, together with the migrations that follow it; the sketches below are
+a map of both.
 
 ```sql
 spaces(id, tenant_id, name, owner_id, quota_bytes, used_bytes,
@@ -148,7 +165,16 @@ spaces(id, tenant_id, name, owner_id, quota_bytes, used_bytes,
        archive_root_id,                         -- the space's Archive folder
        default_as_admin,                        -- do new members land in Admin?
        allow_public_links,                      -- may anyone mint a /s/ link here?
+       idp_org_id,                              -- the Logto organization this
+                                                -- space mirrors; NULL = unlinked
        created_at)
+  UNIQUE (idp_org_id) WHERE idp_org_id IS NOT NULL   -- spaces_idp_org_uniq
+  -- Partial on purpose. Any number of spaces may sit unlinked — a space
+  -- created before an organization exists is still a space, and reconciling
+  -- it is a no-op — but a linked organization belongs to exactly one space:
+  -- two spaces mirroring one organization would each revoke the other's
+  -- members on every reconcile. A plain UNIQUE would instead allow one
+  -- unlinked space and refuse the second.
 
 space_members(space_id, user_id, created_at)
   PRIMARY KEY (space_id, user_id)
@@ -156,6 +182,27 @@ space_members(space_id, user_id, created_at)
   -- No role column. A space IS a company; membership grants no file access at
   -- all, and admin status is membership in the space's Admin group. See
   -- permissions.md.
+  -- The table is a PROJECTION of spaces.idp_org_id's member list, written only
+  -- by the orgsync reconciler. It stays a table rather than a call upstream
+  -- because ten SQL sites join it to scope a query and thirteen Go guards
+  -- read it; per-request consultation of an external service would rewrite
+  -- every one of them. See logto-org-sync.md.
+
+space_departures(space_id, user_id,             -- both ON DELETE CASCADE
+                 detected_at,                   -- when a sync path first missed them
+                 source,                        -- signin | webhook | reconcile | admin
+                 resolved_at, resolved_by)      -- who confirmed the teardown, and when
+  PRIMARY KEY (space_id, user_id)
+  INDEX (space_id) WHERE resolved_at IS NULL    -- space_departures_pending
+  -- The queue between the two halves of a departure. Losing the space_members
+  -- row is immediate and automatic; the destructive half — grant teardown,
+  -- the ownership climb, the move into Archive — is irreversible and waits for
+  -- a space admin, so an accidental click in the Logto Console cannot trigger
+  -- it. `source` is TEXT, not an enum, for the same reason audit.Kind is.
+  -- Re-adding somebody upstream before the confirmation simply re-creates the
+  -- membership; the row is what the People page reads, and the only hot query
+  -- against it is "what is still pending in this space" — hence the partial
+  -- index and no other.
 
 groups(id, tenant_id, space_id, name, description,
        is_everyone, is_admin,                   -- the two automatic groups
@@ -225,6 +272,8 @@ jobs(id, kind, payload, status, run_at, attempts)        -- kind routes to a wor
 - CAS dedup: identical content across files/spaces shares one blob row.
 - Every node has an owner: `nodes.created_by` is NOT NULL, and it is the only unconditional access path in the system. Ownership inherits down the subtree, so a node inside somebody else's folder is reachable by both creators.
 - Every space has an `Everyone` group, an `Admin` group and an `archive_root_id`. `spaces.Service` provisions all three at creation; the uniqueness indices assume they exist.
+- `space_members` has exactly one writer, the `orgsync` reconciler, and a row exists if and only if the person is in the space's Logto organization. Nothing else inserts or deletes one, so "who is in this space" has a single answer and a single place it comes from.
+- A pending `space_departures` row (`resolved_at IS NULL`) implies there is no `space_members` row for that pair: access is revoked first, and the row is the record that the teardown has not happened yet. The reverse does not hold — re-adding the person upstream re-creates the membership while the departure stays pending, because the only thing that resolves one is an admin's confirmation (`POST /spaces/{id}/departures/{userID}/complete`).
 - No node is its own parent (`nodes_no_self_parent_ck`), and every recursive ancestor/descendant walk stops at depth 100. `NodeAccessCaps` recurses with `UNION ALL`, so one cycle would hang capability resolution for everything beneath it rather than return a wrong answer.
 - A team folder is top level (`nodes_team_root_top_level_ck`) and is its own container: `team_root_id = id`. Everything inside carries that id, inherited by `CreateNode` and rewritten across the subtree by `fs.Move` — the only two operations that can change containment. Inside one, `created_by` grants nothing; see the Team Folders section of [permissions.md](permissions.md).
 

@@ -19,16 +19,21 @@ import (
 // --- User Profile handlers ---
 
 type userProfileDTO struct {
-	ID          string            `json:"id"`
-	Email       string            `json:"email"`
-	Name        string            `json:"name"`
-	DisplayName string            `json:"display_name"`
-	AvatarURL   string            `json:"avatar_url"`
-	Bio         string            `json:"bio"`
-	IsAdmin     bool              `json:"is_admin"`
-	CreatedAt   string            `json:"created_at"`
-	LastSeen    string            `json:"last_seen,omitempty"`
-	Preferences users.Preferences `json:"preferences"`
+	ID          string `json:"id"`
+	Email       string `json:"email"`
+	Name        string `json:"name"`
+	DisplayName string `json:"display_name"`
+	AvatarURL   string `json:"avatar_url"`
+	Bio         string `json:"bio"`
+	IsAdmin     bool   `json:"is_admin"`
+	// CanCreateSpaces: whether "new space" is an action this account has.
+	// False for an ordinary member once organizations own membership — a
+	// space is a company, and companies come from the identity provider.
+	// The client hides the control rather than letting it answer 403.
+	CanCreateSpaces bool              `json:"can_create_spaces"`
+	CreatedAt       string            `json:"created_at"`
+	LastSeen        string            `json:"last_seen,omitempty"`
+	Preferences     users.Preferences `json:"preferences"`
 }
 
 type updateProfileRequest struct {
@@ -36,18 +41,19 @@ type updateProfileRequest struct {
 	Bio         string `json:"bio"`
 }
 
-func profileToDTO(p users.Profile) userProfileDTO {
+func profileToDTO(p users.Profile, canCreateSpaces bool) userProfileDTO {
 	return userProfileDTO{
-		ID:          p.ID,
-		Email:       p.Email,
-		Name:        p.Name,
-		DisplayName: p.DisplayName,
-		AvatarURL:   p.AvatarURL,
-		Bio:         p.Bio,
-		IsAdmin:     p.IsAdmin,
-		CreatedAt:   p.CreatedAt,
-		LastSeen:    p.LastSeen,
-		Preferences: p.Preferences,
+		ID:              p.ID,
+		Email:           p.Email,
+		Name:            p.Name,
+		DisplayName:     p.DisplayName,
+		AvatarURL:       p.AvatarURL,
+		Bio:             p.Bio,
+		IsAdmin:         p.IsAdmin,
+		CanCreateSpaces: canCreateSpaces,
+		CreatedAt:       p.CreatedAt,
+		LastSeen:        p.LastSeen,
+		Preferences:     p.Preferences,
 	}
 }
 
@@ -87,7 +93,7 @@ func (s *Server) handleGetMyProfile(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusNotFound, "Error", "user not found")
 		return
 	}
-	writeJSON(w, http.StatusOK, profileToDTO(profile))
+	writeJSON(w, http.StatusOK, profileToDTO(profile, s.canCreateSpaces(u)))
 }
 
 // handleUpdateMyProfile updates the current user's profile.
@@ -103,7 +109,7 @@ func (s *Server) handleUpdateMyProfile(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusInternalServerError, "Error", "update failed")
 		return
 	}
-	writeJSON(w, http.StatusOK, profileToDTO(profile))
+	writeJSON(w, http.StatusOK, profileToDTO(profile, s.canCreateSpaces(u)))
 }
 
 // avatarMimes are the types an avatar may be. Sniffed from the bytes, never

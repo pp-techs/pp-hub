@@ -17,8 +17,8 @@ export const Route = createFileRoute("/drive/$spaceId/settings/people")({
 
 /**
  * The only place space membership is managed: who is in, who administers it,
- * and which groups they belong to — plus invitations that have not been taken
- * up yet.
+ * and which groups they belong to — plus the people the organization has
+ * dropped whose content still has to be handed over.
  *
  * The selected group is a search param so the pairing of "these people" and
  * "this group" is one shareable address, and so the table filter and the

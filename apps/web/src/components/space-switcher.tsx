@@ -16,7 +16,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@workspace/ui/components/sidebar";
-import { useSpaces } from "@/lib/queries";
+import { useMe, useSpaces } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
 import { cn } from "@workspace/ui/lib/utils";
 
@@ -41,6 +41,10 @@ export function SpaceSwitcher({ spaceId }: { spaceId: string | undefined }) {
   const spaces = useSpaces();
   const navigate = useNavigate();
   const setNewSpaceOpen = useUiStore((s) => s.setNewSpaceOpen);
+  // A space is a company. When organizations own membership, only an
+  // instance admin may mint one, so the item is absent rather than present
+  // and answering 403.
+  const canCreateSpaces = useMe().data?.can_create_spaces ?? false;
   const { isMobile } = useSidebar();
   const { t } = useLingui();
 
@@ -133,10 +137,14 @@ export function SpaceSwitcher({ spaceId }: { spaceId: string | undefined }) {
                 </DropdownMenuItem>
               </>
             )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => setNewSpaceOpen(true)}>
-              <Plus /> <Trans>Create new space</Trans>
-            </DropdownMenuItem>
+            {canCreateSpaces && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setNewSpaceOpen(true)}>
+                  <Plus /> <Trans>Create new space</Trans>
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>

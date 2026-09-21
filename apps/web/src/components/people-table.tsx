@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
-import { msg } from "@lingui/core/macro";
+import { msg, plural } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
-import { Download, Lock, Mail, Plus, Trash2, UserPlus, X } from "lucide-react";
+import { Download, Lock, Plus, Trash2, UserPlus, UserRoundX, X } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import { Badge } from "@workspace/ui/components/badge";
@@ -30,37 +30,42 @@ import {
   TableRow,
 } from "@workspace/ui/components/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/avatar";
-import type { Group, Invitation, Space, SpaceMember } from "@/lib/api";
+import type { DepartureSource, Group, Space, SpaceDeparture, SpaceMember } from "@/lib/api";
 import { useFormatters } from "@/lib/format";
 import {
   useAddGroupMember,
-  useCreateInvitation,
+  useCompleteDeparture,
   useGroupMemberships,
   useGroups,
-  useInvitations,
   useMe,
   useRemoveGroupMember,
   useRemoveSpaceMember,
-  useRevokeInvitation,
   useSetMemberAdmin,
+  useSpaceDepartures,
   useSpaceMembers,
 } from "@/lib/queries";
 import { InviteModal } from "@/components/invite-modal";
-
-/**
- * Descriptors rather than rendered strings: this is module scope, evaluated
- * once at import time and before any catalog is active, so text here would
- * pin the first language loaded and never follow a switch. The table resolves
- * them with `i18n._()` at render.
- */
-const STATUS_FILTERS: { label: MessageDescriptor; value: string }[] = [
-  { label: msg`Status: All`, value: "all" },
-  { label: msg`Status: Active`, value: "active" },
-  { label: msg`Status: Pending`, value: "pending" },
-];
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 // eslint-disable-next-line lingui/no-unlocalized-strings -- sentinel for "no group filter", not copy
 const ALL_GROUPS = "all";
+
+/**
+ * How pp-hub found out that somebody had gone. "An admin removed them here"
+ * and "they vanished from the directory" read very differently to the person
+ * about to confirm an irreversible handover, so the row says which it was.
+ *
+ * Descriptors rather than rendered strings: this is module scope, evaluated
+ * once at import time and before any catalog is active, so text here would
+ * pin the first language loaded and never follow a switch. The row resolves
+ * them with `i18n._()` at render.
+ */
+const DEPARTURE_SOURCE: Record<DepartureSource, MessageDescriptor> = {
+  signin: msg`Noticed when they last signed in`,
+  webhook: msg`Reported by the identity provider`,
+  reconcile: msg`Found by the hourly check`,
+  admin: msg`Removed from this space here`,
+};
 
 interface PeopleTableProps {
   space: Space;
@@ -76,38 +81,36 @@ interface PeopleTableProps {
  * One table rather than a Members tab plus a Groups tab. Admin rights and group
  * membership are both answers to "what is this person to this space", and
  * splitting them produced a UI where promoting someone happened in one place
- * while what they could actually open was decided in another. Pending
- * invitations are rows here too: an invitation is access already granted, just
- * not yet taken up.
+ * while what they could actually open was decided in another.
+ *
+ * Below it sits the one thing membership no longer answers on its own: people
+ * the organization has already dropped, whose access ended with the removal
+ * but whose content is still theirs until an admin hands it over.
  *
  * What a group *opens* is still set on the folder, from its access dialog. This
  * table says who is in the group; the folder says what the group reaches.
  */
 export function PeopleTable({ space, groupFilter, onGroupFilterChange }: PeopleTableProps) {
-  const { t, i18n } = useLingui();
+  const { t } = useLingui();
   const spaceId = space.id;
   const isAdmin = space.is_admin;
 
   const { data: members = [], isLoading } = useSpaceMembers(spaceId);
-  // Listing invitations is admin-gated on the server, so asking as a member
-  // would only produce a 403 in the console.
-  const invitations = useInvitations(spaceId, isAdmin);
+  // Listing pending handovers is admin-gated on the server, so asking as a
+  // member would only produce a 403 in the console.
+  const { data: departures = [] } = useSpaceDepartures(spaceId, isAdmin);
   const { data: groups = [] } = useGroups(spaceId);
   const { byUser } = useGroupMemberships(spaceId, groups);
   const { data: me } = useMe();
 
   const setAdmin = useSetMemberAdmin();
   const removeMember = useRemoveSpaceMember();
-  const invite = useCreateInvitation(spaceId);
-  const revokeInvite = useRevokeInvitation(spaceId);
+  const completeHandover = useCompleteDeparture(spaceId);
   const addToGroup = useAddGroupMember(spaceId);
   const removeFromGroup = useRemoveGroupMember(spaceId);
 
   const [query, setQuery] = useState("");
-  // eslint-disable-next-line lingui/no-unlocalized-strings -- status discriminator, see STATUS_FILTERS
-  const [statusFilter, setStatusFilter] = useState("all");
-
-  const pending = invitations.data ?? [];
+  const [handover, setHandover] = useState<SpaceDeparture | null>(null);
 
   // Not memoised: the labels are translated per render so they follow a
   // language switch, and a three- or ten-item map costs nothing next to the
@@ -119,12 +122,10 @@ export function PeopleTable({ space, groupFilter, onGroupFilterChange }: PeopleT
       return { label: t`Group: ${groupName}`, value: g.id };
     }),
   ];
-  const statusItems = STATUS_FILTERS.map((f) => ({ label: i18n._(f.label), value: f.value }));
 
   const visibleMembers = useMemo(() => {
     const q = query.trim().toLowerCase();
     return members.filter((m) => {
-      if (statusFilter === "pending") return false;
       if (groupFilter && !(byUser.get(m.user_id) ?? []).some((g) => g.id === groupFilter)) {
         return false;
       }
@@ -134,21 +135,14 @@ export function PeopleTable({ space, groupFilter, onGroupFilterChange }: PeopleT
         (m.display_name || m.name || "").toLowerCase().includes(q)
       );
     });
-  }, [members, query, statusFilter, groupFilter, byUser]);
+  }, [members, query, groupFilter, byUser]);
 
-  const visiblePending = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    // An invitation is not in any group yet, so a group filter excludes them
-    // all rather than showing rows the filter does not describe.
-    if (groupFilter) return [];
-    return pending.filter((i) => {
-      if (statusFilter === "active") return false;
-      return !q || i.email.toLowerCase().includes(q);
-    });
-  }, [pending, query, statusFilter, groupFilter]);
+  const shown = visibleMembers.length;
+  const total = members.length;
 
-  const shown = visibleMembers.length + visiblePending.length;
-  const total = members.length + pending.length;
+  const leaver = handover;
+  const leaverName = leaver ? leaver.display_name || leaver.name || leaver.email : "";
+  const owned = leaver?.files_owned ?? 0;
 
   if (isLoading) {
     return (
@@ -159,201 +153,222 @@ export function PeopleTable({ space, groupFilter, onGroupFilterChange }: PeopleT
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex flex-col gap-0.5">
-          <h2 className="font-heading text-sm font-medium">
-            <Trans>People</Trans>
-          </h2>
-          <p className="text-muted-foreground text-[10px] tabular-nums">
-            <Plural value={members.length} one="# member" other="# members" />
-            {pending.length > 0 && (
-              <>
-                {" · "}
-                <Plural value={pending.length} one="# pending" other="# pending" />
-              </>
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="flex flex-col gap-0.5">
+            <h2 className="font-heading text-sm font-medium">
+              <Trans>People</Trans>
+            </h2>
+            <p className="text-muted-foreground text-[10px] tabular-nums">
+              <Plural value={total} one="# member" other="# members" />
+              {" · "}
+              <Plural value={groups.length} one="# group" other="# groups" />
+            </p>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2">
+            {isAdmin && (
+              <Button
+                onClick={() =>
+                  void InviteModal.show({
+                    spaceId,
+                    defaultAsAdmin: space.default_as_admin ?? false,
+                  })
+                }
+              >
+                <UserPlus data-icon="inline-start" /> <Trans>Invite people</Trans>
+              </Button>
             )}
-            {" · "}
-            <Plural value={groups.length} one="# group" other="# groups" />
-          </p>
-        </div>
-
-        <div className="flex shrink-0 items-center gap-2">
-          {isAdmin && (
             <Button
-              onClick={() =>
-                void InviteModal.show({
-                  spaceId,
-                  memberIds: members.map((m) => m.user_id),
-                  defaultAsAdmin: space.default_as_admin ?? false,
-                })
-              }
+              variant="outline"
+              disabled={total === 0}
+              onClick={() => exportCsv(visibleMembers, byUser)}
             >
-              <UserPlus data-icon="inline-start" /> <Trans>Invite people</Trans>
+              <Download data-icon="inline-start" /> <Trans>Export CSV</Trans>
             </Button>
-          )}
-          <Button
-            variant="outline"
-            disabled={total === 0}
-            onClick={() => exportCsv(visibleMembers, visiblePending, byUser)}
-          >
-            <Download data-icon="inline-start" /> <Trans>Export CSV</Trans>
-          </Button>
+          </div>
         </div>
-      </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={t`Filter by name or email`}
-          aria-label={t`Filter people by name or email`}
-          className="max-w-64"
-        />
-        <FilterSelect
-          value={groupFilter ?? ALL_GROUPS}
-          onChange={(v) => onGroupFilterChange(v === ALL_GROUPS ? undefined : v)}
-          items={groupItems}
-          label={t`Filter by group`}
-        />
-        <FilterSelect
-          value={statusFilter}
-          onChange={setStatusFilter}
-          items={statusItems}
-          label={t`Filter by status`}
-        />
-        <span className="text-muted-foreground ml-auto shrink-0 text-[10px] tabular-nums">
-          <Trans>
-            Showing {shown} of {total}
-          </Trans>
-        </span>
-      </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t`Filter by name or email`}
+            aria-label={t`Filter people by name or email`}
+            className="max-w-64"
+          />
+          <FilterSelect
+            value={groupFilter ?? ALL_GROUPS}
+            onChange={(v) => onGroupFilterChange(v === ALL_GROUPS ? undefined : v)}
+            items={groupItems}
+            label={t`Filter by group`}
+          />
+          <span className="text-muted-foreground ml-auto shrink-0 text-[10px] tabular-nums">
+            <Trans>
+              Showing {shown} of {total}
+            </Trans>
+          </span>
+        </div>
 
-      <Table className="text-xs">
-        <TableHeader>
-          <TableRow>
-            <TableHead>
-              <Trans>Member</Trans>
-            </TableHead>
-            <TableHead className="w-16">
-              <Trans>Admin</Trans>
-            </TableHead>
-            <TableHead className="w-64">
-              <Trans>Groups</Trans>
-            </TableHead>
-            <TableHead className="w-24">
-              <Trans>Joined</Trans>
-            </TableHead>
-            <TableHead className="w-24">
-              <Trans>Last active</Trans>
-            </TableHead>
-            <TableHead className="w-20 text-right">
-              <Trans>Files owned</Trans>
-            </TableHead>
-            {isAdmin && <TableHead className="w-10" />}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {visibleMembers.map((member) => (
-            <MemberRow
-              key={member.user_id}
-              member={member}
-              groups={groups}
-              held={byUser.get(member.user_id) ?? []}
-              isSelf={member.user_id === me?.id}
-              external={isExternal(member.email, me?.email)}
-              canManage={isAdmin}
-              onAdminToggle={(as_admin) =>
-                setAdmin.mutate(
-                  { spaceId, userId: member.user_id, as_admin },
-                  { onError: (e) => toast.error(e.message) },
-                )
-              }
-              onAddToGroup={(group) => {
-                const groupName = group.name;
-                addToGroup.mutate(
-                  { groupId: group.id, userId: member.user_id },
-                  {
-                    onSuccess: () => toast.success(t`Added to ${groupName}`),
-                    onError: (e) => toast.error(e.message),
-                  },
-                );
-              }}
-              onRemoveFromGroup={(group) => {
-                const groupName = group.name;
-                removeFromGroup.mutate(
-                  { groupId: group.id, userId: member.user_id },
-                  {
-                    onSuccess: () => toast.success(t`Removed from ${groupName}`),
-                    onError: (e) => toast.error(e.message),
-                  },
-                );
-              }}
-              onOpenGroup={(group) => onGroupFilterChange(group.id)}
-              onRemove={() => {
-                const memberEmail = member.email;
-                removeMember.mutate(
-                  { spaceId, userId: member.user_id },
-                  {
-                    onSuccess: () =>
-                      toast.success(t`Removed ${memberEmail}`, {
-                        description: t`Anything they owned here is filed in the Archive.`,
-                      }),
-                    onError: (e) => toast.error(e.message),
-                  },
-                );
-              }}
-            />
-          ))}
-
-          {visiblePending.map((inv) => (
-            <PendingRow
-              key={inv.id}
-              invitation={inv}
-              external={isExternal(inv.email, me?.email)}
-              canManage={isAdmin}
-              busy={invite.isPending}
-              onResend={() => {
-                const inviteeEmail = inv.email;
-                invite.mutate(
-                  { email: inv.email, as_admin: inv.as_admin },
-                  {
-                    onSuccess: (result) => {
-                      if (result.mail_sent) {
-                        void navigator.clipboard?.writeText(result.url ?? "");
-                        toast.success(t`New invitation sent`, {
-                          description: t`Emailed to ${inviteeEmail} — the previous link no longer works. It's also on your clipboard.`,
-                        });
-                      } else if (result.url) {
-                        void navigator.clipboard?.writeText(result.url);
-                        toast.success(t`New invitation link copied`, {
-                          description: t`Send it to ${inviteeEmail} — the previous link no longer works.`,
-                        });
-                      }
-                    },
-                    onError: (e) => toast.error(e.message),
-                  },
-                );
-              }}
-              onRevoke={() => {
-                const inviteeEmail = inv.email;
-                revokeInvite.mutate(inv.id, {
-                  onSuccess: () => toast.success(t`Revoked the invitation for ${inviteeEmail}`),
-                  onError: (e) => toast.error(e.message),
-                });
-              }}
-            />
-          ))}
-
-          {shown === 0 && (
+        <Table className="text-xs">
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={isAdmin ? 7 : 6} className="text-muted-foreground py-6 text-xs">
-                <Trans>No one matches these filters.</Trans>
-              </TableCell>
+              <TableHead>
+                <Trans>Member</Trans>
+              </TableHead>
+              <TableHead className="w-16">
+                <Trans>Admin</Trans>
+              </TableHead>
+              <TableHead className="w-64">
+                <Trans>Groups</Trans>
+              </TableHead>
+              <TableHead className="w-24">
+                <Trans>Joined</Trans>
+              </TableHead>
+              <TableHead className="w-24">
+                <Trans>Last active</Trans>
+              </TableHead>
+              <TableHead className="w-20 text-right">
+                <Trans>Files owned</Trans>
+              </TableHead>
+              {isAdmin && <TableHead className="w-10" />}
             </TableRow>
-          )}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {visibleMembers.map((member) => (
+              <MemberRow
+                key={member.user_id}
+                member={member}
+                groups={groups}
+                held={byUser.get(member.user_id) ?? []}
+                isSelf={member.user_id === me?.id}
+                external={isExternal(member.email, me?.email)}
+                canManage={isAdmin}
+                onAdminToggle={(as_admin) =>
+                  setAdmin.mutate(
+                    { spaceId, userId: member.user_id, as_admin },
+                    { onError: (e) => toast.error(e.message) },
+                  )
+                }
+                onAddToGroup={(group) => {
+                  const groupName = group.name;
+                  addToGroup.mutate(
+                    { groupId: group.id, userId: member.user_id },
+                    {
+                      onSuccess: () => toast.success(t`Added to ${groupName}`),
+                      onError: (e) => toast.error(e.message),
+                    },
+                  );
+                }}
+                onRemoveFromGroup={(group) => {
+                  const groupName = group.name;
+                  removeFromGroup.mutate(
+                    { groupId: group.id, userId: member.user_id },
+                    {
+                      onSuccess: () => toast.success(t`Removed from ${groupName}`),
+                      onError: (e) => toast.error(e.message),
+                    },
+                  );
+                }}
+                onOpenGroup={(group) => onGroupFilterChange(group.id)}
+                onRemove={() => {
+                  const memberEmail = member.email;
+                  removeMember.mutate(
+                    { spaceId, userId: member.user_id },
+                    {
+                      onSuccess: () =>
+                        toast.success(t`Removed ${memberEmail}`, {
+                          description: t`Their access ended now. What they left behind waits under Pending handover.`,
+                        }),
+                      onError: (e) => toast.error(e.message),
+                    },
+                  );
+                }}
+              />
+            ))}
+
+            {shown === 0 && (
+              <TableRow>
+                <TableCell colSpan={isAdmin ? 7 : 6} className="text-muted-foreground py-6 text-xs">
+                  <Trans>No one matches these filters.</Trans>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {departures.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <div className="flex flex-col gap-0.5">
+            <h2 className="font-heading text-sm font-medium">
+              <Trans>Pending handover</Trans>
+            </h2>
+            <p className="text-muted-foreground text-[10px]">
+              <Trans>
+                These people have left the organization and lost access already. What they created
+                here is still filed under their name until you hand it over.
+              </Trans>
+            </p>
+          </div>
+
+          <Table className="text-xs">
+            <TableHeader>
+              <TableRow>
+                <TableHead>
+                  <Trans>Person</Trans>
+                </TableHead>
+                <TableHead className="w-32">
+                  <Trans>Left</Trans>
+                </TableHead>
+                <TableHead className="w-20 text-right">
+                  <Trans>Files owned</Trans>
+                </TableHead>
+                <TableHead className="w-40" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {departures.map((departure) => (
+                <DepartureRow
+                  key={departure.user_id}
+                  departure={departure}
+                  external={isExternal(departure.email, me?.email)}
+                  busy={completeHandover.isPending}
+                  onComplete={() => setHandover(departure)}
+                />
+              ))}
+            </TableBody>
+          </Table>
+        </section>
+      )}
+
+      <ConfirmDialog
+        open={!!leaver}
+        onOpenChange={(open) => !open && setHandover(null)}
+        title={t`Complete handover for ${leaverName}?`}
+        description={
+          owned > 0
+            ? plural(owned, {
+                one: "This revokes every grant they gave other people, moves anything they created inside someone else’s folder to that folder’s owner, and files the # file they owned at the top level of this space into its Archive.",
+                other:
+                  "This revokes every grant they gave other people, moves anything they created inside someone else’s folder to that folder’s owner, and files the # files they owned at the top level of this space into its Archive.",
+              })
+            : t`They owned nothing here, so nothing moves into the Archive. This revokes the grants they gave other people and closes the handover. It cannot be undone.`
+        }
+        warning={owned > 0 ? t`This cannot be undone.` : undefined}
+        confirmLabel={t`Complete handover`}
+        confirmVariant={owned > 0 ? "destructive" : "default"}
+        onConfirm={() => {
+          if (!leaver) return;
+          const who = leaverName;
+          completeHandover.mutate(leaver.user_id, {
+            onSuccess: () => toast.success(t`Handover for ${who} is complete`),
+            onError: (e) => toast.error(e.message),
+          });
+          setHandover(null);
+        }}
+      />
     </div>
   );
 }
@@ -546,72 +561,54 @@ function MemberRow({
   );
 }
 
-interface PendingRowProps {
-  invitation: Invitation;
+interface DepartureRowProps {
+  departure: SpaceDeparture;
   external: boolean;
-  canManage: boolean;
   busy: boolean;
-  onResend: () => void;
-  onRevoke: () => void;
+  onComplete: () => void;
 }
 
-function PendingRow({
-  invitation,
-  external,
-  canManage,
-  busy,
-  onResend,
-  onRevoke,
-}: PendingRowProps) {
-  const { t } = useLingui();
+/**
+ * Somebody the organization dropped. The row is deliberately quiet: the loss
+ * of access already happened elsewhere and needs no confirming — the only
+ * outstanding decision is the destructive one behind the button.
+ */
+function DepartureRow({ departure, external, busy, onComplete }: DepartureRowProps) {
+  const { i18n } = useLingui();
   const f = useFormatters();
-  const invitedOn = f.date(invitation.created_at);
+  const name = departure.display_name || departure.name || departure.email;
+
   return (
     <TableRow className="bg-muted/20">
       <TableCell>
         <div className="flex min-w-0 items-center gap-2">
-          <span
-            aria-hidden
-            className="bg-muted text-muted-foreground grid size-6 shrink-0 place-content-center rounded-full"
-          >
-            <Mail className="size-3" />
-          </span>
-          <span className="flex min-w-0 items-center gap-1">
-            <span className="text-muted-foreground truncate italic">{invitation.email}</span>
-            <Badge variant="outline" className="text-primary border-primary/30 bg-primary/10">
-              <Trans>Pending</Trans>
-            </Badge>
-            {external && <ExternalChip />}
-          </span>
+          <Avatar size="sm" className="shrink-0 grayscale">
+            <AvatarImage src={departure.avatar_url} />
+            <AvatarFallback>
+              <UserRoundX className="size-3" />
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex min-w-0 flex-col leading-tight">
+            <span className="flex items-center gap-1 truncate font-medium">
+              <span className="truncate">{name}</span>
+              {external && <ExternalChip />}
+            </span>
+            <span className="text-muted-foreground truncate text-[10px]">{departure.email}</span>
+          </div>
         </div>
       </TableCell>
-      <TableCell>
-        <Switch
-          size="sm"
-          checked={invitation.as_admin}
-          disabled
-          aria-label={t`Will join as admin`}
-          title={invitation.as_admin ? t`Will join as an admin` : t`Will join as a member`}
-        />
+      <TableCell className="text-muted-foreground" title={f.date(departure.detected_at)}>
+        <span className="block tabular-nums">{f.relative(departure.detected_at)}</span>
+        <span className="block text-[10px]">{i18n._(DEPARTURE_SOURCE[departure.source])}</span>
       </TableCell>
-      <TableCell className="text-muted-foreground">—</TableCell>
-      <TableCell className="text-muted-foreground tabular-nums">
-        <Trans>Invited {invitedOn}</Trans>
+      <TableCell className="text-right tabular-nums">
+        {departure.files_owned.toLocaleString()}
       </TableCell>
-      <TableCell className="text-muted-foreground">—</TableCell>
-      <TableCell className="text-muted-foreground text-right">—</TableCell>
-      {canManage && (
-        <TableCell>
-          <div className="flex items-center justify-end gap-1">
-            <Button variant="ghost" size="xs" disabled={busy} onClick={onResend}>
-              <Trans>Resend</Trans>
-            </Button>
-            <Button variant="destructive" size="xs" disabled={busy} onClick={onRevoke}>
-              <Trans>Revoke</Trans>
-            </Button>
-          </div>
-        </TableCell>
-      )}
+      <TableCell className="text-right">
+        <Button variant="outline" size="xs" disabled={busy} onClick={onComplete}>
+          <Trans>Complete handover</Trans>
+        </Button>
+      </TableCell>
     </TableRow>
   );
 }
@@ -637,40 +634,23 @@ function isExternal(email: string, myEmail?: string): boolean {
 }
 
 /** Downloads the rows currently on screen, filters included. */
-function exportCsv(members: SpaceMember[], pending: Invitation[], byUser: Map<string, Group[]>) {
-  // The CSV is data, not interface: the header row and the `Yes`/`No`,
-  // `active`/`pending` cells are the column contract a spreadsheet or an
-  // importer reads, so they stay in English however the app is displayed.
-  // Translating them would change the file's schema with the reader's
-  // language.
+function exportCsv(members: SpaceMember[], byUser: Map<string, Group[]>) {
+  // The CSV is data, not interface: the header row and the `Yes`/`No` cells
+  // are the column contract a spreadsheet or an importer reads, so they stay
+  // in English however the app is displayed. Translating them would change
+  // the file's schema with the reader's language.
   // eslint-disable-next-line lingui/no-unlocalized-strings -- CSV column headers: the file's schema
-  const header = "Name,Email,Admin,Groups,Status,Joined,Last active,Files owned".split(",");
-  const rows = [
-    ...members.map((m) => [
-      m.display_name || m.name || "",
-      m.email,
-      // eslint-disable-next-line lingui/no-unlocalized-strings -- CSV admin cell, a machine value
-      m.is_admin ? "Yes" : "No",
-      (byUser.get(m.user_id) ?? []).map((g) => g.name).join(" | "),
-      // eslint-disable-next-line lingui/no-unlocalized-strings -- CSV status cell, a machine value
-      "active",
-      m.created_at,
-      m.last_seen ?? "",
-      String(m.files_owned),
-    ]),
-    ...pending.map((i) => [
-      " ",
-      i.email,
-      // eslint-disable-next-line lingui/no-unlocalized-strings -- CSV admin cell, a machine value
-      i.as_admin ? "Yes" : "No",
-      "",
-      // eslint-disable-next-line lingui/no-unlocalized-strings -- CSV status cell, a machine value
-      "pending",
-      i.created_at,
-      "",
-      "0",
-    ]),
-  ];
+  const header = "Name,Email,Admin,Groups,Joined,Last active,Files owned".split(",");
+  const rows = members.map((m) => [
+    m.display_name || m.name || "",
+    m.email,
+    // eslint-disable-next-line lingui/no-unlocalized-strings -- CSV admin cell, a machine value
+    m.is_admin ? "Yes" : "No",
+    (byUser.get(m.user_id) ?? []).map((g) => g.name).join(" | "),
+    m.created_at,
+    m.last_seen ?? "",
+    String(m.files_owned),
+  ]);
 
   const csv = [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
   const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));

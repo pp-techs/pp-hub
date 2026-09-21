@@ -1,12 +1,9 @@
-// Space settings, invitations and server administration.
+// Space settings and server administration.
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  createInvitation,
   deleteSpace,
   getAdminStats,
-  getInvitations,
-  revokeInvitation,
   updateAdminUser,
   updateSpace,
   type SpaceSettings,
@@ -30,34 +27,6 @@ export function useDeleteSpace() {
   });
 }
 
-export function useInvitations(spaceId: string, enabled = true) {
-  return useQuery({
-    queryKey: keys.invitations(spaceId),
-    queryFn: () => getInvitations(spaceId),
-    enabled,
-  });
-}
-
-export function useCreateInvitation(spaceId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ email, as_admin }: { email: string; as_admin: boolean }) =>
-      createInvitation(spaceId, email, as_admin),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: keys.invitations(spaceId) });
-      // An existing account is added straight to the member list.
-      void qc.invalidateQueries({ queryKey: keys.members(spaceId) });
-    },
-  });
-}
-
-export function useRevokeInvitation(spaceId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (inviteId: string) => revokeInvitation(spaceId, inviteId),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: keys.invitations(spaceId) }),
-  });
-}
 export function adminStatsOptions() {
   return { queryKey: keys.adminStats, queryFn: getAdminStats };
 }

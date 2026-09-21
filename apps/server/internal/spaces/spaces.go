@@ -201,6 +201,18 @@ func (s *Service) AddMember(ctx context.Context, spaceID, userID pgtype.UUID, as
 // already guards user-created groups, and the Admin group is the higher
 // privilege of the two.
 func (s *Service) SetAdmin(ctx context.Context, spaceID, userID pgtype.UUID, asAdmin bool) error {
+	if !asAdmin {
+		if err := s.RequireNotLastAdmin(ctx, spaceID, userID); err != nil {
+			return err
+		}
+	}
+	return s.ApplyAdmin(ctx, spaceID, userID, asAdmin)
+}
+
+// ApplyAdmin is SetAdmin without the last-admin refusal: the sync path
+// reporting what the organization already says, rather than a request asking
+// for a change that may be declined.
+func (s *Service) ApplyAdmin(ctx context.Context, spaceID, userID pgtype.UUID, asAdmin bool) error {
 	admin, err := s.q.GetAdminGroup(ctx, spaceID)
 	if err != nil {
 		return err
@@ -211,25 +223,58 @@ func (s *Service) SetAdmin(ctx context.Context, spaceID, userID pgtype.UUID, asA
 		}
 		return s.q.AddGroupMember(ctx, store.AddGroupMemberParams{GroupID: admin.ID, UserID: userID})
 	}
-	isAdmin, err := s.q.IsSpaceAdmin(ctx, store.IsSpaceAdminParams{SpaceID: spaceID, UserID: userID})
-	if err != nil {
-		return err
-	}
-	if isAdmin {
-		count, err := s.q.CountSpaceAdmins(ctx, spaceID)
-		if err != nil {
-			return err
-		}
-		if count <= 1 {
-			return ErrLastAdmin
-		}
-	}
 	return s.q.RemoveGroupMember(ctx, store.RemoveGroupMemberParams{GroupID: admin.ID, UserID: userID})
 }
 
-// RemoveMember takes a member out of a space and archives what they owned.
+// RequireNotLastAdmin refuses an operation that would leave the space with no
+// administrator.
 //
-// Order matters:
+// It guards the *request* paths only — an admin demoting or removing somebody
+// through pp-hub. The sync path does not consult it, and must not: a removal
+// performed in the identity provider has already happened, and a mirror that
+// declines to mirror it is simply wrong. A space that ends up with no admin
+// says so; see spaceDTO.AdminCount.
+func (s *Service) RequireNotLastAdmin(ctx context.Context, spaceID, userID pgtype.UUID) error {
+	if !s.IsAdmin(ctx, spaceID, userID) {
+		return nil
+	}
+	count, err := s.q.CountSpaceAdmins(ctx, spaceID)
+	if err != nil {
+		return err
+	}
+	if count <= 1 {
+		return ErrLastAdmin
+	}
+	return nil
+}
+
+// RevokeMembership takes away everything membership grants, and nothing else.
+//
+// This is the half of a departure that must happen the instant it is known:
+// the space_members row, so every listing and guard stops matching, and the
+// group memberships, because group_members references users rather than
+// spaces and therefore cascades from neither — leaving it would keep a
+// departed colleague's group grants live.
+//
+// Nothing here is destructive: no grant is dropped, no content moves. The
+// caller holds no access once the membership row is gone, so the grants left
+// standing grant nothing, and what remains can wait for CompleteDeparture and
+// a human. Idempotent, because every sync path may observe the same departure.
+func (s *Service) RevokeMembership(ctx context.Context, spaceID, userID pgtype.UUID) error {
+	if err := s.q.RemoveUserFromSpaceGroups(ctx, store.RemoveUserFromSpaceGroupsParams{
+		SpaceID: spaceID,
+		UserID:  userID,
+	}); err != nil {
+		return err
+	}
+	return s.q.RemoveSpaceMember(ctx, store.RemoveSpaceMemberParams{SpaceID: spaceID, UserID: userID})
+}
+
+// CompleteDeparture hands over what a departed member left behind.
+//
+// Destructive and irreversible, which is why it is a separate, admin-confirmed
+// step rather than something a webhook can trigger. Order matters:
+//
 //  1. Grants die first — inbound (direct grants naming them) and outbound
 //     (everything they created, links included) — while the nodes still have
 //     their original owner, so the departed member's sharing decisions leave
@@ -239,22 +284,10 @@ func (s *Service) SetAdmin(ctx context.Context, spaceID, userID pgtype.UUID, asA
 //  3. What remains — top-level subtrees they wholly owned — moves under the
 //     space's archive root, which the Admin group holds a grant on. Nothing is
 //     deleted; admins keep a backup they can read, restore or purge.
-//  4. Group memberships and the member row go last. group_members references
-//     users, not spaces, so nothing cascades when the space_members row goes:
-//     skipping it leaves someone who is no longer in the company still holding
-//     live access through their old groups.
 //
-// Removing the last admin is refused.
-func (s *Service) RemoveMember(ctx context.Context, spaceID, userID, actorID pgtype.UUID) error {
-	if s.IsAdmin(ctx, spaceID, userID) {
-		count, err := s.q.CountSpaceAdmins(ctx, spaceID)
-		if err != nil {
-			return err
-		}
-		if count <= 1 {
-			return ErrLastAdmin
-		}
-	}
+// The membership rows are already gone by the time this runs: RevokeMembership
+// dropped them when the departure was detected.
+func (s *Service) CompleteDeparture(ctx context.Context, spaceID, userID, actorID pgtype.UUID) error {
 	if err := s.q.DeleteSharesByGranteeInSpace(ctx, store.DeleteSharesByGranteeInSpaceParams{
 		SpaceID: spaceID, GranteeUserID: userID,
 	}); err != nil {
@@ -333,13 +366,7 @@ func (s *Service) RemoveMember(ctx context.Context, spaceID, userID, actorID pgt
 			}
 		}
 	}
-	if err := s.q.RemoveUserFromSpaceGroups(ctx, store.RemoveUserFromSpaceGroupsParams{
-		SpaceID: spaceID,
-		UserID:  userID,
-	}); err != nil {
-		return err
-	}
-	return s.q.RemoveSpaceMember(ctx, store.RemoveSpaceMemberParams{SpaceID: spaceID, UserID: userID})
+	return nil
 }
 
 // moveToArchive re-parents one root under the archive folder, renaming with a

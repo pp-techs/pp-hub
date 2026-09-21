@@ -2,8 +2,6 @@ package config
 
 import (
 	"testing"
-
-	"github.com/nhatbui/pp-hub/apps/server/internal/mail"
 )
 
 // A ceiling an operator typed wrongly must stop the server, not silently
@@ -87,39 +85,68 @@ func TestDeriveKeyFollowsTheMaster(t *testing.T) {
 	}
 }
 
-// A half-configured transport must fail startup rather than silently not
-// sending: the operator who set PP_SMTP_HOST believes mail works.
-func TestValidateSMTPRejectsAHalfConfiguredTransport(t *testing.T) {
-	cases := map[string]mail.Settings{
-		"host without from": {Host: "smtp.example.com", Port: 587, TLS: "starttls"},
-		"bad TLS mode":      {Host: "smtp.example.com", Port: 587, From: "pp-hub@example.com", TLS: "sslv3"},
-		"bad port":          {Host: "smtp.example.com", Port: 0, From: "pp-hub@example.com", TLS: "starttls"},
+// A half-configured tenant must fail startup. The alternative is discovering
+// it at the first membership change an admin attempts — the least convenient
+// moment, and the hardest to attribute to a missing variable.
+func TestLogtoRejectsAHalfConfiguredTenant(t *testing.T) {
+	cases := map[string]LogtoSettings{
+		"credentials without endpoint": {ClientID: "m2m", ClientSecret: "s"},
+		"endpoint without secret":      {Endpoint: "https://tenant.logto.app", ClientID: "m2m"},
+		"endpoint is not a URL":        {Endpoint: "tenant.logto.app", ClientID: "m2m", ClientSecret: "s"},
+		// A signing key with nothing to act through: the delivery would be
+		// verified and then dropped, which reads as working and is not.
+		"webhook key without credentials": {Endpoint: "https://tenant.logto.app", WebhookKey: "k"},
 	}
-	for name, s := range cases {
-		c := &Config{SMTP: s}
-		if err := c.validateSMTP(); err == nil {
+	for name, l := range cases {
+		if err := l.validate(); err == nil {
 			t.Errorf("%s: accepted", name)
 		}
 	}
 }
 
-// Disabled (Host == "") is a supported state, not an error: the invitation
-// handler falls back to returning the URL, which is the whole product before
-// SMTP existed.
-func TestValidateSMTPAcceptsDisabled(t *testing.T) {
-	c := &Config{}
-	if err := c.validateSMTP(); err != nil {
-		t.Fatalf("disabled SMTP rejected: %v", err)
+// An endpoint with no credentials is a real mode, not a mistake: the sign-in
+// path reconciles from the ID token's organization claims and makes no
+// outbound call, so organizations can own membership before anybody has
+// created a machine-to-machine application.
+func TestLogtoAcceptsAnEndpointWithoutCredentials(t *testing.T) {
+	l := LogtoSettings{Endpoint: "http://localhost:3001", AdminRole: "admin"}
+	if err := l.validate(); err != nil {
+		t.Fatalf("claim-only tenant rejected: %v", err)
+	}
+	if !l.Configured() {
+		t.Error("an endpoint alone does not make organizations authoritative")
+	}
+	if l.Enabled() {
+		t.Error("the Management API reports itself reachable with no credentials")
 	}
 }
 
-// A fully-configured transport must pass — this is the shape Load() builds
-// when every PP_SMTP_* variable is set.
-func TestValidateSMTPAcceptsAFullyConfiguredTransport(t *testing.T) {
-	c := &Config{SMTP: mail.Settings{
-		Host: "smtp.example.com", Port: 587, From: "pp-hub@example.com", TLS: "starttls",
-	}}
-	if err := c.validateSMTP(); err != nil {
-		t.Fatalf("valid SMTP rejected: %v", err)
+// Unset is a supported state, not an error: an install with no Logto tenant
+// still serves files, it simply changes no memberships.
+func TestLogtoAcceptsUnset(t *testing.T) {
+	var l LogtoSettings
+	if err := l.validate(); err != nil {
+		t.Fatalf("unset tenant rejected: %v", err)
+	}
+	if l.Configured() || l.Enabled() {
+		t.Error("an unset tenant reports itself configured or enabled")
+	}
+}
+
+// The shape Load() builds when every PP_LOGTO_* variable is set. A missing
+// webhook key warns but does not refuse: the hourly sweep still converges.
+func TestLogtoAcceptsAFullyConfiguredTenant(t *testing.T) {
+	l := LogtoSettings{
+		Endpoint:     "https://tenant.logto.app",
+		ClientID:     "m2m",
+		ClientSecret: "secret",
+		APIResource:  "https://tenant.logto.app/api",
+		AdminRole:    "admin",
+	}
+	if err := l.validate(); err != nil {
+		t.Fatalf("valid tenant rejected: %v", err)
+	}
+	if !l.Enabled() {
+		t.Error("a fully configured tenant reports itself disabled")
 	}
 }

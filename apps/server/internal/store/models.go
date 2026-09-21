@@ -331,19 +331,16 @@ type Space struct {
 	DefaultAsAdmin     bool               `json:"default_as_admin"`
 	CreatedAt          pgtype.Timestamptz `json:"created_at"`
 	AllowPublicLinks   bool               `json:"allow_public_links"`
+	IdpOrgID           pgtype.Text        `json:"idp_org_id"`
 }
 
-type SpaceInvitation struct {
-	ID         pgtype.UUID        `json:"id"`
-	TenantID   string             `json:"tenant_id"`
+type SpaceDeparture struct {
 	SpaceID    pgtype.UUID        `json:"space_id"`
-	Email      string             `json:"email"`
-	TokenHash  string             `json:"token_hash"`
-	InvitedBy  pgtype.UUID        `json:"invited_by"`
-	AsAdmin    bool               `json:"as_admin"`
-	ExpiresAt  pgtype.Timestamptz `json:"expires_at"`
-	AcceptedAt pgtype.Timestamptz `json:"accepted_at"`
-	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	UserID     pgtype.UUID        `json:"user_id"`
+	DetectedAt pgtype.Timestamptz `json:"detected_at"`
+	Source     string             `json:"source"`
+	ResolvedAt pgtype.Timestamptz `json:"resolved_at"`
+	ResolvedBy pgtype.UUID        `json:"resolved_by"`
 }
 
 type SpaceMember struct {

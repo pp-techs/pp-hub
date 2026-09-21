@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@workspace/ui/components/dialog";
-import { fetchSpaces, requireAuth, useCreateSpace, useSpaces } from "@/lib/queries";
+import { fetchSpaces, requireAuth, useCreateSpace, useMe, useSpaces } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
 import { useActiveSpaceId } from "@/lib/use-active-space";
 import { DriveWriteProvider } from "@/components/drive-write";
@@ -121,6 +121,28 @@ function DriveLayout() {
 
 function LandingPage() {
   const setNewSpaceOpen = useUiStore((s) => s.setNewSpaceOpen);
+  const canCreateSpaces = useMe().data?.can_create_spaces ?? false;
+
+  // Belonging to no space means two very different things depending on who
+  // creates spaces here. Offering "create your first space" to somebody who
+  // cannot is worse than unhelpful — it tells them the fix is theirs.
+  if (!canCreateSpaces) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8">
+        <FolderPlus className="text-muted-foreground size-16" />
+        <h1 className="text-xl font-semibold">
+          <Trans>You are not in any space yet</Trans>
+        </h1>
+        <p className="text-muted-foreground max-w-sm text-center">
+          <Trans>
+            Spaces follow the organizations you belong to at your identity provider. Ask an
+            administrator to add you to one — it appears here the next time you sign in.
+          </Trans>
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8">
       <FolderPlus className="text-muted-foreground size-16" />

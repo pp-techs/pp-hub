@@ -40,6 +40,7 @@ import (
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/audit"
 	"github.com/nhatbui/pp-hub/apps/server/internal/config"
+	"github.com/nhatbui/pp-hub/apps/server/internal/orgsync"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 )
 
@@ -86,6 +87,31 @@ type Service struct {
 	// deployment that is meant to be https is exactly the case the flag has to
 	// survive.
 	secure bool
+	// orgs applies the organization claims to local membership. Nil when no
+	// Logto tenant is configured, which is the whole of the fallback: a
+	// sign-in still works, it simply changes no memberships.
+	orgs Reconciler
+}
+
+// scopes are what the authorization request asks for.
+//
+// The two organization scopes are Logto-specific and are only requested when
+// a Logto endpoint is configured. An OIDC provider is free to reject a scope
+// it does not know, and sending these unconditionally would make sign-in fail
+// on Keycloak or Authentik for a feature that install is not using.
+func scopes(cfg *config.Config) []string {
+	s := []string{oidc.ScopeOpenID, "profile", "email"}
+	if cfg.Logto.Endpoint != "" {
+		s = append(s, "urn:logto:scope:organizations", "urn:logto:scope:organization_roles")
+	}
+	return s
+}
+
+// Reconciler applies the organization claims in an ID token to local
+// membership. Implemented by orgsync.Service; an interface here only so the
+// dependency is stated where it is used.
+type Reconciler interface {
+	ReconcileUser(ctx context.Context, user store.User, claims orgsync.Claims) error
 }
 
 func NewService(ctx context.Context, cfg *config.Config, queries *store.Queries) (*Service, error) {
@@ -115,7 +141,7 @@ func NewService(ctx context.Context, cfg *config.Config, queries *store.Queries)
 			ClientSecret: cfg.OIDCClientSecret,
 			Endpoint:     endpoint,
 			RedirectURL:  cfg.ExternalURL + "/auth/callback",
-			Scopes:       []string{oidc.ScopeOpenID, "profile", "email"},
+			Scopes:       scopes(cfg),
 		},
 		secure: strings.HasPrefix(cfg.ExternalURL, "https://"),
 	}
@@ -247,6 +273,7 @@ func (s *Service) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.promoteBootstrapAdmin(r, &user, claims)
+	s.reconcileOrgs(r, user, claims)
 
 	// Signing in again from a browser that already holds a session replaces
 	// it rather than stacking on top. The old cookie is about to be
@@ -271,6 +298,33 @@ func (s *Service) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		dest = next
 	}
 	http.Redirect(w, r, dest, http.StatusFound)
+}
+
+// SetReconciler wires the organization sync in after construction.
+//
+// A setter rather than a constructor argument because orgsync needs the
+// space service, the space service needs the store, and this service needs a
+// live OIDC discovery — an ordering that no single constructor call can
+// satisfy without one of them taking the other's half-built self.
+func (s *Service) SetReconciler(r Reconciler) { s.orgs = r }
+
+// reconcileOrgs applies the organization claims before the session is issued,
+// so the first page load already lists the right spaces.
+//
+// A failure is logged and swallowed. The claims describe membership, not
+// identity: refusing the sign-in would lock somebody out of spaces they are
+// already in because a *different* space could not be updated, and the
+// hourly sweep will converge it anyway.
+func (s *Service) reconcileOrgs(r *http.Request, user store.User, claims idClaims) {
+	if s.orgs == nil || (len(claims.Organizations) == 0 && len(claims.OrganizationRoles) == 0) {
+		return
+	}
+	if err := s.orgs.ReconcileUser(r.Context(), user, orgsync.Claims{
+		Organizations:     claims.Organizations,
+		OrganizationRoles: claims.OrganizationRoles,
+	}); err != nil {
+		slog.Error("organization reconcile at sign-in", "user", user.Email, "err", err)
+	}
 }
 
 // promoteBootstrapAdmin makes the operator named by PP_BOOTSTRAP_ADMIN_EMAIL
@@ -366,6 +420,11 @@ type idClaims struct {
 	Email         string  `json:"email"`
 	EmailVerified boolish `json:"email_verified"`
 	Name          string  `json:"name"`
+	// Organization claims, present only when the two urn:logto:scope:*
+	// scopes were requested and granted. Absent on every other provider,
+	// which decodes to empty slices and reconciles nothing.
+	Organizations     []string `json:"organizations"`
+	OrganizationRoles []string `json:"organization_roles"`
 }
 
 // boolish is a bool that also accepts "true"/"false".

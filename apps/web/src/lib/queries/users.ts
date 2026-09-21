@@ -5,7 +5,6 @@ import type { QueryClient } from "@tanstack/react-query";
 import {
   updateMyProfile,
   uploadAvatar,
-  searchUsers,
   listUsers,
   listSecurityEvents,
   listSessions,
@@ -15,6 +14,8 @@ import {
   addSpaceMember,
   setMemberAdmin,
   removeSpaceMember,
+  getSpaceDepartures,
+  completeDeparture,
 } from "@/lib/api/users";
 import type { SecurityEventPage } from "@/lib/api";
 import { keys } from "./keys";
@@ -63,17 +64,6 @@ export function useRevokeOtherSessions() {
   });
 }
 
-// ─── User Search ─────────────────────────────────────────────────────────────
-
-export function useUserSearch(q: string, enabled = true) {
-  return useQuery({
-    queryKey: [...keys.userSearch, q],
-    queryFn: () => searchUsers(q),
-    enabled: enabled && q.length >= 2,
-    staleTime: 30_000,
-  });
-}
-
 // ─── Admin ───────────────────────────────────────────────────────────────────
 export function usersOptions(limit = 50, offset = 0) {
   return {
@@ -117,24 +107,30 @@ export function useSpaceMembers(spaceId: string | null) {
 }
 
 /**
- * Membership and group membership are the same cache tree, so all three
- * mutations below invalidate the member, invitation, and group roots rather
- * than just the member list. Admin *is* membership of the automatic Admin
- * group and joining a space *is* joining Everyone: narrowing the
- * invalidation to `members` left the People table showing a promoted admin
- * with no Admin chip until a reload.
+ * Membership and group membership are the same cache tree, so every mutation
+ * below invalidates the member, group and departure roots rather than just
+ * the member list. Admin *is* membership of the automatic Admin group and
+ * joining a space *is* joining Everyone: narrowing the invalidation to
+ * `members` left the People table showing a promoted admin with no Admin chip
+ * until a reload.
+ *
+ * `keys.spaces` goes with them because the space DTO carries `admin_count`,
+ * which is what the no-admin banner reads — demoting the last admin has to
+ * raise it without a reload.
  */
 const invalidateSpace = (qc: QueryClient, spaceId: string) => {
   void qc.invalidateQueries({ queryKey: keys.members(spaceId) });
-  void qc.invalidateQueries({ queryKey: keys.invitations(spaceId) });
   // The groups root also covers each group's member list.
   void qc.invalidateQueries({ queryKey: keys.groups(spaceId) });
+  // Removing a member opens a pending handover.
+  void qc.invalidateQueries({ queryKey: keys.departures(spaceId) });
+  void qc.invalidateQueries({ queryKey: keys.spaces });
 };
 
 export function useAddSpaceMember() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ spaceId, ...body }: { spaceId: string; user_id: string; as_admin: boolean }) =>
+    mutationFn: ({ spaceId, ...body }: { spaceId: string; email: string; as_admin: boolean }) =>
       addSpaceMember(spaceId, body),
     onSuccess: (_, vars) => invalidateSpace(qc, vars.spaceId),
   });
@@ -162,5 +158,31 @@ export function useRemoveSpaceMember() {
     mutationFn: ({ spaceId, userId }: { spaceId: string; userId: string }) =>
       removeSpaceMember(spaceId, userId),
     onSuccess: (_, vars) => invalidateSpace(qc, vars.spaceId),
+  });
+}
+
+// ─── Pending Handovers ───────────────────────────────────────────────────────
+
+/**
+ * People who have left the organization and whose content has not been handed
+ * over yet. Admin-gated on the server, so the query waits on the admin check
+ * rather than firing and 403-ing.
+ */
+export function useSpaceDepartures(spaceId: string, enabled = true) {
+  return useQuery({
+    queryKey: keys.departures(spaceId),
+    queryFn: () => getSpaceDepartures(spaceId),
+    enabled,
+  });
+}
+
+export function useCompleteDeparture(spaceId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => completeDeparture(spaceId, userId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: keys.members(spaceId) });
+      void qc.invalidateQueries({ queryKey: keys.departures(spaceId) });
+    },
   });
 }

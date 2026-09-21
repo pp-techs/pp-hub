@@ -25,6 +25,24 @@ Every item is therefore **private to its creator until they share it** — in th
 personal half of the tree. A **team folder** is the other half; see
 [Team Folders](#team-folders).
 
+**The ownership boundary.** Who belongs to the company is not pp-hub's
+decision: a space mirrors a Logto organization, and `space_members` is a
+projection of that organization's member list. Logto owns identity and
+membership; pp-hub owns everything built on top of it — user-created groups,
+grants, ownership, quota, the Archive and the departure teardown. Admin is the
+one crossing point: the organization role `admin` maps onto membership of the
+automatic `Admin` group, and nothing else about the permission system reaches
+upstream. See [Organization Sync](#organization-sync) and
+[logto-org-sync.md](logto-org-sync.md).
+
+A consequence worth stating in the model rather than the details: **a space is
+allowed to have no admin at all.** Membership can be edited in the Logto
+Console, so the last admin's removal can arrive as a fact pp-hub cannot refuse.
+The space shows a banner saying so and an instance admin (`users.is_admin`)
+resolves it; pp-hub does not auto-promote anybody, because admin means exactly
+one thing — membership of the `Admin` group — and inventing a grant nobody
+asked for would break that.
+
 ## Groups
 
 Every space has two automatic groups, created with the space and maintained by
@@ -150,7 +168,7 @@ For one user on one node:
    else is true. Ownership is intrinsic but not perpetual: leaving a company
    ends your reach into its tree. The `created_by` rows stay behind so the
    archive keeps an author, and rejoining restores that reach; without this
-   precondition `RemoveMember` would file someone's work in the archive while
+   precondition a departure would file someone's work in the archive while
    leaving them free to read and edit it.
 1. **Owner?** — the caller created this node or any ancestor → full
    capabilities, short-circuit.
@@ -194,9 +212,9 @@ Creating into a folder goes through `requireParentWrite`:
   is the M15 change: the root is no longer admin-only.
 
 Space-level powers — member management, creating and editing groups, settings,
-invitations, emptying the trash — are gated by `spaces.RequireAdmin`, i.e.
-Admin-group membership. They never travel through the capability scale. There is
-no role column and no role rank anymore.
+the departure queue, emptying the trash — are gated by `spaces.RequireAdmin`,
+i.e. Admin-group membership. They never travel through the capability scale.
+There is no role column and no role rank anymore.
 
 Two deliberate exceptions to "administration is admin-only":
 
@@ -333,11 +351,11 @@ and the resolver treats a share row on a file as an entry point like any
 other); the client used to hide them behind a folder-only dialog.
 
 Grantees are offered from the space — `GET /spaces/{id}/groups` and
-`GET /spaces/{id}/members`, both member-readable — never from
-`GET /users/search`. That endpoint is the invite path's tenant directory and is
-scoped to accounts sharing a space with the caller, lifted only for an
-instance admin: a space is a company, and the picker must not double as an
-address book for all of them.
+`GET /spaces/{id}/members`, both member-readable — and from nowhere else.
+There is no tenant-wide user directory to search: `GET /users/search` existed
+only to serve the invite path and went with it. A space is a company, and the
+picker must not double as an address book for all of them; the one way a person
+arrives in a space is the organization they belong to upstream.
 
 ## A Member's Top Level
 
@@ -422,7 +440,7 @@ Two guards keep a team folder administrable:
   `RequireAdmin` already draws — and the creator immediately gets an
   `edit + download + share` grant. Without it the folder would be unreachable
   the moment it existed, since nothing about it is owned.
-- **Departure re-seats one.** `RemoveMember` deletes the grants the leaver
+- **Departure re-seats one.** `CompleteDeparture` deletes the grants the leaver
   created, which may have been the only manager grant. Any team folder left
   with no `can_share` grantee (`CountTeamManagers`) falls to the `Admin` group,
   the same custodian the Archive gets, so an admin can appoint the next
@@ -514,8 +532,8 @@ file" — once that no longer holds `CapShare`. Before this, resolution was the
 token hash and the expiry and nothing else, so revoking the grant that let
 somebody share a folder left every link they had minted working, anonymously,
 indefinitely. The model already held the opposite intent for the stronger
-action: `RemoveMember` deletes the grants a departing member created so that
-"their sharing decisions leave with them". Revoking one grant is the weaker
+action: `CompleteDeparture` deletes the grants a departing member created so
+that "their sharing decisions leave with them". Revoking one grant is the weaker
 action and left the bigger hole. Re-resolving on read rather than cascading on
 revoke is the same choice made for WOPI tokens — one query covers every way
 access can disappear, an ancestor being moved included, instead of one cleanup
@@ -530,7 +548,21 @@ to the `Admin` group. That grant is the **only** place an admin can read
 content they do not own, and it exists so a departure never destroys work
 silently.
 
-`RemoveMember` runs in this order:
+Departure runs in **two phases**, and they are deliberately separated in time.
+Losing access is not the same event as having your work tidied away.
+
+**Immediately, on whichever sync path noticed — `RevokeMembership`.** Delete
+the person's rows in every `group_members` for the space's groups, then the
+`space_members` row itself. That is all of it, and it is enough to lock the
+door: with the membership row gone, resolution step 0 fails for them, so their
+grants _and_ their own `created_by` rows stop granting anything. The
+`group_members` half cannot be deferred — `group_members` references `users`,
+not `spaces`, so nothing cascades when the membership row goes, and leaving
+those rows standing would keep a departed colleague's group grants live. The
+whole step is idempotent, because more than one sync path may run it.
+
+**Later, once a space admin confirms it — `CompleteDeparture`.** This is the
+destructive half, and it runs in this order:
 
 1. **Grants die first** — inbound (direct grants naming them) and outbound
    (every grant they created, links included), while the nodes still carry their
@@ -547,20 +579,23 @@ silently.
    every ancestor-walking CTE in the space looped forever. `ListArchiveRoots`
    filters it out, `nodes_no_self_parent_ck` makes the shape unrepresentable,
    and the recursive walks carry a depth-100 brake.
-4. **Group memberships and the member row go last.** `group_members` references
-   `users`, not `spaces`, so nothing cascades when the `space_members` row
-   goes; skipping this would leave a departed person holding live access
-   through their old groups.
 
 The archive grant is re-seated on the way out, because the departing member may
 have been the row's `created_by` and step 1 deleted it.
 
-Nothing else is needed to lock the door: with the `space_members` row gone,
-resolution step 0 fails for them, so their own `created_by` rows stop granting
-anything. Their work is in the archive and only the admins can read it.
-Re-adding the person restores ownership of what step 3 archived — the folder
-stays in the archive, but they own it again, which is the outcome anyone would
-expect after a mistaken removal or a return.
+**The split costs no access control**, which is what makes it safe: content
+access requires _current_ membership of the node's space, so the grant rows
+phase two deletes are already granting nothing. What deferral buys is that the
+irreversible part is never triggered by somebody editing the Logto Console. A
+pending departure is a row in `space_departures`, surfaced as a queue on the
+People page (`GET /spaces/{id}/departures`), and
+`POST /spaces/{id}/departures/{userID}/complete` is the admin's confirmation.
+Until that call, nothing has been destroyed: putting the person back in the
+organization restores them exactly as they were.
+
+After a completed departure, re-adding the person restores ownership of what
+step 3 archived — the folder stays in the archive, but they own it again, which
+is the outcome anyone would expect after a mistaken removal or a return.
 
 Step 2 is **not** reversible in the same way. A file they created inside
 somebody else's folder has already had its `created_by` rewritten to that
@@ -568,9 +603,12 @@ folder's owner, and re-adding the person does not hand it back: they return
 with no capabilities on it at all. Authorship of the individual versions
 (`node_versions.created_by`) and the activity feed are what remain.
 
-Removing the **last** admin is refused (`spaces.ErrLastAdmin` → **409**), as is
-demoting them. Both guards live in `spaces.Service` so the HTTP layer cannot
-drift from them.
+Removing or demoting the **last** admin is still refused on pp-hub's own write
+path (`spaces.ErrLastAdmin` → **409**), checked before the Management API call,
+and both guards live in `spaces.Service` so the HTTP layer cannot drift from
+them. A removal performed upstream in the Logto Console is not a request and
+cannot be refused — it arrives as a fact, and the space is left admin-less with
+a banner. See [the ownership boundary](#model).
 
 The Archive is an ordinary folder, so admins browse, restore (move out) and
 purge it with the normal drive UI. It cannot be renamed, moved or trashed —
@@ -581,24 +619,37 @@ purge it with the normal drive UI. It cannot be renamed, moved or trashed —
 ```mermaid
 flowchart LR
     subgraph JOIN["Join — every path ends in AddMember"]
-        J1["admin adds · invitation accepted"]
+        S1["sign-in: organizations claim reconciled"]
+        S2["webhook: Organization.Membership.Updated"]
+        S3["hourly reconcile"]
+        AM["AddMember"]
         J2["+ Everyone group"]
-        J3["+ Admin group when as_admin"]
-        J1 --> J2
-        J1 --> J3
+        J3["+ Admin group when the org role is admin"]
+        S1 --> AM
+        S2 --> AM
+        S3 --> AM
+        AM --> J2
+        AM --> J3
     end
-    subgraph LEAVE["Leave — RemoveMember"]
+    subgraph LEAVE["Leave — two phases"]
+        L0["RevokeMembership · immediate, any sync path"]
+        L4["drop every group, then membership"]
+        DEP["space_departures row · pending"]
+        CD["CompleteDeparture · a space admin confirms"]
         L1["revoke grants in + out"]
         L2["nested ownership climbs to nearest ancestor owner"]
         L3["owned roots → Archive (Admin group reads)"]
-        L4["drop every group, then membership"]
-        L1 --> L2 --> L3 --> L4
+        L0 --> L4 --> DEP --> CD --> L1 --> L2 --> L3
     end
     JOIN ~~~ LEAVE
 ```
 
-Joining creates no folders: ownership begins with the first thing the member
-makes. Re-adding a departed member does not un-archive their content.
+There is no fourth way in and no local invitation: all three join paths are the
+same reconciler converging the space against its organization, so an admin
+adding a member adds them upstream and waits for that to come back. Joining
+creates no folders — ownership begins with the first thing the member makes.
+Re-adding a departed member does not un-archive content a completed departure
+already moved.
 
 ## Suspension
 
@@ -612,21 +663,61 @@ re-authentication loop.
 An instance admin cannot revoke their own instance-admin flag or suspend
 themselves; both are refused server-side.
 
-## Invitations
+## Organization Sync
 
-An invitation names an email address; membership names an account. That gap is
-the reason `space_invitations` exists rather than a nullable column on
-`space_members` — the invited address may have no user row yet.
+A space mirrors one Logto organization (`spaces.idp_org_id`, unique where
+non-NULL). **`space_members` is a projection, not a record**: the only writer
+is `orgsync`'s reconciler, which re-reads the organization's member list and
+converges the local set against it. No human writes that table, and nothing in
+pp-hub decides membership.
 
-- Only `token_hash` (sha256 of a 32-byte random token) is stored; the plaintext
-  is returned once at creation.
-- Re-inviting the same address replaces the pending row, so only the newest
-  link works.
-- Accepting requires a signed-in user **whose email matches the invitation**.
-- Inviting an address that already has an account skips the invitation and adds
-  the member directly.
-- `space_invitations.as_admin` decides whether accepting lands the person in the
-  Admin group; it defaults from `spaces.default_as_admin`.
+- **Three signals, one behaviour.** A returning user's `organizations` and
+  `organization_roles` ID-token claims, a
+  `Organization.Membership.Updated` webhook, and an hourly ticker all mean the
+  same thing — "this organization changed" — and all run the same convergence.
+  No path applies a delta: webhook payloads arrive unordered, so applying
+  `addedUserIds`/`removedUserIds` incrementally would be a correctness bug,
+  while converging is idempotent and order-free.
+- **Admin is the organization role `admin`**, mapped onto membership of the
+  automatic `Admin` group (`PP_LOGTO_ORG_ROLE_ADMIN` names the role). It is
+  still the same one fact it has always been; what changed is who decides it.
+  `POST /spaces/{id}/members/{userID}/set-admin` writes through to the
+  Management API and lets the reconciler apply the result.
+- **There is no local invitation.** `POST /spaces/{id}/members` takes an
+  `{"email", "as_admin"}` pair. An address that already has an upstream account
+  is added to the organization and reconciled — **201** `{"status":"added"}`;
+  an address that does not gets an organization invitation sent by Logto's own
+  email connector — **202** `{"status":"invited"}`. A space with no
+  `idp_org_id` answers **422**, an unreachable Logto **503**, and an existing
+  member **409**. There is no token for pp-hub to mint, store or redeem, and no
+  acceptance route.
+- **Creating a space is no longer an ordinary user's action.** A space is a
+  company, so once the identity provider decides who belongs to which company,
+  it decides which companies exist. `POST /spaces` answers **403** for an
+  ordinary member: minting one would have awarded them the `Admin` group on it,
+  which is exactly the authority the organization role was supposed to decide,
+  and the result would be a space no reconcile ever touches. An instance admin
+  (`users.is_admin`) keeps the route for a deliberately unlinked space, and an
+  install with no Logto tenant keeps it for everyone. The profile carries
+  `can_create_spaces` so the client hides the control rather than offering a 403.
+- **Members who have never signed in still exist.** Reconciliation pre-creates
+  the `users` row from the Management API response, keyed on
+  `(oidc_iss, oidc_sub)`, so the People page shows the organization rather than
+  the subset of it that has logged in at least once.
+- **Removal is immediate; teardown is confirmed.** See
+  [Archive](#archive) — the projection loses the row the moment the change is
+  seen, and `space_departures` holds the destructive half until an admin asks
+  for it.
+- **The space DTO carries the two facts a client needs to say any of this.**
+  `idp_org_id` is absent when the space is unlinked, which is how the UI knows
+  the add-member form has nowhere to send an address; `admin_count` is how many
+  people are in the `Admin` group, and `0` is what raises the no-administrator
+  banner. Both ride on `GET /spaces`, `POST /spaces` and
+  `PATCH /spaces/{id}` — no extra round trip for a banner that has to render on
+  every surface.
+
+The full design, including the failure modes and the reasoning behind each
+choice, is [logto-org-sync.md](logto-org-sync.md).
 
 ## Group Membership Invariants
 
@@ -634,7 +725,8 @@ Enforced in `spaces.Service`, not by the database alone:
 
 - **Creating a space creates its `Everyone` group, its `Admin` group and its
   `Archive` root**, and puts the creator in both groups.
-- **Adding a member adds them to `Everyone`** — and to `Admin` when `as_admin`.
+- **Adding a member adds them to `Everyone`** — and to `Admin` when they hold
+  the organization's `admin` role.
 - **Removing a member removes them from every group in that space.**
 - **`Everyone` membership is always exactly space membership.** There is no API
   to edit it by hand.
@@ -656,7 +748,6 @@ deltas. What changed relative to the model M11 left behind:
 | `shares.can_share` added                   | re-sharing is a choice, independent of level                 |
 | `space_members.role` dropped               | admin status is Admin-group membership                       |
 | `spaces.default_role` → `default_as_admin` | role enum is gone                                            |
-| `space_invitations.role` → `as_admin`      | same                                                         |
 | `groups.is_admin` added                    | marks the automatic Admin group, unique per space            |
 | `spaces.archive_root_id` added             | where a departure lands                                      |
 | `personal_folders` dropped                 | ownership covers every node, not one folder per member       |

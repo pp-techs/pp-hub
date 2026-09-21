@@ -1,40 +1,17 @@
 package httpapi
 
 import (
-	"context"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"log/slog"
 	"net/http"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/nhatbui/pp-hub/apps/server/internal/activity"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 )
 
 var slugPattern = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
-
-const invitationTTL = 14 * 24 * time.Hour
-
-type invitationDTO struct {
-	ID        string `json:"id"`
-	SpaceID   string `json:"space_id"`
-	Email     string `json:"email"`
-	AsAdmin   bool   `json:"as_admin"`
-	InvitedBy string `json:"invited_by"`
-	ExpiresAt string `json:"expires_at,omitempty"`
-	CreatedAt string `json:"created_at"`
-	URL       string `json:"url,omitempty"`
-	// MailSent is set only by creation, never by the listing endpoint, which
-	// knows nothing about delivery.
-	MailSent bool `json:"mail_sent,omitempty"`
-}
 
 func (s *Server) handleUpdateSpace(w http.ResponseWriter, r *http.Request) {
 	u, space, ok := s.requireSpaceAdmin(w, r)
@@ -112,7 +89,7 @@ func (s *Server) handleUpdateSpace(w http.ResponseWriter, r *http.Request) {
 		Error(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, spaceToDTO(updated, true))
+	writeJSON(w, http.StatusOK, spaceToDTO(updated, true, s.adminCount(r, updated.ID)))
 	_ = u
 }
 
@@ -162,233 +139,6 @@ func (s *Server) handleDeleteSpace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
-}
-
-func (s *Server) handleListInvitations(w http.ResponseWriter, r *http.Request) {
-	_, _, ok := s.requireSpaceAdmin(w, r)
-	if !ok {
-		return
-	}
-	spaceID, err := uuidParam(r, "spaceID")
-	if err != nil {
-		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
-		return
-	}
-	rows, err := s.store.ListSpaceInvitations(r.Context(), spaceID)
-	if err != nil {
-		Error(w, r, err)
-		return
-	}
-	out := make([]invitationDTO, 0, len(rows))
-	for _, i := range rows {
-		out = append(out, invitationDTO{
-			ID:        uuidString(i.ID),
-			SpaceID:   uuidString(i.SpaceID),
-			Email:     i.Email,
-			AsAdmin:   i.AsAdmin,
-			InvitedBy: actorName(i.InviterDisplayName, i.InviterName, i.InviterEmail),
-			ExpiresAt: optionalTime(i.ExpiresAt),
-			CreatedAt: i.CreatedAt.Time.Format(timeLayout),
-		})
-	}
-	writeJSON(w, http.StatusOK, out)
-}
-
-func (s *Server) handleCreateInvitation(w http.ResponseWriter, r *http.Request) {
-	u, space, ok := s.requireSpaceAdmin(w, r)
-	if !ok {
-		return
-	}
-	var body struct {
-		Email   string `json:"email"`
-		AsAdmin bool   `json:"as_admin"`
-		Role    string `json:"role"` // deprecated: "admin"|"member" → as_admin
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid body")
-		return
-	}
-	email := strings.TrimSpace(strings.ToLower(body.Email))
-	if email == "" || !strings.Contains(email, "@") {
-		writeProblem(w, http.StatusBadRequest, "Bad Request", "a valid email is required")
-		return
-	}
-
-	asAdmin := body.AsAdmin
-	if body.Role == "admin" {
-		asAdmin = true
-	} else if body.Role == "member" {
-		asAdmin = false
-	} else if body.Role != "" {
-		writeProblem(w, http.StatusBadRequest, "Bad Request", "role must be admin|member")
-		return
-	}
-	if !body.AsAdmin && body.Role == "" {
-		asAdmin = space.DefaultAsAdmin
-	}
-
-	if existing, err := s.store.GetUserByEmail(r.Context(), email); err == nil {
-		if err := s.spaces.AddMember(r.Context(), space.ID, existing.ID, asAdmin); err != nil {
-			Error(w, r, err)
-			return
-		}
-		roleStr := "member"
-		if asAdmin {
-			roleStr = "admin"
-		}
-		s.activity.Record(r.Context(), activity.Event{
-			SpaceID: space.ID, ActorID: u.ID, Kind: activity.KindJoined,
-			NodeName: existing.Email, Detail: map[string]any{"role": roleStr},
-		})
-		writeJSON(w, http.StatusOK, map[string]any{"added_member": true, "email": existing.Email})
-		return
-	}
-
-	token, hash, err := newInviteToken()
-	if err != nil {
-		Error(w, r, err)
-		return
-	}
-	inv, err := s.store.CreateInvitation(r.Context(), store.CreateInvitationParams{
-		SpaceID:   space.ID,
-		Email:     email,
-		AsAdmin:   asAdmin,
-		TokenHash: hash,
-		InvitedBy: u.ID,
-		ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(invitationTTL), Valid: true},
-	})
-	if err != nil {
-		Error(w, r, err)
-		return
-	}
-	roleStr := "member"
-	if asAdmin {
-		roleStr = "admin"
-	}
-	s.activity.Record(r.Context(), activity.Event{
-		SpaceID: space.ID, ActorID: u.ID, Kind: activity.KindInvited,
-		NodeName: email, Detail: map[string]any{"role": roleStr},
-	})
-	inviteURL := s.externalURL + "/invite/" + token
-	mailSent := false
-	if s.mail.Enabled() {
-		// Synchronous: the admin who clicked Invite is the one who needs to
-		// know whether to fall back to copying the link, and there is no job
-		// queue for mail. A slow relay therefore slows this response, bounded
-		// here rather than by the client giving up.
-		mailCtx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
-		subject := "You've been invited to " + space.Name + " on pp-hub"
-		body := "Hi,\n\n" + inviterName(u) + " invited you to the " + space.Name +
-			" space on pp-hub.\n\nOpen this link to accept. It can be used once and expires in 14 days:\n\n" +
-			inviteURL + "\n\nIf you were not expecting this, ignore this message.\n"
-		if err := s.mail.Send(mailCtx, email, subject, body); err != nil {
-			// Not a failure of the request: the invitation exists and its URL
-			// is in the response, which is exactly the pre-M23 behaviour.
-			slog.ErrorContext(r.Context(), "invitation email not sent", "email", email, "err", err)
-		} else {
-			mailSent = true
-		}
-		cancel()
-	}
-	writeJSON(w, http.StatusCreated, invitationDTO{
-		ID:        uuidString(inv.ID),
-		SpaceID:   uuidString(inv.SpaceID),
-		Email:     inv.Email,
-		AsAdmin:   inv.AsAdmin,
-		ExpiresAt: optionalTime(inv.ExpiresAt),
-		CreatedAt: inv.CreatedAt.Time.Format(timeLayout),
-		URL:       inviteURL,
-		MailSent:  mailSent,
-	})
-}
-
-// inviterName is the display name an invitation email attributes the invite
-// to: DisplayName when the invitee set one, else the IdP-provided Name, else
-// the account's email.
-func inviterName(u *store.User) string {
-	if u.DisplayName != "" {
-		return u.DisplayName
-	}
-	if u.Name != "" {
-		return u.Name
-	}
-	return u.Email
-}
-
-func (s *Server) handleRevokeInvitation(w http.ResponseWriter, r *http.Request) {
-	_, _, ok := s.requireSpaceAdmin(w, r)
-	if !ok {
-		return
-	}
-	spaceID, err := uuidParam(r, "spaceID")
-	if err != nil {
-		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
-		return
-	}
-	inviteID, err := uuidParam(r, "inviteID")
-	if err != nil {
-		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid invitation id")
-		return
-	}
-	if err := s.store.DeleteInvitation(r.Context(), store.DeleteInvitationParams{
-		ID: inviteID, SpaceID: spaceID,
-	}); err != nil {
-		Error(w, r, err)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
-}
-
-func (s *Server) handleAcceptInvitation(w http.ResponseWriter, r *http.Request) {
-	u := caller(r)
-	var body struct {
-		Token string `json:"token"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Token == "" {
-		writeProblem(w, http.StatusBadRequest, "Bad Request", "token is required")
-		return
-	}
-	inv, err := s.store.GetInvitationByToken(r.Context(), hashToken(body.Token))
-	if err != nil {
-		writeProblem(w, http.StatusNotFound, "Not Found", "invalid or expired invitation")
-		return
-	}
-	if !strings.EqualFold(inv.Email, u.Email) {
-		writeProblem(w, http.StatusForbidden, "Forbidden",
-			"this invitation was sent to a different address")
-		return
-	}
-	if err := s.spaces.AddMember(r.Context(), inv.SpaceID, u.ID, inv.AsAdmin); err != nil {
-		Error(w, r, err)
-		return
-	}
-	if err := s.store.AcceptInvitation(r.Context(), inv.ID); err != nil {
-		Error(w, r, err)
-		return
-	}
-	s.activity.Record(r.Context(), activity.Event{
-		SpaceID: inv.SpaceID, ActorID: u.ID, Kind: activity.KindJoined, NodeName: u.Email,
-	})
-	space, err := s.spaces.Get(r.Context(), inv.SpaceID)
-	if err != nil {
-		Error(w, r, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, spaceToDTO(space, inv.AsAdmin))
-}
-
-func newInviteToken() (token, hash string, err error) {
-	raw := make([]byte, 32)
-	if _, err := rand.Read(raw); err != nil {
-		return "", "", err
-	}
-	token = hex.EncodeToString(raw)
-	return token, hashToken(token), nil
-}
-
-func hashToken(token string) string {
-	sum := sha256.Sum256([]byte(token))
-	return hex.EncodeToString(sum[:])
 }
 
 func uuidString(id pgtype.UUID) string {

@@ -20,7 +20,7 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/fs"
 	"github.com/nhatbui/pp-hub/apps/server/internal/gc"
 	"github.com/nhatbui/pp-hub/apps/server/internal/httpapi"
-	"github.com/nhatbui/pp-hub/apps/server/internal/mail"
+	"github.com/nhatbui/pp-hub/apps/server/internal/orgsync"
 	"github.com/nhatbui/pp-hub/apps/server/internal/preview"
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 	"github.com/nhatbui/pp-hub/apps/server/internal/spaces"
@@ -113,24 +113,32 @@ func run() error {
 		}
 	}()
 	usersSvc := users.NewService(queries)
-	mailSvc := mail.New(cfg.SMTP)
+	// Membership is a projection of Logto organizations. The sign-in path
+	// needs this before the first callback lands, and the worker drains the
+	// reconcile jobs the webhook enqueues.
+	orgSvc := orgsync.NewService(queries, spacesSvc,
+		orgsync.NewClient(cfg.Logto), cfg.OIDCIssuerExt)
+	authSvc.SetReconciler(orgSvc)
+	go orgSvc.Run(ctx)
+
 	api := httpapi.NewServer(httpapi.Deps{
-		Auth:           authSvc,
-		Spaces:         spacesSvc,
-		FS:             fsSvc,
-		Share:          shareSvc,
-		Wopi:           wopiSvc,
-		Preview:        previewWorker,
-		Users:          usersSvc,
-		Store:          queries,
-		Pool:           deps.Pool,
-		Blobs:          blobs,
-		Mail:           mailSvc,
-		ExternalURL:    cfg.ExternalURL,
-		OnlyOfficeURL:  cfg.OnlyOfficeURL,
-		WopiServerURL:  cfg.WopiServerURL,
-		MaxUploadBytes: cfg.MaxUploadBytes,
-		TrustedProxies: cfg.TrustedProxies,
+		Auth:            authSvc,
+		Spaces:          spacesSvc,
+		FS:              fsSvc,
+		Share:           shareSvc,
+		Wopi:            wopiSvc,
+		Preview:         previewWorker,
+		Users:           usersSvc,
+		Store:           queries,
+		Pool:            deps.Pool,
+		Blobs:           blobs,
+		OrgSync:         orgSvc,
+		LogtoWebhookKey: cfg.Logto.WebhookKey,
+		ExternalURL:     cfg.ExternalURL,
+		OnlyOfficeURL:   cfg.OnlyOfficeURL,
+		WopiServerURL:   cfg.WopiServerURL,
+		MaxUploadBytes:  cfg.MaxUploadBytes,
+		TrustedProxies:  cfg.TrustedProxies,
 	})
 	srv := &http.Server{
 		Addr:              cfg.Addr,

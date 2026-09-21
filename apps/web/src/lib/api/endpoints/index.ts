@@ -6,8 +6,6 @@ import type {
   ActivityEvent,
   AdminStats,
   AdminUser,
-  Invitation,
-  InviteResult,
   EditSession,
   MoveImpact,
   Node,
@@ -63,39 +61,6 @@ export async function updateSpace(spaceId: string, settings: SpaceSettings): Pro
 export async function deleteSpace(spaceId: string): Promise<void> {
   const res = await api.delete(`api/v1/spaces/${spaceId}`);
   if (!res.ok) throw new ApiError(res.status, await res.text());
-}
-
-// ─── Invitations ─────────────────────────────────────────────────────────────
-
-export async function getInvitations(spaceId: string): Promise<Invitation[]> {
-  const res = await api.get(`api/v1/spaces/${spaceId}/invitations`);
-  if (!res.ok) throw new ApiError(res.status, await res.text());
-  return res.json() as Promise<Invitation[]>;
-}
-
-/**
- * Invites an email address. If it already belongs to an account the server
- * adds them as a member directly and says so in `added_member`.
- */
-export async function createInvitation(
-  spaceId: string,
-  email: string,
-  as_admin: boolean,
-): Promise<InviteResult> {
-  const res = await api.post(`api/v1/spaces/${spaceId}/invitations`, { json: { email, as_admin } });
-  if (!res.ok) throw new ApiError(res.status, await res.text());
-  return res.json() as Promise<InviteResult>;
-}
-
-export async function revokeInvitation(spaceId: string, inviteId: string): Promise<void> {
-  const res = await api.delete(`api/v1/spaces/${spaceId}/invitations/${inviteId}`);
-  if (!res.ok) throw new ApiError(res.status, await res.text());
-}
-
-export async function acceptInvitation(token: string): Promise<Space> {
-  const res = await api.post("api/v1/invitations/accept", { json: { token } });
-  if (!res.ok) throw new ApiError(res.status, await res.text());
-  return res.json() as Promise<Space>;
 }
 
 // ─── Admin ───────────────────────────────────────────────────────────────────

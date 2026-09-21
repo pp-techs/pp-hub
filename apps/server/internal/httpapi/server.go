@@ -14,7 +14,7 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/blob"
 	"github.com/nhatbui/pp-hub/apps/server/internal/fs"
 	"github.com/nhatbui/pp-hub/apps/server/internal/groups"
-	"github.com/nhatbui/pp-hub/apps/server/internal/mail"
+	"github.com/nhatbui/pp-hub/apps/server/internal/orgsync"
 	"github.com/nhatbui/pp-hub/apps/server/internal/preview"
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 	"github.com/nhatbui/pp-hub/apps/server/internal/spaces"
@@ -37,7 +37,8 @@ type Server struct {
 	store         *store.Queries
 	pool          *pgxpool.Pool
 	blobs         blob.Store
-	mail          *mail.Sender
+	orgs          *orgsync.Service
+	webhookKey    string
 	externalURL   string
 	onlyOfficeURL string
 	wopiServerURL string
@@ -53,22 +54,26 @@ type Server struct {
 // were strings, and the next one added would have been a silent swap waiting
 // to happen.
 type Deps struct {
-	Auth           *auth.Service
-	Spaces         *spaces.Service
-	FS             *fs.Service
-	Share          *share.Service
-	Wopi           *wopi.Service
-	Preview        *preview.Worker
-	Users          *users.Service
-	Store          *store.Queries
-	Pool           *pgxpool.Pool
-	Blobs          blob.Store
-	Mail           *mail.Sender
-	ExternalURL    string
-	OnlyOfficeURL  string
-	WopiServerURL  string
-	MaxUploadBytes int64
-	TrustedProxies []string
+	Auth    *auth.Service
+	Spaces  *spaces.Service
+	FS      *fs.Service
+	Share   *share.Service
+	Wopi    *wopi.Service
+	Preview *preview.Worker
+	Users   *users.Service
+	Store   *store.Queries
+	Pool    *pgxpool.Pool
+	Blobs   blob.Store
+	OrgSync *orgsync.Service
+	// LogtoWebhookKey signs /hooks/logto deliveries. Empty disables the
+	// route: an unauthenticated endpoint that mutates membership is worse
+	// than a slower path to the same state.
+	LogtoWebhookKey string
+	ExternalURL     string
+	OnlyOfficeURL   string
+	WopiServerURL   string
+	MaxUploadBytes  int64
+	TrustedProxies  []string
 }
 
 func NewServer(d Deps) *Server {
@@ -86,7 +91,8 @@ func NewServer(d Deps) *Server {
 		store:          d.Store,
 		pool:           d.Pool,
 		blobs:          d.Blobs,
-		mail:           d.Mail,
+		orgs:           d.OrgSync,
+		webhookKey:     d.LogtoWebhookKey,
 		externalURL:    d.ExternalURL,
 		onlyOfficeURL:  d.OnlyOfficeURL,
 		wopiServerURL:  d.WopiServerURL,
@@ -160,12 +166,10 @@ func (s *Server) Router() http.Handler {
 		r.Get("/starred", s.handleListStarred)
 		r.Get("/usage", s.handleUsage)
 		r.Get("/shared", s.handleListShared)
-		r.Post("/invitations/accept", s.handleAcceptInvitation)
 		r.Get("/admin/stats", s.handleAdminStats)
 		r.Get("/admin/security-events", s.handleAdminSecurityEvents)
 		r.Patch("/admin/users/{userID}", s.handleAdminUpdateUser)
 		r.Get("/users", s.handleListUsers)
-		r.Get("/users/search", s.handleSearchUsers)
 		r.Get("/users/{userID}/avatar", s.handleGetAvatar)
 
 		r.Route("/spaces", func(r chi.Router) {
@@ -174,9 +178,8 @@ func (s *Server) Router() http.Handler {
 			r.Route("/{spaceID}", func(r chi.Router) {
 				r.Patch("/", s.handleUpdateSpace)
 				r.Delete("/", s.handleDeleteSpace)
-				r.Get("/invitations", s.handleListInvitations)
-				r.Post("/invitations", s.handleCreateInvitation)
-				r.Delete("/invitations/{inviteID}", s.handleRevokeInvitation)
+				r.Get("/departures", s.handleListDepartures)
+				r.Post("/departures/{userID}/complete", s.handleCompleteDeparture)
 				r.Get("/children", s.handleListChildren)
 				r.Get("/tree", s.handleListTree)
 				r.Get("/trash", s.handleListDeleted)
@@ -199,7 +202,6 @@ func (s *Server) Router() http.Handler {
 					r.Get("/", s.handleListMembers)
 					r.Post("/", s.handleAddMember)
 					r.Route("/{userID}", func(r chi.Router) {
-						r.Patch("/", s.handleSetMemberAdmin)
 						r.Post("/set-admin", s.handleSetMemberAdmin)
 						r.Delete("/", s.handleRemoveMember)
 					})
@@ -232,6 +234,11 @@ func (s *Server) Router() http.Handler {
 			r.Delete("/grants/{groupID}", s.handleRevokeGrant)
 		})
 	})
+
+	// Outside /api/v1 deliberately: that group is authenticated and
+	// same-origin by construction, and this caller is neither. Its
+	// credential is the HMAC over the body. See handleLogtoWebhook.
+	r.With(apiLimit.middleware).Post("/hooks/logto", s.handleLogtoWebhook)
 
 	r.Route("/wopi/files/{nodeID}", func(r chi.Router) {
 		r.Get("/", s.handleWopiCheckFileInfo)

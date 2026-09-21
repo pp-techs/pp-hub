@@ -33,17 +33,16 @@ export interface UserProfile {
   avatar_url: string;
   bio: string;
   is_admin: boolean;
+  /**
+   * Whether "new space" is an action this account has at all. False for an
+   * ordinary member once the identity provider's organizations own
+   * membership: a space is a company, and companies are created there, not
+   * here. Hide the control rather than letting it answer 403.
+   */
+  can_create_spaces: boolean;
   created_at: string;
   last_seen?: string;
   preferences: UserPreferences;
-}
-
-export interface UserSearchResult {
-  id: string;
-  email: string;
-  name: string;
-  display_name: string;
-  avatar_url: string;
 }
 
 export interface SpaceMember {
@@ -75,37 +74,57 @@ export interface Space {
   archive_root_id?: string;
   /** Days to keep trashed items. 0 keeps them indefinitely. */
   trash_retention_days?: number;
+  /**
+   * How many people are in the space's Admin group. Zero is a real state —
+   * organization membership is Logto's to decide, so pp-hub can end up
+   * mirroring a space nobody administers.
+   */
+  admin_count: number;
+  /** The Logto organization this space mirrors. Absent when unlinked. */
+  idp_org_id?: string;
 }
 
 /**
- * A promise of membership to an email address that may not have an account
- * yet — which is why it cannot live in space_members.
+ * Where pp-hub learned that somebody had left the organization. Mirrors
+ * `space_departures.source`.
  */
-export interface Invitation {
-  id: string;
-  space_id: string;
+export type DepartureSource = "signin" | "webhook" | "reconcile" | "admin";
+
+/**
+ * Somebody removed from the space's organization whose content has not been
+ * handed over yet.
+ *
+ * Their access ended the moment the removal was seen: the membership row and
+ * every group membership are already gone. What is still outstanding is the
+ * destructive half — revoking their grants, re-homing what they created under
+ * other people's folders and filing the roots they owned into the Archive —
+ * which waits for a space admin to confirm.
+ */
+export interface SpaceDeparture {
+  user_id: string;
   email: string;
-  /** Whether this invitation grants admin membership. */
-  as_admin: boolean;
-  invited_by: string;
-  expires_at?: string;
-  created_at: string;
-  /** Returned once, at creation — this listing endpoint omits it. */
-  url?: string;
+  name: string;
+  display_name: string;
+  avatar_url: string;
+  /** RFC3339. When the departure was first observed, not when it happened. */
+  detected_at: string;
+  source: DepartureSource;
+  /** Live files they created in this space, still waiting to be handed over. */
+  files_owned: number;
 }
-/** Creating an invitation for an existing account adds them directly. */
-export interface InviteResult {
-  added_member?: boolean;
+
+/**
+ * The answer to adding a member by email. `added` means the address already
+ * had an account upstream and is a member now; `invited` means the identity
+ * provider emailed them an organization invitation and they will appear here
+ * once they accept it.
+ */
+export interface AddMemberResult {
+  status: "added" | "invited";
+  /** Set on `added`. */
+  user_id?: string;
+  /** Set on `invited`. */
   email?: string;
-  id?: string;
-  url?: string;
-  as_admin?: boolean;
-  /**
-   * Set when SMTP is configured and delivery succeeded. `url` is always
-   * returned too — mail delivery can fail, and an admin still needs a way to
-   * hand the invite over by hand.
-   */
-  mail_sent?: boolean;
 }
 
 export interface AdminStats {

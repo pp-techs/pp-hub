@@ -53,6 +53,10 @@ const (
 	KindShareRevoked    Kind = "share_revoked"
 	KindMemberAdded     Kind = "member_added"
 	KindMemberRemoved   Kind = "member_removed"
+	// An address the identity provider was asked to invite into the space's
+	// organization. It has no user_id: the point of an invitation is that
+	// there may be no account to point at yet.
+	KindMemberInvited Kind = "member_invited"
 )
 
 // maxUserAgent bounds what the client controls before it reaches a TEXT

@@ -58,9 +58,6 @@ export { useNodeSearch, MIN_QUERY_LENGTH } from "./search";
 export {
   useUpdateSpace,
   useDeleteSpace,
-  useInvitations,
-  useCreateInvitation,
-  useRevokeInvitation,
   adminStatsOptions,
   useAdminStats,
   useUpdateAdminUser,
@@ -88,7 +85,6 @@ export {
   useSessions,
   useRevokeSession,
   useRevokeOtherSessions,
-  useUserSearch,
   useUsers,
   useSecurityEvents,
   SECURITY_PAGE_SIZE,
@@ -96,4 +92,6 @@ export {
   useAddSpaceMember,
   useSetMemberAdmin,
   useRemoveSpaceMember,
+  useSpaceDepartures,
+  useCompleteDeparture,
 } from "./users";

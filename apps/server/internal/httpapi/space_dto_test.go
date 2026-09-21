@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 )
 
@@ -22,7 +23,7 @@ func TestSpaceDTOCarriesSettingsFields(t *testing.T) {
 	space.DefaultAsAdmin = false
 	space.QuotaBytes = 1 << 30
 
-	dto := spaceToDTO(space, true)
+	dto := spaceToDTO(space, true, 2)
 	if dto.Slug != "acme-core" {
 		t.Errorf("slug = %q, want acme-core", dto.Slug)
 	}
@@ -31,7 +32,7 @@ func TestSpaceDTOCarriesSettingsFields(t *testing.T) {
 	}
 
 	// Present-when-empty is the part that actually prevents data loss.
-	raw, err := json.Marshal(spaceToDTO(store.Space{}, false))
+	raw, err := json.Marshal(spaceToDTO(store.Space{}, false, 0))
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
@@ -43,5 +44,24 @@ func TestSpaceDTOCarriesSettingsFields(t *testing.T) {
 		if _, ok := fields[key]; !ok {
 			t.Errorf("%q missing from the JSON of an empty space — the settings form would clear it", key)
 		}
+	}
+	// admin_count has no omitempty for the same class of reason: zero is the
+	// value that matters most, and omitting it reads as "unknown" to a
+	// client that must warn the space has no administrator.
+	if count, ok := fields["admin_count"]; !ok || count != float64(0) {
+		t.Errorf("admin_count = %v (present=%v), want 0 on the wire", count, ok)
+	}
+}
+
+// An unlinked space mirrors no organization, and the client uses the absence
+// of the field to say so. A linked one must carry the id.
+func TestSpaceDTOReportsTheOrganizationLink(t *testing.T) {
+	var space store.Space
+	if dto := spaceToDTO(space, false, 0); dto.IdpOrgID != "" {
+		t.Errorf("unlinked space reported organization %q", dto.IdpOrgID)
+	}
+	space.IdpOrgID = pgtype.Text{String: "org_abc", Valid: true}
+	if dto := spaceToDTO(space, false, 1); dto.IdpOrgID != "org_abc" {
+		t.Errorf("idp_org_id = %q, want org_abc", dto.IdpOrgID)
 	}
 }
