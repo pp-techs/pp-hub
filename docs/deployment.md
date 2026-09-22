@@ -54,8 +54,8 @@ stale value there does not degrade gracefully, it refuses every write with
 403 `cross-origin request refused`. `/wopi/*` is exempt by design, because the
 Document Server sends no `Origin` and presents a signed token instead.
 
-The Go server serves **only** `/healthz`, `/auth/*`, `/api/v1/*`, `/wopi/*` and
-`/s/*` — it has no static file handler. So something has to serve the bundle
+The Go server serves **only** `/healthz`, `/auth/*`, `/api/v1/*`, `/hooks/*`,
+`/wopi/*` and `/s/*` — it has no static file handler. So something has to serve the bundle
 and proxy the API on one hostname. That is what the `web` container is:
 nginx with the built SPA and a proxy to `server:8080`
 (`apps/web/Dockerfile`, `apps/web/nginx.conf`).
@@ -70,6 +70,7 @@ on the public internet for nothing. See
  drive.example.com ─┤ web (nginx)                   [edge] │
                     │   /              → SPA bundle        │
                     │   /api /auth /s  → server:8080       │
+                    │   /hooks         → server:8080       │
                     │   /wopi          → not proxied       │
                     └───────────────────┬──────────────────┘
                                         │ edge
