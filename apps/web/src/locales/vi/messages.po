@@ -609,7 +609,7 @@ msgstr "Đã cập nhật ảnh đại diện"
 #: src/routes/admin.users.tsx:83
 #: src/routes/admin.users.tsx:100
 #: src/routes/drive/$spaceId/route.tsx:51
-#: src/routes/edit/$nodeId.tsx:74
+#: src/routes/edit/$nodeId.tsx:78
 msgid "Back to Drive"
 msgstr "Quay lại Drive"
 
@@ -1045,7 +1045,7 @@ msgstr "tải xuống"
 #: src/components/preview-panel.tsx:296
 #: src/components/selection-bar.tsx:64
 #: src/components/version-list.tsx:71
-#: src/routes/edit/$nodeId.tsx:126
+#: src/routes/edit/$nodeId.tsx:130
 #: src/routes/s/$token.tsx:170
 msgid "Download"
 msgstr "Tải xuống"
@@ -1093,7 +1093,7 @@ msgstr "Chỉnh sửa"
 msgid "Edit documents and spreadsheets together in the browser."
 msgstr "Cùng chỉnh sửa tài liệu và bảng tính ngay trong trình duyệt."
 
-#: src/routes/edit/$nodeId.tsx:18
+#: src/routes/edit/$nodeId.tsx:19
 msgid "Editing"
 msgstr "Chỉnh sửa"
 
@@ -1545,7 +1545,7 @@ msgstr "Đang tải người dùng…"
 #: src/routes/drive/$spaceId/home.tsx:152
 #: src/routes/drive/$spaceId/home.tsx:165
 #: src/routes/drive/$spaceId/index.tsx:506
-#: src/routes/edit/$nodeId.tsx:88
+#: src/routes/edit/$nodeId.tsx:92
 #: src/routes/s/$token.tsx:251
 msgid "Loading…"
 msgstr "Đang tải…"
@@ -1881,7 +1881,7 @@ msgstr "Chỉ quản trị viên không gian mới có thể thêm hoặc xoá t
 msgid "Only an administrator can read the security log."
 msgstr "Chỉ quản trị viên mới đọc được nhật ký bảo mật."
 
-#: src/routes/edit/$nodeId.tsx:173
+#: src/routes/edit/$nodeId.tsx:177
 msgid "OnlyOffice editor"
 msgstr "Trình chỉnh sửa OnlyOffice"
 
@@ -1902,7 +1902,7 @@ msgstr "Mở"
 msgid "Open in new tab"
 msgstr "Mở trong tab mới"
 
-#: src/routes/edit/$nodeId.tsx:139
+#: src/routes/edit/$nodeId.tsx:143
 msgid "Opening editor…"
 msgstr "Đang mở trình chỉnh sửa…"
 
@@ -2030,7 +2030,7 @@ msgstr "Xoá sạch sau"
 msgid "re-share"
 msgstr "chia sẻ lại"
 
-#: src/routes/edit/$nodeId.tsx:96
+#: src/routes/edit/$nodeId.tsx:100
 msgid "read-only"
 msgstr "chỉ đọc"
 
@@ -2178,7 +2178,7 @@ msgstr "Lưu"
 msgid "Save changes"
 msgstr "Lưu thay đổi"
 
-#: src/routes/edit/$nodeId.tsx:96
+#: src/routes/edit/$nodeId.tsx:100
 msgid "saved by OnlyOffice"
 msgstr "được lưu bởi OnlyOffice"
 
@@ -2295,7 +2295,7 @@ msgstr "Mục cài đặt"
 #: src/components/preview-panel.tsx:305
 #: src/components/selection-bar.tsx:69
 #: src/components/share-dialog.tsx:383
-#: src/routes/edit/$nodeId.tsx:111
+#: src/routes/edit/$nodeId.tsx:115
 msgid "Share"
 msgstr "Chia sẻ"
 
@@ -2773,7 +2773,7 @@ msgstr "Người dùng"
 msgid "Version"
 msgstr "Phiên bản"
 
-#: src/routes/edit/$nodeId.tsx:92
+#: src/routes/edit/$nodeId.tsx:96
 msgid "version {version}"
 msgstr "phiên bản {version}"
 
@@ -2789,7 +2789,7 @@ msgstr "Phiên bản {versionNo}"
 #: src/components/preview-modal.tsx:149
 #: src/components/preview-panel.tsx:311
 #: src/components/preview-panel.tsx:351
-#: src/routes/edit/$nodeId.tsx:120
+#: src/routes/edit/$nodeId.tsx:124
 msgid "Versions"
 msgstr "Phiên bản"
 

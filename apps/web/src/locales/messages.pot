@@ -609,7 +609,7 @@ msgstr ""
 #: src/routes/admin.users.tsx:83
 #: src/routes/admin.users.tsx:100
 #: src/routes/drive/$spaceId/route.tsx:51
-#: src/routes/edit/$nodeId.tsx:74
+#: src/routes/edit/$nodeId.tsx:78
 msgid "Back to Drive"
 msgstr ""
 
@@ -1045,7 +1045,7 @@ msgstr ""
 #: src/components/preview-panel.tsx:296
 #: src/components/selection-bar.tsx:64
 #: src/components/version-list.tsx:71
-#: src/routes/edit/$nodeId.tsx:126
+#: src/routes/edit/$nodeId.tsx:130
 #: src/routes/s/$token.tsx:170
 msgid "Download"
 msgstr ""
@@ -1093,7 +1093,7 @@ msgstr ""
 msgid "Edit documents and spreadsheets together in the browser."
 msgstr ""
 
-#: src/routes/edit/$nodeId.tsx:18
+#: src/routes/edit/$nodeId.tsx:19
 msgid "Editing"
 msgstr ""
 
@@ -1537,7 +1537,7 @@ msgstr ""
 #: src/routes/drive/$spaceId/home.tsx:152
 #: src/routes/drive/$spaceId/home.tsx:165
 #: src/routes/drive/$spaceId/index.tsx:506
-#: src/routes/edit/$nodeId.tsx:88
+#: src/routes/edit/$nodeId.tsx:92
 #: src/routes/s/$token.tsx:251
 msgid "Loading…"
 msgstr ""
@@ -1865,7 +1865,7 @@ msgstr ""
 msgid "Only an administrator can read the security log."
 msgstr ""
 
-#: src/routes/edit/$nodeId.tsx:173
+#: src/routes/edit/$nodeId.tsx:177
 msgid "OnlyOffice editor"
 msgstr ""
 
@@ -1886,7 +1886,7 @@ msgstr ""
 msgid "Open in new tab"
 msgstr ""
 
-#: src/routes/edit/$nodeId.tsx:139
+#: src/routes/edit/$nodeId.tsx:143
 msgid "Opening editor…"
 msgstr ""
 
@@ -2008,7 +2008,7 @@ msgstr ""
 msgid "re-share"
 msgstr ""
 
-#: src/routes/edit/$nodeId.tsx:96
+#: src/routes/edit/$nodeId.tsx:100
 msgid "read-only"
 msgstr ""
 
@@ -2156,7 +2156,7 @@ msgstr ""
 msgid "Save changes"
 msgstr ""
 
-#: src/routes/edit/$nodeId.tsx:96
+#: src/routes/edit/$nodeId.tsx:100
 msgid "saved by OnlyOffice"
 msgstr ""
 
@@ -2268,7 +2268,7 @@ msgstr ""
 #: src/components/preview-panel.tsx:305
 #: src/components/selection-bar.tsx:69
 #: src/components/share-dialog.tsx:383
-#: src/routes/edit/$nodeId.tsx:111
+#: src/routes/edit/$nodeId.tsx:115
 msgid "Share"
 msgstr ""
 
@@ -2746,7 +2746,7 @@ msgstr ""
 msgid "Version"
 msgstr ""
 
-#: src/routes/edit/$nodeId.tsx:92
+#: src/routes/edit/$nodeId.tsx:96
 msgid "version {version}"
 msgstr ""
 
@@ -2762,7 +2762,7 @@ msgstr ""
 #: src/components/preview-modal.tsx:149
 #: src/components/preview-panel.tsx:311
 #: src/components/preview-panel.tsx:351
-#: src/routes/edit/$nodeId.tsx:120
+#: src/routes/edit/$nodeId.tsx:124
 msgid "Versions"
 msgstr ""
 
