@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, useRef, useState } from "react";
 import { Link, useLocation, useParams, useSearch } from "@tanstack/react-router";
 import { useLingui } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
@@ -11,9 +11,11 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb";
+import { cn } from "@workspace/ui/lib/utils";
 import { SidebarTrigger } from "@workspace/ui/components/sidebar";
-import { useNode } from "@/lib/queries";
+import { useMoveNodes, useNode } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
+import { isValidMoveTarget } from "@/lib/drag-drop";
 import { HeaderSlot } from "@/components/header-slot";
 import { NavSearch } from "@/components/nav-search";
 
@@ -166,14 +168,7 @@ function ListingBreadcrumb({
               {isLast || !spaceId ? (
                 <BreadcrumbPage className="truncate font-medium">{crumb.label}</BreadcrumbPage>
               ) : (
-                <BreadcrumbLink
-                  className="truncate"
-                  render={
-                    <Link to="/drive/$spaceId" params={{ spaceId }} search={{ dir: crumb.dirId }} />
-                  }
-                >
-                  {crumb.label}
-                </BreadcrumbLink>
+                <BreadcrumbDropLink spaceId={spaceId} dirId={crumb.dirId} label={crumb.label} />
               )}
             </BreadcrumbItem>
           </Fragment>
@@ -192,4 +187,75 @@ interface Crumb {
    * crumb renders as plain text — it is where you already are.
    */
   dirId?: string;
+}
+
+function BreadcrumbDropLink({
+  spaceId,
+  dirId,
+  label,
+}: {
+  spaceId: string;
+  dirId?: string;
+  label: string;
+}) {
+  const { moveNodes } = useMoveNodes(spaceId);
+  const [isDropTarget, setIsDropTarget] = useState(false);
+  const dragDepth = useRef(0);
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    const dragging = useUiStore.getState().draggingNodes;
+    const storeDirs = useUiStore.getState().dirs;
+    if (!isValidMoveTarget(dirId, dragging, spaceId, storeDirs)) return;
+    e.preventDefault();
+    dragDepth.current += 1;
+    setIsDropTarget(true);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    const dragging = useUiStore.getState().draggingNodes;
+    const storeDirs = useUiStore.getState().dirs;
+    if (isValidMoveTarget(dirId, dragging, spaceId, storeDirs)) {
+      e.preventDefault();
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- dataTransfer dropEffect
+      e.dataTransfer.dropEffect = "move";
+    } else {
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- dataTransfer dropEffect
+      e.dataTransfer.dropEffect = "none";
+    }
+  };
+
+  const handleDragLeave = () => {
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) {
+      setIsDropTarget(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    dragDepth.current = 0;
+    setIsDropTarget(false);
+    const dragging = useUiStore.getState().draggingNodes;
+    const storeDirs = useUiStore.getState().dirs;
+    if (!isValidMoveTarget(dirId, dragging, spaceId, storeDirs)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (dragging) void moveNodes(dragging.nodes, dirId);
+    useUiStore.getState().setDraggingNodes(null);
+  };
+
+  return (
+    <BreadcrumbLink
+      className={cn(
+        "truncate transition-colors",
+        isDropTarget && "text-primary underline ring-1 ring-primary rounded px-1 bg-primary/10",
+      )}
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      render={<Link to="/drive/$spaceId" params={{ spaceId }} search={{ dir: dirId }} />}
+    >
+      {label}
+    </BreadcrumbLink>
+  );
 }

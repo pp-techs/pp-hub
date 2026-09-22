@@ -1,4 +1,4 @@
-import { memo, type MouseEvent } from "react";
+import { memo, useMemo, useRef, useState, type MouseEvent } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { MoreHorizontal } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
@@ -16,7 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
 import { cn } from "@workspace/ui/lib/utils";
-import type { Node } from "@/lib/api";
+import { canRestructure, type Node } from "@/lib/api";
 import { useFormatters } from "@/lib/format";
 import {
   useNodeActions,
@@ -25,6 +25,7 @@ import {
 } from "@/components/node-actions";
 import { NodeIcon } from "@/components/node-icon";
 import { useUiStore } from "@/lib/ui-store";
+import { DRAG_DATA_TYPE, isValidMoveTarget, setDragGhost } from "@/lib/drag-drop";
 
 interface NodeListProps extends NodeActionHandlers {
   /** Node ids the caller has starred, so each row can show its own state. */
@@ -36,6 +37,7 @@ interface NodeListProps extends NodeActionHandlers {
   /** Modifier keys decide replace / toggle / range — the caller reads them. */
   onClick: (node: Node, event: MouseEvent) => void;
   onDoubleClick: (node: Node) => void;
+  onMoveNodes?: (nodes: Node[], targetId: string) => Promise<void>;
 }
 
 /**
@@ -50,8 +52,15 @@ export function NodeList({
   starredIds,
   onClick,
   onDoubleClick,
+  onMoveNodes,
   ...handlers
 }: NodeListProps) {
+  const selectedNodes = useMemo(() => {
+    const map = new Map<string, Node>();
+    for (const n of nodes) if (selectedIds.has(n.id)) map.set(n.id, n);
+    return map;
+  }, [nodes, selectedIds]);
+
   return (
     <table className="w-full border-collapse text-left text-xs">
       <thead className="bg-background border-border text-muted-foreground sticky top-0 z-10 border-b text-[11px] tracking-wider uppercase">
@@ -84,6 +93,8 @@ export function NodeList({
             canWriteHere={canWriteHere}
             onClick={onClick}
             onDoubleClick={onDoubleClick}
+            onMoveNodes={onMoveNodes}
+            selectedNodes={selectedNodes}
             {...handlers}
           />
         ))}
@@ -100,6 +111,8 @@ interface NodeListRowProps extends NodeActionHandlers {
   selected: boolean;
   onClick: (node: Node, event: MouseEvent) => void;
   onDoubleClick: (node: Node) => void;
+  onMoveNodes?: (nodes: Node[], targetId: string) => Promise<void>;
+  selectedNodes: Map<string, Node>;
 }
 
 const NodeListRow = memo(function NodeListRow({
@@ -110,6 +123,8 @@ const NodeListRow = memo(function NodeListRow({
   shared,
   onClick,
   onDoubleClick,
+  onMoveNodes,
+  selectedNodes,
   ...handlers
 }: NodeListRowProps) {
   const openPanel = useUiStore((s) => s.openPanel);
@@ -119,6 +134,82 @@ const NodeListRow = memo(function NodeListRow({
   // Named local so the extracted message reads `{nodeName}` rather than `{0}`.
   const nodeName = node.name;
 
+  const canMove = canRestructure(node);
+  const isDir = node.kind === "dir";
+  const [isDropTarget, setIsDropTarget] = useState(false);
+  const dragDepth = useRef(0);
+
+  const handleDragStart = (e: React.DragEvent) => {
+    if (!canMove) return;
+    if ((e.target as HTMLElement)?.closest("button, [role='menuitem']")) {
+      e.preventDefault();
+      return;
+    }
+    const isSelected = selectedNodes.has(node.id);
+    let nodesToDrag: Node[];
+    if (isSelected) {
+      const selectedList = [...selectedNodes.values()].filter(canRestructure);
+      nodesToDrag = selectedList.length > 0 ? selectedList : [node];
+    } else {
+      nodesToDrag = [node];
+    }
+    e.dataTransfer.setData(DRAG_DATA_TYPE, JSON.stringify(nodesToDrag.map((n) => n.id)));
+    // eslint-disable-next-line lingui/no-unlocalized-strings -- dataTransfer effectAllowed
+    e.dataTransfer.effectAllowed = "move";
+    setDragGhost(e, nodesToDrag);
+    useUiStore.getState().setDraggingNodes({ spaceId: node.space_id, nodes: nodesToDrag });
+  };
+
+  const handleDragEnd = () => {
+    useUiStore.getState().setDraggingNodes(null);
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    if (!isDir) return;
+    const dragging = useUiStore.getState().draggingNodes;
+    const storeDirs = useUiStore.getState().dirs;
+    if (!isValidMoveTarget(node.id, dragging, node.space_id, storeDirs)) return;
+    e.preventDefault();
+    dragDepth.current += 1;
+    setIsDropTarget(true);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    if (!isDir) return;
+    const dragging = useUiStore.getState().draggingNodes;
+    const storeDirs = useUiStore.getState().dirs;
+    if (isValidMoveTarget(node.id, dragging, node.space_id, storeDirs)) {
+      e.preventDefault();
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- dataTransfer dropEffect
+      e.dataTransfer.dropEffect = "move";
+    } else {
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- dataTransfer dropEffect
+      e.dataTransfer.dropEffect = "none";
+    }
+  };
+
+  const handleDragLeave = () => {
+    if (!isDir) return;
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) {
+      setIsDropTarget(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    if (!isDir) return;
+    dragDepth.current = 0;
+    setIsDropTarget(false);
+    const dragging = useUiStore.getState().draggingNodes;
+    const storeDirs = useUiStore.getState().dirs;
+    if (!isValidMoveTarget(node.id, dragging, node.space_id, storeDirs)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (dragging && onMoveNodes) {
+      void onMoveNodes(dragging.nodes, node.id);
+    }
+    useUiStore.getState().setDraggingNodes(null);
+  };
   return (
     <ContextMenu>
       {/* Stops the event reaching the listing's background trigger, whose menu
@@ -128,10 +219,18 @@ const NodeListRow = memo(function NodeListRow({
       <ContextMenuTrigger className="contents" onContextMenu={(e) => e.stopPropagation()}>
         <tr
           data-node-id={node.id}
+          draggable={canMove}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragEnter={handleDragEnter}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
           className={cn(
             "group hover:bg-muted/40 h-9 cursor-pointer transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_36px]",
             // Soft wash rather than a border, to match the grid's cards.
             selected && "bg-primary/10 hover:bg-primary/15",
+            isDropTarget && "bg-primary/15 ring-2 ring-primary ring-inset",
           )}
           onClick={(e) => onClick(node, e)}
           onDoubleClick={() => onDoubleClick(node)}

@@ -51,7 +51,7 @@ import {
   useNode,
   useDeleteNode,
   useCopyNode,
-  useMoveNode,
+  useMoveNodes,
   useRenameNode,
   useSpace,
   useStarred,
@@ -148,7 +148,7 @@ function FolderView() {
   const setClipboard = useUiStore((s) => s.setClipboard);
   const invalidateChildren = useInvalidateChildren(spaceId);
   const rename = useRenameNode(spaceId);
-  const move = useMoveNode(spaceId);
+  const { moveNodes } = useMoveNodes(spaceId);
   const copy = useCopyNode(spaceId);
   const toggleStar = useToggleStar();
   // One request for the whole starred set beats one per visible row.
@@ -289,6 +289,17 @@ function FolderView() {
    * Each node moves independently, so one rejection (a name already taken in
    * the destination) does not hold up the rest.
    */
+  const handleMoveNodes = useCallback(
+    async (nodes: Node[], targetId: string) => {
+      const { movedIds } = await moveNodes(nodes, targetId);
+      if (movedIds.length > 0) {
+        const movedSet = new Set(movedIds);
+        setSelectedIds((prev) => new Set([...prev].filter((id) => !movedSet.has(id))));
+      }
+    },
+    [moveNodes],
+  );
+
   const handleMove = useCallback(
     async (nodes: Node[]) => {
       if (nodes.length === 0) return;
@@ -299,26 +310,13 @@ function FolderView() {
       });
       if (target === null) return; // cancelled — undefined means the space root
 
-      let moved = 0;
-      await Promise.all(
-        nodes.map((node) =>
-          move
-            .mutateAsync({ nodeId: node.id, parentId: target })
-            .then(() => {
-              moved += 1;
-            })
-            .catch((e: Error) => {
-              const nodeName = node.name;
-              toast.error(t`Could not move “${nodeName}”`, { description: e.message });
-            }),
-        ),
-      );
-      if (moved > 0) {
-        toast.success(plural(moved, { one: "Moved # item", other: "Moved # items" }));
-        setSelectedIds(new Set());
+      const { movedIds } = await moveNodes(nodes, target);
+      if (movedIds.length > 0) {
+        const movedSet = new Set(movedIds);
+        setSelectedIds((prev) => new Set([...prev].filter((id) => !movedSet.has(id))));
       }
     },
-    [move, spaceId, space?.name, t],
+    [moveNodes, spaceId, space?.name, t],
   );
 
   const handleDeleteConfirmed = useCallback(() => {
@@ -536,6 +534,7 @@ function FolderView() {
                   starredIds={starredIds}
                   onClick={handleClick}
                   onDoubleClick={handleDoubleClick}
+                  onMoveNodes={handleMoveNodes}
                   {...nodeHandlers}
                 />
               ) : (
@@ -546,6 +545,7 @@ function FolderView() {
                   starredIds={starredIds}
                   onClick={handleClick}
                   onDoubleClick={handleDoubleClick}
+                  onMoveNodes={handleMoveNodes}
                   {...nodeHandlers}
                 />
               )}

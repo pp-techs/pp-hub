@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useSearch } from "@tanstack/react-router";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
@@ -15,8 +15,9 @@ import {
   SidebarMenuItem,
 } from "@workspace/ui/components/sidebar";
 import { FolderTree } from "@/components/folder-tree";
-import { useSpace } from "@/lib/queries";
+import { useMoveNodes, useSpace } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
+import { isValidMoveTarget } from "@/lib/drag-drop";
 
 type Row = {
   to:
@@ -63,6 +64,50 @@ export function NavSpace({ spaceId }: { spaceId: string }) {
   // URL. Checked by hand instead, the same shape `FolderTree` uses.
   const { dir } = useSearch({ strict: false }) as { dir?: string };
   const atRoot = location.pathname === `/drive/${spaceId}`;
+  const { moveNodes } = useMoveNodes(spaceId);
+  const [isDropTarget, setIsDropTarget] = useState(false);
+  const dragDepth = useRef(0);
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    const dragging = useUiStore.getState().draggingNodes;
+    const storeDirs = useUiStore.getState().dirs;
+    if (!isValidMoveTarget(undefined, dragging, spaceId, storeDirs)) return;
+    e.preventDefault();
+    dragDepth.current += 1;
+    setIsDropTarget(true);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    const dragging = useUiStore.getState().draggingNodes;
+    const storeDirs = useUiStore.getState().dirs;
+    if (isValidMoveTarget(undefined, dragging, spaceId, storeDirs)) {
+      e.preventDefault();
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- dataTransfer dropEffect
+      e.dataTransfer.dropEffect = "move";
+    } else {
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- dataTransfer dropEffect
+      e.dataTransfer.dropEffect = "none";
+    }
+  };
+
+  const handleDragLeave = () => {
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) {
+      setIsDropTarget(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    dragDepth.current = 0;
+    setIsDropTarget(false);
+    const dragging = useUiStore.getState().draggingNodes;
+    const storeDirs = useUiStore.getState().dirs;
+    if (!isValidMoveTarget(undefined, dragging, spaceId, storeDirs)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (dragging) void moveNodes(dragging.nodes, undefined);
+    useUiStore.getState().setDraggingNodes(null);
+  };
 
   // The archive is an ordinary root-level folder (see permissions.md), browsed
   // through the same `?dir=` listing as everything else. Its name has to be in
@@ -89,6 +134,14 @@ export function NavSpace({ spaceId }: { spaceId: string }) {
             <SidebarMenuItem>
               <SidebarMenuButton
                 isActive={atRoot && !dir}
+                className={cn(
+                  isDropTarget &&
+                    "bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-primary",
+                )}
+                onDragEnter={handleDragEnter}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
                 render={
                   <Link to="/drive/$spaceId" params={{ spaceId }} search={{ dir: undefined }} />
                 }

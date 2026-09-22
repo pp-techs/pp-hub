@@ -1,8 +1,8 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useSearch } from "@tanstack/react-router";
 import { ChevronRight, Folder, FolderOpen, Loader2 } from "lucide-react";
-import { useSpace, useTree } from "@/lib/queries";
+import { useMoveNodes, useSpace, useTree } from "@/lib/queries";
 import {
   SidebarMenuSkeleton,
   SidebarMenuSub,
@@ -11,6 +11,8 @@ import {
 } from "@workspace/ui/components/sidebar";
 import { cn } from "@workspace/ui/lib/utils";
 import type { TreeNode } from "@/lib/api";
+import { useUiStore } from "@/lib/ui-store";
+import { isValidMoveTarget } from "@/lib/drag-drop";
 
 interface FolderTreeItemProps {
   node: TreeNode;
@@ -21,6 +23,68 @@ interface FolderTreeItemProps {
 function FolderTreeItem({ node, currentDirId, spaceId }: FolderTreeItemProps) {
   const [expanded, setExpanded] = useState(false);
   const { t } = useLingui();
+  const { moveNodes } = useMoveNodes(spaceId);
+  const [isDropTarget, setIsDropTarget] = useState(false);
+  const dragDepth = useRef(0);
+  const hoverExpandTimer = useRef<number | undefined>(undefined);
+
+  useEffect(() => {
+    return () => {
+      clearTimeout(hoverExpandTimer.current);
+    };
+  }, []);
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    const dragging = useUiStore.getState().draggingNodes;
+    const storeDirs = useUiStore.getState().dirs;
+    if (!isValidMoveTarget(node.id, dragging, spaceId, storeDirs)) return;
+    e.preventDefault();
+    dragDepth.current += 1;
+    setIsDropTarget(true);
+
+    if (!expanded && node.has_children && hoverExpandTimer.current === undefined) {
+      hoverExpandTimer.current = window.setTimeout(() => {
+        setExpanded(true);
+        hoverExpandTimer.current = undefined;
+      }, 600);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    const dragging = useUiStore.getState().draggingNodes;
+    const storeDirs = useUiStore.getState().dirs;
+    if (isValidMoveTarget(node.id, dragging, spaceId, storeDirs)) {
+      e.preventDefault();
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- dataTransfer dropEffect
+      e.dataTransfer.dropEffect = "move";
+    } else {
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- dataTransfer dropEffect
+      e.dataTransfer.dropEffect = "none";
+    }
+  };
+
+  const handleDragLeave = () => {
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) {
+      setIsDropTarget(false);
+      clearTimeout(hoverExpandTimer.current);
+      hoverExpandTimer.current = undefined;
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    dragDepth.current = 0;
+    setIsDropTarget(false);
+    clearTimeout(hoverExpandTimer.current);
+    hoverExpandTimer.current = undefined;
+    const dragging = useUiStore.getState().draggingNodes;
+    const storeDirs = useUiStore.getState().dirs;
+    if (!isValidMoveTarget(node.id, dragging, spaceId, storeDirs)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (dragging) void moveNodes(dragging.nodes, node.id);
+    useUiStore.getState().setDraggingNodes(null);
+  };
   // Keyed on this node's own id, gated on `expanded`: collapsed items must not
   // query at all. They used to call `useTree(spaceId, undefined)` while
   // collapsed — the same key as the space's root tree — so every rendered row
@@ -57,7 +121,14 @@ function FolderTreeItem({ node, currentDirId, spaceId }: FolderTreeItemProps) {
             in a new tab like the rest of the app. */}
         <SidebarMenuSubButton
           isActive={isActive}
-          className="min-w-0 flex-1"
+          className={cn(
+            "min-w-0 flex-1",
+            isDropTarget && "bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-primary",
+          )}
+          onDragEnter={handleDragEnter}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
           render={<Link to="/drive/$spaceId" params={{ spaceId }} search={{ dir: node.id }} />}
         >
           {expanded ? (

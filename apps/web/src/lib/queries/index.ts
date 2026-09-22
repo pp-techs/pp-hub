@@ -39,6 +39,7 @@ export {
   useRenameNode,
   useDeleteNode,
   useMoveNode,
+  useMoveNodes,
   useMoveImpact,
   useCopyNode,
   useRestoreNode,

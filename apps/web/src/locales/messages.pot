@@ -13,11 +13,11 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: src/routes/drive/$spaceId/index.tsx:379
+#: src/routes/drive/$spaceId/index.tsx:377
 msgid "“{nodeName}” copied — paste it in another folder"
 msgstr ""
 
-#: src/routes/drive/$spaceId/index.tsx:378
+#: src/routes/drive/$spaceId/index.tsx:376
 msgid "“{nodeName}” cut — paste it in another folder"
 msgstr ""
 
@@ -185,7 +185,7 @@ msgstr ""
 msgid "{MIN_QUERY_LENGTH, plural, one {Type at least # character to search.} other {Type at least # characters to search.}}"
 msgstr ""
 
-#: src/routes/drive/$spaceId/index.tsx:317
+#: src/lib/queries/nodes.ts:207
 msgid "{moved, plural, one {Moved # item} other {Moved # items}}"
 msgstr ""
 
@@ -233,7 +233,7 @@ msgstr ""
 msgid "{revokeWho} loses access to this {nodeKind, select, dir {folder} other {file}}, but keeps the {revokeOwned, plural, one {# item} other {# items}} they created inside it — ownership is theirs, so those appear at their own top level."
 msgstr ""
 
-#: src/components/node-grid.tsx:64
+#: src/components/node-grid.tsx:66
 msgid "{selected, plural, one {# selected} other {# selected}}"
 msgstr ""
 
@@ -448,12 +448,12 @@ msgstr ""
 msgid "Action"
 msgstr ""
 
-#: src/components/node-list.tsx:72
+#: src/components/node-list.tsx:81
 msgid "Actions"
 msgstr ""
 
-#: src/components/node-grid.tsx:202
-#: src/components/node-list.tsx:170
+#: src/components/node-grid.tsx:293
+#: src/components/node-list.tsx:269
 msgid "Actions for {nodeName}"
 msgstr ""
 
@@ -585,8 +585,8 @@ msgstr ""
 msgid "Appearance"
 msgstr ""
 
-#: src/components/nav-space.tsx:76
-#: src/components/nav-space.tsx:144
+#: src/components/nav-space.tsx:121
+#: src/components/nav-space.tsx:197
 msgid "Archive"
 msgstr ""
 
@@ -697,12 +697,12 @@ msgstr ""
 msgid "Close transfers"
 msgstr ""
 
-#: src/components/folder-tree.tsx:39
+#: src/components/folder-tree.tsx:103
 #: src/components/move-dialog.tsx:249
 msgid "Collapse"
 msgstr ""
 
-#: src/components/nav-space.tsx:102
+#: src/components/nav-space.tsx:155
 msgid "Collapse My Drive"
 msgstr ""
 
@@ -743,7 +743,7 @@ msgstr ""
 msgid "Copied {done, plural, one {# item} other {# items}} to {destination}"
 msgstr ""
 
-#: src/routes/drive/$spaceId/index.tsx:366
+#: src/routes/drive/$spaceId/index.tsx:364
 msgid "Copied as “{copyName}”"
 msgstr ""
 
@@ -760,7 +760,7 @@ msgstr ""
 msgid "Could not add them to the group"
 msgstr ""
 
-#: src/routes/drive/$spaceId/index.tsx:369
+#: src/routes/drive/$spaceId/index.tsx:367
 msgid "Could not copy “{nodeName}”"
 msgstr ""
 
@@ -801,7 +801,7 @@ msgstr ""
 msgid "Could not load your sessions."
 msgstr ""
 
-#: src/routes/drive/$spaceId/index.tsx:312
+#: src/lib/queries/nodes.ts:202
 msgid "Could not move “{nodeName}”"
 msgstr ""
 
@@ -1103,7 +1103,7 @@ msgstr ""
 msgid "Drive"
 msgstr ""
 
-#: src/components/drop-zone.tsx:75
+#: src/components/drop-zone.tsx:82
 msgid "Drop files to upload"
 msgstr ""
 
@@ -1214,12 +1214,12 @@ msgstr ""
 msgid "Everywhere your access to this space begins. Open one to see what is inside."
 msgstr ""
 
-#: src/components/folder-tree.tsx:39
+#: src/components/folder-tree.tsx:103
 #: src/components/move-dialog.tsx:249
 msgid "Expand"
 msgstr ""
 
-#: src/components/nav-space.tsx:102
+#: src/components/nav-space.tsx:155
 msgid "Expand My Drive"
 msgstr ""
 
@@ -1257,7 +1257,7 @@ msgid "file names and details only"
 msgstr ""
 
 #: src/components/command-palette.tsx:41
-#: src/components/node-grid.tsx:112
+#: src/components/node-grid.tsx:124
 #: src/routes/admin.users.tsx:117
 msgid "Files"
 msgstr ""
@@ -1307,7 +1307,7 @@ msgstr ""
 msgid "Finance"
 msgstr ""
 
-#: src/components/node-grid.tsx:187
+#: src/components/node-grid.tsx:278
 #: src/components/preview-panel.tsx:324
 msgid "Folder"
 msgstr ""
@@ -1321,11 +1321,11 @@ msgid "Folder name"
 msgstr ""
 
 #: src/components/command-palette.tsx:42
-#: src/components/node-grid.tsx:105
+#: src/components/node-grid.tsx:117
 msgid "Folders"
 msgstr ""
 
-#: src/components/drop-zone.tsx:81
+#: src/components/drop-zone.tsx:88
 msgid "Folders are uploaded with their structure preserved"
 msgstr ""
 
@@ -1418,8 +1418,8 @@ msgstr ""
 msgid "Handover for {who} is complete"
 msgstr ""
 
-#: src/components/nav-space.tsx:42
-#: src/components/site-header.tsx:28
+#: src/components/nav-space.tsx:43
+#: src/components/site-header.tsx:30
 #: src/routes/drive/$spaceId/home.tsx:19
 msgid "Home"
 msgstr ""
@@ -1610,7 +1610,7 @@ msgstr ""
 #: src/routes/admin.users.tsx:157
 #: src/routes/drive/$spaceId/home.tsx:152
 #: src/routes/drive/$spaceId/home.tsx:165
-#: src/routes/drive/$spaceId/index.tsx:506
+#: src/routes/drive/$spaceId/index.tsx:504
 #: src/routes/edit/$nodeId.tsx:92
 #: src/routes/s/$token.tsx:251
 msgid "Loading…"
@@ -1716,7 +1716,7 @@ msgid "Minimal self-hosted workspace: drive, office, spaces. Nothing leaves the 
 msgstr ""
 
 #: src/components/listing-controls.tsx:24
-#: src/components/node-list.tsx:63
+#: src/components/node-list.tsx:72
 #: src/components/node-table.tsx:77
 #: src/components/preview-modal.tsx:158
 #: src/components/preview-panel.tsx:347
@@ -1761,14 +1761,14 @@ msgstr ""
 msgid "Moved {done, plural, one {# item} other {# items}} to {destination}"
 msgstr ""
 
-#: src/components/nav-space.tsx:98
-#: src/components/site-header.tsx:150
+#: src/components/nav-space.tsx:151
+#: src/components/site-header.tsx:152
 msgid "My Drive"
 msgstr ""
 
 #: src/components/group-list.tsx:357
 #: src/components/listing-controls.tsx:23
-#: src/components/node-list.tsx:60
+#: src/components/node-list.tsx:69
 #: src/components/node-table.tsx:74
 #: src/components/settings/panes/account-general.tsx:40
 #: src/components/space-node-table.tsx:90
@@ -1848,7 +1848,7 @@ msgstr ""
 msgid "No events recorded."
 msgstr ""
 
-#: src/components/folder-tree.tsx:117
+#: src/components/folder-tree.tsx:188
 msgid "No folders yet."
 msgstr ""
 
@@ -1860,7 +1860,7 @@ msgstr ""
 msgid "No matches for “{queryText}”"
 msgstr ""
 
-#: src/routes/drive/$spaceId/index.tsx:516
+#: src/routes/drive/$spaceId/index.tsx:514
 msgid "No matching files or folders"
 msgstr ""
 
@@ -1992,7 +1992,7 @@ msgstr ""
 msgid "Overview"
 msgstr ""
 
-#: src/components/node-list.tsx:69
+#: src/components/node-list.tsx:78
 #: src/components/node-table.tsx:83
 #: src/components/preview-modal.tsx:157
 #: src/components/preview-panel.tsx:344
@@ -2102,8 +2102,8 @@ msgstr ""
 msgid "read-only"
 msgstr ""
 
-#: src/components/nav-space.tsx:45
-#: src/components/site-header.tsx:29
+#: src/components/nav-space.tsx:46
+#: src/components/site-header.tsx:31
 #: src/routes/drive/$spaceId/home.tsx:95
 #: src/routes/drive/$spaceId/recent.tsx:13
 msgid "Recent"
@@ -2244,7 +2244,7 @@ msgstr ""
 msgid "Revoking a group’s access leaves anything its members created in here — those items stay with whoever made them."
 msgstr ""
 
-#: src/routes/drive/$spaceId/index.tsx:525
+#: src/routes/drive/$spaceId/index.tsx:523
 msgid "Right-click here, or use New, to add something."
 msgstr ""
 
@@ -2405,8 +2405,8 @@ msgstr ""
 msgid "Shared"
 msgstr ""
 
-#: src/components/nav-space.tsx:44
-#: src/components/site-header.tsx:31
+#: src/components/nav-space.tsx:45
+#: src/components/site-header.tsx:33
 #: src/routes/drive/$spaceId/shared.tsx:11
 #: src/routes/drive/$spaceId/shared.tsx:32
 msgid "Shared with me"
@@ -2475,7 +2475,7 @@ msgid "Signed-in devices"
 msgstr ""
 
 #: src/components/listing-controls.tsx:25
-#: src/components/node-list.tsx:66
+#: src/components/node-list.tsx:75
 #: src/components/node-table.tsx:80
 #: src/components/preview-modal.tsx:156
 #: src/components/preview-panel.tsx:326
@@ -2553,8 +2553,8 @@ msgstr ""
 msgid "Star a file from its ⋯ menu to keep it here."
 msgstr ""
 
-#: src/components/nav-space.tsx:46
-#: src/components/site-header.tsx:30
+#: src/components/nav-space.tsx:47
+#: src/components/site-header.tsx:32
 #: src/routes/drive/$spaceId/home.tsx:125
 #: src/routes/drive/$spaceId/starred.tsx:11
 msgid "Starred"
@@ -2599,7 +2599,7 @@ msgstr ""
 msgid "System"
 msgstr ""
 
-#: src/components/node-list.tsx:161
+#: src/components/node-list.tsx:260
 msgid "Team"
 msgstr ""
 
@@ -2668,7 +2668,7 @@ msgstr ""
 msgid "They owned nothing here, so nothing moves into the Archive. This revokes the grants they gave other people and closes the handover. It cannot be undone."
 msgstr ""
 
-#: src/components/drop-zone.tsx:78
+#: src/components/drop-zone.tsx:85
 msgid "They will be added to {destination}"
 msgstr ""
 
@@ -2708,7 +2708,7 @@ msgstr ""
 msgid "this folder"
 msgstr ""
 
-#: src/routes/drive/$spaceId/index.tsx:518
+#: src/routes/drive/$spaceId/index.tsx:516
 #: src/routes/s/$token.tsx:264
 msgid "This folder is empty"
 msgstr ""
@@ -2744,7 +2744,7 @@ msgstr ""
 #: src/components/drive-write.tsx:87
 #: src/components/drive-write.tsx:169
 #: src/routes/drive/$spaceId/home.tsx:61
-#: src/routes/drive/$spaceId/index.tsx:297
+#: src/routes/drive/$spaceId/index.tsx:308
 msgid "this space"
 msgstr ""
 
@@ -2772,8 +2772,8 @@ msgstr ""
 msgid "Top level"
 msgstr ""
 
-#: src/components/nav-space.tsx:48
-#: src/components/site-header.tsx:32
+#: src/components/nav-space.tsx:49
+#: src/components/site-header.tsx:34
 #: src/components/trash-panel.tsx:200
 #: src/routes/drive/$spaceId/trash.tsx:8
 msgid "Trash"
@@ -2788,7 +2788,7 @@ msgid "Trash retention (days)"
 msgstr ""
 
 #: src/components/trash-panel.tsx:257
-#: src/routes/drive/$spaceId/index.tsx:523
+#: src/routes/drive/$spaceId/index.tsx:521
 msgid "Try a different search."
 msgstr ""
 

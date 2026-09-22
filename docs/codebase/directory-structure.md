@@ -18,6 +18,7 @@ pp-hub/
 │   │       │   ├── user-agent.ts   # "Chrome on macOS" from a UA string, for the session and log lists
 │   │       │   ├── selection.ts    # click → selection (replace / ⌘ toggle / ⇧ range)
 │   │       │   ├── use-marquee-selection.ts # drag a band over the listing to select
+│   │       │   ├── drag-drop.ts    # validation, cycle detection & ghost badge for internal DnD
 │   │       │   ├── upload-store.ts # zustand upload queue (concurrency, retry, mkdir cache)
 │   │       │   ├── drop-items.ts   # flattens a drop / folder pick into upload items
 │   │       │   ├── use-debounced.ts # trailing-edge debounce for the palette query

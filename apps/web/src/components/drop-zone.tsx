@@ -4,6 +4,8 @@ import { Trans } from "@lingui/react/macro";
 import { UploadCloud } from "lucide-react";
 import { collectDropItems } from "@/lib/drop-items";
 import { useUploadWithConflicts } from "@/components/upload-conflict-dialog";
+import { DRAG_DATA_TYPE } from "@/lib/drag-drop";
+import { useUiStore } from "@/lib/ui-store";
 
 interface DropZoneProps {
   spaceId: string;
@@ -35,8 +37,13 @@ export function DropZone({ spaceId, parentId, destination, disabled, children }:
     setOver(false);
   };
 
-  // eslint-disable-next-line lingui/no-unlocalized-strings -- DataTransfer type name
-  const carriesFiles = (e: DragEvent) => [...e.dataTransfer.types].includes("Files");
+  const carriesFiles = (e: DragEvent) => {
+    if (e.dataTransfer.types.includes(DRAG_DATA_TYPE) || useUiStore.getState().draggingNodes) {
+      return false;
+    }
+    // eslint-disable-next-line lingui/no-unlocalized-strings -- DataTransfer type name
+    return [...e.dataTransfer.types].includes("Files");
+  };
 
   return (
     <div

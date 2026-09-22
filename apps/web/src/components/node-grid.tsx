@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo, useMemo, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import { Plural, useLingui } from "@lingui/react/macro";
 import { MoreVertical } from "lucide-react";
@@ -17,11 +17,12 @@ import {
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
 import { cn } from "@workspace/ui/lib/utils";
-import { hasThumbnail, previewUrl, thumbnailFit, type Node } from "@/lib/api";
+import { canRestructure, hasThumbnail, previewUrl, thumbnailFit, type Node } from "@/lib/api";
 import { useFormatters } from "@/lib/format";
 import { useNodeActions, type NodeActionHandlers } from "@/components/node-actions";
 import { NodeIcon } from "@/components/node-icon";
 import { useUiStore } from "@/lib/ui-store";
+import { DRAG_DATA_TYPE, isValidMoveTarget, setDragGhost } from "@/lib/drag-drop";
 
 /**
  * Column count tracks the width of the grid itself, not the viewport, so
@@ -42,6 +43,7 @@ interface NodeGridProps extends NodeActionHandlers {
   /** Modifier keys decide replace / toggle / range — the caller reads them. */
   onClick: (node: Node, event: MouseEvent) => void;
   onDoubleClick: (node: Node) => void;
+  onMoveNodes?: (nodes: Node[], targetId: string) => Promise<void>;
 }
 
 /** Uppercase section heading with the count, as in the Stitch grid. */
@@ -76,6 +78,7 @@ export function NodeGrid({
   starredIds,
   onClick,
   onDoubleClick,
+  onMoveNodes,
   ...handlers
 }: NodeGridProps) {
   const { t } = useLingui();
@@ -84,6 +87,13 @@ export function NodeGrid({
     for (const n of nodes) if (selectedIds.has(n.id)) count++;
     return count;
   };
+  const selectedNodes = useMemo(() => {
+    const map = new Map<string, Node>();
+    for (const d of dirs) if (selectedIds.has(d.id)) map.set(d.id, d);
+    for (const f of files) if (selectedIds.has(f.id)) map.set(f.id, f);
+    return map;
+  }, [dirs, files, selectedIds]);
+
   const card = (node: Node) => (
     <NodeCard
       key={node.id}
@@ -94,6 +104,8 @@ export function NodeGrid({
       canWriteHere={canWriteHere}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
+      onMoveNodes={onMoveNodes}
+      selectedNodes={selectedNodes}
       {...handlers}
     />
   );
@@ -138,17 +150,18 @@ function Thumb({ node }: { node: Node }) {
           src={previewUrl(node)}
           alt=""
           loading="lazy"
+          draggable={false}
           // Pictures crop to fill, pages letterbox — see thumbnailFit. The
           // classes are spelled out because Tailwind cannot see a name built
           // at runtime.
           className={cn(
-            "size-full",
+            "pointer-events-none size-full",
             thumbnailFit(node) === "cover" ? "object-cover" : "object-contain",
           )}
           onError={() => setFailed(true)}
         />
       ) : (
-        <NodeIcon node={node} className="size-12" />
+        <NodeIcon node={node} className="pointer-events-none size-12 select-none" />
       )}
     </div>
   );
@@ -163,6 +176,8 @@ interface NodeCardProps extends NodeActionHandlers {
   selected: boolean;
   onClick: (node: Node, event: MouseEvent) => void;
   onDoubleClick: (node: Node) => void;
+  onMoveNodes?: (nodes: Node[], targetId: string) => Promise<void>;
+  selectedNodes: Map<string, Node>;
 }
 
 const NodeCard = memo(function NodeCard({
@@ -173,6 +188,8 @@ const NodeCard = memo(function NodeCard({
   shared,
   onClick,
   onDoubleClick,
+  onMoveNodes,
+  selectedNodes,
   ...handlers
 }: NodeCardProps) {
   const { t, i18n } = useLingui();
@@ -180,6 +197,80 @@ const NodeCard = memo(function NodeCard({
   const openPanel = useUiStore((s) => s.openPanel);
   const actions = useNodeActions(node, handlers, openPanel, starred, canWriteHere);
   const isDir = node.kind === "dir";
+  const canMove = canRestructure(node);
+  const [isDropTarget, setIsDropTarget] = useState(false);
+  const dragDepth = useRef(0);
+
+  const handleDragStart = (e: React.DragEvent) => {
+    if (!canMove) return;
+    if ((e.target as HTMLElement)?.closest("button, [role='menuitem']")) {
+      e.preventDefault();
+      return;
+    }
+    const isSelected = selectedNodes.has(node.id);
+    let nodesToDrag: Node[];
+    if (isSelected) {
+      const selectedList = [...selectedNodes.values()].filter(canRestructure);
+      nodesToDrag = selectedList.length > 0 ? selectedList : [node];
+    } else {
+      nodesToDrag = [node];
+    }
+    e.dataTransfer.setData(DRAG_DATA_TYPE, JSON.stringify(nodesToDrag.map((n) => n.id)));
+    // eslint-disable-next-line lingui/no-unlocalized-strings -- dataTransfer effectAllowed
+    e.dataTransfer.effectAllowed = "move";
+    setDragGhost(e, nodesToDrag);
+    useUiStore.getState().setDraggingNodes({ spaceId: node.space_id, nodes: nodesToDrag });
+  };
+
+  const handleDragEnd = () => {
+    useUiStore.getState().setDraggingNodes(null);
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    if (!isDir) return;
+    const dragging = useUiStore.getState().draggingNodes;
+    const storeDirs = useUiStore.getState().dirs;
+    if (!isValidMoveTarget(node.id, dragging, node.space_id, storeDirs)) return;
+    e.preventDefault();
+    dragDepth.current += 1;
+    setIsDropTarget(true);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    if (!isDir) return;
+    const dragging = useUiStore.getState().draggingNodes;
+    const storeDirs = useUiStore.getState().dirs;
+    if (isValidMoveTarget(node.id, dragging, node.space_id, storeDirs)) {
+      e.preventDefault();
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- dataTransfer dropEffect
+      e.dataTransfer.dropEffect = "move";
+    } else {
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- dataTransfer dropEffect
+      e.dataTransfer.dropEffect = "none";
+    }
+  };
+  const handleDragLeave = () => {
+    if (!isDir) return;
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) {
+      setIsDropTarget(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    if (!isDir) return;
+    dragDepth.current = 0;
+    setIsDropTarget(false);
+    const dragging = useUiStore.getState().draggingNodes;
+    const storeDirs = useUiStore.getState().dirs;
+    if (!isValidMoveTarget(node.id, dragging, node.space_id, storeDirs)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (dragging && onMoveNodes) {
+      void onMoveNodes(dragging.nodes, node.id);
+    }
+    useUiStore.getState().setDraggingNodes(null);
+  };
 
   // Size and date only live in the tooltip: the Stitch card carries the name
   // alone, and the details panel and list view are where numbers belong.
@@ -241,6 +332,13 @@ const NodeCard = memo(function NodeCard({
       <ContextMenuTrigger onContextMenu={(e) => e.stopPropagation()}>
         <div
           data-node-id={node.id}
+          draggable={canMove}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragEnter={handleDragEnter}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
           className={cn(
             "group bg-muted/60 hover:bg-muted cursor-pointer border border-transparent transition-colors [content-visibility:auto]",
             isDir
@@ -249,6 +347,7 @@ const NodeCard = memo(function NodeCard({
             // Selection is a soft wash, not an outline: a whole folder of
             // ticked cards should still read as a grid.
             selected && "bg-primary/10 hover:bg-primary/15 border-primary/30",
+            isDropTarget && "ring-2 ring-primary bg-primary/10 border-primary/50",
           )}
           onClick={(e) => onClick(node, e)}
           onDoubleClick={() => onDoubleClick(node)}

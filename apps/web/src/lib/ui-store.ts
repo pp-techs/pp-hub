@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Node, NodeView, SortField, SortOrder } from "@/lib/api";
 import type { ClipboardState } from "@/lib/write-target";
+import type { DraggingNodes } from "@/lib/drag-drop";
 
 export type PanelKind = "versions";
 
@@ -64,6 +65,9 @@ interface UiState {
   detailsOpen: boolean;
   setDetailsOpen: (v: boolean) => void;
   toggleDetails: () => void;
+  /** Active drag operation within drive. Ephemeral and not persisted. */
+  draggingNodes: DraggingNodes | null;
+  setDraggingNodes: (val: DraggingNodes | null) => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -101,6 +105,8 @@ export const useUiStore = create<UiState>()(
       detailsOpen: false,
       setDetailsOpen: (v: boolean) => set({ detailsOpen: v }),
       toggleDetails: () => set((s) => ({ detailsOpen: !s.detailsOpen })),
+      draggingNodes: null,
+      setDraggingNodes: (val) => set({ draggingNodes: val }),
     }),
     {
       name: "pp-hub-ui",

@@ -1,3 +1,7 @@
+import { useCallback, useState } from "react";
+import { toast } from "sonner";
+import { plural } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 // Node (file/folder) and version hooks.
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -166,6 +170,51 @@ export function useMoveNode(spaceId: string) {
       void qc.invalidateQueries({ queryKey: ["tree", spaceId] });
     },
   });
+}
+
+export function useMoveNodes(spaceId: string) {
+  const { t } = useLingui();
+  const move = useMoveNode(spaceId);
+  const [isPending, setIsPending] = useState(false);
+
+  const moveNodes = useCallback(
+    async (
+      nodes: Node[],
+      targetParentId: string | undefined,
+    ): Promise<{ moved: number; movedIds: string[] }> => {
+      const toMove = nodes.filter((n) => n.parent_id !== targetParentId);
+      if (toMove.length === 0) return { moved: 0, movedIds: [] };
+
+      setIsPending(true);
+      let moved = 0;
+      const movedIds: string[] = [];
+      try {
+        await Promise.all(
+          toMove.map((node) =>
+            move
+              .mutateAsync({ nodeId: node.id, parentId: targetParentId })
+              .then(() => {
+                moved += 1;
+                movedIds.push(node.id);
+              })
+              .catch((e: Error) => {
+                const nodeName = node.name;
+                toast.error(t`Could not move “${nodeName}”`, { description: e.message });
+              }),
+          ),
+        );
+        if (moved > 0) {
+          toast.success(plural(moved, { one: "Moved # item", other: "Moved # items" }));
+        }
+        return { moved, movedIds };
+      } finally {
+        setIsPending(false);
+      }
+    },
+    [move, t],
+  );
+
+  return { moveNodes, isPending: isPending || move.isPending };
 }
 
 // ─── Versions ────────────────────────────────────────────────────────────────
