@@ -9,6 +9,7 @@ import {
   Settings,
   Shield,
   ShieldAlert,
+  SlidersHorizontal,
   User,
 } from "lucide-react";
 import {
@@ -126,6 +127,9 @@ export function NavUser() {
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => void navigate({ to: "/admin/security" })}>
                   <ShieldAlert /> <Trans>Security log</Trans>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => void navigate({ to: "/admin/settings" })}>
+                  <SlidersHorizontal /> <Trans>Instance settings</Trans>
                 </DropdownMenuItem>
               </>
             )}

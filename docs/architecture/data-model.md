@@ -152,6 +152,18 @@ about the feed's schema, scoping or readers wanted to become an audit log.
   `share_created`, is defined and currently has no writer: creating a share records an activity
   row only, while revoking one records both.
 
+## System Configuration
+
+`migrations/0006_system_config.sql`. Key-value JSONB store for dynamic operational and policy knobs (e.g. `instance_name`, `max_upload_bytes`, `audit_retention_days`, `default_space_quota_bytes`).
+
+```sql
+system_config(key, tenant_id, value, updated_at, updated_by)
+```
+
+- **Hierarchy**: Setting in `system_config` takes precedence over environment variable fallbacks (`PP_MAX_UPLOAD_BYTES`, `PP_AUDIT_RETENTION_DAYS`) and built-in defaults.
+- **Audit trail**: Every update or reset via `PATCH /api/v1/admin/settings` or `DELETE /api/v1/admin/settings/{key}` writes a `settings_updated` event to `security_events` with the operator's `user_id` and modified keys.
+- **In-memory cache**: `internal/sysconfig.Service` caches settings in-memory to ensure zero-latency checks on the upload path and during background sweeps, refreshed on write and periodically on the 5-minute background sweep across replicas.
+
 ## Core Tables
 
 The development-phase migrations were consolidated into one baseline,

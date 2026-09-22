@@ -272,8 +272,12 @@ func (s *Server) handleCreateSpace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Creation takes the same optional settings the settings screen edits.
-	if body.Slug != "" || body.Description != "" || body.DefaultAsAdmin || body.QuotaBytes > 0 {
-		settings, problem := spaceSettingsFrom(sp, body.Slug, body.Description, body.DefaultAsAdmin, body.QuotaBytes)
+	quota := body.QuotaBytes
+	if quota <= 0 && s.sysconfig != nil {
+		quota = s.sysconfig.DefaultSpaceQuotaBytes("default")
+	}
+	if body.Slug != "" || body.Description != "" || body.DefaultAsAdmin || quota > 0 {
+		settings, problem := spaceSettingsFrom(sp, body.Slug, body.Description, body.DefaultAsAdmin, quota)
 		if problem != "" {
 			writeProblem(w, http.StatusBadRequest, "Bad Request", problem)
 			return
@@ -575,7 +579,7 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 		s.spaceError(w, r, err)
 		return
 	}
-	if !parseUpload(w, r, s.maxUploadBytes) {
+	if !parseUpload(w, r, s.uploadCap()) {
 		return
 	}
 	var parentID pgtype.UUID
@@ -654,7 +658,7 @@ func (s *Server) handleUploadVersion(w http.ResponseWriter, r *http.Request) {
 	if s.lockedByEditor(w, r, node.ID) {
 		return
 	}
-	if !parseUpload(w, r, s.maxUploadBytes) {
+	if !parseUpload(w, r, s.uploadCap()) {
 		return
 	}
 	f, _, err := r.FormFile("file")

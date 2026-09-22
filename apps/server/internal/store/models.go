@@ -349,6 +349,14 @@ type SpaceMember struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
+type SystemConfig struct {
+	Key       string             `json:"key"`
+	TenantID  string             `json:"tenant_id"`
+	Value     []byte             `json:"value"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	UpdatedBy pgtype.UUID        `json:"updated_by"`
+}
+
 type Upload struct {
 	ID        pgtype.UUID        `json:"id"`
 	TenantID  string             `json:"tenant_id"`

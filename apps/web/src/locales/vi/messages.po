@@ -115,16 +115,16 @@ msgstr "{done, plural, one {Đã tải lên # tệp} other {Đã tải lên # t�
 msgid "{done} uploaded, {failed} failed"
 msgstr "Đã tải lên {done}, thất bại {failed}"
 
-#: src/routes/admin.users.tsx:263
+#: src/routes/admin.users.tsx:252
 msgid "{email} reinstated"
 msgstr "Đã khôi phục {email}"
 
-#: src/routes/admin.users.tsx:263
+#: src/routes/admin.users.tsx:252
 msgid "{email} suspended"
 msgstr "Đã tạm khoá {email}"
 
 #: src/components/transfer-tray.tsx:115
-#: src/routes/admin.users.tsx:142
+#: src/routes/admin.users.tsx:131
 msgid "{failed, plural, one {# failed} other {# failed}}"
 msgstr "{failed, plural, one {# thất bại} other {# thất bại}}"
 
@@ -148,7 +148,7 @@ msgstr "{folders, plural, one {# thư mục} other {# thư mục}} và {files, p
 msgid "{folders, plural, one {# folder} other {# folders}} and {files, plural, one {# file} other {# files}} selected"
 msgstr "Đã chọn {folders, plural, one {# thư mục} other {# thư mục}} và {files, plural, one {# tệp} other {# tệp}}"
 
-#: src/routes/admin.security.tsx:226
+#: src/routes/admin.security.tsx:212
 msgid "{from}–{to} of {total}"
 msgstr "{from}–{to} trên {total}"
 
@@ -189,7 +189,7 @@ msgstr "{MIN_QUERY_LENGTH, plural, one {Nhập ít nhất # ký tự để tìm 
 msgid "{moved, plural, one {Moved # item} other {Moved # items}}"
 msgstr "{moved, plural, one {Đã di chuyển # mục} other {Đã di chuyển # mục}}"
 
-#: src/routes/admin.users.tsx:293
+#: src/routes/admin.users.tsx:282
 msgid "{n, plural, one {# suspended} other {# suspended}}"
 msgstr "{n, plural, one {# đã tạm khoá} other {# đã tạm khoá}}"
 
@@ -309,7 +309,7 @@ msgstr "{total, plural, one {# thành viên} other {# thành viên}}"
 msgid "{totalSize} used"
 msgstr "Đã dùng {totalSize}"
 
-#: src/routes/admin.users.tsx:130
+#: src/routes/admin.users.tsx:119
 msgid "{trashed, plural, one {# in trash} other {# in trash}}"
 msgstr "{trashed, plural, one {# trong thùng rác} other {# trong thùng rác}}"
 
@@ -427,15 +427,15 @@ msgstr "Đã thu hồi quyền truy cập"
 msgid "Account"
 msgstr "Tài khoản"
 
-#: src/components/nav-user.tsx:69
+#: src/components/nav-user.tsx:70
 msgid "Account menu"
 msgstr "Menu tài khoản"
 
-#: src/routes/admin.security.tsx:75
+#: src/routes/admin.security.tsx:76
 msgid "account suspended"
 msgstr "tài khoản bị tạm ngưng"
 
-#: src/routes/admin.security.tsx:76
+#: src/routes/admin.security.tsx:77
 msgid "account unsuspended"
 msgstr "tài khoản được bỏ tạm ngưng"
 
@@ -457,7 +457,7 @@ msgstr "Hành động"
 msgid "Actions for {nodeName}"
 msgstr "Thao tác với {nodeName}"
 
-#: src/routes/admin.users.tsx:233
+#: src/routes/admin.users.tsx:222
 msgid "Active"
 msgstr "Đang hoạt động"
 
@@ -502,11 +502,12 @@ msgstr "Đã thêm vào {groupName}"
 msgid "Admin"
 msgstr "Quản trị viên"
 
-#: src/routes/admin.users.tsx:80
+#: src/routes/admin.settings.tsx:51
+#: src/routes/admin.users.tsx:81
 msgid "Admin access required."
 msgstr "Cần quyền quản trị viên."
 
-#: src/routes/admin.security.tsx:73
+#: src/routes/admin.security.tsx:74
 msgid "admin granted"
 msgstr "đã cấp quyền quản trị"
 
@@ -514,9 +515,13 @@ msgstr "đã cấp quyền quản trị"
 msgid "Admin of this space: {name}"
 msgstr "Quản trị viên của không gian này: {name}"
 
-#: src/routes/admin.security.tsx:74
+#: src/routes/admin.security.tsx:75
 msgid "admin revoked"
 msgstr "đã thu hồi quyền quản trị"
+
+#: src/components/admin-header.tsx:32
+msgid "Admin sections"
+msgstr ""
 
 #: src/components/share-dialog.tsx:439
 msgid "Admins"
@@ -530,11 +535,11 @@ msgstr "Quản trị viên thay đổi cài đặt không gian và quản lý ng
 msgid "All"
 msgstr "Tất cả"
 
-#: src/routes/admin.users.tsx:295
+#: src/routes/admin.users.tsx:284
 msgid "all active"
 msgstr "tất cả đang hoạt động"
 
-#: src/routes/admin.security.tsx:85
+#: src/routes/admin.security.tsx:86
 msgid "All events"
 msgstr "Tất cả sự kiện"
 
@@ -597,6 +602,10 @@ msgstr "Tăng dần"
 msgid "Audio"
 msgstr "Âm thanh"
 
+#: src/routes/admin.settings.tsx:159
+msgid "Audit retention must be between 1 and 3650 days"
+msgstr ""
+
 #: src/components/group-list.tsx:175
 msgid "Automatic"
 msgstr "Tự động"
@@ -605,9 +614,9 @@ msgstr "Tự động"
 msgid "Avatar updated"
 msgstr "Đã cập nhật ảnh đại diện"
 
-#: src/routes/admin.security.tsx:134
-#: src/routes/admin.users.tsx:83
-#: src/routes/admin.users.tsx:100
+#: src/components/admin-header.tsx:22
+#: src/routes/admin.settings.tsx:54
+#: src/routes/admin.users.tsx:84
 #: src/routes/drive/$spaceId/route.tsx:51
 #: src/routes/edit/$nodeId.tsx:78
 msgid "Back to Drive"
@@ -826,7 +835,7 @@ msgstr "Không thể đăng xuất các thiết bị khác"
 msgid "Could not sign out that device"
 msgstr "Không thể đăng xuất thiết bị đó"
 
-#: src/components/nav-user.tsx:57
+#: src/components/nav-user.tsx:58
 msgid "Could not sign out. Please try again."
 msgstr "Không thể đăng xuất. Vui lòng thử lại."
 
@@ -912,9 +921,33 @@ msgstr "Vùng nguy hiểm"
 msgid "Dark"
 msgstr "Tối"
 
+#: src/routes/admin.settings.tsx:86
+msgid "Database override"
+msgstr ""
+
+#: src/routes/admin.settings.tsx:392
+msgid "days"
+msgstr ""
+
+#: src/routes/admin.settings.tsx:99
+msgid "Default"
+msgstr ""
+
 #: src/components/settings/panes/account-general.tsx:135
 msgid "Default listing"
 msgstr "Danh sách mặc định"
+
+#: src/routes/admin.settings.tsx:325
+msgid "Default quota for new spaces (GB, 0 = unlimited)"
+msgstr ""
+
+#: src/routes/admin.settings.tsx:168
+msgid "Default quota must be a valid number (0 for unlimited)"
+msgstr ""
+
+#: src/routes/admin.settings.tsx:299
+msgid "Default space quota"
+msgstr ""
 
 #: src/components/selection-bar.tsx:88
 msgid "Delete"
@@ -991,7 +1024,7 @@ msgstr "Mô tả"
 msgid "Details"
 msgstr "Chi tiết"
 
-#: src/routes/admin.security.tsx:212
+#: src/routes/admin.security.tsx:198
 msgid "Device"
 msgstr "Thiết bị"
 
@@ -1009,6 +1042,7 @@ msgstr "Hướng"
 
 #: src/components/settings/panes/account-profile.tsx:152
 #: src/components/settings/panes/space-general.tsx:228
+#: src/routes/admin.settings.tsx:412
 msgid "Discard"
 msgstr "Huỷ bỏ"
 
@@ -1025,6 +1059,7 @@ msgid "Display language"
 msgstr "Ngôn ngữ hiển thị"
 
 #: src/components/settings/panes/account-profile.tsx:103
+#: src/routes/admin.settings.tsx:227
 msgid "Display name"
 msgstr "Tên hiển thị"
 
@@ -1131,15 +1166,19 @@ msgstr "Bật"
 msgid "Enter a new name for this item."
 msgstr "Nhập tên mới cho mục này."
 
+#: src/routes/admin.settings.tsx:93
+msgid "Environment variable"
+msgstr ""
+
 #: src/components/command-palette.tsx:233
 msgid "esc to close"
 msgstr "esc để đóng"
 
-#: src/routes/admin.security.tsx:203
+#: src/routes/admin.security.tsx:189
 msgid "Event"
 msgstr "Sự kiện"
 
-#: src/routes/admin.security.tsx:156
+#: src/routes/admin.security.tsx:142
 msgid "Events"
 msgstr "Sự kiện"
 
@@ -1147,7 +1186,7 @@ msgstr "Sự kiện"
 msgid "Every saved revision of this file."
 msgstr "Mọi phiên bản đã lưu của tệp này."
 
-#: src/routes/admin.users.tsx:110
+#: src/routes/admin.users.tsx:99
 msgid "Every user and space on this install"
 msgstr "Mọi người dùng và không gian trên bản cài đặt này"
 
@@ -1200,6 +1239,14 @@ msgstr "Xuất CSV"
 msgid "External"
 msgstr "Bên ngoài"
 
+#: src/routes/admin.settings.tsx:189
+msgid "Failed to reset setting"
+msgstr ""
+
+#: src/routes/admin.settings.tsx:180
+msgid "Failed to save settings"
+msgstr ""
+
 #: src/components/preview-modal.tsx:155
 #: src/components/preview-panel.tsx:324
 msgid "File"
@@ -1211,7 +1258,7 @@ msgstr "chỉ tên tệp và chi tiết"
 
 #: src/components/command-palette.tsx:41
 #: src/components/node-grid.tsx:112
-#: src/routes/admin.users.tsx:128
+#: src/routes/admin.users.tsx:117
 msgid "Files"
 msgstr "Tệp"
 
@@ -1229,7 +1276,7 @@ msgstr "Tệp sở hữu"
 msgid "Files you upload or edit in this space show up here."
 msgstr "Các tệp bạn tải lên hoặc chỉnh sửa trong không gian này sẽ xuất hiện ở đây."
 
-#: src/routes/admin.security.tsx:169
+#: src/routes/admin.security.tsx:155
 msgid "Filter by event kind"
 msgstr "Lọc theo loại sự kiện"
 
@@ -1238,7 +1285,7 @@ msgid "Filter by group"
 msgstr "Lọc theo nhóm"
 
 #: src/components/people-table.tsx:197
-#: src/routes/admin.users.tsx:160
+#: src/routes/admin.users.tsx:149
 msgid "Filter by name or email"
 msgstr "Lọc theo tên hoặc email"
 
@@ -1251,7 +1298,7 @@ msgstr "Lọc các mục đã xoá"
 msgid "Filter people by name or email"
 msgstr "Lọc người theo tên hoặc email"
 
-#: src/routes/admin.users.tsx:161
+#: src/routes/admin.users.tsx:150
 msgid "Filter users"
 msgstr "Lọc người dùng"
 
@@ -1298,10 +1345,19 @@ msgstr "Phát hiện trong lần kiểm tra hằng giờ"
 msgid "Gains access: {gaining}."
 msgstr "Được cấp quyền truy cập: {gaining}."
 
+#: src/routes/admin.settings.tsx:288
+#: src/routes/admin.settings.tsx:337
+msgid "GB"
+msgstr ""
+
 #: src/components/settings/panes.ts:63
 #: src/components/settings/panes.ts:84
 msgid "General"
 msgstr "Chung"
+
+#: src/routes/admin.settings.tsx:197
+msgid "General & Branding"
+msgstr ""
 
 #: src/components/share-dialog.tsx:273
 msgid "Give a group or a colleague access to this file."
@@ -1315,11 +1371,11 @@ msgstr "Cấp quyền"
 msgid "Go to Drive"
 msgstr "Đến Drive"
 
-#: src/routes/admin.security.tsx:77
+#: src/routes/admin.security.tsx:78
 msgid "grant created"
 msgstr "đã cấp quyền"
 
-#: src/routes/admin.security.tsx:78
+#: src/routes/admin.security.tsx:79
 msgid "grant revoked"
 msgstr "đã thu hồi quyền"
 
@@ -1376,7 +1432,7 @@ msgstr "Cách tên bạn hiển thị trên tệp, mục chia sẻ và danh sác
 msgid "Identity"
 msgstr "Danh tính"
 
-#: src/routes/admin.security.tsx:72
+#: src/routes/admin.security.tsx:73
 msgid "identity adopted"
 msgstr "đã dùng danh tính"
 
@@ -1388,6 +1444,20 @@ msgstr "Hình ảnh"
 msgid "Information"
 msgstr "Thông tin"
 
+#: src/routes/admin.settings.tsx:203
+msgid "Instance display name"
+msgstr ""
+
+#: src/routes/admin.settings.tsx:141
+msgid "Instance name cannot be empty"
+msgstr ""
+
+#: src/components/nav-user.tsx:132
+#: src/routes/admin.settings.tsx:33
+#: src/routes/admin.settings.tsx:63
+msgid "Instance settings"
+msgstr ""
+
 #: src/components/invite-modal.tsx:78
 msgid "Invitation sent to {address}"
 msgstr "Đã gửi lời mời tới {address}"
@@ -1397,7 +1467,7 @@ msgstr "Đã gửi lời mời tới {address}"
 msgid "Invite people"
 msgstr "Mời người dùng"
 
-#: src/routes/admin.security.tsx:209
+#: src/routes/admin.security.tsx:195
 msgid "IP"
 msgstr "IP"
 
@@ -1477,7 +1547,7 @@ msgstr "Hoạt động gần nhất"
 #~ msgid "Last modified"
 #~ msgstr "Sửa đổi lần cuối"
 
-#: src/routes/admin.users.tsx:181
+#: src/routes/admin.users.tsx:170
 msgid "Last seen"
 msgstr "Thấy lần cuối"
 
@@ -1526,6 +1596,10 @@ msgstr "Đang tải nhóm…"
 msgid "Loading people…"
 msgstr "Đang tải người dùng…"
 
+#: src/routes/admin.settings.tsx:72
+msgid "Loading settings…"
+msgstr ""
+
 #: src/components/group-list.tsx:245
 #: src/components/node-table.tsx:52
 #: src/components/preview-content.tsx:208
@@ -1540,8 +1614,8 @@ msgstr "Đang tải người dùng…"
 #: src/components/trash-panel.tsx:204
 #: src/components/trash-panel.tsx:247
 #: src/components/version-list.tsx:29
-#: src/routes/admin.security.tsx:185
-#: src/routes/admin.users.tsx:168
+#: src/routes/admin.security.tsx:171
+#: src/routes/admin.users.tsx:157
 #: src/routes/drive/$spaceId/home.tsx:152
 #: src/routes/drive/$spaceId/home.tsx:165
 #: src/routes/drive/$spaceId/index.tsx:506
@@ -1554,15 +1628,15 @@ msgstr "Đang tải…"
 msgid "Location"
 msgstr "Vị trí"
 
-#: src/routes/admin.security.tsx:67
+#: src/routes/admin.security.tsx:68
 msgid "login"
 msgstr "đăng nhập"
 
-#: src/routes/admin.security.tsx:68
+#: src/routes/admin.security.tsx:69
 msgid "login failed"
 msgstr "đăng nhập thất bại"
 
-#: src/routes/admin.security.tsx:69
+#: src/routes/admin.security.tsx:70
 msgid "logout"
 msgstr "đăng xuất"
 
@@ -1583,7 +1657,7 @@ msgid "Make a copy"
 msgstr "Tạo bản sao"
 
 #: src/components/people-table.tsx:477
-#: src/routes/admin.users.tsx:251
+#: src/routes/admin.users.tsx:240
 msgid "Make admin"
 msgstr "Đặt làm quản trị viên"
 
@@ -1608,6 +1682,18 @@ msgstr "Tiếp thị"
 #~ msgid "Match the system"
 #~ msgstr "Theo hệ thống"
 
+#: src/routes/admin.settings.tsx:276
+msgid "Maximum size (GB, 0 = unlimited)"
+msgstr ""
+
+#: src/routes/admin.settings.tsx:250
+msgid "Maximum upload size"
+msgstr ""
+
+#: src/routes/admin.settings.tsx:150
+msgid "Maximum upload size must be a valid number (0 for unlimited)"
+msgstr ""
+
 #: src/components/command-palette.tsx:190
 #: src/components/people-table.tsx:218
 #: src/components/preview-panel.tsx:233
@@ -1615,11 +1701,11 @@ msgstr "Tiếp thị"
 msgid "Member"
 msgstr "Thành viên"
 
-#: src/routes/admin.security.tsx:81
+#: src/routes/admin.security.tsx:82
 msgid "member added"
 msgstr "đã thêm thành viên"
 
-#: src/routes/admin.security.tsx:82
+#: src/routes/admin.security.tsx:83
 msgid "member removed"
 msgstr "đã xoá thành viên"
 
@@ -1726,7 +1812,7 @@ msgid "navigate"
 msgstr "điều hướng"
 
 #: src/components/people-table.tsx:540
-#: src/routes/admin.users.tsx:222
+#: src/routes/admin.users.tsx:211
 msgid "never"
 msgstr "không bao giờ"
 
@@ -1754,7 +1840,7 @@ msgstr "Thành viên mới mặc định là quản trị viên"
 msgid "New team folder"
 msgstr "Thư mục nhóm mới"
 
-#: src/routes/admin.security.tsx:245
+#: src/routes/admin.security.tsx:231
 msgid "Next"
 msgstr "Tiếp"
 
@@ -1766,11 +1852,11 @@ msgstr "Tệp tiếp theo"
 msgid "No deleted items match"
 msgstr "Không có mục đã xoá nào khớp"
 
-#: src/routes/admin.security.tsx:190
+#: src/routes/admin.security.tsx:176
 msgid "No events recorded for {filterLabel}."
 msgstr "Không có sự kiện nào được ghi cho {filterLabel}."
 
-#: src/routes/admin.security.tsx:192
+#: src/routes/admin.security.tsx:178
 msgid "No events recorded."
 msgstr "Không có sự kiện nào được ghi."
 
@@ -1823,7 +1909,7 @@ msgstr "Không ai khác truy cập được — kể cả quản trị viên kh�
 msgid "Nobody in this group yet — it opens nothing for anyone."
 msgstr "Chưa có ai trong nhóm này — nhóm chưa mở quyền gì cho ai."
 
-#: src/routes/admin.users.tsx:144
+#: src/routes/admin.users.tsx:133
 msgid "none failed"
 msgstr "không có lỗi nào"
 
@@ -1877,7 +1963,7 @@ msgstr "Chỉ quản trị viên không gian mới có thể thêm hoặc xoá t
 #~ msgid "Only a space admin can open settings"
 #~ msgstr "Chỉ quản trị viên không gian mới mở được cài đặt"
 
-#: src/routes/admin.security.tsx:43
+#: src/routes/admin.security.tsx:44
 msgid "Only an administrator can read the security log."
 msgstr "Chỉ quản trị viên mới đọc được nhật ký bảo mật."
 
@@ -1906,6 +1992,10 @@ msgstr "Mở trong tab mới"
 msgid "Opening editor…"
 msgstr "Đang mở trình chỉnh sửa…"
 
+#: src/routes/admin.settings.tsx:64
+msgid "Operational policies and configuration across this install"
+msgstr ""
+
 #: src/components/trash-panel.tsx:285
 msgid "Original location"
 msgstr "Vị trí gốc"
@@ -1914,7 +2004,7 @@ msgstr "Vị trí gốc"
 msgid "Other"
 msgstr "Khác"
 
-#: src/routes/admin.users.tsx:118
+#: src/routes/admin.users.tsx:107
 msgid "Overview"
 msgstr "Tổng quan"
 
@@ -1991,11 +2081,11 @@ msgstr "Xem trước {nodeName}"
 msgid "Preview not available yet — it is generated shortly after upload."
 msgstr "Bản xem trước chưa sẵn sàng — nó được tạo ngay sau khi tải lên."
 
-#: src/routes/admin.users.tsx:138
+#: src/routes/admin.users.tsx:127
 msgid "Preview queue"
 msgstr "Hàng đợi xem trước"
 
-#: src/routes/admin.security.tsx:237
+#: src/routes/admin.security.tsx:223
 msgid "Previous"
 msgstr "Trước"
 
@@ -2003,7 +2093,7 @@ msgstr "Trước"
 msgid "Previous file"
 msgstr "Tệp trước"
 
-#: src/components/nav-user.tsx:106
+#: src/components/nav-user.tsx:107
 #: src/components/settings/panes.ts:70
 #: src/components/settings/panes/account-profile.tsx:98
 msgid "Profile"
@@ -2041,7 +2131,7 @@ msgstr "chỉ đọc"
 msgid "Recent"
 msgstr "Gần đây"
 
-#: src/routes/admin.users.tsx:135
+#: src/routes/admin.users.tsx:124
 msgid "referenced blobs"
 msgstr "blob được tham chiếu"
 
@@ -2049,7 +2139,7 @@ msgstr "blob được tham chiếu"
 msgid "Refresh"
 msgstr "Làm mới"
 
-#: src/routes/admin.users.tsx:270
+#: src/routes/admin.users.tsx:259
 msgid "Reinstate"
 msgstr "Phục hồi"
 
@@ -2124,6 +2214,13 @@ msgstr "Thay thế"
 msgid "Reported by the identity provider"
 msgstr "Do nhà cung cấp danh tính báo về"
 
+#: src/routes/admin.settings.tsx:219
+#: src/routes/admin.settings.tsx:268
+#: src/routes/admin.settings.tsx:317
+#: src/routes/admin.settings.tsx:372
+msgid "Reset"
+msgstr ""
+
 #: src/components/trash-panel.tsx:386
 #: src/components/version-list.tsx:94
 msgid "Restore"
@@ -2145,6 +2242,10 @@ msgstr "Đã khôi phục phiên bản {versionNo}"
 msgid "Resume queue"
 msgstr "Tiếp tục hàng đợi"
 
+#: src/routes/admin.settings.tsx:380
+msgid "Retention period (days)"
+msgstr ""
+
 #: src/components/transfer-tray.tsx:205
 msgid "Retry"
 msgstr "Thử lại"
@@ -2157,7 +2258,7 @@ msgstr "Thu hồi"
 msgid "Revoke access for {grantee}"
 msgstr "Thu hồi quyền truy cập của {grantee}"
 
-#: src/routes/admin.users.tsx:251
+#: src/routes/admin.users.tsx:240
 msgid "Revoke admin"
 msgstr "Thu hồi quyền quản trị"
 
@@ -2175,6 +2276,7 @@ msgstr "Lưu"
 
 #: src/components/settings/panes/account-profile.tsx:141
 #: src/components/settings/panes/space-general.tsx:225
+#: src/routes/admin.settings.tsx:416
 msgid "Save changes"
 msgstr "Lưu thay đổi"
 
@@ -2212,15 +2314,24 @@ msgstr "Đang tìm kiếm…"
 msgid "Seconds; use 0 for no expiration."
 msgstr "Giây; dùng 0 để không hết hạn."
 
+#: src/components/admin-header.tsx:47
 #: src/components/settings/panes.ts:77
 msgid "Security"
 msgstr "Bảo mật"
 
-#: src/components/nav-user.tsx:128
-#: src/routes/admin.security.tsx:34
-#: src/routes/admin.security.tsx:141
+#: src/routes/admin.settings.tsx:348
+msgid "Security & Auditing"
+msgstr ""
+
+#: src/components/nav-user.tsx:129
+#: src/routes/admin.security.tsx:35
+#: src/routes/admin.security.tsx:132
 msgid "Security log"
 msgstr "Nhật ký bảo mật"
+
+#: src/routes/admin.settings.tsx:354
+msgid "Security log retention"
+msgstr ""
 
 #: src/components/trash-panel.tsx:320
 msgid "Select {nodeName}"
@@ -2258,13 +2369,13 @@ msgstr "Cung cấp bởi pp-hub · tự lưu trữ"
 msgid "Server admin"
 msgstr "Quản trị viên máy chủ"
 
-#: src/components/nav-user.tsx:125
-#: src/routes/admin.users.tsx:35
-#: src/routes/admin.users.tsx:107
+#: src/components/nav-user.tsx:126
+#: src/routes/admin.users.tsx:36
+#: src/routes/admin.users.tsx:98
 msgid "Server administration"
 msgstr "Quản trị máy chủ"
 
-#: src/routes/admin.security.tsx:70
+#: src/routes/admin.security.tsx:71
 msgid "session revoked"
 msgstr "phiên đã bị thu hồi"
 
@@ -2273,16 +2384,22 @@ msgstr "phiên đã bị thu hồi"
 #~ msgid "Sessions"
 #~ msgstr "Phiên đăng nhập"
 
-#: src/routes/admin.security.tsx:71
+#: src/routes/admin.security.tsx:72
 msgid "sessions revoked"
 msgstr "phiên đã bị thu hồi"
 
-#: src/components/nav-user.tsx:103
+#: src/routes/admin.settings.tsx:187
+msgid "Setting reverted to deployment default"
+msgstr ""
+
+#: src/components/admin-header.tsx:55
+#: src/components/nav-user.tsx:104
 #: src/components/settings/settings-modal.tsx:100
 msgid "Settings"
 msgstr "Cài đặt"
 
 #: src/components/settings/panes/space-general.tsx:94
+#: src/routes/admin.settings.tsx:178
 msgid "Settings saved"
 msgstr "Đã lưu cài đặt"
 
@@ -2303,11 +2420,11 @@ msgstr "Chia sẻ"
 msgid "Share “{nodeName}”"
 msgstr "Chia sẻ “{nodeName}”"
 
-#: src/routes/admin.security.tsx:79
+#: src/routes/admin.security.tsx:80
 msgid "share created"
 msgstr "đã tạo chia sẻ"
 
-#: src/routes/admin.security.tsx:80
+#: src/routes/admin.security.tsx:81
 msgid "share revoked"
 msgstr "đã thu hồi chia sẻ"
 
@@ -2351,7 +2468,7 @@ msgstr "Đăng nhập"
 msgid "Sign in to pp-hub"
 msgstr "Đăng nhập pp-hub"
 
-#: src/components/nav-user.tsx:134
+#: src/components/nav-user.tsx:138
 msgid "Sign out"
 msgstr "Đăng xuất"
 
@@ -2372,7 +2489,7 @@ msgstr "Đăng nhập thất bại. Thử lại."
 msgid "Sign-in was cancelled."
 msgstr "Đã huỷ đăng nhập."
 
-#: src/routes/admin.security.tsx:144
+#: src/routes/admin.security.tsx:133
 msgid "Sign-ins, failures and access changes across this install"
 msgstr "Đăng nhập, lỗi và thay đổi quyền truy cập trên bản cài đặt này"
 
@@ -2437,15 +2554,15 @@ msgstr "Tên không gian"
 msgid "Space not found"
 msgstr "Không tìm thấy không gian"
 
-#: src/components/nav-user.tsx:112
+#: src/components/nav-user.tsx:113
 #: src/components/preview-panel.tsx:183
 msgid "Space settings"
 msgstr "Cài đặt không gian"
 
 #: src/components/command-palette.tsx:180
 #: src/components/space-switcher.tsx:92
-#: src/routes/admin.users.tsx:126
-#: src/routes/admin.users.tsx:178
+#: src/routes/admin.users.tsx:115
+#: src/routes/admin.users.tsx:167
 #: src/routes/login.tsx:149
 msgid "Spaces"
 msgstr "Không gian"
@@ -2470,7 +2587,7 @@ msgstr "Gắn sao một tệp từ menu ⋯ của tệp để giữ tệp ở đ
 msgid "Starred"
 msgstr "Đã gắn sao"
 
-#: src/routes/admin.users.tsx:184
+#: src/routes/admin.users.tsx:173
 msgid "Status"
 msgstr "Trạng thái"
 
@@ -2480,20 +2597,24 @@ msgstr "Trạng thái"
 msgid "Storage"
 msgstr "Lưu trữ"
 
+#: src/routes/admin.settings.tsx:243
+msgid "Storage & Uploads"
+msgstr ""
+
 #: src/components/settings/panes/space-general.tsx:174
 #: src/routes/drive.tsx:303
 msgid "Storage quota (GB)"
 msgstr "Hạn mức lưu trữ (GB)"
 
-#: src/routes/admin.users.tsx:133
+#: src/routes/admin.users.tsx:122
 msgid "Storage used"
 msgstr "Dung lượng đã dùng"
 
-#: src/routes/admin.users.tsx:270
+#: src/routes/admin.users.tsx:259
 msgid "Suspend"
 msgstr "Tạm khoá"
 
-#: src/routes/admin.users.tsx:233
+#: src/routes/admin.users.tsx:222
 msgid "Suspended"
 msgstr "Đã tạm khoá"
 
@@ -2758,14 +2879,14 @@ msgstr "Slug URL"
 msgid "Used when a link says nothing about how to draw the folder. A link that carries a view or a sort keeps the one it was copied with."
 msgstr "Được dùng khi liên kết không chỉ định cách hiển thị thư mục. Liên kết có kèm kiểu xem hoặc cách sắp xếp sẽ giữ nguyên giá trị lúc được sao chép."
 
-#: src/components/nav-user.tsx:46
-#: src/routes/admin.users.tsx:175
+#: src/components/nav-user.tsx:47
+#: src/routes/admin.users.tsx:164
 msgid "User"
 msgstr "Người dùng"
 
-#: src/routes/admin.security.tsx:148
-#: src/routes/admin.users.tsx:122
-#: src/routes/admin.users.tsx:155
+#: src/components/admin-header.tsx:39
+#: src/routes/admin.users.tsx:111
+#: src/routes/admin.users.tsx:144
 msgid "Users"
 msgstr "Người dùng"
 
@@ -2837,7 +2958,7 @@ msgstr "Chào mừng đến với pp-hub"
 msgid "What lives in this space?"
 msgstr "Không gian này chứa những gì?"
 
-#: src/routes/admin.security.tsx:200
+#: src/routes/admin.security.tsx:186
 msgid "When"
 msgstr "Thời gian"
 
@@ -2857,7 +2978,7 @@ msgstr "Khi bật, mọi người bạn mời đều có thể thay đổi các 
 msgid "When turned on, everyone you invite joins as an admin."
 msgstr "Khi bật, mọi người bạn mời sẽ tham gia với vai trò quản trị viên."
 
-#: src/routes/admin.security.tsx:206
+#: src/routes/admin.security.tsx:192
 msgid "Who"
 msgstr "Người thực hiện"
 
@@ -2866,7 +2987,7 @@ msgid "Who belongs in here, and why"
 msgstr "Ai thuộc về đây, và vì sao"
 
 #: src/components/people-table.tsx:453
-#: src/routes/admin.users.tsx:208
+#: src/routes/admin.users.tsx:197
 msgid "You"
 msgstr "Bạn"
 

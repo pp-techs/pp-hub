@@ -1,10 +1,10 @@
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
 import type { I18n, MessageDescriptor } from "@lingui/core";
-import { ArrowLeft } from "lucide-react";
+
 import { Badge } from "@workspace/ui/components/badge";
 import { Button } from "@workspace/ui/components/button";
 import {
@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select";
+import { AdminHeader } from "@/components/admin-header";
 import {
   Table,
   TableBody,
@@ -127,27 +128,12 @@ function SecurityLogPage() {
 
   return (
     <main className="bg-background text-foreground flex min-h-svh flex-col">
-      <header className="border-border flex h-12 shrink-0 items-center gap-2 border-b px-4">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label={t`Back to Drive`}
-          render={<Link to="/drive" />}
-        >
-          <ArrowLeft />
-        </Button>
-        <div className="flex flex-col">
-          <span className="text-sm font-medium">
-            <Trans>Security log</Trans>
-          </span>
-          <span className="text-muted-foreground text-[10px]">
-            <Trans>Sign-ins, failures and access changes across this install</Trans>
-          </span>
-        </div>
-        <Button variant="ghost" size="sm" className="ml-auto" render={<Link to="/admin/users" />}>
-          <Trans>Users</Trans>
-        </Button>
-      </header>
+      <AdminHeader
+        title={<Trans>Security log</Trans>}
+        subtitle={<Trans>Sign-ins, failures and access changes across this install</Trans>}
+        // eslint-disable-next-line lingui/no-unlocalized-strings -- admin tab identifier
+        activeTab="security"
+      />
 
       <div className="flex flex-col gap-6 p-4">
         <section className="flex flex-col gap-2">

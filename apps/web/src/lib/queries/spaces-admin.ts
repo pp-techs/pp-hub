@@ -2,8 +2,11 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  deleteAdminSetting,
   deleteSpace,
+  getAdminSettings,
   getAdminStats,
+  updateAdminSettings,
   updateAdminUser,
   updateSpace,
   type SpaceSettings,
@@ -48,6 +51,36 @@ export function useUpdateAdminUser() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: keys.users });
       void qc.invalidateQueries({ queryKey: keys.adminStats });
+    },
+  });
+}
+
+export function adminSettingsOptions() {
+  return { queryKey: keys.adminSettings, queryFn: getAdminSettings };
+}
+
+export function useAdminSettings() {
+  return useQuery(adminSettingsOptions());
+}
+
+export function useUpdateAdminSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (patch: Record<string, unknown>) => updateAdminSettings(patch),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: keys.adminSettings });
+      void qc.invalidateQueries({ queryKey: ["admin", "security-events"] });
+    },
+  });
+}
+
+export function useDeleteAdminSetting() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (key: string) => deleteAdminSetting(key),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: keys.adminSettings });
+      void qc.invalidateQueries({ queryKey: ["admin", "security-events"] });
     },
   });
 }

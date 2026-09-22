@@ -151,6 +151,17 @@ export interface AdminUser {
   created_at: string;
 }
 
+export interface AdminSetting {
+  key: string;
+  value: unknown;
+  source: "database" | "env" | "default";
+  description: string;
+  default: unknown;
+  type: "string" | "number";
+}
+
+export type AdminSettingsMap = Record<string, AdminSetting>;
+
 /**
  * One row of the instance security log.
  *

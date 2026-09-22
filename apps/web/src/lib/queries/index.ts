@@ -61,6 +61,10 @@ export {
   adminStatsOptions,
   useAdminStats,
   useUpdateAdminUser,
+  adminSettingsOptions,
+  useAdminSettings,
+  useUpdateAdminSettings,
+  useDeleteAdminSetting,
 } from "./spaces-admin";
 
 // Home surfaces

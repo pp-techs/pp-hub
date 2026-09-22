@@ -57,6 +57,7 @@ const (
 	// organization. It has no user_id: the point of an invitation is that
 	// there may be no account to point at yet.
 	KindMemberInvited Kind = "member_invited"
+	KindSettingsUpdated Kind = "settings_updated"
 )
 
 // maxUserAgent bounds what the client controls before it reaches a TEXT
@@ -83,6 +84,9 @@ type Event struct {
 
 // Record writes the event with the request's context attached.
 func (s *Service) Record(r *http.Request, e Event) {
+	if s == nil || s.q == nil {
+		return
+	}
 	detail := []byte("{}")
 	if len(e.Detail) > 0 {
 		if encoded, err := json.Marshal(e.Detail); err == nil {

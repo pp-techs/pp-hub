@@ -244,6 +244,8 @@ volume. Set too low, large legitimate uploads fail with 413 and a clear
 message; set to `0`, you are back to the original problem. A value that will
 not parse is a **startup error**, not a silent default: an operator who typed
 `5GB` meaning a ceiling should not be handed "no ceiling" for the trouble.
+This serves as the initial deployment default and can also be adjusted dynamically
+at runtime without container restarts by an administrator in **Admin > Settings** (`/admin/settings`).
 Note that `client_max_body_size 0` in `nginx.conf` is intentional — the edge
 streams the body through and the app answers 413 with a sentence, instead of
 nginx rejecting it with a bare page long before the app can say why.
@@ -255,7 +257,7 @@ a busy instance grows a table nobody can page through, and setting it very low
 throws away the history an incident needs — a compromise noticed in March
 wants the failed sign-ins from February. Unparseable values fall back to the
 default and say so rather than refusing to start, because a retention window
-is a policy knob.
+is a policy knob. Can also be overridden at runtime via **Admin > Settings** (`/admin/settings`).
 
 **`PP_TRUSTED_PROXIES`** — a comma-separated list of CIDRs (a bare address is
 accepted as its own `/32`), empty by default, `172.16.0.0/12` in the compose

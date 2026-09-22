@@ -213,7 +213,7 @@ func (s *Server) handleWopiPutFile(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if !limitBody(w, r, s.maxUploadBytes) {
+	if !limitBody(w, r, s.uploadCap()) {
 		return
 	}
 	_, ver, err := s.fs.PutFile(r.Context(), node.SpaceID, pgtype.UUID{}, node.ID, node.Name, r.Body, c.claims.UserID)

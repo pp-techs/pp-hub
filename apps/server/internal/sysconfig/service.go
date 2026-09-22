@@ -1,0 +1,477 @@
+package sysconfig
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/nhatbui/pp-hub/apps/server/internal/config"
+	"github.com/nhatbui/pp-hub/apps/server/internal/store"
+)
+
+const (
+	KeyInstanceName           = "instance_name"
+	KeyMaxUploadBytes         = "max_upload_bytes"
+	KeyAuditRetentionDays     = "audit_retention_days"
+	KeyDefaultSpaceQuotaBytes = "default_space_quota_bytes"
+
+	DefaultTenantID = "default"
+)
+
+// SettingDef describes a known system configuration knob.
+type SettingDef struct {
+	Key         string                      `json:"key"`
+	Type        string                      `json:"type"` // "string" | "number"
+	Description string                      `json:"description"`
+	Default     any                         `json:"default"`
+	EnvFallback func(cfg *config.Config) any `json:"-"`
+	Validate    func(val any) error         `json:"-"`
+}
+
+// SettingDTO represents a configuration entry returned over the API.
+type SettingDTO struct {
+	Key         string `json:"key"`
+	Value       any    `json:"value"`
+	Source      string `json:"source"` // "database" | "env" | "default"
+	Description string `json:"description"`
+	Default     any    `json:"default"`
+	Type        string `json:"type"`
+}
+
+// Service manages system-wide dynamic configuration backed by Postgres
+// with in-memory caching and environment variable fallbacks.
+type Service struct {
+	store *store.Queries
+	cfg   *config.Config
+	defs  map[string]SettingDef
+
+	mu    sync.RWMutex
+	cache map[string][]byte
+}
+
+func defaultDefs() map[string]SettingDef {
+	return map[string]SettingDef{
+		KeyInstanceName: {
+			Key:         KeyInstanceName,
+			Type:        "string",
+			Description: "Display name for this instance",
+			Default:     "pp-hub",
+			Validate: func(val any) error {
+				s, ok := val.(string)
+				if !ok {
+					return errors.New("instance_name must be a string")
+				}
+				s = strings.TrimSpace(s)
+				if len(s) == 0 {
+					return errors.New("instance_name cannot be empty")
+				}
+				if len(s) > 64 {
+					return errors.New("instance_name cannot exceed 64 characters")
+				}
+				return nil
+			},
+		},
+		KeyMaxUploadBytes: {
+			Key:         KeyMaxUploadBytes,
+			Type:        "number",
+			Description: "Maximum allowed file size per upload in bytes (0 = unlimited)",
+			Default:     int64(5 << 30), // 5GB
+			EnvFallback: func(c *config.Config) any {
+				if c != nil {
+					return c.MaxUploadBytes
+				}
+				return nil
+			},
+			Validate: func(val any) error {
+				n, ok := val.(int64)
+				if !ok {
+					return errors.New("max_upload_bytes must be an integer")
+				}
+				if n < 0 {
+					return errors.New("max_upload_bytes cannot be negative")
+				}
+				if n > 0 && n < 1048576 {
+					return errors.New("max_upload_bytes must be at least 1MB (or 0 for unlimited)")
+				}
+				if n > 1<<40 { // 1TB
+					return errors.New("max_upload_bytes cannot exceed 1TB")
+				}
+				return nil
+			},
+		},
+		KeyAuditRetentionDays: {
+			Key:         KeyAuditRetentionDays,
+			Type:        "number",
+			Description: "Days to retain security events before automatic purge",
+			Default:     365,
+			EnvFallback: func(c *config.Config) any {
+				if c != nil && c.AuditRetention > 0 {
+					return int(c.AuditRetention / (24 * time.Hour))
+				}
+				return nil
+			},
+			Validate: func(val any) error {
+				n, ok := val.(int)
+				if !ok {
+					return errors.New("audit_retention_days must be an integer")
+				}
+				if n < 1 {
+					return errors.New("audit_retention_days must be at least 1 day")
+				}
+				if n > 3650 {
+					return errors.New("audit_retention_days cannot exceed 3650 days (10 years)")
+				}
+				return nil
+			},
+		},
+		KeyDefaultSpaceQuotaBytes: {
+			Key:         KeyDefaultSpaceQuotaBytes,
+			Type:        "number",
+			Description: "Default storage quota in bytes for newly created spaces (0 = unlimited)",
+			Default:     int64(0),
+			Validate: func(val any) error {
+				n, ok := val.(int64)
+				if !ok {
+					return errors.New("default_space_quota_bytes must be an integer")
+				}
+				if n < 0 {
+					return errors.New("default_space_quota_bytes cannot be negative")
+				}
+				return nil
+			},
+		},
+	}
+}
+
+// NewService creates a new sysconfig Service.
+func NewService(q *store.Queries, cfg *config.Config) *Service {
+	return &Service{
+		store: q,
+		cfg:   cfg,
+		defs:  defaultDefs(),
+		cache: make(map[string][]byte),
+	}
+}
+
+// Reload re-reads all settings from the database for the given tenant.
+func (s *Service) Reload(ctx context.Context, tenantID string) error {
+	if s.store == nil {
+		return nil
+	}
+	if tenantID == "" {
+		tenantID = DefaultTenantID
+	}
+	rows, err := s.store.ListSystemConfig(ctx, tenantID)
+	if err != nil {
+		return err
+	}
+
+	newCache := make(map[string][]byte, len(rows))
+	for _, row := range rows {
+		newCache[row.Key] = row.Value
+	}
+
+	s.mu.Lock()
+	s.cache = newCache
+	s.mu.Unlock()
+	return nil
+}
+
+func decodeSettingValue(def SettingDef, raw []byte) any {
+	switch def.Key {
+	case KeyInstanceName:
+		var str string
+		if err := json.Unmarshal(raw, &str); err == nil {
+			return str
+		}
+	case KeyMaxUploadBytes, KeyDefaultSpaceQuotaBytes:
+		var num int64
+		if err := json.Unmarshal(raw, &num); err == nil {
+			return num
+		}
+	case KeyAuditRetentionDays:
+		var num int
+		if err := json.Unmarshal(raw, &num); err == nil {
+			return num
+		}
+	default:
+		var val any
+		if err := json.Unmarshal(raw, &val); err == nil {
+			return val
+		}
+	}
+	return def.Default
+}
+
+// coerceAndValidate parses raw JSON bytes into the strongly-typed setting value and runs validation.
+func (s *Service) coerceAndValidate(def SettingDef, raw json.RawMessage) (any, []byte, error) {
+	var val any
+	switch def.Key {
+	case KeyInstanceName:
+		var str string
+		if err := json.Unmarshal(raw, &str); err != nil {
+			return nil, nil, fmt.Errorf("%s must be a string: %w", def.Key, err)
+		}
+		str = strings.TrimSpace(str)
+		val = str
+	case KeyMaxUploadBytes, KeyDefaultSpaceQuotaBytes:
+		var num int64
+		if err := json.Unmarshal(raw, &num); err != nil {
+			return nil, nil, fmt.Errorf("%s must be an integer: %w", def.Key, err)
+		}
+		val = num
+	case KeyAuditRetentionDays:
+		var num int
+		if err := json.Unmarshal(raw, &num); err != nil {
+			return nil, nil, fmt.Errorf("%s must be an integer: %w", def.Key, err)
+		}
+		val = num
+	default:
+		if def.Type == "string" {
+			var str string
+			if err := json.Unmarshal(raw, &str); err != nil {
+				return nil, nil, err
+			}
+			val = str
+		} else {
+			var num int64
+			if err := json.Unmarshal(raw, &num); err != nil {
+				return nil, nil, err
+			}
+			val = num
+		}
+	}
+
+	if def.Validate != nil {
+		if err := def.Validate(val); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	canonicalJSON, err := json.Marshal(val)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return val, canonicalJSON, nil
+}
+
+// GetAll returns all registered settings resolved with current values and source.
+func (s *Service) GetAll(ctx context.Context, tenantID string) (map[string]SettingDTO, error) {
+	if tenantID == "" {
+		tenantID = DefaultTenantID
+	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	out := make(map[string]SettingDTO, len(s.defs))
+	for key, def := range s.defs {
+		dto := SettingDTO{
+			Key:         key,
+			Type:        def.Type,
+			Description: def.Description,
+			Default:     def.Default,
+		}
+
+		if raw, ok := s.cache[key]; ok && len(raw) > 0 {
+			dto.Value = decodeSettingValue(def, raw)
+			dto.Source = "database"
+			out[key] = dto
+			continue
+		}
+
+		if def.EnvFallback != nil {
+			if envVal := def.EnvFallback(s.cfg); envVal != nil {
+				dto.Value = envVal
+				dto.Source = "env"
+				out[key] = dto
+				continue
+			}
+		}
+
+		dto.Value = def.Default
+		dto.Source = "default"
+		out[key] = dto
+	}
+
+	return out, nil
+}
+
+// UpdateMany applies a batch of setting updates atomically.
+func (s *Service) UpdateMany(ctx context.Context, tenantID string, updates map[string]json.RawMessage, updatedBy pgtype.UUID) (map[string]SettingDTO, error) {
+	if tenantID == "" {
+		tenantID = DefaultTenantID
+	}
+
+	// First pass: validate all updates before persisting
+	validated := make(map[string]struct {
+		def   SettingDef
+		val   any
+		bytes []byte
+	}, len(updates))
+
+	for key, raw := range updates {
+		def, ok := s.defs[key]
+		if !ok {
+			return nil, fmt.Errorf("unknown configuration key: %q", key)
+		}
+		val, canonicalJSON, err := s.coerceAndValidate(def, raw)
+		if err != nil {
+			return nil, err
+		}
+		validated[key] = struct {
+			def   SettingDef
+			val   any
+			bytes []byte
+		}{def: def, val: val, bytes: canonicalJSON}
+	}
+
+	// Second pass: save to database and cache
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for key, item := range validated {
+		if s.store != nil {
+			_, err := s.store.UpsertSystemConfig(ctx, store.UpsertSystemConfigParams{
+				Key:       key,
+				TenantID:  tenantID,
+				Value:     item.bytes,
+				UpdatedBy: updatedBy,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("failed to save setting %q: %w", key, err)
+			}
+		}
+		s.cache[key] = item.bytes
+	}
+
+	// Return updated settings
+	out := make(map[string]SettingDTO, len(s.defs))
+	for key, def := range s.defs {
+		dto := SettingDTO{
+			Key:         key,
+			Type:        def.Type,
+			Description: def.Description,
+			Default:     def.Default,
+		}
+
+		if raw, ok := s.cache[key]; ok && len(raw) > 0 {
+			dto.Value = decodeSettingValue(def, raw)
+			dto.Source = "database"
+			out[key] = dto
+			continue
+		}
+
+		if def.EnvFallback != nil {
+			if envVal := def.EnvFallback(s.cfg); envVal != nil {
+				dto.Value = envVal
+				dto.Source = "env"
+				out[key] = dto
+				continue
+			}
+		}
+
+		dto.Value = def.Default
+		dto.Source = "default"
+		out[key] = dto
+	}
+
+	return out, nil
+}
+
+// Delete removes a setting override from the database, reverting to env or default.
+func (s *Service) Delete(ctx context.Context, tenantID string, key string) error {
+	if tenantID == "" {
+		tenantID = DefaultTenantID
+	}
+	if _, ok := s.defs[key]; !ok {
+		return fmt.Errorf("unknown configuration key: %q", key)
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.store != nil {
+		err := s.store.DeleteSystemConfig(ctx, store.DeleteSystemConfigParams{
+			Key:      key,
+			TenantID: tenantID,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	delete(s.cache, key)
+	return nil
+}
+
+// MaxUploadBytes returns the effective max upload size in bytes (0 = unlimited).
+func (s *Service) MaxUploadBytes(tenantID string) int64 {
+	s.mu.RLock()
+	raw, ok := s.cache[KeyMaxUploadBytes]
+	s.mu.RUnlock()
+
+	if ok && len(raw) > 0 {
+		var n int64
+		if err := json.Unmarshal(raw, &n); err == nil {
+			return n
+		}
+	}
+	if s.cfg != nil {
+		return s.cfg.MaxUploadBytes
+	}
+	return int64(5 << 30)
+}
+
+// AuditRetention returns the effective security event retention duration.
+func (s *Service) AuditRetention(tenantID string) time.Duration {
+	s.mu.RLock()
+	raw, ok := s.cache[KeyAuditRetentionDays]
+	s.mu.RUnlock()
+
+	if ok && len(raw) > 0 {
+		var days int
+		if err := json.Unmarshal(raw, &days); err == nil && days > 0 {
+			return time.Duration(days) * 24 * time.Hour
+		}
+	}
+	if s.cfg != nil && s.cfg.AuditRetention > 0 {
+		return s.cfg.AuditRetention
+	}
+	return 365 * 24 * time.Hour
+}
+
+// InstanceName returns the configured display name of the instance.
+func (s *Service) InstanceName(tenantID string) string {
+	s.mu.RLock()
+	raw, ok := s.cache[KeyInstanceName]
+	s.mu.RUnlock()
+
+	if ok && len(raw) > 0 {
+		var str string
+		if err := json.Unmarshal(raw, &str); err == nil && str != "" {
+			return str
+		}
+	}
+	return "pp-hub"
+}
+
+// DefaultSpaceQuotaBytes returns the default quota in bytes for newly created spaces.
+func (s *Service) DefaultSpaceQuotaBytes(tenantID string) int64 {
+	s.mu.RLock()
+	raw, ok := s.cache[KeyDefaultSpaceQuotaBytes]
+	s.mu.RUnlock()
+
+	if ok && len(raw) > 0 {
+		var n int64
+		if err := json.Unmarshal(raw, &n); err == nil {
+			return n
+		}
+	}
+	return 0
+}

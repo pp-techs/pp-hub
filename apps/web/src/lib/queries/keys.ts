@@ -34,4 +34,5 @@ export const keys = {
   // below that key would be refetched by every suspend/promote for nothing.
   securityEvents: (kind?: string, offset?: number) =>
     ["admin", "security-events", kind ?? null, offset ?? 0] as const,
+  adminSettings: ["admin", "settings"] as const,
 };

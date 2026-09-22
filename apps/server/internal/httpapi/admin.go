@@ -3,6 +3,7 @@ package httpapi
 import (
 	"encoding/json"
 	"log/slog"
+	"github.com/go-chi/chi/v5"
 	"net/http"
 	"time"
 
@@ -186,4 +187,78 @@ func adminUserToDTO(u store.User, spaceCount int64) adminUserDTO {
 		LastSeen:    optionalTime(u.LastSeen),
 		CreatedAt:   u.CreatedAt.Time.Format(timeLayout),
 	}
+}
+
+func (s *Server) handleGetAdminSettings(w http.ResponseWriter, r *http.Request) {
+	if s.requireAdmin(w, r) == nil {
+		return
+	}
+	settings, err := s.sysconfig.GetAll(r.Context(), "default")
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, settings)
+}
+
+func (s *Server) handleUpdateAdminSettings(w http.ResponseWriter, r *http.Request) {
+	admin := s.requireAdmin(w, r)
+	if admin == nil {
+		return
+	}
+	var updates map[string]json.RawMessage
+	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON payload")
+		return
+	}
+	if len(updates) == 0 {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "no settings provided to update")
+		return
+	}
+	updated, err := s.sysconfig.UpdateMany(r.Context(), "default", updates, admin.ID)
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", err.Error())
+		return
+	}
+
+	keys := make([]string, 0, len(updates))
+	for k := range updates {
+		keys = append(keys, k)
+	}
+	s.audit.Record(r, audit.Event{
+		Kind:    audit.KindSettingsUpdated,
+		UserID:  admin.ID,
+		Subject: admin.Email,
+		Detail:  map[string]any{"updated_keys": keys},
+	})
+
+	writeJSON(w, http.StatusOK, updated)
+}
+
+func (s *Server) handleDeleteAdminSetting(w http.ResponseWriter, r *http.Request) {
+	admin := s.requireAdmin(w, r)
+	if admin == nil {
+		return
+	}
+	key := chi.URLParam(r, "key")
+	if key == "" {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "setting key required")
+		return
+	}
+	if err := s.sysconfig.Delete(r.Context(), "default", key); err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", err.Error())
+		return
+	}
+	s.audit.Record(r, audit.Event{
+		Kind:    audit.KindSettingsUpdated,
+		UserID:  admin.ID,
+		Subject: admin.Email,
+		Detail:  map[string]any{"deleted_key": key},
+	})
+	all, err := s.sysconfig.GetAll(r.Context(), "default")
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, all)
 }

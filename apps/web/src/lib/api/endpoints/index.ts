@@ -4,6 +4,7 @@
 import { api, ApiError } from "../client";
 import type {
   ActivityEvent,
+  AdminSettingsMap,
   AdminStats,
   AdminUser,
   EditSession,
@@ -78,6 +79,26 @@ export async function updateAdminUser(
   const res = await api.patch(`api/v1/admin/users/${userId}`, { json: patch });
   if (!res.ok) throw new ApiError(res.status, await res.text());
   return res.json() as Promise<AdminUser>;
+}
+
+export async function getAdminSettings(): Promise<AdminSettingsMap> {
+  const res = await api.get("api/v1/admin/settings");
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<AdminSettingsMap>;
+}
+
+export async function updateAdminSettings(
+  patch: Record<string, unknown>,
+): Promise<AdminSettingsMap> {
+  const res = await api.patch("api/v1/admin/settings", { json: patch });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<AdminSettingsMap>;
+}
+
+export async function deleteAdminSetting(key: string): Promise<AdminSettingsMap> {
+  const res = await api.delete(`api/v1/admin/settings/${key}`);
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<AdminSettingsMap>;
 }
 
 // ─── Nodes ───────────────────────────────────────────────────────────────────

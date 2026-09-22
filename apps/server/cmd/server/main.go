@@ -25,6 +25,7 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 	"github.com/nhatbui/pp-hub/apps/server/internal/spaces"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
+	"github.com/nhatbui/pp-hub/apps/server/internal/sysconfig"
 	"github.com/nhatbui/pp-hub/apps/server/internal/users"
 	"github.com/nhatbui/pp-hub/apps/server/internal/wopi"
 )
@@ -86,6 +87,11 @@ func run() error {
 	// policy, and a default of "forever" is not one: the table takes a row on
 	// every sign-in and every failed attempt, so an unbounded log is a slow
 	// leak that also makes the console useless to read.
+	syscfg := sysconfig.NewService(queries, cfg)
+	if err := syscfg.Reload(ctx, "default"); err != nil {
+		slog.Warn("sysconfig initial load", "err", err)
+	}
+
 	auditSvc := audit.New(queries)
 	go func() {
 		ticker := time.NewTicker(5 * time.Minute)
@@ -103,7 +109,8 @@ func run() error {
 				} else if n > 0 {
 					slog.Info("expired sessions purged", "count", n)
 				}
-				cutoff := pgtype.Timestamptz{Time: time.Now().Add(-cfg.AuditRetention), Valid: true}
+				_ = syscfg.Reload(ctx, "default")
+				cutoff := pgtype.Timestamptz{Time: time.Now().Add(-syscfg.AuditRetention("default")), Valid: true}
 				if n, err := auditSvc.Purge(ctx, cutoff); err != nil {
 					slog.Warn("security event sweep", "err", err)
 				} else if n > 0 {
@@ -139,6 +146,7 @@ func run() error {
 		WopiServerURL:   cfg.WopiServerURL,
 		MaxUploadBytes:  cfg.MaxUploadBytes,
 		TrustedProxies:  cfg.TrustedProxies,
+		SysConfig:       syscfg,
 	})
 	srv := &http.Server{
 		Addr:              cfg.Addr,

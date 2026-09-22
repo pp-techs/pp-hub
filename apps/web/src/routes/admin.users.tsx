@@ -4,7 +4,8 @@ import { toast } from "sonner";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
 import type * as React from "react";
-import { ArrowLeft } from "lucide-react";
+
+import { AdminHeader } from "@/components/admin-header";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import { Badge } from "@workspace/ui/components/badge";
@@ -93,24 +94,12 @@ function AdminPage() {
 
   return (
     <main className="bg-background text-foreground flex min-h-svh flex-col">
-      <header className="border-border flex h-12 shrink-0 items-center gap-2 border-b px-4">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label={t`Back to Drive`}
-          render={<Link to="/drive" />}
-        >
-          <ArrowLeft />
-        </Button>
-        <div className="flex flex-col">
-          <span className="text-sm font-medium">
-            <Trans>Server administration</Trans>
-          </span>
-          <span className="text-muted-foreground text-[10px]">
-            <Trans>Every user and space on this install</Trans>
-          </span>
-        </div>
-      </header>
+      <AdminHeader
+        title={<Trans>Server administration</Trans>}
+        subtitle={<Trans>Every user and space on this install</Trans>}
+        // eslint-disable-next-line lingui/no-unlocalized-strings -- admin tab identifier
+        activeTab="users"
+      />
 
       <div className="flex flex-col gap-6 p-4">
         <section>

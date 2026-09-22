@@ -19,6 +19,7 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 	"github.com/nhatbui/pp-hub/apps/server/internal/spaces"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
+	"github.com/nhatbui/pp-hub/apps/server/internal/sysconfig"
 	"github.com/nhatbui/pp-hub/apps/server/internal/users"
 	"github.com/nhatbui/pp-hub/apps/server/internal/wopi"
 )
@@ -34,6 +35,7 @@ type Server struct {
 	users         *users.Service
 	activity      *activity.Service
 	audit         *audit.Service
+	sysconfig     *sysconfig.Service
 	store         *store.Queries
 	pool          *pgxpool.Pool
 	blobs         blob.Store
@@ -74,10 +76,11 @@ type Deps struct {
 	WopiServerURL   string
 	MaxUploadBytes  int64
 	TrustedProxies  []string
+	SysConfig       *sysconfig.Service
 }
 
 func NewServer(d Deps) *Server {
-	return &Server{
+	s := &Server{
 		auth:           d.Auth,
 		spaces:         d.Spaces,
 		groups:         groups.NewService(d.Store),
@@ -98,7 +101,19 @@ func NewServer(d Deps) *Server {
 		wopiServerURL:  d.WopiServerURL,
 		maxUploadBytes: d.MaxUploadBytes,
 		trustedProxies: d.TrustedProxies,
+		sysconfig:      d.SysConfig,
 	}
+	if s.sysconfig == nil {
+		s.sysconfig = sysconfig.NewService(d.Store, nil)
+	}
+	return s
+}
+
+func (s *Server) uploadCap() int64 {
+	if s.sysconfig != nil {
+		return s.sysconfig.MaxUploadBytes("default")
+	}
+	return s.maxUploadBytes
 }
 
 func (s *Server) Router() http.Handler {
@@ -169,6 +184,9 @@ func (s *Server) Router() http.Handler {
 		r.Get("/admin/stats", s.handleAdminStats)
 		r.Get("/admin/security-events", s.handleAdminSecurityEvents)
 		r.Patch("/admin/users/{userID}", s.handleAdminUpdateUser)
+		r.Get("/admin/settings", s.handleGetAdminSettings)
+		r.Patch("/admin/settings", s.handleUpdateAdminSettings)
+		r.Delete("/admin/settings/{key}", s.handleDeleteAdminSetting)
 		r.Get("/users", s.handleListUsers)
 		r.Get("/users/{userID}/avatar", s.handleGetAvatar)
 
