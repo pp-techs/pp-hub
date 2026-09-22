@@ -9,7 +9,7 @@
   ],
   "type": "module",
   "scripts": {
-    "ready": "vp check && vp run -r test && vp run -r build",
+    "ready": "vp check && vp run web#i18n:extract && vp run -r test && vp run -r build",
     "dev": "vp run web#dev",
     "prepare": "vp config",
     "check": "vp check"
