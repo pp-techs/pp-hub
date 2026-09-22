@@ -984,7 +984,7 @@ msgid "Description"
 msgstr "Mô tả"
 
 #: src/components/listing-controls.tsx:127
-#: src/components/preview-modal.tsx:141
+#: src/components/preview-modal.tsx:146
 #: src/components/preview-panel.tsx:106
 #: src/components/preview-panel.tsx:220
 #: src/components/preview-panel.tsx:321
@@ -1200,7 +1200,7 @@ msgstr "Xuất CSV"
 msgid "External"
 msgstr "Bên ngoài"
 
-#: src/components/preview-modal.tsx:150
+#: src/components/preview-modal.tsx:155
 #: src/components/preview-panel.tsx:324
 msgid "File"
 msgstr "Tệp"
@@ -1644,7 +1644,7 @@ msgstr "Không gian làm việc tự lưu trữ tối giản: Drive, Office, kh�
 #: src/components/listing-controls.tsx:24
 #: src/components/node-list.tsx:63
 #: src/components/node-table.tsx:77
-#: src/components/preview-modal.tsx:153
+#: src/components/preview-modal.tsx:158
 #: src/components/preview-panel.tsx:347
 #: src/components/settings/panes/account-general.tsx:41
 #: src/components/space-node-table.tsx:97
@@ -1920,7 +1920,7 @@ msgstr "Tổng quan"
 
 #: src/components/node-list.tsx:69
 #: src/components/node-table.tsx:83
-#: src/components/preview-modal.tsx:152
+#: src/components/preview-modal.tsx:157
 #: src/components/preview-panel.tsx:344
 msgid "Owner"
 msgstr "Chủ sở hữu"
@@ -2387,7 +2387,7 @@ msgstr "Thiết bị đã đăng nhập"
 #: src/components/listing-controls.tsx:25
 #: src/components/node-list.tsx:66
 #: src/components/node-table.tsx:80
-#: src/components/preview-modal.tsx:151
+#: src/components/preview-modal.tsx:156
 #: src/components/preview-panel.tsx:326
 #: src/components/settings/panes/account-general.tsx:42
 #: src/components/space-node-table.tsx:100
@@ -2698,7 +2698,7 @@ msgstr "Thời gian giữ trong thùng rác (ngày)"
 msgid "Try a different search."
 msgstr "Hãy thử tìm kiếm khác."
 
-#: src/components/preview-modal.tsx:150
+#: src/components/preview-modal.tsx:155
 #: src/components/preview-panel.tsx:324
 msgid "Type"
 msgstr "Loại"
@@ -2769,7 +2769,7 @@ msgstr "Người dùng"
 msgid "Users"
 msgstr "Người dùng"
 
-#: src/components/preview-modal.tsx:154
+#: src/components/preview-modal.tsx:159
 msgid "Version"
 msgstr "Phiên bản"
 
@@ -2786,7 +2786,7 @@ msgid "Version {versionNo}"
 msgstr "Phiên bản {versionNo}"
 
 #: src/components/node-actions.tsx:145
-#: src/components/preview-modal.tsx:144
+#: src/components/preview-modal.tsx:149
 #: src/components/preview-panel.tsx:311
 #: src/components/preview-panel.tsx:351
 #: src/routes/edit/$nodeId.tsx:120
