@@ -408,14 +408,25 @@ export function shareDownloadAllUrl(token: string, dir?: string): string {
 
 // ─── WOPI ───────────────────────────────────────────────────────────────────
 
-export async function createEditSession(nodeId: string, locale?: string): Promise<EditSession> {
+export async function createEditSession(
+  nodeId: string,
+  locale?: string,
+  theme?: "light" | "dark",
+): Promise<EditSession> {
   // `ui` is what the Document Server reads into `editorConfig.lang`, so the
   // OnlyOffice ribbon comes up in the language the app is currently in
   // rather than the account column, which is empty for anyone who never
   // chose one. The server ignores the parameter when it is absent or not a
   // locale it ships.
-  const query = locale ? `?ui=${encodeURIComponent(locale)}` : "";
-  const res = await api.post(`api/v1/nodes/${nodeId}/edit-session${query}`);
+  //
+  // `theme` travels the same way and for the same reason: the choice lives
+  // in this browser's localStorage, and "system" only has an answer here.
+  // Send the resolved one, never "system".
+  const query = new URLSearchParams();
+  if (locale) query.set("ui", locale);
+  if (theme) query.set("theme", theme);
+  const suffix = query.size > 0 ? `?${query.toString()}` : "";
+  const res = await api.post(`api/v1/nodes/${nodeId}/edit-session${suffix}`);
   if (!res.ok) throw new ApiError(res.status, await res.text());
   return res.json() as Promise<EditSession>;
 }

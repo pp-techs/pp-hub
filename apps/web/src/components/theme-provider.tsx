@@ -14,6 +14,11 @@ type ThemeProviderProps = {
 type ThemeProviderState = {
   theme: Theme;
   setTheme: (theme: Theme) => void;
+  // What is actually on the page right now: "system" resolved against the
+  // media query. Anything handing the theme to something outside this
+  // document — the OnlyOffice iframe, for one — needs this rather than
+  // `theme`, because "system" means nothing over there.
+  resolvedTheme: ResolvedTheme;
 };
 
 const COLOR_SCHEME_QUERY = "(prefers-color-scheme: dark)";
@@ -125,14 +130,19 @@ export function ThemeProvider({
     [storageKey],
   );
 
+  const [resolvedTheme, setResolvedTheme] = React.useState<ResolvedTheme>(() =>
+    theme === "system" ? getSystemTheme() : theme,
+  );
+
   const applyTheme = React.useCallback(
     (nextTheme: Theme) => {
       const root = document.documentElement;
-      const resolvedTheme = nextTheme === "system" ? getSystemTheme() : nextTheme;
+      const nextResolved = nextTheme === "system" ? getSystemTheme() : nextTheme;
       const restoreTransitions = disableTransitionOnChange ? disableTransitionsTemporarily() : null;
 
       root.classList.remove("light", "dark");
-      root.classList.add(resolvedTheme);
+      root.classList.add(nextResolved);
+      setResolvedTheme(nextResolved);
 
       if (restoreTransitions) {
         restoreTransitions();
@@ -233,8 +243,9 @@ export function ThemeProvider({
     () => ({
       theme,
       setTheme,
+      resolvedTheme,
     }),
-    [theme, setTheme],
+    [theme, setTheme, resolvedTheme],
   );
 
   return (

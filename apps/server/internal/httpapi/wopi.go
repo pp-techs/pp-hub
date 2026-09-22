@@ -341,6 +341,23 @@ func (s *Server) handleEditSession(w http.ResponseWriter, r *http.Request) {
 	if ui := strings.TrimSpace(r.URL.Query().Get("ui")); ui != "" && users.ValidLocale(ui) {
 		editorURL += "&ui=" + url.QueryEscape(ui)
 	}
+	// `thm` is the discovery placeholder THEME_ID. Same contract as `ui`: the
+	// caller sends what it is displaying, because the theme lives in that
+	// browser's localStorage — it is a per-browser choice, not an account
+	// column — and "system" only resolves there.
+	//
+	// The values are numeric and read backwards from the name, which is why
+	// they are written here rather than passed through: verified against
+	// Document Server 9.4.0, thm=1 renders the light UI and thm=0 the dark
+	// one. A word like "theme-dark" is accepted by the URL and silently
+	// ignored, so anything but these two is left off entirely and the editor
+	// keeps its own default.
+	switch r.URL.Query().Get("theme") {
+	case "light":
+		editorURL += "&thm=1"
+	case "dark":
+		editorURL += "&thm=0"
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"editor_url":       editorURL,
 		"wopi_src":         wopiSrc,

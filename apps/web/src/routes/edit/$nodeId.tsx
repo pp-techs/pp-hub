@@ -10,6 +10,7 @@ import { useUiStore } from "@/lib/ui-store";
 import { useFormatters } from "@/lib/format";
 import { pageTitle } from "@/lib/i18n";
 import { useLocale } from "@/components/locale-provider";
+import { useTheme } from "@/components/theme-provider";
 import { NodePanels } from "@/components/node-panels";
 import { NodeIcon } from "@/components/node-icon";
 import { ShareDialog } from "@/components/share-dialog";
@@ -38,6 +39,7 @@ function EditPage() {
   const { t } = useLingui();
   const f = useFormatters();
   const locale = useLocale();
+  const { resolvedTheme } = useTheme();
   const { nodeId } = Route.useParams();
   const node = useNode(nodeId);
   const openPanel = useUiStore((s) => s.openPanel);
@@ -49,11 +51,13 @@ function EditPage() {
 
   useEffect(() => {
     let cancelled = false;
-    // The Document Server takes its ribbon language from `ui`, so the
-    // session is minted for the language the app is in right now. Switching
-    // language mints a new one, and the frame below remounts on the new
-    // token so the editor actually comes back in that language.
-    createEditSession(nodeId, locale)
+    // The Document Server takes its ribbon language from `ui` and its UI
+    // theme from `thm`, so the session is minted for the language and theme
+    // the app is in right now. Changing either mints a new one, and the
+    // frame below remounts on the new token so the editor actually comes
+    // back in it. resolvedTheme, not theme: "system" means nothing to a
+    // process that is not this browser.
+    createEditSession(nodeId, locale, resolvedTheme)
       .then((s) => {
         if (!cancelled) setSession(s);
       })
@@ -63,7 +67,7 @@ function EditPage() {
     return () => {
       cancelled = true;
     };
-  }, [nodeId, locale]);
+  }, [nodeId, locale, resolvedTheme]);
 
   return (
     <div className="bg-background text-foreground flex h-svh flex-col">
