@@ -55,6 +55,18 @@ func NewService(q *store.Queries, blobs blob.Store) *Service {
 func (s *Service) SetVersionHook(h VersionHook) {
 	s.onVersion = h
 }
+
+// inTx runs fn with a copy of the service bound to one transaction, so every
+// statement fn issues — through s.q or any helper — commits or rolls back as
+// one unit. Nested calls open savepoints.
+func (s *Service) inTx(ctx context.Context, fn func(*Service) error) error {
+	return s.q.InTx(ctx, func(q *store.Queries) error {
+		tx := *s
+		tx.q = q
+		return fn(&tx)
+	})
+}
+
 func (s *Service) Mkdir(ctx context.Context, spaceID, parentID pgtype.UUID, name string, creator pgtype.UUID) (store.Node, error) {
 	if parentID.Valid {
 		parent, err := s.get(ctx, parentID)
@@ -332,7 +344,16 @@ func (s *Service) Rename(ctx context.Context, nodeID pgtype.UUID, name string) e
 // copy of the team's work. Drive transfers ownership on the way out of a
 // shared drive for the same reason; `node_versions.created_by` keeps the real
 // authors.
+//
+// The three writes — reparent, container, authorship — are one transaction: a
+// crash between them would leave personal content still marked as a team's,
+// or team content with no personal owner, and every resolution query trusts
+// those columns.
 func (s *Service) Move(ctx context.Context, nodeID, newParentID, actorID pgtype.UUID) error {
+	return s.inTx(ctx, func(s *Service) error { return s.move(ctx, nodeID, newParentID, actorID) })
+}
+
+func (s *Service) move(ctx context.Context, nodeID, newParentID, actorID pgtype.UUID) error {
 	node, err := s.get(ctx, nodeID)
 	if err != nil {
 		return err
@@ -379,23 +400,41 @@ func (s *Service) Move(ctx context.Context, nodeID, newParentID, actorID pgtype.
 
 // CreateTeamFolder makes a top-level folder the team owns: `created_by` records
 // who set it up but grants nothing, so access comes only from grants on the
-// folder. The caller gets the first manager grant — without it, creating one
-// would lock everybody out, including its creator.
+// folder. The caller gets the first manager grant (edit + download + share) in
+// the same transaction — without it the folder would be unreachable the
+// moment it existed, including to its creator, and a crash between the two
+// writes would leave exactly that.
 func (s *Service) CreateTeamFolder(ctx context.Context, spaceID pgtype.UUID, name string, creator pgtype.UUID) (store.Node, error) {
-	node, err := s.q.CreateTeamRoot(ctx, store.CreateTeamRootParams{
-		SpaceID: spaceID, Name: name, CreatedBy: creator,
+	var node store.Node
+	err := s.inTx(ctx, func(s *Service) error {
+		n, err := s.q.CreateTeamRoot(ctx, store.CreateTeamRootParams{
+			SpaceID: spaceID, Name: name, CreatedBy: creator,
+		})
+		if isUniqueViolation(err) {
+			return ErrNameConflict
+		}
+		if err != nil {
+			return err
+		}
+		if err := s.q.MarkTeamRoot(ctx, n.ID); err != nil {
+			return err
+		}
+		n.TeamRootID = n.ID
+		if _, err := s.q.CreateShare(ctx, store.CreateShareParams{
+			NodeID:        n.ID,
+			Kind:          store.ShareKindDirect,
+			GranteeUserID: creator,
+			Level:         store.ShareLevelEdit,
+			CanDownload:   true,
+			CanShare:      true,
+			CreatedBy:     creator,
+		}); err != nil {
+			return err
+		}
+		node = n
+		return nil
 	})
-	if isUniqueViolation(err) {
-		return store.Node{}, ErrNameConflict
-	}
-	if err != nil {
-		return store.Node{}, err
-	}
-	if err := s.q.MarkTeamRoot(ctx, node.ID); err != nil {
-		return store.Node{}, err
-	}
-	node.TeamRootID = node.ID
-	return node, nil
+	return node, err
 }
 
 // TeamRoots lists a space's team folders.
@@ -842,35 +881,42 @@ type RescuedNode struct {
 // its deleted_at, so a file the colleague had trashed themselves stays in
 // their trash instead of quietly coming back.
 //
-// The delete and the ref-count decrements are not in one transaction — the fs
-// service holds a *store.Queries, not a pool. They are ordered so that a crash
-// between them leaves ref counts too HIGH, which only delays garbage
-// collection. The reverse order could drop a blob another node still points at.
+// Rescue, delete and ref-count decrements are one transaction, so a failure
+// part-way leaves nothing half done: no rescued subtree without the purge, no
+// purge with ref counts that still name the deleted versions. A failed purge
+// therefore reports no rescued nodes — none of them moved.
 func (s *Service) Purge(ctx context.Context, nodeID pgtype.UUID) ([]RescuedNode, error) {
-	node, err := s.GetAny(ctx, nodeID)
-	if err != nil {
-		return nil, err
-	}
-	if !node.DeletedAt.Valid {
-		return nil, ErrNotDeleted
-	}
-	rescued, err := s.rescueForeignSubtrees(ctx, node)
-	if err != nil {
-		return nil, err
-	}
-	// Blob hashes are collected after the rescue so the surviving subtrees keep
-	// their references.
-	hashes, err := s.q.ListSubtreeBlobHashes(ctx, nodeID)
-	if err != nil {
-		return rescued, err
-	}
-	if err := s.q.PurgeNode(ctx, nodeID); err != nil {
-		return rescued, err
-	}
-	for _, h := range hashes {
-		if err := s.q.DecrBlobRef(ctx, h); err != nil {
-			return rescued, fmt.Errorf("release blob %s: %w", h[:min(12, len(h))], err)
+	var rescued []RescuedNode
+	err := s.inTx(ctx, func(s *Service) error {
+		node, err := s.GetAny(ctx, nodeID)
+		if err != nil {
+			return err
 		}
+		if !node.DeletedAt.Valid {
+			return ErrNotDeleted
+		}
+		rescued, err = s.rescueForeignSubtrees(ctx, node)
+		if err != nil {
+			return err
+		}
+		// Blob hashes are collected after the rescue so the surviving subtrees
+		// keep their references.
+		hashes, err := s.q.ListSubtreeBlobHashes(ctx, nodeID)
+		if err != nil {
+			return err
+		}
+		if err := s.q.PurgeNode(ctx, nodeID); err != nil {
+			return err
+		}
+		for _, h := range hashes {
+			if err := s.q.DecrBlobRef(ctx, h); err != nil {
+				return fmt.Errorf("release blob %s: %w", h[:min(12, len(h))], err)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	return rescued, nil
 }
@@ -906,7 +952,11 @@ func (s *Service) rescueForeignSubtrees(ctx context.Context, root store.Node) ([
 		// index is concerned, so the name may already be taken up there.
 		name := node.Name
 		for attempt := 1; ; attempt++ {
-			err = s.q.DetachNodeToTopLevel(ctx, store.DetachNodeToTopLevelParams{ID: node.ID, Name: name})
+			// Each attempt in its own savepoint: a unique violation aborts the
+			// enclosing transaction otherwise, and the retry would fail on that.
+			err = s.q.InTx(ctx, func(q *store.Queries) error {
+				return q.DetachNodeToTopLevel(ctx, store.DetachNodeToTopLevelParams{ID: node.ID, Name: name})
+			})
 			if !isUniqueViolation(err) {
 				break
 			}
@@ -932,6 +982,44 @@ func (s *Service) ForeignOwnedCount(ctx context.Context, nodeID, userID pgtype.U
 		RootID: nodeID,
 		UserID: userID,
 	})
+}
+
+// InheritedAccess is everyone reaching a node from above it — owners of the
+// node or an ancestor, and grants on an ancestor — one row per principal.
+// Rows come nearest-first and keep the nearest folder as `via`; a principal
+// reached through several folders gets the union of what they grant, since
+// that is what resolution answers. An owner row absorbs the same person's
+// grants: owning outranks anything a grant adds.
+func (s *Service) InheritedAccess(ctx context.Context, nodeID pgtype.UUID) ([]store.ListInheritedAccessRow, error) {
+	rows, err := s.q.ListInheritedAccess(ctx, nodeID)
+	if err != nil {
+		return nil, err
+	}
+	owners := map[pgtype.UUID]bool{}
+	for _, r := range rows {
+		if r.Kind == "owner" {
+			owners[r.PrincipalID] = true
+		}
+	}
+	index := map[string]int{}
+	out := make([]store.ListInheritedAccessRow, 0, len(rows))
+	for _, r := range rows {
+		if r.Kind == "user" && owners[r.PrincipalID] {
+			continue
+		}
+		key := r.Kind + ":" + r.PrincipalID.String()
+		if i, seen := index[key]; seen {
+			if r.Level == store.ShareLevelEdit {
+				out[i].Level = store.ShareLevelEdit
+			}
+			out[i].CanDownload = out[i].CanDownload || r.CanDownload
+			out[i].CanShare = out[i].CanShare || r.CanShare
+			continue
+		}
+		index[key] = len(out)
+		out = append(out, r)
+	}
+	return out, nil
 }
 
 // Principal is somebody (or something) that reaches a node by inheritance:

@@ -7,10 +7,32 @@ export class ApiError extends Error {
   readonly status: number;
 
   constructor(status: number, message: string) {
-    super(message);
+    super(problemDetail(message));
     this.name = "ApiError";
     this.status = status;
   }
+}
+
+/**
+ * The sentence worth showing out of an error body.
+ *
+ * The server answers every failure as RFC 7807 problem+json, and most
+ * endpoints hand the body to `ApiError` as text — which put
+ * `{"type":"about:blank",…}` in front of whoever tried the action, instead
+ * of the `detail` the server wrote for them ("moving it there would widen who
+ * can reach it"). Parsing here, once, covers every caller; a body that is not
+ * a problem document is already the message and passes through.
+ */
+function problemDetail(body: string): string {
+  if (!body.trimStart().startsWith("{")) return body;
+  try {
+    const problem = JSON.parse(body) as { detail?: unknown; title?: unknown };
+    if (typeof problem.detail === "string" && problem.detail) return problem.detail;
+    if (typeof problem.title === "string" && problem.title) return problem.title;
+  } catch {
+    // Not JSON after all: the text itself is the message.
+  }
+  return body;
 }
 
 /**

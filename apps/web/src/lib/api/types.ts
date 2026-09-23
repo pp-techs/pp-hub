@@ -313,9 +313,11 @@ export interface Principal {
  * The access delta a move would cause, asked before it happens. Access is
  * inherited from the folder chain, so moving a file out of a colleague's
  * folder takes it away from everyone that folder reached, and moving it into a
- * shared folder hands it to everyone that one reaches. The move is never
- * blocked — it is the documented way to narrow sharing — but it should not be
- * silent. The caller themself never appears in either list.
+ * shared folder hands it to everyone that one reaches. A delta alone never
+ * blocks the move — it is the documented way to narrow sharing — but it
+ * should not be silent. The caller themself never appears in either list.
+ * A move that is not the caller's to make is refused instead (403, with a
+ * sentence saying why); see `MoveDialog`.
  */
 export interface MoveImpact {
   losing: Principal[];
@@ -424,6 +426,10 @@ export interface Share {
   level: "view" | "edit";
   can_download: boolean;
   can_share: boolean;
+  /** Direct shares only: who holds it. The id is what an update posts back. */
+  grantee_user_id?: string;
+  /** Display name, falling back to name then email. Direct shares only. */
+  grantee_name?: string;
   grantee_email?: string;
   url?: string;
   expires_at?: string;
@@ -434,6 +440,42 @@ export interface Share {
    * so the dialog warns before the revoke. Direct shares only.
    */
   grantee_owned?: number;
+}
+
+/**
+ * What `POST /nodes/{id}/shares` takes. A person is named by user id — the
+ * member picker already holds it, and the server resolves it against the
+ * space's members, so nobody outside the space can be named. Posting a direct
+ * share for someone who already holds one on the node updates it in place.
+ *
+ * A link is spelled out in full because the database insists on its shape:
+ * view level, no re-sharing, download the one choice. `expires_in` is in
+ * seconds, 0 for never.
+ */
+export type CreateShareBody =
+  | ({ kind: "direct"; user_id: string } & GrantCaps)
+  | { kind: "link"; level: "view"; can_download: boolean; can_share: false; expires_in: number };
+
+/**
+ * Someone reaching a node from above it, as `GET /nodes/{id}/inherited-access`
+ * reports: the owners — of the node itself, or of a folder over it — and every
+ * grant on an ancestor. Grants on the node itself are not here; those are the
+ * node's own `Share`/`Grant` rows, the ones this node's dialog can change.
+ *
+ * Rows arrive deduplicated and ordered nearest-first, which is the order the
+ * dialog lists them in.
+ */
+export interface InheritedAccess {
+  kind: "owner" | "user" | "group" | "link";
+  principal_id: string;
+  /** Display name. An untranslated English literal for `link`: render a label instead. */
+  name: string;
+  /** Where the access is held: the node itself for its own owner, else a folder above. */
+  via_id: string;
+  via_name: string;
+  level: "view" | "edit";
+  can_download: boolean;
+  can_share: boolean;
 }
 
 export interface EditSession {
@@ -457,7 +499,11 @@ export interface ShareInfo {
   node: Node;
   level: "view";
   can_download: boolean;
-  /** Display name of whoever created the link. */
+  /**
+   * Display name of whoever created the link. Absent when they have none:
+   * the address behind the account is not something an anonymous visitor
+   * is told.
+   */
   shared_by?: string;
   expires_at?: string;
 }

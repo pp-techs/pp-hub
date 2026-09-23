@@ -164,11 +164,14 @@ func (s *Service) Grant(ctx context.Context, node store.Node, groupID pgtype.UUI
 	})
 }
 
-func (s *Service) Revoke(ctx context.Context, nodeID, groupID pgtype.UUID) error {
-	return s.q.DeleteGroupGrant(ctx, store.DeleteGroupGrantParams{
+// Revoke removes a group's grant on a node, reporting whether there was one:
+// "revoked" and "there was nothing to revoke" are different answers.
+func (s *Service) Revoke(ctx context.Context, nodeID, groupID pgtype.UUID) (bool, error) {
+	n, err := s.q.DeleteGroupGrant(ctx, store.DeleteGroupGrantParams{
 		NodeID:         nodeID,
 		GranteeGroupID: groupID,
 	})
+	return n > 0, err
 }
 
 func (s *Service) GrantsForNode(ctx context.Context, nodeID pgtype.UUID) ([]store.ListGrantsForNodeRow, error) {

@@ -150,6 +150,29 @@ maximum, flags OR together. **Grants only widen; nothing narrows.**
 can only hand out capabilities you hold yourself, so a download-only grantee
 cannot mint an editor. A refusal is **403** carrying `share.ErrEscalation`.
 
+The same bound applies to **changing or removing** a grant. Replacing a direct
+or group grant (re-sharing is an upsert) and revoking any share row —
+direct, group or link — demand that the caller's caps cover the grant being
+touched; otherwise **403** ("that grant is wider than your own access").
+Without it a viewer allowed to re-share could strip an editor the owner
+appointed. An owner covers everything, so owners are unaffected.
+
+There is **one direct grant per (node, person)** (`shares_direct_uniq`, the
+twin of `shares_group_uniq`). `POST /nodes/{id}/shares` with
+`kind: "direct"` names the grantee by `user_id` and upserts: **201** for a new
+grant, **200** for a change — which is how a grant is narrowed. It used to
+stack a second row that resolution OR-ed with the first, so the wider one
+always won. The grantee is looked up by id rather than address, and "no such
+account" and "not in this space" are one **422**, so the endpoint cannot tell
+a member of one company which addresses have accounts in another.
+
+Grants do **not** chain back to their creator. If A lets B re-share and B
+shares with C, revoking B leaves C's grant standing — Drive behaves the same,
+and the grant is a decision about the node, not about B. The exception is the
+public link, below, which re-checks its creator on every request because it
+is anonymous and forwardable. A departure removes every grant the leaver
+created, links included.
+
 Monotonicity has one blind spot by construction: **an owner covers
 everything**, so a member who uploads into a colleague's folder owns that file
 and may share it however they like — `can_share: false` on the folder above
@@ -183,7 +206,10 @@ For one user on one node:
 in spaces the caller belongs to, walks every ancestor chain, aggregates grant
 flags with `BOOL_OR`, and joins `nodes.created_by` for the owner flag. A
 listing therefore filters itself without a walk per row. `ListEntryPoints`
-carries the same membership condition on its owned branch.
+carries the same membership condition on **both** branches, owned and
+granted: a departed member whose departure is still pending keeps their
+direct grant rows until an admin confirms, and without the condition on the
+granted branch "Shared with me" kept listing their names, sizes and owners.
 
 That recursive join deliberately does **not** filter `deleted_at`: filtering it
 truncates the chain at the first trashed ancestor and loses the grant above it,
@@ -195,12 +221,12 @@ weaker rule of its own.
 Node-addressed routes go through `requireNodeCaps(w, r, need share.Cap)`, which
 resolves the node and demands one capability:
 
-| Capability    | Routes                                                                                                                            |
-| :------------ | :-------------------------------------------------------------------------------------------------------------------------------- |
-| `CapView`     | `GET /nodes/{id}`, `/children`, `/tree`, `/preview?kind=thumbnail`, versions, star                                                |
-| `CapDownload` | `GET /nodes/{id}/download` (file or streamed zip), `/content`, `/preview?kind=text`, copy source, `POST /nodes/{id}/edit-session` |
-| `CapEdit`     | rename, move, delete, upload-into, version restore, trash restore/purge, WOPI save                                                |
-| `CapShare`    | list/create/revoke shares, list/upsert/revoke group grants                                                                        |
+| Capability    | Routes                                                                                                                                                     |
+| :------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CapView`     | `GET /nodes/{id}`, `/children`, `/tree`, `/preview?kind=thumbnail`, versions, star                                                                         |
+| `CapDownload` | `GET /nodes/{id}/download` (file or streamed zip), `/content`, `/preview?kind=text`, copy source, `POST /nodes/{id}/edit-session`                          |
+| `CapEdit`     | rename, move (plus [the move rules](#moving-changes-who-can-reach-it)), delete, upload-into, version restore, trash restore/purge, WOPI save               |
+| `CapShare`    | list/create/revoke shares, list/upsert/revoke group grants, `GET /nodes/{id}/inherited-access` — each change also bounded by [Monotonicity](#monotonicity) |
 
 Creating into a folder goes through `requireParentWrite`:
 
@@ -215,6 +241,15 @@ Space-level powers — member management, creating and editing groups, settings,
 the departure queue, emptying the trash — are gated by `spaces.RequireAdmin`,
 i.e. Admin-group membership. They never travel through the capability scale.
 There is no role column and no role rank anymore.
+
+Group membership is the one place administration touches file access: every
+grant a group holds follows its members. Two rules keep that from becoming a
+back door. An admin **may not add themselves** to a group that already holds a
+grant (**403** — another admin has to), because otherwise "admin grants no file
+access" was one click from false. And every group change — create, rename,
+delete, member added or removed — is a `security_events` row
+(`group_created`, `group_updated`, `group_deleted`, `group_member_added`,
+`group_member_removed`).
 
 Two deliberate exceptions to "administration is admin-only":
 
@@ -350,6 +385,15 @@ folders on the server (`Grant` only checks that node and group share a space,
 and the resolver treats a share row on a file as an entry point like any
 other); the client used to hide them behind a folder-only dialog.
 
+The dialog lists **everyone** who reaches the node, not only the rows on it:
+`GET /nodes/{id}/inherited-access` returns owners of the node or any folder
+above, and live grants on those folders, each with the folder it comes from
+(`ListInheritedAccess`, one row per principal, nearest folder kept, flags
+OR-ed as resolution does). Those rows are read-only in the dialog — they are
+changed on the folder they come from. A control the caller does not hold is
+left out: levels and flags beyond the caller's caps, and edit/revoke on a grant
+wider than theirs.
+
 Grantees are offered from the space — `GET /spaces/{id}/groups` and
 `GET /spaces/{id}/members`, both member-readable — and from nowhere else.
 There is no tenant-wide user directory to search: `GET /users/search` existed
@@ -392,14 +436,15 @@ Nextcloud all reached the same conclusion and grew a second container — the
 shared drive, the project space, the team folder — where content has no
 personal owner at all. `nodes.team_root_id` is ours.
 
-|                               | Personal folder                                | Team folder                               |
-| :---------------------------- | :--------------------------------------------- | :---------------------------------------- |
-| Who owns the content          | its creator, forever                           | the folder                                |
-| `created_by`                  | full capabilities, unconditional               | a byline; grants nothing                  |
-| Revoking a grant              | leaves the grantee's uploads reachable by them | removes their access to everything inside |
-| Public link on content inside | the uploader can always mint one               | only a grantee with `can_share`           |
-| Moving content out            | anybody with `CapEdit` on the node             | a manager, and it becomes theirs          |
-| When the creator leaves       | roots go to the Archive                        | nothing moves; managers carry on          |
+|                               | Personal folder                                                                                                               | Team folder                                            |
+| :---------------------------- | :---------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------- |
+| Who owns the content          | its creator, forever                                                                                                          | the folder                                             |
+| `created_by`                  | full capabilities, unconditional                                                                                              | a byline; grants nothing                               |
+| Revoking a grant              | leaves the grantee's uploads reachable by them                                                                                | removes their access to everything inside              |
+| Public link on content inside | the uploader can always mint one                                                                                              | only a grantee with `can_share`                        |
+| Moving content out            | its owner; others need `CapShare`, and never into more access than they hold (see [Moving](#moving-changes-who-can-reach-it)) | a manager, and it becomes theirs                       |
+| Moving personal content in    | —                                                                                                                             | only whoever created it and everything live beneath it |
+| When the creator leaves       | roots go to the Archive                                                                                                       | nothing moves; managers carry on                       |
 
 `team_root_id` is NULL for personal content, the container's id for everything
 inside one, and its **own id** on the container itself — so "is this a team
@@ -433,13 +478,18 @@ Managers rename and delete the folder (`requireMovableNode`), move content out
 of it (`handleMoveNode`), and appoint other managers. Everyone else with `edit`
 is a contributor.
 
-Two guards keep a team folder administrable:
+Three guards keep a team folder administrable:
 
 - **Creation seeds the first manager.** `POST /spaces/{id}/team-folders` is
   admin-only — a team folder is company structure, which is the line
   `RequireAdmin` already draws — and the creator immediately gets an
-  `edit + download + share` grant. Without it the folder would be unreachable
+  `edit + download + share` grant, written by `fs.CreateTeamFolder` in the
+  same transaction as the folder. Without it the folder would be unreachable
   the moment it existed, since nothing about it is owned.
+- **The last manager stays.** Revoking, or re-granting without `can_share`,
+  the only live `can_share` grant on a team folder answers **409**
+  (`keepsTeamManager`, counting with `CountTeamManagers`). Somebody else must
+  be appointed first.
 - **Departure re-seats one.** `CompleteDeparture` deletes the grants the leaver
   created, which may have been the only manager grant. Any team folder left
   with no `can_share` grantee (`CountTeamManagers`) falls to the `Admin` group,
@@ -488,12 +538,34 @@ owners and grants. Both directions matter: a file moved out of a colleague's
 folder leaves everyone that folder reached, and a file moved into a shared one
 is handed to everyone that folder reaches.
 
-The move is **not** blocked. Moving a file you created out of somebody else's
-folder is how you take it back, and Drive documents exactly that as the way to
-narrow sharing on a file inside a folder you do not own. What would be wrong is
-doing it silently, so `GET /nodes/{id}/move-impact?parent=` answers the
-question before the move: `{losing, gaining}`, each a list of principals —
-a person, a group, or the public link.
+Moving is not blanket-blocked: moving a file you created out of somebody
+else's folder is how you take it back, and Drive documents exactly that as the
+way to narrow sharing on a file inside a folder you do not own. But in this
+model where a node hangs **is** who reaches it — ownership included — so
+`authorizeMove` bounds every move beyond write access at both ends:
+
+1. **Out of a team folder** (to personal space or another team folder) takes
+   `CapShare` — a manager — and the subtree becomes the mover's.
+2. **Into a team folder from personal space** takes being the node's creator
+   with no live content by anyone else beneath it. Inside a team folder
+   `created_by` grants nothing, so the move would take the work away from
+   whoever made it; Drive asks the same of a move into a shared drive.
+3. **A non-owner moving personal content** may not land it anywhere that would
+   give them more than they hold on it now (`Caps.Contains` against their caps
+   on the destination). Ownership inherits down the tree, so dropping someone
+   else's file into a folder you own used to make you its owner — an editor
+   denied re-sharing came out with every capability, public links included.
+   And without `CapShare` they may not change who reaches it at all: any
+   non-empty move impact is refused, the rule Drive applies to an editor
+   moving out of a shared folder. Reorganising within the same shared folder
+   changes nobody's access and stays open to editors.
+
+Owners move their own work freely. Every refusal is **403** with the reason.
+
+`GET /nodes/{id}/move-impact?parent=` answers the question before the move:
+`{losing, gaining}`, each a list of principals — a person, a group, or the
+public link — and applies the same rules first, so a move the server would
+refuse is refused before the confirm dialog promises it.
 
 `ListChainPrincipals` collects everyone who reaches a node by inheritance: the
 creator of the node and of every ancestor, plus every live grant on that chain.
@@ -501,9 +573,12 @@ creator of the node and of every ancestor, plus every live grant on that chain.
 destination — and differences them. Grants on the node itself and its own
 creator travel with it, so they appear on neither list; the caller is dropped
 from both, because telling somebody they are about to lose their own access
-reads as a bug. The endpoint demands the same capabilities as the move
-(`CapEdit` on the node, `requireParentWrite` on the destination), so it cannot
-be used to probe a tree the caller cannot write to.
+reads as a bug. The endpoint demands the same capabilities as the move, so it
+cannot be used to probe a tree the caller cannot write to.
+
+`fs.Move` writes the reparent, the subtree's `team_root_id` and (leaving a
+team) the new author in **one transaction**, so no reader ever sees personal
+content still marked as a team's.
 
 ## Anonymous Link Browsing
 
@@ -523,7 +598,10 @@ trade this fix makes and the reason it is worth stating twice.
 Every node id an anonymous caller supplies is walked back up to the share root
 before anything is served. A node outside that subtree answers **404, not
 403**: confirming that a node exists but sits outside the share is itself more
-than the visitor should learn. Owner names are stripped from share responses.
+than the visitor should learn. Owner names are stripped from share responses,
+and `shared_by` on the landing page is the sharer's display name or IdP name
+only — never an email address, which on a forwardable anonymous link would be
+a company directory entry handed to whoever the link reaches.
 
 **A link is only as alive as its creator's own access.** `resolveLinkNode`
 re-resolves `EffectiveCapsForNode` for `shares.created_by` on every request
@@ -539,6 +617,13 @@ revoke is the same choice made for WOPI tokens — one query covers every way
 access can disappear, an ancestor being moved included, instead of one cleanup
 path per way. A link whose creator has left the space fails the same check,
 because resolution step 0 (membership) fails for them.
+
+Nor is a link ever **wider** than its creator's access today. Monotonicity is
+checked when a link is minted; a creator since narrowed to view-only must not
+keep handing out the bytes anonymously, so `resolveLinkNode` clears the
+link's download flag whenever the creator no longer holds `CapDownload`.
+Every byte route reads the flag through `LinkCaps`, so the clamp reaches all
+of them, and `GET /s/{token}` reports `can_download: false`.
 
 ## Archive
 
@@ -753,6 +838,11 @@ deltas. What changed relative to the model M11 left behind:
 | `personal_folders` dropped                 | ownership covers every node, not one folder per member       |
 | `spaces.personal_root_id` dropped          | replaced by `archive_root_id`                                |
 
+Since then, `0009_direct_share_uniq.sql` added `shares_direct_uniq` — one
+direct grant per (node, person) — folding existing duplicates into the oldest
+row (widest level and flags, latest expiry, no expiry winning; lapsed
+duplicates dropped rather than revived).
+
 ## Implementation Notes
 
 - Resolution is one recursive query per request (`NodeAccessCaps`), batched
@@ -760,13 +850,23 @@ deltas. What changed relative to the model M11 left behind:
   then an invalidated cache keyed by `(user, node)`.
 - Share tokens: only `token_hash` (sha256) is stored. Revocation is a row
   delete; `expires_at` is optional.
-- WOPI access tokens encode the resolved capability at session-open time
-  (`CapEdit` → rank 3 in the token's `w1` format). Changing a grant mid-session
-  does not retroactively close an open editor; tokens expire.
+- WOPI access tokens carry the capability resolved at session-open time as a
+  ceiling; `wopiClaims` re-resolves on every WOPI call and clamps to what the
+  caller holds now. See [office-integration.md](office-integration.md).
+- Operations that write more than one row that access depends on run in one
+  transaction through `store.Queries.InTx`: `fs.Move`, `fs.CreateTeamFolder`
+  (folder + first manager grant), `fs.Purge`, `spaces.Create`,
+  `spaces.AddMember`, `spaces.RevokeMembership` and
+  `spaces.CompleteDeparture`. `InTx` on queries already inside a transaction
+  opens a savepoint, which is how the rename-on-collision retries survive a
+  unique violation inside a larger unit of work.
 - The invariants that live in SQL — owner inheritance, admin-cannot-read,
-  promote/demote, the archive hand-off — are covered by
-  `internal/spaces/permissions_db_test.go`, which needs a real Postgres
-  (`PP_TEST_DATABASE_URL`) and skips loudly without one.
+  promote/demote, the archive hand-off, the departed-member listing — are
+  covered by `internal/spaces/permissions_db_test.go`; the handler-level
+  rules — move bounds, grant-change bounds, the last team manager, the link
+  download clamp, admin self-add — by `internal/httpapi/sharing_db_test.go`.
+  Both need a real Postgres (`PP_TEST_DATABASE_URL`) and skip loudly
+  without one.
 
 ## Quotas
 

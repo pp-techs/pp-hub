@@ -1,7 +1,15 @@
 // Share and WOPI hooks.
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createShare, getShareChildren, getShareInfo, getShares, revokeShare } from "@/lib/api";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import {
+  createShare,
+  getInheritedAccess,
+  getShareChildren,
+  getShareInfo,
+  getShares,
+  revokeShare,
+  type CreateShareBody,
+} from "@/lib/api";
 import { keys } from "./keys";
 
 export function sharesOptions(nodeId: string | null) {
@@ -16,12 +24,37 @@ export function useShares(nodeId: string | null) {
   return useQuery(sharesOptions(nodeId));
 }
 
+/** Who reaches this node from above it. Share-gated like `useShares`. */
+export function useInheritedAccess(nodeId: string | null) {
+  return useQuery({
+    queryKey: keys.inheritedAccess(nodeId ?? ""),
+    queryFn: () => getInheritedAccess(nodeId!),
+    enabled: nodeId !== null,
+  });
+}
+
+/**
+ * What a share changes beyond the node's own list. Listings and the node GET
+ * carry `shared`, which lights the people badge; everything below the node
+ * inherits the change, and which nodes those are is the server's to know, so
+ * the inherited-access root goes whole. The grants list is the same table
+ * seen by group, so it is refreshed alongside.
+ */
+function invalidateAccess(qc: QueryClient, nodeId: string) {
+  void qc.invalidateQueries({ queryKey: keys.shares(nodeId) });
+  void qc.invalidateQueries({ queryKey: keys.grants(nodeId) });
+  void qc.invalidateQueries({ queryKey: ["inherited-access"] });
+  void qc.invalidateQueries({ queryKey: keys.node(nodeId) });
+  void qc.invalidateQueries({ queryKey: ["children"] });
+  void qc.invalidateQueries({ queryKey: ["shared"] });
+}
+
 export function useCreateShare() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ nodeId, body }: { nodeId: string; body: Record<string, unknown> }) =>
+    mutationFn: ({ nodeId, body }: { nodeId: string; body: CreateShareBody }) =>
       createShare(nodeId, body),
-    onSuccess: (_d, { nodeId }) => void qc.invalidateQueries({ queryKey: keys.shares(nodeId) }),
+    onSuccess: (_d, { nodeId }) => invalidateAccess(qc, nodeId),
   });
 }
 
@@ -30,7 +63,7 @@ export function useRevokeShare() {
   return useMutation({
     mutationFn: ({ nodeId, shareId }: { nodeId: string; shareId: string }) =>
       revokeShare(nodeId, shareId),
-    onSuccess: (_d, { nodeId }) => void qc.invalidateQueries({ queryKey: keys.shares(nodeId) }),
+    onSuccess: (_d, { nodeId }) => invalidateAccess(qc, nodeId),
   });
 }
 

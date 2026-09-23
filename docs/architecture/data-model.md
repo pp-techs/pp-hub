@@ -300,9 +300,10 @@ shares(id, tenant_id, node_id,                  -- file or folder; inherits down
        can_share,                               -- may re-grant on this subtree
        expires_at, created_by, created_at)
   UNIQUE (node_id, grantee_group_id) WHERE kind = 'group'
+  UNIQUE (node_id, grantee_user_id)  WHERE kind = 'direct'   -- 0009
   CHECK (level <> 'edit' OR can_download)       -- an editor can fetch what it edits
   CHECK (kind <> 'link' OR (level = 'view' AND NOT can_share))
-  -- One grant per (folder, group): re-granting updates rather than stacking a
+  -- One grant per (node, group) and per (node, person): re-granting updates rather than stacking a
   -- second row that would then have to be resolved against the first.
   -- Level + flags, not a rank: "editor who cannot re-share" and "viewer who
   -- may pass it on" are both expressible. Links never edit and never chain.

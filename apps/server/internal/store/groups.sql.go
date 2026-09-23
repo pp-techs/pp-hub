@@ -101,7 +101,7 @@ func (q *Queries) DeleteGroup(ctx context.Context, id pgtype.UUID) error {
 	return err
 }
 
-const deleteGroupGrant = `-- name: DeleteGroupGrant :exec
+const deleteGroupGrant = `-- name: DeleteGroupGrant :execrows
 DELETE FROM shares
 WHERE kind = 'group' AND node_id = $1 AND grantee_group_id = $2
 `
@@ -111,9 +111,12 @@ type DeleteGroupGrantParams struct {
 	GranteeGroupID pgtype.UUID `json:"grantee_group_id"`
 }
 
-func (q *Queries) DeleteGroupGrant(ctx context.Context, arg DeleteGroupGrantParams) error {
-	_, err := q.db.Exec(ctx, deleteGroupGrant, arg.NodeID, arg.GranteeGroupID)
-	return err
+func (q *Queries) DeleteGroupGrant(ctx context.Context, arg DeleteGroupGrantParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteGroupGrant, arg.NodeID, arg.GranteeGroupID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const deleteSharesByCreatorInSpace = `-- name: DeleteSharesByCreatorInSpace :exec
@@ -259,12 +262,21 @@ func (q *Queries) IsSpaceAdmin(ctx context.Context, arg IsSpaceAdminParams) (boo
 
 const listEntryPoints = `-- name: ListEntryPoints :many
 WITH RECURSIVE entry(id) AS (
+    -- Granted, but only in a space the caller still belongs to. Access is
+    -- already gated on membership in NodeAccessCaps; without the same gate
+    -- here a departed member whose departure was not yet confirmed kept
+    -- seeing the names, sizes and owners of everything shared with them.
     SELECT DISTINCT s.node_id
     FROM shares s
+    JOIN nodes gn ON gn.id = s.node_id
     WHERE (s.expires_at IS NULL OR s.expires_at > now())
       AND ( (s.kind = 'direct' AND s.grantee_user_id = $3)
          OR (s.kind = 'group'  AND s.grantee_group_id IN (
                 SELECT gm.group_id FROM group_members gm WHERE gm.user_id = $3)) )
+      AND EXISTS (
+          SELECT 1 FROM space_members sm
+          WHERE sm.space_id = gn.space_id AND sm.user_id = $3
+      )
     UNION
     -- Owned, but only inside a space the caller still belongs to: leaving ends
     -- the reach, and a departed member's roots live in the archive now.

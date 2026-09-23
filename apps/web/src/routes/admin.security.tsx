@@ -84,6 +84,11 @@ const KIND_LABELS = {
   share_revoked: msg`share revoked`,
   member_added: msg`member added`,
   member_removed: msg`member removed`,
+  group_created: msg`group created`,
+  group_updated: msg`group updated`,
+  group_deleted: msg`group deleted`,
+  group_member_added: msg`group member added`,
+  group_member_removed: msg`group member removed`,
   file_downloaded: msg`file downloaded`,
   folder_downloaded: msg`folder downloaded`,
   file_viewed: msg`file viewed`,
@@ -178,7 +183,7 @@ function SecurityLogPage() {
   const from = total === 0 ? 0 : offset + 1;
   const to = offset + events.length;
   // Rebuilt every render rather than memoised: it has to follow the active
-  // catalog, and seventeen lookups is cheaper than getting that wrong.
+  // catalog, and a few dozen lookups is cheaper than getting that wrong.
   const kindItems = [
     { label: i18n._(ALL_EVENTS), value: ALL },
     ...Object.entries(KIND_LABELS).map(([k, label]) => ({ label: i18n._(label), value: k })),

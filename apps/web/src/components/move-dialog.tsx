@@ -16,7 +16,7 @@ import {
 import { cn } from "@workspace/ui/lib/utils";
 import { useMoveImpact, useTree } from "@/lib/queries";
 import { useKeyedState } from "@/lib/use-keyed-state";
-import type { MoveImpact, Node, Principal } from "@/lib/api";
+import { ApiError, type MoveImpact, type Node, type Principal } from "@/lib/api";
 
 /** Undefined destination means the top level of the space. */
 type Destination = string | undefined;
@@ -38,9 +38,16 @@ type Props = {
  *
  * Picking a destination also asks the server who gains and who loses access,
  * because access is inherited: moving a file out of a colleague's folder takes
- * it away from them, and moving it into a shared folder hands it over. The
- * move is never blocked — it is the supported way to narrow sharing, the same
- * advice Drive gives — but it must not be silent.
+ * it away from them, and moving it into a shared folder hands it over. That
+ * alone never blocks the move — it is the supported way to narrow sharing, the
+ * same advice Drive gives — but it must not be silent.
+ *
+ * Some moves are not the caller's to make at all: someone else's item into a
+ * team folder, or a re-parenting that would widen the mover's own reach or
+ * change who can open it without their holding share on it. The server
+ * refuses those, the impact question included, with a sentence saying which —
+ * so that sentence replaces the delta and Move stays unavailable, rather than
+ * failing after the click.
  */
 export const MoveDialog = createModal<Props, Destination | null>(
   "move-node",
@@ -66,6 +73,10 @@ export const MoveDialog = createModal<Props, Destination | null>(
       target,
       modal.visible && !unchanged,
     );
+    // One refused node refuses the selection: "Move 5 items" must not quietly
+    // mean "move the 3 you may".
+    const refused =
+      impact.error instanceof ApiError && impact.error.status === 403 ? impact.error.message : null;
     return (
       <Dialog open={modal.visible} onOpenChange={(open) => !open && modal.resolve(null)}>
         <DialogContent className="sm:max-w-md">
@@ -102,13 +113,20 @@ export const MoveDialog = createModal<Props, Destination | null>(
             />
           </div>
 
-          <AccessChange impact={impact.data} />
+          {refused ? (
+            <p className="text-destructive flex items-start gap-1.5 text-xs">
+              <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
+              <span>{refused}</span>
+            </p>
+          ) : (
+            <AccessChange impact={impact.data} />
+          )}
 
           <DialogFooter>
             <Button variant="outline" onClick={() => modal.resolve(null)}>
               <Trans>Cancel</Trans>
             </Button>
-            <Button disabled={unchanged} onClick={() => modal.resolve(target)}>
+            <Button disabled={unchanged || refused !== null} onClick={() => modal.resolve(target)}>
               {unchanged ? <Trans>Already here</Trans> : <Trans>Move</Trans>}
             </Button>
           </DialogFooter>

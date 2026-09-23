@@ -88,7 +88,7 @@ DO UPDATE SET level = EXCLUDED.level, can_download = EXCLUDED.can_download,
               can_share = EXCLUDED.can_share, created_by = EXCLUDED.created_by
 RETURNING *;
 
--- name: DeleteGroupGrant :exec
+-- name: DeleteGroupGrant :execrows
 DELETE FROM shares
 WHERE kind = 'group' AND node_id = $1 AND grantee_group_id = $2;
 
@@ -162,12 +162,21 @@ ORDER BY n.kind, n.name;
 -- WITH RECURSIVE must lead the statement; a nested one inside a plain CTE is
 -- valid Postgres but sqlc cannot parse it.
 WITH RECURSIVE entry(id) AS (
+    -- Granted, but only in a space the caller still belongs to. Access is
+    -- already gated on membership in NodeAccessCaps; without the same gate
+    -- here a departed member whose departure was not yet confirmed kept
+    -- seeing the names, sizes and owners of everything shared with them.
     SELECT DISTINCT s.node_id
     FROM shares s
+    JOIN nodes gn ON gn.id = s.node_id
     WHERE (s.expires_at IS NULL OR s.expires_at > now())
       AND ( (s.kind = 'direct' AND s.grantee_user_id = @user_id)
          OR (s.kind = 'group'  AND s.grantee_group_id IN (
                 SELECT gm.group_id FROM group_members gm WHERE gm.user_id = @user_id)) )
+      AND EXISTS (
+          SELECT 1 FROM space_members sm
+          WHERE sm.space_id = gn.space_id AND sm.user_id = @user_id
+      )
     UNION
     -- Owned, but only inside a space the caller still belongs to: leaving ends
     -- the reach, and a departed member's roots live in the archive now.

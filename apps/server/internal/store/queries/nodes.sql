@@ -459,6 +459,44 @@ LEFT JOIN groups g ON g.id = s.grantee_group_id
 LEFT JOIN users gu ON gu.id = s.grantee_user_id
 WHERE s.expires_at IS NULL OR s.expires_at > now();
 
+-- name: ListInheritedAccess :many
+-- Who reaches @node_id from ABOVE it, with what, and through which folder —
+-- the half of "who can open this" the node's own share rows do not show.
+-- Owners are the creator of the node itself (depth 0) and of every ancestor,
+-- outside a team folder only; grants are those on a strict ancestor, since
+-- grants on the node itself are listed by ListSharesForNode/ListGrantsForNode.
+-- A principal can appear more than once (several folders above); the caller
+-- keeps the nearest.
+WITH RECURSIVE chain AS (
+    SELECT n.id, n.parent_id, n.created_by, n.team_root_id, n.name, 0 AS depth
+    FROM nodes n WHERE n.id = @node_id
+  UNION ALL
+    SELECT p.id, p.parent_id, p.created_by, p.team_root_id, p.name, c.depth + 1
+    FROM chain c JOIN nodes p ON p.id = c.parent_id
+    WHERE c.depth < 100
+)
+SELECT 'owner'::text AS kind,
+       u.id AS principal_id,
+       COALESCE(NULLIF(u.display_name, ''), NULLIF(u.name, ''), u.email)::text AS name,
+       c.id AS via_id, c.name::text AS via_name, c.depth::int AS depth,
+       'edit'::share_level AS level, true AS can_download, true AS can_share
+FROM chain c JOIN users u ON u.id = c.created_by
+WHERE c.team_root_id IS NULL
+UNION ALL
+SELECT CASE s.kind WHEN 'group' THEN 'group' WHEN 'link' THEN 'link' ELSE 'user' END::text,
+       COALESCE(s.grantee_user_id, s.grantee_group_id, s.id),
+       COALESCE(g.name,
+                NULLIF(gu.display_name, ''), NULLIF(gu.name, ''), gu.email,
+                'Anyone with the link')::text,
+       c.id, c.name::text, c.depth::int,
+       s.level, s.can_download, s.can_share
+FROM chain c
+JOIN shares s ON s.node_id = c.id
+LEFT JOIN groups g ON g.id = s.grantee_group_id
+LEFT JOIN users gu ON gu.id = s.grantee_user_id
+WHERE c.depth > 0 AND (s.expires_at IS NULL OR s.expires_at > now())
+ORDER BY depth, kind, name;
+
 
 -- name: ListTeamRoots :many
 -- The team folders of a space: nodes that are their own container.

@@ -278,8 +278,11 @@ func (s *Server) handleShareInfo(w http.ResponseWriter, r *http.Request) {
 	if sh.ExpiresAt.Valid {
 		out.ExpiresAt = sh.ExpiresAt.Time.Format(timeLayout)
 	}
+	// A name, never an address. The visitor is anonymous and the link is
+	// forwardable, so an email here is a company's directory entry handed to
+	// whoever the link reaches; with no name set the banner says nothing.
 	if u, err := s.store.GetUser(r.Context(), sh.CreatedBy); err == nil {
-		out.SharedBy = displayName(u)
+		out.SharedBy = publicName(u)
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -294,4 +297,13 @@ func displayName(u store.User) string {
 		return u.Name
 	}
 	return u.Email
+}
+
+// publicName is what anonymous visitors may see of a person: the name they
+// chose or the IdP's, and nothing when neither is set.
+func publicName(u store.User) string {
+	if u.DisplayName != "" {
+		return u.DisplayName
+	}
+	return u.Name
 }

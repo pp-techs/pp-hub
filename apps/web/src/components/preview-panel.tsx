@@ -16,7 +16,7 @@ import {
   type Space,
 } from "@/lib/api";
 import { useFormatters } from "@/lib/format";
-import { useShares, useSpace, useSpaceMembers, useVersions } from "@/lib/queries";
+import { useGrants, useShares, useSpace, useSpaceMembers, useVersions } from "@/lib/queries";
 import { useSettingsNavigation } from "@/lib/use-settings-hash";
 import { useUiStore } from "@/lib/ui-store";
 import { NodeIcon } from "@/components/node-icon";
@@ -254,6 +254,19 @@ function NodeDetails({ node }: { node: Node }) {
   // Who else holds this is a sharer's question, and the endpoint answers 403
   // to anyone else — so the query is not made, rather than made and mourned.
   const shares = useShares(isFile && caps.share ? node.id : null);
+  // Group rows of /shares carry no name to show; /grants is the labelled view
+  // of the same rows, read the same way the share dialog reads it.
+  const grants = useGrants(isFile && caps.share ? node.id : null);
+  const access = [
+    ...(grants.data ?? []).map((g) => ({ ...g, kind: "group" as const, label: g.group_name })),
+    ...(shares.data ?? [])
+      .filter((s) => s.kind !== "group")
+      .map((s) => ({
+        ...s,
+        label:
+          s.kind === "link" ? t`Anyone with the link` : s.grantee_name || s.grantee_email || "",
+      })),
+  ];
   const versions = useVersions(isFile ? node.id : null);
   const ownerName = node.owner;
 
@@ -359,21 +372,24 @@ function NodeDetails({ node }: { node: Node }) {
           <SectionLabel>
             <Trans>Sharing</Trans>
           </SectionLabel>
-          {shares.isPending ? (
+          {shares.isPending || grants.isPending ? (
             <p className="text-muted-foreground text-[11px]">{t`Loading…`}</p>
-          ) : shares.data && shares.data.length > 0 ? (
+          ) : access.length > 0 ? (
             <div className="flex flex-col gap-1.5">
-              {shares.data.map((share) => (
+              {access.map((share) => (
                 <div key={share.id} className="flex items-center gap-2">
                   <Avatar size="sm" className="shrink-0">
                     <AvatarFallback>
-                      {/* eslint-disable-next-line lingui/no-unlocalized-strings -- avatar initial for a link share */}
-                      {(share.grantee_email ?? "L").charAt(0).toUpperCase()}
+                      {share.kind === "group" ? (
+                        <Users className="size-3" />
+                      ) : share.kind === "link" ? (
+                        <Link2 className="size-3" />
+                      ) : (
+                        share.label.charAt(0).toUpperCase()
+                      )}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="min-w-0 flex-1 truncate text-xs">
-                    {share.grantee_email ?? t`Anyone with the link`}
-                  </span>
+                  <span className="min-w-0 flex-1 truncate text-xs">{share.label}</span>
                   <span className="text-muted-foreground shrink-0 text-[10px] uppercase">
                     {share.level === "edit" ? t`edit` : t`view`}
                   </span>

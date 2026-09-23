@@ -3,6 +3,22 @@ INSERT INTO shares (node_id, kind, token_hash, grantee_user_id, level, can_downl
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 RETURNING *;
 
+-- name: UpsertDirectShare :one
+-- shares_direct_uniq makes re-sharing with the same person an update rather
+-- than a second row that resolution would OR with the first — which made
+-- narrowing someone's access impossible without revoking every row.
+INSERT INTO shares (node_id, kind, grantee_user_id, level, can_download, can_share, expires_at, created_by)
+VALUES (@node_id, 'direct', @grantee_user_id, @level, @can_download, @can_share, @expires_at, @created_by)
+ON CONFLICT (node_id, grantee_user_id) WHERE kind = 'direct'
+DO UPDATE SET level = EXCLUDED.level, can_download = EXCLUDED.can_download,
+              can_share = EXCLUDED.can_share, expires_at = EXCLUDED.expires_at,
+              created_by = EXCLUDED.created_by
+RETURNING *;
+
+-- name: GetShareOnNode :one
+-- One share row, only if it sits on the node the request authorised against.
+SELECT * FROM shares WHERE id = $1 AND node_id = $2 LIMIT 1;
+
 -- name: GetShareByToken :one
 SELECT * FROM shares
 WHERE token_hash = $1

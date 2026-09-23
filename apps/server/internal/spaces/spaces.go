@@ -36,6 +36,14 @@ func NewService(q *store.Queries) *Service {
 	return &Service{q: q}
 }
 
+// inTx runs fn with a copy of the service bound to one transaction. Nested
+// calls — Create calling AddMember — open savepoints.
+func (s *Service) inTx(ctx context.Context, fn func(*Service) error) error {
+	return s.q.InTx(ctx, func(q *store.Queries) error {
+		return fn(&Service{q: q})
+	})
+}
+
 // EveryoneGroupName / AdminGroupName are the display names of the two
 // automatic groups every space has. Both are immutable: no rename, no delete,
 // no hand-edited membership (Everyone) — Admin membership is the admin role,
@@ -55,7 +63,20 @@ const (
 // every pre-existing space. The archive root carries the one grant the server
 // makes on its own: edit+download+share to the Admin group, so a departed
 // member's content always has a custodian.
+//
+// All of it is one transaction: a space missing either group, its archive or
+// the archive grant breaks invariants the rest of the system assumes.
 func (s *Service) Create(ctx context.Context, name string, ownerID pgtype.UUID) (store.Space, error) {
+	var sp store.Space
+	err := s.inTx(ctx, func(s *Service) error {
+		var err error
+		sp, err = s.create(ctx, name, ownerID)
+		return err
+	})
+	return sp, err
+}
+
+func (s *Service) create(ctx context.Context, name string, ownerID pgtype.UUID) (store.Space, error) {
 	sp, err := s.q.CreateSpace(ctx, store.CreateSpaceParams{Name: name, OwnerID: ownerID})
 	if err != nil {
 		return store.Space{}, err
@@ -155,8 +176,13 @@ func (s *Service) RequireAdmin(ctx context.Context, spaceID, userID pgtype.UUID)
 
 // AddMember adds the user to the space and its Everyone group, and to the
 // Admin group when asAdmin. Only admins may manage members (checked by
-// caller).
+// caller). One transaction, so "member of the space" and "member of
+// Everyone" never disagree.
 func (s *Service) AddMember(ctx context.Context, spaceID, userID pgtype.UUID, asAdmin bool) error {
+	return s.inTx(ctx, func(s *Service) error { return s.addMember(ctx, spaceID, userID, asAdmin) })
+}
+
+func (s *Service) addMember(ctx context.Context, spaceID, userID pgtype.UUID, asAdmin bool) error {
 	if err := s.q.AddSpaceMember(ctx, store.AddSpaceMemberParams{
 		SpaceID: spaceID,
 		UserID:  userID,
@@ -261,13 +287,15 @@ func (s *Service) RequireNotLastAdmin(ctx context.Context, spaceID, userID pgtyp
 // standing grant nothing, and what remains can wait for CompleteDeparture and
 // a human. Idempotent, because every sync path may observe the same departure.
 func (s *Service) RevokeMembership(ctx context.Context, spaceID, userID pgtype.UUID) error {
-	if err := s.q.RemoveUserFromSpaceGroups(ctx, store.RemoveUserFromSpaceGroupsParams{
-		SpaceID: spaceID,
-		UserID:  userID,
-	}); err != nil {
-		return err
-	}
-	return s.q.RemoveSpaceMember(ctx, store.RemoveSpaceMemberParams{SpaceID: spaceID, UserID: userID})
+	return s.inTx(ctx, func(s *Service) error {
+		if err := s.q.RemoveUserFromSpaceGroups(ctx, store.RemoveUserFromSpaceGroupsParams{
+			SpaceID: spaceID,
+			UserID:  userID,
+		}); err != nil {
+			return err
+		}
+		return s.q.RemoveSpaceMember(ctx, store.RemoveSpaceMemberParams{SpaceID: spaceID, UserID: userID})
+	})
 }
 
 // CompleteDeparture hands over what a departed member left behind.
@@ -287,7 +315,16 @@ func (s *Service) RevokeMembership(ctx context.Context, spaceID, userID pgtype.U
 //
 // The membership rows are already gone by the time this runs: RevokeMembership
 // dropped them when the departure was detected.
+//
+// The whole hand-over is one transaction. Half of it — grants gone but roots
+// not archived, or ownership climbed but the archive grant not re-seated —
+// is a state no reader of the tree expects, and retrying from it would not
+// be idempotent.
 func (s *Service) CompleteDeparture(ctx context.Context, spaceID, userID, actorID pgtype.UUID) error {
+	return s.inTx(ctx, func(s *Service) error { return s.completeDeparture(ctx, spaceID, userID, actorID) })
+}
+
+func (s *Service) completeDeparture(ctx context.Context, spaceID, userID, actorID pgtype.UUID) error {
 	if err := s.q.DeleteSharesByGranteeInSpace(ctx, store.DeleteSharesByGranteeInSpaceParams{
 		SpaceID: spaceID, GranteeUserID: userID,
 	}); err != nil {
@@ -373,8 +410,11 @@ func (s *Service) CompleteDeparture(ctx context.Context, spaceID, userID, actorI
 // " (n)" suffix when a live sibling already holds the name — the same
 // collision rule fs.Restore uses.
 func (s *Service) moveToArchive(ctx context.Context, nodeID, archiveRoot pgtype.UUID) error {
-	err := s.q.MoveUnderArchiveRoot(ctx, store.MoveUnderArchiveRootParams{
-		ID: nodeID, ParentID: archiveRoot,
+	// Every write that may collide runs in its own savepoint: inside the
+	// departure transaction a unique violation would otherwise abort the lot.
+	try := func(fn func(q *store.Queries) error) error { return s.q.InTx(ctx, fn) }
+	err := try(func(q *store.Queries) error {
+		return q.MoveUnderArchiveRoot(ctx, store.MoveUnderArchiveRootParams{ID: nodeID, ParentID: archiveRoot})
 	})
 	if !isUniqueViolation(err) {
 		return err
@@ -385,7 +425,9 @@ func (s *Service) moveToArchive(ctx context.Context, nodeID, archiveRoot pgtype.
 	}
 	for attempt := 2; attempt <= 50; attempt++ {
 		name := fmt.Sprintf("%s (%d)", node.Name, attempt)
-		if err := s.q.RenameNode(ctx, store.RenameNodeParams{ID: nodeID, Name: name}); err == nil {
+		if err := try(func(q *store.Queries) error {
+			return q.RenameNode(ctx, store.RenameNodeParams{ID: nodeID, Name: name})
+		}); err == nil {
 			return s.q.MoveUnderArchiveRoot(ctx, store.MoveUnderArchiveRootParams{
 				ID: nodeID, ParentID: archiveRoot,
 			})

@@ -7,8 +7,10 @@ import type {
   AdminSettingsMap,
   AdminStats,
   AdminUser,
+  CreateShareBody,
   DocumentKind,
   EditSession,
+  InheritedAccess,
   MoveImpact,
   Node,
   RecentNode,
@@ -401,7 +403,11 @@ export async function getShares(nodeId: string): Promise<Share[]> {
   return res.json() as Promise<Share[]>;
 }
 
-export async function createShare(nodeId: string, body: Record<string, unknown>): Promise<Share> {
+/**
+ * Creates a share, or — for a direct share to someone who already holds one
+ * on this node — updates it: 201 created, 200 updated, same body either way.
+ */
+export async function createShare(nodeId: string, body: CreateShareBody): Promise<Share> {
   const res = await api.post(`api/v1/nodes/${nodeId}/shares`, { json: body });
   if (!res.ok) throw new ApiError(res.status, await res.text());
   return res.json() as Promise<Share>;
@@ -410,6 +416,17 @@ export async function createShare(nodeId: string, body: Record<string, unknown>)
 export async function revokeShare(nodeId: string, shareId: string): Promise<void> {
   const res = await api.delete(`api/v1/nodes/${nodeId}/shares/${shareId}`);
   if (!res.ok) throw new ApiError(res.status, await res.text());
+}
+
+/**
+ * Everyone reaching this node from above it: owners and ancestor grants. The
+ * node's own grants are `getShares`/`getGrants`; together they are the whole
+ * answer to who can open it. Takes share on the node, like `getShares`.
+ */
+export async function getInheritedAccess(nodeId: string): Promise<InheritedAccess[]> {
+  const res = await api.get(`api/v1/nodes/${nodeId}/inherited-access`);
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<InheritedAccess[]>;
 }
 
 // ─── Share Links ─────────────────────────────────────────────────────────────

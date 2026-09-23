@@ -64,6 +64,14 @@ const (
 	// there may be no account to point at yet.
 	KindMemberInvited   Kind = "member_invited"
 	KindSettingsUpdated Kind = "settings_updated"
+	// Groups decide who a group grant reaches, so changing one is changing
+	// access — and an admin adding somebody to a group is the one way space
+	// administration turns into file access.
+	KindGroupCreated       Kind = "group_created"
+	KindGroupUpdated       Kind = "group_updated"
+	KindGroupDeleted       Kind = "group_deleted"
+	KindGroupMemberAdded   Kind = "group_member_added"
+	KindGroupMemberRemoved Kind = "group_member_removed"
 
 	// Reads. Only intentional ones: thumbnails, the editor's own fetch of
 	// the bytes and Range continuations are not separate events.

@@ -866,6 +866,87 @@ func (q *Queries) ListForeignTopmostInSubtree(ctx context.Context, arg ListForei
 	return items, nil
 }
 
+const listInheritedAccess = `-- name: ListInheritedAccess :many
+WITH RECURSIVE chain AS (
+    SELECT n.id, n.parent_id, n.created_by, n.team_root_id, n.name, 0 AS depth
+    FROM nodes n WHERE n.id = $1
+  UNION ALL
+    SELECT p.id, p.parent_id, p.created_by, p.team_root_id, p.name, c.depth + 1
+    FROM chain c JOIN nodes p ON p.id = c.parent_id
+    WHERE c.depth < 100
+)
+SELECT 'owner'::text AS kind,
+       u.id AS principal_id,
+       COALESCE(NULLIF(u.display_name, ''), NULLIF(u.name, ''), u.email)::text AS name,
+       c.id AS via_id, c.name::text AS via_name, c.depth::int AS depth,
+       'edit'::share_level AS level, true AS can_download, true AS can_share
+FROM chain c JOIN users u ON u.id = c.created_by
+WHERE c.team_root_id IS NULL
+UNION ALL
+SELECT CASE s.kind WHEN 'group' THEN 'group' WHEN 'link' THEN 'link' ELSE 'user' END::text,
+       COALESCE(s.grantee_user_id, s.grantee_group_id, s.id),
+       COALESCE(g.name,
+                NULLIF(gu.display_name, ''), NULLIF(gu.name, ''), gu.email,
+                'Anyone with the link')::text,
+       c.id, c.name::text, c.depth::int,
+       s.level, s.can_download, s.can_share
+FROM chain c
+JOIN shares s ON s.node_id = c.id
+LEFT JOIN groups g ON g.id = s.grantee_group_id
+LEFT JOIN users gu ON gu.id = s.grantee_user_id
+WHERE c.depth > 0 AND (s.expires_at IS NULL OR s.expires_at > now())
+ORDER BY depth, kind, name
+`
+
+type ListInheritedAccessRow struct {
+	Kind        string      `json:"kind"`
+	PrincipalID pgtype.UUID `json:"principal_id"`
+	Name        string      `json:"name"`
+	ViaID       pgtype.UUID `json:"via_id"`
+	ViaName     string      `json:"via_name"`
+	Depth       int32       `json:"depth"`
+	Level       ShareLevel  `json:"level"`
+	CanDownload bool        `json:"can_download"`
+	CanShare    bool        `json:"can_share"`
+}
+
+// Who reaches @node_id from ABOVE it, with what, and through which folder —
+// the half of "who can open this" the node's own share rows do not show.
+// Owners are the creator of the node itself (depth 0) and of every ancestor,
+// outside a team folder only; grants are those on a strict ancestor, since
+// grants on the node itself are listed by ListSharesForNode/ListGrantsForNode.
+// A principal can appear more than once (several folders above); the caller
+// keeps the nearest.
+func (q *Queries) ListInheritedAccess(ctx context.Context, nodeID pgtype.UUID) ([]ListInheritedAccessRow, error) {
+	rows, err := q.db.Query(ctx, listInheritedAccess, nodeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListInheritedAccessRow
+	for rows.Next() {
+		var i ListInheritedAccessRow
+		if err := rows.Scan(
+			&i.Kind,
+			&i.PrincipalID,
+			&i.Name,
+			&i.ViaID,
+			&i.ViaName,
+			&i.Depth,
+			&i.Level,
+			&i.CanDownload,
+			&i.CanShare,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSharedWithMe = `-- name: ListSharedWithMe :many
 SELECT DISTINCT n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name, n.current_version_id, n.deleted_at, n.deleted_by, n.created_by, n.created_at, n.team_root_id FROM nodes n
 JOIN spaces s ON s.id = n.space_id

@@ -142,6 +142,37 @@ func (q *Queries) GetShareByToken(ctx context.Context, tokenHash pgtype.Text) (S
 	return i, err
 }
 
+const getShareOnNode = `-- name: GetShareOnNode :one
+SELECT id, tenant_id, node_id, kind, token_hash, grantee_user_id, grantee_group_id, level, can_download, can_share, expires_at, created_by, created_at FROM shares WHERE id = $1 AND node_id = $2 LIMIT 1
+`
+
+type GetShareOnNodeParams struct {
+	ID     pgtype.UUID `json:"id"`
+	NodeID pgtype.UUID `json:"node_id"`
+}
+
+// One share row, only if it sits on the node the request authorised against.
+func (q *Queries) GetShareOnNode(ctx context.Context, arg GetShareOnNodeParams) (Share, error) {
+	row := q.db.QueryRow(ctx, getShareOnNode, arg.ID, arg.NodeID)
+	var i Share
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.NodeID,
+		&i.Kind,
+		&i.TokenHash,
+		&i.GranteeUserID,
+		&i.GranteeGroupID,
+		&i.Level,
+		&i.CanDownload,
+		&i.CanShare,
+		&i.ExpiresAt,
+		&i.CreatedBy,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const listSharesForNode = `-- name: ListSharesForNode :many
 SELECT id, tenant_id, node_id, kind, token_hash, grantee_user_id, grantee_group_id, level, can_download, can_share, expires_at, created_by, created_at FROM shares WHERE node_id = $1 ORDER BY created_at DESC
 `
@@ -323,4 +354,56 @@ func (q *Queries) NodesWithLiveShares(ctx context.Context, nodeIds []pgtype.UUID
 		return nil, err
 	}
 	return items, nil
+}
+
+const upsertDirectShare = `-- name: UpsertDirectShare :one
+INSERT INTO shares (node_id, kind, grantee_user_id, level, can_download, can_share, expires_at, created_by)
+VALUES ($1, 'direct', $2, $3, $4, $5, $6, $7)
+ON CONFLICT (node_id, grantee_user_id) WHERE kind = 'direct'
+DO UPDATE SET level = EXCLUDED.level, can_download = EXCLUDED.can_download,
+              can_share = EXCLUDED.can_share, expires_at = EXCLUDED.expires_at,
+              created_by = EXCLUDED.created_by
+RETURNING id, tenant_id, node_id, kind, token_hash, grantee_user_id, grantee_group_id, level, can_download, can_share, expires_at, created_by, created_at
+`
+
+type UpsertDirectShareParams struct {
+	NodeID        pgtype.UUID        `json:"node_id"`
+	GranteeUserID pgtype.UUID        `json:"grantee_user_id"`
+	Level         ShareLevel         `json:"level"`
+	CanDownload   bool               `json:"can_download"`
+	CanShare      bool               `json:"can_share"`
+	ExpiresAt     pgtype.Timestamptz `json:"expires_at"`
+	CreatedBy     pgtype.UUID        `json:"created_by"`
+}
+
+// shares_direct_uniq makes re-sharing with the same person an update rather
+// than a second row that resolution would OR with the first — which made
+// narrowing someone's access impossible without revoking every row.
+func (q *Queries) UpsertDirectShare(ctx context.Context, arg UpsertDirectShareParams) (Share, error) {
+	row := q.db.QueryRow(ctx, upsertDirectShare,
+		arg.NodeID,
+		arg.GranteeUserID,
+		arg.Level,
+		arg.CanDownload,
+		arg.CanShare,
+		arg.ExpiresAt,
+		arg.CreatedBy,
+	)
+	var i Share
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.NodeID,
+		&i.Kind,
+		&i.TokenHash,
+		&i.GranteeUserID,
+		&i.GranteeGroupID,
+		&i.Level,
+		&i.CanDownload,
+		&i.CanShare,
+		&i.ExpiresAt,
+		&i.CreatedBy,
+		&i.CreatedAt,
+	)
+	return i, err
 }

@@ -1,4 +1,4 @@
-import type { Node } from "./types";
+import type { GrantCaps, Node } from "./types";
 
 /**
  * What the current user may do to one node, as the server resolved it.
@@ -63,4 +63,21 @@ export function commonCaps(nodes: Node[]): NodeCaps {
 export function canRestructure(node: Node): boolean {
   const c = capsOf(node);
   return node.team_folder ? c.share : c.edit;
+}
+
+/**
+ * Whether `caps` holds everything `grant` hands over.
+ *
+ * The client-side mirror of the server's `Caps.Covers`: you can only give out
+ * what you hold, and only change or revoke a grant no wider than your own
+ * access — anything else is a 403. So a grant row the caller does not cover
+ * carries no controls at all, and an option the caller does not hold is not
+ * offered when granting.
+ */
+export function covers(caps: NodeCaps, grant: GrantCaps): boolean {
+  return (
+    (grant.level !== "edit" || caps.edit) &&
+    (!grant.can_download || caps.download) &&
+    (!grant.can_share || caps.share)
+  );
 }

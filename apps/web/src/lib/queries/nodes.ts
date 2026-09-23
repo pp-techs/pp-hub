@@ -6,6 +6,7 @@ import { useLingui } from "@lingui/react/macro";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  ApiError,
   copyNode,
   createDocument,
   createFolder,
@@ -82,6 +83,9 @@ export function useMoveImpact(nodeIds: string[], parentId: string | undefined, e
       } satisfies MoveImpact;
     },
     enabled: enabled && nodeIds.length > 0,
+    // A refusal is an answer, not a flake: asking again only keeps the
+    // server's sentence off the dialog for another second.
+    retry: (failures, e) => failures < 1 && !(e instanceof ApiError && e.status < 500),
   });
 }
 

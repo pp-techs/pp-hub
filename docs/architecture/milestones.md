@@ -1088,6 +1088,44 @@ through the existing job queue — no per-person opt-out; a threshold of 0 turns
 alerts off. Only one rule ships: `login_failed` rows mostly carry no user, so
 a per-account rule would have nothing to key on.
 
+## M36 — Sharing Hardening ✅ done
+
+An audit of the share flow against the model found ways around it; each is
+now refused server-side and pinned by a database test
+(`internal/httpapi/sharing_db_test.go`,
+`internal/spaces/permissions_db_test.go`). Details in
+[permissions.md](permissions.md).
+
+- **Moves are bounded** (`authorizeMove`). Ownership inherits, so an editor
+  without re-share could drop the owner's file into their own folder and
+  come out owning it; and moving someone's file into a team folder took it
+  away from them. Non-owners may not move into more access than they hold nor,
+  without `CapShare`, change who reaches the node; moving personal content
+  into a team folder takes its creator, with no foreign content beneath.
+  `move-impact` applies the same rules.
+- **Changing or revoking a grant takes covering it**, like creating one: a
+  viewer with re-share can no longer strip an editor. Removing the last
+  manager of a team folder answers **409**.
+- **One direct grant per (node, person)** (`0009_direct_share_uniq.sql`).
+  Re-sharing is an upsert; `POST /nodes/{id}/shares` takes `user_id`, not
+  `email` (**breaking** for API callers), and answers "unknown" and "not a
+  member" identically. `DELETE /nodes/{id}/grants/{groupID}` answers 404 when
+  there is nothing to revoke.
+- **Links follow their creator's download**, not only their share, and the
+  anonymous landing page no longer falls back to the sharer's email.
+- **"Shared with me" requires current membership** on its granted branch too.
+- **Admins cannot add themselves to a group that opens files**, and every
+  group change is a `security_events` row.
+- **Multi-row writes are transactions** (`store.Queries.InTx`, savepoints when
+  nested): move, team-folder creation with its manager grant, purge, space
+  creation, add/revoke membership, completing a departure.
+- **The share dialog shows the whole answer**:
+  `GET /nodes/{id}/inherited-access` lists owners and ancestor grants; existing
+  grants are edited in place; controls the caller does not hold are left out;
+  link expiry is a preset and the one-time URL is shown inline.
+- `httpapi/permissions_test.go` is gone: it asserted `t.Log` calls and a
+  test-local helper, not the product.
+
 ## Upcoming — M27 Onward 🚧 not done
 
 Everything above shipped, including the P0 register in full as of M24;

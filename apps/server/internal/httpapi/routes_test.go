@@ -87,6 +87,7 @@ var clientRoutes = []string{
 	"POST /api/v1/nodes/{nodeID}/shares",
 	"GET /api/v1/nodes/{nodeID}/shares",
 	"DELETE /api/v1/nodes/{nodeID}/shares/{shareID}",
+	"GET /api/v1/nodes/{nodeID}/inherited-access",
 	"POST /api/v1/nodes/{nodeID}/edit-session",
 
 	"GET /s/{token}/",

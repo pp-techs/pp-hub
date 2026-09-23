@@ -21,7 +21,7 @@ msgstr "Đã sao chép “{nodeName}” — dán vào thư mục khác"
 msgid "“{nodeName}” cut — paste it in another folder"
 msgstr "Đã cắt “{nodeName}” — dán vào thư mục khác"
 
-#: src/components/share-dialog.tsx:361
+#: src/components/share-dialog.tsx:466
 msgid "(included with edit)"
 msgstr "(bao gồm trong quyền chỉnh sửa)"
 
@@ -99,7 +99,7 @@ msgstr "{count, plural, one {Thư mục này chứa # mục do người khác t�
 msgid "{count, plural, other {# of these files are already in this folder.}}"
 msgstr "{count, plural, other {# tệp trong số này đã có trong thư mục.}}"
 
-#: src/components/move-dialog.tsx:77
+#: src/components/move-dialog.tsx:88
 msgid "{count, plural, other {Move # items}}"
 msgstr "{count, plural, other {Di chuyển # mục}}"
 
@@ -148,7 +148,7 @@ msgstr "{folders, plural, one {# thư mục} other {# thư mục}} và {files, p
 msgid "{folders, plural, one {# folder} other {# folders}} and {files, plural, one {# file} other {# files}} selected"
 msgstr "Đã chọn {folders, plural, one {# thư mục} other {# thư mục}} và {files, plural, one {# tệp} other {# tệp}}"
 
-#: src/routes/admin.security.tsx:323
+#: src/routes/admin.security.tsx:328
 msgid "{from}–{to} of {total}"
 msgstr "{from}–{to} trên {total}"
 
@@ -168,7 +168,7 @@ msgstr "{itemCount, plural, one {# mục} other {# mục}}"
 msgid "{label} — {size}"
 msgstr "{label} — {size}"
 
-#: src/components/move-dialog.tsx:169
+#: src/components/move-dialog.tsx:187
 msgid "{listed} and {rest, plural, one {# more} other {# more}}"
 msgstr "{listed} và {rest, plural, one {# mục nữa} other {# mục nữa}}"
 
@@ -185,7 +185,7 @@ msgstr "Đã truyền {loadedSize}"
 msgid "{MIN_QUERY_LENGTH, plural, one {Type at least # character to search.} other {Type at least # characters to search.}}"
 msgstr "{MIN_QUERY_LENGTH, plural, one {Nhập ít nhất # ký tự để tìm kiếm.} other {Nhập ít nhất # ký tự để tìm kiếm.}}"
 
-#: src/lib/queries/nodes.ts:217
+#: src/lib/queries/nodes.ts:221
 msgid "{moved, plural, one {Moved # item} other {Moved # items}}"
 msgstr "{moved, plural, one {Đã di chuyển # mục} other {Đã di chuyển # mục}}"
 
@@ -197,7 +197,7 @@ msgstr "{n, plural, one {# đã tạm khoá} other {# đã tạm khoá}}"
 msgid "{n, plural, one {Paste # item} other {Paste # items}}"
 msgstr "{n, plural, one {Dán # mục} other {Dán # mục}}"
 
-#: src/components/share-dialog.tsx:458
+#: src/components/share-dialog.tsx:590
 msgid "{name} no longer has access"
 msgstr "{name} không còn quyền truy cập"
 
@@ -229,7 +229,7 @@ msgstr "{purged, plural, one {Đã xoá vĩnh viễn # mục} other {Đã xoá v
 msgid "{rescued, plural, one {# item created by other people moved to their owner’s top level instead.} other {# items created by other people moved to their owner’s top level instead.}}"
 msgstr "{rescued, plural, one {# mục do người khác tạo đã được chuyển lên cấp cao nhất của chủ sở hữu.} other {# mục do người khác tạo đã được chuyển lên cấp cao nhất của chủ sở hữu.}}"
 
-#: src/components/share-dialog.tsx:613
+#: src/components/share-dialog.tsx:847
 msgid "{revokeWho} loses access to this {nodeKind, select, dir {folder} other {file}}, but keeps the {revokeOwned, plural, one {# item} other {# items}} they created inside it — ownership is theirs, so those appear at their own top level."
 msgstr "{revokeWho} mất quyền truy cập vào {nodeKind, select, dir {thư mục} other {tệp}} này, nhưng vẫn giữ {revokeOwned, plural, one {# mục} other {# mục}} họ đã tạo bên trong — quyền sở hữu thuộc về họ, nên các mục đó xuất hiện ở cấp cao nhất của họ."
 
@@ -237,7 +237,7 @@ msgstr "{revokeWho} mất quyền truy cập vào {nodeKind, select, dir {thư m
 msgid "{selected, plural, one {# selected} other {# selected}}"
 msgstr "{selected, plural, one {Đã chọn #} other {Đã chọn #}}"
 
-#: src/components/share-dialog.tsx:192
+#: src/components/share-dialog.tsx:285
 msgid "{shared, plural, one {# grantee} other {# grantees}}"
 msgstr "{shared, plural, one {# người được cấp quyền} other {# người được cấp quyền}}"
 
@@ -331,11 +331,11 @@ msgstr "Đã dùng {usedSize} trên {quotaSize}."
 msgid "{usedSize} in use."
 msgstr "Đã dùng {usedSize}."
 
-#: src/components/share-dialog.tsx:193
+#: src/components/share-dialog.tsx:286
 msgid "{who} can now edit"
 msgstr "{who} giờ có thể chỉnh sửa"
 
-#: src/components/share-dialog.tsx:193
+#: src/components/share-dialog.tsx:286
 msgid "{who} can now view"
 msgstr "{who} giờ có thể xem"
 
@@ -399,6 +399,18 @@ msgstr "<0>Giữ cả hai</0> để lưu song song, với tên “{kept}”. <1>
 msgid "0 turns alerts off. Alerts are emailed to administrators when mail is configured."
 msgstr ""
 
+#: src/components/share-dialog.tsx:94
+msgid "1 day"
+msgstr "1 ngày"
+
+#: src/components/share-dialog.tsx:96
+msgid "30 days"
+msgstr "30 ngày"
+
+#: src/components/share-dialog.tsx:95
+msgid "7 days"
+msgstr "7 ngày"
+
 #: src/components/upload-conflict-dialog.tsx:83
 msgid "A file with this name is already in this folder."
 msgstr "Đã có tệp trùng tên trong thư mục này."
@@ -407,11 +419,15 @@ msgstr "Đã có tệp trùng tên trong thư mục này."
 msgid "A top-level folder in {spaceName} that nobody owns personally: access to everything inside it is managed through Share, so removing someone really removes them, even from files they uploaded. It stays with the team when whoever created it leaves."
 msgstr "Một thư mục cấp cao nhất trong {spaceName} không thuộc sở hữu cá nhân của ai: quyền truy cập mọi thứ bên trong được quản lý qua Chia sẻ, nên khi gỡ một người thì họ thực sự bị gỡ, kể cả khỏi các tệp do họ tải lên. Thư mục vẫn thuộc về nhóm khi người tạo ra nó rời đi."
 
-#: src/components/share-dialog.tsx:559
+#: src/components/share-dialog.tsx:755
 msgid "Access"
 msgstr "Quyền truy cập"
 
-#: src/components/share-dialog.tsx:271
+#: src/components/share-dialog.tsx:703
+msgid "Access from the folders above. Change these on the folder they come from."
+msgstr "Quyền truy cập từ các thư mục phía trên. Hãy thay đổi chúng tại thư mục gốc của quyền đó."
+
+#: src/components/share-dialog.tsx:371
 msgid "Access given here also opens everything inside this folder."
 msgstr "Quyền cấp ở đây cũng mở mọi thứ bên trong thư mục này."
 
@@ -419,11 +435,11 @@ msgstr "Quyền cấp ở đây cũng mở mọi thứ bên trong thư mục nà
 msgid "Access is given group → folder. Membership of the space opens nothing on its own."
 msgstr "Quyền được cấp theo hướng nhóm → thư mục. Việc là thành viên của không gian tự nó không mở quyền nào."
 
-#: src/components/share-dialog.tsx:332
+#: src/components/share-dialog.tsx:435
 msgid "Access level"
 msgstr "Mức truy cập"
 
-#: src/components/share-dialog.tsx:235
+#: src/components/share-dialog.tsx:323
 msgid "Access revoked"
 msgstr "Đã thu hồi quyền truy cập"
 
@@ -489,7 +505,7 @@ msgstr "Thêm người vào nhóm này…"
 msgid "Add star"
 msgstr "Gắn sao"
 
-#: src/components/preview-panel.tsx:339
+#: src/components/preview-panel.tsx:352
 msgid "Added by {ownerName}"
 msgstr "Được thêm bởi {ownerName}"
 
@@ -527,7 +543,7 @@ msgstr "đã thu hồi quyền quản trị"
 msgid "Admin sections"
 msgstr "Các mục quản trị"
 
-#: src/components/share-dialog.tsx:439
+#: src/components/share-dialog.tsx:549
 msgid "Admins"
 msgstr "Quản trị viên"
 
@@ -555,7 +571,7 @@ msgstr "Tất cả"
 msgid "all active"
 msgstr "tất cả đang hoạt động"
 
-#: src/routes/admin.security.tsx:104
+#: src/routes/admin.security.tsx:109
 msgid "All events"
 msgstr "Tất cả sự kiện"
 
@@ -563,16 +579,17 @@ msgstr "Tất cả sự kiện"
 msgid "All transfers complete"
 msgstr "Đã hoàn tất mọi lượt truyền"
 
-#: src/components/share-dialog.tsx:358
-#: src/components/share-dialog.tsx:568
+#: src/components/share-dialog.tsx:463
+#: src/components/share-dialog.tsx:764
 msgid "Allow download"
 msgstr "Cho phép tải xuống"
 
-#: src/components/share-dialog.tsx:373
+#: src/components/share-dialog.tsx:480
+#: src/components/share-dialog.tsx:961
 msgid "Allow re-sharing"
 msgstr "Cho phép chia sẻ lại"
 
-#: src/components/move-dialog.tsx:112
+#: src/components/move-dialog.tsx:130
 msgid "Already here"
 msgstr "Đã có ở đây"
 
@@ -584,12 +601,13 @@ msgstr "Đã tồn tại tài khoản với địa chỉ email này ở một nh
 msgid "An address that already has an account joins immediately. Any other address is emailed an invitation by the identity provider and appears here once accepted."
 msgstr "Địa chỉ đã có tài khoản sẽ tham gia ngay. Mọi địa chỉ khác sẽ được nhà cung cấp danh tính gửi lời mời qua email và xuất hiện ở đây sau khi chấp nhận."
 
-#: src/components/share-dialog.tsx:550
+#: src/components/share-dialog.tsx:743
 msgid "Anyone holding the link can view this item without signing in. A link never carries editing, and nobody can re-share it onward — download is the one choice it offers."
 msgstr "Bất kỳ ai có liên kết đều có thể xem mục này mà không cần đăng nhập. Liên kết không bao giờ kèm quyền chỉnh sửa và không ai có thể chia sẻ lại — tải xuống là lựa chọn duy nhất mà nó cung cấp."
 
-#: src/components/preview-panel.tsx:375
-#: src/components/share-dialog.tsx:491
+#: src/components/preview-panel.tsx:267
+#: src/components/share-dialog.tsx:630
+#: src/components/share-dialog.tsx:994
 msgid "Anyone with the link"
 msgstr "Bất kỳ ai có liên kết"
 
@@ -651,28 +669,34 @@ msgstr "Đường dẫn"
 msgid "Browse files"
 msgstr "Duyệt tệp"
 
-#: src/components/preview-panel.tsx:381
+#: src/components/preview-panel.tsx:397
 msgid "Can download"
 msgstr "Có thể tải xuống"
 
-#: src/components/share-dialog.tsx:345
+#: src/components/share-dialog.tsx:448
+#: src/components/share-dialog.tsx:946
 msgid "Can edit"
 msgstr "Có thể chỉnh sửa"
 
-#: src/components/preview-panel.tsx:382
+#: src/components/preview-panel.tsx:398
 msgid "Can share"
 msgstr "Có thể chia sẻ"
 
-#: src/components/share-dialog.tsx:342
+#: src/components/share-dialog.tsx:445
+#: src/components/share-dialog.tsx:937
 msgid "Can view"
 msgstr "Có thể xem"
 
+#: src/components/share-dialog.tsx:941
+msgid "Can view + download"
+msgstr "Có thể xem + tải xuống"
+
 #: src/components/confirm-dialog.tsx:71
 #: src/components/group-list.tsx:382
-#: src/components/move-dialog.tsx:109
+#: src/components/move-dialog.tsx:127
 #: src/components/new-document-dialog.tsx:95
 #: src/components/settings/panes/account-security.tsx:44
-#: src/components/share-dialog.tsx:623
+#: src/components/share-dialog.tsx:857
 #: src/components/team-folder-dialog.tsx:87
 #: src/components/upload-conflict-dialog.tsx:120
 msgid "Cancel"
@@ -686,7 +710,17 @@ msgstr "Huỷ {fileName}"
 msgid "Cancelled"
 msgstr "Đã huỷ"
 
-#: src/components/move-dialog.tsx:81
+#: src/components/share-dialog.tsx:565
+#: src/components/share-dialog.tsx:657
+msgid "Change access for {name}"
+msgstr "Thay đổi quyền truy cập của {name}"
+
+#: src/components/share-dialog.tsx:572
+#: src/components/share-dialog.tsx:668
+msgid "Changed access for {name}"
+msgstr "Đã thay đổi quyền truy cập của {name}"
+
+#: src/components/move-dialog.tsx:92
 msgid "Choose a destination folder in {spaceName}."
 msgstr "Chọn thư mục đích trong {spaceName}."
 
@@ -694,7 +728,7 @@ msgstr "Chọn thư mục đích trong {spaceName}."
 msgid "Clear completed"
 msgstr "Xoá mục đã xong"
 
-#: src/routes/admin.security.tsx:266
+#: src/routes/admin.security.tsx:271
 msgid "Clear file filter"
 msgstr ""
 
@@ -723,7 +757,7 @@ msgid "Close transfers"
 msgstr "Đóng danh sách truyền"
 
 #: src/components/folder-tree.tsx:103
-#: src/components/move-dialog.tsx:249
+#: src/components/move-dialog.tsx:267
 msgid "Collapse"
 msgstr "Thu gọn"
 
@@ -773,7 +807,7 @@ msgid "Copied as “{copyName}”"
 msgstr "Đã sao chép thành “{copyName}”"
 
 #: src/components/node-actions.tsx:216
-#: src/components/share-dialog.tsx:221
+#: src/components/share-dialog.tsx:821
 msgid "Copy"
 msgstr "Sao chép"
 
@@ -785,9 +819,18 @@ msgstr "Không thể thêm {address}"
 msgid "Could not add them to the group"
 msgstr "Không thể thêm họ vào nhóm"
 
+#: src/components/share-dialog.tsx:573
+#: src/components/share-dialog.tsx:669
+msgid "Could not change access"
+msgstr "Không thể thay đổi quyền truy cập"
+
 #: src/routes/drive/$spaceId/index.tsx:367
 msgid "Could not copy “{nodeName}”"
 msgstr "Không thể sao chép “{nodeName}”"
+
+#: src/components/share-dialog.tsx:816
+msgid "Could not copy the link"
+msgstr "Không thể sao chép liên kết"
 
 #: src/components/drive-write.tsx:220
 msgid "Could not create “{name}”"
@@ -797,7 +840,7 @@ msgstr "Không thể tạo “{name}”"
 msgid "Could not create folder"
 msgstr "Không thể tạo thư mục"
 
-#: src/components/share-dialog.tsx:226
+#: src/components/share-dialog.tsx:314
 msgid "Could not create link"
 msgstr "Không thể tạo liên kết"
 
@@ -826,11 +869,15 @@ msgstr "Không thể xoá “{name}”"
 msgid "Could not empty the trash"
 msgstr "Không thể dọn sạch thùng rác"
 
+#: src/components/share-dialog.tsx:727
+msgid "Could not load the access that comes from folders above this."
+msgstr "Không thể tải quyền truy cập đến từ các thư mục phía trên."
+
 #: src/components/settings/panes/account-security.tsx:109
 msgid "Could not load your sessions."
 msgstr "Không thể tải các phiên của bạn."
 
-#: src/lib/queries/nodes.ts:212
+#: src/lib/queries/nodes.ts:216
 msgid "Could not move “{nodeName}”"
 msgstr "Không thể di chuyển “{nodeName}”"
 
@@ -842,8 +889,8 @@ msgstr "Không thể dán “{nodeName}”"
 msgid "Could not restore “{name}”"
 msgstr "Không thể khôi phục “{name}”"
 
-#: src/components/share-dialog.tsx:236
-#: src/components/share-dialog.tsx:459
+#: src/components/share-dialog.tsx:324
+#: src/components/share-dialog.tsx:591
 msgid "Could not revoke"
 msgstr "Không thể thu hồi"
 
@@ -856,7 +903,7 @@ msgstr "Không thể lưu"
 msgid "Could not save your notification setting."
 msgstr "Không thể lưu cài đặt thông báo của bạn."
 
-#: src/components/share-dialog.tsx:182
+#: src/components/share-dialog.tsx:275
 msgid "Could not share"
 msgstr "Không thể chia sẻ"
 
@@ -903,7 +950,7 @@ msgstr "Tạo nhóm"
 msgid "Create new space"
 msgstr "Tạo không gian mới"
 
-#: src/components/share-dialog.tsx:596
+#: src/components/share-dialog.tsx:798
 msgid "Create public link"
 msgstr "Tạo liên kết công khai"
 
@@ -927,7 +974,7 @@ msgstr "Đã tạo “{createdName}” trong {destination}"
 msgid "Created “{createdName}” in {label}"
 msgstr "Đã tạo “{createdName}” trong {label}"
 
-#: src/components/share-dialog.tsx:505
+#: src/components/share-dialog.tsx:645
 msgid "Created {owned, plural, one {# item} other {# items}} in here — those stay theirs."
 msgstr "Đã tạo {owned, plural, one {# mục} other {# mục}} ở đây — những mục đó vẫn thuộc về họ."
 
@@ -947,7 +994,7 @@ msgstr "Đang tạo…"
 msgid "Current"
 msgstr "Hiện tại"
 
-#: src/components/share-dialog.tsx:393
+#: src/components/share-dialog.tsx:501
 msgid "Current access"
 msgstr "Quyền truy cập hiện tại"
 
@@ -1063,11 +1110,11 @@ msgstr "Mô tả"
 #: src/components/preview-modal.tsx:146
 #: src/components/preview-panel.tsx:106
 #: src/components/preview-panel.tsx:220
-#: src/components/preview-panel.tsx:321
+#: src/components/preview-panel.tsx:334
 msgid "Details"
 msgstr "Chi tiết"
 
-#: src/routes/admin.security.tsx:309
+#: src/routes/admin.security.tsx:314
 msgid "Device"
 msgstr "Thiết bị"
 
@@ -1075,7 +1122,8 @@ msgstr "Thiết bị"
 msgid "Device signed out"
 msgstr "Đã đăng xuất thiết bị"
 
-#: src/components/share-dialog.tsx:500
+#: src/components/share-dialog.tsx:640
+#: src/components/share-dialog.tsx:1004
 msgid "Direct share"
 msgstr "Chia sẻ trực tiếp"
 
@@ -1115,13 +1163,13 @@ msgstr "Hiển thị thanh bên trên di động."
 msgid "Documents"
 msgstr "Tài liệu"
 
-#: src/components/share-dialog.tsx:244
+#: src/components/share-dialog.tsx:332
 msgid "download"
 msgstr "tải xuống"
 
 #: src/components/node-actions.tsx:135
 #: src/components/preview-modal.tsx:124
-#: src/components/preview-panel.tsx:296
+#: src/components/preview-panel.tsx:309
 #: src/components/selection-bar.tsx:64
 #: src/components/version-list.tsx:71
 #: src/routes/edit/$nodeId.tsx:130
@@ -1159,8 +1207,8 @@ msgstr "Hạn"
 msgid "Each row is a live session. Signing one out takes effect immediately — the device is asked to sign in again the next time it reaches the server."
 msgstr "Mỗi dòng là một phiên đang hoạt động. Đăng xuất một phiên sẽ có hiệu lực ngay — thiết bị sẽ được yêu cầu đăng nhập lại trong lần kết nối tới máy chủ tiếp theo."
 
-#: src/components/preview-panel.tsx:378
-#: src/components/share-dialog.tsx:243
+#: src/components/preview-panel.tsx:394
+#: src/components/share-dialog.tsx:331
 msgid "edit"
 msgstr "chỉnh sửa"
 
@@ -1230,11 +1278,11 @@ msgstr "Biến môi trường"
 msgid "esc to close"
 msgstr "esc để đóng"
 
-#: src/routes/admin.security.tsx:300
+#: src/routes/admin.security.tsx:305
 msgid "Event"
 msgstr "Sự kiện"
 
-#: src/routes/admin.security.tsx:203
+#: src/routes/admin.security.tsx:208
 msgid "Events"
 msgstr "Sự kiện"
 
@@ -1246,7 +1294,7 @@ msgstr "Mọi phiên bản đã lưu của tệp này."
 msgid "Every user and space on this install"
 msgstr "Mọi người dùng và không gian trên bản cài đặt này"
 
-#: src/components/share-dialog.tsx:433
+#: src/components/share-dialog.tsx:543
 msgid "Everyone"
 msgstr "Mọi người"
 
@@ -1258,7 +1306,7 @@ msgstr "Mọi người ở đây đều đã có quyền truy cập."
 msgid "Everyone in this space belongs to this group, and it updates itself as people join and leave. Give it the folders the whole company should see."
 msgstr "Mọi người trong không gian này đều thuộc nhóm này, và nhóm tự cập nhật khi có người tham gia hoặc rời đi. Hãy cấp cho nhóm các thư mục mà cả công ty nên thấy."
 
-#: src/components/share-dialog.tsx:266
+#: src/components/share-dialog.tsx:366
 msgid "Everyone listed here reaches this team folder and everything inside it. Nobody reaches it otherwise, including space admins."
 msgstr "Mọi người trong danh sách này đều truy cập được thư mục nhóm này và mọi thứ bên trong. Ngoài ra không ai truy cập được, kể cả quản trị viên không gian."
 
@@ -1271,7 +1319,7 @@ msgid "Everywhere your access to this space begins. Open one to see what is insi
 msgstr "Nơi bắt đầu mọi quyền truy cập của bạn vào không gian này. Mở một mục để xem bên trong."
 
 #: src/components/folder-tree.tsx:103
-#: src/components/move-dialog.tsx:249
+#: src/components/move-dialog.tsx:267
 msgid "Expand"
 msgstr "Mở rộng"
 
@@ -1283,12 +1331,12 @@ msgstr "Mở rộng Drive của tôi"
 msgid "Expand transfers"
 msgstr "Mở rộng danh sách truyền tải"
 
-#: src/components/share-dialog.tsx:574
+#: src/components/share-dialog.tsx:771
 msgid "Expiration"
 msgstr "Hết hạn"
 
 #: src/components/people-table.tsx:188
-#: src/routes/admin.security.tsx:254
+#: src/routes/admin.security.tsx:259
 msgid "Export CSV"
 msgstr "Xuất CSV"
 
@@ -1323,7 +1371,7 @@ msgid "Female"
 msgstr "Nữ"
 
 #: src/components/preview-modal.tsx:155
-#: src/components/preview-panel.tsx:324
+#: src/components/preview-panel.tsx:337
 msgid "File"
 msgstr "Tệp"
 
@@ -1335,7 +1383,7 @@ msgstr ""
 msgid "File access retention must be between 1 and 3650 days"
 msgstr ""
 
-#: src/routes/admin.security.tsx:87
+#: src/routes/admin.security.tsx:92
 msgid "file downloaded"
 msgstr ""
 
@@ -1343,11 +1391,11 @@ msgstr ""
 msgid "file names and details only"
 msgstr "chỉ tên tệp và chi tiết"
 
-#: src/routes/admin.security.tsx:89
+#: src/routes/admin.security.tsx:94
 msgid "file viewed"
 msgstr ""
 
-#: src/routes/admin.security.tsx:262
+#: src/routes/admin.security.tsx:267
 msgid "File: {nodeName}"
 msgstr ""
 
@@ -1371,7 +1419,7 @@ msgstr "Tệp sở hữu"
 msgid "Files you upload or edit in this space show up here."
 msgstr "Các tệp bạn tải lên hoặc chỉnh sửa trong không gian này sẽ xuất hiện ở đây."
 
-#: src/routes/admin.security.tsx:214
+#: src/routes/admin.security.tsx:219
 msgid "Filter by event kind"
 msgstr "Lọc theo loại sự kiện"
 
@@ -1403,11 +1451,11 @@ msgid "Finance"
 msgstr "Tài chính"
 
 #: src/components/node-grid.tsx:278
-#: src/components/preview-panel.tsx:324
+#: src/components/preview-panel.tsx:337
 msgid "Folder"
 msgstr "Thư mục"
 
-#: src/routes/admin.security.tsx:88
+#: src/routes/admin.security.tsx:93
 msgid "folder downloaded"
 msgstr ""
 
@@ -1440,6 +1488,10 @@ msgstr "Vĩnh viễn"
 msgid "Found by the hourly check"
 msgstr "Phát hiện trong lần kiểm tra hằng giờ"
 
+#: src/components/share-dialog.tsx:713
+msgid "From {viaName}"
+msgstr "Từ {viaName}"
+
 #: src/routes/admin.settings.tsx:804
 msgid "From address"
 msgstr "Địa chỉ người gửi"
@@ -1448,11 +1500,11 @@ msgstr "Địa chỉ người gửi"
 msgid "From address is required when an SMTP host is set."
 msgstr "Cần có địa chỉ người gửi khi đã thiết lập máy chủ SMTP."
 
-#: src/routes/admin.security.tsx:227
+#: src/routes/admin.security.tsx:232
 msgid "From date"
 msgstr ""
 
-#: src/components/move-dialog.tsx:139
+#: src/components/move-dialog.tsx:157
 msgid "Gains access: {gaining}."
 msgstr "Được cấp quyền truy cập: {gaining}."
 
@@ -1474,11 +1526,11 @@ msgstr "Chung"
 msgid "General & Branding"
 msgstr "Chung & Thương hiệu"
 
-#: src/components/share-dialog.tsx:273
+#: src/components/share-dialog.tsx:373
 msgid "Give a group or a colleague access to this file."
 msgstr "Cấp quyền truy cập tệp này cho một nhóm hoặc đồng nghiệp."
 
-#: src/components/share-dialog.tsx:281
+#: src/components/share-dialog.tsx:381
 msgid "Give access"
 msgstr "Cấp quyền"
 
@@ -1503,9 +1555,30 @@ msgstr "Lưới"
 msgid "Grid view"
 msgstr "Xem dạng lưới"
 
-#: src/components/share-dialog.tsx:444
+#: src/components/share-dialog.tsx:554
+#: src/components/share-dialog.tsx:1000
 msgid "Group"
 msgstr "Nhóm"
+
+#: src/routes/admin.security.tsx:87
+msgid "group created"
+msgstr "đã tạo nhóm"
+
+#: src/routes/admin.security.tsx:89
+msgid "group deleted"
+msgstr "đã xoá nhóm"
+
+#: src/routes/admin.security.tsx:90
+msgid "group member added"
+msgstr "đã thêm thành viên nhóm"
+
+#: src/routes/admin.security.tsx:91
+msgid "group member removed"
+msgstr "đã xoá thành viên nhóm"
+
+#: src/routes/admin.security.tsx:88
+msgid "group updated"
+msgstr "đã cập nhật nhóm"
 
 #: src/components/people-table.tsx:122
 msgid "Group: {groupName}"
@@ -1521,7 +1594,7 @@ msgstr "Nhóm: Tất cả"
 msgid "Groups"
 msgstr "Nhóm"
 
-#: src/components/share-dialog.tsx:284
+#: src/components/share-dialog.tsx:384
 msgid "Groups and people come from this space. The access below applies to everyone picked."
 msgstr "Nhóm và người dùng đến từ không gian này. Quyền truy cập bên dưới áp dụng cho tất cả những ai được chọn."
 
@@ -1590,7 +1663,7 @@ msgstr "Đã gửi lời mời tới {address}"
 msgid "Invite people"
 msgstr "Mời người dùng"
 
-#: src/routes/admin.security.tsx:306
+#: src/routes/admin.security.tsx:311
 msgid "IP"
 msgstr "IP"
 
@@ -1694,9 +1767,13 @@ msgstr "Sáng"
 msgid "Limits"
 msgstr "Giới hạn"
 
+#: src/components/share-dialog.tsx:815
+msgid "Link copied"
+msgstr "Đã sao chép liên kết"
+
 #: src/components/share-dialog.tsx:219
-msgid "Link created (shown once)"
-msgstr "Đã tạo liên kết (chỉ hiển thị một lần)"
+#~ msgid "Link created (shown once)"
+#~ msgstr "Đã tạo liên kết (chỉ hiển thị một lần)"
 
 #: src/routes/s/$token.tsx:136
 msgid "Link expires {expiresOn}"
@@ -1711,7 +1788,7 @@ msgstr "Danh sách"
 msgid "List view"
 msgstr "Dạng danh sách"
 
-#: src/components/share-dialog.tsx:405
+#: src/components/share-dialog.tsx:513
 msgid "Loading access…"
 msgstr "Đang tải quyền truy cập…"
 
@@ -1730,7 +1807,7 @@ msgstr "Đang tải cài đặt…"
 #: src/components/group-list.tsx:245
 #: src/components/node-table.tsx:52
 #: src/components/preview-content.tsx:208
-#: src/components/preview-panel.tsx:363
+#: src/components/preview-panel.tsx:376
 #: src/components/settings/panes/account-profile.tsx:23
 #: src/components/settings/panes/account-security.tsx:104
 #: src/components/settings/panes/space-danger.tsx:33
@@ -1741,7 +1818,7 @@ msgstr "Đang tải cài đặt…"
 #: src/components/trash-panel.tsx:204
 #: src/components/trash-panel.tsx:247
 #: src/components/version-list.tsx:29
-#: src/routes/admin.security.tsx:280
+#: src/routes/admin.security.tsx:285
 #: src/routes/admin.users.tsx:157
 #: src/routes/drive/$spaceId/home.tsx:152
 #: src/routes/drive/$spaceId/home.tsx:165
@@ -1767,7 +1844,7 @@ msgstr "đăng nhập thất bại"
 msgid "logout"
 msgstr "đăng xuất"
 
-#: src/components/move-dialog.tsx:147
+#: src/components/move-dialog.tsx:165
 msgid "Loses access: {losing}."
 msgstr "Mất quyền truy cập: {losing}."
 
@@ -1796,7 +1873,7 @@ msgstr "Đặt làm quản trị viên"
 msgid "Male"
 msgstr "Nam"
 
-#: src/components/preview-panel.tsx:336
+#: src/components/preview-panel.tsx:349
 msgid "Managed by"
 msgstr "Quản lý bởi"
 
@@ -1870,7 +1947,7 @@ msgstr ""
 #: src/components/node-list.tsx:72
 #: src/components/node-table.tsx:77
 #: src/components/preview-modal.tsx:158
-#: src/components/preview-panel.tsx:347
+#: src/components/preview-panel.tsx:360
 #: src/components/settings/panes/account-general.tsx:45
 #: src/components/space-node-table.tsx:97
 #: src/routes/s/$token.tsx:282
@@ -1889,12 +1966,12 @@ msgstr "Sửa đổi (cũ nhất)"
 msgid "More"
 msgstr "Thêm"
 
-#: src/components/move-dialog.tsx:112
+#: src/components/move-dialog.tsx:130
 #: src/components/selection-bar.tsx:79
 msgid "Move"
 msgstr "Di chuyển"
 
-#: src/components/move-dialog.tsx:75
+#: src/components/move-dialog.tsx:86
 msgid "Move “{name}”"
 msgstr "Di chuyển “{name}”"
 
@@ -1956,6 +2033,10 @@ msgstr "điều hướng"
 msgid "never"
 msgstr "không bao giờ"
 
+#: src/components/share-dialog.tsx:97
+msgid "Never"
+msgstr "Không bao giờ"
+
 #: src/components/nav-create.tsx:45
 msgid "New"
 msgstr "Mới"
@@ -1985,6 +2066,10 @@ msgstr "Thành viên mới mặc định là quản trị viên"
 msgid "New presentation"
 msgstr "Bản trình chiếu mới"
 
+#: src/components/share-dialog.tsx:806
+msgid "New public link"
+msgstr "Liên kết công khai mới"
+
 #: src/components/folder-actions.tsx:99
 #: src/components/new-document-dialog.tsx:60
 msgid "New spreadsheet"
@@ -1995,7 +2080,7 @@ msgstr "Bảng tính mới"
 msgid "New team folder"
 msgstr "Thư mục nhóm mới"
 
-#: src/routes/admin.security.tsx:342
+#: src/routes/admin.security.tsx:347
 msgid "Next"
 msgstr "Tiếp"
 
@@ -2007,15 +2092,15 @@ msgstr "Tệp tiếp theo"
 msgid "No deleted items match"
 msgstr "Không có mục đã xoá nào khớp"
 
-#: src/routes/admin.security.tsx:285
+#: src/routes/admin.security.tsx:290
 msgid "No events match these filters."
 msgstr ""
 
-#: src/routes/admin.security.tsx:287
+#: src/routes/admin.security.tsx:292
 msgid "No events recorded for {filterLabel}."
 msgstr "Không có sự kiện nào được ghi cho {filterLabel}."
 
-#: src/routes/admin.security.tsx:289
+#: src/routes/admin.security.tsx:294
 msgid "No events recorded."
 msgstr "Không có sự kiện nào được ghi."
 
@@ -2036,8 +2121,8 @@ msgid "No matching files or folders"
 msgstr "Không có tệp hoặc thư mục nào khớp"
 
 #: src/components/share-dialog.tsx:409
-msgid "No one else has access yet — only you, and anyone who can reach a folder above this."
-msgstr "Chưa ai khác có quyền truy cập — chỉ bạn và những người truy cập được thư mục cấp trên."
+#~ msgid "No one else has access yet — only you, and anyone who can reach a folder above this."
+#~ msgstr "Chưa ai khác có quyền truy cập — chỉ bạn và những người truy cập được thư mục cấp trên."
 
 #: src/components/people-table.tsx:294
 msgid "No one matches these filters."
@@ -2061,12 +2146,20 @@ msgid "Nobody can see it yet — access to a team folder is given through Share.
 msgstr "Chưa ai thấy được — quyền truy cập thư mục nhóm được cấp qua Chia sẻ."
 
 #: src/components/share-dialog.tsx:396
-msgid "Nobody else reaches this — not even a space admin — unless a line here says so."
-msgstr "Không ai khác truy cập được — kể cả quản trị viên không gian — trừ khi có một dòng ở đây cho phép."
+#~ msgid "Nobody else reaches this — not even a space admin — unless a line here says so."
+#~ msgstr "Không ai khác truy cập được — kể cả quản trị viên không gian — trừ khi có một dòng ở đây cho phép."
+
+#: src/components/share-dialog.tsx:517
+msgid "Nobody has access to this yet."
+msgstr "Chưa có ai có quyền truy cập mục này."
 
 #: src/components/group-list.tsx:250
 msgid "Nobody in this group yet — it opens nothing for anyone."
 msgstr "Chưa có ai trong nhóm này — nhóm chưa mở quyền gì cho ai."
+
+#: src/components/share-dialog.tsx:504
+msgid "Nobody reaches this — not even a space admin — unless a line here says so."
+msgstr "Không ai truy cập được mục này — kể cả quản trị viên không gian — trừ khi có một dòng ở đây cho phép."
 
 #: src/routes/admin.settings.tsx:559
 msgid "None — local relay only"
@@ -2082,7 +2175,7 @@ msgstr "không có lỗi nào"
 msgid "Not set"
 msgstr "Chưa thiết lập"
 
-#: src/components/preview-panel.tsx:389
+#: src/components/preview-panel.tsx:405
 msgid "Not shared."
 msgstr "Chưa chia sẻ."
 
@@ -2152,8 +2245,8 @@ msgstr "mở"
 #: src/components/node-actions.tsx:127
 #: src/components/preview-content.tsx:273
 #: src/components/preview-modal.tsx:115
-#: src/components/preview-panel.tsx:286
-#: src/components/share-dialog.tsx:522
+#: src/components/preview-panel.tsx:299
+#: src/components/share-dialog.tsx:684
 msgid "Open"
 msgstr "Mở"
 
@@ -2162,7 +2255,7 @@ msgstr "Mở"
 msgid "Open in new tab"
 msgstr "Mở trong tab mới"
 
-#: src/routes/admin.security.tsx:90
+#: src/routes/admin.security.tsx:95
 msgid "opened in editor"
 msgstr ""
 
@@ -2197,7 +2290,8 @@ msgstr "Tổng quan"
 #: src/components/node-list.tsx:78
 #: src/components/node-table.tsx:83
 #: src/components/preview-modal.tsx:157
-#: src/components/preview-panel.tsx:344
+#: src/components/preview-panel.tsx:357
+#: src/components/share-dialog.tsx:998
 msgid "Owner"
 msgstr "Chủ sở hữu"
 
@@ -2271,7 +2365,7 @@ msgid "Press D anywhere outside a text field to flip between light and dark."
 msgstr "Nhấn D ở bất kỳ đâu ngoài ô nhập văn bản để chuyển giữa giao diện sáng và tối."
 
 #: src/components/node-actions.tsx:104
-#: src/components/preview-panel.tsx:286
+#: src/components/preview-panel.tsx:299
 msgid "Preview"
 msgstr "Xem trước"
 
@@ -2287,7 +2381,7 @@ msgstr "Bản xem trước chưa sẵn sàng — nó được tạo ngay sau khi
 msgid "Preview queue"
 msgstr "Hàng đợi xem trước"
 
-#: src/routes/admin.security.tsx:334
+#: src/routes/admin.security.tsx:339
 msgid "Previous"
 msgstr "Trước"
 
@@ -2309,8 +2403,9 @@ msgstr "Không tìm thấy hồ sơ."
 msgid "Profile saved"
 msgstr "Đã lưu hồ sơ"
 
-#: src/components/share-dialog.tsx:498
-#: src/components/share-dialog.tsx:547
+#: src/components/share-dialog.tsx:634
+#: src/components/share-dialog.tsx:740
+#: src/components/share-dialog.tsx:1002
 msgid "Public link"
 msgstr "Liên kết công khai"
 
@@ -2318,7 +2413,7 @@ msgstr "Liên kết công khai"
 msgid "Purges in"
 msgstr "Xoá sạch sau"
 
-#: src/components/share-dialog.tsx:245
+#: src/components/share-dialog.tsx:333
 msgid "re-share"
 msgstr "chia sẻ lại"
 
@@ -2353,7 +2448,7 @@ msgstr "Xoá {memberEmail} khỏi {groupName}"
 msgid "Remove {memberEmail} from the space"
 msgstr "Xoá {memberEmail} khỏi không gian"
 
-#: src/components/share-dialog.tsx:317
+#: src/components/share-dialog.tsx:417
 msgid "Remove {name}"
 msgstr "Xoá {name}"
 
@@ -2361,12 +2456,12 @@ msgstr "Xoá {name}"
 msgid "Remove {name} from {groupName}"
 msgstr "Xoá {name} khỏi {groupName}"
 
-#: src/components/share-dialog.tsx:454
+#: src/components/share-dialog.tsx:586
 msgid "Remove {name}'s access"
 msgstr "Xoá quyền truy cập của {name}"
 
-#: src/components/share-dialog.tsx:610
-#: src/components/share-dialog.tsx:633
+#: src/components/share-dialog.tsx:844
+#: src/components/share-dialog.tsx:867
 msgid "Remove access"
 msgstr "Xoá quyền truy cập"
 
@@ -2412,7 +2507,7 @@ msgstr "Đổi tên"
 msgid "Renamed to “{restored}” — the old name was taken."
 msgstr "Đã đổi tên thành “{restored}” — tên cũ đã được sử dụng."
 
-#: src/routes/admin.security.tsx:97
+#: src/routes/admin.security.tsx:102
 msgid "Repeated failed sign-ins"
 msgstr ""
 
@@ -2466,7 +2561,7 @@ msgstr "Thử lại"
 msgid "Revoke"
 msgstr "Thu hồi"
 
-#: src/components/share-dialog.tsx:529
+#: src/components/share-dialog.tsx:692
 msgid "Revoke access for {grantee}"
 msgstr "Thu hồi quyền truy cập của {grantee}"
 
@@ -2474,7 +2569,7 @@ msgstr "Thu hồi quyền truy cập của {grantee}"
 msgid "Revoke admin"
 msgstr "Thu hồi quyền quản trị"
 
-#: src/components/share-dialog.tsx:418
+#: src/components/share-dialog.tsx:526
 msgid "Revoking a group’s access leaves anything its members created in here — those items stay with whoever made them."
 msgstr "Thu hồi quyền truy cập của một nhóm vẫn giữ lại mọi thứ mà thành viên nhóm đã tạo ở đây — các mục đó thuộc về người đã tạo ra chúng."
 
@@ -2528,8 +2623,8 @@ msgid "Searching…"
 msgstr "Đang tìm kiếm…"
 
 #: src/components/share-dialog.tsx:585
-msgid "Seconds; use 0 for no expiration."
-msgstr "Giây; dùng 0 để không hết hạn."
+#~ msgid "Seconds; use 0 for no expiration."
+#~ msgstr "Giây; dùng 0 để không hết hạn."
 
 #: src/components/admin-header.tsx:47
 #: src/components/settings/panes.ts:77
@@ -2541,17 +2636,17 @@ msgstr "Bảo mật"
 msgid "Security & Auditing"
 msgstr "Bảo mật & Kiểm toán"
 
-#: src/routes/admin.security.tsx:91
+#: src/routes/admin.security.tsx:96
 msgid "security alert"
 msgstr ""
 
 #: src/components/nav-user.tsx:129
 #: src/routes/admin.security.tsx:38
-#: src/routes/admin.security.tsx:191
+#: src/routes/admin.security.tsx:196
 msgid "Security log"
 msgstr "Nhật ký bảo mật"
 
-#: src/routes/admin.security.tsx:92
+#: src/routes/admin.security.tsx:97
 msgid "security log exported"
 msgstr ""
 
@@ -2649,14 +2744,14 @@ msgid "Settings sections"
 msgstr "Mục cài đặt"
 
 #: src/components/node-actions.tsx:170
-#: src/components/preview-panel.tsx:305
+#: src/components/preview-panel.tsx:318
 #: src/components/selection-bar.tsx:69
-#: src/components/share-dialog.tsx:383
+#: src/components/share-dialog.tsx:491
 #: src/routes/edit/$nodeId.tsx:115
 msgid "Share"
 msgstr "Chia sẻ"
 
-#: src/components/share-dialog.tsx:262
+#: src/components/share-dialog.tsx:362
 msgid "Share “{nodeName}”"
 msgstr "Chia sẻ “{nodeName}”"
 
@@ -2664,7 +2759,7 @@ msgstr "Chia sẻ “{nodeName}”"
 msgid "share created"
 msgstr "đã tạo chia sẻ"
 
-#: src/routes/admin.security.tsx:370
+#: src/routes/admin.security.tsx:375
 msgid "Share link visitor"
 msgstr ""
 
@@ -2687,11 +2782,11 @@ msgstr "Được chia sẻ với tôi"
 msgid "Shared with you"
 msgstr "Được chia sẻ với bạn"
 
-#: src/components/preview-panel.tsx:360
+#: src/components/preview-panel.tsx:373
 msgid "Sharing"
 msgstr "Chia sẻ"
 
-#: src/routes/admin.security.tsx:396
+#: src/routes/admin.security.tsx:401
 msgid "Show all events for this item"
 msgstr ""
 
@@ -2741,7 +2836,7 @@ msgstr "Đã huỷ đăng nhập."
 #~ msgid "Sign-ins, failures and access changes across this install"
 #~ msgstr "Đăng nhập, lỗi và thay đổi quyền truy cập trên bản cài đặt này"
 
-#: src/routes/admin.security.tsx:193
+#: src/routes/admin.security.tsx:198
 msgid "Sign-ins, failures, access changes and file access across this install"
 msgstr ""
 
@@ -2757,7 +2852,7 @@ msgstr "Thiết bị đã đăng nhập"
 #: src/components/node-list.tsx:75
 #: src/components/node-table.tsx:80
 #: src/components/preview-modal.tsx:156
-#: src/components/preview-panel.tsx:326
+#: src/components/preview-panel.tsx:339
 #: src/components/settings/panes/account-general.tsx:46
 #: src/components/space-node-table.tsx:100
 #: src/components/trash-panel.tsx:297
@@ -2890,7 +2985,7 @@ msgstr "Hệ thống"
 msgid "Team"
 msgstr "Đội"
 
-#: src/components/preview-panel.tsx:336
+#: src/components/preview-panel.tsx:349
 msgid "Team folder"
 msgstr "Thư mục đội"
 
@@ -2927,8 +3022,8 @@ msgstr "Nhà cung cấp danh tính đã từ chối hoàn tất đăng nhập. T
 msgid "The identity provider's response could not be verified. Try again."
 msgstr "Không thể xác minh phản hồi từ nhà cung cấp danh tính. Thử lại."
 
-#: src/components/move-dialog.tsx:165
-#: src/components/share-dialog.tsx:474
+#: src/components/move-dialog.tsx:183
+#: src/components/share-dialog.tsx:608
 msgid "the public link"
 msgstr "liên kết công khai"
 
@@ -3029,11 +3124,16 @@ msgstr "Liên kết này không cho phép tải xuống, nên chỉ hiển thị
 msgid "This link is not available"
 msgstr "Liên kết này không khả dụng"
 
+#: src/components/share-dialog.tsx:825
+msgid "This link is shown only once. Copy it now — it cannot be shown again after this dialog closes."
+msgstr "Liên kết này chỉ hiển thị một lần. Hãy sao chép ngay — sau khi đóng hộp thoại sẽ không thể hiển thị lại."
+
 #: src/components/settings/settings-modal.tsx:188
 msgid "This pane has changes that were never saved. Leaving now throws them away."
 msgstr "Mục này có thay đổi chưa được lưu. Rời đi bây giờ sẽ bỏ hết."
 
-#: src/components/share-dialog.tsx:253
+#: src/components/share-dialog.tsx:341
+#: src/components/share-dialog.tsx:349
 msgid "This person"
 msgstr "Người này"
 
@@ -3060,7 +3160,7 @@ msgstr "Không thể phát video này tại đây — hãy dùng Tải xuống."
 msgid "Those names are taken"
 msgstr "Những tên này đã được sử dụng"
 
-#: src/routes/admin.security.tsx:238
+#: src/routes/admin.security.tsx:243
 msgid "To date"
 msgstr ""
 
@@ -3093,7 +3193,7 @@ msgid "Try a different search."
 msgstr "Hãy thử tìm kiếm khác."
 
 #: src/components/preview-modal.tsx:155
-#: src/components/preview-panel.tsx:324
+#: src/components/preview-panel.tsx:337
 msgid "Type"
 msgstr "Loại"
 
@@ -3201,8 +3301,8 @@ msgstr "Phiên bản {versionNo}"
 
 #: src/components/node-actions.tsx:145
 #: src/components/preview-modal.tsx:149
-#: src/components/preview-panel.tsx:311
-#: src/components/preview-panel.tsx:351
+#: src/components/preview-panel.tsx:324
+#: src/components/preview-panel.tsx:364
 #: src/routes/edit/$nodeId.tsx:124
 msgid "Versions"
 msgstr "Phiên bản"
@@ -3219,8 +3319,8 @@ msgstr "Phiên bản của “{nodeName}”"
 msgid "Video"
 msgstr "Video"
 
-#: src/components/preview-panel.tsx:378
-#: src/components/share-dialog.tsx:243
+#: src/components/preview-panel.tsx:394
+#: src/components/share-dialog.tsx:331
 msgid "view"
 msgstr "xem"
 
@@ -3251,7 +3351,7 @@ msgstr "Chào mừng đến với pp-hub"
 msgid "What lives in this space?"
 msgstr "Không gian này chứa những gì?"
 
-#: src/routes/admin.security.tsx:297
+#: src/routes/admin.security.tsx:302
 msgid "When"
 msgstr "Thời gian"
 
@@ -3271,7 +3371,7 @@ msgstr "Khi bật, mọi người bạn mời đều có thể thay đổi các 
 msgid "When turned on, everyone you invite joins as an admin."
 msgstr "Khi bật, mọi người bạn mời sẽ tham gia với vai trò quản trị viên."
 
-#: src/routes/admin.security.tsx:303
+#: src/routes/admin.security.tsx:308
 msgid "Who"
 msgstr "Người thực hiện"
 

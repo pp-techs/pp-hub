@@ -78,6 +78,7 @@ export {
   sharesOptions,
   shareInfoOptions,
   useShares,
+  useInheritedAccess,
   useShareInfo,
   useCreateShare,
   useRevokeShare,

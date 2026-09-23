@@ -263,6 +263,7 @@ func (s *Server) Router() http.Handler {
 			r.Post("/shares", s.handleCreateShare)
 			r.Get("/shares", s.handleListShares)
 			r.Delete("/shares/{shareID}", s.handleRevokeShare)
+			r.Get("/inherited-access", s.handleInheritedAccess)
 			r.Post("/edit-session", s.handleEditSession)
 			r.Get("/preview", s.handlePreview)
 			r.Get("/grants", s.handleListGrants)

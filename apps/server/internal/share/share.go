@@ -95,7 +95,10 @@ type Caps struct {
 var CapsOwner = Caps{View: true, Download: true, Share: true, Edit: true, Owner: true}
 
 // Covers reports whether c can grant want — the monotonicity rule: you can
-// only hand out capabilities you hold yourself.
+// only hand out capabilities you hold yourself. The same rule bounds changing
+// or removing an existing grant: a grant wider than what you hold is not
+// yours to narrow or revoke, or a viewer allowed to re-share could strip an
+// editor the owner appointed.
 func (c Caps) Covers(want GrantCaps) bool {
 	if want.Level == LevelEdit && !c.Edit {
 		return false
@@ -107,6 +110,25 @@ func (c Caps) Covers(want GrantCaps) bool {
 		return false
 	}
 	return true
+}
+
+// Contains reports whether c holds every capability other does. A move is
+// refused for a non-owner whose destination would give them more than they
+// hold on the node now.
+func (c Caps) Contains(other Caps) bool {
+	return (!other.Owner || c.Owner) && (!other.Edit || c.Edit) &&
+		(!other.Download || c.Download) && (!other.Share || c.Share) &&
+		(!other.View || c.View)
+}
+
+// GrantCapsOf is the capability triple an existing share row carries.
+func GrantCapsOf(sh store.Share) GrantCaps {
+	return GrantCaps{Level: sh.Level, CanDownload: sh.CanDownload, CanShare: sh.CanShare}
+}
+
+// Live reports whether a share row still grants anything.
+func Live(sh store.Share) bool {
+	return !sh.ExpiresAt.Valid || sh.ExpiresAt.Time.After(time.Now())
 }
 
 type Service struct {
@@ -140,15 +162,16 @@ func (s *Service) CreateLink(ctx context.Context, nodeID pgtype.UUID, canDownloa
 	return sh, token, err
 }
 
-// CreateDirect grants a user access to a node.
-func (s *Service) CreateDirect(ctx context.Context, nodeID, granteeID pgtype.UUID, caps GrantCaps, expiresAt pgtype.Timestamptz, creator pgtype.UUID) (store.Share, error) {
+// UpsertDirect grants a user access to a node, or replaces the grant they
+// already hold on it (shares_direct_uniq): re-sharing is how a grant is
+// narrowed or widened, never a second row beside the first.
+func (s *Service) UpsertDirect(ctx context.Context, nodeID, granteeID pgtype.UUID, caps GrantCaps, expiresAt pgtype.Timestamptz, creator pgtype.UUID) (store.Share, error) {
 	if granteeID == creator {
 		return store.Share{}, ErrSelfShare
 	}
 	caps = caps.Normalized()
-	return s.q.CreateShare(ctx, store.CreateShareParams{
+	return s.q.UpsertDirectShare(ctx, store.UpsertDirectShareParams{
 		NodeID:        nodeID,
-		Kind:          store.ShareKindDirect,
 		GranteeUserID: granteeID,
 		Level:         caps.Level,
 		CanDownload:   caps.CanDownload,
@@ -158,8 +181,27 @@ func (s *Service) CreateDirect(ctx context.Context, nodeID, granteeID pgtype.UUI
 	})
 }
 
+// DirectFor returns the live direct grant a user holds on exactly this node.
+func (s *Service) DirectFor(ctx context.Context, nodeID, granteeID pgtype.UUID) (store.Share, bool, error) {
+	sh, err := s.q.GetDirectShare(ctx, store.GetDirectShareParams{NodeID: nodeID, GranteeUserID: granteeID})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return store.Share{}, false, nil
+	}
+	return sh, err == nil, err
+}
+
 func (s *Service) ListForNode(ctx context.Context, nodeID pgtype.UUID) ([]store.Share, error) {
 	return s.q.ListSharesForNode(ctx, nodeID)
+}
+
+// Get loads one share, only if it sits on nodeID — the node the request was
+// authorised against. Anything else is ErrNotFound.
+func (s *Service) Get(ctx context.Context, nodeID, shareID pgtype.UUID) (store.Share, error) {
+	sh, err := s.q.GetShareOnNode(ctx, store.GetShareOnNodeParams{ID: shareID, NodeID: nodeID})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return store.Share{}, ErrNotFound
+	}
+	return sh, err
 }
 
 // Revoke deletes a share, refusing one that does not belong to nodeID.

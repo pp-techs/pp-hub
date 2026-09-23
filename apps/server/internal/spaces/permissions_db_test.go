@@ -670,15 +670,10 @@ func TestTeamFolderContentHasNoPersonalOwner(t *testing.T) {
 	if team.TeamRootID != team.ID {
 		t.Fatalf("a team folder must be its own container, got %v", team.TeamRootID)
 	}
-	// Its creator reaches it through a grant, not through ownership.
-	if got := caps(t, sh, team, manager.ID); got.Owner {
-		t.Error("nobody owns a team folder, not even whoever created it")
-	}
-	if _, err := q.CreateShare(ctx, store.CreateShareParams{
-		NodeID: team.ID, Kind: store.ShareKindDirect, GranteeUserID: manager.ID,
-		Level: store.ShareLevelEdit, CanDownload: true, CanShare: true, CreatedBy: manager.ID,
-	}); err != nil {
-		t.Fatalf("manager grant: %v", err)
+	// Its creator reaches it through the manager grant creation seeds, not
+	// through ownership.
+	if got := caps(t, sh, team, manager.ID); got.Owner || !got.Share || !got.Edit {
+		t.Errorf("the creator must be a manager, not an owner, got %+v", got)
 	}
 	contributor, err := q.CreateShare(ctx, store.CreateShareParams{
 		NodeID: team.ID, Kind: store.ShareKindDirect, GranteeUserID: member.ID,
@@ -830,12 +825,6 @@ func TestTeamFolderSurvivesItsCreatorsDeparture(t *testing.T) {
 	if err != nil {
 		t.Fatalf("team folder: %v", err)
 	}
-	if _, err := q.CreateShare(ctx, store.CreateShareParams{
-		NodeID: team.ID, Kind: store.ShareKindDirect, GranteeUserID: founder.ID,
-		Level: store.ShareLevelEdit, CanDownload: true, CanShare: true, CreatedBy: founder.ID,
-	}); err != nil {
-		t.Fatalf("manager grant: %v", err)
-	}
 
 	depart(t, ctx, sp, space.ID, founder.ID, successor.ID)
 
@@ -848,6 +837,59 @@ func TestTeamFolderSurvivesItsCreatorsDeparture(t *testing.T) {
 	}
 	if got := caps(t, sh, after, successor.ID); !got.Share {
 		t.Errorf("a team folder left without managers must fall to the Admin group, got %+v", got)
+	}
+}
+
+// Losing membership ends reach at once, including the listing: between
+// RevokeMembership and an admin confirming the departure, the direct grants
+// naming the leaver still exist, and "Shared with me" used to keep listing
+// what they named — names, sizes, owners — although nothing resolved.
+func TestDepartedMemberNoLongerListsWhatWasSharedWithThem(t *testing.T) {
+	q, sp, _ := testEnv(t)
+	ctx := context.Background()
+
+	owner := user(t, q, "listing-owner")
+	leaver := user(t, q, "listing-leaver")
+	space, err := sp.Create(ctx, fmt.Sprintf("listing-%d", os.Getpid()), owner.ID)
+	if err != nil {
+		t.Fatalf("create space: %v", err)
+	}
+	t.Cleanup(func() { _ = q.DeleteSpace(ctx, space.ID) })
+	if err := sp.AddMember(ctx, space.ID, leaver.ID, false); err != nil {
+		t.Fatalf("add member: %v", err)
+	}
+	plan, err := q.CreateNode(ctx, store.CreateNodeParams{
+		SpaceID: space.ID, Kind: store.NodeKindDir, Name: "Plans", CreatedBy: owner.ID,
+	})
+	if err != nil {
+		t.Fatalf("create node: %v", err)
+	}
+	if _, err := q.CreateShare(ctx, store.CreateShareParams{
+		NodeID: plan.ID, Kind: store.ShareKindDirect, GranteeUserID: leaver.ID,
+		Level: store.ShareLevelView, CreatedBy: owner.ID,
+	}); err != nil {
+		t.Fatalf("grant: %v", err)
+	}
+	listed := func() bool {
+		rows, err := q.ListEntryPoints(ctx, store.ListEntryPointsParams{UserID: leaver.ID})
+		if err != nil {
+			t.Fatalf("entry points: %v", err)
+		}
+		for _, r := range rows {
+			if r.ID == plan.ID {
+				return true
+			}
+		}
+		return false
+	}
+	if !listed() {
+		t.Fatal("a member must see what was shared with them")
+	}
+	if err := sp.RevokeMembership(ctx, space.ID, leaver.ID); err != nil {
+		t.Fatalf("revoke membership: %v", err)
+	}
+	if listed() {
+		t.Error("a departed member must not list what was shared with them, pending confirmation or not")
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -152,6 +153,17 @@ func (s *Server) groupInSpace(w http.ResponseWriter, r *http.Request, spaceID pg
 	return g, true
 }
 
+// recordGroup writes a group change to the security log. Group membership is
+// access by proxy — every grant the group holds follows it — so it is audited
+// like a grant is.
+func (s *Server) recordGroup(r *http.Request, u *store.User, kind audit.Kind, g store.Group, detail map[string]any) {
+	d := map[string]any{"space": g.SpaceID.String(), "group": g.ID.String(), "group_name": g.Name}
+	for k, v := range detail {
+		d[k] = v
+	}
+	s.audit.Record(r, audit.Event{Kind: kind, UserID: u.ID, Subject: u.Email, Detail: d})
+}
+
 // --- Group handlers ---
 
 // handleListGroups is readable by any member: granting a group access to a
@@ -198,11 +210,12 @@ func (s *Server) handleCreateGroup(w http.ResponseWriter, r *http.Request) {
 		s.groupError(w, r, err)
 		return
 	}
+	s.recordGroup(r, u, audit.KindGroupCreated, g, nil)
 	writeJSON(w, http.StatusCreated, groupToDTO(g))
 }
 
 func (s *Server) handleUpdateGroup(w http.ResponseWriter, r *http.Request) {
-	_, space, ok := s.requireSpaceAdmin(w, r)
+	u, space, ok := s.requireSpaceAdmin(w, r)
 	if !ok {
 		return
 	}
@@ -225,13 +238,14 @@ func (s *Server) handleUpdateGroup(w http.ResponseWriter, r *http.Request) {
 		s.groupError(w, r, err)
 		return
 	}
+	s.recordGroup(r, u, audit.KindGroupUpdated, updated, map[string]any{"from": g.Name})
 	writeJSON(w, http.StatusOK, groupToDTO(updated))
 }
 
 // handleDeleteGroup reports how many folders the group opened, because the
 // grants cascade away with it and the people in it lose that access silently.
 func (s *Server) handleDeleteGroup(w http.ResponseWriter, r *http.Request) {
-	_, space, ok := s.requireSpaceAdmin(w, r)
+	u, space, ok := s.requireSpaceAdmin(w, r)
 	if !ok {
 		return
 	}
@@ -248,6 +262,7 @@ func (s *Server) handleDeleteGroup(w http.ResponseWriter, r *http.Request) {
 		s.groupError(w, r, err)
 		return
 	}
+	s.recordGroup(r, u, audit.KindGroupDeleted, g, map[string]any{"grants_revoked": revoked})
 	writeJSON(w, http.StatusOK, map[string]any{
 		"status":         "deleted",
 		"grants_revoked": revoked,
@@ -285,8 +300,14 @@ func (s *Server) handleListGroupMembers(w http.ResponseWriter, r *http.Request) 
 // handleAddGroupMember puts a space member in a user-created group. Admin
 // membership is not editable here — it is the admin role, and it changes
 // through POST /members/{userID}/set-admin.
+//
+// An admin may not add THEMSELVES to a group that already opens files. Group
+// membership is admin-only, so without this rule it was the one path by which
+// being an admin became reading a colleague's work — the thing the model says
+// admin never buys. Another admin can still do it, and every change is in the
+// security log.
 func (s *Server) handleAddGroupMember(w http.ResponseWriter, r *http.Request) {
-	_, space, ok := s.requireSpaceAdmin(w, r)
+	u, space, ok := s.requireSpaceAdmin(w, r)
 	if !ok {
 		return
 	}
@@ -313,15 +334,28 @@ func (s *Server) handleAddGroupMember(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusUnprocessableEntity, "Unprocessable", "that person is not a member of this space")
 		return
 	}
+	if userID == u.ID {
+		grants, err := s.groups.GrantCount(r.Context(), g.ID)
+		if err != nil {
+			Error(w, r, err)
+			return
+		}
+		if grants > 0 {
+			writeProblem(w, http.StatusForbidden, "Forbidden",
+				"this group opens files, and being an admin never grants file access on its own — another admin has to add you")
+			return
+		}
+	}
 	if err := s.groups.AddMember(r.Context(), g.ID, userID); err != nil {
 		s.groupError(w, r, err)
 		return
 	}
+	s.recordGroup(r, u, audit.KindGroupMemberAdded, g, map[string]any{"member": userID.String()})
 	writeJSON(w, http.StatusCreated, map[string]string{"status": "added"})
 }
 
 func (s *Server) handleRemoveGroupMember(w http.ResponseWriter, r *http.Request) {
-	_, space, ok := s.requireSpaceAdmin(w, r)
+	u, space, ok := s.requireSpaceAdmin(w, r)
 	if !ok {
 		return
 	}
@@ -338,6 +372,7 @@ func (s *Server) handleRemoveGroupMember(w http.ResponseWriter, r *http.Request)
 		s.groupError(w, r, err)
 		return
 	}
+	s.recordGroup(r, u, audit.KindGroupMemberRemoved, g, map[string]any{"member": userID.String()})
 	writeJSON(w, http.StatusOK, map[string]string{"status": "removed"})
 }
 
@@ -408,14 +443,21 @@ func (s *Server) handleUpsertGrant(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusForbidden, "Forbidden", share.ErrEscalation.Error())
 		return
 	}
-	existing, err := s.groups.GrantsForNode(r.Context(), node.ID)
-	isNew := err == nil
-	if isNew {
-		for _, g := range existing {
-			if g.GroupID == groupID {
-				isNew = false
-				break
-			}
+	existing, found, err := s.groupGrant(r, node.ID, groupID)
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+	isNew := !found
+	if found {
+		// Replacing a grant is changing someone else's access: it takes the
+		// same bound as revoking it.
+		if !caps.Covers(grantRowCaps(existing)) {
+			writeProblem(w, http.StatusForbidden, "Forbidden", errGrantWider)
+			return
+		}
+		if !s.keepsTeamManager(w, r, node, grantRowIsManager(existing), want.CanShare) {
+			return
 		}
 	}
 	if _, err := s.groups.Grant(r.Context(), node, groupID, want, u.ID); err != nil {
@@ -428,10 +470,13 @@ func (s *Server) handleUpsertGrant(w http.ResponseWriter, r *http.Request) {
 		Subject: u.Email,
 		NodeID:  node.ID,
 		Detail: map[string]any{
-			"node":  node.ID.String(),
-			"name":  node.Name,
-			"group": groupID.String(),
-			"level": string(want.Level),
+			"node":         node.ID.String(),
+			"name":         node.Name,
+			"group":        groupID.String(),
+			"level":        string(want.Level),
+			"can_download": want.CanDownload,
+			"can_share":    want.CanShare,
+			"updated":      found,
 		},
 	})
 	if isNew {
@@ -470,7 +515,7 @@ func (s *Server) handleUpsertGrant(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleRevokeGrant(w http.ResponseWriter, r *http.Request) {
-	u, node, _ := s.requireNodeCaps(w, r, share.CapShare)
+	u, node, caps := s.requireNodeCaps(w, r, share.CapShare)
 	if u == nil {
 		return
 	}
@@ -479,8 +524,30 @@ func (s *Server) handleRevokeGrant(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid group id")
 		return
 	}
-	if err := s.groups.Revoke(r.Context(), node.ID, groupID); err != nil {
+	existing, found, err := s.groupGrant(r, node.ID, groupID)
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+	if !found {
+		writeProblem(w, http.StatusNotFound, "Not Found", "that group has no grant on this node")
+		return
+	}
+	if !caps.Covers(grantRowCaps(existing)) {
+		writeProblem(w, http.StatusForbidden, "Forbidden", errGrantWider)
+		return
+	}
+	if !s.keepsTeamManager(w, r, node, grantRowIsManager(existing), false) {
+		return
+	}
+	revoked, err := s.groups.Revoke(r.Context(), node.ID, groupID)
+	if err != nil {
 		s.groupError(w, r, err)
+		return
+	}
+	if !revoked {
+		// Gone between the read and the delete — somebody else revoked it.
+		writeProblem(w, http.StatusNotFound, "Not Found", "that group has no grant on this node")
 		return
 	}
 	s.audit.Record(r, audit.Event{
@@ -495,4 +562,27 @@ func (s *Server) handleRevokeGrant(w http.ResponseWriter, r *http.Request) {
 		},
 	})
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// groupGrant finds the group's grant on exactly this node, if any.
+func (s *Server) groupGrant(r *http.Request, nodeID, groupID pgtype.UUID) (store.ListGrantsForNodeRow, bool, error) {
+	rows, err := s.groups.GrantsForNode(r.Context(), nodeID)
+	if err != nil {
+		return store.ListGrantsForNodeRow{}, false, err
+	}
+	for _, g := range rows {
+		if g.GroupID == groupID {
+			return g, true, nil
+		}
+	}
+	return store.ListGrantsForNodeRow{}, false, nil
+}
+
+func grantRowCaps(g store.ListGrantsForNodeRow) share.GrantCaps {
+	return share.GrantCaps{Level: g.Level, CanDownload: g.CanDownload, CanShare: g.CanShare}
+}
+
+// grantRowIsManager: a live can_share grant — one CountTeamManagers counts.
+func grantRowIsManager(g store.ListGrantsForNodeRow) bool {
+	return g.CanShare && (!g.ExpiresAt.Valid || g.ExpiresAt.Time.After(time.Now()))
 }

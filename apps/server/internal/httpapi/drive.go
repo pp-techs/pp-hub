@@ -536,9 +536,10 @@ func (s *Server) handleMkdir(w http.ResponseWriter, r *http.Request) {
 // still create and share their own folders freely; that is the personal half
 // of the tree.
 //
-// The creator gets the first manager grant (edit + download + share). Without
-// it the folder would be unreachable the moment it existed, since a team
-// folder grants nothing through ownership.
+// The creator gets the first manager grant (edit + download + share), written
+// by fs.CreateTeamFolder in the same transaction as the folder. Without it the
+// folder would be unreachable the moment it existed, since a team folder
+// grants nothing through ownership.
 func (s *Server) handleCreateTeamFolder(w http.ResponseWriter, r *http.Request) {
 	u, space, ok := s.requireSpaceAdmin(w, r)
 	if !ok {
@@ -554,18 +555,6 @@ func (s *Server) handleCreateTeamFolder(w http.ResponseWriter, r *http.Request) 
 	node, err := s.fs.CreateTeamFolder(r.Context(), space.ID, strings.TrimSpace(body.Name), u.ID)
 	if err != nil {
 		s.nodeError(w, r, err)
-		return
-	}
-	if _, err := s.store.CreateShare(r.Context(), store.CreateShareParams{
-		NodeID:        node.ID,
-		Kind:          store.ShareKindDirect,
-		GranteeUserID: u.ID,
-		Level:         store.ShareLevelEdit,
-		CanDownload:   true,
-		CanShare:      true,
-		CreatedBy:     u.ID,
-	}); err != nil {
-		Error(w, r, err)
 		return
 	}
 	s.activity.Node(r.Context(), u.ID, node, activity.KindCreated, map[string]any{"team_folder": true})
@@ -865,16 +854,17 @@ func (s *Server) requireMovableNode(w http.ResponseWriter, r *http.Request) (*st
 }
 
 // handleMoveImpact answers "who gains and who loses access if this node moves
-// there" before the move happens. Same precondition as the move itself:
-// CapEdit on the node and on the destination.
+// there" before the move happens. Same preconditions as the move itself —
+// write access at both ends and authorizeMove — so a move the server would
+// refuse is refused here too, before the confirm dialog promises it.
 //
 // Moving a file out of somebody else's folder is a legitimate act — it is how
 // a member takes back something they created and Drive documents it as the way
-// to narrow sharing — so this does not gate the move. It only makes the
-// consequence visible, in both directions: moving INTO a shared folder hands
-// the file to everyone that folder reaches.
+// to narrow sharing. What the endpoint adds is the consequence, in both
+// directions: moving INTO a shared folder hands the file to everyone that
+// folder reaches.
 func (s *Server) handleMoveImpact(w http.ResponseWriter, r *http.Request) {
-	u, node, _ := s.requireNodeCaps(w, r, share.CapEdit)
+	u, node, caps := s.requireNodeCaps(w, r, share.CapEdit)
 	if u == nil {
 		return
 	}
@@ -886,6 +876,9 @@ func (s *Server) handleMoveImpact(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if !s.requireParentWrite(w, r, node.SpaceID, destID, u) {
+		return
+	}
+	if !s.authorizeMove(w, r, u, node, caps, destID) {
 		return
 	}
 	impact, err := s.fs.MoveImpact(r.Context(), node, destID)
@@ -944,14 +937,9 @@ func (s *Server) handleRenameNode(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-// handleMoveNode relocates a node.
-//
-// Taking content OUT of a team folder needs `CapShare` on it — a manager of
-// that folder — because a move out is an export: the subtree leaves the
-// container, stops being the team's, and becomes the mover's personally owned
-// content. Drive requires Manager access to move items out of a shared drive
-// for exactly that reason. Moving deeper inside the same team folder, or into
-// one, needs nothing beyond the write access the destination already demands.
+// handleMoveNode relocates a node. Beyond write access at both ends, a move
+// is bounded by authorizeMove, because in this model where a node hangs IS
+// who can reach it.
 func (s *Server) handleMoveNode(w http.ResponseWriter, r *http.Request) {
 	u, node, caps := s.requireMovableNode(w, r)
 	if u == nil {
@@ -974,12 +962,7 @@ func (s *Server) handleMoveNode(w http.ResponseWriter, r *http.Request) {
 	if !s.requireParentWrite(w, r, node.SpaceID, parentID, u) {
 		return
 	}
-	if leavesTeam, err := s.movesOutOfTeam(r.Context(), node, parentID); err != nil {
-		Error(w, r, err)
-		return
-	} else if leavesTeam && !caps.Has(share.CapShare) {
-		writeProblem(w, http.StatusForbidden, "Forbidden",
-			"only a manager of this team folder can move content out of it")
+	if !s.authorizeMove(w, r, u, node, caps, parentID) {
 		return
 	}
 	if err := s.fs.Move(r.Context(), node.ID, parentID, u.ID); err != nil {
@@ -990,21 +973,97 @@ func (s *Server) handleMoveNode(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-// movesOutOfTeam reports whether the move would take the node out of the team
-// folder it currently belongs to. Moving from one team folder to another counts
-// as leaving the first.
-func (s *Server) movesOutOfTeam(ctx context.Context, node store.Node, destID pgtype.UUID) (bool, error) {
-	if !node.TeamRootID.Valid {
-		return false, nil
+// authorizeMove applies the rules a move has beyond write access at both
+// ends, writing the refusal itself. Access is inherited — ownership included
+// — so a move re-decides who reaches the subtree, and three things must not
+// ride on it:
+//
+//  1. Exporting team content. Taking content OUT of a team folder (to
+//     personal space or another team folder) needs `CapShare` — a manager:
+//     the subtree stops being the team's and becomes the mover's. Drive
+//     requires Manager to move out of a shared drive for the same reason.
+//  2. Donating other people's work to a team. Inside a team folder
+//     `created_by` grants nothing, so moving a personal subtree in takes it
+//     away from everyone who made part of it. Only someone who created the
+//     node and everything live beneath it may do that — Drive's rule for
+//     moving into a shared drive.
+//  3. A non-owner re-deciding personal content. Ownership inherits down the
+//     tree, so dropping someone else's file into a folder you own made you
+//     its owner: an editor denied re-sharing came out with every capability,
+//     public links included. A non-owner may not move a node anywhere that
+//     would give them more than they hold on it now, and may not change who
+//     reaches it at all without `CapShare` — Drive asks the same of an
+//     editor moving out of a shared folder ("editors can change permissions
+//     and share"). Owners move their own work freely: that is how a member
+//     takes a file back out of a colleague's folder.
+func (s *Server) authorizeMove(w http.ResponseWriter, r *http.Request, u *store.User, node store.Node, caps share.Caps, destID pgtype.UUID) bool {
+	ctx := r.Context()
+	var dest store.Node
+	if destID.Valid {
+		var err error
+		if dest, err = s.fs.Get(ctx, destID); err != nil {
+			s.nodeError(w, r, err)
+			return false
+		}
 	}
-	if !destID.Valid {
-		return true, nil
+	if node.TeamRootID.Valid {
+		// Rule 1. Moving deeper inside the same team folder needs nothing more.
+		if dest.TeamRootID != node.TeamRootID && !caps.Has(share.CapShare) {
+			writeProblem(w, http.StatusForbidden, "Forbidden",
+				"only a manager of this team folder can move content out of it")
+			return false
+		}
+		return true
 	}
-	dest, err := s.fs.Get(ctx, destID)
+	if dest.TeamRootID.Valid {
+		// Rule 2.
+		if node.CreatedBy != u.ID {
+			writeProblem(w, http.StatusForbidden, "Forbidden",
+				"only the person who created this can move it into a team folder — team content has no personal owner, so they would lose it")
+			return false
+		}
+		foreign, err := s.fs.ForeignOwnedCount(ctx, node.ID, u.ID)
+		if err != nil {
+			Error(w, r, err)
+			return false
+		}
+		if foreign > 0 {
+			writeProblem(w, http.StatusForbidden, "Forbidden",
+				"this folder holds items other people created; they would lose them inside a team folder, so move your own items instead")
+			return false
+		}
+		return true
+	}
+	if caps.Owner {
+		return true
+	}
+	// Rule 3.
+	if destID.Valid {
+		destCaps, err := s.share.EffectiveCapsForNode(ctx, dest, u.ID)
+		if err != nil {
+			Error(w, r, err)
+			return false
+		}
+		if !caps.Contains(destCaps) {
+			writeProblem(w, http.StatusForbidden, "Forbidden",
+				"moving this there would give you more access to it than you have — make a copy instead")
+			return false
+		}
+	}
+	if caps.Has(share.CapShare) {
+		return true
+	}
+	impact, err := s.fs.MoveImpact(ctx, node, destID)
 	if err != nil {
-		return false, err
+		Error(w, r, err)
+		return false
 	}
-	return dest.TeamRootID != node.TeamRootID, nil
+	if len(principalDTOs(impact.Losing, u.ID))+len(principalDTOs(impact.Gaining, u.ID)) > 0 {
+		writeProblem(w, http.StatusForbidden, "Forbidden",
+			"this move changes who can reach the item; only its owner or someone allowed to share it can do that")
+		return false
+	}
+	return true
 }
 
 // handleCopyNode duplicates a node into a destination folder.

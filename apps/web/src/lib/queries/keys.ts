@@ -30,6 +30,10 @@ export const keys = {
   groups: (spaceId: string) => ["groups", spaceId] as const,
   groupMembers: (spaceId: string, groupId: string) => ["groups", spaceId, groupId] as const,
   grants: (nodeId: string) => ["grants", nodeId] as const,
+  // Its own root: a grant on a folder changes the inherited access of every
+  // node below it, which the client cannot enumerate, so a change invalidates
+  // the whole root rather than one node's entry.
+  inheritedAccess: (nodeId: string) => ["inherited-access", nodeId] as const,
   adminStats: ["admin", "stats"] as const,
   // Sibling of adminStats under the "admin" root, never a child of it: the
   // user mutations invalidate `adminStats` exactly, and a log page hanging
