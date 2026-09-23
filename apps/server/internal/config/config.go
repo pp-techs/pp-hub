@@ -17,7 +17,11 @@ import (
 )
 
 type Config struct {
-	Addr        string
+	Addr string
+	// MetricsAddr is the address of the internal Prometheus listener; empty
+	// disables it. Never proxied by nginx — a separate port so /metrics
+	// cannot become public by a routing mistake.
+	MetricsAddr string
 	DatabaseURL string
 	// OIDCIssuer is where *this process* fetches the discovery document and
 	// calls the token, userinfo and JWKS endpoints. OIDCIssuerExt is the
@@ -142,6 +146,7 @@ func Load() (*Config, error) {
 
 		OnlyOfficeJWTSecret: []byte(os.Getenv("PP_ONLYOFFICE_JWT_SECRET")),
 		MaxUploadBytes:      maxUpload,
+		MetricsAddr:         env("PP_METRICS_ADDR", ":9091"),
 		BootstrapAdminEmail: strings.ToLower(strings.TrimSpace(os.Getenv("PP_BOOTSTRAP_ADMIN_EMAIL"))),
 		AuditRetention:      time.Duration(daysEnv("PP_AUDIT_RETENTION_DAYS", 365)) * 24 * time.Hour,
 		Logto: LogtoSettings{
@@ -181,6 +186,9 @@ func Load() (*Config, error) {
 			return nil, fmt.Errorf("PP_TRUSTED_PROXIES: %q is not a CIDR", raw)
 		}
 		c.TrustedProxies = append(c.TrustedProxies, raw)
+	}
+	if strings.EqualFold(c.MetricsAddr, "off") {
+		c.MetricsAddr = ""
 	}
 	if c.OIDCIssuerExt == "" {
 		c.OIDCIssuerExt = c.OIDCIssuer

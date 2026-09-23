@@ -168,10 +168,10 @@ func NewService(ctx context.Context, cfg *config.Config, queries *store.Queries,
 	}
 	s.endSessionURL = rebaseOrigin(meta.EndSession, cfg.OIDCIssuer, cfg.OIDCIssuerExt)
 	if !s.secure {
-		slog.Warn("PP_EXTERNAL_URL is not https: session cookies will be sent without the Secure flag",
+		slog.WarnContext(ctx, "PP_EXTERNAL_URL is not https: session cookies will be sent without the Secure flag",
 			"external_url", cfg.ExternalURL)
 	}
-	slog.Info("oidc ready", "discovery", cfg.OIDCIssuer, "issuer", cfg.OIDCIssuerExt, "secure_cookies", s.secure)
+	slog.InfoContext(ctx, "oidc ready", "discovery", cfg.OIDCIssuer, "issuer", cfg.OIDCIssuerExt, "secure_cookies", s.secure)
 	return s, nil
 }
 
@@ -339,7 +339,7 @@ func (s *Service) reconcileOrgs(r *http.Request, user store.User, claims idClaim
 		Organizations:     claims.Organizations,
 		OrganizationRoles: claims.OrganizationRoles,
 	}); err != nil {
-		slog.Error("organization reconcile at sign-in", "user", user.Email, "err", err)
+		slog.ErrorContext(r.Context(), "organization reconcile at sign-in", "user", user.Email, "err", err)
 	}
 }
 
@@ -378,7 +378,7 @@ func (s *Service) promoteBootstrapAdmin(r *http.Request, user *store.User, claim
 	// users edit — and anyone who could set their own address could take the
 	// instance.
 	if !bool(claims.EmailVerified) {
-		slog.Error("refusing admin promotion for an unverified email",
+		slog.ErrorContext(r.Context(), "refusing admin promotion for an unverified email",
 			"email", user.Email,
 			"advice", "the identity provider must assert email_verified for this address")
 		s.audit.Record(r, audit.Event{
@@ -392,11 +392,11 @@ func (s *Service) promoteBootstrapAdmin(r *http.Request, user *store.User, claim
 	if err := s.queries.SetUserAdmin(r.Context(), store.SetUserAdminParams{
 		ID: user.ID, IsAdmin: true,
 	}); err != nil {
-		slog.Error("bootstrap admin promotion", "email", user.Email, "err", err)
+		slog.ErrorContext(r.Context(), "bootstrap admin promotion", "email", user.Email, "err", err)
 		return
 	}
 	user.IsAdmin = true
-	slog.Warn("promoted to instance admin by PP_BOOTSTRAP_ADMIN_EMAIL",
+	slog.WarnContext(r.Context(), "promoted to instance admin by PP_BOOTSTRAP_ADMIN_EMAIL",
 		"email", user.Email,
 		"advice", "unset the variable once a second admin exists, or it will keep re-promoting this account")
 	s.audit.Record(r, audit.Event{
@@ -415,7 +415,7 @@ func (s *Service) promoteBootstrapAdmin(r *http.Request, user *store.User, claim
 // somebody who only tried to log in. The detail stays in the log; the browser
 // gets a code the SPA can turn into a sentence.
 func (s *Service) failLogin(w http.ResponseWriter, r *http.Request, code, msg string, cause error) {
-	slog.Error("oidc login failed", "code", code, "reason", msg, "err", cause)
+	slog.ErrorContext(r.Context(), "oidc login failed", "code", code, "reason", msg, "err", cause)
 	detail := map[string]any{"code": code, "reason": msg}
 	if cause != nil {
 		detail["err"] = cause.Error()
@@ -439,11 +439,11 @@ func (s *Service) claims(ctx context.Context, idToken *oidc.IDToken, token *oaut
 	}
 	info, err := s.provider.UserInfo(ctx, oauth2.StaticTokenSource(token))
 	if err != nil {
-		slog.Warn("userinfo fetch", "err", err)
+		slog.WarnContext(ctx, "userinfo fetch", "err", err)
 		return claims, nil
 	}
 	if err := info.Claims(&claims); err != nil {
-		slog.Warn("userinfo claims", "err", err)
+		slog.WarnContext(ctx, "userinfo claims", "err", err)
 	}
 	return claims, nil
 }
@@ -526,7 +526,7 @@ func (s *Service) resolveUser(r *http.Request, idToken *oidc.IDToken, claims idC
 		if claims.Email != "" && bool(claims.EmailVerified) {
 			email = claims.Email
 		} else if claims.Email != "" && claims.Email != user.Email {
-			slog.Warn("ignoring an unverified email claim",
+			slog.WarnContext(ctx, "ignoring an unverified email claim",
 				"user", user.ID.String(), "stored", user.Email, "claimed", claims.Email)
 		}
 		return s.queries.TouchUserLogin(ctx, store.TouchUserLoginParams{
@@ -541,7 +541,7 @@ func (s *Service) resolveUser(r *http.Request, idToken *oidc.IDToken, claims idC
 		existing, err := s.queries.GetUserByEmail(ctx, claims.Email)
 		switch {
 		case err == nil:
-			slog.Warn("oidc identity adopted by an existing account",
+			slog.WarnContext(ctx, "oidc identity adopted by an existing account",
 				"user", existing.ID.String(), "old_iss", existing.OidcIss, "new_iss", idToken.Issuer)
 			s.audit.Record(r, audit.Event{
 				Kind:    audit.KindIdentityAdopted,
@@ -619,7 +619,7 @@ func (s *Service) Authenticate(w http.ResponseWriter, r *http.Request) *Session 
 	row, err := s.queries.GetSessionByHash(r.Context(), sum[:])
 	if err != nil {
 		if !errors.Is(err, pgx.ErrNoRows) {
-			slog.Error("session lookup", "err", err)
+			slog.ErrorContext(r.Context(), "session lookup", "err", err)
 		}
 		return nil
 	}
@@ -627,7 +627,7 @@ func (s *Service) Authenticate(w http.ResponseWriter, r *http.Request) *Session 
 	now := time.Now()
 	if now.Sub(row.Session.CreatedAt.Time) > sessionAbsoluteTTL {
 		if err := s.queries.DeleteSessionByHash(r.Context(), sum[:]); err != nil {
-			slog.Error("delete aged session", "err", err)
+			slog.ErrorContext(r.Context(), "delete aged session", "err", err)
 		}
 		s.clearCookie(w, sessionCookie)
 		return nil
@@ -640,7 +640,7 @@ func (s *Service) Authenticate(w http.ResponseWriter, r *http.Request) *Session 
 		}); err != nil {
 			// A failed refresh is not a failed request: the session is valid
 			// right now and the next request will try again.
-			slog.Error("touch session", "err", err)
+			slog.ErrorContext(r.Context(), "touch session", "err", err)
 		} else {
 			http.SetCookie(w, s.cookie(sessionCookie, c.Value, int(sessionIdleTTL.Seconds())))
 		}
@@ -678,7 +678,7 @@ func (s *Service) revokeCookieSession(r *http.Request) {
 	}
 	sum := sha256.Sum256([]byte(c.Value))
 	if err := s.queries.DeleteSessionByHash(r.Context(), sum[:]); err != nil {
-		slog.Error("delete session", "err", err)
+		slog.ErrorContext(r.Context(), "delete session", "err", err)
 	}
 }
 

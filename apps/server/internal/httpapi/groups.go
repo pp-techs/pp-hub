@@ -442,7 +442,7 @@ func (s *Server) handleUpsertGrant(w http.ResponseWriter, r *http.Request) {
 				ExcludeUserID: u.ID,
 			})
 			if err != nil {
-				slog.Warn("failed to list group email recipients", "err", err)
+				slog.WarnContext(ctx, "failed to list group email recipients", "err", err)
 			} else {
 				recips := make([]notify.Recipient, len(rows))
 				for i, row := range rows {
@@ -462,7 +462,7 @@ func (s *Server) handleUpsertGrant(w http.ResponseWriter, r *http.Request) {
 				})
 			}
 		} else if err != nil {
-			slog.Warn("failed to get group for notification", "err", err)
+			slog.WarnContext(ctx, "failed to get group for notification", "err", err)
 		}
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})

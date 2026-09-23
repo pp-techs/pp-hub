@@ -31,6 +31,7 @@ Stack: Go, chi (HTTP router), sqlc + pgx (Postgres), go-oidc (OIDC), blake3 (con
 ## Naming & Style
 
 - Standard Go conventions (effective go / gofmt). `log/slog` is the logger — one logging library per binary, or logs stop being filterable as a set. Log with a module field.
+- With a `ctx` or `r *http.Request` in scope, log through the `…Context` variant (`slog.WarnContext(ctx, …)`): `internal/obs`'s handler reads chi's request id from that context, and a record without it cannot be joined to its access log line or `security_events` row. Configure logging only through `obs.InitLogging`; never `slog.SetDefault` elsewhere.
 - Context is first param everywhere; no goroutine without an owner and a shutdown path.
 
 ## Background Jobs

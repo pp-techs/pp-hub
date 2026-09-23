@@ -77,8 +77,14 @@ services:
     restart: unless-stopped
     expose:
       - "8080"
+      # Prometheus /metrics — internal only, never published or proxied.
+      # Scrape it by attaching a Prometheus to the `edge` network.
+      - "9091"
     environment:
       PP_ADDR: ":8080"
+      PP_METRICS_ADDR: "${PP_METRICS_ADDR:-:9091}"
+      PP_LOG_LEVEL: "${PP_LOG_LEVEL:-info}"
+      PP_LOG_FORMAT: "${PP_LOG_FORMAT:-json}"
       # The public URL of `web`. This is the OIDC redirect base and the
       # post-logout target, so it must be the address users actually type.
       PP_EXTERNAL_URL: "${PP_EXTERNAL_URL:?set in .env}"
@@ -171,6 +177,8 @@ services:
     restart: unless-stopped
     environment:
       PP_DATABASE_URL: postgres://pphub:${POSTGRES_PASSWORD:?set in .env}@postgres:5432/pphub?sslmode=disable
+      PP_LOG_LEVEL: "${PP_LOG_LEVEL:-info}"
+      PP_LOG_FORMAT: "${PP_LOG_FORMAT:-json}"
       PP_BLOB_ROOT: /data/blobs
       PP_BLOB_BACKEND: "${PP_BLOB_BACKEND:-local}"
       PP_S3_BUCKET: "${PP_S3_BUCKET:-}"

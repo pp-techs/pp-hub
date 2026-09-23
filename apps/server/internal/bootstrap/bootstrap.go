@@ -82,7 +82,7 @@ func New(ctx context.Context, opt Options) (*Deps, func(), error) {
 func openBlobStore(ctx context.Context, cfg *config.Config) (blob.Store, error) {
 	switch cfg.BlobBackend {
 	case "s3":
-		slog.Info("blob store: s3", "bucket", cfg.S3.Bucket, "endpoint", cfg.S3.Endpoint)
+		slog.InfoContext(ctx, "blob store: s3", "bucket", cfg.S3.Bucket, "endpoint", cfg.S3.Endpoint)
 		return blob.NewS3Store(ctx, blob.S3Config{
 			Bucket:    cfg.S3.Bucket,
 			Region:    cfg.S3.Region,
@@ -107,7 +107,7 @@ func waitForPostgres(ctx context.Context, pool *pgxpool.Pool) error {
 			return fmt.Errorf("postgres not ready after %d attempts: %w", attempt, err)
 		}
 		if attempt == 1 {
-			slog.Info("waiting for postgres")
+			slog.InfoContext(ctx, "waiting for postgres")
 		}
 		select {
 		case <-ctx.Done():

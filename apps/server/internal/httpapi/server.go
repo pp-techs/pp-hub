@@ -15,6 +15,7 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/groups"
 	"github.com/nhatbui/pp-hub/apps/server/internal/mail"
 	"github.com/nhatbui/pp-hub/apps/server/internal/notify"
+	"github.com/nhatbui/pp-hub/apps/server/internal/obs"
 	"github.com/nhatbui/pp-hub/apps/server/internal/orgsync"
 	"github.com/nhatbui/pp-hub/apps/server/internal/preview"
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
@@ -52,6 +53,8 @@ type Server struct {
 	maxUploadBytes int64
 	// trustedProxies are the CIDRs whose X-Forwarded-For is believed.
 	trustedProxies []string
+	// metrics records the HTTP series; nil disables them.
+	metrics *obs.HTTPMetrics
 }
 
 // Deps is what the HTTP edge needs. A struct rather than a parameter list
@@ -80,8 +83,10 @@ type Deps struct {
 	MaxUploadBytes  int64
 	TrustedProxies  []string
 	SysConfig       *sysconfig.Service
-	Mail           *mail.Sender
-	Notifier       *notify.Notifier
+	Mail            *mail.Sender
+	Notifier        *notify.Notifier
+	// Metrics records the HTTP series; nil disables them.
+	Metrics *obs.HTTPMetrics
 }
 
 func NewServer(d Deps) *Server {
@@ -109,6 +114,7 @@ func NewServer(d Deps) *Server {
 		sysconfig:      d.SysConfig,
 		mail:           d.Mail,
 		notify:         d.Notifier,
+		metrics:        d.Metrics,
 	}
 	if s.sysconfig == nil {
 		s.sysconfig = sysconfig.NewService(d.Store, nil)
@@ -125,16 +131,18 @@ func (s *Server) uploadCap() int64 {
 
 func (s *Server) Router() http.Handler {
 	r := chi.NewRouter()
-	r.Use(middleware.RequestID, redactingLogger, middleware.Recoverer)
+	r.Use(middleware.RequestID)
 	// chi's RealIP is deprecated in this version precisely because it
 	// believes True-Client-IP / X-Real-IP / X-Forwarded-For from anyone, and
 	// the whole value of the per-IP limits below is that the caller cannot
 	// pick their own key. ClientIPFromXFF only accepts a forwarded address
 	// vouched for by a configured proxy, and sets none at all otherwise —
-	// which audit.ClientIP reads as "believe the socket".
+	// which audit.ClientIP reads as "believe the socket". It runs before
+	// observe so the access log records the same address.
 	if len(s.trustedProxies) > 0 {
 		r.Use(middleware.ClientIPFromXFF(s.trustedProxies...))
 	}
+	r.Use(s.observe, recoverer)
 
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -293,7 +301,10 @@ func (s *Server) Router() http.Handler {
 // from colliding with a key any other package stores.
 type ctxKey int
 
-const sessionCtxKey ctxKey = iota
+const (
+	sessionCtxKey ctxKey = iota
+	logCtxKey
+)
 
 // authenticated resolves the session cookie once, for every route it wraps,
 // and rejects the request before any handler runs.
@@ -309,6 +320,9 @@ func (s *Server) authenticated(next http.Handler) http.Handler {
 		if sess.User.SuspendedAt.Valid {
 			writeProblem(w, http.StatusForbidden, "Forbidden", "this account is suspended")
 			return
+		}
+		if rl, ok := r.Context().Value(logCtxKey).(*requestLog); ok {
+			rl.userID = sess.User.ID.String()
 		}
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), sessionCtxKey, sess)))
 	})

@@ -172,7 +172,7 @@ func (s *Service) ensureSpace(ctx context.Context, orgID string, creator store.U
 	name := orgID
 	if s.Enabled() {
 		if org, err := s.client.Organization(ctx, orgID); err != nil {
-			slog.Warn("organization lookup", "org", orgID, "err", err)
+			slog.WarnContext(ctx, "organization lookup", "org", orgID, "err", err)
 		} else if org.Name != "" {
 			name = org.Name
 		}
@@ -187,12 +187,12 @@ func (s *Service) ensureSpace(ctx context.Context, orgID string, creator store.U
 		return store.Space{}, err
 	}
 	space.IdpOrgID = pgtype.Text{String: orgID, Valid: true}
-	slog.Info("space created for organization", "org", orgID, "space", space.ID, "name", name)
+	slog.InfoContext(ctx, "space created for organization", "org", orgID, "space", space.ID, "name", name)
 	// The creator is one member of possibly many. Pull the rest now rather
 	// than making each colleague wait for their own first sign-in.
 	if s.Enabled() {
 		if err := s.Enqueue(ctx, orgID); err != nil {
-			slog.Warn("enqueue reconcile after space creation", "org", orgID, "err", err)
+			slog.WarnContext(ctx, "enqueue reconcile after space creation", "org", orgID, "err", err)
 		}
 	}
 	return space, nil
@@ -240,7 +240,7 @@ func (s *Service) ReconcileOrg(ctx context.Context, orgID string) error {
 	}
 	space, err := s.q.GetSpaceByOrgID(ctx, pgtype.Text{String: orgID, Valid: true})
 	if errors.Is(err, pgx.ErrNoRows) {
-		slog.Debug("reconcile skipped: no space mirrors this organization", "org", orgID)
+		slog.DebugContext(ctx, "reconcile skipped: no space mirrors this organization", "org", orgID)
 		return nil
 	}
 	if err != nil {
@@ -256,7 +256,7 @@ func (s *Service) ReconcileOrg(ctx context.Context, orgID string) error {
 		user, err := s.ensureUser(ctx, m)
 		if err != nil {
 			// One unresolvable account must not stall the other ninety-nine.
-			slog.Error("could not resolve organization member", "org", orgID, "logto_user", m.ID, "err", err)
+			slog.ErrorContext(ctx, "could not resolve organization member", "org", orgID, "logto_user", m.ID, "err", err)
 			continue
 		}
 		want[user.ID] = m.IsAdmin
@@ -306,7 +306,7 @@ func (s *Service) ensureUser(ctx context.Context, m Member) (store.User, error) 
 	}
 	synced, err := s.profiles.SyncIdPProfile(ctx, user, m.Profile)
 	if err != nil {
-		slog.Warn("idp profile sync", "user", user.ID.String(), "logto_user", m.ID, "err", err)
+		slog.WarnContext(ctx, "idp profile sync", "user", user.ID.String(), "logto_user", m.ID, "err", err)
 	}
 	return synced, nil
 }
@@ -465,15 +465,15 @@ func (s *Service) Run(ctx context.Context) {
 		// nothing happen when I removed them in Logto" needs to be able to
 		// tell them apart from one line.
 		if s.Configured() {
-			slog.Info("orgsync: sign-in claims only",
+			slog.InfoContext(ctx, "orgsync: sign-in claims only",
 				"reason", "no M2M credentials",
 				"effect", "no webhook is acted on and no hourly sweep runs; membership converges when each person signs in")
 		} else {
-			slog.Info("orgsync idle: no Logto tenant configured")
+			slog.InfoContext(ctx, "orgsync idle: no Logto tenant configured")
 		}
 		return
 	}
-	slog.Info("orgsync started", "kind", JobKind)
+	slog.InfoContext(ctx, "orgsync started", "kind", JobKind)
 	jobs := time.NewTicker(3 * time.Second)
 	defer jobs.Stop()
 	sweep := time.NewTicker(time.Hour)
@@ -494,7 +494,7 @@ func (s *Service) drain(ctx context.Context) {
 	claimed, err := s.q.ClaimJobs(ctx, store.ClaimJobsParams{Kinds: []string{JobKind}, Lim: 5})
 	if err != nil {
 		if !errors.Is(err, pgx.ErrNoRows) && ctx.Err() == nil {
-			slog.Warn("claim reconcile jobs", "err", err)
+			slog.WarnContext(ctx, "claim reconcile jobs", "err", err)
 		}
 		return
 	}
@@ -509,7 +509,7 @@ func (s *Service) drain(ctx context.Context) {
 			continue
 		}
 		if err := s.ReconcileOrg(ctx, payload.OrgID); err != nil {
-			slog.Warn("reconcile organization", "org", payload.OrgID, "err", err)
+			slog.WarnContext(ctx, "reconcile organization", "org", payload.OrgID, "err", err)
 			_ = s.q.RequeueJob(ctx, store.RequeueJobParams{ID: job.ID, LastError: pgtype.Text{
 				String: err.Error(), Valid: true,
 			}})
@@ -522,12 +522,12 @@ func (s *Service) drain(ctx context.Context) {
 func (s *Service) sweep(ctx context.Context) {
 	linked, err := s.q.ListLinkedSpaces(ctx)
 	if err != nil {
-		slog.Warn("list linked spaces", "err", err)
+		slog.WarnContext(ctx, "list linked spaces", "err", err)
 		return
 	}
 	for _, space := range linked {
 		if err := s.ReconcileOrg(ctx, space.IdpOrgID.String); err != nil {
-			slog.Warn("hourly reconcile", "org", space.IdpOrgID.String, "err", err)
+			slog.WarnContext(ctx, "hourly reconcile", "org", space.IdpOrgID.String, "err", err)
 		}
 	}
 }

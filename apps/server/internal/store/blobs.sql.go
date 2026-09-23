@@ -9,6 +9,34 @@ import (
 	"context"
 )
 
+const blobTotals = `-- name: BlobTotals :one
+SELECT count(*) FILTER (WHERE ref_count > 0)::bigint AS referenced_blobs,
+       COALESCE(sum(size) FILTER (WHERE ref_count > 0), 0)::bigint AS referenced_bytes,
+       count(*) FILTER (WHERE ref_count = 0)::bigint AS unreferenced_blobs,
+       COALESCE(sum(size) FILTER (WHERE ref_count = 0), 0)::bigint AS unreferenced_bytes
+FROM blobs
+`
+
+type BlobTotalsRow struct {
+	ReferencedBlobs   int64 `json:"referenced_blobs"`
+	ReferencedBytes   int64 `json:"referenced_bytes"`
+	UnreferencedBlobs int64 `json:"unreferenced_blobs"`
+	UnreferencedBytes int64 `json:"unreferenced_bytes"`
+}
+
+// Referenced vs. awaiting-GC blob counts and bytes for /metrics.
+func (q *Queries) BlobTotals(ctx context.Context) (BlobTotalsRow, error) {
+	row := q.db.QueryRow(ctx, blobTotals)
+	var i BlobTotalsRow
+	err := row.Scan(
+		&i.ReferencedBlobs,
+		&i.ReferencedBytes,
+		&i.UnreferencedBlobs,
+		&i.UnreferencedBytes,
+	)
+	return i, err
+}
+
 const decrBlobRef = `-- name: DecrBlobRef :exec
 UPDATE blobs SET ref_count = ref_count - 1 WHERE hash = $1 AND ref_count > 0
 `

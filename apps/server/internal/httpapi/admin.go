@@ -136,7 +136,7 @@ func (s *Server) handleAdminUpdateUser(w http.ResponseWriter, r *http.Request) {
 			// un-suspension silently restores every one of them. Ending them
 			// is what "suspended" should mean.
 			if n, err := s.store.DeleteUserSessions(r.Context(), userID); err != nil {
-				slog.Error("revoke sessions on suspend", "user", userID.String(), "err", err)
+				slog.ErrorContext(r.Context(), "revoke sessions on suspend", "user", userID.String(), "err", err)
 			} else if n > 0 {
 				s.audit.Record(r, audit.Event{
 					Kind:    audit.KindSessionsRevoked,

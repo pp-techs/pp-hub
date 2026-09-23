@@ -36,7 +36,7 @@ func Backfill(ctx context.Context, q *store.Queries) (int, error) {
 			return total, err
 		}
 	}
-	slog.Info("backfill complete", "enqueued", total)
+	slog.InfoContext(ctx, "backfill complete", "enqueued", total)
 	return total, nil
 }
 
@@ -81,7 +81,7 @@ func backfillKind(ctx context.Context, q *store.Queries, previewKind string) (in
 			}
 			enqueued++
 		}
-		slog.Info("backfill progress", "preview_kind", previewKind, "enqueued", enqueued)
+		slog.InfoContext(ctx, "backfill progress", "preview_kind", previewKind, "enqueued", enqueued)
 
 		select {
 		case <-ctx.Done():

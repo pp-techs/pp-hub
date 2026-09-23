@@ -38,9 +38,9 @@ func (w *TrashWorker) Run(ctx context.Context) {
 			return
 		case <-ticker.C:
 			if n, err := w.Sweep(ctx); err != nil {
-				slog.Warn("trash retention sweep failed", "err", err)
+				slog.WarnContext(ctx, "trash retention sweep failed", "err", err)
 			} else if n > 0 {
-				slog.Info("trash retention purged", "nodes", n)
+				slog.InfoContext(ctx, "trash retention purged", "nodes", n)
 			}
 		}
 	}
@@ -68,7 +68,7 @@ func (w *TrashWorker) Sweep(ctx context.Context) (int, error) {
 		case errorIsGone(err):
 			// Removed with an ancestor earlier in this batch.
 		default:
-			slog.Warn("expired trash not purged", "name", node.Name, "err", err)
+			slog.WarnContext(ctx, "expired trash not purged", "name", node.Name, "err", err)
 		}
 	}
 	return purged, nil

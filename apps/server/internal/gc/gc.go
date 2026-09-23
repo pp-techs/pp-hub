@@ -45,9 +45,9 @@ func (w *Worker) Run(ctx context.Context) {
 			return
 		case <-ticker.C:
 			if n, bytes, err := w.Sweep(ctx); err != nil {
-				slog.Warn("blob gc sweep failed", "err", err)
+				slog.WarnContext(ctx, "blob gc sweep failed", "err", err)
 			} else if n > 0 {
-				slog.Info("blob gc reclaimed", "blobs", n, "bytes", bytes)
+				slog.InfoContext(ctx, "blob gc reclaimed", "blobs", n, "bytes", bytes)
 			}
 		}
 	}
@@ -75,13 +75,13 @@ func (w *Worker) Sweep(ctx context.Context) (deleted int, reclaimed int64, err e
 		// Re-checks ref_count = 0 in the DELETE, so a blob that gained a
 		// reference since the SELECT is left alone.
 		if err := w.q.DeleteBlob(ctx, b.Hash); err != nil {
-			slog.Warn("blob row not deleted", "hash", short(b.Hash), "err", err)
+			slog.WarnContext(ctx, "blob row not deleted", "hash", short(b.Hash), "err", err)
 			continue
 		}
 		if err := w.blobs.Delete(ctx, b.Hash); err != nil {
 			// The row is already gone; the file is now orphaned rather than
 			// dangerous. Log and carry on rather than failing the sweep.
-			slog.Warn("blob file not deleted", "hash", short(b.Hash), "err", err)
+			slog.WarnContext(ctx, "blob file not deleted", "hash", short(b.Hash), "err", err)
 			continue
 		}
 		deleted++

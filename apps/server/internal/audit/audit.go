@@ -107,7 +107,7 @@ func (s *Service) Record(r *http.Request, e Event) {
 		Detail:    detail,
 	})
 	if err != nil {
-		slog.Error("security event not recorded", "kind", e.Kind, "err", err)
+		slog.ErrorContext(ctx, "security event not recorded", "kind", e.Kind, "err", err)
 	}
 }
 

@@ -22,6 +22,7 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/httpapi"
 	"github.com/nhatbui/pp-hub/apps/server/internal/mail"
 	"github.com/nhatbui/pp-hub/apps/server/internal/notify"
+	"github.com/nhatbui/pp-hub/apps/server/internal/obs"
 	"github.com/nhatbui/pp-hub/apps/server/internal/orgsync"
 	"github.com/nhatbui/pp-hub/apps/server/internal/preview"
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
@@ -40,6 +41,7 @@ func main() {
 }
 
 func run() error {
+	obs.InitLogging()
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
@@ -50,6 +52,19 @@ func run() error {
 	}
 	defer closeDeps()
 	cfg, queries, blobs := deps.Cfg, deps.Queries, deps.Blobs
+
+	// Up before OIDC discovery so a server stuck waiting for its IdP is still
+	// scrapeable. A bind failure is logged, not fatal: losing metrics must
+	// not stop file serving.
+	metrics := obs.NewMetrics(deps.Pool, queries)
+	if cfg.MetricsAddr != "" {
+		go func() {
+			slog.InfoContext(ctx, "metrics listening", "addr", cfg.MetricsAddr)
+			if err := metrics.Serve(ctx, cfg.MetricsAddr); err != nil {
+				slog.ErrorContext(ctx, "metrics listener", "err", err)
+			}
+		}()
+	}
 
 	usersSvc := users.NewService(queries, blobs)
 	authSvc, err := waitForOIDC(ctx, cfg, queries, usersSvc)
@@ -70,7 +85,7 @@ func run() error {
 		preview.ImageRenderer{}, preview.SVGRenderer{}, preview.TextRenderer{})
 	fsSvc.SetVersionHook(func(ctx context.Context, ver store.NodeVersion, name string) {
 		if err := previewWorker.Enqueue(ctx, ver, name); err != nil {
-			slog.Warn("enqueue preview", "err", err)
+			slog.WarnContext(ctx, "enqueue preview", "err", err)
 		}
 	})
 	go previewWorker.Run(ctx)
@@ -92,12 +107,11 @@ func run() error {
 	// leak that also makes the console useless to read.
 	syscfg := sysconfig.NewService(queries, cfg)
 	if err := syscfg.Reload(ctx, "default"); err != nil {
-		slog.Warn("sysconfig initial load", "err", err)
+		slog.WarnContext(ctx, "sysconfig initial load", "err", err)
 	}
 	mailer := mail.New(syscfg.SMTP)
 	notifier := notify.New(queries, mailer, syscfg, cfg.ExternalURL)
 	go notifier.Run(ctx)
-
 
 	auditSvc := audit.New(queries)
 	go func() {
@@ -109,19 +123,19 @@ func run() error {
 				return
 			case <-ticker.C:
 				if err := wopiSvc.Sweep(ctx); err != nil {
-					slog.Warn("lock sweep", "err", err)
+					slog.WarnContext(ctx, "lock sweep", "err", err)
 				}
 				if n, err := authSvc.PurgeExpiredSessions(ctx); err != nil {
-					slog.Warn("session sweep", "err", err)
+					slog.WarnContext(ctx, "session sweep", "err", err)
 				} else if n > 0 {
-					slog.Info("expired sessions purged", "count", n)
+					slog.InfoContext(ctx, "expired sessions purged", "count", n)
 				}
 				_ = syscfg.Reload(ctx, "default")
 				cutoff := pgtype.Timestamptz{Time: time.Now().Add(-syscfg.AuditRetention("default")), Valid: true}
 				if n, err := auditSvc.Purge(ctx, cutoff); err != nil {
-					slog.Warn("security event sweep", "err", err)
+					slog.WarnContext(ctx, "security event sweep", "err", err)
 				} else if n > 0 {
-					slog.Info("aged security events purged", "count", n)
+					slog.InfoContext(ctx, "aged security events purged", "count", n)
 				}
 			}
 		}
@@ -155,6 +169,7 @@ func run() error {
 		SysConfig:       syscfg,
 		Mail:            mailer,
 		Notifier:        notifier,
+		Metrics:         metrics.HTTP,
 	})
 	srv := &http.Server{
 		Addr:              cfg.Addr,
@@ -164,7 +179,7 @@ func run() error {
 
 	errCh := make(chan error, 1)
 	go func() {
-		slog.Info("listening", "addr", cfg.Addr, "external", cfg.ExternalURL)
+		slog.InfoContext(ctx, "listening", "addr", cfg.Addr, "external", cfg.ExternalURL)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- err
 		}
@@ -195,14 +210,14 @@ func waitForOIDC(ctx context.Context, cfg *config.Config, q *store.Queries, prof
 		svc, err := auth.NewService(ctx, cfg, q, profiles)
 		if err == nil {
 			if attempt > 1 {
-				slog.Info("oidc discovery succeeded", "attempts", attempt)
+				slog.InfoContext(ctx, "oidc discovery succeeded", "attempts", attempt)
 			}
 			return svc, nil
 		} else if attempt >= maxAttempts {
 			return nil, fmt.Errorf("oidc not ready after %d attempts: %w", attempt, err)
 		}
 		if attempt == 1 || attempt%10 == 0 {
-			slog.Warn("oidc discovery failed, retrying",
+			slog.WarnContext(ctx, "oidc discovery failed, retrying",
 				"attempt", attempt, "of", maxAttempts,
 				"issuer", cfg.OIDCIssuerExt, "err", err)
 		}

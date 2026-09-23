@@ -144,6 +144,48 @@ func (q *Queries) GetPreview(ctx context.Context, arg GetPreviewParams) (Preview
 	return i, err
 }
 
+const jobQueueStats = `-- name: JobQueueStats :many
+SELECT kind, status::text AS status, count(*)::bigint AS jobs,
+       COALESCE(EXTRACT(EPOCH FROM now() - min(created_at)), 0)::float8 AS oldest_age_seconds
+FROM jobs
+WHERE status IN ('pending', 'running', 'failed')
+GROUP BY kind, status
+`
+
+type JobQueueStatsRow struct {
+	Kind             string  `json:"kind"`
+	Status           string  `json:"status"`
+	Jobs             int64   `json:"jobs"`
+	OldestAgeSeconds float64 `json:"oldest_age_seconds"`
+}
+
+// Per-kind backlog for /metrics. 'done' rows are excluded: they accumulate
+// forever and say nothing about health. The collector caches this for 30s.
+func (q *Queries) JobQueueStats(ctx context.Context) ([]JobQueueStatsRow, error) {
+	rows, err := q.db.Query(ctx, jobQueueStats)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []JobQueueStatsRow
+	for rows.Next() {
+		var i JobQueueStatsRow
+		if err := rows.Scan(
+			&i.Kind,
+			&i.Status,
+			&i.Jobs,
+			&i.OldestAgeSeconds,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const reapStuckJobs = `-- name: ReapStuckJobs :execrows
 UPDATE jobs
 SET status = CASE

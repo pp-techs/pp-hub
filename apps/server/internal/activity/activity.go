@@ -80,7 +80,7 @@ func (s *Service) Record(ctx context.Context, e Event) {
 		Detail:   detail,
 	})
 	if err != nil {
-		slog.Warn("activity not recorded", "kind", e.Kind, "err", err)
+		slog.WarnContext(ctx, "activity not recorded", "kind", e.Kind, "err", err)
 	}
 }
 

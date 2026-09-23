@@ -96,3 +96,12 @@ WHERE n.kind = 'file'
   )
 ORDER BY v.id
 LIMIT @lim;
+
+-- name: JobQueueStats :many
+-- Per-kind backlog for /metrics. 'done' rows are excluded: they accumulate
+-- forever and say nothing about health. The collector caches this for 30s.
+SELECT kind, status::text AS status, count(*)::bigint AS jobs,
+       COALESCE(EXTRACT(EPOCH FROM now() - min(created_at)), 0)::float8 AS oldest_age_seconds
+FROM jobs
+WHERE status IN ('pending', 'running', 'failed')
+GROUP BY kind, status;

@@ -28,6 +28,7 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/blob"
 	"github.com/nhatbui/pp-hub/apps/server/internal/bootstrap"
 	"github.com/nhatbui/pp-hub/apps/server/internal/config"
+	"github.com/nhatbui/pp-hub/apps/server/internal/obs"
 	"github.com/nhatbui/pp-hub/apps/server/internal/preview"
 	"github.com/nhatbui/pp-hub/apps/server/internal/wopi"
 )
@@ -40,6 +41,7 @@ func main() {
 }
 
 func run() error {
+	obs.InitLogging()
 	backfill := flag.Bool("backfill", false,
 		"enqueue preview jobs for existing files that have none, then exit")
 	flag.Parse()
@@ -57,7 +59,7 @@ func run() error {
 
 	if *backfill {
 		n, err := preview.Backfill(ctx, deps.Queries)
-		slog.Info("backfill finished", "enqueued", n)
+		slog.InfoContext(ctx, "backfill finished", "enqueued", n)
 		return err
 	}
 
@@ -81,7 +83,7 @@ func run() error {
 
 	w := preview.NewWorker(deps.Queries, deps.Blobs, renderers...)
 	go healthBeacon(ctx, deps.Pool, deps.Blobs)
-	slog.Info("worker starting", "kinds", w.Kinds())
+	slog.InfoContext(ctx, "worker starting", "kinds", w.Kinds())
 	w.Run(ctx)
 	return nil
 }
@@ -149,10 +151,10 @@ func healthBeacon(ctx context.Context, pool *pgxpool.Pool, blobs blob.Store) {
 			}
 			return blobs.Check(c)
 		}(); err != nil {
-			slog.Warn("worker dependency check failed", "err", err)
+			slog.WarnContext(ctx, "worker dependency check failed", "err", err)
 			_ = os.Remove(workerHealthFile)
 		} else if err := os.WriteFile(workerHealthFile, []byte("ok\n"), 0o644); err != nil {
-			slog.Warn("worker health file not written", "err", err)
+			slog.WarnContext(ctx, "worker health file not written", "err", err)
 		}
 		select {
 		case <-ctx.Done():

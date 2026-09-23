@@ -50,7 +50,7 @@ func (s *Server) handleLogtoWebhook(w http.ResponseWriter, r *http.Request) {
 	want := hex.EncodeToString(mac.Sum(nil))
 	got := r.Header.Get("logto-signature-sha-256")
 	if !hmac.Equal([]byte(want), []byte(got)) {
-		slog.Warn("rejected webhook delivery with a bad signature", "ip", r.RemoteAddr)
+		slog.WarnContext(r.Context(), "rejected webhook delivery with a bad signature", "ip", r.RemoteAddr)
 		writeProblem(w, http.StatusUnauthorized, "Unauthorized", "signature did not match")
 		return
 	}
@@ -75,6 +75,6 @@ func (s *Server) handleLogtoWebhook(w http.ResponseWriter, r *http.Request) {
 		Error(w, r, err)
 		return
 	}
-	slog.Info("organization reconcile queued", "event", payload.Event, "org", payload.OrganizationID)
+	slog.InfoContext(r.Context(), "organization reconcile queued", "event", payload.Event, "org", payload.OrganizationID)
 	w.WriteHeader(http.StatusNoContent)
 }

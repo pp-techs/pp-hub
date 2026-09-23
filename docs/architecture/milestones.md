@@ -674,13 +674,15 @@ at least one CIDR, and everything reads the result through `audit.ClientIP`,
 where "nothing vouched for" means "believe the TCP peer". `config.Load`
 validates the CIDRs so a typo is a sentence rather than a panic out of chi,
 and nginx clears `True-Client-IP`, `CF-Connecting-IP` and `Forwarded`.
-Credentials also stopped reaching the logs: `redactingLogger` rewrites
+Credentials also stopped reaching the logs: `redactingLogger` rewrote
 `r.RequestURI` — the raw string chi's Logger formats — so `/s/<token>`
-becomes `/s/REDACTED` and `access_token=` becomes `REDACTED`, while `r.URL`
-is left untouched because chi routes off `r.URL.Path` and the WOPI handler
+became `/s/REDACTED` and `access_token=` became `REDACTED`, while `r.URL`
+was left untouched because chi routes off `r.URL.Path` and the WOPI handler
 needs the credential it was handed. An earlier attempt swapped the URL as
 well and every share link answered 404 with a log line that looked perfect.
-nginx does the same job with a `map` and a custom `log_format`.
+nginx does the same job with a `map` and a custom `log_format`. (M25 replaced
+chi's Logger with `observe`, which logs `redactURI`'s output and still never
+rewrites the request.)
 
 **Edge and deployment.** `nginx.conf` became an envsubst template (the CSP has
 to name the Document Server's origin) and now sends CSP, HSTS,
@@ -982,7 +984,60 @@ The rail's account menu is the single entry point, opening **upward** from the
 footer row it belongs to and carrying the avatar, and the space switcher went
 back to switching spaces.
 
-## Upcoming — M25 Onward 🚧 not done
+## M25 — Observability ✅ done
+
+Logs and metrics, endpoints only: no tracing, no error tracking, and no
+bundled Prometheus or Grafana — an operator points their own at the listener.
+
+**Logging.** `internal/obs.InitLogging` is the first statement of `run()` in
+both binaries, ahead of `config.Load` (which already logs), and installs one
+`slog` handler for the process: `PP_LOG_LEVEL` (`debug`/`info`/`warn`/`error`,
+default `info`) and `PP_LOG_FORMAT` (`text`/`json`, default `text`;
+`compose.prod.yml` sets `json`). An unusable value warns and falls back rather
+than refusing startup, the same policy as `PP_AUDIT_RETENTION_DAYS`. The
+handler adds chi's request id to every record whose context carries one, so
+every `slog.*Context` call made while serving a request — and every call site
+with an `r` or `ctx` in scope now uses the `Context` variant — joins to the
+access log line, to the `X-Request-Id` response header, and to the
+`security_events` row that request wrote.
+
+**Access log.** chi's `middleware.Logger` and `Recoverer` are gone.
+`httpapi.Server.observe` writes one `"http request"` record per request with
+method, redacted path, route pattern, status, bytes, duration, client address
+(after `ClientIPFromXFF`, so it is the same address the rate limits and
+security events use) and, once `authenticated` has resolved a session, the
+`user_id`. It logs at DEBUG for `/healthz` and `/readyz` (compose probes every
+ten seconds), ERROR for 5xx, INFO otherwise. Redaction is `redactURI` as
+before, and the request is still never rewritten. `recoverer` logs a panic with
+its stack through `slog` and answers a problem+json 500.
+
+**Metrics.** A second listener, `PP_METRICS_ADDR` (default `:9091`, `off`
+disables), serves only `GET /metrics`. It is its own port so that a routing
+mistake in nginx cannot make it public; compose `expose`s it on the internal
+networks and publishes nothing. It starts before OIDC discovery, so a server
+stuck waiting for its IdP is scrapeable, and a bind failure is logged rather
+than fatal. Series:
+
+- `pphub_http_requests_total{method,route,status}`,
+  `pphub_http_request_duration_seconds{method,route}` (buckets to 300s:
+  downloads stream for minutes) and `pphub_http_requests_in_flight`. `route`
+  is always a chi pattern or `unmatched`, never a raw path — ids and share
+  tokens must not become label values. When a subrouter middleware answers
+  before routing finishes (`authenticated`'s 401), the full pattern is looked
+  up in the root router rather than recorded as `/api/v1/*`.
+- `pphub_db_pool_*` from `pgxpool.Stat()` every scrape.
+- `pphub_jobs{kind,status}` and `pphub_jobs_oldest_age_seconds` (pending,
+  running, failed — `done` rows only accumulate), `pphub_blobs{state}` and
+  `pphub_blob_bytes{state}` (`referenced`/`unreferenced`, the latter being what
+  GC has yet to reclaim), and `pphub_db_stats_up`. These two queries
+  (`JobQueueStats`, `BlobTotals`) run at most every 30s with a 2s timeout; a
+  failure drops the cached values rather than serving them stale.
+- Go runtime and process collectors.
+
+`cmd/worker` has no metrics listener: it has no port by design, and its backlog
+is visible from the server through `pphub_jobs`.
+
+## Upcoming — M26 Onward 🚧 not done
 
 Everything above shipped, including the P0 register in full as of M24;
 nothing below has, and none of it is scheduled — the numbering is the order
@@ -991,23 +1046,6 @@ the dependencies suggest, which is what
 and the two follow the same ordering on purpose. Each entry names the section
 of that document holding the evidence rather than restating it, so there is
 one place to check whether a gap is still real before acting on it.
-
-### Continuous
-
-#### M25 — Observability 🔜 planned
-
-P1, the metrics and logging entries under "Smaller, but on the list". The
-readiness split this entry used to name — a `/healthz` that touched neither
-Postgres nor the blob store, and no healthcheck at all for `cmd/worker` — is
-done: `GET /readyz` checks both, and the worker signals through a freshness
-file since it has no listener; see [production-readiness.md](production-readiness.md)
-§"Smaller, but on the list". What is left: `log/slog` runs on the default
-text handler with no level control — no `slog.New` or `SetDefault`
-anywhere — and chi's request id is not bridged into log records, so the id
-that every `security_events` row carries cannot be used to find the lines
-around it. There are no metrics, no tracing and no error tracking. Nothing
-depends on this, which is why it is not in a phase — and everything after it
-is cheaper to diagnose once it is done.
 
 ### Phase B — The Multi-Department Layer
 
@@ -1194,5 +1232,5 @@ are recorded here so they are found rather than rediscovered:
   M20–M21, as were the sweep findings in its §8, and the readiness split and
   avatar-upload stub closed alongside M22–M24), the P1 gaps against Google
   Drive still open (content search, read auditing and an audit export,
-  comments, resumable upload, storage accounting, IdP group sync — M25
+  comments, resumable upload, storage accounting, IdP group sync — M26
   through M31), and a proposed phasing, whose order Upcoming follows.

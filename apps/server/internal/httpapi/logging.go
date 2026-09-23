@@ -1,36 +1,130 @@
 package httpapi
 
 import (
+	"context"
+	"log/slog"
 	"net/http"
 	"net/url"
+	"runtime/debug"
 	"strings"
+	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+
+	"github.com/nhatbui/pp-hub/apps/server/internal/audit"
 )
 
-// redactingLogger is chi's request logger with the two bearer credentials
-// this API carries in URLs removed from the log line.
+// requestLog is what inner handlers contribute to the access log line; for
+// now the authenticated user, filled in by `authenticated`.
+type requestLog struct{ userID string }
+
+// observe writes the access log line and feeds the HTTP metrics — one
+// ResponseWriter wrap for both. The request id reaches the line through the
+// context (obs's handler adds it) and the caller through X-Request-Id, so a
+// user-reported failure can be matched to log lines and security_events rows.
 //
-// A share token *is* the authorization for anonymous access to a file, and it
-// is a path segment — so the plain request line put it in stdout, and from
-// there into whatever ships container logs, a log-search index or a support
-// bundle. Only its SHA-256 is stored in the database; logging the plaintext
-// next to it made that decision pointless. The WOPI access token is the same
-// problem in a query parameter.
+// The two bearer credentials this API carries in URLs are removed from the
+// logged path. A share token *is* the authorization for anonymous access to a
+// file, and it is a path segment — logging it would put it in whatever ships
+// container logs, while only its SHA-256 is stored in the database. The WOPI
+// access token is the same problem in a query parameter.
 //
-// It rewrites `r.RequestURI` and nothing else. That is deliberate and it is
-// the whole subtlety here: `RequestURI` is the raw string chi's Logger
-// formats, while routing runs off `r.URL.Path`. An earlier version swapped
-// the URL too — and chi then matched the *redacted* path, so `{token}`
-// resolved to "REDACTED" and every share link answered 404. Leave `r.URL`
-// alone.
-func redactingLogger(next http.Handler) http.Handler {
-	logger := middleware.Logger(next)
+// The request itself is never rewritten. An earlier version swapped r.URL
+// for the redacted one and chi then matched the *redacted* path, so `{token}`
+// resolved to "REDACTED" and every share link answered 404. Metrics use the
+// chi route pattern, which contains no token either.
+func (s *Server) observe(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if redacted := redactURI(r.URL); redacted != "" {
-			r.RequestURI = redacted
+		start := time.Now()
+		s.metrics.Start()
+		if id := middleware.GetReqID(r.Context()); id != "" {
+			w.Header().Set("X-Request-Id", id)
 		}
-		logger.ServeHTTP(w, r)
+		rl := &requestLog{}
+		r = r.WithContext(context.WithValue(r.Context(), logCtxKey, rl))
+		ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
+
+		next.ServeHTTP(ww, r)
+
+		status := ww.Status()
+		if status == 0 {
+			status = http.StatusOK
+		}
+		elapsed := time.Since(start)
+		route := routePattern(r)
+		path := redactURI(r.URL)
+		if path == "" {
+			path = r.URL.RequestURI()
+		}
+
+		level := slog.LevelInfo
+		switch {
+		case status >= 500:
+			level = slog.LevelError
+		case route == "/healthz" || route == "/readyz":
+			// Compose probes these every ten seconds.
+			level = slog.LevelDebug
+		}
+		attrs := []slog.Attr{
+			slog.String("method", r.Method),
+			slog.String("path", path),
+			slog.String("route", route),
+			slog.Int("status", status),
+			slog.Int("bytes", ww.BytesWritten()),
+			slog.Float64("duration_ms", float64(elapsed.Microseconds())/1000),
+			slog.String("remote", audit.ClientIP(r)),
+		}
+		if rl.userID != "" {
+			attrs = append(attrs, slog.String("user_id", rl.userID))
+		}
+		slog.LogAttrs(r.Context(), level, "http request", attrs...)
+		s.metrics.Done(r.Method, route, status, elapsed)
+	})
+}
+
+// routePattern is the chi pattern the request matched, or "unmatched". A
+// subrouter middleware that answers before routing finishes (authenticated's
+// 401, a rate limit's 429) leaves only the mount prefix, "/api/v1/*"; the
+// full pattern is then looked up in the root router without running anything.
+func routePattern(r *http.Request) string {
+	rc := chi.RouteContext(r.Context())
+	if rc == nil {
+		return "unmatched"
+	}
+	pattern := rc.RoutePattern()
+	if strings.HasSuffix(pattern, "/*") && rc.Routes != nil {
+		path := r.URL.RawPath
+		if path == "" {
+			path = r.URL.Path
+		}
+		if full := rc.Routes.Find(chi.NewRouteContext(), r.Method, path); full != "" {
+			pattern = full
+		}
+	}
+	if pattern == "" {
+		return "unmatched"
+	}
+	return pattern
+}
+
+// recoverer replaces chi's, which prints a text stack straight to stderr and
+// so bypasses the structured log. It runs inside observe, so a panic is
+// logged and counted as the 500 it becomes.
+func recoverer(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			rec := recover()
+			if rec == nil {
+				return
+			}
+			if rec == http.ErrAbortHandler {
+				panic(rec)
+			}
+			slog.ErrorContext(r.Context(), "panic", "panic", rec, "stack", string(debug.Stack()))
+			writeProblem(w, http.StatusInternalServerError, "Internal Server Error", "")
+		}()
+		next.ServeHTTP(w, r)
 	})
 }
 

@@ -72,7 +72,7 @@ func (n *Notifier) Shared(ctx context.Context, s Share) {
 
 	space, err := n.q.GetSpace(ctx, s.Node.SpaceID)
 	if err != nil {
-		slog.Warn("share notification skipped", "err", err)
+		slog.WarnContext(ctx, "share notification skipped", "err", err)
 		return
 	}
 
@@ -125,12 +125,12 @@ func (n *Notifier) Shared(ctx context.Context, s Share) {
 			Body:    body,
 		})
 		if err != nil {
-			slog.Warn("failed to marshal email job", "err", err)
+			slog.WarnContext(ctx, "failed to marshal email job", "err", err)
 			continue
 		}
 
 		if _, err := n.q.EnqueueJob(ctx, store.EnqueueJobParams{Kind: KindEmail, Payload: payload}); err != nil {
-			slog.Warn("failed to enqueue email job", "err", err)
+			slog.WarnContext(ctx, "failed to enqueue email job", "err", err)
 			continue
 		}
 	}
@@ -160,7 +160,7 @@ func (n *Notifier) drain(ctx context.Context) {
 	jobs, err := n.q.ClaimJobs(ctx, store.ClaimJobsParams{Kinds: []string{KindEmail}, Lim: 10})
 	if err != nil {
 		if !errors.Is(err, pgx.ErrNoRows) {
-			slog.Warn("claim mail jobs", "err", err)
+			slog.WarnContext(ctx, "claim mail jobs", "err", err)
 		}
 		return
 	}
@@ -184,7 +184,7 @@ func (n *Notifier) drain(ctx context.Context) {
 		cancel()
 
 		if err != nil {
-			slog.Warn("mail job failed", "attempt", job.Attempts, "err", err)
+			slog.WarnContext(ctx, "mail job failed", "attempt", job.Attempts, "err", err)
 			if job.Attempts >= maxAttempts {
 				_ = n.q.FailJob(ctx, store.FailJobParams{
 					ID:        job.ID,

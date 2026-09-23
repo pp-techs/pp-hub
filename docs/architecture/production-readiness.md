@@ -14,7 +14,7 @@ product and an internal rollout, assessed against the target deployment:
 auditor yet**.
 
 It is the evidence, not the plan. [milestones.md](milestones.md) holds the
-plan: every remaining gap below is carried by a named milestone, **M25
+plan: every remaining gap below is carried by a named milestone, **M26
 through M31**, and each heading here says which. Nothing there is
 scheduled — the numbers are an order the dependencies suggest, and the
 phasing at the end explains that order. What stays here is the reason each
@@ -554,7 +554,8 @@ an attacker could actually reach, not by how the fix reads.
    chi match the redacted path, so `{token}` reached the handler as the
    literal string "REDACTED" and every share link answered 404 while the log
    looked perfect. nginx does the same job with a `map` plus a custom
-   `log_format`.
+   `log_format`. Since M25 the server's access log is `httpapi.Server.observe`,
+   which logs `redactURI`'s output and still never rewrites the request.
 8. **`DELETE /nodes/{id}/shares/{shareID}` was not scoped by node.** The
    handler authorised `CapShare` on the node in the URL and then deleted by
    share id alone, so a caller who could share _any_ node could revoke a share
@@ -786,8 +787,9 @@ either scope M28 grows or a gap that outlives it.
 
 ### Smaller, but on the list
 
-Two of these are **M25** and the rest have no milestone at all — said plainly
-here so they are not quietly absorbed into one that does not cover them.
+The two that were **M25** are closed and the rest have no milestone at all —
+said plainly here so they are not quietly absorbed into one that does not
+cover them.
 
 - **No antivirus or content scanning.** Uploads go from the multipart part
   straight into the CAS (`fs.go:125-128` → `blob/blob.go:44-74`) with no scan
@@ -812,13 +814,15 @@ DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, HSTS and
   props and sonner's runtime `<style>` injection, so tightening it is an
   `apps/web` change rather than an nginx one — which is exactly why it is
   still here and unscheduled. See [deployment.md](../deployment.md).
-- **No metrics, tracing or error tracking — M25.** Grep
-  `prometheus|otel|opentelemetry|pprof|sentry` over `apps/server` and `deploy/`
-  returns nothing. `log/slog` runs on the default text handler with no level
-  control — no `slog.New` or `slog.SetDefault` anywhere — and chi's request id
-  reaches `security_events` rows (`audit/audit.go:98`) but never a log record,
-  so the one identifier that could join a log line to an audit row exists on
-  only one side of the join.
+- **No metrics or structured logging — closed in M25; tracing and error
+  tracking deliberately left out.** `log/slog` ran on the default text
+  handler with no level control, and chi's request id reached
+  `security_events` rows but never a log record. `internal/obs` now installs
+  a level/format-controlled handler in both binaries that adds the request id
+  to every record logged with a request context, the id is returned as
+  `X-Request-Id`, and the server exposes Prometheus metrics on a separate
+  internal listener (`PP_METRICS_ADDR`, default `:9091`). Tracing and error
+  tracking were scoped out of M25 and remain unscheduled.
 - **`/healthz` was a static 200 — the split closed alongside M22–M24.**
   `/healthz` is still a static 200 — that is correct, it answers "is the
   process up", which is what a restart policy needs — but it was also what
@@ -891,7 +895,7 @@ Restating so these are not rediscovered as gaps:
 
 Nothing below is scheduled; it is the order the dependencies suggest. What has
 changed is that each phase now has named milestones carrying it, and those
-live in [milestones.md](milestones.md) under `## Upcoming — M25 Onward`. The
+live in [milestones.md](milestones.md) under `## Upcoming — M26 Onward`. The
 division is deliberate: that document is the plan, this one is the evidence,
 and a milestone that cannot point back to a section here has not been argued
 for.
@@ -913,13 +917,11 @@ register but read like rollout blockers to anyone testing the product closed
 too: the readiness split under "Smaller, but on the list" (`/readyz`, and a
 file-based signal for `cmd/worker`) and the avatar-upload stub.
 
-**Continuous — M25, observability.** What remains of it after the readiness
-split above is metrics, tracing, error tracking, and a level-controlled
-`slog` handler carrying the request id. It is cheap at any point and it makes
-every phase after it diagnosable, which is the argument for doing it early;
-it sits between the phases rather than inside one only because nothing
-depends on it. Its evidence is the "No metrics, tracing or error tracking"
-bullet under "Smaller, but on the list".
+**Continuous — M25, observability — done.** A level-controlled `slog` handler
+carrying the request id, a structured access log and a Prometheus `/metrics`
+listener on an internal port; see the "No metrics or structured logging"
+bullet under "Smaller, but on the list". Tracing and error tracking were left
+out of it by decision and have no milestone.
 
 **Phase B — the multi-department layer.** **M26 — audit completeness** is
 partly built: `security_events` carries authentication, admin, suspension,

@@ -203,10 +203,10 @@ func previewKindFor(jobKind string) string {
 // Run loops claiming and processing jobs until ctx is cancelled.
 func (w *Worker) Run(ctx context.Context) {
 	if len(w.kinds) == 0 {
-		slog.Info("preview worker idle: no renderers registered")
+		slog.InfoContext(ctx, "preview worker idle: no renderers registered")
 		return
 	}
-	slog.Info("preview worker started", "kinds", w.kinds)
+	slog.InfoContext(ctx, "preview worker started", "kinds", w.kinds)
 	ticker := time.NewTicker(3 * time.Second)
 	defer ticker.Stop()
 	for {
@@ -225,13 +225,13 @@ func (w *Worker) drain(ctx context.Context) {
 	jobs, err := w.q.ClaimJobs(ctx, store.ClaimJobsParams{Kinds: w.kinds, Lim: 5})
 	if err != nil {
 		if !errors.Is(err, pgx.ErrNoRows) {
-			slog.Warn("claim jobs", "err", err)
+			slog.WarnContext(ctx, "claim jobs", "err", err)
 		}
 		return
 	}
 	for _, job := range jobs {
 		if err := w.process(ctx, job); err != nil {
-			slog.Warn("job failed", "kind", job.Kind, "attempt", job.Attempts, "err", err)
+			slog.WarnContext(ctx, "job failed", "kind", job.Kind, "attempt", job.Attempts, "err", err)
 			if job.Attempts >= maxAttempts {
 				_ = w.q.FailJob(ctx, store.FailJobParams{ID: job.ID, LastError: pgtype.Text{String: err.Error(), Valid: true}})
 			} else {
@@ -258,11 +258,11 @@ func (w *Worker) reap(ctx context.Context) {
 		LeaseSeconds: int32(jobLease.Seconds()),
 	})
 	if err != nil {
-		slog.Warn("reap stuck jobs", "err", err)
+		slog.WarnContext(ctx, "reap stuck jobs", "err", err)
 		return
 	}
 	if n > 0 {
-		slog.Warn("reclaimed jobs abandoned by a stopped worker", "count", n)
+		slog.WarnContext(ctx, "reclaimed jobs abandoned by a stopped worker", "count", n)
 	}
 }
 

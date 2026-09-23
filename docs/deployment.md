@@ -259,6 +259,26 @@ wants the failed sign-ins from February. Unparseable values fall back to the
 default and say so rather than refusing to start, because a retention window
 is a policy knob. Can also be overridden at runtime via **Admin > Settings** (`/admin/settings`).
 
+**`PP_LOG_LEVEL`** / **`PP_LOG_FORMAT`** — defaults `info` / `text` in the
+binary; `compose.prod.yml` sets `json`. Both the server and the worker read
+them. Every record logged while serving a request carries `request_id`, the
+same value returned to the caller as `X-Request-Id` and stored on the
+`security_events` rows that request wrote — ask a user for that header and grep
+for it. The access log is one `"http request"` record per request (redacted
+path, chi route pattern, status, duration, client address, `user_id` once
+signed in); `/healthz` and `/readyz` log at `debug` so the compose probes do
+not flood `info`. An unknown value warns and falls back to the default.
+
+**`PP_METRICS_ADDR`** — default `:9091`; `off` disables it. The server's
+Prometheus endpoint, `GET /metrics`, on its own listener so a proxy mistake
+cannot make it public. `compose.prod.yml` only `expose`s it on the internal
+networks; to scrape it, attach your Prometheus container to the `edge` network
+and target `server:9091`. Series are prefixed `pphub_`: HTTP requests by
+method/route/status and latency, the Postgres pool, `pphub_jobs{kind,status}`
+with the oldest job's age (a growing `render:*` backlog means no worker),
+referenced vs. unreferenced (awaiting GC) blobs and bytes, and Go/process
+metrics. The worker has no metrics port.
+
 **`PP_TRUSTED_PROXIES`** — a comma-separated list of CIDRs (a bare address is
 accepted as its own `/32`), empty by default, `172.16.0.0/12` in the compose
 file. This is the one where **both** a missing value and an over-broad value
