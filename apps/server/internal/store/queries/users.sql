@@ -121,6 +121,13 @@ SELECT COUNT(*) FROM users WHERE tenant_id = $1;
 
 -- name: SetUserAdmin :exec
 UPDATE users SET is_admin = $2 WHERE id = $1;
+
+-- Who a security alert is mailed to: every live instance admin with an
+-- address. No opt-out — alerts are turned off instance-wide, not per person.
+-- name: ListInstanceAdminRecipients :many
+SELECT id, email, settings FROM users
+WHERE is_admin AND suspended_at IS NULL AND email <> '';
+
 -- name: GetSpaceMembers :many
 SELECT m.user_id, m.created_at, u.email, u.name, u.display_name, u.avatar_url,
   EXISTS (

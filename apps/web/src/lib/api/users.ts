@@ -3,6 +3,7 @@ import { api, ApiError } from "./client";
 import type {
   AddMemberResult,
   AdminUser,
+  SecurityEventFilters,
   SecurityEventPage,
   Session,
   SpaceDeparture,
@@ -84,23 +85,42 @@ export async function listUsers(
 
 // ─── Admin: Security Log ─────────────────────────────────────────────────────
 
+/** The non-empty filters, as query parameters. */
+function securityFilterParams(filters: SecurityEventFilters): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const key of ["kind", "node", "from", "to"] as const) {
+    const value = filters[key];
+    if (value) out[key] = value;
+  }
+  return out;
+}
+
 /**
- * Admin-only, newest first, instance-wide. `kind` filters exactly; omit it for
- * every kind. The server clamps `limit` to 1–500 and defaults it to 100.
+ * Admin-only, newest first, instance-wide. Every filter is optional and an
+ * empty one is omitted rather than sent. The server clamps `limit` to 1–500
+ * and defaults it to 100.
  */
-export async function listSecurityEvents(params: {
-  limit?: number;
-  offset?: number;
-  kind?: string;
-}): Promise<SecurityEventPage> {
+export async function listSecurityEvents(
+  params: SecurityEventFilters & { limit?: number; offset?: number },
+): Promise<SecurityEventPage> {
   const searchParams: Record<string, string | number> = {
     limit: params.limit ?? 100,
     offset: params.offset ?? 0,
+    ...securityFilterParams(params),
   };
-  if (params.kind) searchParams.kind = params.kind;
   const res = await api.get("api/v1/admin/security-events", { searchParams });
   if (!res.ok) throw new ApiError(res.status, "Failed to list security events");
   return res.json();
+}
+
+/**
+ * The CSV export of the log under the same filters, as a URL for a plain
+ * link: the browser streams the download itself rather than buffering the
+ * whole file in a fetch.
+ */
+export function securityEventsExportUrl(filters: SecurityEventFilters): string {
+  const query = new URLSearchParams(securityFilterParams(filters)).toString();
+  return `/api/v1/admin/security-events/export${query ? `?${query}` : ""}`;
 }
 
 // ─── Space Members ───────────────────────────────────────────────────────────

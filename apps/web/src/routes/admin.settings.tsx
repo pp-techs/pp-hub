@@ -116,6 +116,95 @@ function SourceBadge({ source }: { source: AdminSetting["source"] }) {
   );
 }
 
+/**
+ * The integer settings this form edits in days or counts, with the default
+ * shown when the server omits one and the bounds the server enforces. The
+ * bounds are mirrored here only to refuse an obviously bad value before the
+ * round trip; the server's check is the one that counts.
+ */
+const INT_SETTINGS = [
+  { key: "audit_retention_days", fallback: 365, min: 1, max: 3650 },
+  { key: "read_audit_retention_days", fallback: 90, min: 1, max: 3650 },
+  { key: "alert_failed_login_threshold", fallback: 10, min: 0, max: 10000 },
+  { key: "alert_failed_login_window_minutes", fallback: 15, min: 1, max: 1440 },
+] as const;
+
+type IntSettingKey = (typeof INT_SETTINGS)[number]["key"];
+type IntSettingValues = Record<IntSettingKey, string>;
+
+/**
+ * One integer setting: where its value comes from, a Reset back to the
+ * deployment default when it is a database override, and the input itself.
+ */
+function IntSettingCard({
+  settingKey,
+  settings,
+  values,
+  title,
+  label,
+  suffix,
+  hint,
+  onChange,
+  onReset,
+  resetDisabled,
+}: {
+  settingKey: IntSettingKey;
+  settings: AdminSettingsMap;
+  values: IntSettingValues;
+  title: React.ReactNode;
+  label: React.ReactNode;
+  suffix?: React.ReactNode;
+  hint?: React.ReactNode;
+  onChange: (key: IntSettingKey, value: string) => void;
+  onReset: (key: IntSettingKey) => void;
+  resetDisabled: boolean;
+}) {
+  const setting = settings[settingKey];
+  const spec = INT_SETTINGS.find((s) => s.key === settingKey);
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <CardTitle>{title}</CardTitle>
+          {setting && <SourceBadge source={setting.source} />}
+        </div>
+        <CardDescription>{setting?.description}</CardDescription>
+        {setting?.source === "database" && (
+          <CardAction>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => onReset(settingKey)}
+              disabled={resetDisabled}
+            >
+              <RotateCcw className="size-3.5" />
+              <Trans>Reset</Trans>
+            </Button>
+          </CardAction>
+        )}
+      </CardHeader>
+      <CardContent>
+        <div className="flex max-w-sm flex-col gap-1.5">
+          <Label htmlFor={settingKey}>{label}</Label>
+          <div className="flex items-center gap-2">
+            <Input
+              id={settingKey}
+              type="number"
+              min={spec?.min}
+              max={spec?.max}
+              value={values[settingKey]}
+              onChange={(e) => onChange(settingKey, e.target.value)}
+            />
+            {suffix && <span className="text-muted-foreground text-sm">{suffix}</span>}
+          </div>
+          {hint && <p className="text-muted-foreground text-xs">{hint}</p>}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function SettingsForm({ settings }: { settings: AdminSettingsMap }) {
   const { t } = useLingui();
   const update = useUpdateAdminSettings();
@@ -124,16 +213,20 @@ function SettingsForm({ settings }: { settings: AdminSettingsMap }) {
   const defaultInstanceName = "pp-hub";
   const currentInstanceName = (settings.instance_name?.value as string) ?? defaultInstanceName;
   const currentMaxUpload = (settings.max_upload_bytes?.value as number) ?? 0;
-  const currentRetention = (settings.audit_retention_days?.value as number) ?? 365;
   const currentQuota = (settings.default_space_quota_bytes?.value as number) ?? 0;
+  const currentInts = Object.fromEntries(
+    INT_SETTINGS.map((s) => [s.key, String((settings[s.key]?.value as number) ?? s.fallback)]),
+  ) as IntSettingValues;
   const [instanceName, setInstanceName] = useState(currentInstanceName);
   const [maxUploadGb, setMaxUploadGb] = useState(
     currentMaxUpload > 0 ? String(Math.round(currentMaxUpload / 1024 ** 3)) : "0",
   );
-  const [auditRetentionDays, setAuditRetentionDays] = useState(String(currentRetention));
+  const [ints, setInts] = useState(currentInts);
   const [defaultSpaceQuotaGb, setDefaultSpaceQuotaGb] = useState(
     currentQuota > 0 ? String(Math.round(currentQuota / 1024 ** 3)) : "0",
   );
+  const setInt = (key: IntSettingKey, value: string) =>
+    setInts((prev) => ({ ...prev, [key]: value }));
 
   const initialMaxUploadGb =
     currentMaxUpload > 0 ? String(Math.round(currentMaxUpload / 1024 ** 3)) : "0";
@@ -142,8 +235,15 @@ function SettingsForm({ settings }: { settings: AdminSettingsMap }) {
   const isDirty =
     instanceName !== currentInstanceName ||
     maxUploadGb !== initialMaxUploadGb ||
-    auditRetentionDays !== String(currentRetention) ||
+    INT_SETTINGS.some((s) => ints[s.key] !== currentInts[s.key]) ||
     defaultSpaceQuotaGb !== initialQuotaGb;
+
+  const intErrors: Record<IntSettingKey, string> = {
+    audit_retention_days: t`Audit retention must be between 1 and 3650 days`,
+    read_audit_retention_days: t`File access retention must be between 1 and 3650 days`,
+    alert_failed_login_threshold: t`Alert threshold must be between 0 and 10000`,
+    alert_failed_login_window_minutes: t`Alert window must be between 1 and 1440 minutes`,
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -168,13 +268,19 @@ function SettingsForm({ settings }: { settings: AdminSettingsMap }) {
       patch.max_upload_bytes = Math.round(parsedGb * 1024 ** 3);
     }
 
-    if (auditRetentionDays !== String(currentRetention)) {
-      const parsedDays = Number.parseInt(auditRetentionDays, 10);
-      if (Number.isNaN(parsedDays) || parsedDays < 1 || parsedDays > 3650) {
-        toast.error(t`Audit retention must be between 1 and 3650 days`);
+    for (const s of INT_SETTINGS) {
+      if (ints[s.key] === currentInts[s.key]) continue;
+      const parsed = Number(ints[s.key]);
+      if (
+        ints[s.key].trim() === "" ||
+        !Number.isInteger(parsed) ||
+        parsed < s.min ||
+        parsed > s.max
+      ) {
+        toast.error(intErrors[s.key]);
         return;
       }
-      patch.audit_retention_days = parsedDays;
+      patch[s.key] = parsed;
     }
 
     if (defaultSpaceQuotaGb !== initialQuotaGb) {
@@ -198,11 +304,19 @@ function SettingsForm({ settings }: { settings: AdminSettingsMap }) {
 
   const handleReset = async (key: string) => {
     try {
-      await remove.mutateAsync(key);
+      const next = await remove.mutateAsync(key);
       toast.success(t`Setting reverted to deployment default`);
+      return next;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t`Failed to reset setting`);
     }
+  };
+
+  // The field still holds the override it was showing; follow the value the
+  // reset landed on, or the form reads as dirty with a value nobody saved.
+  const resetInt = async (key: IntSettingKey) => {
+    const next = await handleReset(key);
+    if (next?.[key]) setInt(key, String(next[key].value));
   };
 
   return (
@@ -362,54 +476,58 @@ function SettingsForm({ settings }: { settings: AdminSettingsMap }) {
         <SectionLabel>
           <Trans>Security & Auditing</Trans>
         </SectionLabel>
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <CardTitle>
-                <Trans>Security log retention</Trans>
-              </CardTitle>
-              {settings.audit_retention_days && (
-                <SourceBadge source={settings.audit_retention_days.source} />
-              )}
-            </div>
-            <CardDescription>{settings.audit_retention_days?.description}</CardDescription>
-            {settings.audit_retention_days?.source === "database" && (
-              <CardAction>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  // eslint-disable-next-line lingui/no-unlocalized-strings -- setting key
-                  onClick={() => handleReset("audit_retention_days")}
-                  disabled={remove.isPending}
-                >
-                  <RotateCcw className="size-3.5" />
-                  <Trans>Reset</Trans>
-                </Button>
-              </CardAction>
-            )}
-          </CardHeader>
-          <CardContent>
-            <div className="flex max-w-sm flex-col gap-1.5">
-              <Label htmlFor="audit_retention_days">
-                <Trans>Retention period (days)</Trans>
-              </Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  id="audit_retention_days"
-                  type="number"
-                  min="1"
-                  max="3650"
-                  value={auditRetentionDays}
-                  onChange={(e) => setAuditRetentionDays(e.target.value)}
-                />
-                <span className="text-muted-foreground text-sm">
-                  <Trans>days</Trans>
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <IntSettingCard
+          // eslint-disable-next-line lingui/no-unlocalized-strings -- setting key
+          settingKey="audit_retention_days"
+          settings={settings}
+          values={ints}
+          title={<Trans>Security log retention</Trans>}
+          label={<Trans>Retention period (days)</Trans>}
+          suffix={<Trans>days</Trans>}
+          onChange={setInt}
+          onReset={resetInt}
+          resetDisabled={remove.isPending}
+        />
+        <IntSettingCard
+          // eslint-disable-next-line lingui/no-unlocalized-strings -- setting key
+          settingKey="read_audit_retention_days"
+          settings={settings}
+          values={ints}
+          title={<Trans>File access log retention</Trans>}
+          label={<Trans>Retention period (days)</Trans>}
+          suffix={<Trans>days</Trans>}
+          onChange={setInt}
+          onReset={resetInt}
+          resetDisabled={remove.isPending}
+        />
+        <IntSettingCard
+          // eslint-disable-next-line lingui/no-unlocalized-strings -- setting key
+          settingKey="alert_failed_login_threshold"
+          settings={settings}
+          values={ints}
+          title={<Trans>Failed sign-in alert threshold</Trans>}
+          label={<Trans>Failed sign-ins from one address</Trans>}
+          hint={
+            <Trans>
+              0 turns alerts off. Alerts are emailed to administrators when mail is configured.
+            </Trans>
+          }
+          onChange={setInt}
+          onReset={resetInt}
+          resetDisabled={remove.isPending}
+        />
+        <IntSettingCard
+          // eslint-disable-next-line lingui/no-unlocalized-strings -- setting key
+          settingKey="alert_failed_login_window_minutes"
+          settings={settings}
+          values={ints}
+          title={<Trans>Alert window</Trans>}
+          label={<Trans>Window (minutes)</Trans>}
+          suffix={<Trans>minutes</Trans>}
+          onChange={setInt}
+          onReset={resetInt}
+          resetDisabled={remove.isPending}
+        />
       </section>
 
       <div className="flex items-center justify-end gap-3 border-t pt-4">
@@ -420,7 +538,7 @@ function SettingsForm({ settings }: { settings: AdminSettingsMap }) {
           onClick={() => {
             setInstanceName(currentInstanceName);
             setMaxUploadGb(initialMaxUploadGb);
-            setAuditRetentionDays(String(currentRetention));
+            setInts(currentInts);
             setDefaultSpaceQuotaGb(initialQuotaGb);
           }}
         >

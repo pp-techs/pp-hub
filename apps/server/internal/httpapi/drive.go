@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/activity"
+	"github.com/nhatbui/pp-hub/apps/server/internal/audit"
 	"github.com/nhatbui/pp-hub/apps/server/internal/fs"
 	"github.com/nhatbui/pp-hub/apps/server/internal/office"
 	"github.com/nhatbui/pp-hub/apps/server/internal/orgsync"
@@ -779,15 +780,16 @@ func inlineDisposition(mimeType string) string {
 }
 
 func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
-	_, node, _ := s.requireNodeCaps(w, r, share.CapDownload)
+	u, node, _ := s.requireNodeCaps(w, r, share.CapDownload)
 	if !node.ID.Valid {
 		return
 	}
 	if node.Kind == store.NodeKindDir {
+		s.audit.RecordRead(r, audit.Read{Kind: audit.KindFolderDownloaded, User: u, Node: node})
 		s.streamZip(w, r, node)
 		return
 	}
-	s.serveBlob(w, r, "attachment", share.CapDownload)
+	s.serveBlob(w, r, "attachment", share.CapDownload, audit.KindFileDownloaded)
 }
 
 // handleContent serves the file's own bytes for the browser to render in
@@ -800,11 +802,13 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 // /preview — a thumbnail or a text snippet, generated from the file but not
 // the file. Drive draws the line in the same place.
 func (s *Server) handleContent(w http.ResponseWriter, r *http.Request) {
-	s.serveBlob(w, r, "inline", share.CapDownload)
+	s.serveBlob(w, r, "inline", share.CapDownload, audit.KindFileViewed)
 }
 
-func (s *Server) serveBlob(w http.ResponseWriter, r *http.Request, disposition string, need share.Cap) {
-	_, node, _ := s.requireNodeCaps(w, r, need)
+// serveBlob is the funnel for a file's bytes, and so where a read is audited:
+// after authorisation and a successful open, before any byte is written.
+func (s *Server) serveBlob(w http.ResponseWriter, r *http.Request, disposition string, need share.Cap, kind audit.Kind) {
+	u, node, _ := s.requireNodeCaps(w, r, need)
 	if !node.ID.Valid {
 		return
 	}
@@ -814,6 +818,7 @@ func (s *Server) serveBlob(w http.ResponseWriter, r *http.Request, disposition s
 		return
 	}
 	defer rc.Close()
+	s.audit.RecordRead(r, audit.Read{Kind: kind, User: u, Node: n})
 
 	if disposition == "inline" {
 		disposition = inlineDisposition(ver.Mime)

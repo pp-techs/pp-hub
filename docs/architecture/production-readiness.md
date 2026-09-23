@@ -14,7 +14,7 @@ product and an internal rollout, assessed against the target deployment:
 auditor yet**.
 
 It is the evidence, not the plan. [milestones.md](milestones.md) holds the
-plan: every remaining gap below is carried by a named milestone, **M26
+plan: every remaining gap below is carried by a named milestone, **M27
 through M31**, and each heading here says which. Nothing there is
 scheduled — the numbers are an order the dependencies suggest, and the
 phasing at the end explains that order. What stays here is the reason each
@@ -634,7 +634,7 @@ queue with an optional worker (`preview-pipeline.md`), and office documents
 already pass through OnlyOffice conversion, so a text-extraction job kind is an
 addition to a working pattern rather than new infrastructure.
 
-### `activity_events` is a feed, not an audit log — mostly closed in M21, the rest is M26
+### `activity_events` is a feed, not an audit log — closed in M21 and M26
 
 `activity_events` is still a feed, and that has stopped being a complaint:
 M21 added a second table rather than more verbs to the first one. The reason
@@ -654,14 +654,15 @@ Where the four holes stand now:
 
 | Hole                         | Status                                                                                                                                                                                          |
 | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Reads and downloads          | **Still open, and deliberately so** — no `viewed`/`downloaded` kind anywhere; `handleDownload`, `handleContent` and `handleShareDownload` record nothing                                        |
+| Reads and downloads          | **Closed in M26** — `file_downloaded`, `folder_downloaded`, `file_viewed`, `file_opened`, deduplicated to one row per (kind, actor, node) per hour, with their own retention                    |
 | Authentication events        | **Closed** — `login`, `login_failed`, `logout`, `session_revoked`, `sessions_revoked`, `identity_adopted`, written by `internal/auth`                                                           |
 | Permission and admin changes | **Closed** — `admin_granted`, `admin_revoked`, `account_suspended`, `account_unsuspended`, `grant_created`, `grant_revoked`, `share_created`, `share_revoked`, `member_added`, `member_removed` |
 | Request context              | **Closed** — every row carries `ip` (through `audit.ClientIP`), a 400-byte-truncated `user_agent` and chi's `request_id`, so a row joins to the access-log line that produced it                |
 
 `GET /api/v1/admin/security-events` pages the log newest first, admin-only and
 deliberately **not** space-scoped: the whole value of a run of failed sign-ins
-is seeing it across accounts and addresses at once. `?kind=` filters,
+is seeing it across accounts and addresses at once. `?kind=`, `?node=` (the
+node and its subtree), `?from=`/`?to=` filter,
 `?limit=`/`?offset=` page, and the actor's email is joined in so a row reads
 as a person rather than a UUID — falling back to the recorded `subject` once
 the account is gone. Retention is `PP_AUDIT_RETENTION_DAYS` (365), purged by
@@ -677,22 +678,23 @@ would trade the real outcome for the record of it — but a failure is logged at
 the row with them. Unlike an activity row, a gap here is a gap in an audit
 trail.
 
-**Read auditing was omitted on purpose, not overlooked.** A `downloaded` row
-per byte-serving request is the highest-volume event in the system by an order
-of magnitude — every thumbnail in a grid scroll, every range request a video
-player makes, every WOPI `GetFile` behind an editor keystroke — and it would
-have to be written on the hot path of the endpoints that matter most for
-latency. Doing it properly means sampling or aggregation and a retention
-policy of its own, which is a design decision rather than a missing call. So
-"who downloaded the payroll folder?" still has no answer, and that decision is
-what M26 has to make before it can write any code; what M21 bought is that
-"who _gained access_ to the payroll folder, and when, and who granted it?"
-does.
+**Read auditing was deferred in M21 on purpose, and M26 made the decision it
+was waiting on.** A row per byte-serving request would be the highest-volume
+event in the system — every thumbnail in a grid scroll, every range request a
+video player makes, every WOPI `GetFile` behind an editor keystroke. M26
+records only _intentional_ reads (a download, a folder zip, an inline view, an
+editor open) and not thumbnails or `GetFile`, and absorbs the rest in memory:
+one row per (kind, actor, node) per hour, per replica. Read kinds are purged
+on their own, shorter retention (`read_audit_retention_days`, 90). So "who
+downloaded the payroll folder?" now has an answer: click the folder's name in
+the console, or export it — `GET /api/v1/admin/security-events/export` streams
+the filtered log as CSV. The residual imprecision is stated rather than
+hidden: a link visitor is identified by link and address, so two visitors
+behind one NAT are one row per hour.
 
-Still absent in this area, and the remainder of M26: an export endpoint (the
-console reads JSON pages), and any alerting on the log — a hundred
-`login_failed` rows from one address is visible to an admin who looks, and
-nothing looks on its own.
+Nothing watched the log on its own; `internal/alert` now does, for one rule —
+a burst of failed sign-ins from one address raises a `security_alert` row, a
+`pphub_security_alerts_total` increment and an email to the instance admins.
 
 ### No comments — M29
 
@@ -895,7 +897,7 @@ Restating so these are not rediscovered as gaps:
 
 Nothing below is scheduled; it is the order the dependencies suggest. What has
 changed is that each phase now has named milestones carrying it, and those
-live in [milestones.md](milestones.md) under `## Upcoming — M26 Onward`. The
+live in [milestones.md](milestones.md) under `## Upcoming — M27 Onward`. The
 division is deliberate: that document is the plan, this one is the evidence,
 and a milestone that cannot point back to a section here has not been argued
 for.
@@ -923,12 +925,10 @@ listener on an internal port; see the "No metrics or structured logging"
 bullet under "Smaller, but on the list". Tracing and error tracking were left
 out of it by decision and have no milestone.
 
-**Phase B — the multi-department layer.** **M26 — audit completeness** is
-partly built: `security_events` carries authentication, admin, suspension,
-grant, share and membership changes with request context and a retention
-window, so what is left of it is read auditing (a design decision, not an
-oversight — see the section above), an export endpoint, and anything that
-watches the log rather than waiting to be read. Then **M27 — content-indexed
+**Phase B — the multi-department layer.** **M26 — audit completeness — done**:
+`security_events` now records intentional reads as well as access changes,
+filters by node and date, exports as CSV, and alerts on bursts of failed
+sign-ins; see the audit-log section above. Then **M27 — content-indexed
 search** as a new preview-pipeline job kind, then **M28 — directory sync**,
 which is the pre-provisioning and IdP-group-sync half of "Identity is managed
 by hand". These are what changes when the user count crosses a couple of
@@ -959,7 +959,6 @@ overwrite, a
 `/readyz` that actually fails when a dependency has, and an avatar upload
 that survives a reload — provided everyone understands that search finds
 names rather than contents and that there are no comments. A company-wide
-rollout across several departments needs Phase B as well: M27's content
-search, and the half of the audit story M26 still owes, the half that
-answers "who read this", which is the question that gets asked within the
-first week rather than the first month.
+rollout across several departments needs the rest of Phase B as well, M27's
+content search above all; the audit half — "who read this", the question that
+gets asked within the first week rather than the first month — M26 answered.

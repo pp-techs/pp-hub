@@ -259,6 +259,16 @@ wants the failed sign-ins from February. Unparseable values fall back to the
 default and say so rather than refusing to start, because a retention window
 is a policy knob. Can also be overridden at runtime via **Admin > Settings** (`/admin/settings`).
 
+Three related knobs have no environment variable and live only in
+**Admin > Settings**: `read_audit_retention_days` (default `90`) — how long
+file access events (downloads, views, editor opens) are kept, separately from
+the rest of the log because they are most of it — and
+`alert_failed_login_threshold` (`10`, `0` turns alerts off) with
+`alert_failed_login_window_minutes` (`15`), which decide when a run of failed
+sign-ins from one address raises a security alert, emails the instance
+admins and increments `pphub_security_alerts_total{rule}` on the metrics
+listener.
+
 **`PP_LOG_LEVEL`** / **`PP_LOG_FORMAT`** — defaults `info` / `text` in the
 binary; `compose.prod.yml` sets `json`. Both the server and the worker read
 them. Every record logged while serving a request carries `request_id`, the
@@ -888,14 +898,16 @@ service. The worker is bursty — it spawns `pdftoppm`/`ffmpeg` per job with a
 - **`style-src 'unsafe-inline'` in the CSP.** The only loose directive that is
   not load-bearing for a feature; removing it needs changes in `apps/web`,
   not in the deployment.
-- **No read auditing.** `security_events` records who _gained_ access and who
-  signed in; it does not record who downloaded what. Deliberate — see
-  [production-readiness.md](architecture/production-readiness.md) — and the
-  reason "who downloaded the payroll folder?" still has no answer.
-- **No alerting on the security log.** A hundred `login_failed` rows from one
-  address are visible to an admin who looks at
-  `GET /api/v1/admin/security-events`; nothing looks on its own, and there is
-  no export endpoint.
+- **Read auditing is deduplicated, not exhaustive.** `security_events` records
+  intentional reads (downloads, folder zips, inline views, editor opens) at
+  most once per person, file and kind per hour, per replica; thumbnails and
+  the editor's own byte fetches are not reads. See
+  [production-readiness.md](architecture/production-readiness.md).
+- **Security alerting has one rule.** `internal/alert` flags a burst of failed
+  sign-ins from one address (by default 10 within 15 minutes) with a
+  `security_alert` row, `pphub_security_alerts_total` and an email to every
+  instance admin — but only when SMTP is configured, and there is no rule
+  keyed on an account, because failed sign-ins mostly carry none.
 - **No WOPI proof-key verification.** The Document Server's calls into
   `/wopi/files/...` are authorized by our own access token, not by proving
   they came from the Document Server. Deliberate: the token binds one node,

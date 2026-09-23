@@ -17,7 +17,7 @@ import {
   getSpaceDepartures,
   completeDeparture,
 } from "@/lib/api/users";
-import type { SecurityEventPage } from "@/lib/api";
+import type { SecurityEventFilters, SecurityEventPage } from "@/lib/api";
 import { keys } from "./keys";
 // ─── Profile ─────────────────────────────────────────────────────────────────
 
@@ -78,7 +78,7 @@ export function useUsers(limit = 50, offset = 0) {
 
 /**
  * How many log rows a page holds. Fixed rather than a parameter: the cache
- * key is (kind, offset), so two callers asking for different page sizes at
+ * key is (filters, offset), so two callers asking for different page sizes at
  * the same offset would read each other's page.
  */
 export const SECURITY_PAGE_SIZE = 50;
@@ -88,10 +88,10 @@ export const SECURITY_PAGE_SIZE = 50;
  * page on screen while the next one loads, so paging through a long run of
  * failed sign-ins does not blink the table away under the reader.
  */
-export function useSecurityEvents(kind?: string, offset = 0) {
+export function useSecurityEvents(filters: SecurityEventFilters, offset = 0) {
   return useQuery({
-    queryKey: keys.securityEvents(kind, offset),
-    queryFn: () => listSecurityEvents({ kind, offset, limit: SECURITY_PAGE_SIZE }),
+    queryKey: keys.securityEvents(filters, offset),
+    queryFn: () => listSecurityEvents({ ...filters, offset, limit: SECURITY_PAGE_SIZE }),
     placeholderData: (prev: SecurityEventPage | undefined) => prev,
   });
 }

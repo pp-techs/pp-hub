@@ -12,6 +12,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/nhatbui/pp-hub/apps/server/internal/audit"
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 )
@@ -139,15 +140,15 @@ func (s *Server) handleShareChildren(w http.ResponseWriter, r *http.Request) {
 // A no-download visitor is not left with nothing: the preview endpoints serve
 // artifacts derived from the file rather than the file.
 func (s *Server) handleShareNodeContent(w http.ResponseWriter, r *http.Request) {
-	s.serveShareFile(w, r, "inline", true)
+	s.serveShareFile(w, r, "inline", true, audit.KindFileViewed)
 }
 
 // handleShareNodeDownload forces a download of a file inside the share.
 func (s *Server) handleShareNodeDownload(w http.ResponseWriter, r *http.Request) {
-	s.serveShareFile(w, r, "attachment", true)
+	s.serveShareFile(w, r, "attachment", true, audit.KindFileDownloaded)
 }
 
-func (s *Server) serveShareFile(w http.ResponseWriter, r *http.Request, disposition string, needDownload bool) {
+func (s *Server) serveShareFile(w http.ResponseWriter, r *http.Request, disposition string, needDownload bool, kind audit.Kind) {
 	sh, node, ok := s.shareScope(w, r, "node")
 	if !ok {
 		return
@@ -166,6 +167,7 @@ func (s *Server) serveShareFile(w http.ResponseWriter, r *http.Request, disposit
 		return
 	}
 	defer rc.Close()
+	s.audit.RecordRead(r, audit.Read{Kind: kind, ShareID: sh.ID, SharedBy: sh.CreatedBy, Node: n})
 
 	if disposition == "inline" {
 		disposition = inlineDisposition(ver.Mime)
@@ -195,6 +197,7 @@ func (s *Server) handleShareDownloadAll(w http.ResponseWriter, r *http.Request) 
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "not a folder")
 		return
 	}
+	s.audit.RecordRead(r, audit.Read{Kind: audit.KindFolderDownloaded, ShareID: sh.ID, SharedBy: sh.CreatedBy, Node: node})
 	s.streamZip(w, r, node)
 }
 

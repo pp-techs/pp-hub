@@ -1037,7 +1037,58 @@ than fatal. Series:
 `cmd/worker` has no metrics listener: it has no port by design, and its backlog
 is visible from the server through `pphub_jobs`.
 
-## Upcoming — M26 Onward 🚧 not done
+## M26 — Audit Completeness ✅ done
+
+Migration `0008_read_audit.sql`. Closes the remainder of P1 "`activity_events`
+is a feed, not an audit log" on the `security_events` table M21 added, rather
+than a third one: read auditing, an export, and a watcher.
+
+**Reads, deduplicated.** Four new kinds record _intentional_ reads:
+`file_downloaded`, `folder_downloaded` (a zip), `file_viewed` (inline
+`/content`) and `file_opened` (an editor session, with `detail.mode`). They are
+written where the bytes are served — `serveBlob`, `serveShareFile`,
+`handleShareDownload`, both `streamZip` callers and `handleEditSession` —
+after authorisation and a successful open, before a byte is written, for
+signed-in users and share-link visitors alike (a visitor is `subject =
+"share_link"`, with `detail.share` and `detail.shared_by`). Thumbnails, WOPI
+`GetFile` and avatars are not reads. The volume problem M21 deferred on is
+handled by `audit.RecordRead`: one row per (kind, actor, node) per hour, held
+in a bounded in-memory map, so Range continuations and a double-click are one
+row. The cache is per replica — N replicas can write N rows per window — and
+when full it forgets rather than grows, so its failure mode is an extra row,
+never a missing one.
+
+**A node column.** `security_events.node_id` (indexed, backfilled from the
+`detail.node` that grant and share events already carried) makes "who read
+folder X" a filter: `?node=` matches the node and everything under it,
+including trashed descendants, and still matches a node purged since. There is
+deliberately no foreign key: a purge must not erase the record that someone
+read the file. The console joins the node's name, falling back to the name
+recorded with the event.
+
+**Retention of its own.** `read_audit_retention_days` (default 90) is a
+separate instance setting; the five-minute sweep purges read kinds against it
+and everything else against `audit_retention_days`.
+
+**Filters and export.** `GET /api/v1/admin/security-events` takes `?kind=`,
+`?node=`, `?from=` and `?to=` (RFC 3339, `to` exclusive; a malformed value is a
+400, not a silently wider answer). `GET /api/v1/admin/security-events/export`
+streams the same filters as CSV — UTF-8 BOM for Excel, formula-injection
+guard on every cell, keyset-paged so a long export neither skips nor repeats
+rows — and is itself a `security_log_exported` event. The console gained date
+inputs, a click-to-filter file name on each row, and an Export CSV link that
+follows the filters on screen.
+
+**Alerting.** `internal/alert` scans the log every minute for addresses with
+`alert_failed_login_threshold` (10) failed sign-ins within
+`alert_failed_login_window_minutes` (15). Each burst raises one
+`security_alert` row per window (subject `login_failed_burst`), increments
+`pphub_security_alerts_total{rule}`, and mails every live instance admin
+through the existing job queue — no per-person opt-out; a threshold of 0 turns
+alerts off. Only one rule ships: `login_failed` rows mostly carry no user, so
+a per-account rule would have nothing to key on.
+
+## Upcoming — M27 Onward 🚧 not done
 
 Everything above shipped, including the P0 register in full as of M24;
 nothing below has, and none of it is scheduled — the numbering is the order
@@ -1051,22 +1102,6 @@ one place to check whether a gap is still real before acting on it.
 
 What changes when the user count crosses a couple of departments. Each item is
 additive to a pattern that already exists.
-
-#### M26 — Audit Completeness 🔜 planned
-
-P1, "`activity_events` is a feed, not an audit log", which M21 mostly closed.
-This milestone builds on the `security_events` table M21 added rather than
-adding another: that table already carries authentication, admin, suspension,
-grant, share and membership events with client IP, user agent and request id,
-under a retention window. The substantial remainder is read auditing, which
-M21 left out as a design decision rather than an oversight — a `downloaded`
-row per byte-serving request is the highest-volume event in the system by an
-order of magnitude and would be written on the hot path of the endpoints that
-matter most for latency, so doing it properly means sampling or aggregation
-and a retention policy of its own. The two smaller pieces are an export
-endpoint, since the console reads JSON pages, and something that watches the
-log rather than waiting to be read: a run of failed sign-ins from one address
-is visible to an admin who looks, and nothing looks on its own.
 
 #### M27 — Content-Indexed Search 🔜 planned
 
@@ -1231,6 +1266,6 @@ are recorded here so they are found rather than rediscovered:
   OnlyOffice JWT, admin bootstrap and upload/rate-limit items were closed in
   M20–M21, as were the sweep findings in its §8, and the readiness split and
   avatar-upload stub closed alongside M22–M24), the P1 gaps against Google
-  Drive still open (content search, read auditing and an audit export,
-  comments, resumable upload, storage accounting, IdP group sync — M26
-  through M31), and a proposed phasing, whose order Upcoming follows.
+  Drive still open (content search, comments, resumable upload, storage
+  accounting, IdP group sync — M27 through M31), and a proposed phasing,
+  whose order Upcoming follows.

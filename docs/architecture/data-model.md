@@ -113,10 +113,11 @@ sessions(id, user_id,                           -- ON DELETE CASCADE from users
 
 ## Security Events
 
-`migrations/0003_security_events.sql`. The audit trail for everything that changes who can
-reach what: sign-ins and their failures, session revocations, admin and suspension changes,
-grants, share revocation and membership changes. Written by `internal/audit`, read by
-`GET /api/v1/admin/security-events`.
+`migrations/0003_security_events.sql`, plus `0008_read_audit.sql` for `node_id`. The audit
+trail for everything that changes who can reach what — sign-ins and their failures, session
+revocations, admin and suspension changes, grants, shares and membership changes — and, since
+M26, who read which file and the alerts raised on the log itself. Written by `internal/audit`
+(and `internal/alert`), read by `GET /api/v1/admin/security-events` and its `/export`.
 
 ```sql
 security_events(id,
@@ -125,10 +126,12 @@ security_events(id,
                 subject,                        -- free text: email, OIDC subject or error code
                 ip, user_agent, request_id,     -- request provenance
                 detail,                         -- JSONB, default '{}'
-                created_at)
+                created_at,
+                node_id)                        -- NULLABLE; deliberately no FK to nodes
   INDEX (created_at DESC)                       -- security_events_recent: the console's tail
   INDEX (user_id, created_at DESC)              -- security_events_by_user, partial on NOT NULL
   INDEX (kind, created_at DESC)                 -- security_events_by_kind
+  INDEX (node_id, created_at DESC)              -- security_events_by_node, partial on NOT NULL
 ```
 
 **Why this is a second table and not more rows in `activity_events`.** Two columns on that
@@ -166,16 +169,28 @@ about the feed's schema, scoping or readers wanted to become an audit log.
   client-controlled text and there is no reason to accept a megabyte of it.
 - **Retention is real.** One row is written on every sign-in and every failed attempt, so
   "forever" is a slow leak and eventually a console nobody can read.
-  `DeleteSecurityEventsBefore` runs on the same five-minute ticker in `cmd/server` that purges
-  expired sessions and sweeps WOPI locks, with the cutoff from
-  `PP_AUDIT_RETENTION_DAYS` (365).
+  `DeleteSecurityEventsBefore` and `DeleteReadEventsBefore` run on the same five-minute ticker
+  in `cmd/server` that purges expired sessions and sweeps WOPI locks: read kinds against
+  `read_audit_retention_days` (90), everything else against `audit_retention_days`
+  (`PP_AUDIT_RETENTION_DAYS`, 365).
+- **`node_id` has no foreign key on purpose.** A purged file must not erase or null out the
+  record that somebody read it — the `user_id ... SET NULL` reasoning taken one step further,
+  because here the id is the only thing left to filter on. The migration backfilled it from the
+  `detail.node` grant and share events already carried. The console's `?node=` filter walks the
+  subtree (trashed descendants included) and also matches the id directly, so a purged node
+  still answers; the name comes from `nodes` while the node exists, else from `detail.name`.
+- **Reads are deduplicated before they reach the table.** `file_downloaded`,
+  `folder_downloaded`, `file_viewed` and `file_opened` go through `audit.RecordRead`, which keeps
+  one row per (kind, actor, node) per hour in a bounded in-memory map — per replica, so N
+  replicas can write N rows per window. A share-link visitor has no user; its actor is the link
+  plus the client address, and its `subject` is `share_link`.
 - **Writes are best-effort but not cancellable.** `audit.Record` swallows a failed insert with
   an **error**-level log rather than failing the operation it describes — the event already
   happened — but it writes on `context.WithoutCancel`, because a caller disconnecting
   mid-request is exactly when the row matters.
-- `audit.Kind` is `TEXT`, so adding a verb is a code change rather than a migration. One kind,
-  `share_created`, is defined and currently has no writer: creating a share records an activity
-  row only, while revoking one records both.
+- `audit.Kind` is `TEXT`, so adding a verb is a code change rather than a migration.
+  `security_alert` rows have no request behind them: `internal/alert` writes them through
+  `RecordSystemSecurityEvent` with the offending address in `ip` and the rule in `subject`.
 
 ## System Configuration
 

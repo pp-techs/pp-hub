@@ -26,6 +26,7 @@ var clientRoutes = []string{
 	"GET /api/v1/users",
 	"GET /api/v1/admin/stats",
 	"GET /api/v1/admin/security-events",
+	"GET /api/v1/admin/security-events/export",
 	"PATCH /api/v1/admin/users/{userID}",
 	"GET /api/v1/admin/settings",
 	"PATCH /api/v1/admin/settings",

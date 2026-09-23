@@ -12,6 +12,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/nhatbui/pp-hub/apps/server/internal/audit"
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 	"github.com/nhatbui/pp-hub/apps/server/internal/users"
@@ -358,6 +359,7 @@ func (s *Server) handleEditSession(w http.ResponseWriter, r *http.Request) {
 	case "dark":
 		editorURL += "&thm=0"
 	}
+	s.audit.RecordRead(r, audit.Read{Kind: audit.KindFileOpened, User: u, Node: node, Detail: map[string]any{"mode": mode}})
 	writeJSON(w, http.StatusOK, map[string]any{
 		"editor_url":       editorURL,
 		"wopi_src":         wopiSrc,

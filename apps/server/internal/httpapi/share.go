@@ -130,6 +130,7 @@ func (s *Server) handleCreateShare(w http.ResponseWriter, r *http.Request) {
 			Kind:    audit.KindShareCreated,
 			UserID:  u.ID,
 			Subject: u.Email,
+			NodeID:  node.ID,
 			Detail: map[string]any{
 				"node": node.ID.String(), "name": node.Name, "share_kind": "link",
 				"level": string(sh.Level), "can_download": sh.CanDownload,
@@ -169,6 +170,7 @@ func (s *Server) handleCreateShare(w http.ResponseWriter, r *http.Request) {
 			Kind:    audit.KindShareCreated,
 			UserID:  u.ID,
 			Subject: u.Email,
+			NodeID:  node.ID,
 			Detail: map[string]any{
 				"node": node.ID.String(), "name": node.Name, "share_kind": "direct",
 				"level": string(sh.Level), "grantee": grantee.Email,
@@ -250,6 +252,7 @@ func (s *Server) handleRevokeShare(w http.ResponseWriter, r *http.Request) {
 		Kind:    audit.KindShareRevoked,
 		UserID:  u.ID,
 		Subject: u.Email,
+		NodeID:  node.ID,
 		Detail:  map[string]any{"node": node.ID.String(), "name": node.Name, "share": shareID.String()},
 	})
 	w.WriteHeader(http.StatusNoContent)
@@ -312,6 +315,7 @@ func (s *Server) handleShareDownload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rc.Close()
+	s.audit.RecordRead(r, audit.Read{Kind: audit.KindFileDownloaded, ShareID: sh.ID, SharedBy: sh.CreatedBy, Node: n})
 	w.Header().Set("Content-Type", ver.Mime)
 	w.Header().Set("Content-Disposition", contentDisposition("attachment", n.Name))
 	// The stored MIME comes from the extension the uploader chose, so it is

@@ -113,3 +113,59 @@ Bạn nhận được email này vì có nội dung được chia sẻ với b�
 	)
 	return subject, body
 }
+
+// alertData is a security alert as the email renders it. Times are UTC and
+// already formatted; Codes is the joined list of failure reasons.
+type alertData struct {
+	Instance      string
+	IP            string
+	Attempts      int64
+	WindowMinutes int
+	FirstAt       string
+	LastAt        string
+	Codes         string
+	Link          string
+}
+
+func renderAlert(locale string, d alertData) (subject, body string) {
+	if locale == "vi" {
+		return renderAlertVI(d)
+	}
+	return renderAlertEN(d)
+}
+
+func renderAlertEN(d alertData) (subject, body string) {
+	subject = fmt.Sprintf("[%s] Security alert: %d failed sign-ins from %s", d.Instance, d.Attempts, d.IP)
+	body = fmt.Sprintf(`%d failed sign-in attempts came from the address %s within %d minutes (first at %s, last at %s UTC).
+
+Failure reasons: %s
+
+Review the security log: %s
+
+--
+You received this because you are an administrator of %s.`,
+		d.Attempts, d.IP, d.WindowMinutes, d.FirstAt, d.LastAt,
+		d.Codes,
+		d.Link,
+		d.Instance,
+	)
+	return subject, body
+}
+
+func renderAlertVI(d alertData) (subject, body string) {
+	subject = fmt.Sprintf("[%s] Cảnh báo bảo mật: %d lần đăng nhập thất bại từ %s", d.Instance, d.Attempts, d.IP)
+	body = fmt.Sprintf(`Có %d lần đăng nhập thất bại từ địa chỉ %s trong vòng %d phút (lần đầu lúc %s, lần cuối lúc %s UTC).
+
+Lý do thất bại: %s
+
+Xem nhật ký bảo mật: %s
+
+--
+Bạn nhận được email này vì bạn là quản trị viên của %s.`,
+		d.Attempts, d.IP, d.WindowMinutes, d.FirstAt, d.LastAt,
+		d.Codes,
+		d.Link,
+		d.Instance,
+	)
+	return subject, body
+}

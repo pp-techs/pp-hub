@@ -1,12 +1,18 @@
 // Package audit records the events that change who can reach what: sign-ins
 // and their failures, session revocations, admin and suspension changes, and
-// grants given or taken away.
+// grants given or taken away — and, since M26, who read which file.
 //
 // Distinct from internal/activity, which is a per-space feed of work for
 // colleagues to read. This is a per-instance record of access for whoever has
 // to answer "who got in, from where, and when did that permission appear".
 // The two differ in their schema (no space, a nullable subject, request
 // context), in who reads them, and in what a missing row costs.
+//
+// Read events (downloads, folder zips, inline views, editor opens) are the
+// high-volume kind, so they are deduplicated in memory: one row per (kind,
+// actor, node) per ReadDedupWindow, per replica — N replicas can write up to
+// N rows for the same window. They also have their own retention, separate
+// from the rest of the log.
 //
 // Recording is best-effort in the same way activity is: the event describes
 // something that already happened, and failing a sign-in because its audit
@@ -56,19 +62,47 @@ const (
 	// An address the identity provider was asked to invite into the space's
 	// organization. It has no user_id: the point of an invitation is that
 	// there may be no account to point at yet.
-	KindMemberInvited Kind = "member_invited"
+	KindMemberInvited   Kind = "member_invited"
 	KindSettingsUpdated Kind = "settings_updated"
+
+	// Reads. Only intentional ones: thumbnails, the editor's own fetch of
+	// the bytes and Range continuations are not separate events.
+	KindFileDownloaded   Kind = "file_downloaded"
+	KindFolderDownloaded Kind = "folder_downloaded"
+	KindFileViewed       Kind = "file_viewed"
+	KindFileOpened       Kind = "file_opened"
+
+	// Raised by internal/alert, not by a request.
+	KindSecurityAlert       Kind = "security_alert"
+	KindSecurityLogExported Kind = "security_log_exported"
 )
+
+// ReadKinds are the kinds retained under the read-audit retention rather than
+// the general one.
+var ReadKinds = []Kind{KindFileDownloaded, KindFolderDownloaded, KindFileViewed, KindFileOpened}
+
+func readKindStrings() []string {
+	out := make([]string, len(ReadKinds))
+	for i, k := range ReadKinds {
+		out[i] = string(k)
+	}
+	return out
+}
+
+// LinkSubject is the subject of a read made through a share link, where there
+// is no account to name.
+const LinkSubject = "share_link"
 
 // maxUserAgent bounds what the client controls before it reaches a TEXT
 // column.
 const maxUserAgent = 400
 
 type Service struct {
-	q *store.Queries
+	q     *store.Queries
+	reads *readCache
 }
 
-func New(q *store.Queries) *Service { return &Service{q: q} }
+func New(q *store.Queries) *Service { return &Service{q: q, reads: newReadCache(readDedupMax)} }
 
 // Event is one thing that happened.
 type Event struct {
@@ -79,19 +113,15 @@ type Event struct {
 	// Subject is who the caller claimed to be when UserID is zero, and a
 	// durable label once the account is gone.
 	Subject string
-	Detail  map[string]any
+	// NodeID is the file or folder the event concerns; zero for none.
+	NodeID pgtype.UUID
+	Detail map[string]any
 }
 
 // Record writes the event with the request's context attached.
 func (s *Service) Record(r *http.Request, e Event) {
 	if s == nil || s.q == nil {
 		return
-	}
-	detail := []byte("{}")
-	if len(e.Detail) > 0 {
-		if encoded, err := json.Marshal(e.Detail); err == nil {
-			detail = encoded
-		}
 	}
 	// A cancelled request must not lose its audit row — the caller
 	// disconnecting is exactly when one matters — so the write does not
@@ -104,16 +134,51 @@ func (s *Service) Record(r *http.Request, e Event) {
 		Ip:        ClientIP(r),
 		UserAgent: truncate(r.UserAgent(), maxUserAgent),
 		RequestID: middleware.GetReqID(r.Context()),
-		Detail:    detail,
+		Detail:    encodeDetail(e.Detail),
+		NodeID:    e.NodeID,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "security event not recorded", "kind", e.Kind, "err", err)
 	}
 }
 
-// Purge drops rows older than the cutoff.
-func (s *Service) Purge(ctx context.Context, before pgtype.Timestamptz) (int64, error) {
-	return s.q.DeleteSecurityEventsBefore(ctx, before)
+// RecordSystem writes an event no request caused, attributed to ip — the
+// address it is about. User, node and request context stay empty.
+func (s *Service) RecordSystem(ctx context.Context, e Event, ip string) {
+	if s == nil || s.q == nil {
+		return
+	}
+	ctx = context.WithoutCancel(ctx)
+	err := s.q.RecordSystemSecurityEvent(ctx, store.RecordSystemSecurityEventParams{
+		Kind:    string(e.Kind),
+		Subject: e.Subject,
+		Ip:      ip,
+		Detail:  encodeDetail(e.Detail),
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "security event not recorded", "kind", e.Kind, "err", err)
+	}
+}
+
+func encodeDetail(d map[string]any) []byte {
+	if len(d) > 0 {
+		if encoded, err := json.Marshal(d); err == nil {
+			return encoded
+		}
+	}
+	return []byte("{}")
+}
+
+// Purge drops rows older than their cutoff: before for the log in general,
+// readsBefore for read events, which have their own retention.
+func (s *Service) Purge(ctx context.Context, before, readsBefore pgtype.Timestamptz) (int64, error) {
+	kinds := readKindStrings()
+	n, err := s.q.DeleteSecurityEventsBefore(ctx, store.DeleteSecurityEventsBeforeParams{Before: before, ReadKinds: kinds})
+	if err != nil {
+		return 0, err
+	}
+	m, err := s.q.DeleteReadEventsBefore(ctx, store.DeleteReadEventsBeforeParams{Before: readsBefore, ReadKinds: kinds})
+	return n + m, err
 }
 
 // ClientIP is the caller's address: the one a trusted proxy reported through

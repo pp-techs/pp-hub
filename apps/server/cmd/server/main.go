@@ -13,6 +13,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/nhatbui/pp-hub/apps/server/internal/alert"
 	"github.com/nhatbui/pp-hub/apps/server/internal/audit"
 	"github.com/nhatbui/pp-hub/apps/server/internal/auth"
 	"github.com/nhatbui/pp-hub/apps/server/internal/bootstrap"
@@ -104,7 +105,8 @@ func run() error {
 	// expired session is refused on lookup — but the third is a retention
 	// policy, and a default of "forever" is not one: the table takes a row on
 	// every sign-in and every failed attempt, so an unbounded log is a slow
-	// leak that also makes the console useless to read.
+	// leak that also makes the console useless to read. File access events
+	// are the bulk of it and have their own, shorter, retention.
 	syscfg := sysconfig.NewService(queries, cfg)
 	if err := syscfg.Reload(ctx, "default"); err != nil {
 		slog.WarnContext(ctx, "sysconfig initial load", "err", err)
@@ -114,6 +116,8 @@ func run() error {
 	go notifier.Run(ctx)
 
 	auditSvc := audit.New(queries)
+	// Raises security alerts from the log: a row, a metric and admin email.
+	go alert.NewWatcher(queries, auditSvc, syscfg, notifier, metrics.Alerts).Run(ctx)
 	go func() {
 		ticker := time.NewTicker(5 * time.Minute)
 		defer ticker.Stop()
@@ -132,7 +136,8 @@ func run() error {
 				}
 				_ = syscfg.Reload(ctx, "default")
 				cutoff := pgtype.Timestamptz{Time: time.Now().Add(-syscfg.AuditRetention("default")), Valid: true}
-				if n, err := auditSvc.Purge(ctx, cutoff); err != nil {
+				readCutoff := pgtype.Timestamptz{Time: time.Now().Add(-syscfg.ReadAuditRetention("default")), Valid: true}
+				if n, err := auditSvc.Purge(ctx, cutoff, readCutoff); err != nil {
 					slog.WarnContext(ctx, "security event sweep", "err", err)
 				} else if n > 0 {
 					slog.InfoContext(ctx, "aged security events purged", "count", n)

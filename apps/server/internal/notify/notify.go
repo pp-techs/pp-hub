@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -132,6 +133,56 @@ func (n *Notifier) Shared(ctx context.Context, s Share) {
 		if _, err := n.q.EnqueueJob(ctx, store.EnqueueJobParams{Kind: KindEmail, Payload: payload}); err != nil {
 			slog.WarnContext(ctx, "failed to enqueue email job", "err", err)
 			continue
+		}
+	}
+}
+
+// SecurityAlert is one alert as the watcher raised it.
+type SecurityAlert struct {
+	IP              string
+	Attempts        int64
+	Window          time.Duration
+	FirstAt, LastAt time.Time
+	Codes           []string
+}
+
+// SecurityAlert mails every live instance admin. Nil-safe and never returns
+// an error, like Shared. There is no per-person opt-out: the share-email
+// preference is about colleagues' activity, not the instance's security, and
+// alerts are turned off instance-wide by setting the threshold to 0.
+func (n *Notifier) SecurityAlert(ctx context.Context, a SecurityAlert) {
+	if n == nil || n.mail == nil || !n.mail.Enabled() {
+		return
+	}
+	rows, err := n.q.ListInstanceAdminRecipients(ctx)
+	if err != nil {
+		slog.WarnContext(ctx, "security alert email skipped", "err", err)
+		return
+	}
+	instance := "pp-hub"
+	if n.sys != nil {
+		instance = n.sys.InstanceName(sysconfig.DefaultTenantID)
+	}
+	const layout = "2006-01-02 15:04:05"
+	d := alertData{
+		Instance:      instance,
+		IP:            a.IP,
+		Attempts:      a.Attempts,
+		WindowMinutes: int(a.Window / time.Minute),
+		FirstAt:       a.FirstAt.UTC().Format(layout),
+		LastAt:        a.LastAt.UTC().Format(layout),
+		Codes:         strings.Join(a.Codes, ", "),
+		Link:          n.externalURL + "/admin/security",
+	}
+	for _, row := range rows {
+		subject, body := renderAlert(localeOf(users.DecodePreferences(row.Settings).Locale), d)
+		payload, err := json.Marshal(emailJob{To: row.Email, Subject: subject, Body: body})
+		if err != nil {
+			slog.WarnContext(ctx, "failed to marshal email job", "err", err)
+			continue
+		}
+		if _, err := n.q.EnqueueJob(ctx, store.EnqueueJobParams{Kind: KindEmail, Payload: payload}); err != nil {
+			slog.WarnContext(ctx, "failed to enqueue email job", "err", err)
 		}
 	}
 }

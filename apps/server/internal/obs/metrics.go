@@ -15,10 +15,11 @@ import (
 )
 
 // Metrics is the API server's Prometheus registry: Go runtime, process,
-// Postgres pool, job queue, blob totals and the HTTP series.
+// Postgres pool, job queue, blob totals, the HTTP series and security alerts.
 type Metrics struct {
 	Registry *prometheus.Registry
 	HTTP     *HTTPMetrics
+	Alerts   *AlertMetrics
 }
 
 func NewMetrics(pool *pgxpool.Pool, q *store.Queries) *Metrics {
@@ -28,7 +29,7 @@ func NewMetrics(pool *pgxpool.Pool, q *store.Queries) *Metrics {
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 		newDBCollector(pool, q),
 	)
-	return &Metrics{Registry: reg, HTTP: NewHTTPMetrics(reg)}
+	return &Metrics{Registry: reg, HTTP: NewHTTPMetrics(reg), Alerts: NewAlertMetrics(reg)}
 }
 
 // Serve runs the internal metrics listener until ctx is done. It serves only

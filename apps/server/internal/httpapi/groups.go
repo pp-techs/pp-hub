@@ -426,6 +426,7 @@ func (s *Server) handleUpsertGrant(w http.ResponseWriter, r *http.Request) {
 		Kind:    audit.KindGrantCreated,
 		UserID:  u.ID,
 		Subject: u.Email,
+		NodeID:  node.ID,
 		Detail: map[string]any{
 			"node":  node.ID.String(),
 			"name":  node.Name,
@@ -486,6 +487,7 @@ func (s *Server) handleRevokeGrant(w http.ResponseWriter, r *http.Request) {
 		Kind:    audit.KindGrantRevoked,
 		UserID:  u.ID,
 		Subject: u.Email,
+		NodeID:  node.ID,
 		Detail: map[string]any{
 			"node":  node.ID.String(),
 			"name":  node.Name,

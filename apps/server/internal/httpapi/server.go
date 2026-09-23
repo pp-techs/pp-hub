@@ -198,6 +198,7 @@ func (s *Server) Router() http.Handler {
 		r.Get("/shared", s.handleListShared)
 		r.Get("/admin/stats", s.handleAdminStats)
 		r.Get("/admin/security-events", s.handleAdminSecurityEvents)
+		r.Get("/admin/security-events/export", s.handleAdminSecurityEventsExport)
 		r.Patch("/admin/users/{userID}", s.handleAdminUpdateUser)
 		r.Get("/admin/settings", s.handleGetAdminSettings)
 		r.Patch("/admin/settings", s.handleUpdateAdminSettings)

@@ -287,6 +287,7 @@ type SecurityEvent struct {
 	RequestID string             `json:"request_id"`
 	Detail    []byte             `json:"detail"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	NodeID    pgtype.UUID        `json:"node_id"`
 }
 
 type Session struct {

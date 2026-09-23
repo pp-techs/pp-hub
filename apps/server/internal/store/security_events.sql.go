@@ -12,49 +12,160 @@ import (
 )
 
 const countSecurityEvents = `-- name: CountSecurityEvents :one
-SELECT COUNT(*) FROM security_events
-WHERE ($1::text IS NULL OR kind = $1::text)
+WITH RECURSIVE scope AS (
+  SELECT n.id FROM nodes n WHERE n.id = $2::uuid
+  UNION ALL
+  SELECT c.id FROM nodes c JOIN scope ON c.parent_id = scope.id
+)
+SELECT COUNT(*) FROM security_events e
+WHERE ($1::text IS NULL OR e.kind = $1::text)
+  AND ($2::uuid IS NULL OR e.node_id = $2::uuid
+       OR e.node_id IN (SELECT id FROM scope))
+  AND ($3::timestamptz IS NULL OR e.created_at >= $3::timestamptz)
+  AND ($4::timestamptz IS NULL OR e.created_at < $4::timestamptz)
 `
 
-func (q *Queries) CountSecurityEvents(ctx context.Context, kind pgtype.Text) (int64, error) {
-	row := q.db.QueryRow(ctx, countSecurityEvents, kind)
+type CountSecurityEventsParams struct {
+	Kind   pgtype.Text        `json:"kind"`
+	Node   pgtype.UUID        `json:"node"`
+	FromAt pgtype.Timestamptz `json:"from_at"`
+	ToAt   pgtype.Timestamptz `json:"to_at"`
+}
+
+func (q *Queries) CountSecurityEvents(ctx context.Context, arg CountSecurityEventsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countSecurityEvents,
+		arg.Kind,
+		arg.Node,
+		arg.FromAt,
+		arg.ToAt,
+	)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
 }
 
-const deleteSecurityEventsBefore = `-- name: DeleteSecurityEventsBefore :execrows
-DELETE FROM security_events WHERE created_at < $1
+const deleteReadEventsBefore = `-- name: DeleteReadEventsBefore :execrows
+DELETE FROM security_events
+WHERE created_at < $1 AND kind = ANY($2::text[])
 `
 
-// Retention. Security rows are small but they are written on every sign-in, so
-// something has to bound them; the sweep that purges expired sessions does
-// this too.
-func (q *Queries) DeleteSecurityEventsBefore(ctx context.Context, createdAt pgtype.Timestamptz) (int64, error) {
-	result, err := q.db.Exec(ctx, deleteSecurityEventsBefore, createdAt)
+type DeleteReadEventsBeforeParams struct {
+	Before    pgtype.Timestamptz `json:"before"`
+	ReadKinds []string           `json:"read_kinds"`
+}
+
+func (q *Queries) DeleteReadEventsBefore(ctx context.Context, arg DeleteReadEventsBeforeParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteReadEventsBefore, arg.Before, arg.ReadKinds)
 	if err != nil {
 		return 0, err
 	}
 	return result.RowsAffected(), nil
 }
 
+const deleteSecurityEventsBefore = `-- name: DeleteSecurityEventsBefore :execrows
+DELETE FROM security_events
+WHERE created_at < $1 AND kind <> ALL($2::text[])
+`
+
+type DeleteSecurityEventsBeforeParams struct {
+	Before    pgtype.Timestamptz `json:"before"`
+	ReadKinds []string           `json:"read_kinds"`
+}
+
+// Retention. Security rows are small but they are written on every sign-in, so
+// something has to bound them; the sweep that purges expired sessions does
+// this too. Reads have their own, usually shorter, retention, so each
+// statement leaves the other's kinds alone.
+func (q *Queries) DeleteSecurityEventsBefore(ctx context.Context, arg DeleteSecurityEventsBeforeParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteSecurityEventsBefore, arg.Before, arg.ReadKinds)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const failedLoginBursts = `-- name: FailedLoginBursts :many
+SELECT ip, COUNT(*)::bigint AS attempts,
+  MIN(created_at)::timestamptz AS first_at, MAX(created_at)::timestamptz AS last_at,
+  array_agg(DISTINCT subject)::text[] AS codes
+FROM security_events
+WHERE kind = 'login_failed' AND created_at >= $1 AND ip <> ''
+GROUP BY ip HAVING COUNT(*) >= $2::bigint
+ORDER BY attempts DESC
+`
+
+type FailedLoginBurstsParams struct {
+	Since     pgtype.Timestamptz `json:"since"`
+	Threshold int64              `json:"threshold"`
+}
+
+type FailedLoginBurstsRow struct {
+	Ip       string             `json:"ip"`
+	Attempts int64              `json:"attempts"`
+	FirstAt  pgtype.Timestamptz `json:"first_at"`
+	LastAt   pgtype.Timestamptz `json:"last_at"`
+	Codes    []string           `json:"codes"`
+}
+
+// Addresses with at least @threshold failed sign-ins since @since. An empty
+// address is a request the server could not place, not one source.
+func (q *Queries) FailedLoginBursts(ctx context.Context, arg FailedLoginBurstsParams) ([]FailedLoginBurstsRow, error) {
+	rows, err := q.db.Query(ctx, failedLoginBursts, arg.Since, arg.Threshold)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FailedLoginBurstsRow
+	for rows.Next() {
+		var i FailedLoginBurstsRow
+		if err := rows.Scan(
+			&i.Ip,
+			&i.Attempts,
+			&i.FirstAt,
+			&i.LastAt,
+			&i.Codes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSecurityEvents = `-- name: ListSecurityEvents :many
+WITH RECURSIVE scope AS (
+  SELECT n.id FROM nodes n WHERE n.id = $4::uuid
+  UNION ALL
+  SELECT c.id FROM nodes c JOIN scope ON c.parent_id = scope.id
+)
 SELECT
   e.id, e.kind, e.user_id, e.subject, e.ip, e.user_agent, e.request_id,
-  e.detail, e.created_at,
+  e.detail, e.created_at, e.node_id,
   COALESCE(u.email, '') AS user_email,
-  COALESCE(u.display_name, u.name, '') AS user_name
+  COALESCE(u.display_name, u.name, '') AS user_name,
+  COALESCE(n.name, e.detail->>'name', '')::text AS node_name
 FROM security_events e
 LEFT JOIN users u ON u.id = e.user_id
+LEFT JOIN nodes n ON n.id = e.node_id
 WHERE ($3::text IS NULL OR e.kind = $3::text)
-ORDER BY e.created_at DESC
+  AND ($4::uuid IS NULL OR e.node_id = $4::uuid
+       OR e.node_id IN (SELECT id FROM scope))
+  AND ($5::timestamptz IS NULL OR e.created_at >= $5::timestamptz)
+  AND ($6::timestamptz IS NULL OR e.created_at < $6::timestamptz)
+ORDER BY e.created_at DESC, e.id DESC
 LIMIT $1 OFFSET $2
 `
 
 type ListSecurityEventsParams struct {
-	Limit  int32       `json:"limit"`
-	Offset int32       `json:"offset"`
-	Kind   pgtype.Text `json:"kind"`
+	Limit  int32              `json:"limit"`
+	Offset int32              `json:"offset"`
+	Kind   pgtype.Text        `json:"kind"`
+	Node   pgtype.UUID        `json:"node"`
+	FromAt pgtype.Timestamptz `json:"from_at"`
+	ToAt   pgtype.Timestamptz `json:"to_at"`
 }
 
 type ListSecurityEventsRow struct {
@@ -67,15 +178,29 @@ type ListSecurityEventsRow struct {
 	RequestID string             `json:"request_id"`
 	Detail    []byte             `json:"detail"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	NodeID    pgtype.UUID        `json:"node_id"`
 	UserEmail string             `json:"user_email"`
 	UserName  string             `json:"user_name"`
+	NodeName  string             `json:"node_name"`
 }
 
 // The console's tail. The actor's email is joined in so a row still reads as a
 // person rather than a UUID, and falls back to the recorded subject when the
-// account is gone.
+// account is gone. The node's name falls back the same way, to the name
+// recorded when the event was written.
+//
+// A node filter matches the node and everything under it. The walk includes
+// trashed descendants on purpose — a file in the trash was still read — and
+// the direct `e.node_id = @node` arm still matches a node purged from `nodes`.
 func (q *Queries) ListSecurityEvents(ctx context.Context, arg ListSecurityEventsParams) ([]ListSecurityEventsRow, error) {
-	rows, err := q.db.Query(ctx, listSecurityEvents, arg.Limit, arg.Offset, arg.Kind)
+	rows, err := q.db.Query(ctx, listSecurityEvents,
+		arg.Limit,
+		arg.Offset,
+		arg.Kind,
+		arg.Node,
+		arg.FromAt,
+		arg.ToAt,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -93,8 +218,10 @@ func (q *Queries) ListSecurityEvents(ctx context.Context, arg ListSecurityEvents
 			&i.RequestID,
 			&i.Detail,
 			&i.CreatedAt,
+			&i.NodeID,
 			&i.UserEmail,
 			&i.UserName,
+			&i.NodeName,
 		); err != nil {
 			return nil, err
 		}
@@ -106,9 +233,139 @@ func (q *Queries) ListSecurityEvents(ctx context.Context, arg ListSecurityEvents
 	return items, nil
 }
 
+const listSecurityEventsExport = `-- name: ListSecurityEventsExport :many
+WITH RECURSIVE scope AS (
+  SELECT n.id FROM nodes n WHERE n.id = $2::uuid
+  UNION ALL
+  SELECT c.id FROM nodes c JOIN scope ON c.parent_id = scope.id
+)
+SELECT
+  e.id, e.kind, e.user_id, e.subject, e.ip, e.user_agent, e.request_id,
+  e.detail, e.created_at, e.node_id,
+  COALESCE(u.email, '') AS user_email,
+  COALESCE(u.display_name, u.name, '') AS user_name,
+  COALESCE(n.name, e.detail->>'name', '')::text AS node_name
+FROM security_events e
+LEFT JOIN users u ON u.id = e.user_id
+LEFT JOIN nodes n ON n.id = e.node_id
+WHERE ($1::text IS NULL OR e.kind = $1::text)
+  AND ($2::uuid IS NULL OR e.node_id = $2::uuid
+       OR e.node_id IN (SELECT id FROM scope))
+  AND ($3::timestamptz IS NULL OR e.created_at >= $3::timestamptz)
+  AND ($4::timestamptz IS NULL OR e.created_at < $4::timestamptz)
+  AND ($5::timestamptz IS NULL
+       OR (e.created_at, e.id) < ($5::timestamptz, $6::uuid))
+ORDER BY e.created_at DESC, e.id DESC
+LIMIT $7::int
+`
+
+type ListSecurityEventsExportParams struct {
+	Kind     pgtype.Text        `json:"kind"`
+	Node     pgtype.UUID        `json:"node"`
+	FromAt   pgtype.Timestamptz `json:"from_at"`
+	ToAt     pgtype.Timestamptz `json:"to_at"`
+	BeforeAt pgtype.Timestamptz `json:"before_at"`
+	BeforeID pgtype.UUID        `json:"before_id"`
+	Lim      int32              `json:"lim"`
+}
+
+type ListSecurityEventsExportRow struct {
+	ID        pgtype.UUID        `json:"id"`
+	Kind      string             `json:"kind"`
+	UserID    pgtype.UUID        `json:"user_id"`
+	Subject   string             `json:"subject"`
+	Ip        string             `json:"ip"`
+	UserAgent string             `json:"user_agent"`
+	RequestID string             `json:"request_id"`
+	Detail    []byte             `json:"detail"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	NodeID    pgtype.UUID        `json:"node_id"`
+	UserEmail string             `json:"user_email"`
+	UserName  string             `json:"user_name"`
+	NodeName  string             `json:"node_name"`
+}
+
+// The CSV export: the console's filters, paged by keyset rather than offset
+// so a long export neither skips nor repeats rows while new ones arrive. The
+// select list must stay identical to ListSecurityEvents' — the handler
+// converts one row type into the other.
+func (q *Queries) ListSecurityEventsExport(ctx context.Context, arg ListSecurityEventsExportParams) ([]ListSecurityEventsExportRow, error) {
+	rows, err := q.db.Query(ctx, listSecurityEventsExport,
+		arg.Kind,
+		arg.Node,
+		arg.FromAt,
+		arg.ToAt,
+		arg.BeforeAt,
+		arg.BeforeID,
+		arg.Lim,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListSecurityEventsExportRow
+	for rows.Next() {
+		var i ListSecurityEventsExportRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.UserID,
+			&i.Subject,
+			&i.Ip,
+			&i.UserAgent,
+			&i.RequestID,
+			&i.Detail,
+			&i.CreatedAt,
+			&i.NodeID,
+			&i.UserEmail,
+			&i.UserName,
+			&i.NodeName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const recentSecurityAlertIPs = `-- name: RecentSecurityAlertIPs :many
+SELECT DISTINCT ip FROM security_events
+WHERE kind = 'security_alert' AND subject = $1 AND created_at >= $2
+`
+
+type RecentSecurityAlertIPsParams struct {
+	Rule  string             `json:"rule"`
+	Since pgtype.Timestamptz `json:"since"`
+}
+
+// Addresses already alerted on for @rule since @since, so a burst raises one
+// alert per window rather than one per scan.
+func (q *Queries) RecentSecurityAlertIPs(ctx context.Context, arg RecentSecurityAlertIPsParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, recentSecurityAlertIPs, arg.Rule, arg.Since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var ip string
+		if err := rows.Scan(&ip); err != nil {
+			return nil, err
+		}
+		items = append(items, ip)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const recordSecurityEvent = `-- name: RecordSecurityEvent :exec
-INSERT INTO security_events (kind, user_id, subject, ip, user_agent, request_id, detail)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO security_events (kind, user_id, subject, ip, user_agent, request_id, detail, node_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 `
 
 type RecordSecurityEventParams struct {
@@ -119,6 +376,7 @@ type RecordSecurityEventParams struct {
 	UserAgent string      `json:"user_agent"`
 	RequestID string      `json:"request_id"`
 	Detail    []byte      `json:"detail"`
+	NodeID    pgtype.UUID `json:"node_id"`
 }
 
 func (q *Queries) RecordSecurityEvent(ctx context.Context, arg RecordSecurityEventParams) error {
@@ -129,6 +387,32 @@ func (q *Queries) RecordSecurityEvent(ctx context.Context, arg RecordSecurityEve
 		arg.Ip,
 		arg.UserAgent,
 		arg.RequestID,
+		arg.Detail,
+		arg.NodeID,
+	)
+	return err
+}
+
+const recordSystemSecurityEvent = `-- name: RecordSystemSecurityEvent :exec
+INSERT INTO security_events (kind, subject, ip, detail)
+VALUES ($1, $2, $3, $4)
+`
+
+type RecordSystemSecurityEventParams struct {
+	Kind    string `json:"kind"`
+	Subject string `json:"subject"`
+	Ip      string `json:"ip"`
+	Detail  []byte `json:"detail"`
+}
+
+// An event no request caused — an alert the watcher raised. There is no user,
+// user agent or request id to attach; the address is the one the event is
+// about.
+func (q *Queries) RecordSystemSecurityEvent(ctx context.Context, arg RecordSystemSecurityEventParams) error {
+	_, err := q.db.Exec(ctx, recordSystemSecurityEvent,
+		arg.Kind,
+		arg.Subject,
+		arg.Ip,
 		arg.Detail,
 	)
 	return err

@@ -312,6 +312,39 @@ func (q *Queries) IsSpaceMember(ctx context.Context, arg IsSpaceMemberParams) (b
 	return exists, err
 }
 
+const listInstanceAdminRecipients = `-- name: ListInstanceAdminRecipients :many
+SELECT id, email, settings FROM users
+WHERE is_admin AND suspended_at IS NULL AND email <> ''
+`
+
+type ListInstanceAdminRecipientsRow struct {
+	ID       pgtype.UUID `json:"id"`
+	Email    string      `json:"email"`
+	Settings []byte      `json:"settings"`
+}
+
+// Who a security alert is mailed to: every live instance admin with an
+// address. No opt-out — alerts are turned off instance-wide, not per person.
+func (q *Queries) ListInstanceAdminRecipients(ctx context.Context) ([]ListInstanceAdminRecipientsRow, error) {
+	rows, err := q.db.Query(ctx, listInstanceAdminRecipients)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListInstanceAdminRecipientsRow
+	for rows.Next() {
+		var i ListInstanceAdminRecipientsRow
+		if err := rows.Scan(&i.ID, &i.Email, &i.Settings); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listUsers = `-- name: ListUsers :many
 SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp FROM users
 WHERE tenant_id = $1

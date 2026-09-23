@@ -16,23 +16,26 @@ import (
 )
 
 const (
-	KeyInstanceName           = "instance_name"
-	KeyMaxUploadBytes         = "max_upload_bytes"
-	KeyAuditRetentionDays     = "audit_retention_days"
-	KeyDefaultSpaceQuotaBytes = "default_space_quota_bytes"
-	KeySMTP                   = "smtp"
+	KeyInstanceName                  = "instance_name"
+	KeyMaxUploadBytes                = "max_upload_bytes"
+	KeyAuditRetentionDays            = "audit_retention_days"
+	KeyReadAuditRetentionDays        = "read_audit_retention_days"
+	KeyAlertFailedLoginThreshold     = "alert_failed_login_threshold"
+	KeyAlertFailedLoginWindowMinutes = "alert_failed_login_window_minutes"
+	KeyDefaultSpaceQuotaBytes        = "default_space_quota_bytes"
+	KeySMTP                          = "smtp"
 
 	DefaultTenantID = "default"
 )
 
 // SettingDef describes a known system configuration knob.
 type SettingDef struct {
-	Key         string                      `json:"key"`
-	Type        string                      `json:"type"` // "string" | "number"
-	Description string                      `json:"description"`
-	Default     any                         `json:"default"`
+	Key         string                       `json:"key"`
+	Type        string                       `json:"type"` // "string" | "number"
+	Description string                       `json:"description"`
+	Default     any                          `json:"default"`
 	EnvFallback func(cfg *config.Config) any `json:"-"`
-	Validate    func(val any) error         `json:"-"`
+	Validate    func(val any) error          `json:"-"`
 }
 
 // SettingDTO represents a configuration entry returned over the API.
@@ -160,6 +163,57 @@ func defaultDefs() map[string]SettingDef {
 				return nil
 			},
 		},
+		KeyReadAuditRetentionDays: {
+			Key:         KeyReadAuditRetentionDays,
+			Type:        "number",
+			Description: "Days to retain file access events (downloads, views, editor opens) before automatic purge",
+			Default:     90,
+			Validate: func(val any) error {
+				n, ok := val.(int)
+				if !ok {
+					return errors.New("read_audit_retention_days must be an integer")
+				}
+				if n < 1 {
+					return errors.New("read_audit_retention_days must be at least 1 day")
+				}
+				if n > 3650 {
+					return errors.New("read_audit_retention_days cannot exceed 3650 days (10 years)")
+				}
+				return nil
+			},
+		},
+		KeyAlertFailedLoginThreshold: {
+			Key:         KeyAlertFailedLoginThreshold,
+			Type:        "number",
+			Description: "Failed sign-ins from one IP address within the alert window that raise a security alert (0 disables alerts)",
+			Default:     10,
+			Validate: func(val any) error {
+				n, ok := val.(int)
+				if !ok {
+					return errors.New("alert_failed_login_threshold must be an integer")
+				}
+				if n < 0 || n > 10000 {
+					return errors.New("alert_failed_login_threshold must be between 0 and 10000")
+				}
+				return nil
+			},
+		},
+		KeyAlertFailedLoginWindowMinutes: {
+			Key:         KeyAlertFailedLoginWindowMinutes,
+			Type:        "number",
+			Description: "Minutes of failed sign-ins counted toward the alert threshold",
+			Default:     15,
+			Validate: func(val any) error {
+				n, ok := val.(int)
+				if !ok {
+					return errors.New("alert_failed_login_window_minutes must be an integer")
+				}
+				if n < 1 || n > 1440 {
+					return errors.New("alert_failed_login_window_minutes must be between 1 and 1440")
+				}
+				return nil
+			},
+		},
 		KeyDefaultSpaceQuotaBytes: {
 			Key:         KeyDefaultSpaceQuotaBytes,
 			Type:        "number",
@@ -238,7 +292,8 @@ func decodeSettingValue(def SettingDef, raw []byte) any {
 		if err := json.Unmarshal(raw, &num); err == nil {
 			return num
 		}
-	case KeyAuditRetentionDays:
+	case KeyAuditRetentionDays, KeyReadAuditRetentionDays,
+		KeyAlertFailedLoginThreshold, KeyAlertFailedLoginWindowMinutes:
 		var num int
 		if err := json.Unmarshal(raw, &num); err == nil {
 			return num
@@ -274,7 +329,8 @@ func (s *Service) coerceAndValidate(def SettingDef, raw json.RawMessage) (any, [
 			return nil, nil, fmt.Errorf("%s must be an integer: %w", def.Key, err)
 		}
 		val = num
-	case KeyAuditRetentionDays:
+	case KeyAuditRetentionDays, KeyReadAuditRetentionDays,
+		KeyAlertFailedLoginThreshold, KeyAlertFailedLoginWindowMinutes:
 		var num int
 		if err := json.Unmarshal(raw, &num); err != nil {
 			return nil, nil, fmt.Errorf("%s must be an integer: %w", def.Key, err)
@@ -445,6 +501,47 @@ func (s *Service) AuditRetention(tenantID string) time.Duration {
 		return s.cfg.AuditRetention
 	}
 	return 365 * 24 * time.Hour
+}
+
+// cachedInt returns the cached integer value of key, if one decodes.
+func (s *Service) cachedInt(key string) (int, bool) {
+	s.mu.RLock()
+	raw, ok := s.cache[key]
+	s.mu.RUnlock()
+	if !ok || len(raw) == 0 {
+		return 0, false
+	}
+	var n int
+	if err := json.Unmarshal(raw, &n); err != nil {
+		return 0, false
+	}
+	return n, true
+}
+
+// ReadAuditRetention returns how long file access events are kept.
+func (s *Service) ReadAuditRetention(tenantID string) time.Duration {
+	if days, ok := s.cachedInt(KeyReadAuditRetentionDays); ok && days > 0 {
+		return time.Duration(days) * 24 * time.Hour
+	}
+	return 90 * 24 * time.Hour
+}
+
+// FailedLoginAlertThreshold returns how many failed sign-ins from one address
+// within the alert window raise an alert. Zero means alerts are off.
+func (s *Service) FailedLoginAlertThreshold(tenantID string) int {
+	if n, ok := s.cachedInt(KeyAlertFailedLoginThreshold); ok {
+		return n
+	}
+	return 10
+}
+
+// FailedLoginAlertWindow returns the span of failed sign-ins counted toward
+// the alert threshold.
+func (s *Service) FailedLoginAlertWindow(tenantID string) time.Duration {
+	if m, ok := s.cachedInt(KeyAlertFailedLoginWindowMinutes); ok && m > 0 {
+		return time.Duration(m) * time.Minute
+	}
+	return 15 * time.Minute
 }
 
 // InstanceName returns the configured display name of the instance.

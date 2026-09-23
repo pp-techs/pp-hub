@@ -1,3 +1,5 @@
+import type { SecurityEventFilters } from "@/lib/api";
+
 // Query keys — single source of truth for cache keys.
 export const keys = {
   // The signed-in user's own profile — one identity cache, read by the rail,
@@ -32,7 +34,15 @@ export const keys = {
   // Sibling of adminStats under the "admin" root, never a child of it: the
   // user mutations invalidate `adminStats` exactly, and a log page hanging
   // below that key would be refetched by every suspend/promote for nothing.
-  securityEvents: (kind?: string, offset?: number) =>
-    ["admin", "security-events", kind ?? null, offset ?? 0] as const,
+  securityEvents: (filters: SecurityEventFilters, offset: number) =>
+    [
+      "admin",
+      "security-events",
+      filters.kind ?? null,
+      filters.node ?? null,
+      filters.from ?? null,
+      filters.to ?? null,
+      offset,
+    ] as const,
   adminSettings: ["admin", "settings"] as const,
 };

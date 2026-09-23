@@ -70,7 +70,7 @@ pp-hub/
 │   │       └── routes/             # TanStack Router file-based routes
 │   │           ├── login.tsx            # OIDC hand-off; ?redirect= survives the round trip
 │   │           ├── admin.users.tsx      # server administration: stats, suspend, admin flag
-│   │           ├── admin.security.tsx   # the security log: sign-ins, failures, access changes
+│   │           ├── admin.security.tsx   # the security log: filters (kind, file, dates), CSV export
 │   │           ├── s/$token.tsx         # anonymous share-link browser (no rail, no account)
 │   │           ├── edit/$nodeId.tsx     # full-page OnlyOffice editor (opened in a new tab)
 │   │           ├── drive.tsx            # drive shell: SidebarProvider + AppSidebar + SidebarInset
@@ -84,8 +84,10 @@ pp-hub/
 │       └── internal/
 │           ├── bootstrap/          # ✅ shared wiring for both entry points: config, pool, blobs
 │           ├── activity/           # ✅ per-space feed: who did what, to what
-│           ├── audit/              # ✅ per-instance security log: sign-ins, failures, access changes
+│           ├── audit/              # ✅ per-instance security log: sign-ins, failures, access changes, reads
 │           │                       #    Distinct from activity on purpose — see data-model.md
+│           │                       #    reads.go: RecordRead, deduplicated per (kind, actor, node) per hour
+│           ├── alert/              # ✅ watches security_events: failed sign-in bursts → alert row, metric, admin email
 │           ├── auth/               # ✅ OIDC (PKCE + nonce) + DB-backed sessions (go-oidc)
 │           ├── gc/                 # ✅ blob reclaim + trash retention sweeps
 │           ├── config/             # ✅ env config; DeriveKey issues purpose-bound subkeys
@@ -96,7 +98,7 @@ pp-hub/
 │           │   ├── limits.go       # request-body ceilings for anything that becomes file content
 │           │   ├── logging.go      # chi's logger with share and WOPI tokens redacted
 │           │   ├── sessions.go     # the account's own device list and its revoke endpoints
-│           │   ├── security_events.go # GET /admin/security-events
+│           │   ├── security_events.go # GET /admin/security-events (+ filters) and its CSV /export
 │           │   ├── users.go        # user profile CRUD
 │           │   ├── groups.go       # groups API + the folder-grant endpoints
 │           │   ├── logto_hook.go   # POST /hooks/logto — HMAC over the raw body, then enqueue
@@ -104,7 +106,9 @@ pp-hub/
 │           ├── store/              # ✅ sqlc queries, embedded migrations runner
 │           │   └── migrations/     # 0001_init.sql baseline, then one file per change:
 │           │                       #    0002_sessions.sql, 0003_security_events.sql,
-│           │                       #    0004_user_avatars.sql, 0005_logto_orgs.sql
+│           │                       #    0004_user_avatars.sql, 0005_logto_orgs.sql,
+│           │                       #    0006_system_config.sql, 0007_idp_profile.sql,
+│           │                       #    0008_read_audit.sql
 │           ├── users/              # user service layer (profile)
 │           ├── orgsync/            # ✅ Logto Management API client + the reconciler that owns space_members
 │           ├── spaces/             # space CRUD, membership, the Admin group, leaving a space

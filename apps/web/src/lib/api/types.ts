@@ -200,6 +200,12 @@ export interface SecurityEvent {
   ip?: string;
   user_agent?: string;
   request_id?: string;
+  /** The file or folder the event concerns — reads, grants, shares. Survives
+   *  the node being purged, so it can point at nothing any more. */
+  node_id?: string;
+  /** The node's current name, or the one recorded with the event once the
+   *  node is gone. */
+  node_name?: string;
   /** Per-kind payload the server writes as free-form JSON. Never `any`:
    *  every consumer has to narrow it before reading a field. */
   detail?: unknown;
@@ -209,6 +215,18 @@ export interface SecurityEvent {
 export interface SecurityEventPage {
   events: SecurityEvent[];
   total: number;
+}
+
+/**
+ * What the security log is narrowed by, shared by the console and the CSV
+ * export. `from`/`to` are ISO instants and `to` is exclusive; `node` matches
+ * that node and everything under it.
+ */
+export interface SecurityEventFilters {
+  kind?: string;
+  node?: string;
+  from?: string;
+  to?: string;
 }
 
 export interface Node {
