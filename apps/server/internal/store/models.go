@@ -373,21 +373,25 @@ type Upload struct {
 }
 
 type User struct {
-	ID          pgtype.UUID        `json:"id"`
-	TenantID    string             `json:"tenant_id"`
-	OidcSub     string             `json:"oidc_sub"`
-	OidcIss     string             `json:"oidc_iss"`
-	Email       string             `json:"email"`
-	Name        string             `json:"name"`
-	DisplayName string             `json:"display_name"`
-	AvatarUrl   string             `json:"avatar_url"`
-	Bio         string             `json:"bio"`
-	Settings    []byte             `json:"settings"`
-	IsAdmin     bool               `json:"is_admin"`
-	LastSeen    pgtype.Timestamptz `json:"last_seen"`
-	EmailHash   string             `json:"email_hash"`
-	SuspendedAt pgtype.Timestamptz `json:"suspended_at"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	AvatarBlob  string             `json:"avatar_blob"`
-	AvatarMime  string             `json:"avatar_mime"`
+	ID            pgtype.UUID        `json:"id"`
+	TenantID      string             `json:"tenant_id"`
+	OidcSub       string             `json:"oidc_sub"`
+	OidcIss       string             `json:"oidc_iss"`
+	Email         string             `json:"email"`
+	Name          string             `json:"name"`
+	DisplayName   string             `json:"display_name"`
+	AvatarUrl     string             `json:"avatar_url"`
+	Bio           string             `json:"bio"`
+	Settings      []byte             `json:"settings"`
+	IsAdmin       bool               `json:"is_admin"`
+	LastSeen      pgtype.Timestamptz `json:"last_seen"`
+	EmailHash     string             `json:"email_hash"`
+	SuspendedAt   pgtype.Timestamptz `json:"suspended_at"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	AvatarBlob    string             `json:"avatar_blob"`
+	AvatarMime    string             `json:"avatar_mime"`
+	Phone         string             `json:"phone"`
+	Gender        string             `json:"gender"`
+	IdpPicture    pgtype.Text        `json:"idp_picture"`
+	AvatarFromIdp bool               `json:"avatar_from_idp"`
 }

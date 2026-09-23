@@ -31,6 +31,7 @@ import (
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/spaces"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
+	"github.com/nhatbui/pp-hub/apps/server/internal/users"
 )
 
 // JobKind routes a reconcile onto whichever process runs this worker.
@@ -56,15 +57,18 @@ const (
 type Service struct {
 	q      *store.Queries
 	spaces *spaces.Service
-	client *Client
+	// profiles keeps the IdP-owned profile fields of every member current,
+	// including accounts whose owner has not signed in yet.
+	profiles *users.Service
+	client   *Client
 	// issuer is the `iss` a pre-provisioned account is keyed on. It must be
 	// the same string auth.resolveUser writes, or the member's first sign-in
 	// creates a second account beside the one reconcile made for them.
 	issuer string
 }
 
-func NewService(q *store.Queries, sp *spaces.Service, client *Client, issuer string) *Service {
-	return &Service{q: q, spaces: sp, client: client, issuer: issuer}
+func NewService(q *store.Queries, sp *spaces.Service, profiles *users.Service, client *Client, issuer string) *Service {
+	return &Service{q: q, spaces: sp, profiles: profiles, client: client, issuer: issuer}
 }
 
 // Enabled reports whether the Management API is reachable. The claim-driven
@@ -284,7 +288,7 @@ func (s *Service) ReconcileOrg(ctx context.Context, orgID string) error {
 }
 
 // ensureUser resolves an organization member to a local account, creating one
-// when they have never signed in.
+// when they have never signed in, and mirrors the profile fields the IdP owns.
 //
 // Pre-creating accounts is a deliberate reversal of the rule that nothing
 // creates an account ahead of its owner's first login. That rule was right
@@ -292,7 +296,22 @@ func (s *Service) ReconcileOrg(ctx context.Context, orgID string) error {
 // exact and comes from the system that issued it, and refusing to pre-create
 // would make the People page show a subset of the company — which is the
 // disagreement this whole design exists to remove.
+//
+// A profile sync failure is logged, not returned: the account resolved, and
+// membership is what the caller is converging.
 func (s *Service) ensureUser(ctx context.Context, m Member) (store.User, error) {
+	user, err := s.resolveMember(ctx, m)
+	if err != nil {
+		return store.User{}, err
+	}
+	synced, err := s.profiles.SyncIdPProfile(ctx, user, m.Profile)
+	if err != nil {
+		slog.Warn("idp profile sync", "user", user.ID.String(), "logto_user", m.ID, "err", err)
+	}
+	return synced, nil
+}
+
+func (s *Service) resolveMember(ctx context.Context, m Member) (store.User, error) {
 	user, err := s.q.GetUserByIdentity(ctx, store.GetUserByIdentityParams{
 		OidcIss: s.issuer, OidcSub: m.ID,
 	})

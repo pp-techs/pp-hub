@@ -16,10 +16,9 @@ import (
 // could fill the disk.
 //
 // http.MaxBytesReader fixes the actual problem: the reader stops, so nothing
-// past the ceiling is ever written anywhere.
+// past the ceiling is ever written anywhere. The avatar ceiling is
+// users.AvatarMaxBytes, shared with the IdP picture fetch.
 const (
-	// avatarMaxBytes is generous for an image that is displayed at 40px.
-	avatarMaxBytes = 5 << 20
 	// multipartMemory is the in-memory/spill threshold, unchanged — it is a
 	// performance knob, not a limit.
 	multipartMemory = 32 << 20

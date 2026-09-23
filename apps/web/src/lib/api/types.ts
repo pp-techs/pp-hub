@@ -35,6 +35,13 @@ export interface UserProfile {
   display_name: string;
   avatar_url: string;
   bio: string;
+  /** From the identity provider, E.164 when it gave digits. Empty when unset. */
+  phone: string;
+  /**
+   * From the identity provider's OIDC `gender` claim: "female", "male", or
+   * whatever free text the IdP holds. Empty when unset.
+   */
+  gender: string;
   is_admin: boolean;
   /**
    * Whether "new space" is an action this account has at all. False for an

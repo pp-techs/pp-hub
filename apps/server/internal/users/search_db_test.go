@@ -36,7 +36,7 @@ func searchEnv(t *testing.T) (*users.Service, *store.Queries) {
 		t.Fatalf("migrate: %v", err)
 	}
 	q := store.New(pool)
-	return users.NewService(q), q
+	return users.NewService(q, nil), q
 }
 
 // searchUser creates a throwaway account whose display name carries the run's

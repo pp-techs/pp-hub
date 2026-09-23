@@ -84,7 +84,11 @@ not.
 ### Members who have never signed in
 
 Reconciliation pre-creates the `users` row from the Management API response,
-keyed on `(oidc_iss, oidc_sub)` where `oidc_sub` is the Logto user id.
+keyed on `(oidc_iss, oidc_sub)` where `oidc_sub` is the Logto user id. For
+every member, new or not, it also mirrors the IdP-owned profile fields —
+avatar, phone, gender — through `users.Service.SyncIdPProfile`, the same call
+sign-in makes (see [data-model.md](data-model.md#profile-fields-the-idp-owns)).
+A sync failure is logged; it never fails the reconcile.
 
 This deliberately reverses the rule at `production-readiness.md:735` — _nothing
 creates an account ahead of its owner's first login_. That rule was right while

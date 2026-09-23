@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/config"
+	"github.com/nhatbui/pp-hub/apps/server/internal/users"
 )
 
 // ErrDisabled is returned by every write when no Logto tenant is configured.
@@ -52,12 +53,13 @@ func Status(err error) int {
 }
 
 // Member is an organization member as pp-hub cares about them: the identity
-// key, enough profile to pre-create a local row, and whether they hold the
-// admin organization role.
+// key, enough profile to pre-create a local row and keep its IdP-owned fields
+// current, and whether they hold the admin organization role.
 type Member struct {
 	ID      string
 	Email   string
 	Name    string
+	Profile users.IdPProfile
 	IsAdmin bool
 }
 
@@ -181,11 +183,20 @@ func (c *Client) do(ctx context.Context, method, path string, in, out any) error
 }
 
 // logtoUser is the subset of Logto's user entity this package reads.
+//
+// avatar, primaryPhone and profile.gender are the same values the ID token
+// carries as picture, phone_number and gender, so a reconcile and a sign-in
+// agree and neither undoes the other.
 type logtoUser struct {
-	ID                string `json:"id"`
-	PrimaryEmail      string `json:"primaryEmail"`
-	Name              string `json:"name"`
-	Username          string `json:"username"`
+	ID           string `json:"id"`
+	PrimaryEmail string `json:"primaryEmail"`
+	PrimaryPhone string `json:"primaryPhone"`
+	Name         string `json:"name"`
+	Username     string `json:"username"`
+	Avatar       string `json:"avatar"`
+	Profile      struct {
+		Gender string `json:"gender"`
+	} `json:"profile"`
 	OrganizationRoles []struct {
 		ID   string `json:"id"`
 		Name string `json:"name"`
@@ -193,7 +204,11 @@ type logtoUser struct {
 }
 
 func (u logtoUser) member(adminRole string) Member {
-	m := Member{ID: u.ID, Email: u.PrimaryEmail, Name: u.Name}
+	m := Member{ID: u.ID, Email: u.PrimaryEmail, Name: u.Name, Profile: users.IdPProfile{
+		Picture: u.Avatar,
+		Phone:   u.PrimaryPhone,
+		Gender:  u.Profile.Gender,
+	}}
 	if m.Name == "" {
 		m.Name = u.Username
 	}

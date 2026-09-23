@@ -56,7 +56,7 @@ func TestAvatarRoundTripsThroughTheBlobStore(t *testing.T) {
 		t.Fatalf("new local store: %v", err)
 	}
 	srv.blobs = blobStore
-	srv.users = users.NewService(q)
+	srv.users = users.NewService(q, blobStore)
 
 	u := feedUser(t, q, "avatar")
 	pngBytes := onePixelPNG(t)

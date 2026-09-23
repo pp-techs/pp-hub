@@ -547,6 +547,21 @@ the internal one, because only the server calls them. Get this backwards and
 the symptom is either a browser redirected to a hostname it cannot resolve, or
 an ID token rejected because its `iss` does not match what was expected.
 
+### Profile fields from the IdP
+
+Avatar (`picture`) and gender come with the `profile` scope and need no
+configuration: they are mirrored onto the account at every sign-in, the avatar
+downloaded by the server into blob storage — so the server, not only the
+browser, must be able to reach wherever the IdP hosts avatars.
+
+The phone number needs the `phone` scope, requested only with
+`PP_OIDC_PHONE_SCOPE=1`. It is opt-in because a provider that has not granted
+this client the scope answers `invalid_scope` and **every sign-in fails**,
+rather than the phone simply staying blank. On Logto, a **third-party**
+application must list `phone` under its _Permissions_ (user data) first; a
+first-party one accepts it as is. With the Management API credentials set,
+organization reconciles fill in phone numbers regardless of this flag.
+
 ### Dokploy
 
 Dokploy's recommended flow is a **clean compose file** — no Traefik labels, no

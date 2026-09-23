@@ -48,6 +48,10 @@ function ProfileForm({ profile }: { profile: UserProfile }) {
   // two halves have to be a single message so a translation can reorder them.
   const joined = f.date(profile.created_at);
   const lastSeen = profile.last_seen ? f.relative(profile.last_seen) : null;
+  // OIDC names two values for `gender`; anything else is the identity
+  // provider's own free text and is shown as it is.
+  const genders: Partial<Record<string, string>> = { female: t`Female`, male: t`Male` };
+  const gender = genders[profile.gender.toLowerCase()] ?? profile.gender;
 
   return (
     <div className="flex max-w-xl flex-col gap-6">
@@ -131,10 +135,28 @@ function ProfileForm({ profile }: { profile: UserProfile }) {
             <Trans>Email</Trans>
           </Label>
           <Input id="email" value={profile.email} disabled readOnly />
-          <p className="text-muted-foreground text-[10px]">
-            <Trans>Managed by your identity provider — change it there.</Trans>
-          </p>
         </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="phone">
+              <Trans>Phone</Trans>
+            </Label>
+            <Input id="phone" value={profile.phone} placeholder={t`Not set`} disabled readOnly />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="gender">
+              <Trans>Gender</Trans>
+            </Label>
+            <Input id="gender" value={gender} placeholder={t`Not set`} disabled readOnly />
+          </div>
+        </div>
+        <p className="text-muted-foreground text-[10px]">
+          <Trans>
+            Email, phone and gender are managed by your identity provider — change them there. A new
+            picture set there also replaces the avatar uploaded here.
+          </Trans>
+        </p>
 
         <div className="border-border flex items-center gap-2 border-t pt-4">
           <Button type="submit" disabled={!dirty || update.isPending}>

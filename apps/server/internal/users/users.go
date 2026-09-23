@@ -1,14 +1,17 @@
 // Package users implements user profile management.
-// User records are created on first OIDC login via UpsertUser.
+// User records are created on first OIDC login by auth.resolveUser, or ahead
+// of it by an organization reconcile.
 package users
 
 import (
 	"context"
 	"errors"
+	"net/http"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/nhatbui/pp-hub/apps/server/internal/blob"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 )
 
@@ -22,9 +25,12 @@ type Profile struct {
 	DisplayName string `json:"display_name"`
 	AvatarURL   string `json:"avatar_url"`
 	Bio         string `json:"bio"`
-	IsAdmin     bool   `json:"is_admin"`
-	CreatedAt   string `json:"created_at"`
-	LastSeen    string `json:"last_seen,omitempty"`
+	// Phone and Gender come from the identity provider and are edited there.
+	Phone     string `json:"phone"`
+	Gender    string `json:"gender"`
+	IsAdmin   bool   `json:"is_admin"`
+	CreatedAt string `json:"created_at"`
+	LastSeen  string `json:"last_seen,omitempty"`
 	// Preferences rides on the identity response on purpose: the SPA needs the
 	// language before its first paint, and a second round trip for it is a
 	// visible flash of English on every load.
@@ -43,10 +49,14 @@ type SearchResult struct {
 // Service wraps user queries with profile logic.
 type Service struct {
 	q *store.Queries
+	// blobs holds avatar bytes, uploaded or mirrored from the IdP.
+	blobs blob.Store
+	// http fetches the IdP's picture; pictureFetchTimeout bounds each call.
+	http *http.Client
 }
 
-func NewService(q *store.Queries) *Service {
-	return &Service{q: q}
+func NewService(q *store.Queries, blobs blob.Store) *Service {
+	return &Service{q: q, blobs: blobs, http: &http.Client{}}
 }
 
 // Get returns a user by ID.
@@ -74,19 +84,6 @@ func (s *Service) UpdateProfile(ctx context.Context, id pgtype.UUID, displayName
 		return Profile{}, err
 	}
 	return toProfile(u), nil
-}
-
-// SetAvatar records the avatar's rendered URL together with the blob it
-// resolves to. The URL is stored rather than derived because every DTO in the
-// API copies avatar_url straight through.
-func (s *Service) SetAvatar(ctx context.Context, id pgtype.UUID, avatarURL, blobHash, mime string) error {
-	_, err := s.q.SetUserAvatar(ctx, store.SetUserAvatarParams{
-		ID:         id,
-		AvatarUrl:  avatarURL,
-		AvatarBlob: blobHash,
-		AvatarMime: mime,
-	})
-	return err
 }
 
 // Avatar returns the blob hash and content type of a user's avatar, or
@@ -178,6 +175,8 @@ func toProfile(u store.User) Profile {
 		DisplayName: u.DisplayName,
 		AvatarURL:   u.AvatarUrl,
 		Bio:         u.Bio,
+		Phone:       u.Phone,
+		Gender:      u.Gender,
 		IsAdmin:     u.IsAdmin,
 		CreatedAt:   u.CreatedAt.Time.Format(timeLayout),
 		LastSeen:    lastSeen,

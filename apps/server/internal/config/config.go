@@ -29,7 +29,13 @@ type Config struct {
 	OIDCIssuerExt    string
 	OIDCClientID     string
 	OIDCClientSecret string
-	ExternalURL      string // public base URL of this server
+	// OIDCPhoneScope asks the IdP for the `phone` scope, so the phone_number
+	// claim reaches the profile. Opt-in because a provider may refuse a scope
+	// it has not been told this client may have — Logto does, for a
+	// third-party application whose Permissions omit it — and a refused scope
+	// fails every sign-in rather than just leaving the phone blank.
+	OIDCPhoneScope bool
+	ExternalURL    string // public base URL of this server
 	// SecretKey is the master secret. Nothing signs with it directly — every
 	// consumer takes a purpose-bound subkey through DeriveKey, so a token
 	// minted for one purpose can never verify as another and the two can be
@@ -116,6 +122,7 @@ func Load() (*Config, error) {
 		OIDCIssuerExt:    os.Getenv("PP_OIDC_ISSUER_EXTERNAL"),
 		OIDCClientID:     env("PP_OIDC_CLIENT_ID", "pphub-server"),
 		OIDCClientSecret: env("PP_OIDC_CLIENT_SECRET", "pphub-server-secret"),
+		OIDCPhoneScope:   env("PP_OIDC_PHONE_SCOPE", "0") == "1",
 		ExternalURL:      env("PP_EXTERNAL_URL", "http://localhost:8080"),
 		SecretKey:        key,
 		SecretKeyShared:  shared,

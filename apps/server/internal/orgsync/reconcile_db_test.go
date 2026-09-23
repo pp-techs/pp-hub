@@ -17,6 +17,7 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/orgsync"
 	"github.com/nhatbui/pp-hub/apps/server/internal/spaces"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
+	"github.com/nhatbui/pp-hub/apps/server/internal/users"
 )
 
 // Reconciliation is a diff between an HTTP response and several tables, and
@@ -108,7 +109,7 @@ func testEnv(t *testing.T) (*store.Queries, *spaces.Service, *fakeLogto, *orgsyn
 	q := store.New(pool)
 	sp := spaces.NewService(q)
 	logto := newFakeLogto(t)
-	return q, sp, logto, orgsync.NewService(q, sp, orgsync.NewClient(logto.settings()), testIssuer)
+	return q, sp, logto, orgsync.NewService(q, sp, users.NewService(q, nil), orgsync.NewClient(logto.settings()), testIssuer)
 }
 
 // linkedSpace creates a space owned by a throwaway account and points it at

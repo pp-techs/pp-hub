@@ -1,12 +1,9 @@
 package httpapi
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -25,6 +22,8 @@ type userProfileDTO struct {
 	DisplayName string `json:"display_name"`
 	AvatarURL   string `json:"avatar_url"`
 	Bio         string `json:"bio"`
+	Phone       string `json:"phone"`
+	Gender      string `json:"gender"`
 	IsAdmin     bool   `json:"is_admin"`
 	// CanCreateSpaces: whether "new space" is an action this account has.
 	// False for an ordinary member once organizations own membership — a
@@ -49,6 +48,8 @@ func profileToDTO(p users.Profile, canCreateSpaces bool) userProfileDTO {
 		DisplayName:     p.DisplayName,
 		AvatarURL:       p.AvatarURL,
 		Bio:             p.Bio,
+		Phone:           p.Phone,
+		Gender:          p.Gender,
 		IsAdmin:         p.IsAdmin,
 		CanCreateSpaces: canCreateSpaces,
 		CreatedAt:       p.CreatedAt,
@@ -112,18 +113,11 @@ func (s *Server) handleUpdateMyProfile(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, profileToDTO(profile, s.canCreateSpaces(u)))
 }
 
-// avatarMimes are the types an avatar may be. Sniffed from the bytes, never
-// taken from the filename: the file is served back with this value, so a
-// caller who could choose it could serve HTML from our origin.
-var avatarMimes = map[string]bool{
-	"image/png": true, "image/jpeg": true, "image/gif": true, "image/webp": true,
-}
-
 // handleUploadAvatar stores an avatar's bytes in the CAS and points the
 // caller's profile at them.
 func (s *Server) handleUploadAvatar(w http.ResponseWriter, r *http.Request) {
 	u := caller(r)
-	if !parseUpload(w, r, avatarMaxBytes) {
+	if !parseUpload(w, r, users.AvatarMaxBytes) {
 		return
 	}
 	file, _, err := r.FormFile("avatar")
@@ -133,59 +127,17 @@ func (s *Server) handleUploadAvatar(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	head := make([]byte, 512)
-	n, err := io.ReadFull(file, head)
-	if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
+	url, err := s.users.UploadAvatar(r.Context(), u.ID, file)
+	switch {
+	case errors.Is(err, users.ErrNotImage):
+		writeProblem(w, http.StatusUnsupportedMediaType, "Unsupported Media Type", err.Error())
+		return
+	case errors.Is(err, users.ErrAvatarConflict):
+		writeProblem(w, http.StatusConflict, "Conflict", "the avatar changed meanwhile; try again")
+		return
+	case err != nil:
 		Error(w, r, err)
 		return
-	}
-	head = head[:n]
-	mimeType := http.DetectContentType(head)
-	if !avatarMimes[mimeType] {
-		writeProblem(w, http.StatusUnsupportedMediaType, "Unsupported Media Type",
-			"an avatar must be a PNG, JPEG, GIF or WebP image")
-		return
-	}
-
-	prev, _, err := s.users.Avatar(r.Context(), u.ID)
-	if err != nil && !errors.Is(err, users.ErrNotFound) {
-		Error(w, r, err)
-		return
-	}
-
-	hash, size, err := s.blobs.Put(r.Context(), io.MultiReader(bytes.NewReader(head), file))
-	if err != nil {
-		Error(w, r, fmt.Errorf("blob put: %w", err))
-		return
-	}
-	// Mirrors fs.PutFile's Put → UpsertBlob → IncrBlobRef sequence — skipped
-	// when re-uploading the identical image, so ref_count is not inflated and
-	// gc.Worker.Sweep does not think the blob is briefly unreferenced.
-	if hash != prev {
-		if err := s.store.UpsertBlob(r.Context(), store.UpsertBlobParams{Hash: hash, Size: size}); err != nil {
-			Error(w, r, err)
-			return
-		}
-		if err := s.store.IncrBlobRef(r.Context(), hash); err != nil {
-			Error(w, r, err)
-			return
-		}
-	}
-
-	// The query suffix exists so a new avatar is not masked by the browser's
-	// cache of the old one.
-	url := fmt.Sprintf("/api/v1/users/%s/avatar?v=%s", uuidString(u.ID), hash[:12])
-	if err := s.users.SetAvatar(r.Context(), u.ID, url, hash, mimeType); err != nil {
-		Error(w, r, err)
-		return
-	}
-	if prev != "" && prev != hash {
-		// The new avatar is already live; the direction of a ref-count drift
-		// here is the safe one (too high — GC never over-collects), so this
-		// is logged rather than failing the request.
-		if err := s.store.DecrBlobRef(r.Context(), prev); err != nil {
-			slog.ErrorContext(r.Context(), "avatar: decrementing previous blob ref failed", "err", err)
-		}
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"avatar_url": url})
 }

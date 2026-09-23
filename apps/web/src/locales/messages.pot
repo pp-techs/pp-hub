@@ -496,7 +496,7 @@ msgstr ""
 #: src/components/command-palette.tsx:190
 #: src/components/people-table.tsx:221
 #: src/components/preview-panel.tsx:233
-#: src/components/settings/panes/account-profile.tsx:184
+#: src/components/settings/panes/account-profile.tsx:212
 #: src/components/space-switcher.tsx:77
 #: src/components/space-switcher.tsx:109
 msgid "Admin"
@@ -622,7 +622,7 @@ msgstr ""
 msgid "Back to Drive"
 msgstr ""
 
-#: src/components/settings/panes/account-profile.tsx:118
+#: src/components/settings/panes/account-profile.tsx:122
 msgid "Bio"
 msgstr ""
 
@@ -827,7 +827,7 @@ msgstr ""
 msgid "Could not revoke"
 msgstr ""
 
-#: src/components/settings/panes/account-profile.tsx:92
+#: src/components/settings/panes/account-profile.tsx:96
 #: src/components/settings/panes/space-general.tsx:95
 msgid "Could not save"
 msgstr ""
@@ -1062,7 +1062,7 @@ msgstr ""
 msgid "Direction"
 msgstr ""
 
-#: src/components/settings/panes/account-profile.tsx:152
+#: src/components/settings/panes/account-profile.tsx:180
 #: src/components/settings/panes/space-general.tsx:228
 #: src/routes/admin.settings.tsx:427
 #: src/routes/admin.settings.tsx:723
@@ -1081,7 +1081,7 @@ msgstr ""
 msgid "Display language"
 msgstr ""
 
-#: src/components/settings/panes/account-profile.tsx:103
+#: src/components/settings/panes/account-profile.tsx:107
 #: src/routes/admin.settings.tsx:242
 msgid "Display name"
 msgstr ""
@@ -1155,7 +1155,7 @@ msgstr ""
 msgid "Editing"
 msgstr ""
 
-#: src/components/settings/panes/account-profile.tsx:131
+#: src/components/settings/panes/account-profile.tsx:135
 msgid "Email"
 msgstr ""
 
@@ -1165,6 +1165,10 @@ msgstr ""
 
 #: src/components/settings/panes/account-general.tsx:131
 msgid "Email me when something is shared with me"
+msgstr ""
+
+#: src/components/settings/panes/account-profile.tsx:161
+msgid "Email, phone and gender are managed by your identity provider — change them there. A new picture set there also replaces the avatar uploaded here."
 msgstr ""
 
 #: src/components/trash-panel.tsx:428
@@ -1284,6 +1288,10 @@ msgstr ""
 msgid "Failed to send test email"
 msgstr ""
 
+#: src/components/settings/panes/account-profile.tsx:53
+msgid "Female"
+msgstr ""
+
 #: src/components/preview-modal.tsx:155
 #: src/components/preview-panel.tsx:324
 msgid "File"
@@ -1395,6 +1403,10 @@ msgstr ""
 msgid "GB"
 msgstr ""
 
+#: src/components/settings/panes/account-profile.tsx:149
+msgid "Gender"
+msgstr ""
+
 #: src/components/settings/panes.ts:63
 #: src/components/settings/panes.ts:84
 msgid "General"
@@ -1473,7 +1485,7 @@ msgstr ""
 msgid "Host"
 msgstr ""
 
-#: src/components/settings/panes/account-profile.tsx:106
+#: src/components/settings/panes/account-profile.tsx:110
 msgid "How your name appears on files, shares and member lists."
 msgstr ""
 
@@ -1560,11 +1572,11 @@ msgstr ""
 msgid "Joined"
 msgstr ""
 
-#: src/components/settings/panes/account-profile.tsx:78
+#: src/components/settings/panes/account-profile.tsx:82
 msgid "Joined {joined}"
 msgstr ""
 
-#: src/components/settings/panes/account-profile.tsx:74
+#: src/components/settings/panes/account-profile.tsx:78
 msgid "Joined {joined} · last seen {lastSeen}"
 msgstr ""
 
@@ -1714,12 +1726,12 @@ msgstr ""
 msgid "Make admin"
 msgstr ""
 
-#: src/components/preview-panel.tsx:336
-msgid "Managed by"
+#: src/components/settings/panes/account-profile.tsx:53
+msgid "Male"
 msgstr ""
 
-#: src/components/settings/panes/account-profile.tsx:135
-msgid "Managed by your identity provider — change it there."
+#: src/components/preview-panel.tsx:336
+msgid "Managed by"
 msgstr ""
 
 #: src/components/settings/panes/space-general.tsx:122
@@ -1746,7 +1758,7 @@ msgstr ""
 #: src/components/command-palette.tsx:190
 #: src/components/people-table.tsx:218
 #: src/components/preview-panel.tsx:233
-#: src/components/settings/panes/account-profile.tsx:184
+#: src/components/settings/panes/account-profile.tsx:212
 msgid "Member"
 msgstr ""
 
@@ -1953,7 +1965,7 @@ msgstr ""
 msgid "No preview available — use Download to view this file."
 msgstr ""
 
-#: src/components/settings/panes/account-profile.tsx:155
+#: src/components/settings/panes/account-profile.tsx:183
 #: src/components/settings/panes/space-general.tsx:231
 msgid "No unsaved changes"
 msgstr ""
@@ -1982,6 +1994,8 @@ msgstr ""
 msgid "none failed"
 msgstr ""
 
+#: src/components/settings/panes/account-profile.tsx:145
+#: src/components/settings/panes/account-profile.tsx:154
 #: src/routes/admin.settings.tsx:658
 msgid "Not set"
 msgstr ""
@@ -2032,7 +2046,7 @@ msgstr ""
 msgid "Office"
 msgstr ""
 
-#: src/components/settings/panes/account-profile.tsx:195
+#: src/components/settings/panes/account-profile.tsx:223
 msgid "Only a space admin can add or remove members, so leaving is a request to one of them."
 msgstr ""
 
@@ -2144,6 +2158,10 @@ msgstr ""
 msgid "Person"
 msgstr ""
 
+#: src/components/settings/panes/account-profile.tsx:143
+msgid "Phone"
+msgstr ""
+
 #: src/routes/admin.settings.tsx:597
 msgid "Port"
 msgstr ""
@@ -2183,7 +2201,7 @@ msgstr ""
 
 #: src/components/nav-user.tsx:107
 #: src/components/settings/panes.ts:70
-#: src/components/settings/panes/account-profile.tsx:98
+#: src/components/settings/panes/account-profile.tsx:102
 msgid "Profile"
 msgstr ""
 
@@ -2191,7 +2209,7 @@ msgstr ""
 msgid "Profile not found."
 msgstr ""
 
-#: src/components/settings/panes/account-profile.tsx:91
+#: src/components/settings/panes/account-profile.tsx:95
 msgid "Profile saved"
 msgstr ""
 
@@ -2367,7 +2385,7 @@ msgstr ""
 msgid "Save"
 msgstr ""
 
-#: src/components/settings/panes/account-profile.tsx:141
+#: src/components/settings/panes/account-profile.tsx:169
 #: src/components/settings/panes/space-general.tsx:225
 #: src/routes/admin.settings.tsx:431
 #: src/routes/admin.settings.tsx:727
@@ -2472,7 +2490,7 @@ msgstr ""
 msgid "Served by pp-hub · self-hosted"
 msgstr ""
 
-#: src/components/settings/panes/account-profile.tsx:67
+#: src/components/settings/panes/account-profile.tsx:71
 msgid "Server admin"
 msgstr ""
 
@@ -2745,7 +2763,7 @@ msgstr ""
 msgid "Team folder"
 msgstr ""
 
-#: src/components/settings/panes/account-profile.tsx:124
+#: src/components/settings/panes/account-profile.tsx:128
 msgid "Tell your colleagues what you work on"
 msgstr ""
 
@@ -2952,7 +2970,7 @@ msgstr ""
 msgid "Unlimited"
 msgstr ""
 
-#: src/components/settings/panes/account-profile.tsx:155
+#: src/components/settings/panes/account-profile.tsx:183
 #: src/components/settings/panes/space-general.tsx:231
 msgid "Unsaved changes"
 msgstr ""
@@ -3126,7 +3144,7 @@ msgstr ""
 msgid "You are not in any space yet"
 msgstr ""
 
-#: src/components/settings/panes/account-profile.tsx:190
+#: src/components/settings/panes/account-profile.tsx:218
 msgid "You are not in any space yet."
 msgstr ""
 
@@ -3206,7 +3224,7 @@ msgstr ""
 msgid "Your access"
 msgstr ""
 
-#: src/components/settings/panes/account-profile.tsx:162
+#: src/components/settings/panes/account-profile.tsx:190
 msgid "Your spaces"
 msgstr ""
 

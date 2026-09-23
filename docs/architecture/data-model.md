@@ -22,8 +22,10 @@ actually models, and an organization links to that — see
 
 ```sql
 users(id, tenant_id, oidc_sub, oidc_iss, email, name,     -- OIDC-sourced fields
+      phone, gender,                                       -- IdP-owned, mirrored, read-only here
       display_name, avatar_url, bio,                      -- user-editable profile
       avatar_blob, avatar_mime,                            -- the CAS hash and mime an avatar_url resolves to
+      idp_picture, avatar_from_idp,                        -- IdP `picture` last seen; whose the avatar is
       settings,                                            -- JSONB preferences
       is_admin, last_seen, suspended_at, created_at)
   UNIQUE (oidc_iss, oidc_sub)                              -- the identity key
@@ -37,12 +39,35 @@ session's deadline, so it moves with actual use. It used to be stamped only by t
 which made the People table's "last active" column a login timestamp wearing another name.
 
 An avatar's bytes live in the CAS like everything else uploaded (M22–M24 pass): `avatar_blob`
-is the blake3 hash `handleUploadAvatar` resolved through `s.blobs.Put`, `avatar_mime` is the
-type sniffed from the bytes (never the filename — it is served back with this value), and
+is the blake3 hash `users.Service.UploadAvatar` resolved through `blobs.Put`, `avatar_mime` is
+the type sniffed from the bytes (never the filename — it is served back with this value), and
 `avatar_url` stays the rendered `/api/v1/users/{userID}/avatar?v=<hash prefix>` every DTO
 already copies through, so the query suffix is what busts a browser's cache of the previous
 picture. `GET /api/v1/users/{userID}/avatar` resolves `avatar_blob` back to bytes; re-uploading
-identical bytes does not re-`IncrBlobRef` the same hash twice, mirroring `fs.PutFile`.
+identical bytes does not re-`IncrBlobRef` the same hash twice, mirroring `fs.PutFile`. Every
+avatar write is conditional on the blob it read (`prev_blob`), so of two concurrent writers only
+the one that actually replaced a blob releases its reference — in a deduplicating CAS that blob
+can be a file's content too.
+
+### Profile fields the IdP owns
+
+`users.Service.SyncIdPProfile` mirrors the IdP's `picture`, `phone_number` and `gender` at every
+sign-in (from the ID token) and on every organization reconcile (from Logto's Management API
+`avatar`, `primaryPhone`, `profile.gender` — the same values, so the two never undo each other).
+It writes only what changed.
+
+- **phone / gender** are replaced outright and are read-only in the app. A phone of bare digits
+  (Logto's storage form) is given its E.164 `+`. `phone_number` needs the `phone` scope, which is
+  requested only with `PP_OIDC_PHONE_SCOPE=1` — see [deployment.md](../deployment.md).
+- **The avatar** is fetched into the CAS rather than hotlinked, so the CSP keeps `img-src 'self'`
+  and an IdP serving avatars on an internal hostname still works. The most recent change on either
+  side wins: a new `picture` replaces what is shown, an upload replaces the IdP's until its
+  `picture` changes again. `idp_picture` is the URL last seen and is compared to decide whether to
+  fetch; `NULL` means never observed, which is what lets an upload made before this existed survive
+  its first sync. An IdP that drops its picture clears the avatar only when `avatar_from_idp`.
+  Anything that does not sniff as PNG, JPEG, GIF or WebP — an SVG, say — is refused and
+  remembered, so it is not refetched each sign-in. A network failure is not remembered and retries.
+- **Nothing here refuses a sign-in.** A sync failure is logged and the login proceeds.
 
 A user is identified by `(oidc_iss, oidc_sub)` — `GetUserByIdentity` — with `email_hash` unique
 per tenant. Those two facts collide when an operator changes the issuer URL: every returning

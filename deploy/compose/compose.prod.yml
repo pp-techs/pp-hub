@@ -88,6 +88,7 @@ services:
       PP_OIDC_ISSUER_EXTERNAL: "${PP_OIDC_ISSUER_EXTERNAL:-}"
       PP_OIDC_CLIENT_ID: "${PP_OIDC_CLIENT_ID:?set in .env}"
       PP_OIDC_CLIENT_SECRET: "${PP_OIDC_CLIENT_SECRET:?set in .env}"
+      PP_OIDC_PHONE_SCOPE: "${PP_OIDC_PHONE_SCOPE:-0}"
 
       # The master secret. Nothing signs with it directly — config.DeriveKey
       # issues a purpose-bound subkey per signer — and sessions are rows, so

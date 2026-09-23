@@ -44,8 +44,35 @@ RETURNING *;
 -- name: UpdateUserSettings :one
 UPDATE users SET settings = $2 WHERE id = $1 RETURNING *;
 
+-- Avatar writes are conditional on the blob the caller read (@prev_blob) and
+-- answer no row when it has moved: only the writer that actually replaced a
+-- blob may release its reference. Two unguarded writers would both release
+-- it, and in a deduplicating CAS that blob can be a file's content as well.
+
+-- A person's own upload. Clears avatar_from_idp so a later IdP sync that
+-- drops its picture does not take this one with it.
 -- name: SetUserAvatar :one
-UPDATE users SET avatar_url = $2, avatar_blob = $3, avatar_mime = $4 WHERE id = $1 RETURNING *;
+UPDATE users
+SET avatar_url = @avatar_url, avatar_blob = @avatar_blob, avatar_mime = @avatar_mime,
+    avatar_from_idp = false
+WHERE id = @id AND avatar_blob = @prev_blob
+RETURNING *;
+
+-- The avatar mirrored from the IdP's `picture`, together with the source URL
+-- it came from. An empty blob clears an IdP-supplied avatar.
+-- name: SetUserIdpAvatar :one
+UPDATE users
+SET avatar_url = @avatar_url, avatar_blob = @avatar_blob, avatar_mime = @avatar_mime,
+    avatar_from_idp = @avatar_blob::text <> '', idp_picture = @idp_picture
+WHERE id = @id AND avatar_blob = @prev_blob
+RETURNING *;
+
+-- Records the IdP's `picture` as seen without touching the avatar.
+-- name: SetUserIdpPicture :one
+UPDATE users SET idp_picture = $2 WHERE id = $1 RETURNING *;
+
+-- name: SetUserIdpDetails :one
+UPDATE users SET phone = $2, gender = $3 WHERE id = $1 RETURNING *;
 
 -- name: GetUserAvatar :one
 SELECT avatar_blob, avatar_mime FROM users WHERE id = $1;

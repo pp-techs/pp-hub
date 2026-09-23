@@ -51,7 +51,8 @@ func run() error {
 	defer closeDeps()
 	cfg, queries, blobs := deps.Cfg, deps.Queries, deps.Blobs
 
-	authSvc, err := waitForOIDC(ctx, cfg, queries)
+	usersSvc := users.NewService(queries, blobs)
+	authSvc, err := waitForOIDC(ctx, cfg, queries, usersSvc)
 	if err != nil {
 		return err
 	}
@@ -125,11 +126,10 @@ func run() error {
 			}
 		}
 	}()
-	usersSvc := users.NewService(queries)
 	// Membership is a projection of Logto organizations. The sign-in path
 	// needs this before the first callback lands, and the worker drains the
 	// reconcile jobs the webhook enqueues.
-	orgSvc := orgsync.NewService(queries, spacesSvc,
+	orgSvc := orgsync.NewService(queries, spacesSvc, usersSvc,
 		orgsync.NewClient(cfg.Logto), cfg.OIDCIssuerExt)
 	authSvc.SetReconciler(orgSvc)
 	go orgSvc.Run(ctx)
@@ -189,10 +189,10 @@ func run() error {
 // names precisely: the issuer is unreachable from inside the container, or the
 // `issuer` in its discovery document does not match PP_OIDC_ISSUER (what
 // PP_OIDC_ISSUER_EXTERNAL exists to resolve).
-func waitForOIDC(ctx context.Context, cfg *config.Config, q *store.Queries) (*auth.Service, error) {
+func waitForOIDC(ctx context.Context, cfg *config.Config, q *store.Queries, profiles *users.Service) (*auth.Service, error) {
 	const maxAttempts = 60
 	for attempt := 1; ; attempt++ {
-		svc, err := auth.NewService(ctx, cfg, q)
+		svc, err := auth.NewService(ctx, cfg, q, profiles)
 		if err == nil {
 			if attempt > 1 {
 				slog.Info("oidc discovery succeeded", "attempts", attempt)

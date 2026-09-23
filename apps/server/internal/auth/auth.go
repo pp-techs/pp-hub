@@ -42,6 +42,7 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/config"
 	"github.com/nhatbui/pp-hub/apps/server/internal/orgsync"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
+	"github.com/nhatbui/pp-hub/apps/server/internal/users"
 )
 
 const (
@@ -91,16 +92,29 @@ type Service struct {
 	// Logto tenant is configured, which is the whole of the fallback: a
 	// sign-in still works, it simply changes no memberships.
 	orgs Reconciler
+	// profiles mirrors the IdP-owned profile fields — avatar, phone, gender
+	// — onto the account at every sign-in.
+	profiles *users.Service
 }
 
 // scopes are what the authorization request asks for.
 //
-// The two organization scopes are Logto-specific and are only requested when
-// a Logto endpoint is configured. An OIDC provider is free to reject a scope
-// it does not know, and sending these unconditionally would make sign-in fail
-// on Keycloak or Authentik for a feature that install is not using.
+// An OIDC provider is free to reject a scope it does not know or has not
+// granted this client, and a rejected scope fails the whole sign-in. So
+// anything beyond the three every provider serves is asked for only when the
+// install says the provider will accept it:
+//
+//   - `phone` (OIDC Core §5.4) when PP_OIDC_PHONE_SCOPE=1. Logto refuses it
+//     for a third-party application until its Permissions include it.
+//   - The two organization scopes, which are Logto-specific, when a Logto
+//     endpoint is configured; sending them unconditionally would make
+//     sign-in fail on Keycloak or Authentik for a feature that install is
+//     not using.
 func scopes(cfg *config.Config) []string {
 	s := []string{oidc.ScopeOpenID, "profile", "email"}
+	if cfg.OIDCPhoneScope {
+		s = append(s, "phone")
+	}
 	if cfg.Logto.Endpoint != "" {
 		s = append(s, "urn:logto:scope:organizations", "urn:logto:scope:organization_roles")
 	}
@@ -114,7 +128,7 @@ type Reconciler interface {
 	ReconcileUser(ctx context.Context, user store.User, claims orgsync.Claims) error
 }
 
-func NewService(ctx context.Context, cfg *config.Config, queries *store.Queries) (*Service, error) {
+func NewService(ctx context.Context, cfg *config.Config, queries *store.Queries, profiles *users.Service) (*Service, error) {
 	discoveryCtx := ctx
 	if cfg.OIDCIssuer != cfg.OIDCIssuerExt {
 		// Fetch from the internal URL, but keep expecting the external issuer
@@ -143,7 +157,8 @@ func NewService(ctx context.Context, cfg *config.Config, queries *store.Queries)
 			RedirectURL:  cfg.ExternalURL + "/auth/callback",
 			Scopes:       scopes(cfg),
 		},
-		secure: strings.HasPrefix(cfg.ExternalURL, "https://"),
+		secure:   strings.HasPrefix(cfg.ExternalURL, "https://"),
+		profiles: profiles,
 	}
 	var meta struct {
 		EndSession string `json:"end_session_endpoint"`
@@ -272,6 +287,7 @@ func (s *Service) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		s.failLogin(w, r, "suspended", "this account is suspended", nil)
 		return
 	}
+	user = s.syncProfile(r, user, claims)
 	s.promoteBootstrapAdmin(r, &user, claims)
 	s.reconcileOrgs(r, user, claims)
 
@@ -325,6 +341,22 @@ func (s *Service) reconcileOrgs(r *http.Request, user store.User, claims idClaim
 	}); err != nil {
 		slog.Error("organization reconcile at sign-in", "user", user.Email, "err", err)
 	}
+}
+
+// syncProfile mirrors the IdP-owned profile fields onto the account.
+//
+// Like reconcileOrgs, a failure is logged and swallowed: an avatar that cannot
+// be fetched is not a reason to refuse a sign-in, and the next one retries.
+func (s *Service) syncProfile(r *http.Request, user store.User, claims idClaims) store.User {
+	synced, err := s.profiles.SyncIdPProfile(r.Context(), user, users.IdPProfile{
+		Picture: claims.Picture,
+		Phone:   claims.PhoneNumber,
+		Gender:  claims.Gender,
+	})
+	if err != nil {
+		slog.WarnContext(r.Context(), "idp profile sync", "user", user.ID.String(), "err", err)
+	}
+	return synced
 }
 
 // promoteBootstrapAdmin makes the operator named by PP_BOOTSTRAP_ADMIN_EMAIL
@@ -420,6 +452,12 @@ type idClaims struct {
 	Email         string  `json:"email"`
 	EmailVerified boolish `json:"email_verified"`
 	Name          string  `json:"name"`
+	// Profile claims the IdP owns and pp-hub only mirrors. Logto sends
+	// `gender` only when it is set, and `phone_number` only for the `phone`
+	// scope; absent decodes to "".
+	Picture     string `json:"picture"`
+	PhoneNumber string `json:"phone_number"`
+	Gender      string `json:"gender"`
 	// Organization claims, present only when the two urn:logto:scope:*
 	// scopes were requested and granted. Absent on every other provider,
 	// which decodes to empty slices and reconciles nothing.

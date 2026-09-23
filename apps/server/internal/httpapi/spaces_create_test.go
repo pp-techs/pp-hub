@@ -11,7 +11,7 @@ import (
 // orgServer builds a Server whose orgsync carries the given settings. Only
 // the configuration is exercised here — canCreateSpaces makes no call.
 func orgServer(cfg config.LogtoSettings) *Server {
-	return &Server{orgs: orgsync.NewService(nil, nil, orgsync.NewClient(cfg), "iss")}
+	return &Server{orgs: orgsync.NewService(nil, nil, nil, orgsync.NewClient(cfg), "iss")}
 }
 
 var (
