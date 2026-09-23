@@ -1,12 +1,14 @@
 package httpapi
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"io"
 	"mime"
 	"net/http"
+	"path"
 	"strconv"
 	"strings"
 
@@ -15,10 +17,12 @@ import (
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/activity"
 	"github.com/nhatbui/pp-hub/apps/server/internal/fs"
+	"github.com/nhatbui/pp-hub/apps/server/internal/office"
 	"github.com/nhatbui/pp-hub/apps/server/internal/orgsync"
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 	"github.com/nhatbui/pp-hub/apps/server/internal/spaces"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
+	"github.com/nhatbui/pp-hub/apps/server/internal/users"
 )
 
 // --- DTOs ---
@@ -605,6 +609,80 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.activity.Node(r.Context(), u.ID, node, activity.KindUploaded, map[string]any{"size": ver.Size})
+	// Recount used bytes for the space.
+	if used, err := s.store.SumSpaceUsage(r.Context(), spaceID); err == nil {
+		_ = s.store.UpdateSpaceUsedBytes(r.Context(), store.UpdateSpaceUsedBytesParams{ID: spaceID, UsedBytes: used})
+	}
+	writeJSON(w, http.StatusCreated, nodeToDTO(node, &ver).withCaps(share.CapsOwner))
+}
+
+func (s *Server) handleCreateDocument(w http.ResponseWriter, r *http.Request) {
+	u := caller(r)
+	spaceID, err := uuidParam(r, "spaceID")
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
+		return
+	}
+	if err := s.spaces.RequireMember(r.Context(), spaceID, u.ID); err != nil {
+		s.spaceError(w, r, err)
+		return
+	}
+
+	var body struct {
+		Kind     string `json:"kind"`
+		Name     string `json:"name"`
+		ParentID string `json:"parent_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid body")
+		return
+	}
+
+	kind, ok := office.ParseKind(body.Kind)
+	if !ok {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "kind must be document|spreadsheet|presentation")
+		return
+	}
+
+	name := strings.TrimSpace(body.Name)
+	if name == "" {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "name is required")
+		return
+	}
+	if strings.Contains(name, "/") || strings.Contains(name, "\\") {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", `name cannot contain / or \`)
+		return
+	}
+
+	if !strings.EqualFold(path.Ext(name), kind.Ext()) {
+		name += kind.Ext()
+	}
+
+	var parentID pgtype.UUID
+	if body.ParentID != "" {
+		if err := parentID.Scan(body.ParentID); err != nil {
+			writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid parent_id")
+			return
+		}
+	}
+
+	if !s.requireParentWrite(w, r, spaceID, parentID, u) {
+		return
+	}
+
+	tpl, err := office.Template(kind, users.DecodePreferences(u.Settings).Locale)
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+
+	node, ver, err := s.fs.PutFile(r.Context(), spaceID, parentID, pgtype.UUID{}, name, bytes.NewReader(tpl), u.ID)
+	if err != nil {
+		s.nodeError(w, r, err)
+		return
+	}
+
+	s.activity.Node(r.Context(), u.ID, node, activity.KindCreated, map[string]any{"template": string(kind)})
 	// Recount used bytes for the space.
 	if used, err := s.store.SumSpaceUsage(r.Context(), spaceID); err == nil {
 		_ = s.store.UpdateSpaceUsedBytes(r.Context(), store.UpdateSpaceUsedBytesParams{ID: spaceID, UsedBytes: used})

@@ -3,7 +3,8 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
-import { RotateCcw, Save } from "lucide-react";
+import type { MessageDescriptor } from "@lingui/core";
+import { RotateCcw, Save, Send } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
@@ -16,6 +17,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@workspace/ui/components/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/select";
 import { AdminHeader } from "@/components/admin-header";
 import { SectionLabel } from "@/components/section-label";
 import {
@@ -24,10 +32,11 @@ import {
   useAdminSettings,
   useDeleteAdminSetting,
   useMe,
+  useSendTestEmail,
   useUpdateAdminSettings,
 } from "@/lib/queries";
 import { pageTitle } from "@/lib/i18n";
-import type { AdminSetting, AdminSettingsMap } from "@/lib/api";
+import type { AdminSetting, AdminSettingsMap, SmtpSettingValue } from "@/lib/api";
 
 export const Route = createFileRoute("/admin/settings")({
   head: () => ({ meta: [{ title: pageTitle(msg`Instance settings`) }] }),
@@ -72,7 +81,13 @@ function AdminSettingsPage() {
             <Trans>Loading settings…</Trans>
           </p>
         ) : (
-          <SettingsForm settings={settings} />
+          <>
+            <SettingsForm settings={settings} />
+            <MailSettingsSection
+              key={JSON.stringify(settings.smtp?.value)}
+              setting={settings.smtp}
+            />
+          </>
         )}
       </div>
     </main>
@@ -416,6 +431,315 @@ function SettingsForm({ settings }: { settings: AdminSettingsMap }) {
           <Trans>Save changes</Trans>
         </Button>
       </div>
+    </form>
+  );
+}
+
+const TLS_OPTIONS: { label: MessageDescriptor; value: "starttls" | "implicit" | "none" }[] = [
+  { label: msg`STARTTLS (port 587)`, value: "starttls" },
+  { label: msg`Implicit TLS / SMTPS (port 465)`, value: "implicit" },
+  { label: msg`None — local relay only`, value: "none" },
+];
+
+// eslint-disable-next-line lingui/no-unlocalized-strings -- setting key and defaults
+const SETTING_KEY_SMTP = "smtp";
+// eslint-disable-next-line lingui/no-unlocalized-strings -- setting key and defaults
+const DEFAULT_TLS = "starttls";
+// eslint-disable-next-line lingui/no-unlocalized-strings -- setting key and defaults
+const DEFAULT_SOURCE = "default";
+// eslint-disable-next-line lingui/no-unlocalized-strings -- placeholder example
+const defaultHostPlaceholder = "smtp.example.com";
+// eslint-disable-next-line lingui/no-unlocalized-strings -- placeholder example
+const defaultFromPlaceholder = "pp-hub <noreply@example.com>";
+function MailSettingsSection({ setting }: { setting?: AdminSetting }) {
+  const { i18n, t } = useLingui();
+  const { data: me } = useMe();
+  const update = useUpdateAdminSettings();
+  const remove = useDeleteAdminSetting();
+  const sendTest = useSendTestEmail();
+
+  const value = (setting?.value as SmtpSettingValue | undefined) ?? {
+    host: "",
+    port: 587,
+    username: "",
+    from: "",
+    tls: DEFAULT_TLS,
+    password_set: false,
+  };
+  const source = setting?.source ?? DEFAULT_SOURCE;
+
+  const [host, setHost] = useState(value.host ?? "");
+  const [port, setPort] = useState(String(value.port || 587));
+  const [tls, setTls] = useState<"starttls" | "implicit" | "none">(value.tls || DEFAULT_TLS);
+  const [username, setUsername] = useState(value.username ?? "");
+  const [password, setPassword] = useState("");
+  const [clearPassword, setClearPassword] = useState(false);
+  const [from, setFrom] = useState(value.from ?? "");
+
+  const isDirty =
+    host !== (value.host ?? "") ||
+    port !== String(value.port || 587) ||
+    tls !== (value.tls || DEFAULT_TLS) ||
+    username !== (value.username ?? "") ||
+    password !== "" ||
+    clearPassword ||
+    from !== (value.from ?? "");
+
+  const handleReset = async () => {
+    try {
+      await remove.mutateAsync(SETTING_KEY_SMTP);
+      toast.success(t`Outgoing mail settings reset`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t`Failed to reset setting`);
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmedHost = host.trim();
+    const trimmedFrom = from.trim();
+    const portNum = parseInt(port, 10);
+
+    if (trimmedHost !== "") {
+      if (!trimmedFrom) {
+        toast.error(t`From address is required when an SMTP host is set.`);
+        return;
+      }
+      if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
+        toast.error(t`Port must be between 1 and 65535.`);
+        return;
+      }
+    }
+
+    if (source === "env" && value.password_set && username.trim() && !password) {
+      toast.error(t`Enter the password: saving here replaces the environment configuration.`);
+      return;
+    }
+
+    try {
+      await update.mutateAsync({
+        smtp: {
+          host: trimmedHost,
+          port: isNaN(portNum) ? 587 : portNum,
+          username: username.trim(),
+          from: trimmedFrom,
+          tls,
+          ...(password ? { password } : clearPassword ? { password: "" } : {}),
+        },
+      });
+      toast.success(t`Settings saved`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t`Failed to save settings`);
+    }
+  };
+
+  const handleSendTest = async () => {
+    try {
+      const res = await sendTest.mutateAsync();
+      const to = res.to;
+      toast.success(t`Test email sent to ${to}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t`Failed to send test email`);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSave} className="flex flex-col gap-6">
+      <section className="flex flex-col gap-3">
+        <SectionLabel>
+          <Trans>Mail</Trans>
+        </SectionLabel>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <CardTitle>
+                <Trans>Outgoing mail (SMTP)</Trans>
+              </CardTitle>
+              {setting && <SourceBadge source={setting.source} />}
+            </div>
+            <CardDescription>
+              <Trans>
+                Used to email people when a file or folder is shared with them. Leave the host empty
+                to turn mail off.
+              </Trans>
+            </CardDescription>
+            {source === "database" && (
+              <CardAction>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleReset}
+                  disabled={remove.isPending}
+                >
+                  <RotateCcw className="size-3.5" />
+                  <Trans>Reset</Trans>
+                </Button>
+              </CardAction>
+            )}
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="smtp-host">
+                  <Trans>Host</Trans>
+                </Label>
+                <Input
+                  id="smtp-host"
+                  placeholder={defaultHostPlaceholder}
+                  value={host}
+                  onChange={(e) => setHost(e.target.value)}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="smtp-port">
+                  <Trans>Port</Trans>
+                </Label>
+                <Input
+                  id="smtp-port"
+                  type="number"
+                  min="1"
+                  max="65535"
+                  value={port}
+                  onChange={(e) => setPort(e.target.value)}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="smtp-tls">
+                  <Trans>Security</Trans>
+                </Label>
+                <Select
+                  value={tls}
+                  items={TLS_OPTIONS.map((opt) => ({ value: opt.value, label: i18n._(opt.label) }))}
+                  onValueChange={(v) =>
+                    setTls((v as "starttls" | "implicit" | "none") ?? "starttls")
+                  }
+                >
+                  <SelectTrigger id="smtp-tls" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TLS_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {i18n._(opt.label)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="smtp-username">
+                  <Trans>Username</Trans>
+                </Label>
+                <Input
+                  id="smtp-username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="smtp-password">
+                  <Trans>Password</Trans>
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="smtp-password"
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder={
+                      value.password_set
+                        ? clearPassword
+                          ? t`Cleared`
+                          : t`Stored — leave blank to keep`
+                        : t`Not set`
+                    }
+                    value={password}
+                    disabled={clearPassword}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                  {value.password_set && source === "database" && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setClearPassword((prev) => !prev);
+                        setPassword("");
+                      }}
+                    >
+                      {clearPassword ? (
+                        <Trans>Keep password</Trans>
+                      ) : (
+                        <Trans>Remove password</Trans>
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="smtp-from">
+                  <Trans>From address</Trans>
+                </Label>
+                <Input
+                  id="smtp-from"
+                  placeholder={defaultFromPlaceholder}
+                  value={from}
+                  onChange={(e) => setFrom(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-col gap-1.5 border-t pt-4">
+              <div className="flex items-center justify-between">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleSendTest}
+                  disabled={isDirty || !value.host || sendTest.isPending}
+                >
+                  <Send className="size-4" />
+                  <Trans>Send test email</Trans>
+                </Button>
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={!isDirty || update.isPending}
+                    onClick={() => {
+                      setHost(value.host ?? "");
+                      setPort(String(value.port || 587));
+                      setTls(value.tls || DEFAULT_TLS);
+                      setUsername(value.username ?? "");
+                      setPassword("");
+                      setClearPassword(false);
+                      setFrom(value.from ?? "");
+                    }}
+                  >
+                    <Trans>Discard</Trans>
+                  </Button>
+                  <Button type="submit" disabled={!isDirty || update.isPending}>
+                    <Save className="size-4" />
+                    <Trans>Save changes</Trans>
+                  </Button>
+                </div>
+              </div>
+              {(() => {
+                const targetEmail = me?.email ?? "";
+                return (
+                  <p className="text-muted-foreground text-xs">
+                    {t`Sends to ${targetEmail}. Save changes first.`}
+                  </p>
+                );
+              })()}
+            </div>
+          </CardContent>
+        </Card>
+      </section>
     </form>
   );
 }

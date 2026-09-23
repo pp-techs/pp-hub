@@ -20,6 +20,8 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/fs"
 	"github.com/nhatbui/pp-hub/apps/server/internal/gc"
 	"github.com/nhatbui/pp-hub/apps/server/internal/httpapi"
+	"github.com/nhatbui/pp-hub/apps/server/internal/mail"
+	"github.com/nhatbui/pp-hub/apps/server/internal/notify"
 	"github.com/nhatbui/pp-hub/apps/server/internal/orgsync"
 	"github.com/nhatbui/pp-hub/apps/server/internal/preview"
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
@@ -91,6 +93,10 @@ func run() error {
 	if err := syscfg.Reload(ctx, "default"); err != nil {
 		slog.Warn("sysconfig initial load", "err", err)
 	}
+	mailer := mail.New(syscfg.SMTP)
+	notifier := notify.New(queries, mailer, syscfg, cfg.ExternalURL)
+	go notifier.Run(ctx)
+
 
 	auditSvc := audit.New(queries)
 	go func() {
@@ -147,6 +153,8 @@ func run() error {
 		MaxUploadBytes:  cfg.MaxUploadBytes,
 		TrustedProxies:  cfg.TrustedProxies,
 		SysConfig:       syscfg,
+		Mail:            mailer,
+		Notifier:        notifier,
 	})
 	srv := &http.Server{
 		Addr:              cfg.Addr,

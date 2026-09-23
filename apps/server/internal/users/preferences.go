@@ -30,12 +30,20 @@ type Preferences struct {
 	// falls back on its own when it cannot, so the server validates shape
 	// only — an allowlist here would make adding a language a backend release.
 	Locale string `json:"locale,omitempty"`
+	// EmailOnShare controls transactional emails on share events.
+	// Nil means never chosen, which defaults to true (opt-out).
+	EmailOnShare *bool `json:"email_on_share,omitempty"`
+}
+
+func (p Preferences) WantsShareEmail() bool {
+	return p.EmailOnShare == nil || *p.EmailOnShare
 }
 
 // PreferencesPatch is a partial update: a nil field is untouched. This mirrors
 // handleUpdateSpace, the same shape every other PATCH in the API uses.
 type PreferencesPatch struct {
-	Locale *string `json:"locale"`
+	Locale       *string `json:"locale"`
+	EmailOnShare *bool   `json:"email_on_share"`
 }
 
 // localePattern accepts a language subtag with an optional script or region,
@@ -49,10 +57,10 @@ func ValidLocale(tag string) bool {
 	return tag == "" || (len(tag) <= 16 && localePattern.MatchString(tag))
 }
 
-// decodePreferences reads the JSONB column. A malformed or empty document is
+// DecodePreferences reads the JSONB column. A malformed or empty document is
 // not an error: it predates this type, or a hand-edited row put junk there,
 // and in both cases "no preferences" is the honest answer.
-func decodePreferences(raw []byte) Preferences {
+func DecodePreferences(raw []byte) Preferences {
 	var p Preferences
 	if len(raw) == 0 {
 		return p
@@ -67,7 +75,7 @@ func (s *Service) Preferences(ctx context.Context, id pgtype.UUID) (Preferences,
 	if err != nil {
 		return Preferences{}, ErrNotFound
 	}
-	return decodePreferences(u.Settings), nil
+	return DecodePreferences(u.Settings), nil
 }
 
 // mergePreferences applies a patch to the raw stored document.
@@ -97,6 +105,11 @@ func mergePreferences(raw []byte, patch PreferencesPatch) ([]byte, error) {
 			return nil, err
 		}
 	}
+	if patch.EmailOnShare != nil {
+		if err := set("email_on_share", *patch.EmailOnShare); err != nil {
+			return nil, err
+		}
+	}
 	return json.Marshal(doc)
 }
 
@@ -121,5 +134,5 @@ func (s *Service) UpdatePreferences(ctx context.Context, id pgtype.UUID, patch P
 	if err != nil {
 		return Preferences{}, err
 	}
-	return decodePreferences(updated.Settings), nil
+	return DecodePreferences(updated.Settings), nil
 }

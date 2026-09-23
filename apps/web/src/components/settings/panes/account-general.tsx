@@ -2,7 +2,9 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
 import { toast } from "sonner";
 import type { MessageDescriptor } from "@lingui/core";
+import { useQueryClient } from "@tanstack/react-query";
 import { Label } from "@workspace/ui/components/label";
+import { Switch } from "@workspace/ui/components/switch";
 import {
   Select,
   SelectContent,
@@ -10,11 +12,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select";
-import type { NodeView, SortField, SortOrder } from "@/lib/api";
+import { updatePreferences } from "@/lib/api/users";
+import type { NodeView, SortField, SortOrder, UserPreferences, UserProfile } from "@/lib/api";
 import { useUiStore } from "@/lib/ui-store";
 import { LOCALES, type Locale } from "@/lib/i18n";
 import { useTheme } from "@/components/theme-provider";
 import { useLocale, useSetLocale } from "@/components/locale-provider";
+import { keys, useMe } from "@/lib/queries";
 import { SectionLabel } from "@/components/section-label";
 
 /**
@@ -62,6 +66,8 @@ export function AccountGeneralPane() {
   const { theme, setTheme } = useTheme();
   const locale = useLocale();
   const setLocale = useSetLocale();
+  const qc = useQueryClient();
+  const { data: me } = useMe();
   const prefs = useUiStore((s) => s.listingPrefs);
   const setPrefs = useUiStore((s) => s.setListingPrefs);
 
@@ -113,6 +119,37 @@ export function AccountGeneralPane() {
               ))}
             </SelectContent>
           </Select>
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <SectionLabel>
+          <Trans>Notifications</Trans>
+        </SectionLabel>
+        <div className="flex items-center justify-between gap-4">
+          <Label htmlFor="pref-email-on-share" className="flex-col items-start gap-0.5 font-normal">
+            <Trans>Email me when something is shared with me</Trans>
+            <span className="text-muted-foreground block text-[10px]">
+              <Trans>
+                Saved to your account. Only sent when your administrator has set up mail.
+              </Trans>
+            </span>
+          </Label>
+          <Switch
+            id="pref-email-on-share"
+            checked={me?.preferences.email_on_share !== false}
+            onCheckedChange={(v) => {
+              updatePreferences({ email_on_share: v })
+                .then((updated: UserPreferences) => {
+                  qc.setQueryData<UserProfile>(keys.me, (prev) =>
+                    prev ? { ...prev, preferences: updated } : prev,
+                  );
+                })
+                .catch(() => {
+                  toast.error(i18n._(msg`Could not save your notification setting.`));
+                });
+            }}
+          />
         </div>
       </section>
 

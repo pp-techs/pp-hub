@@ -11,6 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/nhatbui/pp-hub/apps/server/internal/config"
+	"github.com/nhatbui/pp-hub/apps/server/internal/mail"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 )
 
@@ -19,6 +20,7 @@ const (
 	KeyMaxUploadBytes         = "max_upload_bytes"
 	KeyAuditRetentionDays     = "audit_retention_days"
 	KeyDefaultSpaceQuotaBytes = "default_space_quota_bytes"
+	KeySMTP                   = "smtp"
 
 	DefaultTenantID = "default"
 )
@@ -41,6 +43,35 @@ type SettingDTO struct {
 	Description string `json:"description"`
 	Default     any    `json:"default"`
 	Type        string `json:"type"`
+}
+
+type storedSMTP struct {
+	Host        string `json:"host"`
+	Port        int    `json:"port"`
+	Username    string `json:"username"`
+	PasswordEnc string `json:"password_enc,omitempty"`
+	From        string `json:"from"`
+	TLS         string `json:"tls"`
+}
+
+type patchSMTP struct {
+	Host     string  `json:"host"`
+	Port     int     `json:"port"`
+	Username string  `json:"username"`
+	Password *string `json:"password"`
+	From     string  `json:"from"`
+	TLS      string  `json:"tls"`
+}
+
+func smtpPublic(host string, port int, username, from, tls string, passwordSet bool) map[string]any {
+	return map[string]any{
+		"host":         host,
+		"port":         port,
+		"username":     username,
+		"from":         from,
+		"tls":          tls,
+		"password_set": passwordSet,
+	}
 }
 
 // Service manages system-wide dynamic configuration backed by Postgres
@@ -145,6 +176,19 @@ func defaultDefs() map[string]SettingDef {
 				return nil
 			},
 		},
+		KeySMTP: {
+			Key:         KeySMTP,
+			Type:        "smtp",
+			Description: "Outgoing mail relay used for share notifications",
+			Default:     smtpPublic("", 587, "", "", "starttls", false),
+			EnvFallback: func(c *config.Config) any {
+				if c != nil && c.SMTP.Host != "" {
+					return smtpPublic(c.SMTP.Host, c.SMTP.Port, c.SMTP.Username, c.SMTP.From, c.SMTP.TLS, c.SMTP.Password != "")
+				}
+				return nil
+			},
+			Validate: nil,
+		},
 	}
 }
 
@@ -199,6 +243,11 @@ func decodeSettingValue(def SettingDef, raw []byte) any {
 		if err := json.Unmarshal(raw, &num); err == nil {
 			return num
 		}
+	case KeySMTP:
+		var st storedSMTP
+		if err := json.Unmarshal(raw, &st); err == nil {
+			return smtpPublic(st.Host, st.Port, st.Username, st.From, st.TLS, st.PasswordEnc != "")
+		}
 	default:
 		var val any
 		if err := json.Unmarshal(raw, &val); err == nil {
@@ -231,6 +280,8 @@ func (s *Service) coerceAndValidate(def SettingDef, raw json.RawMessage) (any, [
 			return nil, nil, fmt.Errorf("%s must be an integer: %w", def.Key, err)
 		}
 		val = num
+	case KeySMTP:
+		return s.coerceSMTP(raw)
 	default:
 		if def.Type == "string" {
 			var str string
@@ -272,32 +323,7 @@ func (s *Service) GetAll(ctx context.Context, tenantID string) (map[string]Setti
 
 	out := make(map[string]SettingDTO, len(s.defs))
 	for key, def := range s.defs {
-		dto := SettingDTO{
-			Key:         key,
-			Type:        def.Type,
-			Description: def.Description,
-			Default:     def.Default,
-		}
-
-		if raw, ok := s.cache[key]; ok && len(raw) > 0 {
-			dto.Value = decodeSettingValue(def, raw)
-			dto.Source = "database"
-			out[key] = dto
-			continue
-		}
-
-		if def.EnvFallback != nil {
-			if envVal := def.EnvFallback(s.cfg); envVal != nil {
-				dto.Value = envVal
-				dto.Source = "env"
-				out[key] = dto
-				continue
-			}
-		}
-
-		dto.Value = def.Default
-		dto.Source = "default"
-		out[key] = dto
+		out[key] = s.resolveLocked(key, def)
 	}
 
 	return out, nil
@@ -354,32 +380,7 @@ func (s *Service) UpdateMany(ctx context.Context, tenantID string, updates map[s
 	// Return updated settings
 	out := make(map[string]SettingDTO, len(s.defs))
 	for key, def := range s.defs {
-		dto := SettingDTO{
-			Key:         key,
-			Type:        def.Type,
-			Description: def.Description,
-			Default:     def.Default,
-		}
-
-		if raw, ok := s.cache[key]; ok && len(raw) > 0 {
-			dto.Value = decodeSettingValue(def, raw)
-			dto.Source = "database"
-			out[key] = dto
-			continue
-		}
-
-		if def.EnvFallback != nil {
-			if envVal := def.EnvFallback(s.cfg); envVal != nil {
-				dto.Value = envVal
-				dto.Source = "env"
-				out[key] = dto
-				continue
-			}
-		}
-
-		dto.Value = def.Default
-		dto.Source = "default"
-		out[key] = dto
+		out[key] = s.resolveLocked(key, def)
 	}
 
 	return out, nil
@@ -474,4 +475,147 @@ func (s *Service) DefaultSpaceQuotaBytes(tenantID string) int64 {
 		}
 	}
 	return 0
+}
+
+func (s *Service) resolveLocked(key string, def SettingDef) SettingDTO {
+	dto := SettingDTO{
+		Key:         key,
+		Type:        def.Type,
+		Description: def.Description,
+		Default:     def.Default,
+	}
+
+	if raw, ok := s.cache[key]; ok && len(raw) > 0 {
+		dto.Value = decodeSettingValue(def, raw)
+		dto.Source = "database"
+		return dto
+	}
+
+	if def.EnvFallback != nil {
+		if envVal := def.EnvFallback(s.cfg); envVal != nil {
+			dto.Value = envVal
+			dto.Source = "env"
+			return dto
+		}
+	}
+
+	dto.Value = def.Default
+	dto.Source = "default"
+	return dto
+}
+
+func (s *Service) coerceSMTP(raw json.RawMessage) (any, []byte, error) {
+	var p patchSMTP
+	if err := json.Unmarshal(raw, &p); err != nil {
+		return nil, nil, fmt.Errorf("smtp must be an object: %w", err)
+	}
+	p.Host = strings.TrimSpace(p.Host)
+	p.Username = strings.TrimSpace(p.Username)
+	p.From = strings.TrimSpace(p.From)
+	if p.TLS == "" {
+		p.TLS = "starttls"
+	}
+	if p.Port == 0 {
+		p.Port = 587
+	}
+
+	s.mu.RLock()
+	existingRaw, hasExisting := s.cache[KeySMTP]
+	s.mu.RUnlock()
+
+	var existing storedSMTP
+	hasOverride := false
+	if hasExisting && len(existingRaw) > 0 {
+		if err := json.Unmarshal(existingRaw, &existing); err == nil {
+			hasOverride = true
+		}
+	}
+
+	var passwordEnc string
+	if p.Password == nil {
+		if hasOverride {
+			passwordEnc = existing.PasswordEnc
+		} else if s.cfg != nil && s.cfg.SMTP.Password != "" && p.Username != "" {
+			return nil, nil, errors.New("enter the SMTP password: saving here replaces the environment configuration, and its password is not copied")
+		} else {
+			passwordEnc = ""
+		}
+	} else if *p.Password == "" {
+		passwordEnc = ""
+	} else {
+		if s.cfg == nil || !s.cfg.SecretKeyShared {
+			return nil, nil, errors.New("PP_SESSION_KEY must be set before an SMTP password can be stored: the key that encrypts it would not survive a restart")
+		}
+		enc, err := sealSecret(s.smtpKey(), *p.Password)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to encrypt smtp password: %w", err)
+		}
+		passwordEnc = enc
+	}
+
+	dummyPassword := ""
+	if passwordEnc != "" {
+		dummyPassword = "x"
+	}
+	toValidate := mail.Settings{
+		Host:     p.Host,
+		Port:     p.Port,
+		Username: p.Username,
+		Password: dummyPassword,
+		From:     p.From,
+		TLS:      p.TLS,
+	}
+	if err := toValidate.Validate(); err != nil {
+		return nil, nil, err
+	}
+
+	st := storedSMTP{
+		Host:        p.Host,
+		Port:        p.Port,
+		Username:    p.Username,
+		PasswordEnc: passwordEnc,
+		From:        p.From,
+		TLS:         p.TLS,
+	}
+	canonicalJSON, err := json.Marshal(st)
+	if err != nil {
+		return nil, nil, err
+	}
+	publicMap := smtpPublic(st.Host, st.Port, st.Username, st.From, st.TLS, st.PasswordEnc != "")
+	return publicMap, canonicalJSON, nil
+}
+
+// SMTP returns the effective relay: the admin override, else PP_SMTP_*, else disabled.
+func (s *Service) SMTP() (mail.Settings, error) {
+	s.mu.RLock()
+	raw, ok := s.cache[KeySMTP]
+	s.mu.RUnlock()
+
+	if ok && len(raw) > 0 {
+		var st storedSMTP
+		if err := json.Unmarshal(raw, &st); err != nil {
+			return mail.Settings{}, fmt.Errorf("invalid stored smtp setting: %w", err)
+		}
+		password := ""
+		if st.PasswordEnc != "" {
+			dec, err := openSecret(s.smtpKey(), st.PasswordEnc)
+			if err != nil {
+				return mail.Settings{}, errors.New("the stored SMTP password cannot be decrypted (was PP_SESSION_KEY changed?); enter it again in the admin console")
+			}
+			password = dec
+		}
+		return mail.Settings{
+			Host:     st.Host,
+			Port:     st.Port,
+			Username: st.Username,
+			Password: password,
+			From:     st.From,
+			TLS:      st.TLS,
+		}, nil
+	}
+
+	if s.cfg != nil {
+		return s.cfg.SMTP, nil
+	}
+	return mail.Settings{}, nil
 }

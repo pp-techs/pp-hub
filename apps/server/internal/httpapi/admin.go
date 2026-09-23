@@ -1,16 +1,19 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
-	"github.com/go-chi/chi/v5"
 	"net/http"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/audit"
+	"github.com/nhatbui/pp-hub/apps/server/internal/mail"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
+	"github.com/nhatbui/pp-hub/apps/server/internal/sysconfig"
 )
 
 // adminStatsDTO is the row of tiles at the top of the admin console.
@@ -261,4 +264,40 @@ func (s *Server) handleDeleteAdminSetting(w http.ResponseWriter, r *http.Request
 		return
 	}
 	writeJSON(w, http.StatusOK, all)
+}
+
+func (s *Server) handleTestSMTP(w http.ResponseWriter, r *http.Request) {
+	admin := s.requireAdmin(w, r)
+	if admin == nil {
+		return
+	}
+	if s.mail == nil {
+		writeProblem(w, http.StatusConflict, "Conflict", "mail is not configured")
+		return
+	}
+	cfg, err := s.sysconfig.SMTP()
+	if err != nil {
+		writeProblem(w, http.StatusConflict, "Conflict", err.Error())
+		return
+	}
+	if !cfg.Enabled() {
+		writeProblem(w, http.StatusConflict, "Conflict", "set an SMTP host before sending a test email")
+		return
+	}
+
+	instance := s.sysconfig.InstanceName(sysconfig.DefaultTenantID)
+	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+	defer cancel()
+
+	err = s.mail.Send(ctx, mail.Message{
+		To:      admin.Email,
+		Subject: instance + ": test email",
+		Body:    "This is a test email from " + instance + ". If you can read it, outgoing mail works.\n\nSent by " + admin.Email + " from the admin console.\n",
+	})
+	if err != nil {
+		writeProblem(w, http.StatusBadGateway, "Bad Gateway", err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"to": admin.Email})
 }

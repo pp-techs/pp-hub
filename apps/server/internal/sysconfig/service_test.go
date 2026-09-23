@@ -3,14 +3,15 @@ package sysconfig
 import (
 	"context"
 	"encoding/json"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/nhatbui/pp-hub/apps/server/internal/config"
-	"os"
-
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/nhatbui/pp-hub/apps/server/internal/config"
+	"github.com/nhatbui/pp-hub/apps/server/internal/mail"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 )
 
@@ -194,4 +195,197 @@ func TestSysconfigDatabasePersistence(t *testing.T) {
 	// Clean up overrides
 	_ = svc1.Delete(ctx, "default", KeyInstanceName)
 	_ = svc1.Delete(ctx, "default", KeyMaxUploadBytes)
+}
+
+func TestSMTPPasswordIsWriteOnly(t *testing.T) {
+	cfg := &config.Config{
+		SecretKey:       []byte("master-secret-of-thirty-two-byte"),
+		SecretKeyShared: true,
+	}
+	svc := NewService(nil, cfg)
+	ctx := context.Background()
+
+	updates := map[string]json.RawMessage{
+		KeySMTP: json.RawMessage(`{
+			"host": "smtp.example.com",
+			"port": 587,
+			"username": "mailer",
+			"password": "supersecretpassword123",
+			"from": "pp-hub <noreply@example.com>",
+			"tls": "starttls"
+		}`),
+	}
+	if _, err := svc.UpdateMany(ctx, "default", updates, pgtype.UUID{}); err != nil {
+		t.Fatalf("UpdateMany failed: %v", err)
+	}
+
+	all, err := svc.GetAll(ctx, "default")
+	if err != nil {
+		t.Fatalf("GetAll failed: %v", err)
+	}
+	smtpDTO := all[KeySMTP]
+	valBytes, err := json.Marshal(smtpDTO.Value)
+	if err != nil {
+		t.Fatalf("json.Marshal failed: %v", err)
+	}
+	if strings.Contains(string(valBytes), "supersecretpassword123") {
+		t.Fatal("password leaked in GetAll DTO value!")
+	}
+	valMap, ok := smtpDTO.Value.(map[string]any)
+	if !ok {
+		t.Fatalf("expected map[string]any value, got %T", smtpDTO.Value)
+	}
+	if valMap["password_set"] != true {
+		t.Fatalf("expected password_set to be true, got %v", valMap["password_set"])
+	}
+
+	effective, err := svc.SMTP()
+	if err != nil {
+		t.Fatalf("SMTP() failed: %v", err)
+	}
+	if effective.Password != "supersecretpassword123" {
+		t.Fatalf("expected decrypted password %q, got %q", "supersecretpassword123", effective.Password)
+	}
+}
+
+func TestSMTPOmittedPasswordIsKept(t *testing.T) {
+	cfg := &config.Config{
+		SecretKey:       []byte("master-secret-of-thirty-two-byte"),
+		SecretKeyShared: true,
+	}
+	svc := NewService(nil, cfg)
+	ctx := context.Background()
+
+	// First patch sets password
+	updates1 := map[string]json.RawMessage{
+		KeySMTP: json.RawMessage(`{
+			"host": "smtp.example.com",
+			"port": 587,
+			"username": "mailer",
+			"password": "initialpassword",
+			"from": "noreply@example.com",
+			"tls": "starttls"
+		}`),
+	}
+	if _, err := svc.UpdateMany(ctx, "default", updates1, pgtype.UUID{}); err != nil {
+		t.Fatalf("UpdateMany 1 failed: %v", err)
+	}
+
+	// Second patch omits password -> keeps existing password
+	updates2 := map[string]json.RawMessage{
+		KeySMTP: json.RawMessage(`{
+			"host": "smtp2.example.com",
+			"port": 587,
+			"username": "mailer",
+			"from": "noreply@example.com",
+			"tls": "starttls"
+		}`),
+	}
+	if _, err := svc.UpdateMany(ctx, "default", updates2, pgtype.UUID{}); err != nil {
+		t.Fatalf("UpdateMany 2 failed: %v", err)
+	}
+	effective, err := svc.SMTP()
+	if err != nil {
+		t.Fatalf("SMTP() failed: %v", err)
+	}
+	if effective.Host != "smtp2.example.com" {
+		t.Errorf("expected host smtp2.example.com, got %s", effective.Host)
+	}
+	if effective.Password != "initialpassword" {
+		t.Errorf("expected password initialpassword to be kept, got %s", effective.Password)
+	}
+
+	// Third patch with password: "" -> clears password
+	updates3 := map[string]json.RawMessage{
+		KeySMTP: json.RawMessage(`{
+			"host": "smtp2.example.com",
+			"port": 587,
+			"username": "mailer",
+			"password": "",
+			"from": "noreply@example.com",
+			"tls": "starttls"
+		}`),
+	}
+	if _, err := svc.UpdateMany(ctx, "default", updates3, pgtype.UUID{}); err != nil {
+		t.Fatalf("UpdateMany 3 failed: %v", err)
+	}
+	effective, err = svc.SMTP()
+	if err != nil {
+		t.Fatalf("SMTP() failed: %v", err)
+	}
+	if effective.Password != "" {
+		t.Errorf("expected password to be cleared, got %s", effective.Password)
+	}
+}
+
+func TestSMTPCrossFieldValidation(t *testing.T) {
+	cfg := &config.Config{
+		SecretKey:       []byte("master-secret-of-thirty-two-byte"),
+		SecretKeyShared: true,
+	}
+	svc := NewService(nil, cfg)
+	ctx := context.Background()
+
+	updates := map[string]json.RawMessage{
+		KeySMTP: json.RawMessage(`{
+			"host": "smtp.example.com",
+			"port": 587,
+			"from": ""
+		}`),
+	}
+	if _, err := svc.UpdateMany(ctx, "default", updates, pgtype.UUID{}); err == nil {
+		t.Fatal("expected error for host without from address")
+	}
+}
+
+func TestSMTPRefusesPasswordWithEphemeralKey(t *testing.T) {
+	cfg := &config.Config{
+		SecretKey:       []byte("master-secret-of-thirty-two-byte"),
+		SecretKeyShared: false,
+	}
+	svc := NewService(nil, cfg)
+	ctx := context.Background()
+
+	updates := map[string]json.RawMessage{
+		KeySMTP: json.RawMessage(`{
+			"host": "smtp.example.com",
+			"port": 587,
+			"username": "mailer",
+			"password": "mypassword",
+			"from": "noreply@example.com"
+		}`),
+	}
+	if _, err := svc.UpdateMany(ctx, "default", updates, pgtype.UUID{}); err == nil {
+		t.Fatal("expected error when SecretKeyShared is false and password is provided")
+	}
+}
+
+func TestSMTPFallsBackToEnv(t *testing.T) {
+	cfg := &config.Config{
+		SMTP: mail.Settings{
+			Host:     "env.smtp.com",
+			Port:     587,
+			Username: "envuser",
+			Password: "envpassword",
+			From:     "env@example.com",
+			TLS:      "starttls",
+		},
+	}
+	svc := NewService(nil, cfg)
+	ctx := context.Background()
+
+	all, err := svc.GetAll(ctx, "default")
+	if err != nil {
+		t.Fatalf("GetAll failed: %v", err)
+	}
+	if all[KeySMTP].Source != "env" {
+		t.Fatalf("expected source env, got %s", all[KeySMTP].Source)
+	}
+	effective, err := svc.SMTP()
+	if err != nil {
+		t.Fatalf("SMTP() failed: %v", err)
+	}
+	if effective != cfg.SMTP {
+		t.Fatalf("expected effective %v, got %v", cfg.SMTP, effective)
+	}
 }

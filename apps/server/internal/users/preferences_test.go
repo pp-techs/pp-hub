@@ -48,8 +48,8 @@ func TestPreferencesMergeIsNonDestructive(t *testing.T) {
 
 	// Junk and absence are "never chosen", not errors.
 	for _, raw := range [][]byte{nil, {}, []byte(`{`), []byte(`[]`), []byte(`"x"`)} {
-		if got := decodePreferences(raw).Locale; got != "" {
-			t.Errorf("decodePreferences(%q) locale = %q, want empty", raw, got)
+		if got := DecodePreferences(raw).Locale; got != "" {
+			t.Errorf("DecodePreferences(%q) locale = %q, want empty", raw, got)
 		}
 		if _, err := mergePreferences(raw, PreferencesPatch{Locale: &vi}); err != nil {
 			t.Errorf("mergePreferences(%q) errored: %v", raw, err)
@@ -67,5 +67,58 @@ func TestPreferencesMergeIsNonDestructive(t *testing.T) {
 		if ValidLocale(tag) {
 			t.Errorf("ValidLocale(%q) = true, want false", tag)
 		}
+	}
+}
+
+func TestWantsShareEmail(t *testing.T) {
+	trueVal := true
+	falseVal := false
+
+	empty := DecodePreferences([]byte(`{}`))
+	if !empty.WantsShareEmail() {
+		t.Error("expected WantsShareEmail to be true for empty preferences")
+	}
+
+	explicitTrue := DecodePreferences([]byte(`{"email_on_share":true}`))
+	if !explicitTrue.WantsShareEmail() {
+		t.Error("expected WantsShareEmail to be true for email_on_share=true")
+	}
+
+	explicitFalse := DecodePreferences([]byte(`{"email_on_share":false}`))
+	if explicitFalse.WantsShareEmail() {
+		t.Error("expected WantsShareEmail to be false for email_on_share=false")
+	}
+
+	// Merging EmailOnShare keeps unknown key and locale
+	stored := []byte(`{"locale":"vi","custom_key":"custom_val"}`)
+	merged, err := mergePreferences(stored, PreferencesPatch{EmailOnShare: &falseVal})
+	if err != nil {
+		t.Fatalf("mergePreferences failed: %v", err)
+	}
+	var round map[string]any
+	if err := json.Unmarshal(merged, &round); err != nil {
+		t.Fatalf("unmarshal merged failed: %v", err)
+	}
+	if round["email_on_share"] != false {
+		t.Errorf("expected email_on_share to be false, got %v", round["email_on_share"])
+	}
+	if round["locale"] != "vi" {
+		t.Errorf("expected locale vi preserved, got %v", round["locale"])
+	}
+	if round["custom_key"] != "custom_val" {
+		t.Errorf("expected custom_key preserved, got %v", round["custom_key"])
+	}
+
+	// Merging with trueVal
+	merged2, err := mergePreferences(merged, PreferencesPatch{EmailOnShare: &trueVal})
+	if err != nil {
+		t.Fatalf("mergePreferences 2 failed: %v", err)
+	}
+	p2 := DecodePreferences(merged2)
+	if !p2.WantsShareEmail() {
+		t.Error("expected WantsShareEmail to be true after updating to true")
+	}
+	if p2.Locale != "vi" {
+		t.Errorf("expected locale vi preserved, got %s", p2.Locale)
 	}
 }

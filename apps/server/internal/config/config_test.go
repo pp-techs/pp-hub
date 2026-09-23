@@ -150,3 +150,55 @@ func TestLogtoAcceptsAFullyConfiguredTenant(t *testing.T) {
 		t.Error("a fully configured tenant reports itself disabled")
 	}
 }
+
+func TestSMTPRejectsAHalfConfiguredRelay(t *testing.T) {
+	cases := []struct {
+		name string
+		env  map[string]string
+	}{
+		{
+			name: "host without from",
+			env: map[string]string{
+				"PP_SMTP_HOST": "smtp.example.com",
+				"PP_SMTP_FROM": "",
+			},
+		},
+		{
+			name: "bad tls",
+			env: map[string]string{
+				"PP_SMTP_HOST": "smtp.example.com",
+				"PP_SMTP_FROM": "noreply@example.com",
+				"PP_SMTP_TLS":  "bad",
+			},
+		},
+		{
+			name: "port abc",
+			env: map[string]string{
+				"PP_SMTP_PORT": "abc",
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			for k, v := range tc.env {
+				t.Setenv(k, v)
+			}
+			if _, err := Load(); err == nil {
+				t.Errorf("%s: accepted half-configured relay", tc.name)
+			}
+		})
+	}
+}
+
+func TestSMTPAcceptsUnset(t *testing.T) {
+	t.Setenv("PP_SMTP_HOST", "")
+	t.Setenv("PP_SMTP_PORT", "587")
+	c, err := Load()
+	if err != nil {
+		t.Fatalf("Load failed with unset SMTP: %v", err)
+	}
+	if c.SMTP.Enabled() {
+		t.Error("expected SMTP to be disabled when host is unset")
+	}
+}

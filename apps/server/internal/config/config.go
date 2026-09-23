@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/nhatbui/pp-hub/apps/server/internal/mail"
 )
 
 type Config struct {
@@ -88,6 +90,9 @@ type Config struct {
 	// unset, a linked space has no upstream to reconcile against and its
 	// membership can only be changed by the reconciler that never runs.
 	Logto LogtoSettings
+	// SMTP configures the outgoing mail relay. Environment variables are the
+	// fallback; an admin override in /admin/settings replaces them.
+	SMTP mail.Settings
 }
 
 func Load() (*Config, error) {
@@ -98,6 +103,10 @@ func Load() (*Config, error) {
 	maxUpload, err := bytesEnv("PP_MAX_UPLOAD_BYTES", 5<<30)
 	if err != nil {
 		return nil, err
+	}
+	smtpPort, err := strconv.Atoi(env("PP_SMTP_PORT", "587"))
+	if err != nil {
+		return nil, fmt.Errorf("PP_SMTP_PORT must be a number, got %q", os.Getenv("PP_SMTP_PORT"))
 	}
 	logtoResource := env("PP_LOGTO_API_RESOURCE", "https://default.logto.app/api")
 	c := &Config{
@@ -135,6 +144,14 @@ func Load() (*Config, error) {
 			APIResource:  logtoResource,
 			WebhookKey:   os.Getenv("PP_LOGTO_WEBHOOK_KEY"),
 			AdminRole:    env("PP_LOGTO_ORG_ROLE_ADMIN", "admin"),
+		},
+		SMTP: mail.Settings{
+			Host:     strings.TrimSpace(os.Getenv("PP_SMTP_HOST")),
+			Port:     smtpPort,
+			Username: strings.TrimSpace(os.Getenv("PP_SMTP_USERNAME")),
+			Password: os.Getenv("PP_SMTP_PASSWORD"),
+			From:     strings.TrimSpace(os.Getenv("PP_SMTP_FROM")),
+			TLS:      env("PP_SMTP_TLS", "starttls"),
 		},
 	}
 	// Validated here rather than at the router, because chi's
@@ -176,6 +193,9 @@ func Load() (*Config, error) {
 	}
 	if err := c.Logto.validate(); err != nil {
 		return nil, err
+	}
+	if err := c.SMTP.Validate(); err != nil {
+		return nil, fmt.Errorf("PP_SMTP_*: %w", err)
 	}
 	return c, nil
 }

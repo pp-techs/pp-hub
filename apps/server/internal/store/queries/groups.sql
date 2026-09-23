@@ -231,3 +231,13 @@ WHERE n.deleted_at IS NULL
   )
 ORDER BY n.kind, n.name
 LIMIT 200;
+
+-- name: ListGroupEmailRecipients :many
+-- Who a group grant emails: live accounts in the group, minus the granter.
+SELECT u.id, u.email, u.settings
+FROM group_members gm
+JOIN users u ON u.id = gm.user_id
+WHERE gm.group_id = @group_id
+  AND u.suspended_at IS NULL
+  AND u.email <> ''
+  AND u.id <> @exclude_user_id;

@@ -2,10 +2,13 @@ import {
   ArrowDownAZ,
   ClipboardPaste,
   CloudUpload,
+  FileSpreadsheet,
+  FileText,
   FolderPlus,
   FolderUp,
   Info,
   LayoutGrid,
+  Presentation,
   RefreshCw,
   SquareDashedMousePointer,
   Users,
@@ -82,6 +85,33 @@ export function folderActions(write: DriveWrite, listing?: ListingContext): Fold
           } satisfies FolderAction,
         ]
       : []),
+    {
+      key: "new-document",
+      label: msg`New document`,
+      icon: FileText,
+      group: "create",
+      disabled: !write.canWrite,
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- document kind
+      run: () => write.newDocument("document"),
+    },
+    {
+      key: "new-spreadsheet",
+      label: msg`New spreadsheet`,
+      icon: FileSpreadsheet,
+      group: "create",
+      disabled: !write.canWrite,
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- document kind
+      run: () => write.newDocument("spreadsheet"),
+    },
+    {
+      key: "new-presentation",
+      label: msg`New presentation`,
+      icon: Presentation,
+      group: "create",
+      disabled: !write.canWrite,
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- document kind
+      run: () => write.newDocument("presentation"),
+    },
     {
       key: "upload-files",
       label: msg`Upload files`,

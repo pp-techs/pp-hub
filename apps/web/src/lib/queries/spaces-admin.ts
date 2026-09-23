@@ -6,6 +6,7 @@ import {
   deleteSpace,
   getAdminSettings,
   getAdminStats,
+  sendTestEmail,
   updateAdminSettings,
   updateAdminUser,
   updateSpace,
@@ -83,4 +84,8 @@ export function useDeleteAdminSetting() {
       void qc.invalidateQueries({ queryKey: ["admin", "security-events"] });
     },
   });
+}
+
+export function useSendTestEmail() {
+  return useMutation({ mutationFn: sendTestEmail });
 }

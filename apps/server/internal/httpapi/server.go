@@ -7,13 +7,14 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
-
 	"github.com/nhatbui/pp-hub/apps/server/internal/activity"
 	"github.com/nhatbui/pp-hub/apps/server/internal/audit"
 	"github.com/nhatbui/pp-hub/apps/server/internal/auth"
 	"github.com/nhatbui/pp-hub/apps/server/internal/blob"
 	"github.com/nhatbui/pp-hub/apps/server/internal/fs"
 	"github.com/nhatbui/pp-hub/apps/server/internal/groups"
+	"github.com/nhatbui/pp-hub/apps/server/internal/mail"
+	"github.com/nhatbui/pp-hub/apps/server/internal/notify"
 	"github.com/nhatbui/pp-hub/apps/server/internal/orgsync"
 	"github.com/nhatbui/pp-hub/apps/server/internal/preview"
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
@@ -46,6 +47,8 @@ type Server struct {
 	wopiServerURL string
 	// maxUploadBytes caps any request body that becomes file content. 0
 	// disables the cap, which only an operator who means it should choose.
+	mail           *mail.Sender
+	notify         *notify.Notifier
 	maxUploadBytes int64
 	// trustedProxies are the CIDRs whose X-Forwarded-For is believed.
 	trustedProxies []string
@@ -77,6 +80,8 @@ type Deps struct {
 	MaxUploadBytes  int64
 	TrustedProxies  []string
 	SysConfig       *sysconfig.Service
+	Mail           *mail.Sender
+	Notifier       *notify.Notifier
 }
 
 func NewServer(d Deps) *Server {
@@ -102,6 +107,8 @@ func NewServer(d Deps) *Server {
 		maxUploadBytes: d.MaxUploadBytes,
 		trustedProxies: d.TrustedProxies,
 		sysconfig:      d.SysConfig,
+		mail:           d.Mail,
+		notify:         d.Notifier,
 	}
 	if s.sysconfig == nil {
 		s.sysconfig = sysconfig.NewService(d.Store, nil)
@@ -187,6 +194,7 @@ func (s *Server) Router() http.Handler {
 		r.Get("/admin/settings", s.handleGetAdminSettings)
 		r.Patch("/admin/settings", s.handleUpdateAdminSettings)
 		r.Delete("/admin/settings/{key}", s.handleDeleteAdminSetting)
+		r.Post("/admin/settings/smtp/test", s.handleTestSMTP)
 		r.Get("/users", s.handleListUsers)
 		r.Get("/users/{userID}/avatar", s.handleGetAvatar)
 
@@ -205,6 +213,7 @@ func (s *Server) Router() http.Handler {
 				r.Post("/dirs", s.handleMkdir)
 				r.Post("/team-folders", s.handleCreateTeamFolder)
 				r.Post("/files", s.handleUpload)
+				r.Post("/documents", s.handleCreateDocument)
 				r.Route("/groups", func(r chi.Router) {
 					r.Get("/", s.handleListGroups)
 					r.Post("/", s.handleCreateGroup)

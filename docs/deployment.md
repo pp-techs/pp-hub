@@ -675,6 +675,7 @@ Optional pieces are behind profiles, so the default `up` stays light:
 | `worker` | preview worker           | PDF / video / office thumbnails        |
 | `s3`     | SeaweedFS + bucket init  | Developing against the S3 blob backend |
 | `idp`    | Logto + its own Postgres | Working without a Logto Cloud tenant   |
+| `mail`   | Mailpit (SMTP catcher)   | Testing outgoing share emails          |
 
 ```bash
 docker compose -f deploy/compose/compose.dev.yml --profile worker up -d

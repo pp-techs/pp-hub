@@ -222,6 +222,16 @@ services:
       timeout: 5s
       retries: 12
 
+  # --profile mail — a local SMTP catcher; UI on http://localhost:8025
+  mailpit:
+    profiles: ["mail"]
+    image: axllent/mailpit:latest
+    container_name: pphub-mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025" # SMTP → host localhost, port 1025, TLS none
+      - "8025:8025" # web UI + API
+
 volumes:
   pg_data:
   onlyoffice_data:

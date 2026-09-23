@@ -185,7 +185,7 @@ msgstr "{loadedSize} transferred"
 msgid "{MIN_QUERY_LENGTH, plural, one {Type at least # character to search.} other {Type at least # characters to search.}}"
 msgstr "{MIN_QUERY_LENGTH, plural, one {Type at least # character to search.} other {Type at least # characters to search.}}"
 
-#: src/lib/queries/nodes.ts:207
+#: src/lib/queries/nodes.ts:217
 msgid "{moved, plural, one {Moved # item} other {Moved # items}}"
 msgstr "{moved, plural, one {Moved # item} other {Moved # items}}"
 
@@ -193,7 +193,7 @@ msgstr "{moved, plural, one {Moved # item} other {Moved # items}}"
 msgid "{n, plural, one {# suspended} other {# suspended}}"
 msgstr "{n, plural, one {# suspended} other {# suspended}}"
 
-#: src/components/folder-actions.tsx:210
+#: src/components/folder-actions.tsx:240
 msgid "{n, plural, one {Paste # item} other {Paste # items}}"
 msgstr "{n, plural, one {Paste # item} other {Paste # items}}"
 
@@ -502,7 +502,7 @@ msgstr "Added to {groupName}"
 msgid "Admin"
 msgstr "Admin"
 
-#: src/routes/admin.settings.tsx:51
+#: src/routes/admin.settings.tsx:60
 #: src/routes/admin.users.tsx:81
 msgid "Admin access required."
 msgstr "Admin access required."
@@ -581,7 +581,7 @@ msgstr "Anyone with the link"
 msgid "Anyone with this link can view and download these files. You cannot edit or upload, and you cannot see who else has access."
 msgstr "Anyone with this link can view and download these files. You cannot edit or upload, and you cannot see who else has access."
 
-#: src/components/settings/panes/account-general.tsx:121
+#: src/components/settings/panes/account-general.tsx:158
 msgid "Appearance"
 msgstr "Appearance"
 
@@ -594,7 +594,7 @@ msgstr "Archive"
 msgid "Are you sure you want to move \"{nodeName}\" to trash?"
 msgstr "Are you sure you want to move \"{nodeName}\" to trash?"
 
-#: src/components/settings/panes/account-general.tsx:46
+#: src/components/settings/panes/account-general.tsx:50
 msgid "Ascending"
 msgstr "Ascending"
 
@@ -602,7 +602,7 @@ msgstr "Ascending"
 msgid "Audio"
 msgstr "Audio"
 
-#: src/routes/admin.settings.tsx:159
+#: src/routes/admin.settings.tsx:174
 msgid "Audit retention must be between 1 and 3650 days"
 msgstr "Audit retention must be between 1 and 3650 days"
 
@@ -615,7 +615,7 @@ msgid "Avatar updated"
 msgstr "Avatar updated"
 
 #: src/components/admin-header.tsx:22
-#: src/routes/admin.settings.tsx:54
+#: src/routes/admin.settings.tsx:63
 #: src/routes/admin.users.tsx:84
 #: src/routes/drive/$spaceId/route.tsx:51
 #: src/routes/edit/$nodeId.tsx:78
@@ -654,6 +654,7 @@ msgstr "Can view"
 #: src/components/confirm-dialog.tsx:71
 #: src/components/group-list.tsx:382
 #: src/components/move-dialog.tsx:109
+#: src/components/new-document-dialog.tsx:95
 #: src/components/settings/panes/account-security.tsx:44
 #: src/components/share-dialog.tsx:623
 #: src/components/team-folder-dialog.tsx:87
@@ -680,6 +681,10 @@ msgstr "Clear completed"
 #: src/components/selection-bar.tsx:93
 msgid "Clear selection"
 msgstr "Clear selection"
+
+#: src/routes/admin.settings.tsx:656
+msgid "Cleared"
+msgstr "Cleared"
 
 #: src/components/locale-provider.tsx:80
 msgid "Close"
@@ -739,7 +744,7 @@ msgstr "Continue with SSO"
 msgid "Continue with the identity provider your administrator configured."
 msgstr "Continue with the identity provider your administrator configured."
 
-#: src/components/drive-write.tsx:155
+#: src/components/drive-write.tsx:159
 msgid "Copied {done, plural, one {# item} other {# items}} to {destination}"
 msgstr "Copied {done, plural, one {# item} other {# items}} to {destination}"
 
@@ -764,7 +769,11 @@ msgstr "Could not add them to the group"
 msgid "Could not copy “{nodeName}”"
 msgstr "Could not copy “{nodeName}”"
 
-#: src/components/drive-write.tsx:237
+#: src/components/drive-write.tsx:220
+msgid "Could not create “{name}”"
+msgstr "Could not create “{name}”"
+
+#: src/components/drive-write.tsx:282
 msgid "Could not create folder"
 msgstr "Could not create folder"
 
@@ -772,7 +781,7 @@ msgstr "Could not create folder"
 msgid "Could not create link"
 msgstr "Could not create link"
 
-#: src/components/drive-write.tsx:179
+#: src/components/drive-write.tsx:183
 msgid "Could not create team folder"
 msgstr "Could not create team folder"
 
@@ -801,11 +810,11 @@ msgstr "Could not empty the trash"
 msgid "Could not load your sessions."
 msgstr "Could not load your sessions."
 
-#: src/lib/queries/nodes.ts:202
+#: src/lib/queries/nodes.ts:212
 msgid "Could not move “{nodeName}”"
 msgstr "Could not move “{nodeName}”"
 
-#: src/components/drive-write.tsx:143
+#: src/components/drive-write.tsx:147
 msgid "Could not paste “{nodeName}”"
 msgstr "Could not paste “{nodeName}”"
 
@@ -822,6 +831,10 @@ msgstr "Could not revoke"
 #: src/components/settings/panes/space-general.tsx:95
 msgid "Could not save"
 msgstr "Could not save"
+
+#: src/components/settings/panes/account-general.tsx:149
+msgid "Could not save your notification setting."
+msgstr "Could not save your notification setting."
 
 #: src/components/share-dialog.tsx:182
 msgid "Could not share"
@@ -847,13 +860,14 @@ msgstr "Could not sign you in"
 msgid "Could not update your avatar"
 msgstr "Could not update your avatar"
 
-#: src/components/drive-write.tsx:250
+#: src/components/drive-write.tsx:295
+#: src/components/new-document-dialog.tsx:98
 #: src/components/team-folder-dialog.tsx:90
 #: src/routes/drive.tsx:321
 msgid "Create"
 msgstr "Create"
 
-#: src/components/drive-write.tsx:224
+#: src/components/drive-write.tsx:269
 msgid "Create a folder in {destination}."
 msgstr "Create a folder in {destination}."
 
@@ -885,17 +899,25 @@ msgstr "Create your first space to start organizing your files and collaborating
 msgid "Created \"{created}\""
 msgstr "Created \"{created}\""
 
-#: src/components/drive-write.tsx:235
+#: src/components/drive-write.tsx:280
 msgid "Created “{createdName}” in {destination}"
 msgstr "Created “{createdName}” in {destination}"
+
+#: src/components/drive-write.tsx:211
+msgid "Created “{createdName}” in {label}"
+msgstr "Created “{createdName}” in {label}"
 
 #: src/components/share-dialog.tsx:505
 msgid "Created {owned, plural, one {# item} other {# items}} in here — those stay theirs."
 msgstr "Created {owned, plural, one {# item} other {# items}} in here — those stay theirs."
 
-#: src/components/drive-write.tsx:175
+#: src/components/drive-write.tsx:179
 msgid "Created team folder “{folderName}”"
 msgstr "Created team folder “{folderName}”"
+
+#: src/components/new-document-dialog.tsx:65
+msgid "Creates it in {destination} and opens it in the editor."
+msgstr "Creates it in {destination} and opens it in the editor."
 
 #: src/routes/drive.tsx:321
 msgid "Creating…"
@@ -917,35 +939,35 @@ msgstr "Cut"
 msgid "Danger zone"
 msgstr "Danger zone"
 
-#: src/components/settings/panes/account-general.tsx:31
+#: src/components/settings/panes/account-general.tsx:35
 msgid "Dark"
 msgstr "Dark"
 
-#: src/routes/admin.settings.tsx:86
+#: src/routes/admin.settings.tsx:101
 msgid "Database override"
 msgstr "Database override"
 
-#: src/routes/admin.settings.tsx:392
+#: src/routes/admin.settings.tsx:407
 msgid "days"
 msgstr "days"
 
-#: src/routes/admin.settings.tsx:99
+#: src/routes/admin.settings.tsx:114
 msgid "Default"
 msgstr "Default"
 
-#: src/components/settings/panes/account-general.tsx:135
+#: src/components/settings/panes/account-general.tsx:172
 msgid "Default listing"
 msgstr "Default listing"
 
-#: src/routes/admin.settings.tsx:325
+#: src/routes/admin.settings.tsx:340
 msgid "Default quota for new spaces (GB, 0 = unlimited)"
 msgstr "Default quota for new spaces (GB, 0 = unlimited)"
 
-#: src/routes/admin.settings.tsx:168
+#: src/routes/admin.settings.tsx:183
 msgid "Default quota must be a valid number (0 for unlimited)"
 msgstr "Default quota must be a valid number (0 for unlimited)"
 
-#: src/routes/admin.settings.tsx:299
+#: src/routes/admin.settings.tsx:314
 msgid "Default space quota"
 msgstr "Default space quota"
 
@@ -1006,7 +1028,7 @@ msgstr "Deleted by"
 msgid "Deleted by someone else — you see it because your items are inside"
 msgstr "Deleted by someone else — you see it because your items are inside"
 
-#: src/components/settings/panes/account-general.tsx:47
+#: src/components/settings/panes/account-general.tsx:51
 msgid "Descending"
 msgstr "Descending"
 
@@ -1036,13 +1058,14 @@ msgstr "Device signed out"
 msgid "Direct share"
 msgstr "Direct share"
 
-#: src/components/settings/panes/account-general.tsx:159
+#: src/components/settings/panes/account-general.tsx:196
 msgid "Direction"
 msgstr "Direction"
 
 #: src/components/settings/panes/account-profile.tsx:152
 #: src/components/settings/panes/space-general.tsx:228
-#: src/routes/admin.settings.tsx:412
+#: src/routes/admin.settings.tsx:427
+#: src/routes/admin.settings.tsx:723
 msgid "Discard"
 msgstr "Discard"
 
@@ -1054,12 +1077,12 @@ msgstr "Discard changes"
 msgid "Discard unsaved changes?"
 msgstr "Discard unsaved changes?"
 
-#: src/components/settings/panes/account-general.tsx:83
+#: src/components/settings/panes/account-general.tsx:89
 msgid "Display language"
 msgstr "Display language"
 
 #: src/components/settings/panes/account-profile.tsx:103
-#: src/routes/admin.settings.tsx:227
+#: src/routes/admin.settings.tsx:242
 msgid "Display name"
 msgstr "Display name"
 
@@ -1140,6 +1163,10 @@ msgstr "Email"
 msgid "Email address to add"
 msgstr "Email address to add"
 
+#: src/components/settings/panes/account-general.tsx:131
+msgid "Email me when something is shared with me"
+msgstr "Email me when something is shared with me"
+
 #: src/components/trash-panel.tsx:428
 msgid "Emptied the trash"
 msgstr "Emptied the trash"
@@ -1166,7 +1193,11 @@ msgstr "Enable"
 msgid "Enter a new name for this item."
 msgstr "Enter a new name for this item."
 
-#: src/routes/admin.settings.tsx:93
+#: src/routes/admin.settings.tsx:515
+msgid "Enter the password: saving here replaces the environment configuration."
+msgstr "Enter the password: saving here replaces the environment configuration."
+
+#: src/routes/admin.settings.tsx:108
 msgid "Environment variable"
 msgstr "Environment variable"
 
@@ -1239,13 +1270,19 @@ msgstr "Export CSV"
 msgid "External"
 msgstr "External"
 
-#: src/routes/admin.settings.tsx:189
+#: src/routes/admin.settings.tsx:204
+#: src/routes/admin.settings.tsx:493
 msgid "Failed to reset setting"
 msgstr "Failed to reset setting"
 
-#: src/routes/admin.settings.tsx:180
+#: src/routes/admin.settings.tsx:195
+#: src/routes/admin.settings.tsx:532
 msgid "Failed to save settings"
 msgstr "Failed to save settings"
+
+#: src/routes/admin.settings.tsx:542
+msgid "Failed to send test email"
+msgstr "Failed to send test email"
 
 #: src/components/preview-modal.tsx:155
 #: src/components/preview-panel.tsx:324
@@ -1312,11 +1349,11 @@ msgstr "Finance"
 msgid "Folder"
 msgstr "Folder"
 
-#: src/components/folder-actions.tsx:161
+#: src/components/folder-actions.tsx:191
 msgid "Folder information"
 msgstr "Folder information"
 
-#: src/components/drive-write.tsx:245
+#: src/components/drive-write.tsx:290
 msgid "Folder name"
 msgstr "Folder name"
 
@@ -1341,12 +1378,20 @@ msgstr "Forever"
 msgid "Found by the hourly check"
 msgstr "Found by the hourly check"
 
+#: src/routes/admin.settings.tsx:686
+msgid "From address"
+msgstr "From address"
+
+#: src/routes/admin.settings.tsx:505
+msgid "From address is required when an SMTP host is set."
+msgstr "From address is required when an SMTP host is set."
+
 #: src/components/move-dialog.tsx:139
 msgid "Gains access: {gaining}."
 msgstr "Gains access: {gaining}."
 
-#: src/routes/admin.settings.tsx:288
-#: src/routes/admin.settings.tsx:337
+#: src/routes/admin.settings.tsx:303
+#: src/routes/admin.settings.tsx:352
 msgid "GB"
 msgstr "GB"
 
@@ -1355,7 +1400,7 @@ msgstr "GB"
 msgid "General"
 msgstr "General"
 
-#: src/routes/admin.settings.tsx:197
+#: src/routes/admin.settings.tsx:212
 msgid "General & Branding"
 msgstr "General & Branding"
 
@@ -1379,8 +1424,8 @@ msgstr "grant created"
 msgid "grant revoked"
 msgstr "grant revoked"
 
-#: src/components/folder-actions.tsx:200
-#: src/components/settings/panes/account-general.tsx:36
+#: src/components/folder-actions.tsx:230
+#: src/components/settings/panes/account-general.tsx:40
 msgid "Grid"
 msgstr "Grid"
 
@@ -1424,6 +1469,10 @@ msgstr "Handover for {who} is complete"
 msgid "Home"
 msgstr "Home"
 
+#: src/routes/admin.settings.tsx:585
+msgid "Host"
+msgstr "Host"
+
 #: src/components/settings/panes/account-profile.tsx:106
 msgid "How your name appears on files, shares and member lists."
 msgstr "How your name appears on files, shares and member lists."
@@ -1440,21 +1489,25 @@ msgstr "identity adopted"
 msgid "Images"
 msgstr "Images"
 
+#: src/routes/admin.settings.tsx:440
+msgid "Implicit TLS / SMTPS (port 465)"
+msgstr "Implicit TLS / SMTPS (port 465)"
+
 #: src/components/node-actions.tsx:154
 msgid "Information"
 msgstr "Information"
 
-#: src/routes/admin.settings.tsx:203
+#: src/routes/admin.settings.tsx:218
 msgid "Instance display name"
 msgstr "Instance display name"
 
-#: src/routes/admin.settings.tsx:141
+#: src/routes/admin.settings.tsx:156
 msgid "Instance name cannot be empty"
 msgstr "Instance name cannot be empty"
 
 #: src/components/nav-user.tsx:132
-#: src/routes/admin.settings.tsx:33
-#: src/routes/admin.settings.tsx:63
+#: src/routes/admin.settings.tsx:42
+#: src/routes/admin.settings.tsx:72
 msgid "Instance settings"
 msgstr "Instance settings"
 
@@ -1527,15 +1580,19 @@ msgstr "Joining the space opens no files on its own — what someone can see is 
 msgid "Keep both"
 msgstr "Keep both"
 
+#: src/routes/admin.settings.tsx:675
+msgid "Keep password"
+msgstr "Keep password"
+
 #: src/components/trash-panel.tsx:460
 msgid "Kept"
 msgstr "Kept"
 
-#: src/components/settings/panes/account-general.tsx:77
+#: src/components/settings/panes/account-general.tsx:83
 msgid "Language"
 msgstr "Language"
 
-#: src/components/settings/panes/account-general.tsx:100
+#: src/components/settings/panes/account-general.tsx:106
 msgid "Language changed here, but could not be saved to your account."
 msgstr "Language changed here, but could not be saved to your account."
 
@@ -1559,7 +1616,7 @@ msgstr "Leave empty for unlimited. Cannot be changed after creation."
 msgid "Left"
 msgstr "Left"
 
-#: src/components/settings/panes/account-general.tsx:30
+#: src/components/settings/panes/account-general.tsx:34
 msgid "Light"
 msgstr "Light"
 
@@ -1575,8 +1632,8 @@ msgstr "Link created (shown once)"
 msgid "Link expires {expiresOn}"
 msgstr "Link expires {expiresOn}"
 
-#: src/components/folder-actions.tsx:201
-#: src/components/settings/panes/account-general.tsx:35
+#: src/components/folder-actions.tsx:231
+#: src/components/settings/panes/account-general.tsx:39
 msgid "List"
 msgstr "List"
 
@@ -1596,7 +1653,7 @@ msgstr "Loading groups…"
 msgid "Loading people…"
 msgstr "Loading people…"
 
-#: src/routes/admin.settings.tsx:72
+#: src/routes/admin.settings.tsx:81
 msgid "Loading settings…"
 msgstr "Loading settings…"
 
@@ -1652,6 +1709,10 @@ msgstr "Lowercase letters, numbers and dashes. Leave empty for none."
 msgid "Lowercase letters, numbers and dashes. Optional."
 msgstr "Lowercase letters, numbers and dashes. Optional."
 
+#: src/routes/admin.settings.tsx:550
+msgid "Mail"
+msgstr "Mail"
+
 #: src/components/node-actions.tsx:224
 msgid "Make a copy"
 msgstr "Make a copy"
@@ -1682,15 +1743,15 @@ msgstr "Marketing"
 #~ msgid "Match the system"
 #~ msgstr "Match the system"
 
-#: src/routes/admin.settings.tsx:276
+#: src/routes/admin.settings.tsx:291
 msgid "Maximum size (GB, 0 = unlimited)"
 msgstr "Maximum size (GB, 0 = unlimited)"
 
-#: src/routes/admin.settings.tsx:250
+#: src/routes/admin.settings.tsx:265
 msgid "Maximum upload size"
 msgstr "Maximum upload size"
 
-#: src/routes/admin.settings.tsx:150
+#: src/routes/admin.settings.tsx:165
 msgid "Maximum upload size must be a valid number (0 for unlimited)"
 msgstr "Maximum upload size must be a valid number (0 for unlimited)"
 
@@ -1732,17 +1793,17 @@ msgstr "Minimal self-hosted workspace: drive, office, spaces. Nothing leaves the
 #: src/components/node-table.tsx:77
 #: src/components/preview-modal.tsx:158
 #: src/components/preview-panel.tsx:347
-#: src/components/settings/panes/account-general.tsx:41
+#: src/components/settings/panes/account-general.tsx:45
 #: src/components/space-node-table.tsx:97
 #: src/routes/s/$token.tsx:282
 msgid "Modified"
 msgstr "Modified"
 
-#: src/components/folder-actions.tsx:193
+#: src/components/folder-actions.tsx:223
 msgid "Modified (newest)"
 msgstr "Modified (newest)"
 
-#: src/components/folder-actions.tsx:194
+#: src/components/folder-actions.tsx:224
 msgid "Modified (oldest)"
 msgstr "Modified (oldest)"
 
@@ -1769,7 +1830,7 @@ msgstr "Move to trash"
 msgid "Move to…"
 msgstr "Move to…"
 
-#: src/components/drive-write.tsx:154
+#: src/components/drive-write.tsx:158
 msgid "Moved {done, plural, one {# item} other {# items}} to {destination}"
 msgstr "Moved {done, plural, one {# item} other {# items}} to {destination}"
 
@@ -1780,9 +1841,10 @@ msgstr "My Drive"
 
 #: src/components/group-list.tsx:357
 #: src/components/listing-controls.tsx:23
+#: src/components/new-document-dialog.tsx:79
 #: src/components/node-list.tsx:69
 #: src/components/node-table.tsx:74
-#: src/components/settings/panes/account-general.tsx:40
+#: src/components/settings/panes/account-general.tsx:44
 #: src/components/space-node-table.tsx:90
 #: src/components/team-folder-dialog.tsx:74
 #: src/components/trash-panel.tsx:282
@@ -1795,11 +1857,11 @@ msgstr "Name"
 msgid "name (2)"
 msgstr "name (2)"
 
-#: src/components/folder-actions.tsx:191
+#: src/components/folder-actions.tsx:221
 msgid "Name (A–Z)"
 msgstr "Name (A–Z)"
 
-#: src/components/folder-actions.tsx:192
+#: src/components/folder-actions.tsx:222
 msgid "Name (Z–A)"
 msgstr "Name (Z–A)"
 
@@ -1820,8 +1882,13 @@ msgstr "never"
 msgid "New"
 msgstr "New"
 
-#: src/components/drive-write.tsx:221
-#: src/components/folder-actions.tsx:65
+#: src/components/folder-actions.tsx:90
+#: src/components/new-document-dialog.tsx:62
+msgid "New document"
+msgstr "New document"
+
+#: src/components/drive-write.tsx:266
+#: src/components/folder-actions.tsx:68
 msgid "New folder"
 msgstr "New folder"
 
@@ -1835,7 +1902,17 @@ msgstr "New group"
 msgid "New members are admins by default"
 msgstr "New members are admins by default"
 
-#: src/components/folder-actions.tsx:78
+#: src/components/folder-actions.tsx:108
+#: src/components/new-document-dialog.tsx:61
+msgid "New presentation"
+msgstr "New presentation"
+
+#: src/components/folder-actions.tsx:99
+#: src/components/new-document-dialog.tsx:60
+msgid "New spreadsheet"
+msgstr "New spreadsheet"
+
+#: src/components/folder-actions.tsx:81
 #: src/components/team-folder-dialog.tsx:53
 msgid "New team folder"
 msgstr "New team folder"
@@ -1897,7 +1974,7 @@ msgstr "No unsaved changes"
 msgid "Nobody can change its settings, manage its people or complete a handover until an instance administrator appoints one."
 msgstr "Nobody can change its settings, manage its people or complete a handover until an instance administrator appoints one."
 
-#: src/components/drive-write.tsx:176
+#: src/components/drive-write.tsx:180
 msgid "Nobody can see it yet — access to a team folder is given through Share."
 msgstr "Nobody can see it yet — access to a team folder is given through Share."
 
@@ -1909,9 +1986,17 @@ msgstr "Nobody else reaches this — not even a space admin — unless a line he
 msgid "Nobody in this group yet — it opens nothing for anyone."
 msgstr "Nobody in this group yet — it opens nothing for anyone."
 
+#: src/routes/admin.settings.tsx:441
+msgid "None — local relay only"
+msgstr "None — local relay only"
+
 #: src/routes/admin.users.tsx:133
 msgid "none failed"
 msgstr "none failed"
+
+#: src/routes/admin.settings.tsx:658
+msgid "Not set"
+msgstr "Not set"
 
 #: src/components/preview-panel.tsx:389
 msgid "Not shared."
@@ -1951,6 +2036,10 @@ msgstr "Nothing stored yet."
 msgid "Noticed when they last signed in"
 msgstr "Noticed when they last signed in"
 
+#: src/components/settings/panes/account-general.tsx:127
+msgid "Notifications"
+msgstr "Notifications"
+
 #: src/routes/login.tsx:146
 msgid "Office"
 msgstr "Office"
@@ -1975,6 +2064,7 @@ msgstr "OnlyOffice editor"
 msgid "open"
 msgstr "open"
 
+#: src/components/drive-write.tsx:213
 #: src/components/node-actions.tsx:127
 #: src/components/preview-content.tsx:273
 #: src/components/preview-modal.tsx:115
@@ -1992,7 +2082,7 @@ msgstr "Open in new tab"
 msgid "Opening editor…"
 msgstr "Opening editor…"
 
-#: src/routes/admin.settings.tsx:64
+#: src/routes/admin.settings.tsx:73
 msgid "Operational policies and configuration across this install"
 msgstr "Operational policies and configuration across this install"
 
@@ -2003,6 +2093,14 @@ msgstr "Original location"
 #: src/components/storage-breakdown.tsx:34
 msgid "Other"
 msgstr "Other"
+
+#: src/routes/admin.settings.tsx:556
+msgid "Outgoing mail (SMTP)"
+msgstr "Outgoing mail (SMTP)"
+
+#: src/routes/admin.settings.tsx:491
+msgid "Outgoing mail settings reset"
+msgstr "Outgoing mail settings reset"
 
 #: src/routes/admin.users.tsx:107
 msgid "Overview"
@@ -2019,7 +2117,11 @@ msgstr "Owner"
 msgid "Page not found."
 msgstr "Page not found."
 
-#: src/components/folder-actions.tsx:207
+#: src/routes/admin.settings.tsx:646
+msgid "Password"
+msgstr "Password"
+
+#: src/components/folder-actions.tsx:237
 msgid "Paste"
 msgstr "Paste"
 
@@ -2058,13 +2160,21 @@ msgstr "Permanently delete \"{spaceName}\" and all of its contents? This cannot 
 msgid "Person"
 msgstr "Person"
 
+#: src/routes/admin.settings.tsx:597
+msgid "Port"
+msgstr "Port"
+
+#: src/routes/admin.settings.tsx:509
+msgid "Port must be between 1 and 65535."
+msgstr "Port must be between 1 and 65535."
+
 #: src/components/site-header.tsx:39
 #: src/routes/drive/account/preferences.tsx:23
 #: src/routes/drive/account/route.tsx:33
 #~ msgid "Preferences"
 #~ msgstr "Preferences"
 
-#: src/components/settings/panes/account-general.tsx:126
+#: src/components/settings/panes/account-general.tsx:163
 msgid "Press D anywhere outside a text field to flip between light and dark."
 msgstr "Press D anywhere outside a text field to flip between light and dark."
 
@@ -2135,7 +2245,7 @@ msgstr "Recent"
 msgid "referenced blobs"
 msgstr "referenced blobs"
 
-#: src/components/folder-actions.tsx:149
+#: src/components/folder-actions.tsx:179
 msgid "Refresh"
 msgstr "Refresh"
 
@@ -2176,6 +2286,10 @@ msgstr "Remove admin rights"
 msgid "Remove from space"
 msgstr "Remove from space"
 
+#: src/routes/admin.settings.tsx:677
+msgid "Remove password"
+msgstr "Remove password"
+
 #: src/components/node-actions.tsx:161
 msgid "Remove star"
 msgstr "Remove star"
@@ -2214,10 +2328,11 @@ msgstr "Replace"
 msgid "Reported by the identity provider"
 msgstr "Reported by the identity provider"
 
-#: src/routes/admin.settings.tsx:219
-#: src/routes/admin.settings.tsx:268
-#: src/routes/admin.settings.tsx:317
-#: src/routes/admin.settings.tsx:372
+#: src/routes/admin.settings.tsx:234
+#: src/routes/admin.settings.tsx:283
+#: src/routes/admin.settings.tsx:332
+#: src/routes/admin.settings.tsx:387
+#: src/routes/admin.settings.tsx:576
 msgid "Reset"
 msgstr "Reset"
 
@@ -2242,7 +2357,7 @@ msgstr "Restored version {versionNo}"
 msgid "Resume queue"
 msgstr "Resume queue"
 
-#: src/routes/admin.settings.tsx:380
+#: src/routes/admin.settings.tsx:395
 msgid "Retention period (days)"
 msgstr "Retention period (days)"
 
@@ -2276,7 +2391,8 @@ msgstr "Save"
 
 #: src/components/settings/panes/account-profile.tsx:141
 #: src/components/settings/panes/space-general.tsx:225
-#: src/routes/admin.settings.tsx:416
+#: src/routes/admin.settings.tsx:431
+#: src/routes/admin.settings.tsx:727
 msgid "Save changes"
 msgstr "Save changes"
 
@@ -2284,9 +2400,13 @@ msgstr "Save changes"
 msgid "saved by OnlyOffice"
 msgstr "saved by OnlyOffice"
 
-#: src/components/settings/panes/account-general.tsx:85
+#: src/components/settings/panes/account-general.tsx:91
 msgid "Saved to your account, so it follows you to any browser you sign in from."
 msgstr "Saved to your account, so it follows you to any browser you sign in from."
+
+#: src/components/settings/panes/account-general.tsx:133
+msgid "Saved to your account. Only sent when your administrator has set up mail."
+msgstr "Saved to your account. Only sent when your administrator has set up mail."
 
 #: src/components/command-palette.tsx:118
 msgid "Search"
@@ -2316,10 +2436,11 @@ msgstr "Seconds; use 0 for no expiration."
 
 #: src/components/admin-header.tsx:47
 #: src/components/settings/panes.ts:77
+#: src/routes/admin.settings.tsx:611
 msgid "Security"
 msgstr "Security"
 
-#: src/routes/admin.settings.tsx:348
+#: src/routes/admin.settings.tsx:363
 msgid "Security & Auditing"
 msgstr "Security & Auditing"
 
@@ -2329,7 +2450,7 @@ msgstr "Security & Auditing"
 msgid "Security log"
 msgstr "Security log"
 
-#: src/routes/admin.settings.tsx:354
+#: src/routes/admin.settings.tsx:369
 msgid "Security log retention"
 msgstr "Security log retention"
 
@@ -2345,7 +2466,7 @@ msgstr "Select a file or folder to see its details."
 msgid "Select a space"
 msgstr "Select a space"
 
-#: src/components/folder-actions.tsx:116
+#: src/components/folder-actions.tsx:146
 msgid "Select all"
 msgstr "Select all"
 
@@ -2356,6 +2477,19 @@ msgstr "Select all deleted items"
 #: src/components/selection-bar.tsx:50
 msgid "Selection actions"
 msgstr "Selection actions"
+
+#: src/routes/admin.settings.tsx:706
+msgid "Send test email"
+msgstr "Send test email"
+
+#. placeholder {0}: me?.email ?? ""
+#: src/routes/admin.settings.tsx:715
+#~ msgid "Sends to {0}. Save changes first."
+#~ msgstr "Sends to {0}. Save changes first."
+
+#: src/routes/admin.settings.tsx:735
+msgid "Sends to {targetEmail}. Save changes first."
+msgstr "Sends to {targetEmail}. Save changes first."
 
 #: src/routes/login.tsx:150
 msgid "Separate teams, each with its own groups and shared folders."
@@ -2388,7 +2522,7 @@ msgstr "session revoked"
 msgid "sessions revoked"
 msgstr "sessions revoked"
 
-#: src/routes/admin.settings.tsx:187
+#: src/routes/admin.settings.tsx:202
 msgid "Setting reverted to deployment default"
 msgstr "Setting reverted to deployment default"
 
@@ -2399,7 +2533,8 @@ msgid "Settings"
 msgstr "Settings"
 
 #: src/components/settings/panes/space-general.tsx:94
-#: src/routes/admin.settings.tsx:178
+#: src/routes/admin.settings.tsx:193
+#: src/routes/admin.settings.tsx:530
 msgid "Settings saved"
 msgstr "Settings saved"
 
@@ -2506,18 +2641,18 @@ msgstr "Signed-in devices"
 #: src/components/node-table.tsx:80
 #: src/components/preview-modal.tsx:156
 #: src/components/preview-panel.tsx:326
-#: src/components/settings/panes/account-general.tsx:42
+#: src/components/settings/panes/account-general.tsx:46
 #: src/components/space-node-table.tsx:100
 #: src/components/trash-panel.tsx:297
 #: src/routes/s/$token.tsx:285
 msgid "Size"
 msgstr "Size"
 
-#: src/components/folder-actions.tsx:195
+#: src/components/folder-actions.tsx:225
 msgid "Size (largest)"
 msgstr "Size (largest)"
 
-#: src/components/folder-actions.tsx:196
+#: src/components/folder-actions.tsx:226
 msgid "Size (smallest)"
 msgstr "Size (smallest)"
 
@@ -2533,8 +2668,8 @@ msgstr "Something went wrong on our side. Try again in a moment."
 msgid "Sort ascending"
 msgstr "Sort ascending"
 
-#: src/components/folder-actions.tsx:124
-#: src/components/settings/panes/account-general.tsx:152
+#: src/components/folder-actions.tsx:154
+#: src/components/settings/panes/account-general.tsx:189
 msgid "Sort by"
 msgstr "Sort by"
 
@@ -2542,7 +2677,7 @@ msgstr "Sort by"
 msgid "Sort descending"
 msgstr "Sort descending"
 
-#: src/components/folder-actions.tsx:161
+#: src/components/folder-actions.tsx:191
 msgid "Space information"
 msgstr "Space information"
 
@@ -2587,6 +2722,10 @@ msgstr "Star a file from its ⋯ menu to keep it here."
 msgid "Starred"
 msgstr "Starred"
 
+#: src/routes/admin.settings.tsx:439
+msgid "STARTTLS (port 587)"
+msgstr "STARTTLS (port 587)"
+
 #: src/routes/admin.users.tsx:173
 msgid "Status"
 msgstr "Status"
@@ -2597,7 +2736,7 @@ msgstr "Status"
 msgid "Storage"
 msgstr "Storage"
 
-#: src/routes/admin.settings.tsx:243
+#: src/routes/admin.settings.tsx:258
 msgid "Storage & Uploads"
 msgstr "Storage & Uploads"
 
@@ -2609,6 +2748,10 @@ msgstr "Storage quota (GB)"
 #: src/routes/admin.users.tsx:122
 msgid "Storage used"
 msgstr "Storage used"
+
+#: src/routes/admin.settings.tsx:657
+msgid "Stored — leave blank to keep"
+msgstr "Stored — leave blank to keep"
 
 #: src/routes/admin.users.tsx:259
 msgid "Suspend"
@@ -2622,7 +2765,7 @@ msgstr "Suspended"
 msgid "Switch space"
 msgstr "Switch space"
 
-#: src/components/settings/panes/account-general.tsx:29
+#: src/components/settings/panes/account-general.tsx:33
 msgid "System"
 msgstr "System"
 
@@ -2637,6 +2780,15 @@ msgstr "Team folder"
 #: src/components/settings/panes/account-profile.tsx:124
 msgid "Tell your colleagues what you work on"
 msgstr "Tell your colleagues what you work on"
+
+#. placeholder {0}: res.to
+#: src/routes/admin.settings.tsx:529
+#~ msgid "Test email sent to {0}"
+#~ msgstr "Test email sent to {0}"
+
+#: src/routes/admin.settings.tsx:540
+msgid "Test email sent to {to}"
+msgstr "Test email sent to {to}"
 
 #: src/components/upload-conflict-dialog.tsx:79
 msgid "That name is taken"
@@ -2667,7 +2819,7 @@ msgstr "the public link"
 msgid "Their access ended now. What they left behind waits under Pending handover."
 msgstr "Their access ended now. What they left behind waits under Pending handover."
 
-#: src/components/settings/panes/account-general.tsx:125
+#: src/components/settings/panes/account-general.tsx:162
 msgid "Theme"
 msgstr "Theme"
 
@@ -2731,7 +2883,7 @@ msgstr "This file opens in the office editor."
 msgid "This file was shared with you"
 msgstr "This file was shared with you"
 
-#: src/components/drive-write.tsx:87
+#: src/components/drive-write.tsx:91
 msgid "this folder"
 msgstr "this folder"
 
@@ -2768,8 +2920,8 @@ msgstr "This pane has changes that were never saved. Leaving now throws them awa
 msgid "This person"
 msgstr "This person"
 
-#: src/components/drive-write.tsx:87
-#: src/components/drive-write.tsx:169
+#: src/components/drive-write.tsx:91
+#: src/components/drive-write.tsx:173
 #: src/routes/drive/$spaceId/home.tsx:61
 #: src/routes/drive/$spaceId/index.tsx:308
 msgid "this space"
@@ -2842,7 +2994,19 @@ msgstr "Unlimited"
 msgid "Unsaved changes"
 msgstr "Unsaved changes"
 
-#: src/components/drive-write.tsx:113
+#: src/components/new-document-dialog.tsx:41
+msgid "Untitled document"
+msgstr "Untitled document"
+
+#: src/components/new-document-dialog.tsx:45
+msgid "Untitled presentation"
+msgstr "Untitled presentation"
+
+#: src/components/new-document-dialog.tsx:43
+msgid "Untitled spreadsheet"
+msgstr "Untitled spreadsheet"
+
+#: src/components/drive-write.tsx:117
 msgid "Upload cancelled"
 msgstr "Upload cancelled"
 
@@ -2851,11 +3015,11 @@ msgstr "Upload cancelled"
 msgid "Upload failed"
 msgstr "Upload failed"
 
-#: src/components/folder-actions.tsx:87
+#: src/components/folder-actions.tsx:117
 msgid "Upload files"
 msgstr "Upload files"
 
-#: src/components/folder-actions.tsx:95
+#: src/components/folder-actions.tsx:125
 msgid "Upload folder"
 msgstr "Upload folder"
 
@@ -2863,7 +3027,7 @@ msgstr "Upload folder"
 msgid "Upload, organise and share files, with every version kept."
 msgstr "Upload, organise and share files, with every version kept."
 
-#: src/components/drive-write.tsx:120
+#: src/components/drive-write.tsx:124
 msgid "Uploading {count, plural, one {# file} other {# files}} to {label}"
 msgstr "Uploading {count, plural, one {# file} other {# files}} to {label}"
 
@@ -2875,7 +3039,11 @@ msgstr "Uploading {current} of {total}"
 msgid "URL slug"
 msgstr "URL slug"
 
-#: src/components/settings/panes/account-general.tsx:138
+#: src/routes/admin.settings.tsx:561
+msgid "Used to email people when a file or folder is shared with them. Leave the host empty to turn mail off."
+msgstr "Used to email people when a file or folder is shared with them. Leave the host empty to turn mail off."
+
+#: src/components/settings/panes/account-general.tsx:175
 msgid "Used when a link says nothing about how to draw the folder. A link that carries a view or a sort keeps the one it was copied with."
 msgstr "Used when a link says nothing about how to draw the folder. A link that carries a view or a sort keeps the one it was copied with."
 
@@ -2883,6 +3051,10 @@ msgstr "Used when a link says nothing about how to draw the folder. A link that 
 #: src/routes/admin.users.tsx:164
 msgid "User"
 msgstr "User"
+
+#: src/routes/admin.settings.tsx:635
+msgid "Username"
+msgstr "Username"
 
 #: src/components/admin-header.tsx:39
 #: src/routes/admin.users.tsx:111
@@ -2931,8 +3103,8 @@ msgstr "Video"
 msgid "view"
 msgstr "view"
 
-#: src/components/folder-actions.tsx:138
-#: src/components/settings/panes/account-general.tsx:145
+#: src/components/folder-actions.tsx:168
+#: src/components/settings/panes/account-general.tsx:182
 msgid "View"
 msgstr "View"
 

@@ -14,13 +14,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@workspace/ui/components/dialog";
+import { NewDocumentDialog } from "@/components/new-document-dialog";
 import { TeamFolderDialog } from "@/components/team-folder-dialog";
 import { useUploadWithConflicts } from "@/components/upload-conflict-dialog";
-import type { Node } from "@/lib/api";
+import { openEditor, type DocumentKind, type Node } from "@/lib/api";
 import { collectInputFiles } from "@/lib/drop-items";
 import {
   useCopyNode,
   useCreateFolder,
+  useCreateDocument,
   useCreateTeamFolder,
   useMoveNode,
   useNode,
@@ -34,6 +36,7 @@ export interface DriveWrite extends WriteTarget {
   /** What a Paste here would land. Empty means the item must be disabled. */
   pasteable: Node[];
   newFolder: () => void;
+  newDocument: (kind: DocumentKind) => void;
   /** True only for a space admin: the server rejects anyone else with a 403. */
   canCreateTeamFolder: boolean;
   /** Always creates at the space's top level — a team folder cannot be nested. */
@@ -76,6 +79,7 @@ export function DriveWriteProvider({ children }: { children: ReactNode }) {
   const move = useMoveNode(spaceId ?? "");
   const mkdir = useCreateFolder(spaceId ?? "", dir);
   const mkteam = useCreateTeamFolder(spaceId ?? "");
+  const mkdoc = useCreateDocument(spaceId ?? "", dir);
   const fileRef = useRef<HTMLInputElement>(null);
   const folderRef = useRef<HTMLInputElement>(null);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
@@ -182,11 +186,52 @@ export function DriveWriteProvider({ children }: { children: ReactNode }) {
     );
   }, [spaceId, space?.name, mkteam, t]);
 
+  const newDocument = useCallback(
+    (kind: DocumentKind) => {
+      const { spaceId: into, label } = target;
+      if (!into || !target.canWrite) return;
+      void NewDocumentDialog.show({ kind, destination: label }).then((name) => {
+        if (!name) return;
+        // Open tab immediately inside the Create click's user activation,
+        // avoiding popup blockers on Safari/WebKit that block async window.open.
+        // eslint-disable-next-line lingui/no-unlocalized-strings -- target window
+        const tab = window.open("", "_blank");
+        if (tab) tab.opener = null;
+        mkdoc.mutate(
+          { kind, name },
+          {
+            onSuccess: (made) => {
+              if (tab) {
+                // eslint-disable-next-line lingui/no-unlocalized-strings -- editor URL
+                tab.location.href = `/edit/${made.id}`;
+              } else {
+                openEditor(made);
+              }
+              const createdName = made.name;
+              toast.success(t`Created “${createdName}” in ${label}`, {
+                action: {
+                  label: t`Open`,
+                  onClick: () => openEditor(made),
+                },
+              });
+            },
+            onError: (e) => {
+              tab?.close();
+              toast.error(t`Could not create “${name}”`, { description: e.message });
+            },
+          },
+        );
+      });
+    },
+    [target, mkdoc, t],
+  );
+
   const value = useMemo<DriveWrite>(
     () => ({
       ...target,
       pasteable,
       newFolder: () => setNewFolderOpen(true),
+      newDocument,
       // A team folder belongs to the space, so only a space admin may start
       // one; the server answers everyone else with a 403.
       canCreateTeamFolder: space?.is_admin === true,
@@ -195,7 +240,7 @@ export function DriveWriteProvider({ children }: { children: ReactNode }) {
       uploadFolder: () => folderRef.current?.click(),
       paste,
     }),
-    [target, pasteable, paste, space?.is_admin, newTeamFolder],
+    [target, pasteable, paste, space?.is_admin, newTeamFolder, newDocument],
   );
 
   return (

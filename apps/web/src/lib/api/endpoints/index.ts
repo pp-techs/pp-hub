@@ -7,6 +7,7 @@ import type {
   AdminSettingsMap,
   AdminStats,
   AdminUser,
+  DocumentKind,
   EditSession,
   MoveImpact,
   Node,
@@ -101,6 +102,12 @@ export async function deleteAdminSetting(key: string): Promise<AdminSettingsMap>
   return res.json() as Promise<AdminSettingsMap>;
 }
 
+export async function sendTestEmail(): Promise<{ to: string }> {
+  const res = await api.post("api/v1/admin/settings/smtp/test");
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<{ to: string }>;
+}
+
 // ─── Nodes ───────────────────────────────────────────────────────────────────
 
 export async function getChildren(spaceId: string, parentId?: string): Promise<Node[]> {
@@ -138,6 +145,19 @@ export async function createFolder(
  */
 export async function createTeamFolder(spaceId: string, name: string): Promise<Node> {
   const res = await api.post(`api/v1/spaces/${spaceId}/team-folders`, { json: { name } });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<Node>;
+}
+
+export async function createDocument(
+  spaceId: string,
+  kind: DocumentKind,
+  name: string,
+  parentId?: string,
+): Promise<Node> {
+  const res = await api.post(`api/v1/spaces/${spaceId}/documents`, {
+    json: { kind, name, parent_id: parentId },
+  });
   if (!res.ok) throw new ApiError(res.status, await res.text());
   return res.json() as Promise<Node>;
 }

@@ -13,6 +13,7 @@ import (
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/activity"
 	"github.com/nhatbui/pp-hub/apps/server/internal/audit"
+	"github.com/nhatbui/pp-hub/apps/server/internal/notify"
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 )
@@ -173,6 +174,21 @@ func (s *Server) handleCreateShare(w http.ResponseWriter, r *http.Request) {
 				"level": string(sh.Level), "grantee": grantee.Email,
 			},
 		})
+		if !grantee.SuspendedAt.Valid {
+			s.notify.Shared(r.Context(), notify.Share{
+				Granter:     *u,
+				Node:        node,
+				Level:       sh.Level,
+				CanDownload: sh.CanDownload,
+				Recipients: []notify.Recipient{
+					{
+						ID:       grantee.ID,
+						Email:    grantee.Email,
+						Settings: grantee.Settings,
+					},
+				},
+			})
+		}
 		writeJSON(w, http.StatusCreated, dto)
 	default:
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "kind must be link|direct")

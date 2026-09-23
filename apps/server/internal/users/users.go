@@ -181,7 +181,7 @@ func toProfile(u store.User) Profile {
 		IsAdmin:     u.IsAdmin,
 		CreatedAt:   u.CreatedAt.Time.Format(timeLayout),
 		LastSeen:    lastSeen,
-		Preferences: decodePreferences(u.Settings),
+		Preferences: DecodePreferences(u.Settings),
 	}
 }
 

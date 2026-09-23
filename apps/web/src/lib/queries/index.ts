@@ -34,6 +34,7 @@ export {
   useNode,
   useInvalidateChildren,
   useCreateFolder,
+  useCreateDocument,
   useCreateTeamFolder,
   useUpload,
   useRenameNode,
@@ -66,6 +67,7 @@ export {
   useAdminSettings,
   useUpdateAdminSettings,
   useDeleteAdminSetting,
+  useSendTestEmail,
 } from "./spaces-admin";
 
 // Home surfaces

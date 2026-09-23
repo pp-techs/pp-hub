@@ -3,12 +3,14 @@ package httpapi
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/audit"
 	"github.com/nhatbui/pp-hub/apps/server/internal/groups"
+	"github.com/nhatbui/pp-hub/apps/server/internal/notify"
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 )
@@ -406,6 +408,16 @@ func (s *Server) handleUpsertGrant(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusForbidden, "Forbidden", share.ErrEscalation.Error())
 		return
 	}
+	existing, err := s.groups.GrantsForNode(r.Context(), node.ID)
+	isNew := err == nil
+	if isNew {
+		for _, g := range existing {
+			if g.GroupID == groupID {
+				isNew = false
+				break
+			}
+		}
+	}
 	if _, err := s.groups.Grant(r.Context(), node, groupID, want, u.ID); err != nil {
 		s.groupError(w, r, err)
 		return
@@ -421,6 +433,38 @@ func (s *Server) handleUpsertGrant(w http.ResponseWriter, r *http.Request) {
 			"level": string(want.Level),
 		},
 	})
+	if isNew {
+		ctx := r.Context()
+		g, err := s.groups.Get(ctx, groupID)
+		if err == nil && !g.IsEveryone {
+			rows, err := s.store.ListGroupEmailRecipients(ctx, store.ListGroupEmailRecipientsParams{
+				GroupID:       groupID,
+				ExcludeUserID: u.ID,
+			})
+			if err != nil {
+				slog.Warn("failed to list group email recipients", "err", err)
+			} else {
+				recips := make([]notify.Recipient, len(rows))
+				for i, row := range rows {
+					recips[i] = notify.Recipient{
+						ID:       row.ID,
+						Email:    row.Email,
+						Settings: row.Settings,
+					}
+				}
+				s.notify.Shared(ctx, notify.Share{
+					Granter:     *u,
+					Node:        node,
+					Level:       want.Level,
+					CanDownload: want.CanDownload,
+					Group:       g.Name,
+					Recipients:  recips,
+				})
+			}
+		} else if err != nil {
+			slog.Warn("failed to get group for notification", "err", err)
+		}
+	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 

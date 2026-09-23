@@ -7,6 +7,7 @@ import { useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   copyNode,
+  createDocument,
   createFolder,
   createTeamFolder,
   deleteNode,
@@ -25,7 +26,7 @@ import {
   restoreVersion,
   uploadFile,
 } from "@/lib/api";
-import type { MoveImpact, Node, Principal } from "@/lib/api";
+import type { DocumentKind, MoveImpact, Node, Principal } from "@/lib/api";
 import { keys } from "./keys";
 
 /** Query options factory for children listing. */
@@ -94,6 +95,15 @@ export function useCreateFolder(spaceId: string, parentId?: string) {
   const invalidate = useInvalidateChildren(spaceId);
   return useMutation({
     mutationFn: (name: string) => createFolder(spaceId, name, parentId),
+    onSuccess: invalidate,
+  });
+}
+
+export function useCreateDocument(spaceId: string, parentId?: string) {
+  const invalidate = useInvalidateChildren(spaceId);
+  return useMutation({
+    mutationFn: ({ kind, name }: { kind: DocumentKind; name: string }) =>
+      createDocument(spaceId, kind, name, parentId),
     onSuccess: invalidate,
   });
 }

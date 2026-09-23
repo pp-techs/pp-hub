@@ -572,6 +572,48 @@ func (q *Queries) ListGrantsForNode(ctx context.Context, nodeID pgtype.UUID) ([]
 	return items, nil
 }
 
+const listGroupEmailRecipients = `-- name: ListGroupEmailRecipients :many
+SELECT u.id, u.email, u.settings
+FROM group_members gm
+JOIN users u ON u.id = gm.user_id
+WHERE gm.group_id = $1
+  AND u.suspended_at IS NULL
+  AND u.email <> ''
+  AND u.id <> $2
+`
+
+type ListGroupEmailRecipientsParams struct {
+	GroupID       pgtype.UUID `json:"group_id"`
+	ExcludeUserID pgtype.UUID `json:"exclude_user_id"`
+}
+
+type ListGroupEmailRecipientsRow struct {
+	ID       pgtype.UUID `json:"id"`
+	Email    string      `json:"email"`
+	Settings []byte      `json:"settings"`
+}
+
+// Who a group grant emails: live accounts in the group, minus the granter.
+func (q *Queries) ListGroupEmailRecipients(ctx context.Context, arg ListGroupEmailRecipientsParams) ([]ListGroupEmailRecipientsRow, error) {
+	rows, err := q.db.Query(ctx, listGroupEmailRecipients, arg.GroupID, arg.ExcludeUserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListGroupEmailRecipientsRow
+	for rows.Next() {
+		var i ListGroupEmailRecipientsRow
+		if err := rows.Scan(&i.ID, &i.Email, &i.Settings); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listGroupMembers = `-- name: ListGroupMembers :many
 SELECT u.id, u.email, u.name, u.display_name, u.avatar_url, gm.added_at
 FROM group_members gm

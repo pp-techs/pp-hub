@@ -23,7 +23,10 @@ export interface Session {
  */
 export interface UserPreferences {
   locale?: string;
+  email_on_share?: boolean;
 }
+
+export type DocumentKind = "document" | "spreadsheet" | "presentation";
 
 export interface UserProfile {
   id: string;
@@ -151,17 +154,25 @@ export interface AdminUser {
   created_at: string;
 }
 
+export interface SmtpSettingValue {
+  host: string;
+  port: number;
+  username: string;
+  from: string;
+  tls: "starttls" | "implicit" | "none";
+  password_set: boolean;
+}
+
 export interface AdminSetting {
   key: string;
   value: unknown;
   source: "database" | "env" | "default";
   description: string;
   default: unknown;
-  type: "string" | "number";
+  type: "string" | "number" | "smtp";
 }
 
 export type AdminSettingsMap = Record<string, AdminSetting>;
-
 /**
  * One row of the instance security log.
  *
