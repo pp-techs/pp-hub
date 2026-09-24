@@ -227,7 +227,7 @@ const NodeListRow = memo(function NodeListRow({
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           className={cn(
-            "group hover:bg-muted/40 h-9 cursor-pointer transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_36px]",
+            "group hover:bg-muted/40 h-9 cursor-pointer transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_36px] align-middle",
             // Soft wash rather than a border, to match the grid's cards.
             selected && "bg-primary/10 hover:bg-primary/15",
             isDropTarget && "bg-primary/15 ring-2 ring-primary ring-inset",
@@ -235,7 +235,7 @@ const NodeListRow = memo(function NodeListRow({
           onClick={(e) => onClick(node, e)}
           onDoubleClick={() => onDoubleClick(node)}
         >
-          <td className="px-3">
+          <td className="px-3 align-middle">
             <div className="flex min-w-0 items-center gap-2">
               <NodeIcon node={node} isShared={shared} />
               <span
@@ -246,20 +246,20 @@ const NodeListRow = memo(function NodeListRow({
               </span>
             </div>
           </td>
-          <td className="text-muted-foreground px-2 text-right tabular-nums">
+          <td className="text-muted-foreground px-2 text-right tabular-nums align-middle">
             {node.modified_at ? f.date(node.modified_at) : "—"}
           </td>
-          <td className="text-muted-foreground px-2 text-right tabular-nums">
+          <td className="text-muted-foreground px-2 text-right tabular-nums align-middle">
             {node.size != null ? f.size(node.size) : "—"}
           </td>
           {/* Inside a team folder `owner` is only a byline — access comes from
               the folder's grants, not from whoever uploaded. Printing a name
               here would invite the reader to think that person controls the
               row, so the column names the holder instead. */}
-          <td className="text-muted-foreground truncate px-2">
+          <td className="text-muted-foreground truncate px-2 align-middle">
             {node.in_team ? t`Team` : (node.owner ?? "—")}
           </td>
-          <td className="px-3 text-right">
+          <td className="px-3 text-right align-middle">
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
