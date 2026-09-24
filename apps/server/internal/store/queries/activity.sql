@@ -55,34 +55,47 @@ WHERE a.actor_id = $1 AND n.deleted_at IS NULL AND n.kind = 'file'
 ORDER BY n.id, a.created_at DESC;
 
 -- name: SumSpaceUsage :one
--- Total bytes of the current version of every live file in a space — the
--- figure spaces.used_bytes is supposed to hold.
+-- Total bytes of every stored version of every file in a space, trash
+-- included — the figure spaces.used_bytes holds and the quota is checked
+-- against. Superseded versions and trashed files occupy the disk exactly as
+-- much as current ones do; counting only current versions let the two numbers
+-- drift apart until the disk filled under a meter that still showed room.
 SELECT COALESCE(SUM(v.size), 0)::bigint AS total
-FROM nodes n
-JOIN node_versions v ON v.id = n.current_version_id
-WHERE n.space_id = $1 AND n.deleted_at IS NULL;
+FROM node_versions v
+JOIN nodes n ON n.id = v.node_id
+WHERE n.space_id = $1;
 
 -- name: SumSpaceUsageByCategory :many
--- Usage split by broad MIME family, for the storage breakdown. The bucketing
--- lives in SQL so the figures and the total come from one pass over the data.
+-- Usage split for the storage breakdown, in the same terms as SumSpaceUsage
+-- so the slices add up to the meter: trash first, then superseded versions,
+-- then current versions by broad MIME family. `files` counts versions for
+-- the versions slice and files everywhere else. The bucketing lives in SQL so
+-- the figures and the total come from one pass over the data.
 SELECT
-  CASE
-    WHEN v.mime LIKE 'video/%' THEN 'video'
-    WHEN v.mime LIKE 'image/%' THEN 'image'
-    WHEN v.mime LIKE 'audio/%' THEN 'audio'
-    WHEN v.mime LIKE 'text/%'
-      OR v.mime LIKE 'application/pdf'
-      OR v.mime LIKE 'application/vnd.openxmlformats%'
-      OR v.mime LIKE 'application/vnd.oasis%'
-      OR v.mime LIKE 'application/ms%' THEN 'document'
-    ELSE 'other'
-  END AS category,
-  COALESCE(SUM(v.size), 0)::bigint AS bytes,
-  COUNT(*)::bigint AS files
-FROM nodes n
-JOIN node_versions v ON v.id = n.current_version_id
-JOIN space_members m ON m.space_id = n.space_id AND m.user_id = $1
-WHERE n.deleted_at IS NULL
-  AND (sqlc.narg('space_id')::uuid IS NULL OR n.space_id = sqlc.narg('space_id')::uuid)
-GROUP BY category
+  u.category::text AS category,
+  COALESCE(SUM(u.size), 0)::bigint AS bytes,
+  (CASE WHEN u.category = 'versions' THEN COUNT(*) ELSE COUNT(DISTINCT u.node_id) END)::bigint AS files
+FROM (
+  SELECT
+    n.id AS node_id,
+    v.size,
+    CASE
+      WHEN n.deleted_at IS NOT NULL THEN 'trash'
+      WHEN v.id IS DISTINCT FROM n.current_version_id THEN 'versions'
+      WHEN v.mime LIKE 'video/%' THEN 'video'
+      WHEN v.mime LIKE 'image/%' THEN 'image'
+      WHEN v.mime LIKE 'audio/%' THEN 'audio'
+      WHEN v.mime LIKE 'text/%'
+        OR v.mime LIKE 'application/pdf'
+        OR v.mime LIKE 'application/vnd.openxmlformats%'
+        OR v.mime LIKE 'application/vnd.oasis%'
+        OR v.mime LIKE 'application/ms%' THEN 'document'
+      ELSE 'other'
+    END AS category
+  FROM nodes n
+  JOIN node_versions v ON v.node_id = n.id
+  JOIN space_members m ON m.space_id = n.space_id AND m.user_id = $1
+  WHERE sqlc.narg('space_id')::uuid IS NULL OR n.space_id = sqlc.narg('space_id')::uuid
+) u
+GROUP BY u.category
 ORDER BY bytes DESC;

@@ -237,8 +237,12 @@ consequences:
 
 **`PP_MAX_UPLOAD_BYTES`** — default `5G`; accepts plain bytes or a `K`/`M`/`G`/`T`
 suffix; `0` disables the ceiling. This is the only thing bounding a single
-upload body. A space's `quota_bytes` is checked _after_ the bytes have landed
-— the request's declared length is not trustworthy — and defaults to `0`,
+upload. Since M30 an upload is a tus session, and the ceiling is checked
+against the `Upload-Length` it declares when it is created — a file that is
+too big is refused with 413 before a byte is sent — and then enforced on every
+chunk, which is never allowed to write past that declared length. A space's
+`quota_bytes` is checked at creation too, and again _after_ the bytes have
+landed, since only the measured size is trustworthy; it defaults to `0`,
 meaning unlimited, so with no ceiling one authenticated caller can fill the
 volume. Set too low, large legitimate uploads fail with 413 and a clear
 message; set to `0`, you are back to the original problem. A value that will
@@ -259,15 +263,20 @@ wants the failed sign-ins from February. Unparseable values fall back to the
 default and say so rather than refusing to start, because a retention window
 is a policy knob. Can also be overridden at runtime via **Admin > Settings** (`/admin/settings`).
 
-Three related knobs have no environment variable and live only in
+Four related knobs have no environment variable and live only in
 **Admin > Settings**: `read_audit_retention_days` (default `90`) — how long
 file access events (downloads, views, editor opens) are kept, separately from
-the rest of the log because they are most of it — and
+the rest of the log because they are most of it —
 `alert_failed_login_threshold` (`10`, `0` turns alerts off) with
 `alert_failed_login_window_minutes` (`15`), which decide when a run of failed
 sign-ins from one address raises a security alert, emails the instance
 admins and increments `pphub_security_alerts_total{rule}` on the metrics
-listener.
+listener, and `version_retention_count` (`100`, `0` keeps every version,
+at most `10000`) — how many versions of each file are kept, current
+included. Older ones are deleted when a file gets a new version, and GC then
+reclaims their bytes; lowering it applies to each file on its next save, not
+retroactively. Every stored version counts against a space's quota, so this
+is the knob that keeps edit-heavy documents from filling it.
 
 **`PP_LOG_LEVEL`** / **`PP_LOG_FORMAT`** — defaults `info` / `text` in the
 binary; `compose.prod.yml` sets `json`. Both the server and the worker read
@@ -633,10 +642,100 @@ found`. With no build section, `--build` is a no-op and the tag is pulled.
 Subsequent deploys are a `PP_IMAGE_TAG` change in the Environment tab and a
 redeploy.
 
+**Traefik's read timeout — optional since M30.** Since v2.11.2/v3.0,
+Traefik's entry points default `transport.respondingTimeouts.readTimeout` to
+`60s`, and that bounds reading the _whole_ request, body included. Before M30
+a file went up as one multipart POST, so any upload still arriving at the
+60-second mark was cut off, and raising this timeout was required. Uploads
+are now tus: the browser sends a file as a series of `PATCH` requests, each
+sized from measured throughput to take about 15 seconds (256 KiB–64 MiB), and
+a chunk that is cut off anyway loses only the bytes that never arrived — the
+client asks the server for its offset and carries on. So the 60 s default no
+longer bounds the size of a file. Change it only if a link is so slow that
+even a 256 KiB chunk cannot finish in 60 s (below roughly 4 KiB/s), or for
+some other long request of your own behind the same Traefik.
+
+What a cut-off request looks like is still worth recognising: the transfer
+tray now retries these statuses instead of failing, so a steady run of them in
+the access log is how a too-tight timeout shows itself. It depends on how the
+request reached Traefik — `499 Client Closed Request` over plain HTTP, `504`
+over HTTPS/1.1 and HTTP/3, `502` over HTTP/2 (measured on Traefik 3.7).
+Progress can run ahead of the server: it counts bytes handed to the OS socket
+buffer, not bytes the server received, which is why the client resynchronises
+with a `HEAD` after a failure. Time spent _after_ the body is in (blob write,
+S3) is not bounded by the read timeout. Nothing in the compose file can change
+it: entry points are Traefik's static config. To raise it anyway, in Dokploy,
+**Web Server → Traefik → Modify** (`/etc/dokploy/traefik/traefik.yml`), add
+to both entry points and restart Traefik:
+
+```yaml
+entryPoints:
+  web:
+    address: :80
+    transport:
+      respondingTimeouts:
+        readTimeout: 0s
+  websecure:
+    address: :443
+    transport:
+      respondingTimeouts:
+        readTimeout: 0s
+    # …keep the existing http/http3/tls settings
+```
+
+`0s` is not an open door for slow-body clients: the `web` container's nginx
+still drops a body that stalls for 60 s (`client_body_timeout`), and
+`PP_MAX_UPLOAD_BYTES` still caps an upload's size. A finite value works too
+if it comfortably exceeds the slowest expected chunk.
+
+Behind Cloudflare's proxy (orange cloud) a cut-off request shows up as a `499`
+with `Server: cloudflare` and a 21-byte body (`Client Closed Request` —
+Traefik's text, relayed). The 499 itself says Cloudflare reaches the origin
+over plain HTTP, i.e. SSL/TLS mode **Flexible**, on the `web` entry point. The
+`web` container's access log records the same request as `400 0`, the
+truncated body. Cloudflare also caps a request body at 100 MB on Free/Pro
+plans and answers `413` above that regardless of `PP_MAX_UPLOAD_BYTES` —
+which, since M30, no upload request reaches: the largest chunk the client
+sends is 64 MiB, so a file of any size up to the ceiling passes through.
+
+If you do raise it: `readTimeout` has no per-router form, so the change above
+applies to every app behind that Traefik. To confine it to this deployment,
+leave the entry points alone and take this domain's HTTPS out of Traefik's
+HTTP layer with a TCP router, which the read timeout does not apply to (a file
+under **Web Server → Traefik → File System**, `/etc/dokploy/traefik/dynamic/`):
+
+```yaml
+tcp:
+  routers:
+    pphub-https:
+      entryPoints: [websecure]
+      rule: "HostSNI(`drive.example.com`)"
+      service: pphub-web
+      tls:
+        certResolver: letsencrypt
+  services:
+    pphub-web:
+      loadBalancer:
+        servers:
+          - address: "<web container name>:80" # docker ps | grep web
+```
+
+Traefik then only terminates TLS and pipes bytes to the `web` container, whose
+nginx applies its own limits. It needs TLS on the hop into Traefik:
+Cloudflare's SSL/TLS mode must be **Full (strict)**, because on a plain-HTTP
+entry point a TCP router can only match ``HostSNI(`*`)``, which would capture
+every app on port 80. Keep the domain in Dokploy's Domains tab so port 80 still
+serves the ACME challenge; a TCP router with a matching `HostSNI` takes
+precedence over the HTTP router on 443.
+
 ### Plain VPS
 
 Uncomment the `ports:` blocks marked `PLAIN VPS` and point your own reverse
 proxy (Caddy, nginx, Traefik) at them. Terminate TLS there.
+The same upload caveats apply to that outer hop: an nginx in front needs a
+`client_max_body_size` above the largest chunk, 64 MiB (`0` is simplest; its
+1 MB default answers 413 to every full-size chunk), while a Traefik's
+`readTimeout` change above is optional.
 
 ### After the first deploy
 
@@ -771,7 +870,10 @@ polls `/readyz` for up to 60s. Neither script hardcodes a volume name —
 `docker compose run`/`exec` on the service that mounts it, not by guessing
 the project-prefixed name Compose or Dokploy assigned it. `.env.prod` is
 never part of the backup; keep it (and its secrets) separately, or a
-restore comes up as a different instance.
+restore comes up as a different instance. The blob archive excludes
+`/data/blobs/.uploads`, the staging area of in-flight resumable uploads:
+those are not files yet, and an upload whose restored row has no bytes behind
+it is dropped on its next chunk, so the client starts that file over.
 
 **The server blocks on OIDC discovery** for up to two minutes at startup, then
 exits and is restarted. `web` therefore depends on `server` for _start order
@@ -780,10 +882,22 @@ whole site down, static bundle included. nginx resolves the API through
 Docker's DNS per-request, so it stays up and returns 502 until the API is back.
 
 **Storage.** `PP_BLOB_BACKEND=local` keeps blobs in a volume, which pins the
-stack to one host. `s3` is what allows more than one `server` replica. The key
-layout is identical, so migrating is a plain copy:
-`aws s3 sync ./data/blobs s3://<bucket>/`. See
+stack to one host. `s3` is what allows more than one `server` replica — for
+downloads and saves; resumable uploads still assume one `server` process (see
+below). The key layout is identical, so migrating is a plain copy:
+`aws s3 sync ./data/blobs s3://<bucket>/` (skip `.uploads`). See
 [storage.md](architecture/storage.md).
+
+**Resumable uploads stage on the blob volume.** Chunks accumulate in
+`<PP_BLOB_ROOT>/.uploads` (`/data/blobs/.uploads` in `compose.prod.yml`)
+until the last one lands, **whichever backend is in use**, so the volume at
+`PP_BLOB_ROOT` must be persisted even on `s3` — the shipped compose files
+already mount it — or a restart throws away every half-finished upload. It
+needs room for the uploads in flight, each up to `PP_MAX_UPLOAD_BYTES`. With
+`local` the finished file is renamed into the store, not copied. An upload
+idle for 24 hours is swept with its bytes, every 15 minutes. The per-upload
+lock that orders chunks is in-process and the staging files are local, so
+the upload routes assume a single `server` process.
 
 Object storage can be external (AWS, Wasabi, Backblaze) or the bundled
 **SeaweedFS** under `--profile s3`, in both compose files. SeaweedFS passes the
@@ -891,7 +1005,7 @@ service. The worker is bursty — it spawns `pdftoppm`/`ffmpeg` per job with a
   `N` `server` replicas allows `N` times the published rate. Redis would fix
   it and would be the only infrastructure this stack does not otherwise need.
   See [The security and limit variables](#the-security-and-limit-variables).
-- **No per-user upload quota.** `PP_MAX_UPLOAD_BYTES` bounds one request body
+- **No per-user upload quota.** `PP_MAX_UPLOAD_BYTES` bounds one upload
   and `spaces.quota_bytes` bounds a space (and defaults to unlimited); there
   is nothing between them, so a member can make many maximum-sized uploads
   into a space whose quota was never set.

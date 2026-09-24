@@ -58,10 +58,16 @@ flowchart LR
 
 ### Upload
 
-1. Client `POST` multipart or tus resumable session.
-2. `blob.Put` streams to a temp file, computes blake3, atomically renames to `data/blobs/<2hex>/<hash>`.
-3. `fs` commits `node_version(blob_hash, size, mime)` and bumps `nodes.current_version_id` in one transaction.
-4. Crash between steps leaves an orphan blob with `ref_count=0` → reaped by GC after a grace period.
+Since M30 a user's upload is a tus 1.0.0 upload; the multipart endpoints are
+gone. Each request stays short, so no proxy's request timeout or body cap
+bounds the size of a file.
+
+1. Client `POST /api/v1/uploads` with `Upload-Length` and `Upload-Metadata` (a new file under a folder, or `node_id` to replace an existing file). The server checks the upload cap, write access (and the editor lock for a replacement), and the quota against used bytes + bytes other in-flight uploads have promised + the declared length, then records an `uploads` row and an empty staging file under `<PP_BLOB_ROOT>/.uploads`.
+2. Client sends `PATCH` chunks at `Upload-Offset`, sized from measured throughput. Each chunk is fsynced before the row's offset advances; an interrupted chunk keeps what arrived, and the client `HEAD`s to learn where to resume.
+3. The chunk that completes the upload commits before its response: access and lock are re-checked, `blob.Store.Ingest` hashes the staging file (blake3) and renames it to `data/blobs/<2hex>/<hash>` (S3: puts the object, then removes the file), `fs.EnsureRoom` checks the measured size, then `fs` creates the node if it is new, adds `node_version(blob_hash, size, mime)`, bumps `nodes.current_version_id`, prunes versions beyond the retention count and recounts `used_bytes`. A 204 at full length means the file is in place.
+4. Crash between steps leaves an orphan blob with `ref_count=0` → reaped by GC after a grace period. An upload idle for 24 hours is swept with its staging file.
+
+WOPI `PutFile` is the other writer: it streams its body through `blob.Put` (temp file → hash → rename) under `limitBody`, then follows step 3 from the quota check on.
 
 ### OnlyOffice edit (WOPI)
 

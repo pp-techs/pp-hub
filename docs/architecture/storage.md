@@ -5,8 +5,10 @@
 ```go
 type Store interface {
     Put(ctx context.Context, r io.Reader) (hash string, size int64, err error) // streaming, blake3
+    Ingest(ctx context.Context, path string) (hash string, size int64, err error) // a finished staged upload; takes the file over
     Get(ctx context.Context, hash string) (io.ReadCloser, error)
     Delete(ctx context.Context, hash string) error                              // GC only
+    Check(ctx context.Context) error                                            // can it still accept writes (/readyz)
 }
 ```
 
@@ -25,6 +27,7 @@ the backends would otherwise surface as a bug far away from the storage layer.
 - Layout: `data/blobs/<2-hex-prefix>/<blake3-hash>`.
 - Write path: stream to temp file → compute hash → atomic `rename`. Partial writes never appear under a content address.
 - Consistency: blob is written before metadata commit; orphans (`ref_count=0` past grace period) are reaped by the GC job.
+- `Ingest` (M30) hashes a finished resumable upload's staging file in one read pass and renames it to its content address — or deletes it when that content is already stored. The staging directory is `config.UploadDir()` = `<PP_BLOB_ROOT>/.uploads`, under the blob root on purpose, so the rename never crosses a filesystem and a multi-gigabyte upload is never copied at commit.
 
 ## S3 Implementation
 
@@ -38,6 +41,11 @@ unknown until the last byte is read, and S3 needs a seekable body to sign and
 retry. It mirrors `LocalStore`, which also writes a temp file before renaming
 into place, so both backends fail the same way when a disk fills mid-upload.
 `HeadObject` before `PutObject` makes dedup skip the upload entirely.
+`Ingest` reads the staged file twice — once to learn the key, once to send it
+— then removes it; there is no rename to make. The staging directory is
+still `<PP_BLOB_ROOT>/.uploads` on local disk: it is the one path every
+deployment already persists, so a restart does not throw away half an
+upload, whichever backend holds the finished blobs.
 
 `Get` maps `NoSuchKey` **and** a bare `404 NotFound` to `blob.ErrNotExist` —
 implementations differ on which they return, and callers distinguish "gone"
@@ -68,12 +76,14 @@ blake3: much faster than SHA-256, collision resistance is sufficient for non-adv
 
 ## Failure Modes & Mitigations
 
-| Risk                                         | Mitigation                                                               |
-| -------------------------------------------- | ------------------------------------------------------------------------ |
-| Crash between blob write and metadata commit | Orphan blob with `ref_count=0` → GC after grace period                   |
-| `ref_count` drift                            | Periodic recount job recomputes from `node_versions`                     |
-| Disk full during upload                      | Temp-file write fails before commit; quota check precedes version commit |
-| Move to S3 object storage                    | `S3Store` implements the same `Store` interface; no caller changes       |
+| Risk                                         | Mitigation                                                                                                          |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Crash between blob write and metadata commit | Orphan blob with `ref_count=0` → GC after grace period                                                              |
+| `ref_count` drift                            | Periodic recount job recomputes from `node_versions`                                                                |
+| Disk full during upload                      | Temp/staging-file write fails before commit; the chunk's error surfaces and the offset stays where the disk left it |
+| Upload interrupted mid-chunk                 | Bytes that arrived are fsynced and kept; the client resumes from the recorded offset (M30)                          |
+| Abandoned resumable upload                   | Row expires after 24 h idle; `uploads.Service` sweeps rows, then files, every 15 min, plus orphaned staging files   |
+| Move to S3 object storage                    | `S3Store` implements the same `Store` interface; no caller changes                                                  |
 
 ## WOPI Locking
 
@@ -95,3 +105,5 @@ Two orderings carry the safety:
 `DeleteBlob` re-checks `ref_count = 0` in its `WHERE`, so a blob that gained a reference between the sweep's `SELECT` and its `DELETE` survives.
 
 Copying a file adds a reference rather than bytes, so duplicating a large file is a single row — and the blob stays alive while either copy points at it.
+
+**Version retention** (M30) is the other source of unreferenced blobs. After a new version is saved, `fs.pruneVersions` deletes versions beyond `version_retention_count` (default 100, `0` keeps all) and decrements `ref_count` once per pruned version; this sweep reclaims the bytes. Unbounded history was what let the disk fill under a meter that — until M30 counted every stored version — still showed room.

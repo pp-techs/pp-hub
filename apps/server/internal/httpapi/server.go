@@ -22,6 +22,7 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/spaces"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 	"github.com/nhatbui/pp-hub/apps/server/internal/sysconfig"
+	"github.com/nhatbui/pp-hub/apps/server/internal/uploads"
 	"github.com/nhatbui/pp-hub/apps/server/internal/users"
 	"github.com/nhatbui/pp-hub/apps/server/internal/wopi"
 )
@@ -42,6 +43,7 @@ type Server struct {
 	pool          *pgxpool.Pool
 	blobs         blob.Store
 	orgs          *orgsync.Service
+	uploads       *uploads.Service
 	webhookKey    string
 	externalURL   string
 	onlyOfficeURL string
@@ -73,6 +75,7 @@ type Deps struct {
 	Pool    *pgxpool.Pool
 	Blobs   blob.Store
 	OrgSync *orgsync.Service
+	Uploads *uploads.Service
 	// LogtoWebhookKey signs /hooks/logto deliveries. Empty disables the
 	// route: an unauthenticated endpoint that mutates membership is worse
 	// than a slower path to the same state.
@@ -105,6 +108,7 @@ func NewServer(d Deps) *Server {
 		pool:           d.Pool,
 		blobs:          d.Blobs,
 		orgs:           d.OrgSync,
+		uploads:        d.Uploads,
 		webhookKey:     d.LogtoWebhookKey,
 		externalURL:    d.ExternalURL,
 		onlyOfficeURL:  d.OnlyOfficeURL,
@@ -221,7 +225,6 @@ func (s *Server) Router() http.Handler {
 				r.Post("/trash/empty", s.handleEmptyTrash)
 				r.Post("/dirs", s.handleMkdir)
 				r.Post("/team-folders", s.handleCreateTeamFolder)
-				r.Post("/files", s.handleUpload)
 				r.Post("/documents", s.handleCreateDocument)
 				r.Route("/groups", func(r chi.Router) {
 					r.Get("/", s.handleListGroups)
@@ -254,7 +257,6 @@ func (s *Server) Router() http.Handler {
 			r.Post("/copy", s.handleCopyNode)
 			r.Delete("/", s.handleDeleteNode)
 			r.Get("/versions", s.handleListVersions)
-			r.Post("/versions", s.handleUploadVersion)
 			r.Post("/versions/{versionID}/restore", s.handleRestoreVersion)
 			r.Post("/star", s.handleStarNode)
 			r.Delete("/star", s.handleUnstarNode)
@@ -269,6 +271,17 @@ func (s *Server) Router() http.Handler {
 			r.Get("/grants", s.handleListGrants)
 			r.Put("/grants", s.handleUpsertGrant)
 			r.Delete("/grants/{groupID}", s.handleRevokeGrant)
+		})
+		// Resumable uploads (tus 1.0.0). The only way file content enters
+		// through the API: a chunk at a time, each one short enough to finish
+		// inside whatever request deadline a proxy in front imposes.
+		r.Route("/uploads", func(r chi.Router) {
+			r.Post("/", s.handleCreateUpload)
+			r.Route("/{uploadID}", func(r chi.Router) {
+				r.Head("/", s.handleUploadOffset)
+				r.Patch("/", s.handleUploadChunk)
+				r.Delete("/", s.handleTerminateUpload)
+			})
 		})
 	})
 

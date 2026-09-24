@@ -104,7 +104,13 @@ export function TransferTray() {
         <>
           <ul className="max-h-72 overflow-y-auto">
             {transfers.map((t) => (
-              <TransferRow key={t.id} transfer={t} onCancel={cancel} onRetry={retry} />
+              <TransferRow
+                key={t.id}
+                transfer={t}
+                paused={paused}
+                onCancel={cancel}
+                onRetry={retry}
+              />
             ))}
           </ul>
 
@@ -119,7 +125,7 @@ export function TransferTray() {
               </span>
             ) : (
               <Button variant="ghost" size="xs" onClick={() => setPaused(!paused)}>
-                {paused ? <Trans>Resume queue</Trans> : <Trans>Pause queue</Trans>}
+                {paused ? <Trans>Resume uploads</Trans> : <Trans>Pause uploads</Trans>}
               </Button>
             )}
             <Button variant="ghost" size="xs" disabled={done === 0} onClick={clearCompleted}>
@@ -163,11 +169,12 @@ function TrayTitle({
 
 interface RowProps {
   transfer: Transfer;
+  paused: boolean;
   onCancel: (id: string) => void;
   onRetry: (id: string) => void;
 }
 
-function TransferRow({ transfer, onCancel, onRetry }: RowProps) {
+function TransferRow({ transfer, paused, onCancel, onRetry }: RowProps) {
   const { t } = useLingui();
   const pct = transfer.size > 0 ? Math.round((transfer.loaded / transfer.size) * 100) : 0;
   const fileName = transfer.name;
@@ -192,7 +199,7 @@ function TransferRow({ transfer, onCancel, onRetry }: RowProps) {
             transfer.status === "error" ? "text-destructive" : "text-muted-foreground",
           )}
         >
-          <StatusLine transfer={transfer} pct={pct} />
+          <StatusLine transfer={transfer} paused={paused} />
         </span>
       </div>
 
@@ -226,7 +233,7 @@ function TransferRow({ transfer, onCancel, onRetry }: RowProps) {
   );
 }
 
-function StatusLine({ transfer, pct }: { transfer: Transfer; pct: number }) {
+function StatusLine({ transfer, paused }: { transfer: Transfer; paused: boolean }) {
   const { t, i18n } = useLingui();
   const f = useFormatters();
 
@@ -237,10 +244,10 @@ function StatusLine({ transfer, pct }: { transfer: Transfer; pct: number }) {
       const loadedSize = f.size(transfer.loaded);
       const totalSize = f.size(transfer.size);
       const progress = t`${loadedSize} of ${totalSize}`;
-      return <>{progress + rate(transfer, pct, f.size, i18n)}</>;
+      return <>{progress + rate(transfer, f.size, i18n)}</>;
     }
     case "queued":
-      return <Trans>Waiting</Trans>;
+      return paused ? <Trans>Paused</Trans> : <Trans>Waiting</Trans>;
     case "cancelled":
       return <Trans>Cancelled</Trans>;
     case "error":
@@ -249,17 +256,20 @@ function StatusLine({ transfer, pct }: { transfer: Transfer; pct: number }) {
 }
 
 /**
- * Average rate since the transfer started. Omitted until there is a sample.
+ * Average rate of the current attempt. Omitted until it has sent something.
+ * Bytes the server already held when a resumed attempt started are not
+ * counted: they were sent before, not in the time measured here.
  *
  * Takes the i18n instance for the same reason `move-dialog`'s `names` does:
  * the caller's render already holds one, and a plain helper cannot hold a
  * hook. The per-second suffix is a message, not punctuation — it is a word in
  * some languages.
  */
-function rate(t: Transfer, pct: number, size: (n: number) => string, i18n: I18n): string {
-  if (!t.startedAt || pct === 0) return "";
+function rate(t: Transfer, size: (n: number) => string, i18n: I18n): string {
+  const sent = t.loaded - (t.startedFrom ?? 0);
+  if (!t.startedAt || sent <= 0) return "";
   const seconds = (Date.now() - t.startedAt) / 1000;
   if (seconds < 1) return "";
-  const perSecond = size(Math.round(t.loaded / seconds));
+  const perSecond = size(Math.round(sent / seconds));
   return ` · ${i18n._(msg`${perSecond}/s`)}`;
 }

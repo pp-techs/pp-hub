@@ -94,6 +94,23 @@ SELECT * FROM node_versions WHERE node_id = $1 ORDER BY version_no DESC;
 -- name: GetVersion :one
 SELECT * FROM node_versions WHERE id = $1 LIMIT 1;
 
+-- name: PruneVersions :many
+-- Deletes every version of a file beyond the newest `keep` non-current ones
+-- and returns their blob hashes, one row per version, so the caller can
+-- decrement ref_count once for each. The current version is never a
+-- candidate — after a restore it can be an old one, and it is the file.
+-- Previews go with their version (ON DELETE CASCADE).
+DELETE FROM node_versions d
+WHERE d.id IN (
+    SELECT v.id FROM node_versions v
+    JOIN nodes n ON n.id = v.node_id
+    WHERE v.node_id = sqlc.arg('node_id')
+      AND v.id IS DISTINCT FROM n.current_version_id
+    ORDER BY v.version_no DESC
+    OFFSET sqlc.arg('keep')::int
+)
+RETURNING d.blob_hash;
+
 -- name: GetCurrentVersion :one
 SELECT v.* FROM node_versions v
 JOIN nodes n ON n.current_version_id = v.id

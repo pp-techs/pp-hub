@@ -21,6 +21,12 @@ type Store interface {
 	// Put streams r into the store, returning its blake3 hash and size.
 	// Content is hashed while writing; identical content dedups naturally.
 	Put(ctx context.Context, r io.Reader) (hash string, size int64, err error)
+	// Ingest takes ownership of a complete file already on local disk — a
+	// resumable upload's staging file — and stores it under its hash. On
+	// success the file no longer exists at path; on failure it is left for
+	// the caller. Where the store and the file share a filesystem the bytes
+	// are renamed into place, not copied.
+	Ingest(ctx context.Context, path string) (hash string, size int64, err error)
 	Get(ctx context.Context, hash string) (io.ReadCloser, error)
 	Delete(ctx context.Context, hash string) error // GC only
 	// Check reports whether the store can still accept writes. Nothing else
@@ -64,17 +70,52 @@ func (s *LocalStore) Put(ctx context.Context, r io.Reader) (string, int64, error
 	}
 
 	hash := hex.EncodeToString(h.Sum(nil))
-	final := s.path(hash)
-	if _, err := os.Stat(final); err == nil {
-		return hash, size, nil // already stored — dedup
-	}
-	if err := os.MkdirAll(filepath.Dir(final), 0o755); err != nil {
-		return "", 0, err
-	}
-	if err := os.Rename(tmpName, final); err != nil {
+	if err := s.install(tmpName, hash); err != nil {
 		return "", 0, err
 	}
 	return hash, size, nil
+}
+
+// Ingest hashes the file in one read pass and renames it into place. The
+// staging directory lives under the blob root (config.UploadDir), so the
+// rename never crosses a filesystem.
+func (s *LocalStore) Ingest(_ context.Context, path string) (string, int64, error) {
+	hash, size, err := hashFile(path)
+	if err != nil {
+		return "", 0, err
+	}
+	if err := s.install(path, hash); err != nil {
+		return "", 0, err
+	}
+	return hash, size, nil
+}
+
+// install moves a fully written file to its content address, or removes it
+// when identical content is already stored.
+func (s *LocalStore) install(path, hash string) error {
+	final := s.path(hash)
+	if _, err := os.Stat(final); err == nil {
+		return os.Remove(path) // already stored — dedup
+	}
+	if err := os.MkdirAll(filepath.Dir(final), 0o755); err != nil {
+		return err
+	}
+	return os.Rename(path, final)
+}
+
+// hashFile returns the blake3 hash and size of the file at path.
+func hashFile(path string) (string, int64, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", 0, err
+	}
+	defer f.Close()
+	h := blake3.New()
+	size, err := io.Copy(h, f)
+	if err != nil {
+		return "", 0, err
+	}
+	return hex.EncodeToString(h.Sum(nil)), size, nil
 }
 
 func (s *LocalStore) Get(_ context.Context, hash string) (io.ReadCloser, error) {

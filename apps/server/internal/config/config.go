@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/netip"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -426,4 +427,13 @@ func (c *Config) DeriveKey(purpose string) []byte {
 		panic("config: derive " + purpose + ": " + err.Error())
 	}
 	return key
+}
+
+// UploadDir is where resumable uploads are staged until their last byte
+// lands. It sits under the blob root on purpose, whichever backend is in use:
+// that is the one path every deployment already persists, so a restart does
+// not throw away half an upload, and with the local backend the finished file
+// is renamed into the store instead of copied.
+func (c *Config) UploadDir() string {
+	return filepath.Join(c.BlobRoot, ".uploads")
 }

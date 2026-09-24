@@ -364,12 +364,18 @@ func (s *Server) requireParentWrite(w http.ResponseWriter, r *http.Request, spac
 // named capability on it. There is no role floor — an admin with neither
 // ownership nor a grant resolves to nothing, like anyone else.
 func (s *Server) requireNodeCaps(w http.ResponseWriter, r *http.Request, need share.Cap) (*store.User, store.Node, share.Caps) {
-	u := caller(r)
 	nodeID, err := uuidParam(r, "nodeID")
 	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid node id")
 		return nil, store.Node{}, share.Caps{}
 	}
+	return s.requireNodeCapsByID(w, r, nodeID, need)
+}
+
+// requireNodeCapsByID is requireNodeCaps for a node named somewhere other
+// than the URL — an upload's target, carried in its metadata.
+func (s *Server) requireNodeCapsByID(w http.ResponseWriter, r *http.Request, nodeID pgtype.UUID, need share.Cap) (*store.User, store.Node, share.Caps) {
+	u := caller(r)
 	node, err := s.fs.Get(r.Context(), nodeID)
 	if err != nil {
 		s.nodeError(w, r, err)
@@ -562,50 +568,6 @@ func (s *Server) handleCreateTeamFolder(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusCreated, dto)
 }
 
-func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
-	u := caller(r)
-	spaceID, err := uuidParam(r, "spaceID")
-	if err != nil {
-		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
-		return
-	}
-	if err := s.spaces.RequireMember(r.Context(), spaceID, u.ID); err != nil {
-		s.spaceError(w, r, err)
-		return
-	}
-	if !parseUpload(w, r, s.uploadCap()) {
-		return
-	}
-	var parentID pgtype.UUID
-	if p := r.FormValue("parent_id"); p != "" {
-		if err := parentID.Scan(p); err != nil {
-			writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid parent_id")
-			return
-		}
-	}
-	if !s.requireParentWrite(w, r, spaceID, parentID, u) {
-		return
-	}
-	f, hdr, err := r.FormFile("file")
-	if err != nil {
-		writeProblem(w, http.StatusBadRequest, "Bad Request", "file field required")
-		return
-	}
-	defer f.Close()
-
-	node, ver, err := s.fs.PutFile(r.Context(), spaceID, parentID, pgtype.UUID{}, hdr.Filename, f, u.ID)
-	if err != nil {
-		s.nodeError(w, r, err)
-		return
-	}
-	s.activity.Node(r.Context(), u.ID, node, activity.KindUploaded, map[string]any{"size": ver.Size})
-	// Recount used bytes for the space.
-	if used, err := s.store.SumSpaceUsage(r.Context(), spaceID); err == nil {
-		_ = s.store.UpdateSpaceUsedBytes(r.Context(), store.UpdateSpaceUsedBytesParams{ID: spaceID, UsedBytes: used})
-	}
-	writeJSON(w, http.StatusCreated, nodeToDTO(node, &ver).withCaps(share.CapsOwner))
-}
-
 func (s *Server) handleCreateDocument(w http.ResponseWriter, r *http.Request) {
 	u := caller(r)
 	spaceID, err := uuidParam(r, "spaceID")
@@ -673,82 +635,29 @@ func (s *Server) handleCreateDocument(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.activity.Node(r.Context(), u.ID, node, activity.KindCreated, map[string]any{"template": string(kind)})
-	// Recount used bytes for the space.
-	if used, err := s.store.SumSpaceUsage(r.Context(), spaceID); err == nil {
-		_ = s.store.UpdateSpaceUsedBytes(r.Context(), store.UpdateSpaceUsedBytesParams{ID: spaceID, UsedBytes: used})
-	}
 	writeJSON(w, http.StatusCreated, nodeToDTO(node, &ver).withCaps(share.CapsOwner))
 }
 
-// lockedByEditor answers 409 when a live WOPI lock exists, and reports whether
-// the caller should stop. Both REST write paths that change which bytes are
-// current have to ask; the WOPI paths already do, with their own header
-// protocol (X-WOPI-Lock), which is why this is not shared with them.
-func (s *Server) lockedByEditor(w http.ResponseWriter, r *http.Request, nodeID pgtype.UUID) bool {
+// lockedByEditor answers status when a live WOPI lock exists, and reports
+// whether the caller should stop. Both REST write paths that change which
+// bytes are current have to ask; the WOPI paths already do, with their own
+// header protocol (X-WOPI-Lock), which is why this is not shared with them.
+//
+// The status is the caller's: 409 on a plain REST route, 423 on the upload
+// routes, where tus reserves 409 for "your offset is wrong" and a client that
+// read a lock as that would HEAD and retry forever.
+func (s *Server) lockedByEditor(w http.ResponseWriter, r *http.Request, nodeID pgtype.UUID, status int) bool {
 	lockToken, err := s.wopi.CurrentLock(r.Context(), nodeID)
 	if err != nil {
 		Error(w, r, err)
 		return true
 	}
 	if lockToken != "" {
-		writeProblem(w, http.StatusConflict, "Conflict",
+		writeProblem(w, status, http.StatusText(status),
 			"this file is open in the editor; close it or wait for the lock to expire")
 		return true
 	}
 	return false
-}
-
-// handleUploadVersion replaces the contents of an existing file. Requires
-// CapEdit on that file.
-//
-// This is the only way to add a version through the API now: uploading into a
-// folder never overwrites a file that happens to share its name, so replacing
-// somebody's work has to be asked for by node id rather than stumbled into by
-// filename. The node keeps its name and its owner — a new version is authored
-// by whoever uploaded it (node_versions.created_by), which is what the version
-// history shows.
-func (s *Server) handleUploadVersion(w http.ResponseWriter, r *http.Request) {
-	u, node, caps := s.requireNodeCaps(w, r, share.CapEdit)
-	if u == nil {
-		return
-	}
-	if node.Kind != store.NodeKindFile {
-		writeProblem(w, http.StatusBadRequest, "Bad Request", "not a file")
-		return
-	}
-	// A .docx open in OnlyOffice is a lock row with a 30-minute TTL, and the
-	// WOPI save path honours it. This path did not, so B's upload became A's
-	// next save's base and A's work was gone with no conflict anywhere.
-	//
-	// Refused rather than locked: there is no unlock on this path — no
-	// session to end, no REFRESH_LOCK — so a lock taken here would only be
-	// released by the sweep.
-	if s.lockedByEditor(w, r, node.ID) {
-		return
-	}
-	if !parseUpload(w, r, s.uploadCap()) {
-		return
-	}
-	f, _, err := r.FormFile("file")
-	if err != nil {
-		writeProblem(w, http.StatusBadRequest, "Bad Request", "file field required")
-		return
-	}
-	defer f.Close()
-
-	updated, ver, err := s.fs.PutFile(r.Context(), node.SpaceID, node.ParentID, node.ID, node.Name, f, u.ID)
-	if err != nil {
-		s.nodeError(w, r, err)
-		return
-	}
-	s.activity.Node(r.Context(), u.ID, updated, activity.KindUploaded, map[string]any{
-		"size":    ver.Size,
-		"version": ver.VersionNo,
-	})
-	if used, err := s.store.SumSpaceUsage(r.Context(), node.SpaceID); err == nil {
-		_ = s.store.UpdateSpaceUsedBytes(r.Context(), store.UpdateSpaceUsedBytesParams{ID: node.SpaceID, UsedBytes: used})
-	}
-	writeJSON(w, http.StatusOK, nodeToDTO(updated, &ver).withCaps(caps))
 }
 
 // inlineMimes are the types /content may hand the browser to render in place.
@@ -1194,7 +1103,7 @@ func (s *Server) handleRestoreVersion(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid version id")
 		return
 	}
-	if s.lockedByEditor(w, r, node.ID) {
+	if s.lockedByEditor(w, r, node.ID, http.StatusConflict) {
 		return
 	}
 	if err := s.fs.RestoreVersion(r.Context(), node.ID, versionID); err != nil {

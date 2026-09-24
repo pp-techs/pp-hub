@@ -2,10 +2,12 @@ package httpapi
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"image"
 	"image/color"
 	"image/png"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -14,10 +16,29 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/nhatbui/pp-hub/apps/server/internal/auth"
 	"github.com/nhatbui/pp-hub/apps/server/internal/blob"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 	"github.com/nhatbui/pp-hub/apps/server/internal/users"
 )
+
+// authedNodeRequest drives one /api/v1/… call through a real chi router with
+// the session the authenticated middleware would have put in the context.
+func authedNodeRequest(t *testing.T, h http.HandlerFunc, method, pattern, nodeID string,
+	u store.User, body io.Reader, contentType string) *httptest.ResponseRecorder {
+	t.Helper()
+	r := chi.NewRouter()
+	r.Method(method, pattern, h)
+	req := httptest.NewRequest(method, strings.Replace(pattern, "{nodeID}", nodeID, 1), body)
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
+	}
+	req = req.WithContext(context.WithValue(req.Context(), sessionCtxKey,
+		&auth.Session{ID: u.ID, User: u}))
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	return rec
+}
 
 // onePixelPNG encodes a 1x1 opaque PNG — small, real, and decodable, so
 // http.DetectContentType actually reports image/png rather than a caller

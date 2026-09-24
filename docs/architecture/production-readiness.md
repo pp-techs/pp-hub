@@ -15,7 +15,7 @@ auditor yet**.
 
 It is the evidence, not the plan. [milestones.md](milestones.md) holds the
 plan: every remaining gap below is carried by a named milestone, **M27
-through M31**, and each heading here says which. Nothing there is
+through M31** (M30 now closed), and each heading here says which. Nothing there is
 scheduled — the numbers are an order the dependencies suggest, and the
 phasing at the end explains that order. What stays here is the reason each
 item is (or was) on the list and the `file:line` that lets a reader check
@@ -410,6 +410,16 @@ What shipped:
   `audit.ClientIP`, not `r.RemoteAddr`, and that is what makes it a limit at
   all — see §8, where chi's `RealIP` is retired.
 
+**Since M30** the multipart handlers are gone and `parseUpload` serves only
+the avatar upload. Uploaded files enter through the tus routes
+(`internal/httpapi/uploads.go`): the ceiling is checked against the declared
+`Upload-Length` when the upload is created, and each chunk is copied through
+an `io.LimitReader` bounded by that length, so no chunk can carry a byte past
+it. The declared length is now also checked against the quota at creation,
+together with what other in-flight uploads have promised to the space — a
+refusal before any bytes move, not a replacement for the check after they
+land. `limitBody` still guards WOPI `PutFile`.
+
 What honestly remains:
 
 - **The limiter is per process.** The buckets are a map in memory, so N
@@ -422,8 +432,8 @@ What honestly remains:
   `quota_bytes`.** The ceiling bounds one request; it does not bound a
   thousand of them, and a space with `quota_bytes = 0` is unmetered by
   definition. Per-user quota remains absent entirely — there is no
-  `users.quota_*` column — and the accounting gap under P1 ("storage
-  accounting understates real usage", **M30**) is unchanged.
+  `users.quota_*` column. The accounting gap under P1 ("storage accounting
+  understates real usage") was closed in **M30**.
 - **The HTTP server still sets only `ReadHeaderTimeout: 10s`**
   (`cmd/server/main.go`). There is no write or idle timeout, and no
   `middleware.Timeout`; the long `proxy_*_timeout` values in `nginx.conf` are
@@ -463,6 +473,16 @@ move and rename of a locked node — none of them change file bytes, and
 (`internal/httpapi/locks_db_test.go`) holds the line against a real
 Postgres: a locked node refuses the upload and the version count stays put;
 the same node unlocked accepts it and the count goes up by one.
+
+**Since M30** `handleUploadVersion` no longer exists. A replacement is a tus
+upload naming `node_id`; `lockedByEditor` — which now takes the status to
+answer — runs when it is created and again at commit, and answers
+`423 Locked` on those routes because tus reserves 409 for an offset
+mismatch. Restore-version still answers 409. The test above went with the
+handler; `TestReplacementUploadHonoursTheEditorLock`
+(`internal/httpapi/uploads_db_test.go`) now holds the same line, and a
+commit refused as locked keeps the upload so the user can retry without
+re-sending.
 
 ### 8. What the sweeps found — closed in M21
 
@@ -703,30 +723,65 @@ been deferred at every milestone since M10, whose own entry in
 [milestones.md](milestones.md) says so and whose successor repeats it, as "a
 whole subsystem", which is accurate.
 
-### Uploads are not resumable — M30
+### Uploads are not resumable — closed in M30
 
-The `uploads` table is in the schema (`0001_init.sql:229-242`) and **no Go code
-references it** — it is dead schema. The transfer tray's pause stops the queue
-rather than a transfer in flight, which M11's entry in
-[milestones.md](milestones.md) already records as still-not-done. A 4 GB upload that
-drops at 90% restarts at zero, and nothing sweeps abandoned rows because
-nothing writes them.
+What it was: the `uploads` table is in the schema (`0001_init.sql:229-242`)
+and **no Go code referenced it** — it was dead schema. The transfer tray's
+pause stopped the queue rather than a transfer in flight, which M11's entry in
+[milestones.md](milestones.md) records as still-not-done. A 4 GB upload that
+dropped at 90% restarted at zero, and nothing swept abandoned rows because
+nothing wrote them. In production it was worse than a missing feature: one
+multipart POST behind Traefik's 60-second `readTimeout` or Cloudflare's
+100 MB body cap failed outright for any file that took longer than a minute
+(see the Dokploy section of [deployment.md](../deployment.md)).
 
-### Storage accounting understates real usage — M30
+What shipped: tus 1.0.0 (core, creation, termination) at `/api/v1/uploads`,
+replacing both multipart endpoints (`internal/httpapi/uploads.go`,
+`internal/uploads`, migration `0010_resumable_uploads.sql`). The cap and the
+quota — including bytes other in-flight uploads have promised — are checked
+against the declared length before a byte is accepted; an interrupted PATCH
+keeps every byte that arrived, fsynced before the offset advances; the final
+PATCH commits before answering, and a committed row outlives the commit so a
+client that lost the response learns from HEAD that the file landed.
+Staging lives in `<PP_BLOB_ROOT>/.uploads`, an upload expires after 24 hours
+without a byte, and a 15-minute sweep removes expired rows, their files and
+orphaned files. The web client (`apps/web/src/lib/api/tus.ts`) sizes chunks
+from measured throughput toward 15 s per PATCH and retries proxy failures
+with a HEAD resync; the tray's pause now stops a transfer in flight and
+resume continues from the server's offset.
 
-`node_versions` grows without bound (`0001_init.sql:207-220`); nothing prunes
-old versions and there is no version-count cap. Quota, meanwhile, is computed
-from the current version only (`fs.Service.checkQuota`, `fs.go:175-202`: it
-sums space usage and then subtracts the outgoing current version's size, so
-every superseded version is invisible to the meter that is supposed to bound
-the disk).
+What honestly remains: a per-upload lock that is in-process and staging on
+local disk, so the upload routes assume one `server` process; and the
+browser keeps an upload's URL in memory only, so a page reload starts the
+file over (the abandoned upload expires on its own).
 
-The two together mean the disk fills while the storage meter says there is room
-— the numbers are not merely incomplete, they diverge over time. Either quota
-counts every referenced blob, or versions get a retention policy; ideally both.
+### Storage accounting understates real usage — closed in M30, except per-user quota
 
-Also absent: per-user quota (no `users.quota_*` column, `0001_init.sql:33-50`),
-file-count limits, and any egress accounting.
+What it was: `node_versions` grows without bound (`0001_init.sql:207-220`);
+nothing pruned old versions and there was no version-count cap. Quota,
+meanwhile, was computed from the current version only
+(`fs.Service.checkQuota`, `fs.go:175-202`: it summed space usage and then
+subtracted the outgoing current version's size, so every superseded version
+was invisible to the meter that is supposed to bound the disk).
+
+The two together meant the disk filled while the storage meter said there was
+room — the numbers were not merely incomplete, they diverged over time. Either
+quota counts every referenced blob, or versions get a retention policy;
+ideally both.
+
+What shipped: both. `SumSpaceUsage` counts every stored version of every file
+in the space, trash included, and migration `0010` recomputed every space's
+`used_bytes` under that definition; `fs.EnsureRoom` charges a new version its
+full size. `version_retention_count` (Admin › Settings, default 100, `0`
+keeps every version) prunes a file's history beyond the newest N on each new
+version, releasing the blobs to GC — on the next save of each file, not in a
+retroactive sweep. `GET /api/v1/usage` breaks out `versions` and `trash`, so
+the slices sum to the meter.
+
+Still absent: per-user quota (no `users.quota_*` column,
+`0001_init.sql:33-50`), file-count limits, and any egress accounting. Usage
+also sums version sizes, not distinct blobs, so deduplicated content (a copy
+shares its blob) is counted once per version that references it.
 
 ### No way to create a document — M31
 
@@ -793,10 +848,13 @@ The two that were **M25** are closed and the rest have no milestone at all —
 said plainly here so they are not quietly absorbed into one that does not
 cover them.
 
-- **No antivirus or content scanning.** Uploads go from the multipart part
+- **No antivirus or content scanning.** Uploads went from the multipart part
   straight into the CAS (`fs.go:125-128` → `blob/blob.go:44-74`) with no scan
   hook, no MIME sniffing (type is guessed from the extension, `fs.go:139-142`)
-  and no extension blocklist. Unscheduled.
+  and no extension blocklist. Since M30 they arrive as a tus staging file and
+  go into the CAS through `fs.PutStagedFile` → `blob.Store.Ingest` (WOPI saves
+  still stream through `fs.PutFile` → `Put`); neither path scans or sniffs.
+  Unscheduled.
 - **No encryption at rest.** Local blobs are plaintext under `0755` dirs
   (`blob/blob.go:29-40`); the S3 backend sets no SSE headers; Postgres runs
   `sslmode=disable` inside the compose network (the `PP_DATABASE_URL` both
@@ -912,6 +970,7 @@ drilled restore) and **M23** (§2, mail transport, invitations only — since
 deleted by M33, which moved that email to Logto) — plus
 **M24** (§7), whose decision landed as refuse-not-lock: the REST
 version-upload and version-restore paths now answer 409 against a live lock
+(since M30 the version upload is a tus replacement, answering 423)
 rather than taking one of their own, which is simple, correct, and
 occasionally makes an editor left open over lunch block a colleague with no
 recourse short of the TTL. Along the way, two items that were never on the P0
@@ -939,9 +998,10 @@ notifications**, which is now the whole of that problem rather than half of
 it: M33 deleted the transport M23 built, because the invitation it carried
 moved to Logto, so M29 owns the notification story, what a share or comment
 notification says, the `notifications` table _and_ the transport that delivers
-any of it; M30 — resumable upload and honest accounting, which
-is the dead `uploads` table, version retention and a quota that counts every
-referenced blob; and **M31 — document creation** from a template.
+any of it; **M30 — resumable upload and honest accounting — done**: tus
+uploads against the formerly dead `uploads` table, version retention, and a
+quota that counts every stored version; and **M31 — document creation** from
+a template.
 
 **Named but unscheduled.** A gap with no milestone is still a gap, and the
 risk of a roadmap is that it stops being visible: `style-src

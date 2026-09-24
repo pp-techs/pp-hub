@@ -11,9 +11,10 @@
 
 ### UC-1: Upload a file
 
-1. User opens a space, navigates to a folder, uploads a file (multipart or resumable tus).
-2. Server streams content into the CAS blob store (`Put` → blake3 hash), then commits a `node_version` in a transaction.
+1. User opens a space, navigates to a folder, uploads a file. The browser sends it as a resumable tus upload (`POST /api/v1/uploads`, then `PATCH` chunks), so a dropped connection resumes from the last byte the server kept instead of from zero, and pause/resume in the transfer tray act on the transfer in flight.
+2. The declared size is checked against the upload cap and the space quota before any bytes move; when the last chunk lands, the server hashes the staged file into the CAS blob store (`Ingest` → blake3 hash), checks the quota again against the measured size, and commits a `node_version`.
 3. Duplicate content reuses the existing blob (dedup via content hash).
+4. Replacing an existing file is the same upload naming the file: the bytes become its new version, older versions beyond the instance's retention count (default 100) are pruned, and the whole history counts against the space quota.
 
 ### UC-2: Organize folders
 

@@ -141,7 +141,7 @@ function LoginPage() {
           </div>
           <ul className="grid max-w-sm gap-4">
             <Feature icon={HardDrive} title={<Trans>Drive</Trans>}>
-              <Trans>Upload, organise and share files, with every version kept.</Trans>
+              <Trans>Upload, organise and share files, with their version history.</Trans>
             </Feature>
             <Feature icon={FileText} title={<Trans>Office</Trans>}>
               <Trans>Edit documents and spreadsheets together in the browser.</Trans>

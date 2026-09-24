@@ -61,8 +61,14 @@ var clientRoutes = []string{
 	"GET /api/v1/spaces/{spaceID}/trash",
 	"POST /api/v1/spaces/{spaceID}/trash/empty",
 	"POST /api/v1/spaces/{spaceID}/dirs",
-	"POST /api/v1/spaces/{spaceID}/files",
 	"POST /api/v1/spaces/{spaceID}/documents",
+
+	// Resumable uploads — the only way file content comes in.
+	"POST /api/v1/uploads/",
+	"HEAD /api/v1/uploads/{uploadID}/",
+	"PATCH /api/v1/uploads/{uploadID}/",
+	"DELETE /api/v1/uploads/{uploadID}/",
+
 	"GET /api/v1/spaces/{spaceID}/members/",
 	"POST /api/v1/spaces/{spaceID}/members/",
 	"POST /api/v1/spaces/{spaceID}/members/{userID}/set-admin",

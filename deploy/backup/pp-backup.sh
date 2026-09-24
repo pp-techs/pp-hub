@@ -91,8 +91,10 @@ s3)
 	;;
 *)
 	# local, or any other/unknown value — treat as local (matches config.go's default).
+	# .uploads holds half-finished resumable uploads: not files yet, and a
+	# restored upload row whose bytes are missing is dropped on its next chunk.
 	dc run --rm --no-deps --user root -T -v "$DIR_ABS:/backup" --entrypoint sh server \
-		-c 'tar -czf /backup/blobs.tar.gz -C /data/blobs .'
+		-c 'tar -czf /backup/blobs.tar.gz --exclude=./.uploads -C /data/blobs .'
 	BLOB_ARCHIVE="blobs.tar.gz"
 	;;
 esac

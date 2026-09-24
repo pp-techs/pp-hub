@@ -194,7 +194,7 @@ about the feed's schema, scoping or readers wanted to become an audit log.
 
 ## System Configuration
 
-`migrations/0006_system_config.sql`. Key-value JSONB store for dynamic operational and policy knobs (e.g. `instance_name`, `max_upload_bytes`, `audit_retention_days`, `default_space_quota_bytes`).
+`migrations/0006_system_config.sql`. Key-value JSONB store for dynamic operational and policy knobs (e.g. `instance_name`, `max_upload_bytes`, `audit_retention_days`, `default_space_quota_bytes`, and since M30 `version_retention_count`).
 
 ```sql
 system_config(key, tenant_id, value, updated_at, updated_by)
@@ -310,7 +310,14 @@ shares(id, tenant_id, node_id,                  -- file or folder; inherits down
 
 previews(node_version_id, kind, blob_hash)      -- kind: thumbnail | text (the artifact)
 
-uploads(id, node_target, temp_path, offset, expires_at)  -- tus resumable state
+uploads(id, tenant_id, space_id, parent_id, node_id, name,  -- tus resumable state (0010)
+        total_size, uploaded, temp_path, expires_at, completed_at, created_by, created_at)
+  CHECK (0 <= uploaded <= total_size)
+  -- node_id set = the bytes become a new version of that file (ON DELETE CASCADE);
+  -- otherwise a new file `name` under parent_id. total_size is NOT NULL: the cap and
+  -- the quota are checked against it at creation. temp_path is relative to
+  -- <PP_BLOB_ROOT>/.uploads. expires_at slides 24h forward on every chunk;
+  -- completed_at marks a committed upload, kept until expiry so HEAD can answer.
 
 jobs(id, kind, payload, status, run_at, attempts)        -- kind routes to a worker;
                                                          -- run_at = claimed-at while running
@@ -321,7 +328,8 @@ jobs(id, kind, payload, status, run_at, attempts)        -- kind routes to a wor
 - `node_versions` are immutable; restore = flip `nodes.current_version_id`.
 - Every `blob_hash` referenced by a version exists in `blobs`; `ref_count` tracks references (counter + periodic recount job — counter drift is a known, tolerated risk).
 - A file node always has at least one version.
-- Uploading into a folder never overwrites: `PutFile` with a zero `fileID` always creates a node, suffixing the name (`report (2).txt`) when it is taken. A new version of an existing file is an explicit `POST /nodes/{id}/versions`. Ownership must not depend on whether a filename happened to collide.
+- Uploading into a folder never overwrites: `PutFile` with a zero `fileID` always creates a node, suffixing the name (`report (2).txt`) when it is taken. A new version of an existing file is an explicit act — `POST /nodes/{id}/versions` until M30, a tus upload naming `node_id` since. Ownership must not depend on whether a filename happened to collide.
+- `uploads.uploaded` never claims a byte the staging file does not durably hold: `uploads.Service.Append` fsyncs before advancing the row, and a staging file found shorter than the row (a database restored without `.uploads`) discards the upload rather than resuming into zeros.
 - CAS dedup: identical content across files/spaces shares one blob row.
 - Every node has an owner: `nodes.created_by` is NOT NULL, and it is the only unconditional access path in the system. Ownership inherits down the subtree, so a node inside somebody else's folder is reachable by both creators.
 - Every space has an `Everyone` group, an `Admin` group and an `archive_root_id`. `spaces.Service` provisions all three at creation; the uniqueness indices assume they exist.
@@ -371,8 +379,12 @@ Recording is best-effort: an event describes work that already succeeded, so a f
 
 ## Quota
 
-`fs.checkQuota` rejects an upload that would push a space past `quota_bytes`, answering **413** with `fs.ErrQuotaExceeded`. It measures the delta a new version introduces, not the file's full size, so replacing a 10 MB file with a 11 MB one costs 1 MB. A space with `quota_bytes = 0` is unmetered.
+`fs.EnsureRoom` rejects adding bytes that would push a space past `quota_bytes`, answering **413** with `fs.ErrQuotaExceeded`. Since M30 it compares `used + incoming` with no discount: a new version costs its full size, because the version it supersedes is still on disk. (Before M30, `fs.checkQuota` measured only the delta a new version introduced, so replacing a 10 MB file with an 11 MB one cost 1 MB — and every superseded version was invisible to the meter.) It runs twice for a tus upload: at creation against the declared length plus `PendingUploadBytes` — what other uploads still in flight have promised to the space, so parallel uploads cannot each pass a check they would fail together — and again in `fs.putFile` against the measured size once the bytes have landed, which is the enforcement; the declared figure only refuses early. The second check runs before the node is created, so a refused upload leaves no empty file behind. A space with `quota_bytes = 0` is unmetered.
 
-`spaces.used_bytes` is recomputed by `fs.RecountUsage` — one `SUM` over the current versions of live files — after any mutation that can change the total (commit, delete, restore, purge, empty-trash). A recount is cheap at this scale and cannot drift, unlike an incremental counter.
+`spaces.used_bytes` is recomputed by `fs.RecountUsage` — one `SUM` (`SumSpaceUsage`) over **every stored version of every file in the space, trash included** — after any mutation that can change the total. Until M30 it summed only the current versions of live files, which let the meter and the disk drift apart; migration `0010` recomputed every space under the new definition. `fs.PutFile` and `fs.PutStagedFile` recount themselves, so WOPI saves move the meter too. It sums version sizes, not distinct blobs, so a copy sharing its blob is counted for each version that references it. A recount is cheap at this scale and cannot drift, unlike an incremental counter.
+
+**Version retention** keeps history bounded. `version_retention_count` (`system_config`, default 100, `0` keeps every version, at most 10000) is read on every save; after each new version `fs.pruneVersions` runs `PruneVersions`, deleting every version beyond the newest N — the current version is never a candidate and counts as one of the N — and decrementing `ref_count` once per pruned version so GC reclaims the blobs; previews cascade. It applies on each file's next save, not in a retroactive sweep.
+
+`GET /api/v1/usage` (`SumSpaceUsageByCategory`) splits the same total: `trash` (every version of trashed files; `files` counts files), `versions` (superseded versions of live files; `files` counts versions), then current versions by MIME family — so the slices sum to `used_bytes`.
 
 Both fields are returned by `GET /api/v1/spaces`, and the rail's storage meter renders the ratio between them; `quota_bytes = 0` shows the used figure with no bar.

@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -142,6 +143,51 @@ func runStoreConformance(t *testing.T, newStore func(t *testing.T) Store) {
 		got, _ := io.ReadAll(rc)
 		if !bytes.Equal(got, content) {
 			t.Fatal("large round-trip mismatch")
+		}
+	})
+
+	// A finished resumable upload arrives as a file. Ingest must address it
+	// exactly as Put would the same bytes — otherwise an uploaded file and a
+	// WOPI save of identical content stop deduplicating — and must take the
+	// file away, dedup or not, or the staging directory fills.
+	t.Run("IngestMatchesPutAndConsumesTheFile", func(t *testing.T) {
+		s := newStore(t)
+		ingest := func(content []byte) string {
+			t.Helper()
+			staged := filepath.Join(t.TempDir(), "upload")
+			if err := os.WriteFile(staged, content, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			hash, size, err := s.Ingest(t.Context(), staged)
+			if err != nil {
+				t.Fatalf("Ingest: %v", err)
+			}
+			if size != int64(len(content)) {
+				t.Fatalf("size %d, want %d", size, len(content))
+			}
+			if _, err := os.Stat(staged); !os.IsNotExist(err) {
+				t.Fatal("the staged file must be gone after Ingest")
+			}
+			rc, err := s.Get(t.Context(), hash)
+			if err != nil {
+				t.Fatalf("Get: %v", err)
+			}
+			defer rc.Close()
+			if got, _ := io.ReadAll(rc); !bytes.Equal(got, content) {
+				t.Fatal("stored bytes differ from the staged file")
+			}
+			return hash
+		}
+
+		ingest(bytes.Repeat([]byte("fresh"), 50_000))
+
+		content := bytes.Repeat([]byte("staged"), 50_000)
+		putHash, _, err := s.Put(t.Context(), bytes.NewReader(content))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if hash := ingest(content); hash != putHash {
+			t.Fatalf("Ingest addressed identical bytes as %s, Put as %s", hash, putHash)
 		}
 	})
 

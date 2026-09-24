@@ -164,69 +164,6 @@ export async function createDocument(
   return res.json() as Promise<Node>;
 }
 
-export async function uploadFile(spaceId: string, file: File, parentId?: string): Promise<Node> {
-  const fd = new FormData();
-  if (parentId) fd.append("parent_id", parentId);
-  fd.append("file", file);
-  const res = await api.post(`api/v1/spaces/${spaceId}/files`, { body: fd });
-  if (!res.ok) throw new ApiError(res.status, await res.text());
-  return res.json() as Promise<Node>;
-}
-
-/**
- * Upload with progress. `fetch` (and so ky) exposes no upload progress events,
- * so the transfer tray needs XMLHttpRequest — this is the one endpoint that
- * does not go through the shared client.
- *
- * With `replaceNodeId` the bytes go to that node's versions endpoint
- * (`POST /api/v1/nodes/{id}/versions`) instead of the space's files endpoint:
- * the same transfer row, the same progress and the same abort, but landing as
- * a new version of a file that already exists rather than as a second file
- * called "name (2)". That is the "Replace" half of the upload conflict
- * dialog. The versions endpoint addresses a node, so it takes no `parent_id`.
- *
- * Returns an abort function alongside the promise; cancelling rejects it with
- * an ApiError of status 0.
- */
-export function uploadFileWithProgress(
-  spaceId: string,
-  file: File,
-  parentId: string | undefined,
-  onProgress: (loaded: number, total: number) => void,
-  replaceNodeId?: string,
-): { promise: Promise<Node>; abort: () => void } {
-  const xhr = new XMLHttpRequest();
-  const promise = new Promise<Node>((resolve, reject) => {
-    const fd = new FormData();
-    if (parentId && !replaceNodeId) fd.append("parent_id", parentId);
-    fd.append("file", file);
-
-    xhr.upload.addEventListener("progress", (e) => {
-      if (e.lengthComputable) onProgress(e.loaded, e.total);
-    });
-    xhr.addEventListener("load", () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        // The last progress event can arrive before the response; make sure the
-        // row reads 100% rather than freezing a beat short.
-        onProgress(file.size, file.size);
-        resolve(JSON.parse(xhr.responseText) as Node);
-      } else {
-        reject(new ApiError(xhr.status, xhr.responseText || xhr.statusText));
-      }
-    });
-    xhr.addEventListener("error", () => reject(new ApiError(0, "Network error")));
-    xhr.addEventListener("abort", () => reject(new ApiError(0, "Cancelled")));
-
-    xhr.open(
-      "POST",
-      replaceNodeId ? `/api/v1/nodes/${replaceNodeId}/versions` : `/api/v1/spaces/${spaceId}/files`,
-    );
-    xhr.withCredentials = true;
-    xhr.send(fd);
-  });
-  return { promise, abort: () => xhr.abort() };
-}
-
 export async function renameNode(nodeId: string, name: string): Promise<Node> {
   const res = await api.patch(`api/v1/nodes/${nodeId}/rename`, {
     json: { name },
