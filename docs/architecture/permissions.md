@@ -237,6 +237,13 @@ Creating into a folder goes through `requireParentWrite`:
   may create at their top level, and what they create is private to them. This
   is the M15 change: the root is no longer admin-only.
 
+An upload (tus, M30) is authorized this way when it is created: membership
+plus `requireParentWrite` for a new file, or `CapEdit` on the file for a
+replacement (`node_id`), which also refuses a file open in the editor with
+**423**. The same check runs again when the last chunk commits — access can
+be revoked, and an editor opened, while the bytes are still arriving — and
+the upload itself is visible only to the account that created it.
+
 Space-level powers — member management, creating and editing groups, settings,
 the departure queue, emptying the trash — are gated by `spaces.RequireAdmin`,
 i.e. Admin-group membership. They never travel through the capability scale.
@@ -870,6 +877,9 @@ duplicates dropped rather than revived).
 
 ## Quotas
 
-Per-space `quota_bytes` is enforced at upload (`fs.checkQuota`, **413** when a
-space would go over), and `used_bytes` is recounted after size-changing
+Per-space `quota_bytes` is enforced at upload (`fs.EnsureRoom`, **413** when a
+space would go over) — since M30 twice: against the declared length plus
+what other in-flight uploads have promised when the upload is created, and
+against the measured size once the bytes land. `used_bytes` counts every
+stored version, trash included, and is recounted after size-changing
 mutations. See the Quota section of [data-model.md](data-model.md).

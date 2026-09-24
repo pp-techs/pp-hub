@@ -13,7 +13,9 @@ import { cn } from "@workspace/ui/lib/utils";
 import { useFormatters } from "@/lib/format";
 
 /**
- * Storage split by MIME family.
+ * Storage split by MIME family, plus the two things files leave behind: the
+ * older versions of live files, and everything in the trash. Every row is
+ * bytes held against the space, so together they are its storage meter.
  *
  * The design calls for one cyan segment and the rest in neutral greys: the
  * accent marks the largest category so the eye lands on what is actually
@@ -32,7 +34,32 @@ const LABELS: Record<UsageCategory["category"], MessageDescriptor> = {
   audio: msg`Audio`,
   document: msg`Documents`,
   other: msg`Other`,
+  versions: msg`Older versions`,
+  trash: msg`Trash`,
 };
+
+/**
+ * The count beside a row whose `files` is not live files: stored older
+ * versions, and trashed files. Neither belongs in the header's file count —
+ * a file with ten versions is one file, and a trashed file is not in the
+ * space any more — so they are counted on their own row instead.
+ */
+function SideCount({ usage }: { usage: UsageCategory }) {
+  // A named local, so the extracted message reads `{files, plural, …}`.
+  const { files } = usage;
+  let count: React.ReactNode;
+  switch (usage.category) {
+    case "versions":
+      count = <Plural value={files} one="# version" other="# versions" />;
+      break;
+    case "trash":
+      count = <Plural value={files} one="# file" other="# files" />;
+      break;
+    default:
+      return null;
+  }
+  return <span className="text-muted-foreground shrink-0 text-[10px] tabular-nums">{count}</span>;
+}
 
 // eslint-disable-next-line lingui/no-unlocalized-strings -- Tailwind class names
 const SHADES = ["bg-neutral-400", "bg-neutral-500", "bg-neutral-600", "bg-neutral-700"];
@@ -51,7 +78,10 @@ export function StorageBreakdown({ usage }: { usage: UsageCategory[] }) {
   }
 
   const totalSize = f.size(total);
-  const files = usage.reduce((n, u) => n + u.files, 0);
+  const files = usage.reduce(
+    (n, u) => (u.category === "versions" || u.category === "trash" ? n : n + u.files),
+    0,
+  );
 
   return (
     <Card>
@@ -92,6 +122,7 @@ export function StorageBreakdown({ usage }: { usage: UsageCategory[] }) {
                 )}
               />
               <span className="truncate">{i18n._(LABELS[u.category])}</span>
+              <SideCount usage={u} />
               <span className="text-muted-foreground ml-auto shrink-0 tabular-nums">
                 {f.size(u.bytes)}
               </span>

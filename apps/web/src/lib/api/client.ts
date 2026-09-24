@@ -48,6 +48,17 @@ export function setUnauthorizedHandler(fn: () => void) {
   onUnauthorized = fn;
 }
 
+/**
+ * Hands a 401 to the registered handler and returns the error to throw. The
+ * ky hook below goes through it, and so does the resumable upload's XHR —
+ * the one request that cannot use ky — so a session that dies halfway
+ * through a long upload routes to sign-in like any other request.
+ */
+export function unauthorized(): ApiError {
+  onUnauthorized?.();
+  return new ApiError(401, "Unauthorized");
+}
+
 export const api = ky.create({
   prefix: "/",
   credentials: "same-origin",
@@ -56,9 +67,8 @@ export const api = ky.create({
     afterResponse: [
       (state: AfterResponseState) => {
         if (state.response.status === 401) {
-          onUnauthorized?.();
           // Still throws: route loaders (`requireAuth`) branch on ApiError.
-          throw new ApiError(401, "Unauthorized");
+          throw unauthorized();
         }
       },
     ],

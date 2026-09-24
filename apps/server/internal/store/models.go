@@ -359,18 +359,19 @@ type SystemConfig struct {
 }
 
 type Upload struct {
-	ID        pgtype.UUID        `json:"id"`
-	TenantID  string             `json:"tenant_id"`
-	SpaceID   pgtype.UUID        `json:"space_id"`
-	ParentID  pgtype.UUID        `json:"parent_id"`
-	Name      string             `json:"name"`
-	Mime      string             `json:"mime"`
-	TotalSize pgtype.Int8        `json:"total_size"`
-	Uploaded  int64              `json:"uploaded"`
-	TempPath  string             `json:"temp_path"`
-	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
-	CreatedBy pgtype.UUID        `json:"created_by"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	ID          pgtype.UUID        `json:"id"`
+	TenantID    string             `json:"tenant_id"`
+	SpaceID     pgtype.UUID        `json:"space_id"`
+	ParentID    pgtype.UUID        `json:"parent_id"`
+	Name        string             `json:"name"`
+	TotalSize   int64              `json:"total_size"`
+	Uploaded    int64              `json:"uploaded"`
+	TempPath    string             `json:"temp_path"`
+	ExpiresAt   pgtype.Timestamptz `json:"expires_at"`
+	CreatedBy   pgtype.UUID        `json:"created_by"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	NodeID      pgtype.UUID        `json:"node_id"`
+	CompletedAt pgtype.Timestamptz `json:"completed_at"`
 }
 
 type User struct {

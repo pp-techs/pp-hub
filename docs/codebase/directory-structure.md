@@ -10,7 +10,7 @@ pp-hub/
 │   │   ├── nginx.conf              # serves the bundle, proxies the API on one origin
 │   │   └── src/
 │   │       ├── lib/
-│   │       │   ├── api/            # ky client, types, endpoints, utils
+│   │       │   ├── api/            # ky client, types, endpoints, utils; tus.ts = resumable upload client
 │   │       │   ├── queries/        # TanStack Query hooks (per-resource)
 │   │       │   ├── query-client.ts # shared QueryClient
 │   │       │   ├── ui-store.ts     # zustand ephemeral UI state
@@ -19,7 +19,7 @@ pp-hub/
 │   │       │   ├── selection.ts    # click → selection (replace / ⌘ toggle / ⇧ range)
 │   │       │   ├── use-marquee-selection.ts # drag a band over the listing to select
 │   │       │   ├── drag-drop.ts    # validation, cycle detection & ghost badge for internal DnD
-│   │       │   ├── upload-store.ts # zustand upload queue (concurrency, retry, mkdir cache)
+│   │       │   ├── upload-store.ts # zustand upload queue (concurrency, pause/resume, retry, mkdir cache) over tus
 │   │       │   ├── drop-items.ts   # flattens a drop / folder pick into upload items
 │   │       │   ├── use-debounced.ts # trailing-edge debounce for the palette query
 │   │       │   └── use-keyed-state.ts # state that resets when its subject changes
@@ -95,7 +95,8 @@ pp-hub/
 │           │   ├── server.go       # the router, and the middleware that makes it safe by group
 │           │   ├── csrf.go         # sameOrigin: every mutation, before authentication
 │           │   ├── ratelimit.go    # per-IP token buckets on the anonymous surfaces
-│           │   ├── limits.go       # request-body ceilings for anything that becomes file content
+│           │   ├── limits.go       # body ceilings outside tus: limitBody (WOPI PutFile), parseUpload (avatar)
+│           │   ├── uploads.go      # tus 1.0.0 /api/v1/uploads — every browser upload; WOPI PutFile is the other writer
 │           │   ├── logging.go      # chi's logger with share and WOPI tokens redacted
 │           │   ├── sessions.go     # the account's own device list and its revoke endpoints
 │           │   ├── security_events.go # GET /admin/security-events (+ filters) and its CSV /export
@@ -108,15 +109,17 @@ pp-hub/
 │           │                       #    0002_sessions.sql, 0003_security_events.sql,
 │           │                       #    0004_user_avatars.sql, 0005_logto_orgs.sql,
 │           │                       #    0006_system_config.sql, 0007_idp_profile.sql,
-│           │                       #    0008_read_audit.sql
+│           │                       #    0008_read_audit.sql, 0009_direct_share_uniq.sql,
+│           │                       #    0010_resumable_uploads.sql
 │           ├── users/              # user service layer (profile)
 │           ├── orgsync/            # ✅ Logto Management API client + the reconciler that owns space_members
 │           ├── spaces/             # space CRUD, membership, the Admin group, leaving a space
 │           │   ├── spaces.go       # RequireAdmin/SetAdmin/AddMember; RevokeMembership is immediate, CompleteDeparture archives what a leaver owned
 │           │   └── permissions_db_test.go # DB-backed; skipped unless PP_TEST_DATABASE_URL is set
 │           ├── groups/             # groups + the grants that open folders
-│           ├── fs/                 # file tree, versioning, move/copy/rename
-│           ├── blob/               # CAS Store interface + local and S3 impls
+│           ├── fs/                 # file tree, versioning, move/copy/rename; quota (EnsureRoom), version retention
+│           ├── uploads/            # ✅ resumable upload rows + staging files in <PP_BLOB_ROOT>/.uploads; 24h idle sweep
+│           ├── blob/               # CAS Store interface + local and S3 impls; Ingest takes over a staged upload
 │           ├── share/              # grants — user, group, link — and the caps they resolve to
 │           ├── wopi/               # WOPI host endpoints; access tokens signed with a derived subkey
 │           └── preview/            # renderers + job loop; jobs.kind routes, previews.kind is the artifact
@@ -339,8 +342,11 @@ pp-hub/
   fires for a created folder as well as a finished file — otherwise uploading a
   folder only ever names directories below the view you are looking at, and the
   new folder wouldn't appear in it until a reload.
-  `uploadFileWithProgress` is the one endpoint that uses `XMLHttpRequest`
-  rather than the shared `ky` client, because `fetch` reports no upload
-  progress.
+  The tus client's `PATCH` (`lib/api/tus.ts`) is the one request that uses
+  `XMLHttpRequest` rather than the shared `ky` client, because `fetch`
+  reports no upload progress. Before M30 that was `uploadFileWithProgress`,
+  a single multipart POST; now a file goes up in chunks sized from measured
+  throughput, and the store keeps each transfer's upload URL so pause, resume
+  and retry continue from the server's offset instead of byte zero.
 - The Go module lives inside the JS monorepo but is independent of bun workspaces.
 - The FE↔BE contract is currently hand-typed TS interfaces in `apps/web/src/lib/api/types.ts`; `openapi.yaml` codegen is deferred until the API surface justifies it.

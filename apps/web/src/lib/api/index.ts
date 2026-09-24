@@ -5,3 +5,4 @@ export * from "./types";
 export * from "./caps";
 export * from "./utils";
 export * from "./endpoints";
+export { startResumableUpload, terminateUpload } from "./tus";

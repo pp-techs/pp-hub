@@ -10,14 +10,17 @@ import (
 // `ParseMultipartForm(32 << 20)` is not one: its argument is how much to keep
 // in memory before spilling the rest to a temp file, so a request body of any
 // size was accepted and written to disk. Quota is enforced *after* the bytes
-// land (`fs.Service.checkQuota`, deliberately — the request does not declare
-// a trustworthy length), and a space's quota defaults to 0, meaning
+// land (`fs.Service.EnsureRoom`, deliberately — a request's declared length
+// is not trusted for enforcement), and a space's quota defaults to 0, meaning
 // unlimited. The sum of those three facts was that one authenticated caller
 // could fill the disk.
 //
 // http.MaxBytesReader fixes the actual problem: the reader stops, so nothing
-// past the ceiling is ever written anywhere. The avatar ceiling is
-// users.AvatarMaxBytes, shared with the IdP picture fetch.
+// past the ceiling is ever written anywhere. It guards the two bodies that
+// still arrive whole — the avatar (users.AvatarMaxBytes, shared with the IdP
+// picture fetch) and WOPI PutFile. File uploads go through the resumable
+// routes instead (uploads.go), where the cap is checked against the declared
+// length at creation and no chunk can run past that length.
 const (
 	// multipartMemory is the in-memory/spill threshold, unchanged — it is a
 	// performance knob, not a limit.

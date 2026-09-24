@@ -1354,6 +1354,49 @@ func (q *Queries) MoveUnderArchiveRoot(ctx context.Context, arg MoveUnderArchive
 	return err
 }
 
+const pruneVersions = `-- name: PruneVersions :many
+DELETE FROM node_versions d
+WHERE d.id IN (
+    SELECT v.id FROM node_versions v
+    JOIN nodes n ON n.id = v.node_id
+    WHERE v.node_id = $1
+      AND v.id IS DISTINCT FROM n.current_version_id
+    ORDER BY v.version_no DESC
+    OFFSET $2::int
+)
+RETURNING d.blob_hash
+`
+
+type PruneVersionsParams struct {
+	NodeID pgtype.UUID `json:"node_id"`
+	Keep   int32       `json:"keep"`
+}
+
+// Deletes every version of a file beyond the newest `keep` non-current ones
+// and returns their blob hashes, one row per version, so the caller can
+// decrement ref_count once for each. The current version is never a
+// candidate — after a restore it can be an old one, and it is the file.
+// Previews go with their version (ON DELETE CASCADE).
+func (q *Queries) PruneVersions(ctx context.Context, arg PruneVersionsParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, pruneVersions, arg.NodeID, arg.Keep)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var blob_hash string
+		if err := rows.Scan(&blob_hash); err != nil {
+			return nil, err
+		}
+		items = append(items, blob_hash)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const purgeNode = `-- name: PurgeNode :exec
 DELETE FROM nodes WHERE id = $1 AND deleted_at IS NOT NULL
 `

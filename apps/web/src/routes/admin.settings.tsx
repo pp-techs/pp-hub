@@ -127,6 +127,7 @@ const INT_SETTINGS = [
   { key: "read_audit_retention_days", fallback: 90, min: 1, max: 3650 },
   { key: "alert_failed_login_threshold", fallback: 10, min: 0, max: 10000 },
   { key: "alert_failed_login_window_minutes", fallback: 15, min: 1, max: 1440 },
+  { key: "version_retention_count", fallback: 100, min: 0, max: 10000 },
 ] as const;
 
 type IntSettingKey = (typeof INT_SETTINGS)[number]["key"];
@@ -243,6 +244,7 @@ function SettingsForm({ settings }: { settings: AdminSettingsMap }) {
     read_audit_retention_days: t`File access retention must be between 1 and 3650 days`,
     alert_failed_login_threshold: t`Alert threshold must be between 0 and 10000`,
     alert_failed_login_window_minutes: t`Alert window must be between 1 and 1440 minutes`,
+    version_retention_count: t`Versions kept per file must be between 0 and 10000`,
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -469,6 +471,24 @@ function SettingsForm({ settings }: { settings: AdminSettingsMap }) {
               </div>
             </CardContent>
           </Card>
+
+          <IntSettingCard
+            // eslint-disable-next-line lingui/no-unlocalized-strings -- setting key
+            settingKey="version_retention_count"
+            settings={settings}
+            values={ints}
+            title={<Trans>Version history</Trans>}
+            label={<Trans>Versions kept per file (0 = keep all)</Trans>}
+            hint={
+              <Trans>
+                Saving a new version removes the oldest ones beyond this number. The current version
+                is always kept.
+              </Trans>
+            }
+            onChange={setInt}
+            onReset={resetInt}
+            resetDisabled={remove.isPending}
+          />
         </div>
       </section>
 

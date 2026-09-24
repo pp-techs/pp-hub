@@ -64,12 +64,12 @@ Closes the gaps between the shipped app and the Stitch screens that needed no ne
 - `GET /api/v1/spaces/{id}/trash` now returns `location` (original path) and `child_count` alongside the node, so a restore decision does not need a second lookup.
 - All three mutations require space **owner** — see the rank-mapping note in [permissions.md](permissions.md).
 
-**Upload queue** — client-side against the existing `POST /spaces/{id}/files`.
+**Upload queue** — client-side against the existing `POST /spaces/{id}/files`. **Superseded by M30**: that endpoint is gone, and the queue drives resumable tus uploads through `lib/api/tus.ts`.
 
 - `lib/upload-store.ts`: queue with a concurrency limit of 3, per-file progress, cancel, retry, pause; a promise-keyed mkdir cache so a 400-file folder issues one mkdir per directory, not per file.
 - `lib/drop-items.ts`: flattens a drop through `webkitGetAsEntry`, draining `readEntries` in a loop (it returns at most 100 per call), and a folder pick through `webkitRelativePath`.
 - `transfer-tray.tsx` (mounted by the shell, so uploads survive navigation) and `drop-zone.tsx` (drag overlay, depth-counted so it does not flicker across rows).
-- `uploadFileWithProgress` uses `XMLHttpRequest`: `fetch` exposes no upload progress.
+- `uploadFileWithProgress` uses `XMLHttpRequest`: `fetch` exposes no upload progress. M30 replaced it with the tus client's PATCH, which uses `XMLHttpRequest` for the same reason.
 
 **Not done, and why:** "Purges in N days" needs a retention policy and a purge worker; "Deleted by" needs a `deleted_by` column. Both are migrations, deliberately out of this slice.
 
@@ -133,7 +133,7 @@ Migrations `0010_trash_retention.sql`.
 **Correctness infrastructure — the part that mattered most:**
 
 - **Blob GC.** `ListUnreferencedBlobs` had existed since M2 with no caller, so every permanent delete leaked its bytes on disk forever. `internal/gc` now sweeps every 15 minutes. Two orderings are deliberate: the sweep only considers blobs unreferenced for **over an hour**, because a blob is written and its ref_count incremented in separate statements and a brand-new blob is legitimately at zero for a moment; and the row is deleted **before** the file, so a crash between them leaves an orphaned file (a leak, findable later) rather than a row promising bytes that are gone (which reads as corruption).
-- **Quota is enforced.** `fs.checkQuota` runs at upload, answering **413** when a space would go over. It checks _after_ the bytes land, because a streamed multipart part does not declare its length and the only honest figure is the one measured on the way in; a rejected upload leaves an unreferenced blob that the GC reclaims within the hour. For a new version of an existing file only the size _difference_ counts.
+- **Quota is enforced.** `fs.checkQuota` runs at upload, answering **413** when a space would go over. It checks _after_ the bytes land, because a streamed multipart part does not declare its length and the only honest figure is the one measured on the way in; a rejected upload leaves an unreferenced blob that the GC reclaims within the hour. For a new version of an existing file only the size _difference_ counts. **Superseded by M30**: `fs.EnsureRoom` counts every stored version, trash included, so a new version costs its full size, and a tus upload is also refused at creation against its declared length.
 - **Editors can now edit.** `requireNodeAccess` mapped space roles positionally (viewer=1, editor=2, owner=3) against a permission scale where mutation needs 3 — so editors could upload but not rename, move or delete what they had just uploaded. The mapping is now onto the permission scale itself: viewer→view, **editor and owner→edit**. Owner-only powers were never on this path; they are gated by `RequireRole(RoleOwner)` at the space level. Restoring from trash follows delete down to editor — whoever can fill the bin must be able to empty their mistake out of it — while purge and empty-trash stay owner-only because they are irreversible.
 - **Trash retention.** `nodes.deleted_by` (nullable; there is no honest way to attribute deletes that predate the column) and `spaces.trash_retention_days`. Retention **defaults to 0, which disables automatic purging** — no existing space has its trash emptied by this being deployed. `gc.TrashWorker` sweeps hourly and is inert until a space opts in. The trash table now shows who deleted an item and a "purges in" countdown that reddens inside three days.
 
@@ -147,7 +147,7 @@ Migrations `0010_trash_retention.sql`.
 
 **Web component testing.** `@testing-library/react` + `happy-dom`, via a per-file `@vitest-environment` pragma so the other suites stay in node. Testing Library's auto-cleanup only fires when the framework exposes globals, which this suite does not, so `afterEach(cleanup)` is explicit. `use-keyed-state.test.tsx` covers the reopened-modal regression — verified by reverting the hook to a plain `useState`, which fails three of its tests.
 
-**Still not done:** comments (a whole subsystem — table, endpoints, two UIs), mail delivery for invitations (needs SMTP configuration), real PDF rasterisation and video thumbnails (need pdfium/ffmpeg in the image), collaborator presence and save status in the editor (need an OnlyOffice callback), resumable chunked upload (the `uploads` table is still unused, so the tray's pause stops the queue rather than a transfer in flight), and the Sharing/Storage/Integrations settings tabs (no defined requirements).
+**Still not done:** comments (a whole subsystem — table, endpoints, two UIs), mail delivery for invitations (needs SMTP configuration), real PDF rasterisation and video thumbnails (need pdfium/ffmpeg in the image), collaborator presence and save status in the editor (need an OnlyOffice callback), resumable chunked upload (the `uploads` table is still unused, so the tray's pause stops the queue rather than a transfer in flight — **done in M30**), and the Sharing/Storage/Integrations settings tabs (no defined requirements).
 
 ## M12–M14 — Numbers That Were Skipped ⏭ never existed
 
@@ -635,7 +635,10 @@ in-process, so N replicas allow N× the rate; that is written down in
 discover. Upload bodies gained a ceiling too: `PP_MAX_UPLOAD_BYTES` (5G
 default) through `http.MaxBytesReader`, because `ParseMultipartForm`'s
 argument was never a limit — it is the in-memory spill threshold — and quota
-is checked only after the bytes land, from a default of unlimited.
+is checked only after the bytes land, from a default of unlimited. (Since
+M30 browser uploads arrive only through tus, where the ceiling is checked
+against the declared `Upload-Length` at creation and each chunk is bounded
+by it; `limitBody` still guards WOPI `PutFile` and the avatar upload.)
 
 **The audit trail is a second table, not more verbs on the first.**
 `activity_events` cannot hold an authentication event: `space_id` and
@@ -823,6 +826,13 @@ Deliberately out of scope: trash, move and rename of a locked node — none
 change file bytes, and `handleWopiPutFile` already refuses a tombstone.
 `TestRestVersionUploadRefusesALockedFile` holds the line against a real
 Postgres.
+
+**Superseded in part by M30**: `handleUploadVersion` is gone. A replacement
+is now a tus upload naming `node_id`, and `lockedByEditor` — which now takes
+the status to answer — runs at creation and again at commit, answering
+**423 Locked** there because tus reserves 409 for an offset mismatch;
+restore-version still answers 409.
+`TestReplacementUploadHonoursTheEditorLock` replaced the REST-upload test.
 
 ## M33 — Membership Is a Logto Organization ✅ done
 
@@ -1129,7 +1139,8 @@ now refused server-side and pinned by a database test
 ## Upcoming — M27 Onward 🚧 not done
 
 Everything above shipped, including the P0 register in full as of M24;
-nothing below has, and none of it is scheduled — the numbering is the order
+nothing below has except the entries marked done (M30 and M32), and none of
+the rest is scheduled — the numbering is the order
 the dependencies suggest, which is what
 [production-readiness.md](production-readiness.md) says about its own phasing,
 and the two follow the same ordering on purpose. Each entry names the section
@@ -1187,7 +1198,7 @@ each time. Finishing it means all of it: threads on a node, a notification
 story, and a transport chosen again — a relay of our own, or the IdP's
 connector if Logto's templating turns out to stretch that far.
 
-#### M30 — Resumable Upload and Honest Accounting 🔜 planned
+#### M30 — Resumable Upload and Honest Accounting ✅ done
 
 P1, "Uploads are not resumable" and "Storage accounting understates real
 usage". The `uploads` table is in the baseline and no Go code references it —
@@ -1201,6 +1212,133 @@ room. Finishing it means chunked upload against that table with a sweep for
 what is abandoned, and either a quota that counts every referenced blob or a
 version retention policy — ideally both. Per-user quota, file-count limits and
 egress accounting are named in the same section and are not part of this.
+
+What made it urgent was a production incident rather than the P1 list.
+Behind Dokploy's Traefik (a 60-second `readTimeout` on the whole request) and
+Cloudflare (a 100 MB body cap), one multipart POST failed for any file whose
+upload took longer than a minute — the incident is written up under Dokploy
+in [deployment.md](../deployment.md). Raising the timeout fixed that one
+proxy; it could not lift Cloudflare's cap, and every bound on request
+duration is shorter than some uplink's time to send some file. The durable
+answer is requests that stay short however big the file is.
+
+**Decision taken: tus 1.0.0, and no multipart path beside it.** The protocol
+already specifies what a bespoke chunk API would have had to invent — where
+an upload stands (HEAD), what a mismatched offset answers (409 with the
+server's offset), how an abandoned upload is let go (DELETE) — and a second
+route for file content would be a second place to enforce the cap, the
+quota and the editor lock. So `POST /api/v1/spaces/{spaceID}/files`
+(`handleUpload`) and `POST /api/v1/nodes/{nodeID}/versions`
+(`handleUploadVersion`) are **gone**; `GET /nodes/{id}/versions` and
+`POST /versions/{versionID}/restore` stay. Only the core protocol plus the
+creation and termination extensions are implemented, and
+`Upload-Defer-Length` is refused on purpose: every ceiling below needs the
+length up front.
+
+**What shipped — the upload.** `internal/httpapi/uploads.go`, inside the
+authenticated, same-origin `/api/v1` group:
+
+- `POST /api/v1/uploads` with `Upload-Length` and `Upload-Metadata`
+  (`filename`, `space_id`, `parent_id` for a new file; `node_id` alone to
+  replace an existing file with a new version). The declared length is
+  checked against the upload cap (`PP_MAX_UPLOAD_BYTES`, or the admin
+  `max_upload_bytes`) and against the space's quota — counting the bytes
+  other uploads into the space have already promised
+  (`PendingUploadBytes`), so ten parallel uploads cannot each pass a check
+  the ten together would fail. Both answer **413** before a byte is
+  accepted. Authorization is membership plus parent write for a new file,
+  `CapEdit` on the node for a replacement, plus the M24 editor-lock check —
+  answering **423 Locked** here, because tus reserves 409 for an offset
+  mismatch (`lockedByEditor` now takes the status; restore-version still
+  answers 409).
+- The POST may carry the first chunk (tus **creation-with-upload**:
+  `Content-Type: application/offset+octet-stream`). A small file then lands
+  in that one request — a folder of photos would otherwise spend twice the
+  requests it did before M30 against the per-IP API rate limit. `Location`
+  is set before a byte is read, so even a POST whose body broke tells the
+  client where to resume.
+- `HEAD /api/v1/uploads/{uploadID}` reports the offset;
+  `PATCH /api/v1/uploads/{uploadID}` (`application/offset+octet-stream`,
+  `Upload-Offset`) appends; `DELETE` abandons. An upload is visible only to
+  the account that created it — anyone else gets 404.
+- **An interrupted PATCH keeps what arrived.** `uploads.Service.Append` runs
+  on a context detached from the request, copies through an
+  `io.LimitReader` bounded by the declared length, and fsyncs the staging
+  file before the row's offset advances, so a crash can lose the tail of a
+  chunk but never leave the row ahead of the file. A staging file shorter
+  than the recorded offset — a database restored without the staging
+  directory — is discarded rather than resumed, because resuming would
+  splice zeros into the file.
+- **The final PATCH commits before it answers**, so a 204 at full length
+  means the file is in place. Authorization and the lock are checked again
+  at commit; a lock or a 5xx keeps the upload (the client retries with an
+  empty PATCH at `offset == length`), while 403/404/413 drop it rather than
+  hold disk and quota until it expires. A committed row stays until it
+  expires so a client that lost the final response learns from HEAD that
+  the file landed, and a repeated final PATCH is idempotent. A per-upload
+  in-process lock serialises PATCHes — which, with staging on local disk,
+  is the single-server-process assumption written down.
+- `internal/uploads` owns the rows and the staging files, under
+  `config.UploadDir()` = `<PP_BLOB_ROOT>/.uploads` for both blob backends:
+  the one path every deployment already persists, and with the local
+  backend the finished file is renamed into the store by the new
+  `blob.Store.Ingest` instead of copied (S3 hashes, puts, then removes).
+  An upload lives 24 hours **of idleness** — every accepted chunk slides the
+  expiry — and `uploads.Service.Run` sweeps every 15 minutes: expired rows,
+  then their files, then staging files untouched for TTL + 1 h that belong
+  to no row. The backup script excludes `.uploads`.
+- Migration `0010_resumable_uploads.sql` reshapes the table nothing had ever
+  written: `mime` dropped (derived from the name at commit, as it always
+  was), `total_size NOT NULL`, `node_id` (FK, `ON DELETE CASCADE`),
+  `completed_at`, a `0 ≤ uploaded ≤ total_size` CHECK, and the sweep and
+  pending-bytes indexes.
+- Web: `lib/api/tus.ts`, a hand-written client. Chunks start at 4 MiB and
+  follow measured throughput toward 15 s per PATCH, clamped to 256 KiB–64 MiB.
+  After a failure the chunk is halved, and once the HEAD resync says how much
+  of the cut chunk actually arrived, sized from that rate instead — a proxy
+  that timed the request out still passed on what it had read, so one
+  timeout is enough to get under its deadline. Files up to 256 KiB (and
+  empty ones) ride on the creation POST (tus creation-with-upload), one
+  request per file, as before M30. Network errors, 408, 429, 499, 5xx and
+  Cloudflare's 52x are retried with backoff and a HEAD resync, and a failure
+  that still moved the offset resets the retry count. `lib/upload-store.ts`
+  keeps each transfer's upload URL, so the tray's **pause now stops
+  transfers in flight**, resume and retry continue from the server's offset,
+  and cancel sends DELETE. The URL is held in memory only, so a page reload
+  starts the file again and the abandoned upload expires.
+
+**What shipped — the accounting.** `SumSpaceUsage` now counts **every stored
+version of every file in the space, trash included** — what occupies the
+disk — and the migration recomputed every space's `used_bytes` under that
+definition. `fs.EnsureRoom` replaces `checkQuota` and compares used plus
+incoming against the quota, so a new version costs its full size: the
+version it supersedes is still on disk. The check still runs after the bytes
+land — the declared length is a courtesy refusal at creation, not the
+enforcement — but now **before the node is created**, so a refused upload no
+longer leaves an empty file behind in the folder. `fs.PutFile` and the new
+`fs.PutStagedFile` recount usage themselves, which also makes WOPI saves
+move the meter. The other half is **version retention**:
+`version_retention_count` in Admin › Settings (default 100, Google Drive's
+figure; 0 keeps everything; 0–10000; applies without a restart). After every
+new version `fs.pruneVersions` deletes what lies beyond the newest N — the
+current version always survives and counts as one — and releases each
+pruned blob to GC; previews cascade. It applies on each file's next save, not
+in a retroactive sweep. `GET /api/v1/usage` gains `versions` and `trash`
+slices so the breakdown sums to the meter, and the web storage breakdown
+shows them as "Older versions" and "Trash".
+
+`TestInterruptedChunkResumesFromTheBytesThatArrived`,
+`TestReplacementUploadHonoursTheEditorLock`,
+`TestUploadCreationCountsHistoryAndUploadsInFlight`,
+`TestVersionRetentionKeepsTheNewestAndReleasesTheRest` and
+`TestUsageBreakdownAddsUpToTheMeter` hold it against a real Postgres, with
+the sweep and the row-ahead-of-file case in `internal/uploads`.
+
+Deliberately out, as the entry said: per-user quota, file-count limits and
+egress accounting — still open under the same section of
+[production-readiness.md](production-readiness.md). Usage sums version
+sizes rather than distinct blobs, so a copy (which shares its blob) counts
+twice: the meter bounds what a space holds, not the deduplicated disk.
 
 #### M31 — Document Creation 🔜 planned
 
@@ -1273,9 +1411,10 @@ are recorded here so they are found rather than rediscovered:
   purpose, so a crash between them leaks a findable file rather than leaving a
   row that promises bytes which are gone, and it defers that leak to "the next
   full audit" — which does not exist.
-- **No antivirus or content scanning.** Uploaded bytes go from the multipart
-  part straight into the CAS with no scan hook, no sniffing (the type is
-  guessed from the extension) and no extension blocklist.
+- **No antivirus or content scanning.** Uploaded bytes go from the upload's
+  staging file (the multipart part, before M30) straight into the CAS with no
+  scan hook, no sniffing (the type is guessed from the extension) and no
+  extension blocklist.
 - **No encryption at rest.** Local blobs are plaintext, the S3 backend sets no
   SSE headers, and Postgres runs `sslmode=disable` inside the compose network.
   Share tokens and session tokens _are_ stored hashed.
@@ -1292,7 +1431,7 @@ are recorded here so they are found rather than rediscovered:
 ## Rollout / Operations
 
 - Two compose files in `deploy/compose/`: `compose.dev.yml` (services only, app runs from source) and `compose.prod.yml` (everything, for a VPS or Dokploy). Config via `.env`, templated by `.env.example` in each location.
-- Persistent state: `data/` volume (blobs) + Postgres volume.
+- Persistent state: `data/` volume (blobs, plus in-flight resumable uploads under `.uploads`, which backups skip) + Postgres volume.
 - Backup: `deploy/backup/pp-backup.sh` and `pp-restore.sh` — **implemented in
   M22**, dumping Postgres before archiving blobs (never the reverse), self-
   verifying, and driven entirely through `docker compose run`/`exec` so no
@@ -1304,6 +1443,6 @@ are recorded here so they are found rather than rediscovered:
   OnlyOffice JWT, admin bootstrap and upload/rate-limit items were closed in
   M20–M21, as were the sweep findings in its §8, and the readiness split and
   avatar-upload stub closed alongside M22–M24), the P1 gaps against Google
-  Drive still open (content search, comments, resumable upload, storage
-  accounting, IdP group sync — M27 through M31), and a proposed phasing,
-  whose order Upcoming follows.
+  Drive still open (content search, comments, IdP group sync — M27 through
+  M31; resumable upload and storage accounting closed in M30), and a
+  proposed phasing, whose order Upcoming follows.

@@ -101,28 +101,58 @@ func (s *S3Store) Put(ctx context.Context, r io.Reader) (string, int64, error) {
 		return "", 0, err
 	}
 	hash := hex.EncodeToString(h.Sum(nil))
+	if err := s.upload(ctx, tmp, hash, size); err != nil {
+		return "", 0, err
+	}
+	return hash, size, nil
+}
 
+// Ingest hashes a staged file, uploads it under its hash, and removes it.
+// Unlike LocalStore there is no rename to make: the file is read twice, once
+// to learn the key and once to send it.
+func (s *S3Store) Ingest(ctx context.Context, path string) (string, int64, error) {
+	hash, size, err := hashFile(path)
+	if err != nil {
+		return "", 0, err
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return "", 0, err
+	}
+	err = s.upload(ctx, f, hash, size)
+	_ = f.Close()
+	if err != nil {
+		return "", 0, err
+	}
+	if err := os.Remove(path); err != nil {
+		return "", 0, err
+	}
+	return hash, size, nil
+}
+
+// upload sends a seekable body to its content address, skipping the request
+// when identical content is already there.
+func (s *S3Store) upload(ctx context.Context, body io.ReadSeeker, hash string, size int64) error {
 	// Dedup: identical content is already at this address, and re-uploading
 	// would only cost bandwidth.
 	if exists, err := s.exists(ctx, hash); err != nil {
-		return "", 0, err
+		return err
 	} else if exists {
-		return hash, size, nil
+		return nil
 	}
-
-	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
-		return "", 0, err
+	if _, err := body.Seek(0, io.SeekStart); err != nil {
+		return err
 	}
-	_, err = s.cli.PutObject(ctx, &s3.PutObjectInput{
+	_, err := s.cli.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:        aws.String(s.bucket),
 		Key:           aws.String(s.key(hash)),
-		Body:          tmp,
+		Body:          body,
 		ContentLength: aws.Int64(size),
 	})
 	if err != nil {
-		return "", 0, fmt.Errorf("s3: put %s: %w", hash, err)
+		return fmt.Errorf("s3: put %s: %w", hash, err)
 	}
-	return hash, size, nil
+	return nil
 }
 
 func (s *S3Store) exists(ctx context.Context, hash string) (bool, error) {

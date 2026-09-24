@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime"
 	"path/filepath"
 	"sort"
@@ -45,6 +46,7 @@ type Service struct {
 	q         *store.Queries
 	blobs     blob.Store
 	onVersion VersionHook
+	retention func() int
 }
 
 func NewService(q *store.Queries, blobs blob.Store) *Service {
@@ -54,6 +56,13 @@ func NewService(q *store.Queries, blobs blob.Store) *Service {
 // SetVersionHook registers a post-commit callback (preview enqueue).
 func (s *Service) SetVersionHook(h VersionHook) {
 	s.onVersion = h
+}
+
+// SetVersionRetention registers how many versions of a file to keep, read at
+// every save so an administrator's change applies without a restart. Unset,
+// or answering 0, keeps every version.
+func (s *Service) SetVersionRetention(keep func() int) {
+	s.retention = keep
 }
 
 // inTx runs fn with a copy of the service bound to one transaction, so every
@@ -97,12 +106,32 @@ func (s *Service) Mkdir(ctx context.Context, spaceID, parentID pgtype.UUID, name
 // was already there. Versioning silently made ownership depend on a name
 // collision — upload into a colleague's folder and you owned your file, unless
 // somebody had used the name first, in which case you owned nothing and had
-// just overwritten their work. Replacing a file is an explicit act now:
-// POST /nodes/{id}/versions, which passes fileID.
+// just overwritten their work. Replacing a file is an explicit act now: an
+// upload that names the node (fileID).
 func (s *Service) PutFile(ctx context.Context, spaceID, parentID, fileID pgtype.UUID, name string, r io.Reader, creator pgtype.UUID) (store.Node, store.NodeVersion, error) {
+	return s.putFile(ctx, spaceID, parentID, fileID, name, creator, func(ctx context.Context) (string, int64, error) {
+		return s.blobs.Put(ctx, r)
+	})
+}
+
+// PutStagedFile is PutFile for content already complete on local disk — a
+// finished resumable upload. The blob store takes the file over (see
+// blob.Store.Ingest); on failure it is left at path for the caller.
+func (s *Service) PutStagedFile(ctx context.Context, spaceID, parentID, fileID pgtype.UUID, name, path string, creator pgtype.UUID) (store.Node, store.NodeVersion, error) {
+	return s.putFile(ctx, spaceID, parentID, fileID, name, creator, func(ctx context.Context) (string, int64, error) {
+		return s.blobs.Ingest(ctx, path)
+	})
+}
+
+func (s *Service) putFile(
+	ctx context.Context,
+	spaceID, parentID, fileID pgtype.UUID,
+	name string,
+	creator pgtype.UUID,
+	putBlob func(context.Context) (string, int64, error),
+) (store.Node, store.NodeVersion, error) {
 	var node store.Node
 	var err error
-
 	if fileID.Valid {
 		node, err = s.get(ctx, fileID)
 		if err != nil {
@@ -111,7 +140,24 @@ func (s *Service) PutFile(ctx context.Context, spaceID, parentID, fileID pgtype.
 		if node.Kind != store.NodeKindFile {
 			return store.Node{}, store.NodeVersion{}, ErrNotFile
 		}
-	} else {
+	}
+
+	hash, size, err := putBlob(ctx)
+	if err != nil {
+		return store.Node{}, store.NodeVersion{}, fmt.Errorf("blob put: %w", err)
+	}
+
+	// Quota is checked after the bytes land, not before: the declared length
+	// of a request is not trustworthy, so the only honest figure is the one
+	// measured on the way in. An upload that breaches the limit is rejected
+	// and its blob left unreferenced, which the GC sweep reclaims within the
+	// hour. It runs before the node exists, so a refused upload leaves no
+	// empty file behind in the folder.
+	if err := s.EnsureRoom(ctx, spaceID, size); err != nil {
+		return store.Node{}, store.NodeVersion{}, err
+	}
+
+	if !fileID.Valid {
 		candidate := name
 		for attempt := 1; ; attempt++ {
 			node, err = s.q.CreateNode(ctx, store.CreateNodeParams{
@@ -132,20 +178,6 @@ func (s *Service) PutFile(ctx context.Context, spaceID, parentID, fileID pgtype.
 		if err != nil {
 			return store.Node{}, store.NodeVersion{}, err
 		}
-	}
-
-	hash, size, err := s.blobs.Put(ctx, r)
-	if err != nil {
-		return store.Node{}, store.NodeVersion{}, fmt.Errorf("blob put: %w", err)
-	}
-
-	// Quota is checked after the bytes land, not before: the request does not
-	// declare its length (a streamed multipart part has no reliable size), so
-	// the only honest figure is the one measured on the way in. An upload that
-	// breaches the limit is rejected and its blob left unreferenced, which the
-	// GC sweep reclaims within the hour.
-	if err := s.checkQuota(ctx, spaceID, node, size); err != nil {
-		return store.Node{}, store.NodeVersion{}, err
 	}
 
 	mimeType := mime.TypeByExtension(filepath.Ext(node.Name))
@@ -173,18 +205,51 @@ func (s *Service) PutFile(ctx context.Context, spaceID, parentID, fileID pgtype.
 		return node, ver, err
 	}
 	node.CurrentVersionID = ver.ID
+	if err := s.pruneVersions(ctx, node.ID); err != nil {
+		// The new version is committed; a failed prune only leaves history
+		// longer than the policy asks for, and the next save retries it.
+		slog.WarnContext(ctx, "version prune failed", "node", node.ID, "err", err)
+	}
+	if err := s.RecountUsage(ctx, spaceID); err != nil {
+		slog.WarnContext(ctx, "usage recount failed", "space", spaceID, "err", err)
+	}
 	if s.onVersion != nil {
 		s.onVersion(ctx, ver, node.Name)
 	}
 	return node, ver, nil
 }
 
-// checkQuota rejects an upload that would push the space past quota_bytes.
-//
-// For a new version of an existing file only the *difference* counts, since
-// the old version's bytes stop counting toward usage the moment the new one
-// becomes current. A space with quota 0 is unmetered.
-func (s *Service) checkQuota(ctx context.Context, spaceID pgtype.UUID, node store.Node, incoming int64) error {
+// pruneVersions applies the version retention policy to one file: every
+// version beyond the newest keep−1 non-current ones is deleted and its blob
+// released to GC. The current version always survives and counts as one of
+// the kept, so a policy of 1 keeps only the file as it is now.
+func (s *Service) pruneVersions(ctx context.Context, nodeID pgtype.UUID) error {
+	if s.retention == nil {
+		return nil
+	}
+	keep := s.retention()
+	if keep <= 0 {
+		return nil // 0 keeps every version
+	}
+	return s.inTx(ctx, func(s *Service) error {
+		hashes, err := s.q.PruneVersions(ctx, store.PruneVersionsParams{NodeID: nodeID, Keep: int32(keep - 1)})
+		if err != nil {
+			return err
+		}
+		for _, h := range hashes {
+			if err := s.q.DecrBlobRef(ctx, h); err != nil {
+				return fmt.Errorf("release blob %s: %w", h[:min(12, len(h))], err)
+			}
+		}
+		return nil
+	})
+}
+
+// EnsureRoom rejects adding incoming bytes to a space that would push it past
+// quota_bytes. Usage counts every stored version, trash included, so a new
+// version costs its full size: the version it supersedes is still on disk. A
+// space with quota 0 is unmetered.
+func (s *Service) EnsureRoom(ctx context.Context, spaceID pgtype.UUID, incoming int64) error {
 	space, err := s.q.GetSpace(ctx, spaceID)
 	if err != nil {
 		return err
@@ -192,22 +257,11 @@ func (s *Service) checkQuota(ctx context.Context, spaceID pgtype.UUID, node stor
 	if space.QuotaBytes <= 0 {
 		return nil
 	}
-
 	used, err := s.q.SumSpaceUsage(ctx, spaceID)
 	if err != nil {
 		return err
 	}
-
-	delta := incoming
-	if node.CurrentVersionID.Valid {
-		if current, err := s.q.GetVersion(ctx, node.CurrentVersionID); err == nil {
-			delta = incoming - current.Size
-		}
-	}
-	if delta <= 0 {
-		return nil
-	}
-	if used+delta > space.QuotaBytes {
+	if used+incoming > space.QuotaBytes {
 		return ErrQuotaExceeded
 	}
 	return nil
@@ -693,9 +747,10 @@ func (s *Service) StarredAmong(ctx context.Context, userID pgtype.UUID, nodeIDs 
 
 // --- Quota ---
 
-// RecountUsage recomputes a space's used_bytes from its live files and stores
-// it. Called after anything that changes the total rather than by a background
-// job, so the rail's storage meter is right the moment a user looks at it. The
+// RecountUsage recomputes a space's used_bytes from every stored version,
+// trash included, and stores it. Called after anything that changes the total
+// rather than by a background job, so the rail's storage meter is right the
+// moment a user looks at it. The
 // query is a single indexed sum; at MVP scale this is cheaper than the
 // machinery a job would need.
 func (s *Service) RecountUsage(ctx context.Context, spaceID pgtype.UUID) error {

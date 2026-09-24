@@ -1,6 +1,12 @@
 import { create } from "zustand";
 import { msg } from "@lingui/core/macro";
-import { ApiError, createFolder, getChildren, uploadFileWithProgress } from "@/lib/api";
+import {
+  ApiError,
+  createFolder,
+  getChildren,
+  startResumableUpload,
+  terminateUpload,
+} from "@/lib/api";
 import { i18n } from "@/lib/i18n";
 
 export type TransferStatus = "queued" | "uploading" | "done" | "error" | "cancelled";
@@ -18,8 +24,14 @@ export interface Transfer {
   spaceId: string;
   /** Destination the drop targeted. Folder segments are created under it. */
   rootParentId?: string;
-  /** Wall-clock ms the transfer has spent uploading, for the speed readout. */
+  /** Wall-clock ms the current attempt started sending, for the speed readout. */
   startedAt?: number;
+  /**
+   * Bytes the server already held when the current attempt started. A
+   * resumed upload did not send those just now, so the speed readout leaves
+   * them out.
+   */
+  startedFrom?: number;
   /**
    * Set when this upload replaces a file that already exists: the bytes land
    * as a new version of that node instead of as a second file beside it.
@@ -47,7 +59,11 @@ const MAX_CONCURRENT = 3;
 
 interface UploadState {
   transfers: Transfer[];
-  /** Paused stops new transfers starting; in-flight ones run to completion. */
+  /**
+   * Paused stops every transfer, not just the queue: a running one is
+   * interrupted and goes back to "queued" with its bytes kept on the server,
+   * and resuming continues it from the server's offset.
+   */
   paused: boolean;
   collapsed: boolean;
   /** Tray visibility. Dismissing does not cancel anything still running. */
@@ -63,11 +79,27 @@ interface UploadState {
 }
 
 /**
- * Live XHR aborts, keyed by transfer id. These are not state — re-rendering on
- * every byte of a 2 GB upload would be a bad trade — so they live beside the
- * store and are looked up on cancel.
+ * How to stop each running transfer, keyed by transfer id. These are not
+ * state — re-rendering on every byte of a 2 GB upload would be a bad trade —
+ * so they live beside the store and are looked up on cancel and pause.
  */
 const aborts = new Map<string, () => void>();
+
+/**
+ * The server-side upload each transfer is writing into, keyed by transfer id.
+ * A paused, failed or interrupted transfer keeps its entry, so the next
+ * attempt asks the server how far it got instead of starting from byte zero.
+ * Not state for the same reason as `aborts`: nothing renders it.
+ */
+const uploadUrls = new Map<string, string>();
+
+/** Frees the staged bytes of a transfer that will not be resumed. */
+function forgetUpload(id: string): void {
+  const url = uploadUrls.get(id);
+  if (url === undefined) return;
+  uploadUrls.delete(id);
+  terminateUpload(url);
+}
 
 /**
  * Folder ids created for this session's uploads, keyed by
@@ -138,6 +170,7 @@ export const useUploadStore = create<UploadState>()((set, get) => ({
     aborts.get(id)?.();
     aborts.delete(id);
     pendingTicks.delete(id);
+    forgetUpload(id);
     const found = transferAt(id);
     if (found && (found.transfer.status === "queued" || found.transfer.status === "uploading")) {
       set({
@@ -160,7 +193,10 @@ export const useUploadStore = create<UploadState>()((set, get) => ({
           ...found.transfer,
           // eslint-disable-next-line lingui/no-unlocalized-strings -- TransferStatus id
           status: "queued",
-          loaded: 0,
+          // An upload the server still holds resumes, and the server's offset
+          // corrects this as soon as the attempt starts; without one the
+          // file goes up again from the start.
+          loaded: uploadUrls.has(id) ? found.transfer.loaded : 0,
           error: undefined,
         }),
       });
@@ -179,13 +215,34 @@ export const useUploadStore = create<UploadState>()((set, get) => ({
   },
 
   setPaused: (paused) => {
-    set({ paused });
-    if (!paused) pump();
+    if (!paused) {
+      set({ paused });
+      pump();
+      return;
+    }
+    // Running transfers stop too. Each goes back to the queue with the bytes
+    // it had reached — its last buffered tick folded in, since a queued row
+    // takes no more ticks — and keeps its upload URL, so resuming asks the
+    // server for the offset instead of starting over.
+    const transfers = get().transfers.map((t) => {
+      if (t.status !== "uploading") return t;
+      aborts.get(t.id)?.();
+      aborts.delete(t.id);
+      const tick = pendingTicks.get(t.id);
+      pendingTicks.delete(t.id);
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- TransferStatus id
+      return { ...t, ...tick, status: "queued" as const };
+    });
+    set({ paused, transfers });
   },
 
   setCollapsed: (collapsed) => set({ collapsed }),
 
   dismiss: () => {
+    // Dismissing never stops a running transfer, but every other row is
+    // forgotten here and nothing can resume its upload any more: free what
+    // the server staged for it now rather than at expiry.
+    for (const t of get().transfers) if (t.status !== "uploading") forgetUpload(t.id);
     files.clear();
     dirCache.clear();
     positions.clear();
@@ -296,8 +353,22 @@ async function run(id: string): Promise<void> {
   if (!found || found.transfer.status !== "queued" || !file) return;
   const { transfer } = found;
 
+  // Pause and cancel stop this attempt through the function registered here.
+  // A resume can start the next attempt on the same row before this one has
+  // unwound, so the checks below ask whether *this* attempt was stopped, never
+  // what the row says now.
+  let stopped = false;
+  let abortUpload: (() => void) | undefined;
+  const stop = () => {
+    stopped = true;
+    abortUpload?.();
+  };
+  aborts.set(id, stop);
+
+  // `loaded` stays: a resumed row shows what it had until the server's offset
+  // replaces it.
   // eslint-disable-next-line lingui/no-unlocalized-strings -- TransferStatus id
-  patch(id, { status: "uploading", startedAt: Date.now(), loaded: 0 });
+  patch(id, { status: "uploading", startedAt: undefined, startedFrom: undefined });
 
   try {
     // A replacement names an existing node, so there is nothing to resolve:
@@ -309,30 +380,44 @@ async function run(id: string): Promise<void> {
       ? transfer.rootParentId
       : await ensureDir(transfer.spaceId, transfer.rootParentId, transfer.path);
 
-    // Cancelling while the folder was being created should not then upload.
-    if (transferAt(id)?.transfer.status !== "uploading") {
-      return;
-    }
+    // Pausing or cancelling while the folder was being created should not
+    // then upload.
+    if (stopped) return;
 
-    const { promise, abort } = uploadFileWithProgress(
-      transfer.spaceId,
+    let first = true;
+    const upload = startResumableUpload({
       file,
+      spaceId: transfer.spaceId,
       parentId,
-      (loaded) => patch(id, { loaded }),
-      transfer.replaceNodeId,
-    );
-    aborts.set(id, abort);
-    await promise;
+      replaceNodeId: transfer.replaceNodeId,
+      uploadUrl: uploadUrls.get(id),
+      onUrl: (url) => uploadUrls.set(id, url),
+      onProgress: (loaded) => {
+        // The first report is the server's offset, where this attempt starts.
+        if (first) {
+          first = false;
+          patch(id, { loaded, startedAt: Date.now(), startedFrom: loaded });
+        } else {
+          patch(id, { loaded });
+        }
+      },
+    });
+    abortUpload = upload.abort;
+    await upload.promise;
+    uploadUrls.delete(id);
     // eslint-disable-next-line lingui/no-unlocalized-strings -- TransferStatus id
     patch(id, { status: "done", loaded: transfer.size });
     notify(transfer.spaceId, parentId);
   } catch (e) {
-    // A cancel already moved the row to its final state; do not overwrite it.
-    if (transferAt(id)?.transfer.status === "cancelled") return;
+    // Pause or cancel already moved the row where it belongs.
+    if (stopped) return;
     // eslint-disable-next-line lingui/no-unlocalized-strings -- TransferStatus id
     patch(id, { status: "error", error: describe(e) });
   } finally {
-    aborts.delete(id);
+    if (aborts.get(id) === stop) aborts.delete(id);
+    // A row dismissed while it ran can never be retried, so nothing will
+    // resume what the server staged for it.
+    if (!transferAt(id)) forgetUpload(id);
     // Folder ids are only valid while the tree they name still exists. Holding
     // them past the end of a batch would make a re-upload of a folder that was
     // deleted in between target a node that is gone.
@@ -407,14 +492,21 @@ async function resolveDir(
 
 /**
  * What a failed row says when the transport offered no message of its own.
- * A descriptor, not a String: this module is imported long before a catalog
- * is active, so `i18n._` resolves it at the moment the upload fails.
+ * Descriptors, not strings: this module is imported long before a catalog is
+ * active, so `i18n._` resolves them at the moment the upload fails.
  */
 const UPLOAD_FAILED = msg`Upload failed`;
+/**
+ * Status 0: the connection kept dropping until the retries ran out. The
+ * server still holds what arrived, so Retry picks up from there.
+ */
+const CONNECTION_LOST = msg`Connection lost`;
 
 function describe(e: unknown): string {
   if (e instanceof ApiError) {
-    return e.status === 0 ? e.message : `${e.message || i18n._(UPLOAD_FAILED)} (${e.status})`;
+    return e.status === 0
+      ? i18n._(CONNECTION_LOST)
+      : `${e.message || i18n._(UPLOAD_FAILED)} (${e.status})`;
   }
   return e instanceof Error ? e.message : i18n._(UPLOAD_FAILED);
 }

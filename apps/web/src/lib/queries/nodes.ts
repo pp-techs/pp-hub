@@ -25,7 +25,6 @@ import {
   renameNode,
   restoreNode,
   restoreVersion,
-  uploadFile,
 } from "@/lib/api";
 import type { DocumentKind, MoveImpact, Node, Principal } from "@/lib/api";
 import { keys } from "./keys";
@@ -125,14 +124,6 @@ export function useCreateTeamFolder(spaceId: string) {
       void invalidate();
       void qc.invalidateQueries({ queryKey: ["tree", spaceId] });
     },
-  });
-}
-
-export function useUpload(spaceId: string, parentId?: string) {
-  const invalidate = useInvalidateChildren(spaceId);
-  return useMutation({
-    mutationFn: (file: File) => uploadFile(spaceId, file, parentId),
-    onSuccess: invalidate,
   });
 }
 

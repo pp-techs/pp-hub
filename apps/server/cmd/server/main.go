@@ -30,6 +30,7 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/spaces"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 	"github.com/nhatbui/pp-hub/apps/server/internal/sysconfig"
+	"github.com/nhatbui/pp-hub/apps/server/internal/uploads"
 	"github.com/nhatbui/pp-hub/apps/server/internal/users"
 	"github.com/nhatbui/pp-hub/apps/server/internal/wopi"
 )
@@ -111,6 +112,15 @@ func run() error {
 	if err := syscfg.Reload(ctx, "default"); err != nil {
 		slog.WarnContext(ctx, "sysconfig initial load", "err", err)
 	}
+	fsSvc.SetVersionRetention(func() int { return syscfg.VersionRetentionCount("default") })
+
+	// Resumable uploads stage under the blob root; the sweep drops those
+	// idle past uploads.TTL, with their bytes.
+	uploadsSvc, err := uploads.NewService(queries, cfg.UploadDir())
+	if err != nil {
+		return err
+	}
+	go uploadsSvc.Run(ctx, 15*time.Minute)
 	mailer := mail.New(syscfg.SMTP)
 	notifier := notify.New(queries, mailer, syscfg, cfg.ExternalURL)
 	go notifier.Run(ctx)
@@ -165,6 +175,7 @@ func run() error {
 		Pool:            deps.Pool,
 		Blobs:           blobs,
 		OrgSync:         orgSvc,
+		Uploads:         uploadsSvc,
 		LogtoWebhookKey: cfg.Logto.WebhookKey,
 		ExternalURL:     cfg.ExternalURL,
 		OnlyOfficeURL:   cfg.OnlyOfficeURL,

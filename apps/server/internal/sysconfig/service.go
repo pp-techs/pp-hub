@@ -23,6 +23,7 @@ const (
 	KeyAlertFailedLoginThreshold     = "alert_failed_login_threshold"
 	KeyAlertFailedLoginWindowMinutes = "alert_failed_login_window_minutes"
 	KeyDefaultSpaceQuotaBytes        = "default_space_quota_bytes"
+	KeyVersionRetentionCount         = "version_retention_count"
 	KeySMTP                          = "smtp"
 
 	DefaultTenantID = "default"
@@ -230,6 +231,24 @@ func defaultDefs() map[string]SettingDef {
 				return nil
 			},
 		},
+		KeyVersionRetentionCount: {
+			Key:         KeyVersionRetentionCount,
+			Type:        "number",
+			Description: "Versions kept per file, current included; older ones are deleted when a new version is saved (0 keeps every version)",
+			// Google Drive's figure. Unbounded history is what let the disk
+			// fill while quota counted only current versions.
+			Default: 100,
+			Validate: func(val any) error {
+				n, ok := val.(int)
+				if !ok {
+					return errors.New("version_retention_count must be an integer")
+				}
+				if n < 0 || n > 10000 {
+					return errors.New("version_retention_count must be between 0 and 10000")
+				}
+				return nil
+			},
+		},
 		KeySMTP: {
 			Key:         KeySMTP,
 			Type:        "smtp",
@@ -293,7 +312,8 @@ func decodeSettingValue(def SettingDef, raw []byte) any {
 			return num
 		}
 	case KeyAuditRetentionDays, KeyReadAuditRetentionDays,
-		KeyAlertFailedLoginThreshold, KeyAlertFailedLoginWindowMinutes:
+		KeyAlertFailedLoginThreshold, KeyAlertFailedLoginWindowMinutes,
+		KeyVersionRetentionCount:
 		var num int
 		if err := json.Unmarshal(raw, &num); err == nil {
 			return num
@@ -330,7 +350,8 @@ func (s *Service) coerceAndValidate(def SettingDef, raw json.RawMessage) (any, [
 		}
 		val = num
 	case KeyAuditRetentionDays, KeyReadAuditRetentionDays,
-		KeyAlertFailedLoginThreshold, KeyAlertFailedLoginWindowMinutes:
+		KeyAlertFailedLoginThreshold, KeyAlertFailedLoginWindowMinutes,
+		KeyVersionRetentionCount:
 		var num int
 		if err := json.Unmarshal(raw, &num); err != nil {
 			return nil, nil, fmt.Errorf("%s must be an integer: %w", def.Key, err)
@@ -542,6 +563,15 @@ func (s *Service) FailedLoginAlertWindow(tenantID string) time.Duration {
 		return time.Duration(m) * time.Minute
 	}
 	return 15 * time.Minute
+}
+
+// VersionRetentionCount returns how many versions of each file are kept,
+// current included. Zero keeps every version.
+func (s *Service) VersionRetentionCount(tenantID string) int {
+	if n, ok := s.cachedInt(KeyVersionRetentionCount); ok && n >= 0 {
+		return n
+	}
+	return 100
 }
 
 // InstanceName returns the configured display name of the instance.

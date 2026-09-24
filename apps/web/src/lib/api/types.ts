@@ -383,9 +383,15 @@ export interface ActivityEvent {
   created_at: string;
 }
 
-/** One slice of the storage breakdown. */
+/**
+ * One slice of the storage breakdown. The slices add up to the space's
+ * `used_bytes`. Most are live files by MIME family; two are not:
+ * `versions` is the non-current versions of live files (`files` counts those
+ * versions) and `trash` is every version of every trashed file (`files`
+ * counts the trashed files).
+ */
 export interface UsageCategory {
-  category: "video" | "image" | "audio" | "document" | "other";
+  category: "video" | "image" | "audio" | "document" | "other" | "versions" | "trash";
   bytes: number;
   files: number;
 }
