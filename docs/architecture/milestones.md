@@ -348,9 +348,9 @@ batch it already ran, so one pass answers both "what may I do here" and "did
 anyone share this at all" for every row in a listing. The folder browser's
 separate `useShared` call — kept only to feed the old badge — is gone, while
 the "Shared with me" page still uses it for its actual list. The indicator is
-not an overlay: a shared folder renders `folder-type-public` in place of
+not an overlay: a shared folder renders `default-folder-opened` in place of
 `default-folder`, rather than a glyph stamped on the corner of an icon that
-already means something.
+already means something. A team folder renders `folder-type-public`.
 
 **Fixed on the way:** typing into either search input produced no visible
 characters. base-ui's `Menu` popup runs a bubble-phase keydown handler for
