@@ -385,13 +385,14 @@ const NodeCard = memo(function NodeCard({
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           className={cn(
-            "group bg-muted/60 hover:bg-muted cursor-pointer border border-transparent transition-colors [content-visibility:auto]",
+            "group bg-muted hover:bg-primary/10 dark:hover:bg-primary/20 cursor-pointer border border-transparent transition-colors [content-visibility:auto]",
             isDir
               ? "flex h-12 items-center justify-between rounded-xl px-3.5 [contain-intrinsic-size:auto_48px]"
               : "rounded-2xl p-2.5 [contain-intrinsic-size:auto_140px]",
             // Selection is a soft wash, not an outline: a whole folder of
             // ticked cards should still read as a grid.
-            selected && "bg-primary/10 hover:bg-primary/15 border-primary/30",
+            selected &&
+              "ring bg-primary/10 hover:bg-primary/15 ring-primary/30 dark:bg-primary/20 dark:hover:bg-primary/25 dark:ring-primary/50",
             isDropTarget && "ring-2 ring-primary bg-primary/10 border-primary/50",
           )}
           onClick={(e) => onClick(node, e)}
