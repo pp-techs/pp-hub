@@ -5,22 +5,23 @@ three more plus a set of things nobody had written down, and M22–M24 closed
 the rest of the P0 register — backup and restore, an invitation mail
 transport, and the REST/WOPI write collision — along with two items that
 were never on it: the readiness split and the avatar-upload stub. **M33 then
-un-closed half of §2**: membership moved to a Logto organization, the space
-invitation it was built to deliver no longer exists, and `internal/mail` was
-deleted with it. §2 below is left as it was assessed and closed; the
-heading says what happened to it. This document is what stood between that
-product and an internal rollout, assessed against the target deployment:
-**one company, 20–100 users, several departments, self-hosted, no compliance
-auditor yet**.
+un-closed half of it** (membership moved to a Logto organization, and the space
+invitation went with it), and **M31 reinstated that transport for share
+notifications**, configured in Admin › Settings by **M35**. This document is
+what stood between that product and an internal rollout, assessed against the
+target deployment: **one company, 20–100 users, several departments,
+self-hosted, no compliance auditor yet**.
 
 It is the evidence, not the plan. [milestones.md](milestones.md) holds the
 plan: every remaining gap below is carried by a named milestone, **M27
-through M31** (M30 now closed), and each heading here says which. Nothing there is
-scheduled — the numbers are an order the dependencies suggest, and the
-phasing at the end explains that order. What stays here is the reason each
-item is (or was) on the list and the `file:line` that lets a reader check
-whether it is still true before acting on it; where a line number would only
-rot, the function or query is named instead.
+through M29** (M30 and M31 now closed), and each heading here says which.
+Nothing there is scheduled — the numbers are an order the dependencies
+suggest, and the phasing at the end explains that order. What stays here is
+the reason each item is (or was) on the list and the `file:line` that lets a
+reader check whether it is still true before acting on it; where a line number
+would only rot, the function or query is named instead. Closed items shrink to
+a row pointing at the milestone that owns the evidence, so this page answers
+"what is still open" first.
 
 The headline: the drive itself is finished, and as of M22–M24, so is the
 operational layer that makes it safe to put real work in it — a restorable
@@ -34,601 +35,106 @@ carry.
 
 ## P0 — blocks an internal rollout
 
-These are not features. Each one is either a way to lose data, a way to leak
-it, or a step an administrator cannot perform at all. Every item on this
-register is now closed and kept as a record of what was wrong and what
-replaced it: 3, 4, 5, 6 and 8 in M20 and M21; 1, 2 and 7 in **M22**, **M23**
-and **M24**, plus two items that had no milestone of their own — the
-static-200 healthchecks and the avatar-upload stub — closed alongside them,
-recorded under "Smaller, but on the list" below since neither was ever a P0
-item.
+These were not features. Each was either a way to lose data, a way to leak it, or
+a step an administrator could not perform at all — and **all eight are closed**.
+The register stays because a list of closed findings is how the next reader learns
+which mistakes this codebase is prone to; the evidence now lives with the
+milestone that closed it.
 
-### 1. There was no backup — closed in M22
+| #   | What it was                                              | Closed in                              | Evidence                                              |
+| --- | -------------------------------------------------------- | -------------------------------------- | ----------------------------------------------------- |
+| 1   | No backup of any kind                                    | M22                                    | [M22](milestones/M22.md)                              |
+| 2   | No mail transport (invitations only)                     | M23, deleted by M33, reinstated by M31 | [M23](milestones/M23.md)                              |
+| 3   | A session was a signature, with nothing to revoke        | M20 and M21                            | [M20](milestones/M20.md)                              |
+| 4   | The Document Server was reachable and unsigned           | M20–M21                                | below, [office-integration.md](office-integration.md) |
+| 5   | The first admin could not be created                     | M21                                    | [M21](milestones/M21.md)                              |
+| 6   | Uploads were unbounded and nothing was rate limited      | M21                                    | [M21](milestones/M21.md)                              |
+| 7   | A REST upload silently overwrote an open editing session | M24, re-cut by M30                     | [M24](milestones/M24.md)                              |
+| 8   | What two read-only sweeps found                          | M21, M26                               | [M21](milestones/M21.md), below                       |
 
-What it was: `deploy/` held two compose files, two `.env` examples and
-`seaweedfs/s3.json`. Grep for `pg_dump|backup|snapshot|cron` across `deploy/`
-and `apps/server` returned one prose comment in `spaces/spaces.go:241`. There
-was no Makefile, no CI, no volume snapshot script — and `pg_data` and
-`blob_data` had to be captured **together and consistently**: a database dump
-restored without its blobs is a directory listing of files that no longer
-exist, and blobs restored without the database are content-addressed garbage
-with no names.
+### 4. The Document Server — what the fix requires of a deployment
 
-What shipped: `deploy/backup/pp-backup.sh` and `deploy/backup/pp-restore.sh`,
-two POSIX `sh` scripts (`set -eu`) driving `docker compose` against
-`compose.prod.yml` — no volume is ever named directly, since the file carries
-no `name:` and a real volume name depends on the compose project, so every
-volume is reached through `docker compose run`/`exec` on the service that
-mounts it.
+The deployment still carries what makes this safe, and an operator editing it
+should know why.
 
-- **Postgres is dumped before blobs are archived, never the other way.** The
-  pair that must never invert is a blob referenced by a row the dump already
-  captured but whose bytes are missing from the archive because the archive
-  ran first; dumping first and archiving second guarantees that never
-  happens. A blob written in between is harmless either way — at worst an
-  extra unreferenced file a future GC sweep reclaims.
-- **The blob backend is read from `.env.prod`, not assumed.** `local` tars
-  `/data/blobs` out of the `server` service; the bundled SeaweedFS (`s3` with
-  `PP_S3_ENDPOINT` naming `seaweedfs`) tars `/data` out of the `seaweedfs`
-  service; an external S3 bucket exits 2 with the reason — its own
-  versioning and replication is the backup — after the Postgres dump has
-  already been written, so relying on external S3 still leaves the database
-  covered.
-- **The backup verifies itself before declaring success.** `pg_restore
---list` on the dump and `tar -tzf` on the archive both have to pass, or the
-  script exits non-zero with the artifact named — a corrupt backup answering
-  "done" is worse than no backup, because nobody checks it until the day it
-  is needed.
-- **The restore verifies the dump before touching anything.** `pg_restore
---list` runs on the archive first; only then are `web`, `server` and
-  `worker` stopped, Postgres is restored (`--clean --if-exists --no-owner`,
-  no `--exit-on-error` — the notices from `--clean` against a fresh schema
-  are expected), blobs are extracted, and the stack comes back up with a
-  60-second poll of `/readyz` (M22 predates it only in numbering; both landed
-  together) before reporting success.
-- **`.env.prod` is explicitly out of scope**, and the backup says so on every
-  run: `POSTGRES_PASSWORD`, `PP_SESSION_KEY` and the OIDC secrets are the
-  operator's to keep, because a restore without them comes up as a different
-  instance.
-- **A restore has actually been performed against a built `compose.prod.yml`
-  stack**, not merely scripted: a drill user row and a marker blob were
-  written, `pp-backup.sh` captured both, `DROP SCHEMA public CASCADE` and
-  `rm -rf /data/blobs/*` destroyed them, and `pp-restore.sh` brought both
-  back — the row, the blob's bytes, and `schema_migrations`' newest version
-  all verified byte- and value-identical afterward. The one part of the
-  script that did **not** pass in that drill was the final readiness poll,
-  because the drill used an unreachable OIDC issuer and `cmd/server` blocks
-  its listener on discovery before `/readyz` exists to answer — exactly the
-  caveat this document's own verification steps name, and unrelated to
-  whether the data came back.
+- **Requests to the Document Server are signed**: `JWT_ENABLED=true` with a shared
+  `PP_ONLYOFFICE_JWT_SECRET`, and `preview.signOnlyOfficeJWT` signs every
+  conversion request — body `token` claim **and** `Authorization: Bearer`, because
+  the docs disagree about which endpoints honour which. Unsigned requests come
+  back `-8` with no fetch attempted, verified against a live 9.4.0.
+- **`ALLOW_PRIVATE_IP_ADDRESS=true` stays, and it is load-bearing**: the WOPI host
+  sits at a container address. It is tolerable only because of the line above.
+  **`ALLOW_META_IP_ADDRESS` is gone from production** — that range contains
+  `169.254.169.254` and nothing in this topology lives there — and only
+  development still sets it, because `host.docker.internal` resolves into it.
+- **A WOPI token is a ceiling, not an authority.** `wopiClaims` re-resolves on
+  every request (node, `users.suspended_at`, `EffectiveCapsForNode`) and clamps
+  the token's rank, refusing at rank 0. A revoked edit grant downgrades an open
+  session to read-only — `CheckFileInfo` reports the live `UserCanWrite`, so the
+  editor switches itself — rather than killing it, and `PutFile` refuses a node in
+  the trash so a save cannot resurrect a tombstone. A machine token has no subject
+  to resolve and is authorized by the signing key alone. Pinned by
+  `internal/httpapi/wopi_db_test.go`.
 
-Retention defaults to 14 days (`-k`), the output directory defaults to
-`backups/` at the repo root (`-o`), and neither is installed as a cron job —
-the suggested line is a comment in the script's header, for an operator to
-add.
+### 8. What the sweeps found, and the shape of the bugs
 
-### 2. There was no mail transport — closed in M23, reopened by M33
+Two read-only sweeps went through the server and the deployment looking for what
+the register had not thought to list. All thirteen findings are fixed, and they
+were kept for one reason: several are the same mistake wearing different clothes.
+The classes matter more than the individual fixes, because the fix is local and
+the class is not.
 
-> **The transport is gone.** M33 made space membership a projection of a Logto
-> organization, so the space invitation — the only message this transport ever
-> sent — no longer exists, and `internal/mail`, `config.validateSMTP` and the
-> `PP_SMTP_*` variables were deleted with it. Invitation email is now Logto's,
-> through an email connector and its `OrganizationInvitation` template
-> ([logto-org-sync.md](logto-org-sync.md), [deployment.md](../deployment.md)).
-> The assessment below is kept as it was written: it is why the item was
-> closed, and the notification half it deferred to **M29** is now that
-> milestone's whole problem, transport included.
+- **A read path that did not re-check what it depended on.** A link checked its
+  token and expiry, not the grant behind it; a WOPI token carried the rank from
+  when the editor opened. Both now re-resolve on read, which covers every way
+  access can disappear — including an ancestor being moved — instead of one
+  cleanup path per way.
+- **A label trusted as a permission.** "View only" served byte-identical
+  originals and a verbatim 4 KiB text "preview"; rank 1 could `GetFile`. A label
+  is not a predicate.
+- **Two paths validating one value differently.** Sign-in rewrote `users.email`
+  from an unverified claim while the adoption path required `email_verified` — and
+  that column decides who a share is granted to, and what
+  `PP_BOOTSTRAP_ADMIN_EMAIL` matches.
+- **A header believed from any source.** chi's `RealIP` accepted
+  `True-Client-IP`, `X-Real-IP` and `X-Forwarded-For` from anybody, which made
+  every address-keyed limit resettable at will; it is replaced by
+  `middleware.ClientIPFromXFF(PP_TRUSTED_PROXIES…)`, read everywhere through
+  `audit.ClientIP`.
+- **A control that was only a browser policy.** `SameSite=Lax` was the entire
+  CSRF defence until `sameOrigin` existed.
+- **Authorising on one row and mutating another.** `DELETE
+/nodes/{id}/shares/{shareID}` checked `CapShare` on the node in the URL, then
+  deleted by share id alone.
+- **A privilege check that implied membership.** `spaces.SetAdmin` seated a
+  non-member, producing an admin the People page does not list.
+- **An allowlist containing a catch-all.** `isOfficeMime` accepted
+  `application/octet-stream`, which is what an unrecognised extension is stored
+  as, so the allowlist read "any file with an unfamiliar name".
+- **The same secret in two places it should not be.** Share tokens and WOPI
+  `access_token`s were written to the access log, when only their hashes are
+  stored; and `apps/server/.env` plus `data/blobs` were pulled into builder layers
+  because Docker reads `.dockerignore` from the build context root, not the
+  repository root.
 
-What it was: grep `smtp|mailer|sendmail|gomail|sendgrid|notif` across
-`apps/server` and `deploy/` returned zero functional hits, `go.mod` had no
-mail dependency, and `handleCreateInvitation` minted a token and returned
-`externalURL + "/invite/" + token` in the JSON response for the admin to
-copy and deliver by hand — forty people onboarded was forty copy-pastes into
-a chat client.
+The individual fixes are recorded in [M21](milestones/M21.md) (link, WOPI rank,
+preview, IP provenance, CSRF, log redaction, `.dockerignore`, network
+segmentation, `nosniff`) and [M20](milestones/M20.md) (the email asymmetry). Two
+items closed alongside M22–M24 have no milestone of their own and stay under
+"Smaller, but on the list" below: the `/readyz` split and the avatar stub.
 
-**Decision taken: SMTP for invitations only.** Sharing still notifies
-nobody — `handleCreateShare` records an activity row and a `share_created`
-audit row, then returns the link to its creator (`share.go:115-176`), and a
-direct or group grant's recipient, a known user with a known verified
-address, still learns nothing. There is still no in-app substitute: no
-`notifications` table, no `/notifications` route, no SSE or websocket. That
-half is **M29**'s, which needs a notification story rather than a transport;
-M23 built the transport M29 will reuse.
+### Still open from this register
 
-What shipped: `internal/mail`, a small `net/smtp` wrapper
-(`Settings`/`Sender`/`Send`) — dial, optional `STARTTLS` or implicit TLS,
-optional `PLAIN` auth, a hand-built RFC 5322 message, every failure wrapped
-with the stage it failed at (dial, starttls, auth, …) rather than a bare
-`smtp: EOF`. `To`/`Subject` are rejected on any `\r`/`\n` — both reach the
-raw header block verbatim, so an unescaped newline in either is a
-header-injection attempt.
-
-- **A half-configured transport fails startup, not a send.**
-  `config.validateSMTP` requires `PP_SMTP_FROM` whenever `PP_SMTP_HOST` is
-  set (every relay refuses a message with no sender), restricts
-  `PP_SMTP_TLS` to `starttls`/`implicit`/`none`, and bounds the port —
-  because the operator who set `PP_SMTP_HOST` believes mail works, and
-  finding out otherwise at the first invitation is worse than finding out at
-  startup. `Host == ""` is a supported, logged state, not an error.
-- **The invitation handler degrades to exactly the pre-M23 behaviour.**
-  `handleCreateInvitation` sends synchronously, bounded by a 15s context,
-  after the invitation row is already committed; a send failure is logged
-  and the response still carries the URL — the admin's fallback is the
-  product's old and only behaviour, not a new failure mode. The response
-  gains `mail_sent`, which the listing endpoint omits because it knows
-  nothing about delivery; the web client branches its toast on it and keeps
-  the clipboard copy in both paths.
-- **Verified end to end against a real relay**, not just the transport's
-  unit tests: `internal/mail/send_live_test.go` (skipped without
-  `PP_TEST_SMTP_ADDR`) sent one message through a MailHog catcher run for
-  this milestone, and the message arrived — `curl
-localhost:8025/api/v2/messages` reported it.
-
-What honestly remains: OAuth-only providers (Gmail without an app password,
-Microsoft 365 modern auth) are not supported by `net/smtp` — a relay in
-front of them is the answer, stated in [deployment.md](../deployment.md)
-rather than discovered at the first bounce.
-
-### 3. The session cookie was a signature — closed in M20 and M21
-
-Kept rather than deleted, because the blocker was real and because the shape
-of the fix is why the last gap in it was worth closing too.
-
-What it was: the cookie was `v1.<uuid>.<expiry>.<hmac>` — self-contained,
-hard-coded to thirty days, with no `Secure` flag, no `sessions` table and
-therefore nothing to revoke. A stolen cookie was good for a month. Over HTTPS
-it worked, but the browser would also send it over plain HTTP, so one
-accidental downgrade exposed a 30-day session to anyone on the path.
-`HandleLogout` cleared the browser's copy and returned 204 while the IdP
-session stood; the RP-initiated logout helper `EndSessionURL` had no caller in
-either `apps/server` or `apps/web/src`. And one secret, `PP_SESSION_KEY`,
-signed both session cookies and WOPI access tokens, so the only available
-revocation — rotating it — signed out every user and invalidated every office
-token at the same time.
-
-What shipped:
-
-- **`Secure` is derived from the scheme.** `auth.Service.cookie` builds every
-  cookie in the package, `clearCookie` included, and sets `Secure` when
-  `PP_EXTERNAL_URL` starts with `https://`, beside `HttpOnly` and
-  `SameSite=Lax`. A deployment that is not https logs a warning at startup
-  instead of being quietly insecure at the first request.
-- **A session is a row** (`migrations/0002_sessions.sql`). The cookie carries
-  an opaque 256-bit random token and the table stores only its SHA-256, so the
-  table is not a source of usable cookies. `GetSessionByHash` resolves cookie
-  → session + owner in one indexed join; `Authenticate` slides a 30-day idle
-  deadline at most once an hour per session, under a 90-day absolute cap
-  measured from `created_at`; `PurgeExpiredSessions` sweeps on a five-minute
-  ticker in `cmd/server`.
-- **Revocation exists, and it is a surface rather than an operator procedure.**
-  `GET /api/v1/users/me/sessions`, `DELETE /api/v1/users/me/sessions/{id}` and
-  `DELETE /api/v1/users/me/sessions` (all but the current one) back a Sessions
-  tab on the account page. The user id is part of every delete predicate, so
-  guessing somebody else's session id achieves nothing. A lost laptop is now a
-  row someone can delete from their phone.
-- **Logout reaches the IdP.** `HandleLogout` deletes the session row and
-  answers `{"end_session_url": …}`; `signOut()` on the web side hands the
-  browser to that URL, and falls back to clearing the query cache and routing
-  to `/login` when the provider advertises no end-session endpoint. "Sign out"
-  followed by "sign in" is no longer a silent SSO re-entry as the previous
-  person on a shared machine.
-- **One secret, purpose-bound subkeys.** `config.SecretKey` is a master secret
-  nothing signs with directly; `config.DeriveKey` (HKDF-SHA256) issues a
-  subkey per purpose and WOPI tokens take `wopi.KeyPurpose`. Sessions do not
-  use it at all, so rotating `PP_SESSION_KEY` — still spelled that way
-  deliberately, see [deployment.md](../deployment.md) — invalidates in-flight
-  WOPI tokens and signs nobody out.
-- **The login handshake is single-use.** State, nonce and the PKCE (S256)
-  verifier live in one `pp_oidc_tx` cookie that `HandleCallback` clears before
-  anything can return early; the `pp_oidc_state` / `pp_oidc_next` pair it
-  replaces survived every failure path for their full ten minutes, leaving a
-  replayable state value in the browser. The nonce is compared against the
-  transaction in constant time, and a failed callback redirects to
-  `/login?error=<code>` rather than answering a top-level navigation with
-  plain-text `http.Error`.
-
-**The last gap here — no CSRF defence beyond `SameSite=Lax` — closed in M21.**
-
-What it was: no `Origin` or `Referer` comparison anywhere in `httpapi/`, so a
-browser policy on one cookie attribute was the entire defence against a
-cross-site write. `Lax` withholds the cookie from a cross-site `fetch`, which
-is most of it, but it is one browser's policy rather than this server's
-control, it does not cover a top-level form navigation, and a single control
-is exactly the thing that should not be the only one.
-
-What shipped: `Server.sameOrigin` (`httpapi/csrf.go`), a middleware on the
-`/api/v1` group and on `/auth/logout`. It reduces `Origin` to
-scheme-plus-host and compares that to `PP_EXTERNAL_URL`; with `Origin` absent
-it falls back to the **origin** of `Referer` and never its path, which the
-caller controls; with neither header present a cookie-authenticated write is
-refused rather than guessed about. An unparseable `PP_EXTERNAL_URL` refuses
-every mutation instead of allowing them, so a misconfiguration cannot become
-a silent bypass. `GET`, `HEAD` and `OPTIONS` pass untouched — demanding an
-Origin on them would break a plain `<a href>` download.
-
-It runs **before** `authenticated`, deliberately: a forged cross-site write
-should cost no session lookup, and the caller should be told the actual reason
-rather than a 401 that sends them hunting for an expired login. Two route
-groups are exempt and both are authorized by something other than a cookie —
-`/wopi/*`, where the Document Server sends no Origin at all and presents a
-signed access token, and `/auth/callback`, a top-level navigation from the IdP
-defended by the state and nonce in `pp_oidc_tx`.
-
-Both halves are structural rather than remembered:
-`TestEveryAPIMutationChecksOrigin` walks the router and fails if any non-safe
-`/api/v1` method is not wrapped; `TestWopiIsExemptFromOriginChecks` fails if
-the WOPI group ever is, because that would break every office save. The unit
-tests in `csrf_test.go` cover the host-prefix near-miss
-(`https://drive.example.com.evil.example`), a scheme downgrade and a
-different port, the Referer fallback, the both-headers-absent refusal and the
-unparseable-URL fail-closed.
-
-### 4. The Document Server was unauthenticated — closed
-
-Both compose files used to set `JWT_ENABLED=false`, and prod also set
-`ALLOW_META_IP_ADDRESS=true`. The Document Server has no access control of its
-own, so that combination meant anything able to reach its port could drive its
-conversion API — an API whose input is a URL to fetch — with permission to
-reach private _and_ cloud-metadata addresses. Either alone is a weak posture;
-together they were a rollout blocker.
-
-Both halves are now closed, and they were different problems.
-
-**Requests to the Document Server are signed.** `JWT_ENABLED=true` in both
-stacks with a shared `PP_ONLYOFFICE_JWT_SECRET`, and
-`preview.signOnlyOfficeJWT` signs every conversion request the worker makes —
-body `token` claim and `Authorization: Bearer` header both, because the docs
-disagree about which endpoints honour which. Unsigned and wrongly-signed
-requests come back `-8` with no fetch attempted, verified against a live 9.4.0
-with the metadata endpoint as the target URL. That is what makes the remaining
-`ALLOW_PRIVATE_IP_ADDRESS=true` tolerable rather than an open door: it is
-load-bearing for the topology — the WOPI host is at a 172.16/12 container
-address — but it is no longer reachable by an unauthenticated caller.
-`ALLOW_META_IP_ADDRESS` is gone from production entirely; the range it opens
-contains `169.254.169.254` and nothing in that topology lives there. Only
-development still sets it, because `host.docker.internal` resolves into it.
-
-The old belief that `JWT_ENABLED=true` breaks WOPI was half of the truth: the
-conversion call was unsigned, so it did break office thumbnails. WOPI itself
-is authorized by the access token, not a JWT, and a full editor round trip —
-`CheckFileInfo`, `LOCK`, `GetFile` — was verified working with JWT on.
-
-**Requests from the Document Server carried frozen authorization, and no
-longer do.** A WOPI access token is a bearer credential OnlyOffice holds and
-replays for its ten-hour life, and the permission rank inside it was the
-caller's rank when the editor opened. Every handler trusted that rank, so a
-grant could be revoked, a member removed from the space, or an account
-suspended, and the editor kept saving for the rest of the day while every
-`/api/v1` route refused the same person immediately — a WOPI token was the one
-unrevocable credential left after M20 made sessions revocable.
-
-`wopiClaims` now re-resolves on every WOPI request: it loads the node, checks
-`users.suspended_at`, calls `share.EffectiveCapsForNode` and clamps the
-token's rank to what the caller can do _now_ (`rankFromCaps`), refusing
-outright at rank 0. The token is a ceiling, not an authority. Two consequences
-are deliberate: a revoked _edit_ grant downgrades an open session to read-only
-rather than killing it — `CheckFileInfo` reports the live `UserCanWrite`, so
-the editor switches itself — and `PutFile` refuses a node in the trash, since
-committing a version into a tombstone resurrects content nobody expects on
-restore. A machine token (`wopi.SystemSubject`, the preview worker's
-conversion fetch) has no subject to resolve and is authorized by the signing
-key alone; it is read-only, single-node and short-lived, and it is now
-refused at `CheckFileInfo` instead of answering 500 on a missing user row.
-
-`internal/httpapi/wopi_db_test.go` holds the line against a real Postgres:
-revocation, departure from the space, suspension, edit→view downgrade, and a
-token minted for one file being replayed against another.
-
-### 5. The first admin cannot be created — closed in M21
-
-What it was: `users.is_admin` defaults to `false`, and its only writer,
-`SetUserAdmin`, sits behind `requireAdmin`. A grep for
-`PP_ADMIN|ADMIN_EMAIL|bootstrapAdmin` across the repo and `deploy/` returned
-nothing, and `internal/bootstrap` did config, pool, migrate and blob store and
-nothing else. A fresh instance therefore had no administrator and no way to
-appoint one except `UPDATE users SET is_admin = true` against Postgres by
-hand. An install step that requires a psql session is not an install step.
-
-What shipped: `PP_BOOTSTRAP_ADMIN_EMAIL`, read in `config.Load` (lowercased
-and trimmed there, compared case-insensitively, because an IdP is free to
-return a different case than the operator typed) and applied by
-`auth.Service.promoteBootstrapAdmin` on the sign-in path. Three properties
-are deliberate:
-
-- **It re-promotes on every sign-in, not once.** A one-shot bootstrap solves
-  the empty instance and nothing else; running every time also recovers an
-  install whose last admin was demoted by mistake, which is the same dead end
-  arriving later. The write is idempotent — the function returns early when
-  the account is already an admin — so the ordinary case costs one
-  comparison. The consequence, warned about in the log at the moment of
-  promotion and stated in [deployment.md](../deployment.md), is that the named
-  account cannot stay demoted while the variable is set; unset it once a
-  second admin exists.
-- **It requires a verified email claim.** The address is matched against a
-  static configuration value, which makes the variable a standing
-  authorization rule keyed on a claim a self-service IdP may let its users
-  edit. Without the gate, anyone who could set their own address could take
-  the instance. An unverified claim logs an error naming the fix and records a
-  `login_failed` event with `code: bootstrap-admin-unverified` rather than
-  failing silently.
-- **Promotion is audited.** The row is an `admin_granted` event with
-  `{"via": "PP_BOOTSTRAP_ADMIN_EMAIL"}`, so the one privilege escalation the
-  configuration is allowed to perform is visible in the same log as every
-  other one.
-
-The related half is in §8: `TouchUserLogin` no longer overwrites
-`users.email` from an unverified claim, which is what stops this variable
-being reachable by a user who can edit their own address.
-
-### 6. Uploads are unbounded and nothing is rate limited — closed in M21
-
-What it was, in four facts that only added up when read together:
-
-- `handleUpload` and `handleUploadVersion` called
-  `r.ParseMultipartForm(32<<20)` and nothing else. That argument is the
-  in-memory buffering threshold, not a size limit — the remainder spills to
-  temp files — so a request body of any size was accepted and written to disk.
-  A grep for `MaxBytesReader|http.MaxBytes` across `apps/server` returned no
-  matches.
-- Quota is checked **after** the bytes land (`fs.Service.checkQuota`, by
-  design: a streamed multipart part does not declare a trustworthy length), so
-  an over-quota upload still consumed disk until the GC sweep reclaimed it up
-  to an hour later.
-- A space's `quota_bytes` defaults to `0`, which means unlimited.
-- The middleware chain was `RequestID, RealIP, Logger, Recoverer` — no rate
-  limiter anywhere, and `go.mod` had no rate-limit dependency. The anonymous
-  share-link routes were brute-forceable at wire speed against a namespace
-  where a hit answers 200.
-
-One authenticated user could therefore fill the volume for everyone else, and
-one anonymous caller could guess share tokens as fast as the network allowed.
-
-What shipped:
-
-- **A body ceiling that stops the reader.** `PP_MAX_UPLOAD_BYTES` (default
-  5 GiB, plain bytes or a `K`/`M`/`G`/`T` suffix, `0` disables) becomes
-  `http.MaxBytesReader` in `limitBody`, so nothing past the ceiling is written
-  anywhere. `parseUpload` wraps it for the two multipart handlers and
-  translates the resulting parse failure into a 413 with a sentence a user can
-  act on instead of "invalid multipart form"; WOPI `PutFile` streams a raw
-  body and calls `limitBody` directly; avatars keep their own, much smaller
-  `avatarMaxBytes`. `Content-Length` is used only as a courtesy early exit —
-  it can lie or be absent under chunked encoding — and never as the
-  enforcement. A bad value fails at startup rather than defaulting to
-  unlimited: an operator who typed `5GB` meaning a ceiling should not be given
-  "no ceiling" for the trouble.
-- **Per-IP token buckets** (`httpapi/ratelimit.go`) on the three surfaces an
-  anonymous caller reaches: `/auth/login`, `/auth/callback` and
-  `/auth/logout` at 30/min with burst 10 (each costs an IdP round trip),
-  `/s/{token}` at 60/min with burst 20 (a guessable secret), and `/api/v1` at
-  1200/min with burst 200 (everything else). Buckets are per limiter as well
-  as per IP, so exhausting one does not spend another; an empty bucket answers
-  429 with `Retry-After`. Anything idle long enough to have refilled
-  completely is evicted, which is what keeps a map keyed on an
-  attacker-supplied value from being a memory leak.
-- **A client address the caller cannot choose.** The limiter keys on
-  `audit.ClientIP`, not `r.RemoteAddr`, and that is what makes it a limit at
-  all — see §8, where chi's `RealIP` is retired.
-
-**Since M30** the multipart handlers are gone and `parseUpload` serves only
-the avatar upload. Uploaded files enter through the tus routes
-(`internal/httpapi/uploads.go`): the ceiling is checked against the declared
-`Upload-Length` when the upload is created, and each chunk is copied through
-an `io.LimitReader` bounded by that length, so no chunk can carry a byte past
-it. The declared length is now also checked against the quota at creation,
-together with what other in-flight uploads have promised to the space — a
-refusal before any bytes move, not a replacement for the check after they
-land. `limitBody` still guards WOPI `PutFile`.
-
-What honestly remains:
-
-- **The limiter is per process.** The buckets are a map in memory, so N
-  `server` replicas allow N times the published rate. Redis would fix it and
-  would be the first piece of infrastructure this deployment does not already
-  need, for a control whose job is turning "millions of guesses an hour" into
-  "hundreds". Stated in [deployment.md](../deployment.md) rather than hidden,
-  because an operator who scales out should know the limit scaled with them.
-- **There is still no per-user or per-space upload quota beyond
-  `quota_bytes`.** The ceiling bounds one request; it does not bound a
-  thousand of them, and a space with `quota_bytes = 0` is unmetered by
-  definition. Per-user quota remains absent entirely — there is no
-  `users.quota_*` column. The accounting gap under P1 ("storage accounting
-  understates real usage") was closed in **M30**.
-- **The HTTP server still sets only `ReadHeaderTimeout: 10s`**
-  (`cmd/server/main.go`). There is no write or idle timeout, and no
-  `middleware.Timeout`; the long `proxy_*_timeout` values in `nginx.conf` are
-  there because a multi-gigabyte upload and an OnlyOffice conversion both need
-  them, which is also why a blanket handler timeout is not a one-line change.
-  No milestone carries this one either — it belongs to whoever next touches
-  the server's lifecycle.
-
-### 7. A REST upload silently overwrote an open editing session — closed in M24
-
-What it was: `file_locks` exists (`0001_init.sql:286-291`) with a 30-minute
-TTL, and the WOPI endpoints honour it (`handleWopiPutFile` and
-`handleWopiLockOps`). Nothing else did: `GetLock`'s only callers were all in
-`internal/wopi`, there was no lock route under `/api/v1`, and there was no
-ETag or `If-Match` on the version-upload path. So while A had a `.docx` open
-in OnlyOffice, B's `PUT /nodes/{id}/versions` was accepted against no lock
-at all, and A's work was gone on the next save with no conflict reported
-anywhere — the one item on this list that lost data during ordinary,
-well-intentioned use.
-
-**Decision taken: refuse, do not take a lock.** A REST upload has no lock
-lifecycle — no unlock call, no `REFRESH_LOCK` — so acquiring one here would
-create locks nothing releases except the 30-minute sweep.
-
-What shipped: `Server.lockedByEditor`, a shared check both write paths that
-change which bytes are current now call — `handleUploadVersion`, before
-`parseUpload` so a locked file is refused before a multi-gigabyte body is
-read, and `handleRestoreVersion`, since restoring a version repoints
-`current_version_id` just as directly. Either finds a live lock, it answers
-`409 Conflict` with a sentence a client can show ("this file is open in the
-editor; close it or wait for the lock to expire") rather than silently
-discarding one side of the conflict. Not in scope, deliberately: trash,
-move and rename of a locked node — none of them change file bytes, and
-`handleWopiPutFile` already refuses to commit into a tombstone.
-
-`TestRestVersionUploadRefusesALockedFile`
-(`internal/httpapi/locks_db_test.go`) holds the line against a real
-Postgres: a locked node refuses the upload and the version count stays put;
-the same node unlocked accepts it and the count goes up by one.
-
-**Since M30** `handleUploadVersion` no longer exists. A replacement is a tus
-upload naming `node_id`; `lockedByEditor` — which now takes the status to
-answer — runs when it is created and again at commit, and answers
-`423 Locked` on those routes because tus reserves 409 for an offset
-mismatch. Restore-version still answers 409. The test above went with the
-handler; `TestReplacementUploadHonoursTheEditorLock`
-(`internal/httpapi/uploads_db_test.go`) now holds the same line, and a
-commit refused as locked keeps the upload so the user can retry without
-re-sending.
-
-### 8. What the sweeps found — closed in M21
-
-Two read-only sweeps went through the server and the deployment looking for
-the things this register had not thought to list. Everything below was real
-and is fixed; it is recorded here because a list of closed findings is how the
-next reader learns which mistakes this codebase is prone to. Ordered by what
-an attacker could actually reach, not by how the fix reads.
-
-1. **A "view only" share link served byte-identical originals.**
-   `GET /s/{token}/content` did not consult the link's `can_download`, so a
-   link created with downloads off handed over the complete file — and, one
-   `?node=` at a time, every file in the shared subtree. No account, no
-   session, nothing but the URL that had already been given out. It is the
-   highest-reach finding of the set and the one whose fix is a single
-   predicate: `serveShareFile` now requires the download flag on both the
-   inline and the attachment path, and the comment that used to claim
-   otherwise was simply wrong. There is no anonymous preview endpoint, so a
-   no-download link is now names, sizes and dates and no file bytes at all —
-   which is what "view only" should have meant, and what the share page now
-   says in those words.
-2. **A public link outlived its creator's access.** `resolveLinkNode`
-   resolved the token hash and the expiry and stopped there, so revoking the
-   grant that let somebody share a folder left every link they had minted
-   working — anonymously, indefinitely. The codebase already held the opposite
-   intent for the stronger action: `RemoveMember` runs
-   `DeleteSharesByCreatorInSpace` so that a departing member's sharing
-   decisions leave with them. Revoking one grant is the weaker action and left
-   the bigger hole. A link now resolves only while
-   `EffectiveCapsForNode(node, share.created_by)` still holds `CapShare`, and
-   answers 404 — not 403 — once it does not. Re-resolving on read rather than
-   cascading on revoke is the same choice made for WOPI tokens: one query
-   covers every way access can disappear, including an ancestor being moved,
-   instead of one cleanup path per way.
-3. **A WOPI editor session was a download in disguise.** `GetFile` accepted
-   rank 1, and `handleEditSession` accepted `CapView` on the reasoning that
-   rank 1 produces a read-only session — true about writing, irrelevant to
-   reading. A reader explicitly refused download could mint a view token, let
-   the Document Server fetch the document, and keep the file, while
-   `handleContent` refused the same person for the same bytes. `GetFile` now
-   requires rank ≥ 2 for a user token and `handleEditSession` requires
-   `CapDownload`, minting rank 2 even for a read-only session because rank 1
-   would no longer be able to fetch its own document. Machine tokens
-   (`wopi.SystemSubject`, the preview worker's conversion fetch) are
-   unaffected: they have no subject to resolve a capability for and the
-   signing key is their authorization. The cost is accepted and stated in
-   [permissions.md](permissions.md) — a view-but-not-download reader cannot
-   open an office document at all, only its thumbnail.
-4. **`/preview?kind=text` was the source file.** The text "preview" is a
-   verbatim 4 KiB prefix of the original, which for a note, a CSV, a config
-   file or a private key is usually the whole document, and it was gated on
-   view. `handlePreview` now demands `CapDownload` for `kind=text` and keeps
-   `kind=thumbnail` on view — a 256px rasterization is genuinely derived, and
-   it is what lets a no-download reader see _something_.
-5. **An unverified email claim could rewrite `users.email`.** The adoption
-   path in `resolveUser` had always required `email_verified`; the ordinary
-   path had not, and rewrote the stored address from the claim on every
-   sign-in. Since that column is what a direct share is granted to, what the
-   member-add path resolves an address against, and what
-   `PP_BOOTSTRAP_ADMIN_EMAIL` is compared against, an IdP that lets a user set
-   their own address turned it into a way to be handed somebody else's access —
-   or, with a bootstrap admin
-   configured, to take the instance. The asymmetry was the bug; both paths now
-   require verification, and admin promotion requires it separately.
-6. **The client's IP address was the client's choice.** The chain began with
-   chi's `RealIP`, which 5.3.2 deprecates for exactly this reason: it
-   believed `True-Client-IP`, `X-Real-IP` and `X-Forwarded-For` from any
-   source. So the address shown on a session row in somebody's Sessions tab
-   was whatever an attacker wanted them to see, and any limit keyed on address
-   would have been resettable at will — which is why this had to be fixed
-   _before_ §6's limiter meant anything. It is replaced by
-   `middleware.ClientIPFromXFF(PP_TRUSTED_PROXIES...)`, installed only when
-   that variable names at least one CIDR, and read through `audit.ClientIP`,
-   where "no vouched-for value" means "believe the TCP peer" rather than
-   "believe the header". `config.Load` validates the CIDR list so a typo is a
-   sentence at startup rather than a panic out of chi. nginx clears
-   `True-Client-IP`, `CF-Connecting-IP` and `Forwarded` on the way through,
-   since a header the proxy does not set is a header the client sets.
-7. **Bearer credentials were written to the logs.** A share token _is_ the
-   authorization for anonymous access to a file and it is a path segment, so
-   chi's request logger put every live link on stdout — and from there into
-   container logs, a log-search index or a support bundle. Only the token's
-   SHA-256 is stored in the database; logging the plaintext beside it made
-   that decision pointless. The WOPI `access_token` is the same problem in a
-   query parameter. `redactingLogger` rewrites `r.RequestURI` — the raw string
-   chi's Logger formats — to `/s/REDACTED/download` and
-   `access_token=REDACTED`, and deliberately leaves `r.URL` alone: routing
-   runs off `r.URL.Path`, and an earlier version that swapped the URL too made
-   chi match the redacted path, so `{token}` reached the handler as the
-   literal string "REDACTED" and every share link answered 404 while the log
-   looked perfect. nginx does the same job with a `map` plus a custom
-   `log_format`. Since M25 the server's access log is `httpapi.Server.observe`,
-   which logs `redactURI`'s output and still never rewrites the request.
-8. **`DELETE /nodes/{id}/shares/{shareID}` was not scoped by node.** The
-   handler authorised `CapShare` on the node in the URL and then deleted by
-   share id alone, so a caller who could share _any_ node could revoke a share
-   belonging to a node they had no rights on. `DeleteShare` now takes
-   `id = $1 AND node_id = $2` and a miss answers 404. Authorising on one row
-   and mutating another is the shape of bug worth remembering, not the
-   individual endpoint.
-9. **A space admin nobody could see.** `spaces.SetAdmin` added the target to
-   the space's `Admin` group without checking membership, which produced
-   somebody who passes `IsSpaceAdmin` — and therefore every space-
-   administration route, since those check admin status rather than membership
-   — while having no `space_members` row, so the People page does not list
-   them. Promotion now calls `RequireMember` first; the same check already
-   guarded user-created groups, and the Admin group is the higher privilege of
-   the two.
-10. **The office MIME allowlist allowed everything.** `isOfficeMime` accepted
-    `application/octet-stream`, which is precisely what `fs.PutFile` stores
-    whenever Go's MIME table does not recognise an extension — so the
-    allowlist read "any file with an unfamiliar name", and the editor handoff
-    would hand an arbitrary blob to the Document Server. Removed.
-11. **Secrets were landing in builder layers.** Docker reads
-    `.dockerignore` from the root of the _build context_, and the server and
-    worker images build with `context: ../../apps/server`, so the careful
-    exclusions at the repo root governed only the web image. A bare
-    `COPY . .` was pulling `apps/server/.env` — which holds
-    `PP_OIDC_CLIENT_SECRET` and `PP_SESSION_KEY` — and `apps/server/data/blobs`,
-    which on a developer machine is real user content, into the build. None of
-    it reaches the final image, but it is retained in the local build cache and
-    exported wholesale by any CI using `--cache-to` to a registry.
-    `apps/server/.dockerignore` now exists and is kept in step with the root
-    one.
-12. **One flat compose network, and `/wopi/` published to the internet.**
-    OnlyOffice is a third-party service whose only access control is a shared
-    JWT secret and which runs with `ALLOW_PRIVATE_IP_ADDRESS=true` because its
-    fetcher has to reach `server` at a private address; on a flat network that
-    combination also let it open connections to `postgres:5432` and
-    `seaweedfs:8333`. The network is now segmented `edge`/`data`/`office`,
-    with `server` the only member of all three and OnlyOffice reaching
-    `server:8080` and nothing else. Separately, nginx proxied `/wopi/`, which
-    no shipped topology uses — `PP_WOPI_SERVER_URL` is `http://server:8080`,
-    so the browser never calls that path — and publishing it turned the WOPI
-    access token from a credential that mattered inside the network into an
-    internet-wide bearer token, on the one route group with neither an origin
-    check nor a rate limit. The `location` is gone. The `web` container also
-    picked up `no-new-privileges`, `cap_drop: ALL` plus `NET_BIND_SERVICE`,
-    and an nginx master running as `nginx` rather than root — it terminates
-    every public request, so it gets the treatment the worker already had.
-13. **Two byte-serving endpoints sent no `nosniff` and no disposition.**
-    WOPI `GetFile` and the anonymous share-file path both derived
-    `Content-Type` from the uploader's chosen extension and left a sniffing
-    client nothing else to go on. Both now set
-    `X-Content-Type-Options: nosniff` and an explicit `Content-Disposition`,
-    which is what every other byte-serving path in the server already did.
+- **No write or idle timeout on the HTTP server** — only
+  `ReadHeaderTimeout: 10s` (`cmd/server/main.go`). `nginx.conf`'s long
+  `proxy_*_timeout` values exist because a multi-gigabyte upload and an OnlyOffice
+  conversion both need them, so a blanket handler timeout is not a one-line
+  change. No milestone carries it; it belongs to whoever next touches the
+  server's lifecycle.
+- **No per-user quota and no per-space ceiling** beyond `quota_bytes`. The
+  per-request ceiling bounds one request, not a thousand, and a space with
+  `quota_bytes = 0` is unmetered by definition; `users.quota_*` does not exist.
+  The accounting half is under P1 below.
 
 ## P1 — the gap against Google Drive
 
@@ -783,12 +289,15 @@ Still absent: per-user quota (no `users.quota_*` column,
 also sums version sizes, not distinct blobs, so deduplicated content (a copy
 shares its blob) is counted once per version that references it.
 
-### No way to create a document — M31
+### No way to create a document — closed in M31
 
 Grep for a blank-document template or a create-office-file path across `apps`
-returns nothing. Every `.docx` has to be created somewhere else and uploaded
-before it can be co-edited — which makes the editor a viewer with write access
-rather than a place work starts.
+returned nothing: every `.docx` had to be created somewhere else and uploaded
+before it could be co-edited, which made the editor a viewer with write access
+rather than a place work starts. Closed by `POST
+/api/v1/spaces/{id}/documents`, which writes a blank document, spreadsheet or
+presentation from `internal/office/templates.go` into the write target M19
+resolves and opens the editor on it.
 
 ### Identity is managed by hand — M28
 
@@ -964,19 +473,19 @@ for.
 the `sessions` table, M21 added `security_events`, so the schema changes this
 phase ever needed were already applied; the Document Server runs signed, the
 first admin is a configuration value, upload bodies and request rates have
-ceilings, and the sweep findings in §8 are closed. What remained was the work
-that was not code in this repository — **M22** (§1, backup and restore, now a
-drilled restore) and **M23** (§2, mail transport, invitations only — since
-deleted by M33, which moved that email to Logto) — plus
-**M24** (§7), whose decision landed as refuse-not-lock: the REST
-version-upload and version-restore paths now answer 409 against a live lock
-(since M30 the version upload is a tus replacement, answering 423)
-rather than taking one of their own, which is simple, correct, and
-occasionally makes an editor left open over lunch block a colleague with no
-recourse short of the TTL. Along the way, two items that were never on the P0
-register but read like rollout blockers to anyone testing the product closed
-too: the readiness split under "Smaller, but on the list" (`/readyz`, and a
-file-based signal for `cmd/worker`) and the avatar-upload stub.
+ceilings, and the sweep findings are closed. What remained was the work that was
+not code in this repository — **M22** (backup and restore, now a drilled
+restore) and **M23** (mail transport, invitations only — since deleted by M33,
+which moved that email to Logto, and reinstated by M31 for share notifications)
+— plus **M24**, whose decision landed as refuse-not-lock: the REST version-upload
+and version-restore paths now answer 409 against a live lock (since M30 the
+version upload is a tus replacement, answering 423) rather than taking one of
+their own, which is simple, correct, and occasionally makes an editor left open
+over lunch block a colleague with no recourse short of the TTL. Along the way,
+two items that were never on the P0 register but read like rollout blockers to
+anyone testing the product closed too: the readiness split under "Smaller, but on
+the list" (`/readyz`, and a file-based signal for `cmd/worker`) and the
+avatar-upload stub.
 
 **Continuous — M25, observability — done.** A level-controlled `slog` handler
 carrying the request id, a structured access log and a Prometheus `/metrics`
@@ -994,22 +503,23 @@ by hand". These are what changes when the user count crosses a couple of
 departments, and each one is additive to a pattern that already exists.
 
 **Phase C — collaboration and storage honesty.** **M29 — comments and
-notifications**, which is now the whole of that problem rather than half of
-it: M33 deleted the transport M23 built, because the invitation it carried
-moved to Logto, so M29 owns the notification story, what a share or comment
-notification says, the `notifications` table _and_ the transport that delivers
-any of it; **M30 — resumable upload and honest accounting — done**: tus
+notifications**, which is now the in-app half of that problem: M33 deleted the
+transport M23 built along with the invitation it carried, so **M31 and M35 put
+it back** — outgoing mail is configured in Admin › Settings and already sends
+share notifications and failed-login alerts — and M29 owns the rest: the
+`notifications` table, the route, the in-app delivery story, and what a comment
+notification says; **M30 — resumable upload and honest accounting — done**: tus
 uploads against the formerly dead `uploads` table, version retention, and a
-quota that counts every stored version; and **M31 — document creation** from
-a template.
+quota that counts every stored version; and **M31 — document creation — done**
+from a template.
 
 **Named but unscheduled.** A gap with no milestone is still a gap, and the
 risk of a roadmap is that it stops being visible: `style-src
-'unsafe-inline'`, the orphan-blob audit `gc.go` defers to, upload scanning,
-encryption at rest and an English-only UI. All five keep their evidence in
-"Smaller, but on the list", and [milestones.md](milestones.md) lists them
-under a heading of the same name, so a reader working from the plan meets
-them too.
+'unsafe-inline'`, the orphan-blob audit `gc.go` defers to, upload scanning and
+encryption at rest. (A fifth, the English-only UI, was closed by M32.) All of
+them keep their evidence in "Smaller, but on the list", and
+[milestones.md](milestones.md) lists them under a heading of the same name, so a
+reader working from the plan meets them too.
 
 ## Verdict
 

@@ -260,8 +260,11 @@ inline invites a delivery timeout.
 
 A clean cutover, not a parallel path:
 
-- `internal/mail` — its package doc states the space invitation is the only
-  message that exists. The package goes, and `PP_SMTP_*` with it.
+- `internal/mail` — its package doc stated the space invitation was the only
+  message that exists, so the package went and `PP_SMTP_*` with it. **M31
+  brought it back** for share notifications (and M26's alerts, configured in
+  Admin › Settings by M35), so the package and the variables exist again; what
+  stayed deleted is the invitation message and its template.
 - the invitation half of `httpapi/space_settings.go` (~262 LOC) and
   `space_settings_test.go`'s token test.
 - `space_invitations` and its three indexes.
@@ -279,7 +282,9 @@ A clean cutover, not a parallel path:
 
 **This does not remove mail configuration, it moves it.** Invitation email is
 now Logto's, which requires an email connector and an `OrganizationInvitation`
-template there.
+template there. Outgoing mail for pp-hub's own messages — share notifications
+(M31) and security alerts (M26) — is configured separately, in Admin ›
+Settings (M35), with `PP_SMTP_*` as the fallback.
 
 ## Failure modes
 
