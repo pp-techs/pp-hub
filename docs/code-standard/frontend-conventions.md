@@ -82,6 +82,37 @@ Three layers, one direction only — components never call `api` directly:
 - **`packages/ui` is shadcn's base-ui variant** (style `base-mira`,
   `@base-ui/react`). Composition uses `render={<El/>}`, never `asChild`.
 
+## Loading States
+
+- **A view never borrows another resource's data while it loads.**
+  `placeholderData: prev` is for refining the _same_ query on the _same_
+  surface: a search term, a page of the security log. It is not for moving
+  between folders or spaces. The folder listing used it that way: folder A's rows
+  stayed on screen as folder B, still clickable and feeding the details panel
+  and breadcrumb, then swapped out. That swap was the flicker it meant to hide.
+- **Cached means instant, uncached means skeleton.** Without a placeholder,
+  TanStack Query already renders a cached key's own data at once and
+  refetches behind it; `isPending` is only true when there is nothing to show.
+  The listing marks a background refetch with `FetchingBar`
+  (`isFetching && !isPending`), which takes no height.
+- **A `beforeLoad` guard never waits on the network for data it already has.**
+  The router keeps the previous matches, and so the previous folder, on
+  screen until every `beforeLoad` in the tree settles, and `/drive`'s runs on
+  every navigation, `?dir=` changes included. `requireAuth` therefore uses
+  `ensureQueryData({ revalidateIfStale: true })`: the first call waits, later
+  ones answer from cache and revalidate in the background. A revoked session
+  still surfaces through the global 401 handler. This is not `staleTime:
+Infinity`; the identity is refetched on every navigation, just not awaited.
+- **A loading state has the shape of what it replaces.** Skeletons come from
+  `components/loading.tsx` (`LoadingStatus`, `SkeletonTableRows`,
+  `FetchingBar`), or sit next to the component they stand
+  in for when they share its layout constants (`NodeGridSkeleton`,
+  `NodeListSkeleton`). A table keeps its real header and puts skeleton rows in
+  its body. A bare "Loading…" line is not a loading state: the content then
+  lands at another height and moves everything below it.
+- Custom skeleton markup is wrapped in `LoadingStatus`, which carries the one
+  `role="status"` and the screen-reader text.
+
 ## Monorepo Rules
 
 - Workspace layout: `apps/*`, `packages/*`, `tools/*` (see root `package.json`).

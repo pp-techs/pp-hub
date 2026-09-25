@@ -4,6 +4,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
 import { ArrowLeft, Download, History, Link2 } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
+import { Skeleton } from "@workspace/ui/components/skeleton";
 import { capsOf, createEditSession, type EditSession } from "@/lib/api";
 import { nodeOptions, requireAuth, useNode } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
@@ -87,23 +88,32 @@ function EditPage() {
           <ArrowLeft />
         </Button>
 
-        {node.data && <NodeIcon node={node.data} className="size-4 shrink-0" />}
-        <div className="flex min-w-0 flex-col">
-          <span className="truncate text-sm font-medium">{node.data?.name ?? t`Loading…`}</span>
-          <span className="text-muted-foreground truncate text-[10px] tabular-nums">
-            {node.data
-              ? [
-                  version ? t`version ${version}` : null,
-                  node.data.size != null ? f.size(node.data.size) : null,
-                  // A reader gets the document, not the editor, and the
-                  // ribbon alone is a subtle thing to read that from.
-                  session && !session.can_write ? t`read-only` : t`saved by OnlyOffice`,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")
-              : ""}
-          </span>
-        </div>
+        {node.data ? (
+          <NodeIcon node={node.data} className="size-4 shrink-0" />
+        ) : (
+          <Skeleton className="size-4 shrink-0" />
+        )}
+        {node.data ? (
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate text-sm font-medium">{node.data.name}</span>
+            <span className="text-muted-foreground truncate text-[10px] tabular-nums">
+              {[
+                version ? t`version ${version}` : null,
+                node.data.size != null ? f.size(node.data.size) : null,
+                // A reader gets the document, not the editor, and the
+                // ribbon alone is a subtle thing to read that from.
+                session && !session.can_write ? t`read-only` : t`saved by OnlyOffice`,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </span>
+          </div>
+        ) : (
+          <div className="flex min-w-0 flex-col gap-1">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-2.5 w-28" />
+          </div>
+        )}
 
         <div className="ml-auto flex shrink-0 items-center gap-1">
           {node.data && capsOf(node.data).share && (

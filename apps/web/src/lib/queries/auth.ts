@@ -29,13 +29,22 @@ export function useMe() {
  * Without the `redirect` param every deep link — a folder, a settings tab, a
  * shared file — resolved to the last space after signing in, which is rarely
  * what the link was for. Session is an httpOnly cookie.
+ *
+ * Only the first call waits on the network. After that the cached profile
+ * answers at once and a stale one is revalidated in the background. The
+ * guard runs in `/drive`'s `beforeLoad`, so it runs on every navigation,
+ * including every `?dir=` change. Awaiting a fresh `/users/me` there held the
+ * router on the previous folder for a full round trip, and that was the
+ * "old folder shows first" flicker. A revoked session is still caught: the
+ * background refetch 401s into the global unauthorized handler.
  */
 export async function requireAuth(qc: QueryClient, href?: string): Promise<UserProfile> {
   try {
-    return await qc.fetchQuery({
+    return await qc.ensureQueryData({
       queryKey: keys.me,
       queryFn: getMyProfile,
       retry: false,
+      revalidateIfStale: true,
     });
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) {

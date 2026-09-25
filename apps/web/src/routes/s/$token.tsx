@@ -4,6 +4,7 @@ import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
 import { ChevronRight, Download, Eye, Info, Shield } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
+import { Skeleton } from "@workspace/ui/components/skeleton";
 import {
   Table,
   TableBody,
@@ -29,6 +30,7 @@ import { shareInfoOptions, useShareChildren, useShareInfo } from "@/lib/queries"
 import { useFormatters } from "@/lib/format";
 import { pageTitle } from "@/lib/i18n";
 import { NodeIcon } from "@/components/node-icon";
+import { LoadingStatus, SkeletonTableRows } from "@/components/loading";
 
 export const Route = createFileRoute("/s/$token")({
   head: () => ({ meta: [{ title: pageTitle(msg`Shared`) }] }),
@@ -67,7 +69,30 @@ function ShareLanding() {
   const children = useShareChildren(token, currentDir, !!isFolder);
 
   if (info.isPending) {
-    return <Shell>{null}</Shell>;
+    return (
+      <Shell>
+        <LoadingStatus className="flex min-h-0 flex-1 flex-col">
+          <div className="bg-muted border-border flex h-8 shrink-0 items-center gap-2 border-b px-4">
+            <Skeleton className="bg-background h-3 w-56" />
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col gap-4 p-4">
+            <div className="flex min-w-0 flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <Skeleton className="size-5 shrink-0" />
+                <Skeleton className="h-7 w-48" />
+              </div>
+              <Skeleton className="my-0.5 h-3 w-16" />
+            </div>
+            <div className="flex flex-col gap-2.5">
+              <Skeleton className="h-3.5 w-3/4" />
+              <Skeleton className="h-3.5 w-1/2" />
+              <Skeleton className="h-3.5 w-2/3" />
+              <Skeleton className="h-3.5 w-3/5" />
+            </div>
+          </div>
+        </LoadingStatus>
+      </Shell>
+    );
   }
 
   if (info.isError || !root) {
@@ -245,14 +270,7 @@ function ShareTable({ token, nodes, isPending, canDownload, onOpenFolder }: Shar
   const { t } = useLingui();
   const f = useFormatters();
 
-  if (isPending)
-    return (
-      <p className="text-muted-foreground py-8 text-xs">
-        <Trans>Loading…</Trans>
-      </p>
-    );
-
-  if (nodes.length === 0) {
+  if (!isPending && nodes.length === 0) {
     return (
       <Empty className="py-12">
         <EmptyHeader>
@@ -288,74 +306,78 @@ function ShareTable({ token, nodes, isPending, canDownload, onOpenFolder }: Shar
         </TableRow>
       </TableHeader>
       <TableBody>
-        {nodes.map((n) => {
-          // Named local so the extracted message reads `{nodeName}` rather than `{0}`.
-          const nodeName = n.name;
-          return (
-            <TableRow key={n.id}>
-              <TableCell>
-                {n.kind === "dir" ? (
-                  <button
-                    type="button"
-                    className="flex min-w-0 items-center gap-2 text-left"
-                    onClick={() => onOpenFolder(n)}
-                  >
-                    <NodeIcon node={n} />
-                    <span className="truncate font-medium hover:underline">{n.name}</span>
-                  </button>
-                ) : (
-                  <div className="flex min-w-0 items-center gap-2">
-                    <NodeIcon node={n} />
-                    <span className="truncate font-medium">{n.name}</span>
-                  </div>
-                )}
-              </TableCell>
-              <TableCell className="text-muted-foreground tabular-nums">
-                {f.date(n.modified_at)}
-              </TableCell>
-              <TableCell className="text-muted-foreground tabular-nums">
-                {n.kind === "file" && n.size != null ? f.size(n.size) : "—"}
-              </TableCell>
-              <TableCell>
-                {n.kind === "file" && (
-                  <div className="flex items-center justify-end gap-1">
-                    {/* Both actions hang off the download capability, because
+        {isPending ? (
+          <SkeletonTableRows columns={4} />
+        ) : (
+          nodes.map((n) => {
+            // Named local so the extracted message reads `{nodeName}` rather than `{0}`.
+            const nodeName = n.name;
+            return (
+              <TableRow key={n.id}>
+                <TableCell>
+                  {n.kind === "dir" ? (
+                    <button
+                      type="button"
+                      className="flex min-w-0 items-center gap-2 text-left"
+                      onClick={() => onOpenFolder(n)}
+                    >
+                      <NodeIcon node={n} />
+                      <span className="truncate font-medium hover:underline">{n.name}</span>
+                    </button>
+                  ) : (
+                    <div className="flex min-w-0 items-center gap-2">
+                      <NodeIcon node={n} />
+                      <span className="truncate font-medium">{n.name}</span>
+                    </div>
+                  )}
+                </TableCell>
+                <TableCell className="text-muted-foreground tabular-nums">
+                  {f.date(n.modified_at)}
+                </TableCell>
+                <TableCell className="text-muted-foreground tabular-nums">
+                  {n.kind === "file" && n.size != null ? f.size(n.size) : "—"}
+                </TableCell>
+                <TableCell>
+                  {n.kind === "file" && (
+                    <div className="flex items-center justify-end gap-1">
+                      {/* Both actions hang off the download capability, because
                         both endpoints do: the server enforces `can_download` on
                         `/content` as well as `/node-download`. Offering Preview
                         on a view-only link was a button whose only possible
                         outcome was a 403. */}
-                    {canDownload && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
-                          aria-label={t`Preview ${nodeName}`}
-                          render={
-                            <a
-                              href={shareNodeContentUrl(token, n.id)}
-                              target="_blank"
-                              rel="noreferrer"
-                            />
-                          }
-                        >
-                          <Eye />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
-                          aria-label={t`Download ${nodeName}`}
-                          render={<a href={shareNodeDownloadUrl(token, n.id)} />}
-                        >
-                          <Download />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                )}
-              </TableCell>
-            </TableRow>
-          );
-        })}
+                      {canDownload && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            aria-label={t`Preview ${nodeName}`}
+                            render={
+                              <a
+                                href={shareNodeContentUrl(token, n.id)}
+                                target="_blank"
+                                rel="noreferrer"
+                              />
+                            }
+                          >
+                            <Eye />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            aria-label={t`Download ${nodeName}`}
+                            render={<a href={shareNodeDownloadUrl(token, n.id)} />}
+                          >
+                            <Download />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </TableCell>
+              </TableRow>
+            );
+          })
+        )}
       </TableBody>
     </Table>
   );

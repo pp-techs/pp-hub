@@ -12,11 +12,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@workspace/ui/components/dialog";
+import { Skeleton } from "@workspace/ui/components/skeleton";
 import type { Session } from "@/lib/api";
 import { useRevokeOtherSessions, useRevokeSession, useSessions } from "@/lib/queries";
 import { useFormatters } from "@/lib/format";
 import { describeAgent } from "@/lib/user-agent";
 import { SectionLabel } from "@/components/section-label";
+import { LoadingStatus } from "@/components/loading";
 
 /** Form factor -> icon. These are icon components, not labels: nothing to translate. */
 const FORM_ICONS = { desktop: Monitor, phone: Smartphone, tablet: Tablet } as const;
@@ -100,9 +102,19 @@ export function AccountSecurityPane() {
       </div>
 
       {isLoading && (
-        <p className="text-muted-foreground text-xs">
-          <Trans>Loading…</Trans>
-        </p>
+        <LoadingStatus>
+          <ul className="border-border divide-border divide-y rounded-md border">
+            {[40, 55, 48].map((width) => (
+              <li key={width} className="flex items-center gap-3 px-3 py-2.5">
+                <Skeleton className="size-4 shrink-0" />
+                <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                  <Skeleton className="h-3.5" style={{ width: `${width}%` }} />
+                  <Skeleton className="h-2.5" style={{ width: `${width + 20}%` }} />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </LoadingStatus>
       )}
       {isError && (
         <p className="text-destructive text-xs">

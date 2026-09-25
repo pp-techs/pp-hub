@@ -13,6 +13,7 @@ import {
 } from "@workspace/ui/components/breadcrumb";
 import { cn } from "@workspace/ui/lib/utils";
 import { SidebarTrigger } from "@workspace/ui/components/sidebar";
+import type { Node } from "@/lib/api";
 import { useMoveNodes, useNode } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
 import { isValidMoveTarget } from "@/lib/drag-drop";
@@ -116,35 +117,50 @@ function ListingBreadcrumb({
   cachedDirs: Record<string, { name: string; parent?: string }>;
 }) {
   const { t } = useLingui();
-  // Fixed slots keep the hook order stable. Each fetches the node at one level;
-  // `parent_id === undefined` marks the space root, where the trail stops.
-  const level0 = useNode(dir);
-  const level1 = useNode(level0.data?.parent_id);
-  const level2 = useNode(level1.data?.parent_id);
-  const level3 = useNode(level2.data?.parent_id);
-  const level4 = useNode(level3.data?.parent_id);
-  const level5 = useNode(level4.data?.parent_id);
-  const level6 = useNode(level5.data?.parent_id);
-  const level7 = useNode(level6.data?.parent_id);
+  // Fixed slots keep the hook order stable. Each level's id is its child's
+  // parent — from the fetched node when there is one, otherwise from the
+  // `dirs` store the listing fills in. The store is what lets the trail paint
+  // at once on a folder that was just opened, instead of collapsing to
+  // "My Drive" for a round trip, and lets every level fetch in parallel
+  // rather than one after another. `undefined` marks the space root.
+  const parentOf = (id: string | undefined, node: Node | undefined) =>
+    node ? node.parent_id : id ? cachedDirs[id]?.parent : undefined;
+  const id0 = dir;
+  const level0 = useNode(id0);
+  const id1 = parentOf(id0, level0.data);
+  const level1 = useNode(id1);
+  const id2 = parentOf(id1, level1.data);
+  const level2 = useNode(id2);
+  const id3 = parentOf(id2, level2.data);
+  const level3 = useNode(id3);
+  const id4 = parentOf(id3, level3.data);
+  const level4 = useNode(id4);
+  const id5 = parentOf(id4, level4.data);
+  const level5 = useNode(id5);
+  const id6 = parentOf(id5, level5.data);
+  const level6 = useNode(id6);
+  const id7 = parentOf(id6, level6.data);
+  const level7 = useNode(id7);
 
-  const fetched = [level0, level1, level2, level3, level4, level5, level6, level7];
+  const levels = [
+    [id0, level0.data],
+    [id1, level1.data],
+    [id2, level2.data],
+    [id3, level3.data],
+    [id4, level4.data],
+    [id5, level5.data],
+    [id6, level6.data],
+    [id7, level7.data],
+  ] as const;
 
-  // Stop at the first level where there is no node, or the node has no parent
-  // (the space root). Anything past it would be a corrupted or circular chain.
-  const deepest = fetched.findIndex((q) => !q.data || !q.data.parent_id);
-  const chain = fetched.slice(0, deepest === -1 ? MAX_DEPTH : deepest + 1);
-
-  // Prefer the cached name if we have one — it reflects any rename the user
-  // made in this session. The fetched name is the fallback until the cache
-  // catches up, or forever for folders the user opened exactly once.
-  // `chain` runs leaf-to-root (level0 is the current dir); reverse it so the
-  // breadcrumb reads root-to-leaf, ancestors before the current folder.
-  const trail = chain
-    .map((q) => {
-      const id = q.data?.id;
-      const name = (id && cachedDirs[id]?.name) || q.data?.name;
-      return { id, name };
-    })
+  // Stop at the space root; anything past MAX_DEPTH would be a corrupted or
+  // circular chain. Prefer the cached name — it reflects any rename made in
+  // this session — and fall back to the fetched one. `levels` runs
+  // leaf-to-root; reverse it so the breadcrumb reads root-to-leaf.
+  const rootAt = levels.findIndex(([id]) => !id);
+  const trail = levels
+    .slice(0, rootAt === -1 ? MAX_DEPTH : rootAt)
+    .map(([id, node]) => ({ id, name: (id && cachedDirs[id]?.name) || node?.name }))
     .filter((seg): seg is { id: string; name: string } => Boolean(seg.id && seg.name))
     .reverse();
 

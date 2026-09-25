@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Trans } from "@lingui/react/macro";
+import { Skeleton } from "@workspace/ui/components/skeleton";
 import { useSpace } from "@/lib/queries";
 import { useActiveSpaceId } from "@/lib/use-active-space";
+import { LoadingStatus } from "@/components/loading";
 import { PeopleTable } from "@/components/people-table";
 
 /**
@@ -19,9 +20,23 @@ export function SpaceMembersPane() {
 
   if (!space)
     return (
-      <p className="text-muted-foreground text-xs">
-        <Trans>Loading…</Trans>
-      </p>
+      <LoadingStatus className="flex flex-col gap-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex flex-col gap-1.5">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-2.5 w-32" />
+          </div>
+          <Skeleton className="h-7 w-28" />
+        </div>
+        <Skeleton className="h-7 w-full max-w-64" />
+        <div className="flex flex-col">
+          {[40, 55, 35, 48, 60].map((width) => (
+            <div key={width} className="border-border flex h-10 items-center border-b px-2">
+              <Skeleton className="h-3.5" style={{ width: `${width}%` }} />
+            </div>
+          ))}
+        </div>
+      </LoadingStatus>
     );
 
   return (

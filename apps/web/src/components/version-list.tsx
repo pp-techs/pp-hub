@@ -3,6 +3,8 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { Download, RotateCcw } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { Badge } from "@workspace/ui/components/badge";
+import { Skeleton } from "@workspace/ui/components/skeleton";
+import { LoadingStatus } from "@/components/loading";
 import { capsOf, type Node } from "@/lib/api";
 import { useRestoreVersion, useVersions } from "@/lib/queries";
 import { useFormatters } from "@/lib/format";
@@ -25,9 +27,21 @@ export function VersionList({ node, onRestored }: { node: Node; onRestored?: () 
 
   if (versions.isPending) {
     return (
-      <p className="text-muted-foreground text-xs">
-        <Trans>Loading…</Trans>
-      </p>
+      <LoadingStatus>
+        <ul className="border-border flex flex-col gap-3 border-l pl-3">
+          {[0, 1, 2].map((i) => (
+            <li key={i} className="relative flex flex-col gap-1">
+              <span
+                aria-hidden
+                className="bg-border absolute top-1.5 -left-[17px] size-1.5 rounded-full"
+              />
+              <Skeleton className="my-0.5 h-3 w-20" />
+              <Skeleton className="h-2.5 w-28" />
+              <Skeleton className="h-6 w-20" />
+            </li>
+          ))}
+        </ul>
+      </LoadingStatus>
     );
   }
   if (versions.isError) {

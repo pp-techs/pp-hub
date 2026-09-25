@@ -13,10 +13,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@workspace/ui/components/card";
+import { Skeleton } from "@workspace/ui/components/skeleton";
 import { useDeleteSpace, useSpace } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
 import { useActiveSpaceId } from "@/lib/use-active-space";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { LoadingStatus } from "@/components/loading";
+import { FieldSkeleton } from "@/components/settings/field-skeleton";
 
 export function SpaceDangerPane() {
   const { t } = useLingui();
@@ -29,9 +32,19 @@ export function SpaceDangerPane() {
 
   if (!space)
     return (
-      <p className="text-muted-foreground text-xs">
-        <Trans>Loading…</Trans>
-      </p>
+      <LoadingStatus>
+        <Card className="border-destructive/30 max-w-xl">
+          <CardHeader>
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-3.5 w-full" />
+            <Skeleton className="h-3.5 w-2/3" />
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            <FieldSkeleton className="max-w-64" />
+            <Skeleton className="h-7 w-28" />
+          </CardContent>
+        </Card>
+      </LoadingStatus>
     );
 
   const spaceName = space.name;

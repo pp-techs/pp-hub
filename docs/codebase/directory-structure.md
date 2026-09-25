@@ -66,6 +66,7 @@ pp-hub/
 │   │       │   ├── node-grid.tsx         # card grid, grouped Folders / Files, always-on thumbnails
 │   │       │   ├── node-actions.tsx      # single source for a node's menu actions
 │   │       │   ├── selection-bar.tsx     # floating bar for a multi-row selection
+│   │       │   ├── loading.tsx           # shared skeletons + FetchingBar; no bare "Loading…" lines
 │   │       │   └── ...                  # folder-tree, preview, nav, etc. (edit is a route, not a panel)
 │   │       └── routes/             # TanStack Router file-based routes
 │   │           ├── login.tsx            # OIDC hand-off; ?redirect= survives the round trip
@@ -214,10 +215,10 @@ pp-hub/
   the class string is how it drifts. The listing keeps its own full-bleed
   container (`rounded-b-xl overflow-hidden`, so rows clip to the inset's
   corner) because a file manager's rows have to reach the edges.
-- **Folder navigation keeps the previous listing on screen.** `childrenOptions`
-  sets `placeholderData: (prev) => prev` — the same pattern `useNodeSearch`
-  uses — so clicking a folder in `folder-tree.tsx` swaps content in place
-  instead of blanking to "Loading…" and back. `FolderTreeItem` also queries its
+- **Folder navigation never shows another folder's rows.** `childrenOptions`
+  has no `placeholderData`. A cached folder renders its own rows at once and
+  refetches behind a `FetchingBar`; an uncached one shows `NodeGridSkeleton`
+  / `NodeListSkeleton` (see Loading States in frontend-conventions). `FolderTreeItem` also queries its
   **own** id (`useTree(spaceId, node.id, expanded)`), gated on `expanded`; it
   used to query `useTree(spaceId, undefined)` — the root tree's key — for
   every collapsed row, an unnecessary live subscription per rendered folder.

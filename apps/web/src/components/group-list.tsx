@@ -18,6 +18,7 @@ import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 import { Textarea } from "@workspace/ui/components/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/avatar";
+import { Skeleton } from "@workspace/ui/components/skeleton";
 import { cn } from "@workspace/ui/lib/utils";
 import { ApiError, type Group, type Space } from "@/lib/api";
 import { useKeyedState } from "@/lib/use-keyed-state";
@@ -30,6 +31,7 @@ import {
   useRemoveGroupMember,
   useSpaceMembers,
 } from "@/lib/queries";
+import { LoadingStatus } from "@/components/loading";
 import { GranteePicker, type Grantee } from "@/components/grantee-picker";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 
@@ -79,9 +81,14 @@ export function GroupList({ space, selectedId, onSelect }: GroupListProps) {
       </div>
 
       {isLoading && (
-        <p className="text-muted-foreground text-xs">
-          <Trans>Loading groups…</Trans>
-        </p>
+        <LoadingStatus className="flex flex-col gap-0.5">
+          {[45, 60, 35].map((w) => (
+            <div key={w} className="flex h-6 items-center gap-2 border-l-2 border-transparent px-2">
+              <Skeleton className="h-3" style={{ width: `${w}%` }} />
+              <Skeleton className="ml-auto h-2.5 w-14" />
+            </div>
+          ))}
+        </LoadingStatus>
       )}
 
       <nav className="flex flex-col gap-0.5">
@@ -241,9 +248,14 @@ function GroupMembers({
       )}
 
       {isLoading && (
-        <p className="text-muted-foreground text-[10px]">
-          <Trans>Loading…</Trans>
-        </p>
+        <LoadingStatus className="flex flex-col gap-0.5">
+          {[50, 35].map((w) => (
+            <div key={w} className="flex items-center gap-2 py-0.5">
+              <Skeleton className="size-6 shrink-0 rounded-full" />
+              <Skeleton className="h-3" style={{ width: `${w}%` }} />
+            </div>
+          ))}
+        </LoadingStatus>
       )}
       {!isLoading && members.length === 0 && (
         <p className="text-muted-foreground text-[10px]">

@@ -16,11 +16,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
+import { Skeleton } from "@workspace/ui/components/skeleton";
 import { cn } from "@workspace/ui/lib/utils";
 import { canRestructure, hasThumbnail, previewUrl, thumbnailFit, type Node } from "@/lib/api";
 import { useFormatters } from "@/lib/format";
 import { useNodeActions, type NodeActionHandlers } from "@/components/node-actions";
 import { NodeIcon } from "@/components/node-icon";
+import { LoadingStatus } from "@/components/loading";
 import { useUiStore } from "@/lib/ui-store";
 import { DRAG_DATA_TYPE, isValidMoveTarget, setDragGhost } from "@/lib/drag-drop";
 
@@ -126,6 +128,49 @@ export function NodeGrid({
         </section>
       )}
     </div>
+  );
+}
+
+/**
+ * The grid before its first answer: folder pills and file cards at the real
+ * sizes, in the real columns, so the data lands in place.
+ */
+export function NodeGridSkeleton({
+  folders = 4,
+  files = 10,
+}: {
+  folders?: number;
+  files?: number;
+}) {
+  const label = <Skeleton className="mb-2 h-3 w-16" />;
+  return (
+    <LoadingStatus className="@container flex flex-col gap-6 p-4">
+      <section>
+        {label}
+        <div className={GRID}>
+          {Array.from({ length: folders }, (_, i) => (
+            <div key={i} className="bg-muted/60 flex h-12 items-center gap-2.5 rounded-xl px-3.5">
+              <Skeleton className="size-5 rounded" />
+              <Skeleton className="h-3" style={{ width: `${45 + ((i * 23) % 35)}%` }} />
+            </div>
+          ))}
+        </div>
+      </section>
+      <section>
+        {label}
+        <div className={GRID}>
+          {Array.from({ length: files }, (_, i) => (
+            <div key={i} className="bg-muted/60 flex flex-col gap-2 rounded-2xl p-2.5">
+              <div className="flex h-7 items-center gap-2 px-1">
+                <Skeleton className="size-4 rounded" />
+                <Skeleton className="h-3" style={{ width: `${40 + ((i * 29) % 40)}%` }} />
+              </div>
+              <Skeleton className="bg-background h-36 w-full rounded-xl" />
+            </div>
+          ))}
+        </div>
+      </section>
+    </LoadingStatus>
   );
 }
 

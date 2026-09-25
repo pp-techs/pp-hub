@@ -17,6 +17,7 @@ import {
 import type { Node } from "@/lib/api";
 import { useFormatters } from "@/lib/format";
 import { NodeIcon } from "@/components/node-icon";
+import { SkeletonTableRows } from "@/components/loading";
 
 interface NodeTableProps {
   nodes: Node[];
@@ -46,15 +47,7 @@ export function NodeTable({
 }: NodeTableProps) {
   const f = useFormatters();
 
-  if (isPending) {
-    return (
-      <p className="text-muted-foreground py-8 text-xs">
-        <Trans>Loading…</Trans>
-      </p>
-    );
-  }
-
-  if (nodes.length === 0) {
+  if (!isPending && nodes.length === 0) {
     return (
       <Empty className="py-12">
         <EmptyHeader>
@@ -86,24 +79,28 @@ export function NodeTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {nodes.map((n) => (
-          <TableRow key={n.id}>
-            <TableCell>
-              <div className="flex items-center gap-2">
-                <NodeIcon node={n} isShared={allShared} />
-                <span className="truncate font-medium">{n.name}</span>
-              </div>
-            </TableCell>
-            <TableCell className="text-muted-foreground tabular-nums">
-              {f.date(n.modified_at)}
-            </TableCell>
-            <TableCell className="text-muted-foreground tabular-nums">
-              {n.size != null ? f.size(n.size) : "—"}
-            </TableCell>
-            <TableCell className="text-muted-foreground truncate">{n.owner ?? "—"}</TableCell>
-            {renderActions ? <TableCell>{renderActions(n)}</TableCell> : null}
-          </TableRow>
-        ))}
+        {isPending ? (
+          <SkeletonTableRows columns={renderActions ? 5 : 4} />
+        ) : (
+          nodes.map((n) => (
+            <TableRow key={n.id}>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <NodeIcon node={n} isShared={allShared} />
+                  <span className="truncate font-medium">{n.name}</span>
+                </div>
+              </TableCell>
+              <TableCell className="text-muted-foreground tabular-nums">
+                {f.date(n.modified_at)}
+              </TableCell>
+              <TableCell className="text-muted-foreground tabular-nums">
+                {n.size != null ? f.size(n.size) : "—"}
+              </TableCell>
+              <TableCell className="text-muted-foreground truncate">{n.owner ?? "—"}</TableCell>
+              {renderActions ? <TableCell>{renderActions(n)}</TableCell> : null}
+            </TableRow>
+          ))
+        )}
       </TableBody>
     </Table>
   );

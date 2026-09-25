@@ -15,6 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
+import { Skeleton } from "@workspace/ui/components/skeleton";
 import { cn } from "@workspace/ui/lib/utils";
 import { canRestructure, type Node } from "@/lib/api";
 import { useFormatters } from "@/lib/format";
@@ -24,6 +25,7 @@ import {
   type NodeActionHandlers,
 } from "@/components/node-actions";
 import { NodeIcon } from "@/components/node-icon";
+import { LoadingStatus } from "@/components/loading";
 import { useUiStore } from "@/lib/ui-store";
 import { DRAG_DATA_TYPE, isValidMoveTarget, setDragGhost } from "@/lib/drag-drop";
 
@@ -63,25 +65,7 @@ export function NodeList({
 
   return (
     <table className="w-full border-collapse text-left text-xs">
-      <thead className="bg-background border-border text-muted-foreground sticky top-0 z-10 border-b text-[11px] tracking-wider uppercase">
-        <tr className="h-9">
-          <th scope="col" className="min-w-60 px-3 font-medium">
-            <Trans>Name</Trans>
-          </th>
-          <th scope="col" className="w-36 px-2 text-right font-medium">
-            <Trans>Modified</Trans>
-          </th>
-          <th scope="col" className="w-24 px-2 text-right font-medium">
-            <Trans>Size</Trans>
-          </th>
-          <th scope="col" className="w-32 px-2 font-medium">
-            <Trans>Owner</Trans>
-          </th>
-          <th scope="col" className="w-20 px-3 text-right font-medium">
-            <Trans>Actions</Trans>
-          </th>
-        </tr>
-      </thead>
+      <NodeListHead />
       <tbody className="divide-border divide-y">
         {nodes.map((n) => (
           <NodeListRow
@@ -100,6 +84,67 @@ export function NodeList({
         ))}
       </tbody>
     </table>
+  );
+}
+
+/** Column labels, shared by the listing and its loading state so neither drifts. */
+function NodeListHead() {
+  return (
+    <thead className="bg-background border-border text-muted-foreground sticky top-0 z-10 border-b text-[11px] tracking-wider uppercase">
+      <tr className="h-9">
+        <th scope="col" className="min-w-60 px-3 font-medium">
+          <Trans>Name</Trans>
+        </th>
+        <th scope="col" className="w-36 px-2 text-right font-medium">
+          <Trans>Modified</Trans>
+        </th>
+        <th scope="col" className="w-24 px-2 text-right font-medium">
+          <Trans>Size</Trans>
+        </th>
+        <th scope="col" className="w-32 px-2 font-medium">
+          <Trans>Owner</Trans>
+        </th>
+        <th scope="col" className="w-20 px-3 text-right font-medium">
+          <Trans>Actions</Trans>
+        </th>
+      </tr>
+    </thead>
+  );
+}
+
+/**
+ * The listing before its first answer: the real header over rows of the same
+ * 36px height, so the data lands in place instead of pushing the page around.
+ */
+export function NodeListSkeleton({ rows = 8 }: { rows?: number }) {
+  return (
+    <LoadingStatus>
+      <table className="w-full border-collapse text-left text-xs">
+        <NodeListHead />
+        <tbody className="divide-border divide-y">
+          {Array.from({ length: rows }, (_, i) => (
+            <tr key={i} className="h-9">
+              <td className="px-3">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="size-4 rounded" />
+                  <Skeleton className="h-3" style={{ width: `${40 + ((i * 17) % 35)}%` }} />
+                </div>
+              </td>
+              <td className="px-2">
+                <Skeleton className="ml-auto h-3 w-20" />
+              </td>
+              <td className="px-2">
+                <Skeleton className="ml-auto h-3 w-12" />
+              </td>
+              <td className="px-2">
+                <Skeleton className="h-3 w-20" />
+              </td>
+              <td className="px-3" />
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </LoadingStatus>
   );
 }
 

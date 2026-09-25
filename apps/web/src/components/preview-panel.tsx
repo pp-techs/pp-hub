@@ -3,6 +3,7 @@ import type { LucideIcon } from "lucide-react";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@workspace/ui/components/button";
 import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar";
+import { Skeleton } from "@workspace/ui/components/skeleton";
 import { cn } from "@workspace/ui/lib/utils";
 import {
   canPreview,
@@ -19,6 +20,7 @@ import { useFormatters } from "@/lib/format";
 import { useGrants, useShares, useSpace, useSpaceMembers, useVersions } from "@/lib/queries";
 import { useSettingsNavigation } from "@/lib/use-settings-hash";
 import { useUiStore } from "@/lib/ui-store";
+import { LoadingStatus } from "@/components/loading";
 import { NodeIcon } from "@/components/node-icon";
 import { PreviewModal } from "@/components/preview-modal";
 import { ShareDialog } from "@/components/share-dialog";
@@ -76,7 +78,7 @@ function PanelAction({
  */
 export type DetailsSubject =
   | { kind: "nodes"; nodes: Node[] }
-  | { kind: "space"; spaceId: string; folders: number; files: number };
+  | { kind: "space"; spaceId: string; folders: number | null; files: number | null };
 
 /**
  * Right-hand details panel. It follows the selection rather than opening on
@@ -148,9 +150,18 @@ export function DetailsPanel({
  *
  * `folders`/`files` count what the listing is showing — the Archive is
  * excluded and an active filter narrows them — because the panel sits beside
- * those rows and should not contradict them.
+ * those rows and should not contradict them. `null` while the listing has no
+ * answer yet: "0 folders and 0 files" would be a claim, not a placeholder.
  */
-function SpaceDetails({ space, folders, files }: { space: Space; folders: number; files: number }) {
+function SpaceDetails({
+  space,
+  folders,
+  files,
+}: {
+  space: Space;
+  folders: number | null;
+  files: number | null;
+}) {
   const { t } = useLingui();
   const f = useFormatters();
   const { openSettings } = useSettingsNavigation();
@@ -223,10 +234,14 @@ function SpaceDetails({ space, folders, files }: { space: Space; folders: number
           <DetailRow
             label={t`Contents`}
             value={
-              <Trans>
-                <Plural value={folders} one="# folder" other="# folders" /> and{" "}
-                <Plural value={files} one="# file" other="# files" />
-              </Trans>
+              folders === null || files === null ? (
+                "—"
+              ) : (
+                <Trans>
+                  <Plural value={folders} one="# folder" other="# folders" /> and{" "}
+                  <Plural value={files} one="# file" other="# files" />
+                </Trans>
+              )
             }
           />
           <DetailRow label={t`Members`} value={members.data ? members.data.length : "—"} />
@@ -373,7 +388,15 @@ function NodeDetails({ node }: { node: Node }) {
             <Trans>Sharing</Trans>
           </SectionLabel>
           {shares.isPending || grants.isPending ? (
-            <p className="text-muted-foreground text-[11px]">{t`Loading…`}</p>
+            <LoadingStatus className="flex flex-col gap-1.5">
+              {[60, 45].map((w) => (
+                <div key={w} className="flex items-center gap-2">
+                  <Skeleton className="size-6 shrink-0 rounded-full" />
+                  <Skeleton className="h-3" style={{ width: `${w}%` }} />
+                  <Skeleton className="ml-auto h-2.5 w-8" />
+                </div>
+              ))}
+            </LoadingStatus>
           ) : access.length > 0 ? (
             <div className="flex flex-col gap-1.5">
               {access.map((share) => (

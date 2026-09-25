@@ -4,6 +4,9 @@ import { msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
 import { Clock, Star } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
+import { Card, CardContent, CardHeader } from "@workspace/ui/components/card";
+import { Skeleton } from "@workspace/ui/components/skeleton";
+import { LoadingStatus } from "@/components/loading";
 import { HeaderActions } from "@/components/header-slot";
 import { SectionLabel } from "@/components/section-label";
 import { Surface } from "@/components/surface";
@@ -148,9 +151,26 @@ function HomePage() {
               <Trans>Storage</Trans>
             </SectionLabel>
             {usage.isPending ? (
-              <p className="text-muted-foreground text-xs">
-                <Trans>Loading…</Trans>
-              </p>
+              <LoadingStatus>
+                <Card>
+                  <CardHeader className="flex items-center justify-between">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-3 w-12" />
+                  </CardHeader>
+                  <CardContent className="flex flex-col gap-2">
+                    <Skeleton className="h-1.5 w-full rounded-full" />
+                    <div className="flex flex-col gap-1">
+                      {[55, 40, 65, 45].map((w) => (
+                        <div key={w} className="flex h-4 items-center gap-2">
+                          <Skeleton className="size-2 shrink-0 rounded-[2px]" />
+                          <Skeleton className="h-3" style={{ width: `${w}%` }} />
+                          <Skeleton className="ml-auto h-3 w-10" />
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </LoadingStatus>
             ) : (
               <StorageBreakdown usage={usage.data ?? []} />
             )}
@@ -161,9 +181,21 @@ function HomePage() {
               <Trans>Activity</Trans>
             </SectionLabel>
             {activity.isPending ? (
-              <p className="text-muted-foreground text-xs">
-                <Trans>Loading…</Trans>
-              </p>
+              <LoadingStatus>
+                <Card>
+                  <CardContent className="flex flex-col gap-6">
+                    {[80, 60, 70, 55].map((w) => (
+                      <div key={w} className="flex gap-3">
+                        <Skeleton className="size-5 shrink-0 rounded-full" />
+                        <div className="flex flex-1 flex-col gap-1.5">
+                          <Skeleton className="h-3.5" style={{ width: `${w}%` }} />
+                          <Skeleton className="h-2.5 w-14" />
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              </LoadingStatus>
             ) : (
               <ActivityFeed events={activity.data ?? []} />
             )}

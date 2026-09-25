@@ -45,6 +45,7 @@ import {
   SelectValue,
 } from "@workspace/ui/components/select";
 import { Separator } from "@workspace/ui/components/separator";
+import { Skeleton } from "@workspace/ui/components/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@workspace/ui/components/toggle-group";
 import {
   ApiError,
@@ -70,6 +71,7 @@ import {
 } from "@/lib/queries";
 import { useKeyedState } from "@/lib/use-keyed-state";
 import { GranteePicker, type Grantee } from "@/components/grantee-picker";
+import { LoadingStatus } from "@/components/loading";
 
 type Props = { node: Node };
 
@@ -509,9 +511,19 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
 
           <div className="bg-background rounded-md border">
             {loading ? (
-              <p className="text-muted-foreground p-3 text-sm">
-                <Trans>Loading access…</Trans>
-              </p>
+              <LoadingStatus>
+                <ul className="divide-y">
+                  {[45, 60, 35].map((w) => (
+                    <li key={w} className="flex items-center gap-3 p-3">
+                      <Skeleton className="size-6 shrink-0 rounded-full" />
+                      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                        <Skeleton className="h-3.5" style={{ width: `${w}%` }} />
+                        <Skeleton className="h-2.5 w-16" />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </LoadingStatus>
             ) : rowCount === 0 && !inherited.isError ? (
               <p className="text-muted-foreground p-3 text-sm">
                 <Trans>Nobody has access to this yet.</Trans>

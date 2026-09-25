@@ -30,6 +30,7 @@ import {
   TableRow,
 } from "@workspace/ui/components/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/avatar";
+import { SkeletonTableRows } from "@/components/loading";
 import type { DepartureSource, Group, Space, SpaceDeparture, SpaceMember } from "@/lib/api";
 import { useFormatters } from "@/lib/format";
 import {
@@ -144,14 +145,6 @@ export function PeopleTable({ space, groupFilter, onGroupFilterChange }: PeopleT
   const leaverName = leaver ? leaver.display_name || leaver.name || leaver.email : "";
   const owned = leaver?.files_owned ?? 0;
 
-  if (isLoading) {
-    return (
-      <p className="text-muted-foreground text-xs">
-        <Trans>Loading people…</Trans>
-      </p>
-    );
-  }
-
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
@@ -236,6 +229,7 @@ export function PeopleTable({ space, groupFilter, onGroupFilterChange }: PeopleT
             </TableRow>
           </TableHeader>
           <TableBody>
+            {isLoading && <SkeletonTableRows columns={isAdmin ? 7 : 6} />}
             {visibleMembers.map((member) => (
               <MemberRow
                 key={member.user_id}
@@ -288,7 +282,7 @@ export function PeopleTable({ space, groupFilter, onGroupFilterChange }: PeopleT
               />
             ))}
 
-            {shown === 0 && (
+            {!isLoading && shown === 0 && (
               <TableRow>
                 <TableCell colSpan={isAdmin ? 7 : 6} className="text-muted-foreground py-6 text-xs">
                   <Trans>No one matches these filters.</Trans>

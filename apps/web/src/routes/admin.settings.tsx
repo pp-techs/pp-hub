@@ -9,6 +9,7 @@ import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 import { Badge } from "@workspace/ui/components/badge";
+import { Skeleton } from "@workspace/ui/components/skeleton";
 import {
   Card,
   CardAction,
@@ -26,6 +27,7 @@ import {
 } from "@workspace/ui/components/select";
 import { AdminHeader } from "@/components/admin-header";
 import { SectionLabel } from "@/components/section-label";
+import { LoadingStatus } from "@/components/loading";
 import {
   adminSettingsOptions,
   requireAuth,
@@ -77,9 +79,7 @@ function AdminSettingsPage() {
 
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-4 md:p-6">
         {isLoading || !settings ? (
-          <p className="text-muted-foreground text-sm">
-            <Trans>Loading settings…</Trans>
-          </p>
+          <SettingsSkeleton />
         ) : (
           <>
             <SettingsForm settings={settings} />
@@ -91,6 +91,39 @@ function AdminSettingsPage() {
         )}
       </div>
     </main>
+  );
+}
+
+/**
+ * The page's opening sections as they will land: a section label over setting
+ * cards, each a title, a description and one input. Real `Card`s, so the
+ * padding and borders are the ones the form renders with.
+ */
+function SettingsSkeleton() {
+  return (
+    <LoadingStatus className="flex flex-col gap-6">
+      {[1, 2].map((cards, s) => (
+        <section key={s} className="flex flex-col gap-3">
+          <Skeleton className="mb-1 h-3.5 w-32" />
+          <div className="flex flex-col gap-4">
+            {Array.from({ length: cards }, (_, c) => (
+              <Card key={c}>
+                <CardHeader>
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3.5 w-3/4" />
+                </CardHeader>
+                <CardContent>
+                  <div className="flex max-w-sm flex-col gap-1.5">
+                    <Skeleton className="h-3 w-28" />
+                    <Skeleton className="h-7 w-full" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+      ))}
+    </LoadingStatus>
   );
 }
 

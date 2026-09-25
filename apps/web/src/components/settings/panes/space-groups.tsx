@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Trans } from "@lingui/react/macro";
+import { Skeleton } from "@workspace/ui/components/skeleton";
 import { useSpace } from "@/lib/queries";
 import { useActiveSpaceId } from "@/lib/use-active-space";
+import { LoadingStatus } from "@/components/loading";
 import { GroupList } from "@/components/group-list";
 
 /**
@@ -17,9 +18,17 @@ export function SpaceGroupsPane() {
 
   if (!space)
     return (
-      <p className="text-muted-foreground text-xs">
-        <Trans>Loading…</Trans>
-      </p>
+      <LoadingStatus className="flex max-w-3xl flex-col gap-3">
+        <Skeleton className="h-2.5 w-2/3" />
+        <div className="flex flex-col gap-0.5">
+          {[30, 45, 38, 52].map((width) => (
+            <div key={width} className="flex items-center gap-2 px-2 py-1.5">
+              <Skeleton className="h-3" style={{ width: `${width}%` }} />
+              <Skeleton className="ml-auto h-3 w-12" />
+            </div>
+          ))}
+        </div>
+      </LoadingStatus>
     );
 
   return <GroupList space={space} selectedId={selectedId} onSelect={setSelectedId} />;

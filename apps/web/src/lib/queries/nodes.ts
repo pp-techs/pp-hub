@@ -29,16 +29,20 @@ import {
 import type { DocumentKind, MoveImpact, Node, Principal } from "@/lib/api";
 import { keys } from "./keys";
 
-/** Query options factory for children listing. */
+/**
+ * Query options factory for children listing.
+ *
+ * No `placeholderData`: a folder never borrows another folder's rows while it
+ * loads. That used to keep the previous folder on screen — clickable, feeding
+ * the details panel and the breadcrumb — until the new answer swapped it out,
+ * which is exactly the flicker it was meant to hide. A folder already in the
+ * cache still renders its own rows instantly and refetches behind them; one
+ * that is not shows its skeleton.
+ */
 export function childrenOptions(spaceId: string, parentId?: string) {
   return {
     queryKey: keys.children(spaceId, parentId),
     queryFn: () => getChildren(spaceId, parentId),
-    // Keeps the previous folder's rows on screen while the next folder loads,
-    // so clicking a folder in the sidebar swaps content in place instead of
-    // blanking to "Loading…" and back — the visible stutter this exists to
-    // remove. Same pattern as `useNodeSearch`.
-    placeholderData: (prev: Node[] | undefined) => prev,
   } as const;
 }
 

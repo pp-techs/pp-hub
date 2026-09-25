@@ -33,6 +33,7 @@ import { describeAgent } from "@/lib/user-agent";
 import { useFormatters } from "@/lib/format";
 import { i18n as globalI18n, pageTitle } from "@/lib/i18n";
 import { SectionLabel } from "@/components/section-label";
+import { SkeletonTableRows } from "@/components/loading";
 
 export const Route = createFileRoute("/admin/security")({
   head: () => ({ meta: [{ title: pageTitle(msg`Security log`) }] }),
@@ -280,11 +281,7 @@ function SecurityLogPage() {
             </div>
           )}
 
-          {isLoading ? (
-            <p className="text-muted-foreground text-xs">
-              <Trans>Loading…</Trans>
-            </p>
-          ) : events.length === 0 ? (
+          {!isLoading && events.length === 0 ? (
             <p className="text-muted-foreground text-xs">
               {node || fromDate || toDate ? (
                 <Trans>No events match these filters.</Trans>
@@ -316,9 +313,11 @@ function SecurityLogPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {events.map((e) => (
-                  <EventRow key={e.id} event={e} onFilterNode={filterNode} />
-                ))}
+                {isLoading ? (
+                  <SkeletonTableRows columns={5} />
+                ) : (
+                  events.map((e) => <EventRow key={e.id} event={e} onFilterNode={filterNode} />)
+                )}
               </TableBody>
             </Table>
           )}

@@ -20,6 +20,7 @@ import { opensInEditor, openEditor, type SearchResult } from "@/lib/api";
 import { useFormatters } from "@/lib/format";
 import { PreviewModal } from "@/components/preview-modal";
 import { NodeIcon } from "@/components/node-icon";
+import { SkeletonTableRows } from "@/components/loading";
 
 interface SpaceNodeTableProps {
   nodes: SearchResult[];
@@ -63,14 +64,7 @@ export function SpaceNodeTable({
     }
   };
 
-  if (isPending)
-    return (
-      <p className="text-muted-foreground py-8 text-xs">
-        <Trans>Loading…</Trans>
-      </p>
-    );
-
-  if (nodes.length === 0) {
+  if (!isPending && nodes.length === 0) {
     return (
       <Empty className="py-12">
         <EmptyHeader>
@@ -102,36 +96,42 @@ export function SpaceNodeTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {nodes.map((n) => (
-          <TableRow key={n.id}>
-            <TableCell>
-              <Button
-                variant="ghost"
-                size="xs"
-                className="h-auto max-w-full justify-start px-0 font-medium hover:bg-transparent hover:underline"
-                onClick={() => open(n)}
-              >
-                <NodeIcon node={n} />
-                <span className="truncate">{n.name}</span>
-              </Button>
-            </TableCell>
-            {/* An empty parent name means the space root, which has no folder
+        {isPending ? (
+          <SkeletonTableRows columns={extraColumn ? 5 : 4} />
+        ) : (
+          nodes.map((n) => (
+            <TableRow key={n.id}>
+              <TableCell>
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  className="h-auto max-w-full justify-start px-0 font-medium hover:bg-transparent hover:underline"
+                  onClick={() => open(n)}
+                >
+                  <NodeIcon node={n} />
+                  <span className="truncate">{n.name}</span>
+                </Button>
+              </TableCell>
+              {/* An empty parent name means the space root, which has no folder
                 to name — an em dash reads better than the space name repeated
                 on every row. */}
-            <TableCell className="text-muted-foreground truncate">{n.parent_name || "—"}</TableCell>
-            {extraColumn && (
               <TableCell className="text-muted-foreground truncate">
-                {extraColumn.cell(n)}
+                {n.parent_name || "—"}
               </TableCell>
-            )}
-            <TableCell className="text-muted-foreground tabular-nums">
-              {f.relative(n.modified_at)}
-            </TableCell>
-            <TableCell className="text-muted-foreground tabular-nums">
-              {n.kind === "file" && n.size != null ? f.size(n.size) : "—"}
-            </TableCell>
-          </TableRow>
-        ))}
+              {extraColumn && (
+                <TableCell className="text-muted-foreground truncate">
+                  {extraColumn.cell(n)}
+                </TableCell>
+              )}
+              <TableCell className="text-muted-foreground tabular-nums">
+                {f.relative(n.modified_at)}
+              </TableCell>
+              <TableCell className="text-muted-foreground tabular-nums">
+                {n.kind === "file" && n.size != null ? f.size(n.size) : "—"}
+              </TableCell>
+            </TableRow>
+          ))
+        )}
       </TableBody>
     </Table>
   );

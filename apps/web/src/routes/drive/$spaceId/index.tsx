@@ -68,8 +68,9 @@ import { PreviewModal } from "@/components/preview-modal";
 import { DetailsPanel, type DetailsSubject } from "@/components/preview-panel";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DropZone } from "@/components/drop-zone";
-import { NodeGrid } from "@/components/node-grid";
-import { NodeList } from "@/components/node-list";
+import { NodeGrid, NodeGridSkeleton } from "@/components/node-grid";
+import { NodeList, NodeListSkeleton } from "@/components/node-list";
+import { FetchingBar } from "@/components/loading";
 import { SelectionBar } from "@/components/selection-bar";
 import { MoveDialog } from "@/components/move-dialog";
 import { ShareDialog } from "@/components/share-dialog";
@@ -457,7 +458,9 @@ function FolderView() {
     selectedNodes.length > 0
       ? { kind: "nodes", nodes: selectedNodes }
       : dir === undefined
-        ? { kind: "space", spaceId, folders: sortedDirs.length, files: sortedFiles.length }
+        ? children.isPending
+          ? { kind: "space", spaceId, folders: null, files: null }
+          : { kind: "space", spaceId, folders: sortedDirs.length, files: sortedFiles.length }
         : { kind: "nodes", nodes: currentFolder.data ? [currentFolder.data] : [] };
   /* eslint-enable lingui/no-unlocalized-strings */
 
@@ -499,10 +502,13 @@ function FolderView() {
                 />
               }
             >
+              <FetchingBar active={children.isFetching && !children.isPending} />
               {children.isPending ? (
-                <p className="text-muted-foreground p-4 text-xs">
-                  <Trans>Loading…</Trans>
-                </p>
+                view === "grid" ? (
+                  <NodeGridSkeleton />
+                ) : (
+                  <NodeListSkeleton />
+                )
               ) : sorted.length === 0 ? (
                 <Empty className="py-12">
                   <EmptyHeader>

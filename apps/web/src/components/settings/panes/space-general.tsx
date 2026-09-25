@@ -6,25 +6,54 @@ import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 import { Switch } from "@workspace/ui/components/switch";
 import { Textarea } from "@workspace/ui/components/textarea";
+import { Skeleton } from "@workspace/ui/components/skeleton";
 import type { Space, SpaceSettings } from "@/lib/api";
 import { useSpace, useUpdateSpace } from "@/lib/queries";
 import { useFormatters } from "@/lib/format";
 import { useActiveSpaceId } from "@/lib/use-active-space";
 import { SectionLabel } from "@/components/section-label";
 import { useSettingsDirty } from "@/components/settings/settings-dirty";
+import { FieldSkeleton } from "@/components/settings/field-skeleton";
+import { LoadingStatus } from "@/components/loading";
 
 export function SpaceGeneralPane() {
   const space = useSpace(useActiveSpaceId());
 
-  if (!space)
-    return (
-      <p className="text-muted-foreground text-xs">
-        <Trans>Loading…</Trans>
-      </p>
-    );
+  if (!space) return <GeneralSkeleton />;
   // Keyed so switching space remounts the form rather than showing the
   // previous space's values in state that was initialised from it.
   return <GeneralForm key={space.id} space={space} />;
+}
+
+/** Identity, membership and limits, laid out as `GeneralForm` lays them out. */
+function GeneralSkeleton() {
+  return (
+    <LoadingStatus className="flex max-w-xl flex-col gap-6">
+      <div className="flex flex-col gap-3">
+        <Skeleton className="mb-1 h-3.5 w-16" />
+        <FieldSkeleton />
+        <FieldSkeleton />
+        <FieldSkeleton multiline />
+      </div>
+      <div className="flex flex-col gap-3">
+        <Skeleton className="mb-1 h-3.5 w-20" />
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-1 flex-col gap-1.5">
+            <Skeleton className="h-3 w-48" />
+            <Skeleton className="h-2.5 w-3/4" />
+          </div>
+          <Skeleton className="h-4 w-7 shrink-0 rounded-full" />
+        </div>
+      </div>
+      <div className="flex flex-col gap-3">
+        <Skeleton className="mb-1 h-3.5 w-12" />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <FieldSkeleton />
+          <FieldSkeleton />
+        </div>
+      </div>
+    </LoadingStatus>
+  );
 }
 
 function GeneralForm({ space }: { space: Space }) {

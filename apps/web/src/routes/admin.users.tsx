@@ -31,6 +31,7 @@ import { useFormatters } from "@/lib/format";
 import { pageTitle } from "@/lib/i18n";
 import { UserAvatar } from "@/components/user-avatar";
 import { SectionLabel } from "@/components/section-label";
+import { SkeletonTableRows } from "@/components/loading";
 
 export const Route = createFileRoute("/admin/users")({
   head: () => ({ meta: [{ title: pageTitle(msg`Server administration`) }] }),
@@ -152,31 +153,29 @@ function AdminPage() {
             />
           </div>
 
-          {isLoading ? (
-            <p className="text-muted-foreground text-xs">
-              <Trans>Loading…</Trans>
-            </p>
-          ) : (
-            <Table className="text-xs">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>
-                    <Trans>User</Trans>
-                  </TableHead>
-                  <TableHead className="w-20">
-                    <Trans>Spaces</Trans>
-                  </TableHead>
-                  <TableHead className="w-32">
-                    <Trans>Last seen</Trans>
-                  </TableHead>
-                  <TableHead className="w-24">
-                    <Trans>Status</Trans>
-                  </TableHead>
-                  <TableHead className="w-48" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users.map((u) => {
+          <Table className="text-xs">
+            <TableHeader>
+              <TableRow>
+                <TableHead>
+                  <Trans>User</Trans>
+                </TableHead>
+                <TableHead className="w-20">
+                  <Trans>Spaces</Trans>
+                </TableHead>
+                <TableHead className="w-32">
+                  <Trans>Last seen</Trans>
+                </TableHead>
+                <TableHead className="w-24">
+                  <Trans>Status</Trans>
+                </TableHead>
+                <TableHead className="w-48" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <SkeletonTableRows columns={5} />
+              ) : (
+                users.map((u) => {
                   const isSelf = u.id === me?.id;
                   const email = u.email;
                   return (
@@ -262,10 +261,10 @@ function AdminPage() {
                       </TableCell>
                     </TableRow>
                   );
-                })}
-              </TableBody>
-            </Table>
-          )}
+                })
+              )}
+            </TableBody>
+          </Table>
         </section>
       </div>
     </main>

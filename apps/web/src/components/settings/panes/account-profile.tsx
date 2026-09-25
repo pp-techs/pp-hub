@@ -7,22 +7,20 @@ import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 import { Textarea } from "@workspace/ui/components/textarea";
+import { Skeleton } from "@workspace/ui/components/skeleton";
 import type { UserProfile } from "@/lib/api";
 import { useMe, useSpaces, useUpdateProfile } from "@/lib/queries";
 import { useFormatters } from "@/lib/format";
 import { UserAvatar } from "@/components/user-avatar";
 import { SectionLabel } from "@/components/section-label";
 import { useSettingsDirty } from "@/components/settings/settings-dirty";
+import { FieldSkeleton } from "@/components/settings/field-skeleton";
+import { LoadingStatus } from "@/components/loading";
 
 export function AccountProfilePane() {
   const { data: profile, isLoading } = useMe();
 
-  if (isLoading)
-    return (
-      <p className="text-muted-foreground text-xs">
-        <Trans>Loading…</Trans>
-      </p>
-    );
+  if (isLoading) return <ProfileSkeleton />;
   if (!profile)
     return (
       <p className="text-muted-foreground text-xs">
@@ -31,6 +29,36 @@ export function AccountProfilePane() {
     );
 
   return <ProfileForm key={profile.id} profile={profile} />;
+}
+
+/** The identity row and the profile form, field for field. */
+function ProfileSkeleton() {
+  return (
+    <LoadingStatus className="flex max-w-xl flex-col gap-6">
+      <div className="flex items-center gap-4">
+        <Skeleton className="size-16 shrink-0 rounded-full" />
+        <div className="flex flex-col gap-1.5">
+          <Skeleton className="h-4 w-36" />
+          <Skeleton className="h-3 w-48" />
+          <Skeleton className="h-2.5 w-40" />
+        </div>
+      </div>
+      <div className="flex flex-col gap-3">
+        <Skeleton className="mb-1 h-3.5 w-16" />
+        <FieldSkeleton />
+        <FieldSkeleton multiline />
+        <FieldSkeleton />
+        <div className="grid grid-cols-2 gap-3">
+          <FieldSkeleton />
+          <FieldSkeleton />
+        </div>
+        <div className="border-border flex items-center gap-2 border-t pt-4">
+          <Skeleton className="h-7 w-24" />
+          <Skeleton className="h-7 w-16" />
+        </div>
+      </div>
+    </LoadingStatus>
+  );
 }
 
 function ProfileForm({ profile }: { profile: UserProfile }) {

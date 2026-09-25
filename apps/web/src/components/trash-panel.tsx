@@ -8,6 +8,7 @@ import { Badge } from "@workspace/ui/components/badge";
 import { Button } from "@workspace/ui/components/button";
 import { Checkbox } from "@workspace/ui/components/checkbox";
 import { Input } from "@workspace/ui/components/input";
+import { Skeleton } from "@workspace/ui/components/skeleton";
 import {
   Table,
   TableBody,
@@ -29,6 +30,7 @@ import { useEmptyTrash, usePurgeNode, useRestoreNode, useSpaces, useTrash } from
 import { useFormatters } from "@/lib/format";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { NodeIcon } from "@/components/node-icon";
+import { SkeletonTableRows } from "@/components/loading";
 
 interface TrashPanelProps {
   spaceId: string;
@@ -199,16 +201,16 @@ export function TrashPanel({ spaceId }: TrashPanelProps) {
           <h2 className="font-heading text-sm font-medium">
             <Trans>Trash</Trans>
           </h2>
-          <p className="text-muted-foreground text-xs tabular-nums">
+          <div className="text-muted-foreground text-xs tabular-nums">
             {trash.isPending ? (
-              t`Loading…`
+              <Skeleton className="my-0.5 h-3 w-24" />
             ) : (
               <Trans>
                 <Plural value={trash.data?.length ?? 0} one="# item" other="# items" /> ·{" "}
                 {totalSize} · deleted items still count toward storage
               </Trans>
             )}
-          </p>
+          </div>
         </div>
 
         {isAdmin && (trash.data?.length ?? 0) > 0 && (
@@ -243,9 +245,7 @@ export function TrashPanel({ spaceId }: TrashPanelProps) {
         />
       )}
 
-      {trash.isPending ? (
-        <p className="text-muted-foreground py-8 text-xs">{t`Loading…`}</p>
-      ) : rows.length === 0 ? (
+      {!trash.isPending && rows.length === 0 ? (
         <Empty className="py-12">
           <EmptyHeader>
             <EmptyMedia>
@@ -300,106 +300,110 @@ export function TrashPanel({ spaceId }: TrashPanelProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((n) => {
-              // A read-only row is somebody else's delete. It is here to say
-              // where the caller's own files went and that a purge is coming,
-              // so it shows the count and nothing to press.
-              const readOnly = n.read_only === true;
-              const buried = n.buried_own ?? 0;
-              const nodeName = n.name;
-              return (
-                <TableRow key={n.id} className={cn(readOnly && "text-muted-foreground")}>
-                  {isAdmin && (
+            {trash.isPending ? (
+              <SkeletonTableRows columns={isAdmin ? 8 : 6} />
+            ) : (
+              rows.map((n) => {
+                // A read-only row is somebody else's delete. It is here to say
+                // where the caller's own files went and that a purge is coming,
+                // so it shows the count and nothing to press.
+                const readOnly = n.read_only === true;
+                const buried = n.buried_own ?? 0;
+                const nodeName = n.name;
+                return (
+                  <TableRow key={n.id} className={cn(readOnly && "text-muted-foreground")}>
+                    {isAdmin && (
+                      <TableCell>
+                        <Checkbox
+                          checked={!readOnly && selectedIds.has(n.id)}
+                          disabled={readOnly}
+                          aria-label={
+                            readOnly
+                              ? t`${nodeName} was deleted by someone else`
+                              : t`Select ${nodeName}`
+                          }
+                          className="size-3.5"
+                          onCheckedChange={(checked) => toggle(n.id, checked === true)}
+                        />
+                      </TableCell>
+                    )}
                     <TableCell>
-                      <Checkbox
-                        checked={!readOnly && selectedIds.has(n.id)}
-                        disabled={readOnly}
-                        aria-label={
-                          readOnly
-                            ? t`${nodeName} was deleted by someone else`
-                            : t`Select ${nodeName}`
-                        }
-                        className="size-3.5"
-                        onCheckedChange={(checked) => toggle(n.id, checked === true)}
-                      />
-                    </TableCell>
-                  )}
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <NodeIcon node={n} />
-                      <span className={cn("truncate", readOnly ? "font-normal" : "font-medium")}>
-                        {n.name}
-                      </span>
-                      {readOnly && (
-                        <span
-                          className="shrink-0"
-                          title={t`Deleted by someone else — you see it because your items are inside`}
-                        >
-                          <Lock className="text-muted-foreground size-3" />
+                      <div className="flex items-center gap-2">
+                        <NodeIcon node={n} />
+                        <span className={cn("truncate", readOnly ? "font-normal" : "font-medium")}>
+                          {n.name}
                         </span>
-                      )}
-                      {buried > 0 && (
-                        <Badge variant="secondary" className="shrink-0 font-normal">
-                          <Plural
-                            value={buried}
-                            one="# item of yours inside"
-                            other="# items of yours inside"
-                          />
-                        </Badge>
-                      )}
-                      {n.kind === "dir" && n.child_count > 0 && (
-                        <span className="text-muted-foreground shrink-0 text-[10px] tabular-nums">
-                          <Plural value={n.child_count} one="# item" other="# items" />
-                        </span>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground truncate" title={n.location}>
-                    {n.location || t`Top level`}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground truncate">
-                    {n.deleted_by || n.owner || "—"}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground tabular-nums">
-                    {f.relative(n.deleted_at)}
-                  </TableCell>
-                  <TableCell className="tabular-nums">
-                    <PurgesIn at={n.purges_at} />
-                  </TableCell>
-                  <TableCell className="text-muted-foreground tabular-nums">
-                    {n.kind === "file" && n.size != null ? f.size(n.size) : "—"}
-                  </TableCell>
-                  {isAdmin && (
-                    <TableCell>
-                      {readOnly ? (
-                        <div className="text-muted-foreground flex justify-end text-[10px]">
-                          <Trans>Not yours to restore</Trans>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="xs"
-                            disabled={restore.isPending}
-                            onClick={() => runRestore(n)}
+                        {readOnly && (
+                          <span
+                            className="shrink-0"
+                            title={t`Deleted by someone else — you see it because your items are inside`}
                           >
-                            <Trans>Restore</Trans>
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="xs"
-                            disabled={purge.isPending}
-                            onClick={() => setConfirmPurge([n])}
-                          >
-                            <Trans>Delete forever</Trans>
-                          </Button>
-                        </div>
-                      )}
+                            <Lock className="text-muted-foreground size-3" />
+                          </span>
+                        )}
+                        {buried > 0 && (
+                          <Badge variant="secondary" className="shrink-0 font-normal">
+                            <Plural
+                              value={buried}
+                              one="# item of yours inside"
+                              other="# items of yours inside"
+                            />
+                          </Badge>
+                        )}
+                        {n.kind === "dir" && n.child_count > 0 && (
+                          <span className="text-muted-foreground shrink-0 text-[10px] tabular-nums">
+                            <Plural value={n.child_count} one="# item" other="# items" />
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
-                  )}
-                </TableRow>
-              );
-            })}
+                    <TableCell className="text-muted-foreground truncate" title={n.location}>
+                      {n.location || t`Top level`}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground truncate">
+                      {n.deleted_by || n.owner || "—"}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground tabular-nums">
+                      {f.relative(n.deleted_at)}
+                    </TableCell>
+                    <TableCell className="tabular-nums">
+                      <PurgesIn at={n.purges_at} />
+                    </TableCell>
+                    <TableCell className="text-muted-foreground tabular-nums">
+                      {n.kind === "file" && n.size != null ? f.size(n.size) : "—"}
+                    </TableCell>
+                    {isAdmin && (
+                      <TableCell>
+                        {readOnly ? (
+                          <div className="text-muted-foreground flex justify-end text-[10px]">
+                            <Trans>Not yours to restore</Trans>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="xs"
+                              disabled={restore.isPending}
+                              onClick={() => runRestore(n)}
+                            >
+                              <Trans>Restore</Trans>
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="xs"
+                              disabled={purge.isPending}
+                              onClick={() => setConfirmPurge([n])}
+                            >
+                              <Trans>Delete forever</Trans>
+                            </Button>
+                          </div>
+                        )}
+                      </TableCell>
+                    )}
+                  </TableRow>
+                );
+              })
+            )}
           </TableBody>
         </Table>
       )}

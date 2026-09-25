@@ -3,6 +3,8 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
 import { ExternalLink } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
+import { Skeleton } from "@workspace/ui/components/skeleton";
+import { LoadingStatus } from "@/components/loading";
 import type { Node } from "@/lib/api";
 import {
   capsOf,
@@ -204,9 +206,9 @@ function TextPreview({ url }: { url: string }) {
   if (state.status === "missing" || failed) return <Message>{i18n._(NOT_READY)}</Message>;
   if (text === null)
     return (
-      <Message>
-        <Trans>Loading…</Trans>
-      </Message>
+      <LoadingStatus className="h-full p-4">
+        <Skeleton className="h-full min-h-40 w-full" />
+      </LoadingStatus>
     );
   return (
     <pre className="bg-muted m-4 overflow-auto rounded-md p-3 text-xs whitespace-pre-wrap">
