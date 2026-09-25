@@ -43,11 +43,11 @@ is the blake3 hash `users.Service.UploadAvatar` resolved through `blobs.Put`, `a
 the type sniffed from the bytes (never the filename — it is served back with this value), and
 `avatar_url` stays the rendered `/api/v1/users/{userID}/avatar?v=<hash prefix>` every DTO
 already copies through, so the query suffix is what busts a browser's cache of the previous
-picture. `GET /api/v1/users/{userID}/avatar` resolves `avatar_blob` back to bytes; re-uploading
-identical bytes does not re-`IncrBlobRef` the same hash twice, mirroring `fs.PutFile`. Every
-avatar write is conditional on the blob it read (`prev_blob`), so of two concurrent writers only
-the one that actually replaced a blob releases its reference — in a deduplicating CAS that blob
-can be a file's content too.
+picture. `GET /api/v1/users/{userID}/avatar` resolves `avatar_blob` back to bytes. The column is
+the reference: a trigger counts it into `blobs.ref_count` when it changes, so re-uploading the
+same picture moves nothing. Every avatar write is conditional on the blob it read (`prev_blob`),
+so of two concurrent writers exactly one lands and the other gets `ErrAvatarConflict`; the
+loser's blob is left unreferenced for GC once the store's claim lapses.
 
 ### Profile fields the IdP owns
 
@@ -286,7 +286,11 @@ nodes(id, tenant_id, space_id, parent_id,       -- NULL parent = space root
 node_versions(id, node_id, blob_hash, size, mime,
               version_no, created_by, created_at)  -- immutable, append-only
 
-blobs(hash, size, ref_count, created_at)        -- blake3 hash = PK
+blobs(hash, size, ref_count, created_at,       -- blake3 hash = PK
+      released_at, pinned_until,               -- GC: when ref_count last hit 0; a write's claim (0011)
+      verified_at, damaged_at)                 -- scrub bookkeeping (0011)
+  -- ref_count is maintained by triggers on node_versions, previews and
+  -- users.avatar_blob, cascades included; no application code moves it.
 
 file_locks(node_id, lock_token, expires_at)     -- WOPI locks
 
@@ -326,7 +330,7 @@ jobs(id, kind, payload, status, run_at, attempts)        -- kind routes to a wor
 ## Invariants
 
 - `node_versions` are immutable; restore = flip `nodes.current_version_id`.
-- Every `blob_hash` referenced by a version exists in `blobs`; `ref_count` tracks references (counter + periodic recount job — counter drift is a known, tolerated risk).
+- Every `blob_hash` referenced by a version exists in `blobs` (the store claims the row before installing the bytes, and the version trigger creates it if somehow absent). `ref_count` equals the number of version, preview and avatar rows naming the hash — kept by trigger in the same statement as the reference; the daily storage audit recounts and logs any correction as a bug. See [storage.md](storage.md#garbage-collection).
 - A file node always has at least one version.
 - Uploading into a folder never overwrites: `PutFile` with a zero `fileID` always creates a node, suffixing the name (`report (2).txt`) when it is taken. A new version of an existing file is an explicit act — `POST /nodes/{id}/versions` until M30, a tus upload naming `node_id` since. Ownership must not depend on whether a filename happened to collide.
 - `uploads.uploaded` never claims a byte the staging file does not durably hold: `uploads.Service.Append` fsyncs before advancing the row, and a staging file found shorter than the row (a database restored without `.uploads`) discards the upload rather than resuming into zeros.
@@ -362,7 +366,7 @@ Two things can block a restore, and both are resolved rather than surfaced as er
 
 `RestoreNode` sets `deleted_at`, `parent_id` and `name` in one statement so neither adjustment needs a second write.
 
-**Purge** is a hard `DELETE`, but not an indiscriminate one. `fs.Purge` first lifts out every topmost node in the subtree that the purged node's owner did not create (`ListForeignTopmostInSubtree` → `DetachNodeToTopLevel`), re-parenting each to `NULL` — its owner's top level — with a `" (n)"` suffix if the name is taken up there, and keeping `deleted_at` so a colleague's own tombstone stays in their trash. Only then does the `DELETE` run: descendants and versions follow through `ON DELETE CASCADE`, `shares` cascade from `node_id`, and the rescued rows are no longer in the subtree to be reached. Before deleting, `ListSubtreeBlobHashes` collects one row per version in the subtree — after the rescue, so surviving files keep their references — and `DecrBlobRef` is called exactly as many times as `IncrBlobRef` was during upload. The delete and the decrements are not in one transaction — `fs.Service` holds a `*store.Queries`, not a pool — so they run in the order that fails safe: a crash between them leaves `ref_count` too **high**, which only delays garbage collection. The reverse order could drop a blob another node still points at.
+**Purge** is a hard `DELETE`, but not an indiscriminate one. `fs.Purge` first lifts out every topmost node in the subtree that the purged node's owner did not create (`ListForeignTopmostInSubtree` → `DetachNodeToTopLevel`), re-parenting each to `NULL` — its owner's top level — with a `" (n)"` suffix if the name is taken up there, and keeping `deleted_at` so a colleague's own tombstone stays in their trash. Only then does the `DELETE` run: descendants and versions follow through `ON DELETE CASCADE`, `shares` cascade from `node_id`, and the rescued rows are no longer in the subtree to be reached. The rescue and the delete are one transaction. Every version and preview the cascade removes releases its blob through the `ref_count` triggers in the same statement, so there is no separate decrement to order or to lose; rescued files keep their references because their rows are never deleted.
 
 `EmptyTrash` purges each tombstone in turn and tolerates `ErrNotFound`, since a nested tombstone often disappears with its ancestor's cascade before its own turn comes.
 
@@ -383,7 +387,7 @@ Recording is best-effort: an event describes work that already succeeded, so a f
 
 `spaces.used_bytes` is recomputed by `fs.RecountUsage` — one `SUM` (`SumSpaceUsage`) over **every stored version of every file in the space, trash included** — after any mutation that can change the total. Until M30 it summed only the current versions of live files, which let the meter and the disk drift apart; migration `0010` recomputed every space under the new definition. `fs.PutFile` and `fs.PutStagedFile` recount themselves, so WOPI saves move the meter too. It sums version sizes, not distinct blobs, so a copy sharing its blob is counted for each version that references it. A recount is cheap at this scale and cannot drift, unlike an incremental counter.
 
-**Version retention** keeps history bounded. `version_retention_count` (`system_config`, default 100, `0` keeps every version, at most 10000) is read on every save; after each new version `fs.pruneVersions` runs `PruneVersions`, deleting every version beyond the newest N — the current version is never a candidate and counts as one of the N — and decrementing `ref_count` once per pruned version so GC reclaims the blobs; previews cascade. It applies on each file's next save, not in a retroactive sweep.
+**Version retention** keeps history bounded. `version_retention_count` (`system_config`, default 100, `0` keeps every version, at most 10000) is read on every save; after each new version `fs.pruneVersions` runs `PruneVersions`, deleting every version beyond the newest N — the current version is never a candidate and counts as one of the N. Previews cascade, and the triggers release both kinds of blob so GC reclaims them. It applies on each file's next save, not in a retroactive sweep.
 
 `GET /api/v1/usage` (`SumSpaceUsageByCategory`) splits the same total: `trash` (every version of trashed files; `files` counts files), `versions` (superseded versions of live files; `files` counts versions), then current versions by MIME family — so the slices sum to `used_bytes`.
 

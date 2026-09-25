@@ -58,7 +58,7 @@ func run() error {
 	// Up before OIDC discovery so a server stuck waiting for its IdP is still
 	// scrapeable. A bind failure is logged, not fatal: losing metrics must
 	// not stop file serving.
-	metrics := obs.NewMetrics(deps.Pool, queries)
+	metrics := obs.NewMetrics(deps.Pool, queries, cfg.BlobRoot)
 	if cfg.MetricsAddr != "" {
 		go func() {
 			slog.InfoContext(ctx, "metrics listening", "addr", cfg.MetricsAddr)
@@ -92,9 +92,10 @@ func run() error {
 	})
 	go previewWorker.Run(ctx)
 
-	// Reclaims disk from blobs nothing references any more. Without it, every
-	// permanent delete leaks its bytes forever.
-	go gc.NewWorker(queries, blobs).Run(ctx)
+	// Reclaims disk from blobs nothing references any more (without it,
+	// every permanent delete leaks its bytes forever), re-hashes stored
+	// blobs to find damage, and reconciles the store with the blobs table.
+	go gc.NewWorker(queries, blobs, cfg.BlobScrubBytesPerDay).Run(ctx)
 
 	// Purges tombstones past their space's retention window. Retention
 	// defaults to 0 (never), so this is inert until a space opts in.

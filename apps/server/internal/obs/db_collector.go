@@ -29,6 +29,7 @@ var (
 	descJobsOldest = prometheus.NewDesc("pphub_jobs_oldest_age_seconds", "Age of the oldest job, by kind and status.", []string{"kind", "status"}, nil)
 	descBlobs      = prometheus.NewDesc("pphub_blobs", "Stored blobs, by state (referenced, unreferenced = awaiting GC).", []string{"state"}, nil)
 	descBlobBytes  = prometheus.NewDesc("pphub_blob_bytes", "Stored blob bytes, by state (referenced, unreferenced = awaiting GC).", []string{"state"}, nil)
+	descBlobDamage = prometheus.NewDesc("pphub_blobs_damaged", "Blobs the scrub found missing or not matching their hash.", nil, nil)
 	descDBStatsUp  = prometheus.NewDesc("pphub_db_stats_up", "1 if the last job/blob stats query succeeded, else 0.", nil, nil)
 )
 
@@ -52,7 +53,7 @@ func newDBCollector(pool *pgxpool.Pool, q *store.Queries) *dbCollector {
 func (c *dbCollector) Describe(ch chan<- *prometheus.Desc) {
 	for _, d := range []*prometheus.Desc{
 		descPoolTotal, descPoolAcquired, descPoolIdle, descPoolMax, descAcquires, descEmpty, descAcquireWait,
-		descJobs, descJobsOldest, descBlobs, descBlobBytes, descDBStatsUp,
+		descJobs, descJobsOldest, descBlobs, descBlobBytes, descBlobDamage, descDBStatsUp,
 	} {
 		ch <- d
 	}
@@ -91,6 +92,7 @@ func (c *dbCollector) Collect(ch chan<- prometheus.Metric) {
 		ch <- prometheus.MustNewConstMetric(descBlobs, prometheus.GaugeValue, float64(b.UnreferencedBlobs), "unreferenced")
 		ch <- prometheus.MustNewConstMetric(descBlobBytes, prometheus.GaugeValue, float64(b.ReferencedBytes), "referenced")
 		ch <- prometheus.MustNewConstMetric(descBlobBytes, prometheus.GaugeValue, float64(b.UnreferencedBytes), "unreferenced")
+		ch <- prometheus.MustNewConstMetric(descBlobDamage, prometheus.GaugeValue, float64(b.DamagedBlobs))
 	}
 	up := 0.0
 	if c.up {

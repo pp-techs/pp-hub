@@ -33,7 +33,7 @@ Mounted under `/wopi`:
 | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | `GET /wopi/files/{id}`                                                | `CheckFileInfo` — returns `BaseFileName, Size, OwnerId, UserId, UserCanWrite, Version, SupportsUpdate, SupportsLocks` |
 | `GET /wopi/files/{id}/contents`                                       | `GetFile` — streams the blob of `current_version_id`; **rank ≥ 2** for a user token                                   |
-| `POST /wopi/files/{id}/contents`                                      | `PutFile` — writes new blob, appends `node_version`, updates `ref_count`; **rank 3**                                  |
+| `POST /wopi/files/{id}/contents`                                      | `PutFile` — writes new blob, appends `node_version` (which counts the blob reference); **rank 3**                     |
 | `POST /wopi/files/{id}` (`X-WOPI-Override: LOCK/UNLOCK/REFRESH_LOCK`) | Lock management against `file_locks`; **rank 3**                                                                      |
 
 Those routes are **not** published by the `web` container. `PP_WOPI_SERVER_URL` is

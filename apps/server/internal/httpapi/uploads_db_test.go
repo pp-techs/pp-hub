@@ -35,7 +35,7 @@ import (
 func uploadEnv(t *testing.T) (*Server, *store.Queries, string) {
 	t.Helper()
 	srv, q := wopiEnv(t)
-	blobStore, err := blob.NewLocalStore(t.TempDir())
+	blobStore, err := blob.NewLocalStore(t.TempDir(), q.BlobClaims())
 	if err != nil {
 		t.Fatalf("blob store: %v", err)
 	}

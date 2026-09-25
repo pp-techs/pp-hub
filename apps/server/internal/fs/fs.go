@@ -142,67 +142,59 @@ func (s *Service) putFile(
 		}
 	}
 
+	// The store claims the hash before installing the bytes, so from here
+	// the blob has a row and is pinned against GC. Nothing below needs to
+	// clean it up on failure: an unused claim lapses and the sweep reclaims
+	// the bytes like any other unreferenced blob.
 	hash, size, err := putBlob(ctx)
 	if err != nil {
 		return store.Node{}, store.NodeVersion{}, fmt.Errorf("blob put: %w", err)
 	}
 
-	// Quota is checked after the bytes land, not before: the declared length
-	// of a request is not trustworthy, so the only honest figure is the one
-	// measured on the way in. An upload that breaches the limit is rejected
-	// and its blob left unreferenced, which the GC sweep reclaims within the
-	// hour. It runs before the node exists, so a refused upload leaves no
-	// empty file behind in the folder.
-	if err := s.EnsureRoom(ctx, spaceID, size); err != nil {
-		return store.Node{}, store.NodeVersion{}, err
-	}
-
-	if !fileID.Valid {
-		candidate := name
-		for attempt := 1; ; attempt++ {
-			node, err = s.q.CreateNode(ctx, store.CreateNodeParams{
+	// One transaction for the file and its version, so no failure leaves a
+	// node without content or a version that is not current. The version row
+	// is the blob reference; a trigger counts it in the same statement.
+	var ver store.NodeVersion
+	err = s.inTx(ctx, func(s *Service) error {
+		// Quota is checked after the bytes land, not before: the declared
+		// length of a request is not trustworthy, so the only honest figure
+		// is the one measured on the way in. It runs before the node exists,
+		// so a refused upload leaves no empty file behind in the folder.
+		if err := s.EnsureRoom(ctx, spaceID, size); err != nil {
+			return err
+		}
+		if !fileID.Valid {
+			var err error
+			node, err = s.createWithFreeName(ctx, store.CreateNodeParams{
 				SpaceID:   spaceID,
 				ParentID:  parentID,
 				Kind:      store.NodeKindFile,
-				Name:      candidate,
+				Name:      name,
 				CreatedBy: creator,
 			})
-			if !isUniqueViolation(err) {
-				break
+			if err != nil {
+				return err
 			}
-			if attempt >= maxRestoreNameAttempts {
-				return store.Node{}, store.NodeVersion{}, ErrNameConflict
-			}
-			candidate = suffixName(name, attempt+1)
 		}
+		mimeType := mime.TypeByExtension(filepath.Ext(node.Name))
+		if mimeType == "" {
+			mimeType = "application/octet-stream"
+		}
+		var err error
+		ver, err = s.q.AddVersion(ctx, store.AddVersionParams{
+			NodeID:    node.ID,
+			BlobHash:  hash,
+			Size:      size,
+			Mime:      mimeType,
+			CreatedBy: creator,
+		})
 		if err != nil {
-			return store.Node{}, store.NodeVersion{}, err
+			return err
 		}
-	}
-
-	mimeType := mime.TypeByExtension(filepath.Ext(node.Name))
-	if mimeType == "" {
-		mimeType = "application/octet-stream"
-	}
-
-	ver, err := s.q.AddVersion(ctx, store.AddVersionParams{
-		NodeID:    node.ID,
-		BlobHash:  hash,
-		Size:      size,
-		Mime:      mimeType,
-		CreatedBy: creator,
+		return s.q.SetCurrentVersion(ctx, store.SetCurrentVersionParams{ID: node.ID, CurrentVersionID: ver.ID})
 	})
 	if err != nil {
 		return store.Node{}, store.NodeVersion{}, err
-	}
-	if err := s.q.UpsertBlob(ctx, store.UpsertBlobParams{Hash: hash, Size: size}); err != nil {
-		return node, ver, err
-	}
-	if err := s.q.IncrBlobRef(ctx, hash); err != nil {
-		return node, ver, err
-	}
-	if err := s.q.SetCurrentVersion(ctx, store.SetCurrentVersionParams{ID: node.ID, CurrentVersionID: ver.ID}); err != nil {
-		return node, ver, err
 	}
 	node.CurrentVersionID = ver.ID
 	if err := s.pruneVersions(ctx, node.ID); err != nil {
@@ -219,10 +211,34 @@ func (s *Service) putFile(
 	return node, ver, nil
 }
 
+// createWithFreeName creates p, suffixing the name (`report (2).txt`) while
+// it is taken. Each attempt runs in a savepoint of its own: inside a larger
+// transaction a unique violation would otherwise abort the whole of it.
+func (s *Service) createWithFreeName(ctx context.Context, p store.CreateNodeParams) (store.Node, error) {
+	base := p.Name
+	for attempt := 1; attempt <= maxRestoreNameAttempts; attempt++ {
+		var created store.Node
+		err := s.inTx(ctx, func(s *Service) error {
+			var err error
+			created, err = s.q.CreateNode(ctx, p)
+			return err
+		})
+		if err == nil {
+			return created, nil
+		}
+		if !isUniqueViolation(err) {
+			return store.Node{}, err
+		}
+		p.Name = suffixName(base, attempt+1)
+	}
+	return store.Node{}, ErrNameConflict
+}
+
 // pruneVersions applies the version retention policy to one file: every
-// version beyond the newest keep−1 non-current ones is deleted and its blob
-// released to GC. The current version always survives and counts as one of
-// the kept, so a policy of 1 keeps only the file as it is now.
+// version beyond the newest keep−1 non-current ones is deleted, and the
+// triggers release its blob (and its previews') to GC. The current version
+// always survives and counts as one of the kept, so a policy of 1 keeps only
+// the file as it is now.
 func (s *Service) pruneVersions(ctx context.Context, nodeID pgtype.UUID) error {
 	if s.retention == nil {
 		return nil
@@ -231,18 +247,7 @@ func (s *Service) pruneVersions(ctx context.Context, nodeID pgtype.UUID) error {
 	if keep <= 0 {
 		return nil // 0 keeps every version
 	}
-	return s.inTx(ctx, func(s *Service) error {
-		hashes, err := s.q.PruneVersions(ctx, store.PruneVersionsParams{NodeID: nodeID, Keep: int32(keep - 1)})
-		if err != nil {
-			return err
-		}
-		for _, h := range hashes {
-			if err := s.q.DecrBlobRef(ctx, h); err != nil {
-				return fmt.Errorf("release blob %s: %w", h[:min(12, len(h))], err)
-			}
-		}
-		return nil
-	})
+	return s.q.PruneVersions(ctx, store.PruneVersionsParams{NodeID: nodeID, Keep: int32(keep - 1)})
 }
 
 // EnsureRoom rejects adding incoming bytes to a space that would push it past
@@ -505,10 +510,11 @@ func (s *Service) TeamManagerCount(ctx context.Context, teamRootID pgtype.UUID) 
 // Delete tombstones a node, recording who did it so the trash can say so.
 // Copy duplicates a node into destParent, recursing through folders.
 //
-// Files are copied by *reference*: the new version points at the same blob and
-// bumps its ref_count. Content-addressed storage means the bytes are already
-// identical, so copying a 2 GB video costs one row, not 2 GB — and the GC
-// sweep will not reclaim the blob while either copy still points at it.
+// Files are copied by *reference*: the new version points at the same blob,
+// and its row is one more reference to it. Content-addressed storage means
+// the bytes are already identical, so copying a 2 GB video costs one row, not
+// 2 GB — and the GC sweep will not reclaim the blob while either copy still
+// points at it.
 //
 // Only the current version is carried over. History belongs to the file it
 // happened to, and a copy is a new file that has not been edited yet.
@@ -552,30 +558,19 @@ func (s *Service) copyInto(
 	}
 
 	// A copy landing beside its original needs a free name.
-	finalName := name
-	var created store.Node
-	var err error
-	for attempt := 1; attempt <= maxRestoreNameAttempts; attempt++ {
-		created, err = s.q.CreateNode(ctx, store.CreateNodeParams{
-			SpaceID:   src.SpaceID,
-			ParentID:  destParent,
-			Kind:      src.Kind,
-			Name:      finalName,
-			CreatedBy: creator,
-		})
-		if err == nil {
-			break
-		}
-		if !isUniqueViolation(err) {
-			return store.Node{}, err
-		}
-		finalName = suffixName(name, attempt+1)
-	}
-	if err != nil {
-		return store.Node{}, ErrNameConflict
+	params := store.CreateNodeParams{
+		SpaceID:   src.SpaceID,
+		ParentID:  destParent,
+		Kind:      src.Kind,
+		Name:      name,
+		CreatedBy: creator,
 	}
 
 	if src.Kind == store.NodeKindDir {
+		created, err := s.createWithFreeName(ctx, params)
+		if err != nil {
+			return store.Node{}, err
+		}
 		children, err := s.q.ListChildren(ctx, store.ListChildrenParams{
 			SpaceID: src.SpaceID, ParentID: src.ID,
 		})
@@ -590,33 +585,44 @@ func (s *Service) copyInto(
 		return created, nil
 	}
 
-	// File: point a fresh version at the same blob.
-	if !src.CurrentVersionID.Valid {
-		return created, nil
-	}
-	current, err := s.q.GetVersion(ctx, src.CurrentVersionID)
-	if err != nil {
-		return store.Node{}, err
-	}
-	ver, err := s.q.AddVersion(ctx, store.AddVersionParams{
-		NodeID:    created.ID,
-		BlobHash:  current.BlobHash,
-		Size:      current.Size,
-		Mime:      current.Mime,
-		CreatedBy: creator,
+	// File: a new node whose version points at the same blob, created as one
+	// unit so a failure never leaves a copy without content. The version row
+	// is the new reference; a trigger counts it.
+	var created store.Node
+	var ver store.NodeVersion
+	err := s.inTx(ctx, func(s *Service) error {
+		var err error
+		created, err = s.createWithFreeName(ctx, params)
+		if err != nil || !src.CurrentVersionID.Valid {
+			return err
+		}
+		current, err := s.q.GetVersion(ctx, src.CurrentVersionID)
+		if err != nil {
+			return err
+		}
+		ver, err = s.q.AddVersion(ctx, store.AddVersionParams{
+			NodeID:    created.ID,
+			BlobHash:  current.BlobHash,
+			Size:      current.Size,
+			Mime:      current.Mime,
+			CreatedBy: creator,
+		})
+		if err != nil {
+			return err
+		}
+		return s.q.SetCurrentVersion(ctx, store.SetCurrentVersionParams{
+			ID: created.ID, CurrentVersionID: ver.ID,
+		})
 	})
 	if err != nil {
 		return store.Node{}, err
 	}
-	if err := s.q.IncrBlobRef(ctx, current.BlobHash); err != nil {
-		return store.Node{}, err
-	}
-	if err := s.q.SetCurrentVersion(ctx, store.SetCurrentVersionParams{
-		ID: created.ID, CurrentVersionID: ver.ID,
-	}); err != nil {
-		return store.Node{}, err
+	if !ver.ID.Valid {
+		return created, nil
 	}
 	created.CurrentVersionID = ver.ID
+	// After the commit: the hook enqueues a preview job another process may
+	// pick up at once, and it must find the version there.
 	if s.onVersion != nil {
 		s.onVersion(ctx, ver, created.Name)
 	}
@@ -925,8 +931,8 @@ type RescuedNode struct {
 	Owner pgtype.UUID
 }
 
-// Purge permanently removes a trashed node and its subtree, and releases the
-// blobs the subtree's versions were holding.
+// Purge permanently removes a trashed node and its subtree. The versions go
+// with it by cascade, and the triggers on them release their blobs to GC.
 //
 // Content the node's owner did not create is lifted out first. A folder owner
 // can trash and purge what sits inside their folder, but destroying a
@@ -936,9 +942,8 @@ type RescuedNode struct {
 // its deleted_at, so a file the colleague had trashed themselves stays in
 // their trash instead of quietly coming back.
 //
-// Rescue, delete and ref-count decrements are one transaction, so a failure
-// part-way leaves nothing half done: no rescued subtree without the purge, no
-// purge with ref counts that still name the deleted versions. A failed purge
+// Rescue and delete are one transaction, so a failure part-way leaves
+// nothing half done: no rescued subtree without the purge. A failed purge
 // therefore reports no rescued nodes — none of them moved.
 func (s *Service) Purge(ctx context.Context, nodeID pgtype.UUID) ([]RescuedNode, error) {
 	var rescued []RescuedNode
@@ -954,21 +959,7 @@ func (s *Service) Purge(ctx context.Context, nodeID pgtype.UUID) ([]RescuedNode,
 		if err != nil {
 			return err
 		}
-		// Blob hashes are collected after the rescue so the surviving subtrees
-		// keep their references.
-		hashes, err := s.q.ListSubtreeBlobHashes(ctx, nodeID)
-		if err != nil {
-			return err
-		}
-		if err := s.q.PurgeNode(ctx, nodeID); err != nil {
-			return err
-		}
-		for _, h := range hashes {
-			if err := s.q.DecrBlobRef(ctx, h); err != nil {
-				return fmt.Errorf("release blob %s: %w", h[:min(12, len(h))], err)
-			}
-		}
-		return nil
+		return s.q.PurgeNode(ctx, nodeID)
 	})
 	if err != nil {
 		return nil, err

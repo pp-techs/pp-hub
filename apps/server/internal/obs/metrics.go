@@ -15,20 +15,26 @@ import (
 )
 
 // Metrics is the API server's Prometheus registry: Go runtime, process,
-// Postgres pool, job queue, blob totals, the HTTP series and security alerts.
+// Postgres pool, job queue, blob totals, the blob disk, the HTTP series and
+// security alerts.
 type Metrics struct {
 	Registry *prometheus.Registry
 	HTTP     *HTTPMetrics
 	Alerts   *AlertMetrics
 }
 
-func NewMetrics(pool *pgxpool.Pool, q *store.Queries) *Metrics {
+// NewMetrics builds the registry; blobRoot is the directory whose filesystem
+// the disk gauges report, "" to omit them.
+func NewMetrics(pool *pgxpool.Pool, q *store.Queries, blobRoot string) *Metrics {
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 		newDBCollector(pool, q),
 	)
+	if blobRoot != "" {
+		reg.MustRegister(diskCollector{path: blobRoot})
+	}
 	return &Metrics{Registry: reg, HTTP: NewHTTPMetrics(reg), Alerts: NewAlertMetrics(reg)}
 }
 

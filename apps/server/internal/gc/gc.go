@@ -1,16 +1,21 @@
-// Package gc reclaims disk space from blobs nothing points at any more.
+// Package gc looks after the blob store: it reclaims blobs nothing points at
+// any more, reconciles the store with the blobs table, and re-hashes stored
+// bytes to find damage before a reader does.
 //
 // The content store is deliberately append-only on the write path: uploads add
-// blobs and bump ref_count, deletes decrement it, and nothing removes bytes
-// inline. That keeps the hot paths simple and makes a crash mid-delete safe —
-// ref counts are left too high, never too low. The cost is that unreferenced
-// blobs accumulate until something sweeps them, which is this.
+// blobs, references come and go as rows (counted into blobs.ref_count by
+// trigger), and nothing removes bytes inline. That keeps the hot paths simple.
+// The cost is that unreferenced blobs accumulate until something sweeps them,
+// which is this.
 package gc
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/blob"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
@@ -19,75 +24,113 @@ import (
 const (
 	// How often to sweep. Reclaiming disk is not urgent; running rarely keeps
 	// the query off the hot path entirely.
-	defaultInterval = 15 * time.Minute
+	sweepInterval = 15 * time.Minute
 	// Blobs per sweep. Bounded so one pass cannot monopolise the disk.
-	defaultBatch = 200
+	sweepBatch = 200
+	// How often the scrub runs; each run spends a day's budget / 24.
+	scrubInterval = time.Hour
+	// How often the store is walked against the table. The first audit runs
+	// auditDelay after start, off the startup path.
+	auditInterval = 24 * time.Hour
+	auditDelay    = 10 * time.Minute
 )
 
 type Worker struct {
-	q        *store.Queries
-	blobs    blob.Store
-	interval time.Duration
-	batch    int32
+	q     *store.Queries
+	blobs blob.Store
+	// scrubPerDay is how many bytes the scrub may read in a day; 0 disables it.
+	scrubPerDay int64
 }
 
-func NewWorker(q *store.Queries, blobs blob.Store) *Worker {
-	return &Worker{q: q, blobs: blobs, interval: defaultInterval, batch: defaultBatch}
+func NewWorker(q *store.Queries, blobs blob.Store, scrubPerDay int64) *Worker {
+	return &Worker{q: q, blobs: blobs, scrubPerDay: scrubPerDay}
 }
 
-// Run sweeps until the context is cancelled.
+// Run sweeps, scrubs and audits until the context is cancelled.
 func (w *Worker) Run(ctx context.Context) {
-	ticker := time.NewTicker(w.interval)
-	defer ticker.Stop()
+	sweep := time.NewTicker(sweepInterval)
+	defer sweep.Stop()
+	scrub := time.NewTicker(scrubInterval)
+	defer scrub.Stop()
+	audit := time.NewTimer(auditDelay)
+	defer audit.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
+		case <-sweep.C:
 			if n, bytes, err := w.Sweep(ctx); err != nil {
 				slog.WarnContext(ctx, "blob gc sweep failed", "err", err)
 			} else if n > 0 {
 				slog.InfoContext(ctx, "blob gc reclaimed", "blobs", n, "bytes", bytes)
 			}
+		case <-scrub.C:
+			if w.scrubPerDay <= 0 {
+				continue
+			}
+			if _, err := w.Scrub(ctx, w.scrubPerDay/24); err != nil {
+				slog.WarnContext(ctx, "blob scrub failed", "err", err)
+			}
+		case <-audit.C:
+			if _, err := w.Audit(ctx); err != nil {
+				slog.WarnContext(ctx, "blob audit failed", "err", err)
+			}
+			audit.Reset(auditInterval)
 		}
 	}
 }
 
-// Sweep deletes one batch of unreferenced blobs and reports what it reclaimed.
+// errKept: the row stopped qualifying for collection between the listing and
+// the delete — a write claimed it, or something references it again.
+var errKept = errors.New("blob kept")
+
+// Sweep deletes one batch of collectable blobs and reports what it reclaimed.
 //
-// `ListUnreferencedBlobs` only returns rows older than an hour, which is the
-// safety margin that matters: a blob is written and its ref_count incremented
-// in two separate statements, so a brand-new blob is legitimately at zero for
-// a moment. Sweeping only what has been unreferenced for an hour means an
-// in-flight upload can never be collected out from under itself.
+// A blob is collectable when it has been unreferenced for over an hour (from
+// released_at, so an old blob just let go waits as long as a new one) and no
+// write has claimed it since. The hour is also the window an external backup
+// has to copy the blobs a database dump references.
 //
-// Order matters the other way round from the write path: the row is deleted
-// first, then the file. A crash between them leaves a file with no row — a
-// disk leak, found by the next full audit — whereas deleting the file first
-// would leave a row promising bytes that are gone, which reads as corruption.
+// Each blob goes in its own transaction: the row is deleted under its lock,
+// then the bytes, then the commit. A write claiming the same hash waits on
+// that lock and finds either a live row with its bytes, or no row and no
+// bytes — never a row about to lose its file, which is how a freshly
+// deduplicated upload could be collected out from under its new reference.
+// A failure to remove the bytes rolls the row back, so nothing is forgotten.
 func (w *Worker) Sweep(ctx context.Context) (deleted int, reclaimed int64, err error) {
-	candidates, err := w.q.ListUnreferencedBlobs(ctx, w.batch)
+	candidates, err := w.q.ListCollectableBlobs(ctx, sweepBatch)
 	if err != nil {
 		return 0, 0, err
 	}
-
 	for _, b := range candidates {
-		// Re-checks ref_count = 0 in the DELETE, so a blob that gained a
-		// reference since the SELECT is left alone.
-		if err := w.q.DeleteBlob(ctx, b.Hash); err != nil {
-			slog.WarnContext(ctx, "blob row not deleted", "hash", short(b.Hash), "err", err)
+		size, err := w.collect(ctx, b.Hash)
+		if errors.Is(err, errKept) {
 			continue
 		}
-		if err := w.blobs.Delete(ctx, b.Hash); err != nil {
-			// The row is already gone; the file is now orphaned rather than
-			// dangerous. Log and carry on rather than failing the sweep.
-			slog.WarnContext(ctx, "blob file not deleted", "hash", short(b.Hash), "err", err)
+		if err != nil {
+			slog.WarnContext(ctx, "blob not collected", "hash", short(b.Hash), "err", err)
 			continue
 		}
 		deleted++
-		reclaimed += b.Size
+		reclaimed += size
 	}
 	return deleted, reclaimed, nil
+}
+
+func (w *Worker) collect(ctx context.Context, hash string) (int64, error) {
+	var size int64
+	err := w.q.InTx(ctx, func(q *store.Queries) error {
+		var err error
+		size, err = q.DeleteCollectableBlob(ctx, hash)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return errKept
+		}
+		if err != nil {
+			return err
+		}
+		return w.blobs.Delete(ctx, hash)
+	})
+	return size, err
 }
 
 func short(hash string) string {

@@ -9,11 +9,37 @@ import (
 	"context"
 )
 
+const adoptBlob = `-- name: AdoptBlob :execrows
+INSERT INTO blobs (hash, size, ref_count)
+SELECT $1::text, $2::bigint,
+       ((SELECT count(*) FROM node_versions v WHERE v.blob_hash = $1::text)
+      + (SELECT count(*) FROM previews p WHERE p.blob_hash = $1::text)
+      + (SELECT count(*) FROM users u WHERE u.avatar_blob = $1::text))::int
+ON CONFLICT (hash) DO NOTHING
+`
+
+type AdoptBlobParams struct {
+	Hash string `json:"hash"`
+	Size int64  `json:"size"`
+}
+
+// Gives bytes found in the store without a row one, counting whatever
+// already references them. Unreferenced bytes are then collected through
+// the ordinary sweep, under its guards, rather than deleted by the audit.
+func (q *Queries) AdoptBlob(ctx context.Context, arg AdoptBlobParams) (int64, error) {
+	result, err := q.db.Exec(ctx, adoptBlob, arg.Hash, arg.Size)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const blobTotals = `-- name: BlobTotals :one
 SELECT count(*) FILTER (WHERE ref_count > 0)::bigint AS referenced_blobs,
        COALESCE(sum(size) FILTER (WHERE ref_count > 0), 0)::bigint AS referenced_bytes,
        count(*) FILTER (WHERE ref_count = 0)::bigint AS unreferenced_blobs,
-       COALESCE(sum(size) FILTER (WHERE ref_count = 0), 0)::bigint AS unreferenced_bytes
+       COALESCE(sum(size) FILTER (WHERE ref_count = 0), 0)::bigint AS unreferenced_bytes,
+       count(*) FILTER (WHERE damaged_at IS NOT NULL)::bigint AS damaged_blobs
 FROM blobs
 `
 
@@ -22,9 +48,11 @@ type BlobTotalsRow struct {
 	ReferencedBytes   int64 `json:"referenced_bytes"`
 	UnreferencedBlobs int64 `json:"unreferenced_blobs"`
 	UnreferencedBytes int64 `json:"unreferenced_bytes"`
+	DamagedBlobs      int64 `json:"damaged_blobs"`
 }
 
-// Referenced vs. awaiting-GC blob counts and bytes for /metrics.
+// Referenced vs. awaiting-GC blob counts and bytes, and damaged ones, for
+// /metrics.
 func (q *Queries) BlobTotals(ctx context.Context) (BlobTotalsRow, error) {
 	row := q.db.QueryRow(ctx, blobTotals)
 	var i BlobTotalsRow
@@ -33,32 +61,62 @@ func (q *Queries) BlobTotals(ctx context.Context) (BlobTotalsRow, error) {
 		&i.ReferencedBytes,
 		&i.UnreferencedBlobs,
 		&i.UnreferencedBytes,
+		&i.DamagedBlobs,
 	)
 	return i, err
 }
 
-const decrBlobRef = `-- name: DecrBlobRef :exec
-UPDATE blobs SET ref_count = ref_count - 1 WHERE hash = $1 AND ref_count > 0
+const claimBlob = `-- name: ClaimBlob :one
+
+INSERT INTO blobs (hash, size, pinned_until)
+VALUES ($1, $2, now() + INTERVAL '6 hours')
+ON CONFLICT (hash) DO UPDATE SET pinned_until = GREATEST(blobs.pinned_until, EXCLUDED.pinned_until)
+RETURNING (damaged_at IS NOT NULL)::boolean AS damaged
 `
 
-func (q *Queries) DecrBlobRef(ctx context.Context, hash string) error {
-	_, err := q.db.Exec(ctx, decrBlobRef, hash)
-	return err
+type ClaimBlobParams struct {
+	Hash string `json:"hash"`
+	Size int64  `json:"size"`
 }
 
-const deleteBlob = `-- name: DeleteBlob :exec
-DELETE FROM blobs WHERE hash = $1 AND ref_count = 0
+// ref_count is maintained by triggers on node_versions, previews and
+// users.avatar_blob (migration 0011). Nothing here moves it by hand.
+// Records a hash before its bytes are installed and pins it against GC for
+// long enough to install them and commit the reference. Runs on its own,
+// outside any transaction, so a concurrent sweep sees the pin at once: the
+// sweep's DELETE re-checks pinned_until after waiting for this row lock.
+// Reports whether the stored copy is known damaged and must be overwritten.
+func (q *Queries) ClaimBlob(ctx context.Context, arg ClaimBlobParams) (bool, error) {
+	row := q.db.QueryRow(ctx, claimBlob, arg.Hash, arg.Size)
+	var damaged bool
+	err := row.Scan(&damaged)
+	return damaged, err
+}
+
+const deleteCollectableBlob = `-- name: DeleteCollectableBlob :one
+DELETE FROM blobs b
+WHERE b.hash = $1
+  AND b.ref_count = 0
+  AND b.released_at < now() - INTERVAL '1 hour'
+  AND b.pinned_until < now()
+  AND NOT EXISTS (SELECT 1 FROM node_versions v WHERE v.blob_hash = b.hash)
+  AND NOT EXISTS (SELECT 1 FROM previews p WHERE p.blob_hash = b.hash)
+  AND NOT EXISTS (SELECT 1 FROM users u WHERE u.avatar_blob = b.hash)
+RETURNING b.size
 `
 
-// Only removes the row if it is still unreferenced, so a blob that gained a
-// reference between the sweep's SELECT and its DELETE survives.
-func (q *Queries) DeleteBlob(ctx context.Context, hash string) error {
-	_, err := q.db.Exec(ctx, deleteBlob, hash)
-	return err
+// ListCollectableBlobs' condition, re-checked under the row lock. The caller
+// removes the bytes in the same transaction, before committing, so a claim
+// waiting on this row sees either a live row or no row and no file.
+func (q *Queries) DeleteCollectableBlob(ctx context.Context, hash string) (int64, error) {
+	row := q.db.QueryRow(ctx, deleteCollectableBlob, hash)
+	var size int64
+	err := row.Scan(&size)
+	return size, err
 }
 
 const getBlob = `-- name: GetBlob :one
-SELECT hash, size, ref_count, created_at FROM blobs WHERE hash = $1 LIMIT 1
+SELECT hash, size, ref_count, created_at, released_at, pinned_until, verified_at, damaged_at FROM blobs WHERE hash = $1 LIMIT 1
 `
 
 func (q *Queries) GetBlob(ctx context.Context, hash string) (Blob, error) {
@@ -69,40 +127,65 @@ func (q *Queries) GetBlob(ctx context.Context, hash string) (Blob, error) {
 		&i.Size,
 		&i.RefCount,
 		&i.CreatedAt,
+		&i.ReleasedAt,
+		&i.PinnedUntil,
+		&i.VerifiedAt,
+		&i.DamagedAt,
 	)
 	return i, err
 }
 
-const incrBlobRef = `-- name: IncrBlobRef :exec
-UPDATE blobs SET ref_count = ref_count + 1 WHERE hash = $1
+const knownBlobHashes = `-- name: KnownBlobHashes :many
+SELECT hash FROM blobs WHERE hash = ANY($1::text[])
 `
 
-func (q *Queries) IncrBlobRef(ctx context.Context, hash string) error {
-	_, err := q.db.Exec(ctx, incrBlobRef, hash)
-	return err
-}
-
-const listUnreferencedBlobs = `-- name: ListUnreferencedBlobs :many
-SELECT hash, size, ref_count, created_at FROM blobs
-WHERE ref_count = 0 AND created_at < now() - INTERVAL '1 hour'
-LIMIT $1
-`
-
-func (q *Queries) ListUnreferencedBlobs(ctx context.Context, limit int32) ([]Blob, error) {
-	rows, err := q.db.Query(ctx, listUnreferencedBlobs, limit)
+// Which of these hashes have a row. The storage audit asks in batches while
+// walking the store.
+func (q *Queries) KnownBlobHashes(ctx context.Context, hashes []string) ([]string, error) {
+	rows, err := q.db.Query(ctx, knownBlobHashes, hashes)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Blob
+	var items []string
 	for rows.Next() {
-		var i Blob
-		if err := rows.Scan(
-			&i.Hash,
-			&i.Size,
-			&i.RefCount,
-			&i.CreatedAt,
-		); err != nil {
+		var hash string
+		if err := rows.Scan(&hash); err != nil {
+			return nil, err
+		}
+		items = append(items, hash)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listBlobsToVerify = `-- name: ListBlobsToVerify :many
+SELECT hash, size FROM blobs
+WHERE ref_count > 0 AND pinned_until < now()
+ORDER BY verified_at NULLS FIRST
+LIMIT $1
+`
+
+type ListBlobsToVerifyRow struct {
+	Hash string `json:"hash"`
+	Size int64  `json:"size"`
+}
+
+// The scrub's queue: never verified first, then longest ago. Garbage awaiting
+// GC is not worth the read, and a pinned row may be a write whose bytes are
+// still on their way in.
+func (q *Queries) ListBlobsToVerify(ctx context.Context, limit int32) ([]ListBlobsToVerifyRow, error) {
+	rows, err := q.db.Query(ctx, listBlobsToVerify, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListBlobsToVerifyRow
+	for rows.Next() {
+		var i ListBlobsToVerifyRow
+		if err := rows.Scan(&i.Hash, &i.Size); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -113,18 +196,118 @@ func (q *Queries) ListUnreferencedBlobs(ctx context.Context, limit int32) ([]Blo
 	return items, nil
 }
 
-const upsertBlob = `-- name: UpsertBlob :exec
-INSERT INTO blobs (hash, size)
-VALUES ($1, $2)
-ON CONFLICT (hash) DO NOTHING
+const listCollectableBlobs = `-- name: ListCollectableBlobs :many
+SELECT b.hash, b.size FROM blobs b
+WHERE b.ref_count = 0
+  AND b.released_at < now() - INTERVAL '1 hour'
+  AND b.pinned_until < now()
+  AND NOT EXISTS (SELECT 1 FROM node_versions v WHERE v.blob_hash = b.hash)
+  AND NOT EXISTS (SELECT 1 FROM previews p WHERE p.blob_hash = b.hash)
+  AND NOT EXISTS (SELECT 1 FROM users u WHERE u.avatar_blob = b.hash)
+ORDER BY b.released_at
+LIMIT $1
 `
 
-type UpsertBlobParams struct {
+type ListCollectableBlobsRow struct {
 	Hash string `json:"hash"`
 	Size int64  `json:"size"`
 }
 
-func (q *Queries) UpsertBlob(ctx context.Context, arg UpsertBlobParams) error {
-	_, err := q.db.Exec(ctx, upsertBlob, arg.Hash, arg.Size)
+// Unreferenced for over an hour and not pinned by a write in progress. The
+// NOT EXISTS clauses repeat what ref_count already says; they keep a count
+// that is ever wrong from deleting bytes something still points at.
+func (q *Queries) ListCollectableBlobs(ctx context.Context, limit int32) ([]ListCollectableBlobsRow, error) {
+	rows, err := q.db.Query(ctx, listCollectableBlobs, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListCollectableBlobsRow
+	for rows.Next() {
+		var i ListCollectableBlobsRow
+		if err := rows.Scan(&i.Hash, &i.Size); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const markBlobDamaged = `-- name: MarkBlobDamaged :exec
+UPDATE blobs SET verified_at = now(), damaged_at = COALESCE(damaged_at, now()) WHERE hash = $1
+`
+
+func (q *Queries) MarkBlobDamaged(ctx context.Context, hash string) error {
+	_, err := q.db.Exec(ctx, markBlobDamaged, hash)
 	return err
+}
+
+const markBlobHealed = `-- name: MarkBlobHealed :exec
+UPDATE blobs SET damaged_at = NULL, verified_at = now() WHERE hash = $1
+`
+
+// A write replaced a damaged copy with bytes that hash to the name.
+func (q *Queries) MarkBlobHealed(ctx context.Context, hash string) error {
+	_, err := q.db.Exec(ctx, markBlobHealed, hash)
+	return err
+}
+
+const markBlobVerified = `-- name: MarkBlobVerified :exec
+UPDATE blobs SET verified_at = now(), damaged_at = NULL WHERE hash = $1
+`
+
+func (q *Queries) MarkBlobVerified(ctx context.Context, hash string) error {
+	_, err := q.db.Exec(ctx, markBlobVerified, hash)
+	return err
+}
+
+const recountBlobRefs = `-- name: RecountBlobRefs :many
+WITH refs AS (
+    SELECT blob_hash AS hash, count(*) AS n FROM node_versions GROUP BY blob_hash
+    UNION ALL
+    SELECT blob_hash, count(*) FROM previews GROUP BY blob_hash
+    UNION ALL
+    SELECT avatar_blob, count(*) FROM users WHERE avatar_blob <> '' GROUP BY avatar_blob
+), actual AS (
+    SELECT b2.hash, COALESCE(sum(r.n), 0)::int AS n
+    FROM blobs b2 LEFT JOIN refs r ON r.hash = b2.hash
+    GROUP BY b2.hash
+)
+UPDATE blobs b
+   SET ref_count   = a.n,
+       released_at = CASE WHEN a.n = 0 THEN now() ELSE b.released_at END
+  FROM actual a
+ WHERE a.hash = b.hash AND a.n <> b.ref_count
+RETURNING b.hash, b.ref_count
+`
+
+type RecountBlobRefsRow struct {
+	Hash     string `json:"hash"`
+	RefCount int32  `json:"ref_count"`
+}
+
+// Sets every ref_count to the number of rows that reference the hash and
+// returns the rows it had to correct. The triggers keep the counts exact, so
+// anything returned is a bug worth a log line.
+func (q *Queries) RecountBlobRefs(ctx context.Context) ([]RecountBlobRefsRow, error) {
+	rows, err := q.db.Query(ctx, recountBlobRefs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []RecountBlobRefsRow
+	for rows.Next() {
+		var i RecountBlobRefsRow
+		if err := rows.Scan(&i.Hash, &i.RefCount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

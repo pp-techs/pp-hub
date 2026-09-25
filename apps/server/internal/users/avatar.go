@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 
 	"github.com/jackc/pgx/v5"
@@ -35,19 +34,17 @@ var avatarMimes = map[string]bool{
 	"image/png": true, "image/jpeg": true, "image/gif": true, "image/webp": true,
 }
 
-// storedAvatar is an image already in the CAS, with the reference the account
-// is about to hold on it already counted.
+// storedAvatar is an image already in the CAS, claimed by the store and not
+// yet referenced by the account.
 type storedAvatar struct {
 	url, hash, mime string
 }
 
-// storeAvatar sniffs r, writes it to the CAS and takes a reference on it.
-//
-// Mirrors fs.PutFile's Put → UpsertBlob → IncrBlobRef sequence — skipped when
-// the bytes are the blob the account already points at (prev), so ref_count
-// is not inflated and gc.Worker.Sweep does not think the blob is briefly
-// unreferenced.
-func (s *Service) storeAvatar(ctx context.Context, id pgtype.UUID, prev string, r io.Reader) (storedAvatar, error) {
+// storeAvatar sniffs r and writes it to the CAS. The account's reference is
+// the users.avatar_blob column itself, counted by trigger when the swap
+// lands; a swap that loses leaves the blob unreferenced, and GC takes it once
+// the store's claim lapses.
+func (s *Service) storeAvatar(ctx context.Context, id pgtype.UUID, r io.Reader) (storedAvatar, error) {
 	head := make([]byte, 512)
 	n, err := io.ReadFull(r, head)
 	if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
@@ -59,17 +56,9 @@ func (s *Service) storeAvatar(ctx context.Context, id pgtype.UUID, prev string, 
 		return storedAvatar{}, ErrNotImage
 	}
 
-	hash, size, err := s.blobs.Put(ctx, io.MultiReader(bytes.NewReader(head), r))
+	hash, _, err := s.blobs.Put(ctx, io.MultiReader(bytes.NewReader(head), r))
 	if err != nil {
 		return storedAvatar{}, fmt.Errorf("blob put: %w", err)
-	}
-	if hash != prev {
-		if err := s.q.UpsertBlob(ctx, store.UpsertBlobParams{Hash: hash, Size: size}); err != nil {
-			return storedAvatar{}, err
-		}
-		if err := s.q.IncrBlobRef(ctx, hash); err != nil {
-			return storedAvatar{}, err
-		}
 	}
 	// The query suffix exists so a new avatar is not masked by the browser's
 	// cache of the old one.
@@ -80,33 +69,17 @@ func (s *Service) storeAvatar(ctx context.Context, id pgtype.UUID, prev string, 
 	}, nil
 }
 
-// release drops the account's reference on drop once keep has replaced it.
-//
-// Called with (prev, next) after a swap lands, and with (next, prev) after it
-// loses, to undo storeAvatar's speculative reference. A failure is logged,
-// not returned: the swap itself already happened, and a ref_count left too
-// high is the safe direction — GC never over-collects.
-func (s *Service) release(ctx context.Context, drop, keep string) {
-	if drop == "" || drop == keep {
-		return
-	}
-	if err := s.q.DecrBlobRef(ctx, drop); err != nil {
-		slog.ErrorContext(ctx, "avatar: decrementing blob ref failed", "blob", drop, "err", err)
-	}
-}
-
 // UploadAvatar stores a person's own avatar and points their profile at it,
 // returning the URL it is served from.
 //
-// The swap is conditional on the blob the account held when this started.
-// Two unguarded writers would both release the same previous blob, and in a
-// deduplicating CAS that blob can be a file's content as well.
+// The swap is conditional on the blob the account held when this started, so
+// of two concurrent uploads exactly one lands and the other is told so.
 func (s *Service) UploadAvatar(ctx context.Context, id pgtype.UUID, r io.Reader) (string, error) {
 	prev, _, err := s.Avatar(ctx, id)
 	if err != nil {
 		return "", err
 	}
-	a, err := s.storeAvatar(ctx, id, prev, r)
+	a, err := s.storeAvatar(ctx, id, r)
 	if err != nil {
 		return "", err
 	}
@@ -114,12 +87,10 @@ func (s *Service) UploadAvatar(ctx context.Context, id pgtype.UUID, r io.Reader)
 		ID: id, AvatarUrl: a.url, AvatarBlob: a.hash, AvatarMime: a.mime, PrevBlob: prev,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		s.release(ctx, a.hash, prev)
 		return "", ErrAvatarConflict
 	}
 	if err != nil {
 		return "", err
 	}
-	s.release(ctx, prev, a.hash)
 	return a.url, nil
 }

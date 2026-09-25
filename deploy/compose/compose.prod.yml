@@ -118,6 +118,8 @@ services:
       # bytes have landed and defaults to unlimited, so without this one
       # caller can fill the disk.
       PP_MAX_UPLOAD_BYTES: "${PP_MAX_UPLOAD_BYTES:-5G}"
+      # Daily budget for re-hashing stored blobs to find damage; 0 disables.
+      PP_BLOB_SCRUB_BYTES_PER_DAY: "${PP_BLOB_SCRUB_BYTES_PER_DAY:-100G}"
       # Retention for the security log — sign-ins, failures, admin and
       # permission changes.
       PP_AUDIT_RETENTION_DAYS: "${PP_AUDIT_RETENTION_DAYS:-365}"

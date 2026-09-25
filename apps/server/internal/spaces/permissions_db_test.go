@@ -424,7 +424,7 @@ func TestTrashedFolderNeitherHidesNorDestroysAColleaguesFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("folder: %v", err)
 	}
-	blobs, err := blob.NewLocalStore(t.TempDir())
+	blobs, err := blob.NewLocalStore(t.TempDir(), q.BlobClaims())
 	if err != nil {
 		t.Fatalf("blobs: %v", err)
 	}
@@ -511,7 +511,7 @@ func TestUploadingAnExistingNameCreatesANewFileForTheUploader(t *testing.T) {
 	if err != nil {
 		t.Fatalf("folder: %v", err)
 	}
-	blobs, err := blob.NewLocalStore(t.TempDir())
+	blobs, err := blob.NewLocalStore(t.TempDir(), q.BlobClaims())
 	if err != nil {
 		t.Fatalf("blobs: %v", err)
 	}
@@ -565,7 +565,7 @@ func TestMoveImpactNamesWhoGainsAndLosesAccess(t *testing.T) {
 	if err := sp.AddMember(ctx, space.ID, guest.ID, false); err != nil {
 		t.Fatalf("add member: %v", err)
 	}
-	blobs, err := blob.NewLocalStore(t.TempDir())
+	blobs, err := blob.NewLocalStore(t.TempDir(), q.BlobClaims())
 	if err != nil {
 		t.Fatalf("blobs: %v", err)
 	}
@@ -657,7 +657,7 @@ func TestTeamFolderContentHasNoPersonalOwner(t *testing.T) {
 	if err := sp.AddMember(ctx, space.ID, member.ID, false); err != nil {
 		t.Fatalf("add member: %v", err)
 	}
-	blobs, err := blob.NewLocalStore(t.TempDir())
+	blobs, err := blob.NewLocalStore(t.TempDir(), q.BlobClaims())
 	if err != nil {
 		t.Fatalf("blobs: %v", err)
 	}
@@ -743,7 +743,7 @@ func TestMovingOutOfATeamFolderReassignsTheAuthor(t *testing.T) {
 	if err := sp.AddMember(ctx, space.ID, member.ID, false); err != nil {
 		t.Fatalf("add member: %v", err)
 	}
-	blobs, err := blob.NewLocalStore(t.TempDir())
+	blobs, err := blob.NewLocalStore(t.TempDir(), q.BlobClaims())
 	if err != nil {
 		t.Fatalf("blobs: %v", err)
 	}
@@ -816,7 +816,7 @@ func TestTeamFolderSurvivesItsCreatorsDeparture(t *testing.T) {
 	if err := sp.AddMember(ctx, space.ID, successor.ID, true); err != nil {
 		t.Fatalf("add admin: %v", err)
 	}
-	blobs, err := blob.NewLocalStore(t.TempDir())
+	blobs, err := blob.NewLocalStore(t.TempDir(), q.BlobClaims())
 	if err != nil {
 		t.Fatalf("blobs: %v", err)
 	}

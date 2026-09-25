@@ -70,6 +70,11 @@ type Config struct {
 	// here one caller could fill the disk, and a space's quota defaults to
 	// unlimited. 0 disables it.
 	MaxUploadBytes int64
+	// BlobScrubBytesPerDay is how much stored content the scrub re-hashes a
+	// day, oldest verification first. Nothing else ever reads a blob that
+	// nobody opens, so without it damage surfaces only when someone needs the
+	// file. 0 disables it. The default, 100G, cycles 5 TB in about 50 days.
+	BlobScrubBytesPerDay int64
 	// BootstrapAdminEmail promotes whoever signs in with this address to
 	// instance admin, every time they sign in. It exists because there was
 	// no other way to create the first one: `users.is_admin` defaults to
@@ -115,6 +120,10 @@ func Load() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	scrubPerDay, err := bytesEnv("PP_BLOB_SCRUB_BYTES_PER_DAY", 100<<30)
+	if err != nil {
+		return nil, err
+	}
 	smtpPort, err := strconv.Atoi(env("PP_SMTP_PORT", "587"))
 	if err != nil {
 		return nil, fmt.Errorf("PP_SMTP_PORT must be a number, got %q", os.Getenv("PP_SMTP_PORT"))
@@ -145,11 +154,12 @@ func Load() (*Config, error) {
 		OnlyOfficeIntURL: os.Getenv("PP_ONLYOFFICE_INTERNAL_URL"),
 		WopiServerURL:    env("PP_WOPI_SERVER_URL", "http://localhost:8080"),
 
-		OnlyOfficeJWTSecret: []byte(os.Getenv("PP_ONLYOFFICE_JWT_SECRET")),
-		MaxUploadBytes:      maxUpload,
-		MetricsAddr:         env("PP_METRICS_ADDR", ":9091"),
-		BootstrapAdminEmail: strings.ToLower(strings.TrimSpace(os.Getenv("PP_BOOTSTRAP_ADMIN_EMAIL"))),
-		AuditRetention:      time.Duration(daysEnv("PP_AUDIT_RETENTION_DAYS", 365)) * 24 * time.Hour,
+		OnlyOfficeJWTSecret:  []byte(os.Getenv("PP_ONLYOFFICE_JWT_SECRET")),
+		MaxUploadBytes:       maxUpload,
+		BlobScrubBytesPerDay: scrubPerDay,
+		MetricsAddr:          env("PP_METRICS_ADDR", ":9091"),
+		BootstrapAdminEmail:  strings.ToLower(strings.TrimSpace(os.Getenv("PP_BOOTSTRAP_ADMIN_EMAIL"))),
+		AuditRetention:       time.Duration(daysEnv("PP_AUDIT_RETENTION_DAYS", 365)) * 24 * time.Hour,
 		Logto: LogtoSettings{
 			Endpoint:     strings.TrimRight(strings.TrimSpace(os.Getenv("PP_LOGTO_ENDPOINT")), "/"),
 			ClientID:     strings.TrimSpace(os.Getenv("PP_LOGTO_M2M_CLIENT_ID")),

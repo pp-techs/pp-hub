@@ -254,6 +254,16 @@ Note that `client_max_body_size 0` in `nginx.conf` is intentional — the edge
 streams the body through and the app answers 413 with a sentence, instead of
 nginx rejecting it with a bare page long before the app can say why.
 
+**`PP_BLOB_SCRUB_BYTES_PER_DAY`** — default `100G`; same syntax as
+`PP_MAX_UPLOAD_BYTES`; `0` disables it. How much stored content the hourly
+scrub re-hashes per day, least recently verified first — 100G cycles 5 TB in
+about 50 days. Nothing else ever reads a blob nobody opens, so without it
+disk rot or a torn write surfaces only when somebody needs the file. Damage
+is logged, marked on the blob and exported as `pphub_blobs_damaged`; alert on
+it being non-zero. On an S3 backend every scrubbed byte is a download, so size
+the budget against the provider's egress terms. See
+[storage.md](architecture/storage.md#scrub).
+
 **`PP_AUDIT_RETENTION_DAYS`** — default `365`. How long `security_events` rows
 live; the five-minute sweep in `cmd/server` purges anything older. One row is
 written on every sign-in and every failed attempt, so setting it very high on
@@ -295,8 +305,12 @@ networks; to scrape it, attach your Prometheus container to the `edge` network
 and target `server:9091`. Series are prefixed `pphub_`: HTTP requests by
 method/route/status and latency, the Postgres pool, `pphub_jobs{kind,status}`
 with the oldest job's age (a growing `render:*` backlog means no worker),
-referenced vs. unreferenced (awaiting GC) blobs and bytes, and Go/process
-metrics. The worker has no metrics port.
+referenced vs. unreferenced (awaiting GC) blobs and bytes,
+`pphub_blobs_damaged` (blobs the scrub found missing or not matching their
+hash — alert on > 0), `pphub_blob_disk_free_bytes` and
+`pphub_blob_disk_size_bytes` for the filesystem holding `PP_BLOB_ROOT` (alert
+before it fills: uploads are what fail first), and Go/process metrics. The
+worker has no metrics port.
 
 **`PP_TRUSTED_PROXIES`** — a comma-separated list of CIDRs (a bare address is
 accepted as its own `/32`), empty by default, `172.16.0.0/12` in the compose
@@ -875,6 +889,13 @@ restore comes up as a different instance. The blob archive excludes
 those are not files yet, and an upload whose restored row has no bytes behind
 it is dropped on its next chunk, so the client starts that file over.
 
+A home-grown backup should keep the same order — Postgres first, then the
+blobs — and skip `.uploads/` and the store's `tmp-*` files. GC collects a blob
+only an hour after its last reference goes (`released_at`), so every blob the
+dump references is still there as long as the blob copy finishes within an
+hour of the dump. The blob store is content-addressed and never rewrites a
+file, so an incremental copy that only adds new names is enough.
+
 **The server blocks on OIDC discovery** for up to two minutes at startup, then
 exits and is restarted. `web` therefore depends on `server` for _start order
 only_, never `condition: service_healthy` — otherwise an IdP outage takes the
@@ -894,7 +915,9 @@ until the last one lands, **whichever backend is in use**, so the volume at
 `PP_BLOB_ROOT` must be persisted even on `s3` — the shipped compose files
 already mount it — or a restart throws away every half-finished upload. It
 needs room for the uploads in flight, each up to `PP_MAX_UPLOAD_BYTES`. With
-`local` the finished file is renamed into the store, not copied. An upload
+`local` the finished file is renamed into the store, not copied — provided
+`.uploads` is on the same filesystem, as the shipped compose files arrange;
+mounted elsewhere, each commit falls back to copying the file. An upload
 idle for 24 hours is swept with its bytes, every 15 minutes. The per-upload
 lock that orders chunks is in-process and the staging files are local, so
 the upload routes assume a single `server` process.

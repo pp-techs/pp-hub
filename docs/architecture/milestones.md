@@ -4,11 +4,11 @@ The delivery history and the open roadmap. Each shipped milestone ended in a
 working end-to-end state inside the compose stack; its file keeps the decision
 that shaped it and the artifacts that carry it, not the forensics.
 
-Numbering is dependency order, not chronology — M25–M26 and M30–M36 landed after
+Numbering is dependency order, not chronology — M25–M26 and M30–M37 landed after
 M33–M35. **M12–M14 never existed** (`M12` was only the header of the retired
 `0012_personal_folders.sql`; M13 and M14 appear nowhere). Everything shipped
 through M15 is consolidated into `0001_init.sql`, and migration numbering
-restarted at `0002` with M20's sessions table: today only `0002`–`0010` exist as
+restarted at `0002` with M20's sessions table: today only `0002`–`0011` exist as
 files, so M7/M9/M10/M11 below name the tables they added rather than the
 migrations that carried them. Work that never got a number is recorded inside
 the milestone that owns its area and says so there, so nothing has to be looked
@@ -51,6 +51,7 @@ Each shipped milestone has its own file under [`milestones/`](milestones/) with 
 | M34 | One settings dialog                                    | ✅         | [detail](milestones/M34.md) |
 | M35 | Instance settings in the admin console                 | ✅         | [detail](milestones/M35.md) |
 | M36 | Sharing hardening                                      | ✅         | [detail](milestones/M36.md) |
+| M37 | Blob integrity                                         | ✅         | [detail](milestones/M37.md) |
 
 ## Upcoming — M27 Onward
 
@@ -108,10 +109,6 @@ so they are found rather than rediscovered:
 - **`style-src 'unsafe-inline'`** is the one CSP directive in the nginx template
   that is looser than it should be rather than looser on purpose. Removing it
   takes changes in `apps/web`, not an edit at the edge.
-- **No orphan-blob audit.** `gc.go` deletes the blob row before the file on
-  purpose, so a crash between them leaks a findable file rather than a row
-  promising missing bytes, and it defers that leak to "the next full audit" —
-  which does not exist.
 - **No antivirus or content scanning.** Uploaded bytes go straight into the CAS
   with no scan hook, no sniffing (the type is guessed from the extension) and no
   extension blocklist.

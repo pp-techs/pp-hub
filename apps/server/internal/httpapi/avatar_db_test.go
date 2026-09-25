@@ -72,7 +72,7 @@ func avatarGetRequest(t *testing.T, srv *Server, u store.User) *httptest.Respons
 // be refused rather than stored.
 func TestAvatarRoundTripsThroughTheBlobStore(t *testing.T) {
 	srv, q := feedEnv(t)
-	blobStore, err := blob.NewLocalStore(t.TempDir())
+	blobStore, err := blob.NewLocalStore(t.TempDir(), q.BlobClaims())
 	if err != nil {
 		t.Fatalf("new local store: %v", err)
 	}

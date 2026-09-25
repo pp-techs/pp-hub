@@ -1122,39 +1122,6 @@ func (q *Queries) ListStarredNodes(ctx context.Context, arg ListStarredNodesPara
 	return items, nil
 }
 
-const listSubtreeBlobHashes = `-- name: ListSubtreeBlobHashes :many
-WITH RECURSIVE sub(node_id, depth) AS (
-    SELECT r.id, 0 FROM nodes r WHERE r.id = $1
-    UNION ALL
-    SELECT n.id, sub.depth + 1 FROM nodes n JOIN sub ON n.parent_id = sub.node_id
-    WHERE sub.depth < 100
-)
-SELECT v.blob_hash FROM node_versions v JOIN sub ON v.node_id = sub.node_id
-`
-
-// Every blob referenced by the subtree rooted at $1, one row per version, so
-// a purge can decrement ref_count exactly as many times as it was incremented.
-// The depth cap is a cycle brake, not a shape the tree is expected to have.
-func (q *Queries) ListSubtreeBlobHashes(ctx context.Context, id pgtype.UUID) ([]string, error) {
-	rows, err := q.db.Query(ctx, listSubtreeBlobHashes, id)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []string
-	for rows.Next() {
-		var blob_hash string
-		if err := rows.Scan(&blob_hash); err != nil {
-			return nil, err
-		}
-		items = append(items, blob_hash)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listTeamRoots = `-- name: ListTeamRoots :many
 SELECT id FROM nodes
 WHERE space_id = $1 AND team_root_id = id AND deleted_at IS NULL
@@ -1354,7 +1321,7 @@ func (q *Queries) MoveUnderArchiveRoot(ctx context.Context, arg MoveUnderArchive
 	return err
 }
 
-const pruneVersions = `-- name: PruneVersions :many
+const pruneVersions = `-- name: PruneVersions :exec
 DELETE FROM node_versions d
 WHERE d.id IN (
     SELECT v.id FROM node_versions v
@@ -1364,7 +1331,6 @@ WHERE d.id IN (
     ORDER BY v.version_no DESC
     OFFSET $2::int
 )
-RETURNING d.blob_hash
 `
 
 type PruneVersionsParams struct {
@@ -1372,37 +1338,21 @@ type PruneVersionsParams struct {
 	Keep   int32       `json:"keep"`
 }
 
-// Deletes every version of a file beyond the newest `keep` non-current ones
-// and returns their blob hashes, one row per version, so the caller can
-// decrement ref_count once for each. The current version is never a
-// candidate — after a restore it can be an old one, and it is the file.
-// Previews go with their version (ON DELETE CASCADE).
-func (q *Queries) PruneVersions(ctx context.Context, arg PruneVersionsParams) ([]string, error) {
-	rows, err := q.db.Query(ctx, pruneVersions, arg.NodeID, arg.Keep)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []string
-	for rows.Next() {
-		var blob_hash string
-		if err := rows.Scan(&blob_hash); err != nil {
-			return nil, err
-		}
-		items = append(items, blob_hash)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+// Deletes every version of a file beyond the newest `keep` non-current ones.
+// The current version is never a candidate — after a restore it can be an
+// old one, and it is the file. Previews go with their version (ON DELETE
+// CASCADE); the blob references of both are released by trigger.
+func (q *Queries) PruneVersions(ctx context.Context, arg PruneVersionsParams) error {
+	_, err := q.db.Exec(ctx, pruneVersions, arg.NodeID, arg.Keep)
+	return err
 }
 
 const purgeNode = `-- name: PurgeNode :exec
 DELETE FROM nodes WHERE id = $1 AND deleted_at IS NOT NULL
 `
 
-// Hard delete. Descendants and versions follow via ON DELETE CASCADE; blob
-// ref counts are decremented separately by the caller.
+// Hard delete. Descendants, versions and previews follow via ON DELETE
+// CASCADE, and their blob references are released by trigger.
 func (q *Queries) PurgeNode(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, purgeNode, id)
 	return err

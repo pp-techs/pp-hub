@@ -414,9 +414,9 @@ DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, HSTS and
   than a missing feature because nobody discovered it wasn't there. It now
   sniffs the content type from the bytes (never the filename — the same
   value is served back, so a caller who chose it could serve HTML from this
-  origin), stores through the same `Put` → `UpsertBlob` → `IncrBlobRef`
-  sequence `fs.PutFile` uses, decrements the previous avatar's ref only
-  after the new one is live, and serves it back from `GET
+  origin), stores through the same claimed `Put` `fs.PutFile` uses — the
+  `users.avatar_blob` column is the reference, counted by trigger since
+  M37 — and serves it back from `GET
 /api/v1/users/{userID}/avatar` with `nosniff` and a cache-busting `?v=`
   suffix. `TestAvatarRoundTripsThroughTheBlobStore` proves the round trip
   byte-for-byte against a real Postgres and rejects a non-image upload with 415.
@@ -436,13 +436,19 @@ DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, HSTS and
   organization invitation is whatever Logto's template says — though the
   client already turns those codes into translated
   sentences. See [i18n.md](i18n.md).
-- **No orphan-blob audit.** `gc.Worker.Sweep` deletes the blob row before the
-  file (`gc/gc.go:64-67`) — deliberately, since the other order leaves a row
-  promising bytes that are gone, which reads as corruption — so a crash
-  between the two leaves a file with no row, and the comment defers it to "the
-  next full audit". There is no such audit: nothing walks the blob directory
-  against the `blobs` table. Unscheduled; the leak is bounded by how often the
-  process dies mid-sweep, which is also why it has never been urgent.
+- **No orphan-blob audit — closed by M37**, along with what a review of the
+  local store found beside it: GC could collect a blob an upload had just
+  deduplicated against (reproduced; the new file pointed at nothing),
+  `ref_count` could end up too low because it was moved by hand outside the
+  referencing statements, a write refused after its bytes landed leaked them
+  with no row for GC to find, previews were never counted, nothing fsynced a
+  blob before its reference committed, a damaged copy was deduplicated against
+  forever, and nothing ever re-read a stored blob. Now the store claims a
+  pinned row before installing bytes, triggers own `ref_count`, GC deletes row
+  and bytes in one transaction, blobs and their directories are fsynced, and
+  `gc.Worker` runs a daily audit (tidy, recount, adopt) and an hourly scrub.
+  See [storage.md](storage.md#garbage-collection) and
+  [M37](milestones/M37.md).
 
 ## Out of scope, deliberately
 
@@ -515,8 +521,8 @@ from a template.
 
 **Named but unscheduled.** A gap with no milestone is still a gap, and the
 risk of a roadmap is that it stops being visible: `style-src
-'unsafe-inline'`, the orphan-blob audit `gc.go` defers to, upload scanning and
-encryption at rest. (A fifth, the English-only UI, was closed by M32.) All of
+'unsafe-inline'`, upload scanning and encryption at rest. (Two more, the
+English-only UI and the orphan-blob audit, were closed by M32 and M37.) All of
 them keep their evidence in "Smaller, but on the list", and
 [milestones.md](milestones.md) lists them under a heading of the same name, so a
 reader working from the plan meets them too.

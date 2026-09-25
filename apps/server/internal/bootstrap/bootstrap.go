@@ -68,18 +68,20 @@ func New(ctx context.Context, opt Options) (*Deps, func(), error) {
 		return nil, nil, fmt.Errorf("await schema: %w", err)
 	}
 
-	blobs, err := openBlobStore(ctx, cfg)
+	queries := store.New(pool)
+	blobs, err := openBlobStore(ctx, cfg, queries.BlobClaims())
 	if err != nil {
 		pool.Close()
 		return nil, nil, fmt.Errorf("blob store: %w", err)
 	}
 
-	return &Deps{Cfg: cfg, Pool: pool, Queries: store.New(pool), Blobs: blobs}, closeFn, nil
+	return &Deps{Cfg: cfg, Pool: pool, Queries: queries, Blobs: blobs}, closeFn, nil
 }
 
 // openBlobStore picks the backend named by PP_BLOB_BACKEND. Config validated
 // the combination already, so an unknown value here is a programming error.
-func openBlobStore(ctx context.Context, cfg *config.Config) (blob.Store, error) {
+// Both backends record every write through claims before installing bytes.
+func openBlobStore(ctx context.Context, cfg *config.Config, claims blob.Claims) (blob.Store, error) {
 	switch cfg.BlobBackend {
 	case "s3":
 		slog.InfoContext(ctx, "blob store: s3", "bucket", cfg.S3.Bucket, "endpoint", cfg.S3.Endpoint)
@@ -90,9 +92,9 @@ func openBlobStore(ctx context.Context, cfg *config.Config) (blob.Store, error) 
 			AccessKey: cfg.S3.AccessKey,
 			SecretKey: cfg.S3.SecretKey,
 			PathStyle: cfg.S3.PathStyle,
-		})
+		}, claims)
 	default:
-		return blob.NewLocalStore(cfg.BlobRoot)
+		return blob.NewLocalStore(cfg.BlobRoot, claims)
 	}
 }
 

@@ -95,7 +95,7 @@ func (s *Service) syncPicture(ctx context.Context, u store.User, picture string)
 		// Not recorded: a network failure is worth another try next time.
 		return u, fmt.Errorf("fetch idp picture: %w", err)
 	}
-	a, err := s.storeAvatar(ctx, u.ID, u.AvatarBlob, bytes.NewReader(body))
+	a, err := s.storeAvatar(ctx, u.ID, bytes.NewReader(body))
 	if errors.Is(err, ErrNotImage) {
 		// An SVG or an HTML error page, say. Recorded, so the same URL is not
 		// fetched again on every sign-in only to be refused again.
@@ -111,22 +111,20 @@ func (s *Service) syncPicture(ctx context.Context, u store.User, picture string)
 	return s.swapIdPAvatar(ctx, u, a, seen)
 }
 
-// swapIdPAvatar points u at a (or at nothing, for the zero value) and settles
-// the blob references either way; see UploadAvatar for why it is guarded.
+// swapIdPAvatar points u at a (or at nothing, for the zero value); see
+// UploadAvatar for why it is guarded. The triggers on users move the blob
+// references either way.
 func (s *Service) swapIdPAvatar(ctx context.Context, u store.User, a storedAvatar, seen pgtype.Text) (store.User, error) {
-	prev := u.AvatarBlob
 	next, err := s.q.SetUserIdpAvatar(ctx, store.SetUserIdpAvatarParams{
 		ID: u.ID, AvatarUrl: a.url, AvatarBlob: a.hash, AvatarMime: a.mime,
-		IdpPicture: seen, PrevBlob: prev,
+		IdpPicture: seen, PrevBlob: u.AvatarBlob,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		s.release(ctx, a.hash, prev)
 		return u, ErrAvatarConflict
 	}
 	if err != nil {
 		return u, err
 	}
-	s.release(ctx, prev, a.hash)
 	return next, nil
 }
 

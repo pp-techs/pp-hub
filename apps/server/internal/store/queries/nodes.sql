@@ -94,12 +94,11 @@ SELECT * FROM node_versions WHERE node_id = $1 ORDER BY version_no DESC;
 -- name: GetVersion :one
 SELECT * FROM node_versions WHERE id = $1 LIMIT 1;
 
--- name: PruneVersions :many
--- Deletes every version of a file beyond the newest `keep` non-current ones
--- and returns their blob hashes, one row per version, so the caller can
--- decrement ref_count once for each. The current version is never a
--- candidate — after a restore it can be an old one, and it is the file.
--- Previews go with their version (ON DELETE CASCADE).
+-- name: PruneVersions :exec
+-- Deletes every version of a file beyond the newest `keep` non-current ones.
+-- The current version is never a candidate — after a restore it can be an
+-- old one, and it is the file. Previews go with their version (ON DELETE
+-- CASCADE); the blob references of both are released by trigger.
 DELETE FROM node_versions d
 WHERE d.id IN (
     SELECT v.id FROM node_versions v
@@ -108,8 +107,7 @@ WHERE d.id IN (
       AND v.id IS DISTINCT FROM n.current_version_id
     ORDER BY v.version_no DESC
     OFFSET sqlc.arg('keep')::int
-)
-RETURNING d.blob_hash;
+);
 
 -- name: GetCurrentVersion :one
 SELECT v.* FROM node_versions v
@@ -170,24 +168,12 @@ UPDATE nodes SET deleted_at = NULL, parent_id = $2, name = $3
 WHERE id = $1 AND deleted_at IS NOT NULL;
 
 -- name: PurgeNode :exec
--- Hard delete. Descendants and versions follow via ON DELETE CASCADE; blob
--- ref counts are decremented separately by the caller.
+-- Hard delete. Descendants, versions and previews follow via ON DELETE
+-- CASCADE, and their blob references are released by trigger.
 DELETE FROM nodes WHERE id = $1 AND deleted_at IS NOT NULL;
 
 -- name: ListDeletedIDs :many
 SELECT id FROM nodes WHERE space_id = $1 AND deleted_at IS NOT NULL;
-
--- name: ListSubtreeBlobHashes :many
--- Every blob referenced by the subtree rooted at $1, one row per version, so
--- a purge can decrement ref_count exactly as many times as it was incremented.
--- The depth cap is a cycle brake, not a shape the tree is expected to have.
-WITH RECURSIVE sub(node_id, depth) AS (
-    SELECT r.id, 0 FROM nodes r WHERE r.id = $1
-    UNION ALL
-    SELECT n.id, sub.depth + 1 FROM nodes n JOIN sub ON n.parent_id = sub.node_id
-    WHERE sub.depth < 100
-)
-SELECT v.blob_hash FROM node_versions v JOIN sub ON v.node_id = sub.node_id;
 
 -- name: ListDeletedWithMeta :many
 -- Trash listing: node + current version + owner, plus the original location

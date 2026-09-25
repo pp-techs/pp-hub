@@ -59,7 +59,7 @@ func (h *pictureHost) url(path string) string { return h.srv.URL + path }
 func idpEnv(t *testing.T) (*users.Service, *store.Queries) {
 	t.Helper()
 	_, q := searchEnv(t)
-	blobs, err := blob.NewLocalStore(t.TempDir())
+	blobs, err := blob.NewLocalStore(t.TempDir(), q.BlobClaims())
 	if err != nil {
 		t.Fatal(err)
 	}

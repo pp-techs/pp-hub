@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
@@ -26,7 +28,8 @@ type S3Store struct {
 	cli    *s3.Client
 	bucket string
 	// spool is where Put buffers while hashing; "" means the OS temp dir.
-	spool string
+	spool  string
+	claims Claims
 }
 
 // S3Config configures an S3-compatible backend. Endpoint and PathStyle exist
@@ -41,9 +44,16 @@ type S3Config struct {
 	Spool     string
 }
 
-func NewS3Store(ctx context.Context, cfg S3Config) (*S3Store, error) {
+// spoolPrefix names Put's buffers in the spool directory; Tidy collects the
+// ones a crashed process left.
+const spoolPrefix = "pp-blob-"
+
+func NewS3Store(ctx context.Context, cfg S3Config, claims Claims) (*S3Store, error) {
 	if cfg.Bucket == "" {
 		return nil, errors.New("s3: bucket is required")
+	}
+	if claims == nil {
+		return nil, errors.New("blob: a store needs claims to record its writes")
 	}
 	region := cfg.Region
 	if region == "" {
@@ -71,7 +81,7 @@ func NewS3Store(ctx context.Context, cfg S3Config) (*S3Store, error) {
 		// MinIO and most self-hosted gateways do not do virtual-host style.
 		o.UsePathStyle = cfg.PathStyle
 	})
-	return &S3Store{cli: cli, bucket: cfg.Bucket, spool: cfg.Spool}, nil
+	return &S3Store{cli: cli, bucket: cfg.Bucket, spool: cfg.Spool, claims: claims}, nil
 }
 
 func (s *S3Store) key(hash string) string { return hash[:2] + "/" + hash }
@@ -85,7 +95,7 @@ func (s *S3Store) key(hash string) string { return hash[:2] + "/" + hash }
 // before renaming into place, so both backends fail the same way when a disk
 // fills mid-upload.
 func (s *S3Store) Put(ctx context.Context, r io.Reader) (string, int64, error) {
-	tmp, err := os.CreateTemp(s.spool, "pp-blob-*")
+	tmp, err := os.CreateTemp(s.spool, spoolPrefix+"*")
 	if err != nil {
 		return "", 0, err
 	}
@@ -130,20 +140,33 @@ func (s *S3Store) Ingest(ctx context.Context, path string) (string, int64, error
 	return hash, size, nil
 }
 
-// upload sends a seekable body to its content address, skipping the request
-// when identical content is already there.
+// upload claims hash, then sends a seekable body to its content address —
+// or skips the request when an intact copy is already there. The claim comes
+// first for the reason LocalStore.install gives.
 func (s *S3Store) upload(ctx context.Context, body io.ReadSeeker, hash string, size int64) error {
-	// Dedup: identical content is already at this address, and re-uploading
-	// would only cost bandwidth.
-	if exists, err := s.exists(ctx, hash); err != nil {
-		return err
-	} else if exists {
-		return nil
+	replace, err := s.claims.Claim(ctx, hash, size)
+	if err != nil {
+		return fmt.Errorf("claim blob: %w", err)
+	}
+	if !replace {
+		stored, err := s.storedSize(ctx, hash)
+		switch {
+		case err != nil:
+			return err
+		case stored == size:
+			// Dedup: identical content is already at this address, and
+			// re-uploading would only cost bandwidth.
+			return nil
+		case stored >= 0:
+			slog.WarnContext(ctx, "blob: stored copy has the wrong size, replacing it",
+				"hash", short(hash), "stored", stored, "size", size)
+			replace = true
+		}
 	}
 	if _, err := body.Seek(0, io.SeekStart); err != nil {
 		return err
 	}
-	_, err := s.cli.PutObject(ctx, &s3.PutObjectInput{
+	_, err = s.cli.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:        aws.String(s.bucket),
 		Key:           aws.String(s.key(hash)),
 		Body:          body,
@@ -152,21 +175,28 @@ func (s *S3Store) upload(ctx context.Context, body io.ReadSeeker, hash string, s
 	if err != nil {
 		return fmt.Errorf("s3: put %s: %w", hash, err)
 	}
+	if replace {
+		if err := s.claims.Healed(ctx, hash); err != nil {
+			slog.WarnContext(ctx, "blob: healed copy not recorded", "hash", short(hash), "err", err)
+		}
+	}
 	return nil
 }
 
-func (s *S3Store) exists(ctx context.Context, hash string) (bool, error) {
-	_, err := s.cli.HeadObject(ctx, &s3.HeadObjectInput{
+// storedSize is the length of the object at hash's address, or -1 when there
+// is none.
+func (s *S3Store) storedSize(ctx context.Context, hash string) (int64, error) {
+	out, err := s.cli.HeadObject(ctx, &s3.HeadObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(s.key(hash)),
 	})
 	if err == nil {
-		return true, nil
+		return aws.ToInt64(out.ContentLength), nil
 	}
 	if isNotFound(err) {
-		return false, nil
+		return -1, nil
 	}
-	return false, fmt.Errorf("s3: head %s: %w", hash, err)
+	return 0, fmt.Errorf("s3: head %s: %w", hash, err)
 }
 
 func (s *S3Store) Get(ctx context.Context, hash string) (io.ReadCloser, error) {
@@ -212,6 +242,39 @@ func (s *S3Store) Check(ctx context.Context) error {
 		return fmt.Errorf("s3: head bucket: %w", err)
 	}
 	return nil
+}
+
+// Walk lists the bucket page by page. Keys that are not <2-hex>/<hash> are
+// someone else's and are skipped.
+func (s *S3Store) Walk(ctx context.Context, fn func(hash string, size int64) error) error {
+	pages := s3.NewListObjectsV2Paginator(s.cli, &s3.ListObjectsV2Input{Bucket: aws.String(s.bucket)})
+	for pages.HasMorePages() {
+		page, err := pages.NextPage(ctx)
+		if err != nil {
+			return fmt.Errorf("s3: list: %w", err)
+		}
+		for _, obj := range page.Contents {
+			key := aws.ToString(obj.Key)
+			if len(key) != 67 || key[2] != '/' || !IsHash(key[3:]) || key[:2] != key[3:5] {
+				continue
+			}
+			if err := fn(key[3:], aws.ToInt64(obj.Size)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// Tidy collects Put's abandoned spool files. Nothing temporary is ever
+// written to the bucket itself: an object only appears once PutObject has
+// all of it.
+func (s *S3Store) Tidy(_ context.Context, age time.Duration) (int, error) {
+	dir := s.spool
+	if dir == "" {
+		dir = os.TempDir()
+	}
+	return removeStale(dir, spoolPrefix, age)
 }
 
 // isNotFound covers the several shapes S3 uses to say "no such object":

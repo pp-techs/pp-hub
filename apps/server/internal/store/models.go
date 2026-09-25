@@ -195,10 +195,14 @@ type ActivityEvent struct {
 }
 
 type Blob struct {
-	Hash      string             `json:"hash"`
-	Size      int64              `json:"size"`
-	RefCount  int32              `json:"ref_count"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	Hash        string             `json:"hash"`
+	Size        int64              `json:"size"`
+	RefCount    int32              `json:"ref_count"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	ReleasedAt  pgtype.Timestamptz `json:"released_at"`
+	PinnedUntil pgtype.Timestamptz `json:"pinned_until"`
+	VerifiedAt  pgtype.Timestamptz `json:"verified_at"`
+	DamagedAt   pgtype.Timestamptz `json:"damaged_at"`
 }
 
 type FileLock struct {
