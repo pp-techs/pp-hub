@@ -1,54 +1,74 @@
 # pp-hub
 
-A minimal, self-hosted Google Workspace alternative: Drive, collaborative office editing (OnlyOffice/WOPI), permissions, and multiple spaces.
+A self-hosted workspace for a company: file storage, collaborative editing of
+Word/Excel/PowerPoint documents, and fine-grained sharing — on your own server.
 
-Monorepo: bun workspaces + Vite+ (frontend), Go backend (planned, `apps/server`), Postgres + content-addressed storage, docker-compose all-in-one deployment.
+- **Drive** — folders, uploads of any size (resumable), versions, trash,
+  search, previews and thumbnails.
+- **Office** — open and co-edit documents in the browser (OnlyOffice).
+- **Spaces** — one per company or department, each with its own people,
+  groups and storage quota.
+- **Sharing** — to people, to groups, or by public link; nothing is visible
+  until it is shared.
+- **Accounts** — sign-in, invitations and suspension through
+  [Logto](https://logto.io), self-hosted alongside or on Logto Cloud.
+- **Admin** — security log with CSV export, alerts, instance settings, backups.
 
-## Development
+English and Vietnamese UI.
 
-- Check everything is ready:
+## Run it on a server
 
-```bash
-vp run ready
+pp-hub runs as two Docker Compose stacks — Logto and pp-hub — on any host
+with Docker, behind a reverse proxy or a platform that routes domains. Two
+scripts do the setup:
+
+```sh
+./deploy/pp-generate.sh             # compose files, environments with secrets, Caddy config
+./deploy/logto/pp-logto-setup.sh    # Logto apps, roles, email, sign-up, webhook
 ```
 
-- Run the tests:
+Follow **[docs/self-hosting.md](docs/self-hosting.md)** — about 30 minutes
+from a fresh server to the first invitation.
+[docs/deployment.md](docs/deployment.md) is the full reference.
 
-```bash
-vp run -r test
-```
+## Develop
 
-- Build the monorepo:
+Requirements: [bun](https://bun.sh), Go, Docker, and the
+[Vite+](https://viteplus.dev) `vp` CLI.
 
-```bash
-vp run -r build
-```
+```sh
+# Postgres, OnlyOffice, a local Logto and a mail catcher (http://localhost:8025)
+docker compose -f deploy/compose/compose.dev.yml --profile idp --profile mail up -d
 
-- Run the development server:
+# Configure the local Logto once. In its console (http://localhost:3002) create
+# the admin account, then a Machine-to-machine app with the role
+# "Logto Management API access", and run:
+cp apps/server/.env.example apps/server/.env
+LOGTO_ENDPOINT=http://localhost:3001 \
+LOGTO_BOOTSTRAP_CLIENT_ID=<id> LOGTO_BOOTSTRAP_CLIENT_SECRET=<secret> \
+PP_EXTERNAL_URL=http://localhost:5173 \
+SMTP_HOST=host.docker.internal SMTP_PORT=1025 SMTP_FROM='pp-hub <dev@localhost>' \
+PP_ENV_FILE=apps/server/.env \
+./deploy/logto/pp-logto-setup.sh
 
-```bash
+# API server (reads real environment variables, so source the file)
+cd apps/server && set -a && . ./.env && set +a && go run ./cmd/server
+
+# Web app, from the repository root: http://localhost:5173
 vp run dev
 ```
 
-## Full Stack
+Set `PP_BOOTSTRAP_ADMIN_EMAIL` in `apps/server/.env` to your address before
+the first sign-in to become the instance administrator.
 
-```bash
-# Services the app talks to: postgres + OnlyOffice.
-# Profiles add more: --profile worker (PDF/video/office thumbnails),
-#                    --profile s3 (SeaweedFS), --profile idp (self-hosted Logto)
-docker compose -f deploy/compose/compose.dev.yml up -d
-
-# API server, from source. It reads real env vars, so .env must be sourced.
-cd apps/server && cp .env.example .env    # once, then fill in PP_OIDC_*
-set -a && source .env && set +a && go run ./cmd/server
-
-vp run dev                                # web, http://localhost:5173
-```
-
-Identity provider: Logto — create a free Cloud tenant at <https://cloud.logto.io> (Traditional Web app, redirect URI `http://localhost:5173/auth/callback`) or self-host with `--profile idp` (admin console on <http://localhost:3002>). OnlyOffice on :9980, API server on <http://localhost:8080>.
-
-Deploying to a server or Dokploy: [docs/deployment.md](docs/deployment.md).
+| Task                           | Command                                                                                            |
+| ------------------------------ | -------------------------------------------------------------------------------------------------- |
+| Format, lint, type-check       | `vp check`                                                                                         |
+| Web tests                      | `vp test`                                                                                          |
+| Server tests (with a database) | `cd apps/server && PP_TEST_DATABASE_URL=postgres://pphub:pphub@localhost:5433/pphub go test ./...` |
+| Update translation catalogs    | `vp run web#i18n:extract`                                                                          |
 
 ## Documentation
 
-See [docs/SUMMARY.md](docs/SUMMARY.md) — architecture, codebase layout, code standards, and product requirements.
+Start at [docs/SUMMARY.md](docs/SUMMARY.md): architecture, data model,
+permissions, the Logto integration, code standards and the roadmap.

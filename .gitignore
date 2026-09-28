@@ -22,6 +22,9 @@ dist-ssr
 # above do not reach it — and it carries the admin and database passwords.
 deploy/weblate/environment
 
+# pp-generate.sh output: filled-in environments with live secrets.
+deploy/out/
+
 # Editor directories and files
 .vscode/*
 !.vscode/settings.json

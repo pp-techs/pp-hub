@@ -1,6 +1,8 @@
 # Deployment
 
-Two compose files, three env files, one convention.
+Three compose files, three env files, one convention. For a step-by-step
+install, read [self-hosting.md](self-hosting.md) first; this page is the
+reference behind it.
 
 | Path                               | Committed?  | What it is                                     |
 | ---------------------------------- | ----------- | ---------------------------------------------- |
@@ -25,12 +27,13 @@ server runs on your host and talks to `localhost:5432`, while the production
 server runs in compose and talks to `postgres:5432`. One file could never serve
 both.
 
-Two compose files, for two different jobs:
+Three compose files, for three different jobs:
 
-| File                              | What it runs                                     | Use it when                                 |
-| --------------------------------- | ------------------------------------------------ | ------------------------------------------- |
-| `deploy/compose/compose.prod.yml` | Everything, built from this repo                 | Deploying to a VPS or Dokploy               |
-| `deploy/compose/compose.dev.yml`  | Only the things the app talks to — no app images | Developing, running Go and Vite from source |
+| File                               | What it runs                                     | Use it when                                 |
+| ---------------------------------- | ------------------------------------------------ | ------------------------------------------- |
+| `deploy/compose/compose.prod.yml`  | pp-hub, from the published images                | Deploying to a server                       |
+| `deploy/compose/compose.logto.yml` | Self-hosted Logto and its own Postgres           | Running Logto next to pp-hub                |
+| `deploy/compose/compose.dev.yml`   | Only the things the app talks to — no app images | Developing, running Go and Vite from source |
 
 ## The one constraint that shapes everything
 
@@ -356,7 +359,11 @@ email comes from. It is also mandatory: there is no other provider and no mode
 without it. Five things must exist in the Logto tenant before any of it works,
 and each one fails in its own way if it is missing. See
 [logto-org-sync.md](architecture/logto-org-sync.md) for the design; this is
-the checklist.
+the checklist. **`deploy/logto/pp-logto-setup.sh` creates all five** (plus
+the sign-in application, the SMTP connector and email sign-up) through the
+Management API from one bootstrap machine-to-machine app, idempotently, and
+writes the resulting values into an env file — see
+[self-hosting.md](self-hosting.md#3-configure-logto-for-pp-hub).
 
 1. **A machine-to-machine application**, granted the **Logto Management API**
    role that carries the `all` permission. This is what reads an
@@ -395,6 +402,12 @@ the checklist.
    unauthenticated endpoint inside it would mean loosening the test that
    protects the whole API. A lost delivery is not a correctness problem: the
    hourly reconcile and the next sign-in both converge the same way.
+   **Logto refuses to deliver to private or special-use addresses** (its
+   delivery log reads `hostname resolves to a special-use IP address`), so the
+   URL must resolve to a public IP from inside the Logto container. A
+   deployment whose pp-hub domain resolves to a LAN address, and every local
+   development setup, runs without webhooks: changes made in Logto then arrive
+   at the next sign-in or on the hourly sweep.
 5. **Two user-consent scopes on the sign-in application** (the one behind
    `PP_OIDC_CLIENT_ID`): `urn:logto:scope:organizations` and
    `urn:logto:scope:organization_roles`. pp-hub always requests them; they put
@@ -616,12 +629,36 @@ application must list `phone` under its _Permissions_ (user data) first; a
 first-party one accepts it as is. With the Management API credentials set,
 organization reconciles fill in phone numbers regardless of this flag.
 
-### Dokploy
+### Hosting options
+
+Both production stacks — pp-hub (`compose.prod.yml`) and Logto
+(`compose.logto.yml`) — publish **no host ports**; they `expose` only.
+Something in front terminates HTTPS and routes the four domains: `web:80`,
+`onlyoffice:80`, `logto:3001` and `logto:3002`. Any of these works, and
+`deploy/pp-generate.sh` produces the files for the first one directly.
+
+#### A reverse proxy on the same host
+
+`pp-generate.sh` writes `pphub.ports.yml` and `logto.ports.yml`, compose
+overrides that publish the four services on `127.0.0.1` (8090, 9980, 3001,
+3002), and a `Caddyfile` that routes the domains to them with automatic
+certificates. Start each stack with its override (`-f pphub.compose.yml -f
+pphub.ports.yml`) — see [self-hosting.md](self-hosting.md).
+
+Another proxy works the same way. Mind its request-body limit on this hop:
+nginx needs a `client_max_body_size` above the largest upload chunk, 64 MiB
+(`0` is simplest; its 1 MB default answers 413 to every full-size chunk).
+Caddy has no default limit. For Traefik, see the read-timeout note below.
+
+#### Dokploy (or a similar platform)
+
+Platforms that route domains to compose services themselves take both
+compose files as they are. The notes below are written for Dokploy; Coolify
+and Portainer differ only in where the settings live.
 
 Dokploy's recommended flow is a **clean compose file** — no Traefik labels, no
-`dokploy-network` — with domains assigned in the UI. `compose.prod.yml` is
-written that way: it publishes no host ports and uses `expose` only, since
-binding 80/443 would collide with Dokploy's Traefik.
+`dokploy-network` — with domains assigned in the UI, which is how both files
+are written: binding 80/443 would collide with Dokploy's Traefik.
 
 1. Create a Compose application and paste `deploy/compose/compose.prod.yml`
    (source type **docker raw** works, and is the simplest: this file pulls,
@@ -743,15 +780,6 @@ every app on port 80. Keep the domain in Dokploy's Domains tab so port 80 still
 serves the ACME challenge; a TCP router with a matching `HostSNI` takes
 precedence over the HTTP router on 443.
 
-### Plain VPS
-
-Uncomment the `ports:` blocks marked `PLAIN VPS` and point your own reverse
-proxy (Caddy, nginx, Traefik) at them. Terminate TLS there.
-The same upload caveats apply to that outer hop: an nginx in front needs a
-`client_max_body_size` above the largest chunk, 64 MiB (`0` is simplest; its
-1 MB default answers 413 to every full-size chunk), while a Traefik's
-`readTimeout` change above is optional.
-
 ### After the first deploy
 
 Previews are only enqueued on upload, so files that predate the worker have no
@@ -805,18 +833,23 @@ and the reason is in the server log.
 
 **The `PP_LOGTO_*` variables are required in development too.** Without
 `PP_LOGTO_ENDPOINT` and the two M2M credentials the server refuses to start,
-naming what is missing. The quickest tenant is `--profile idp` (below): the
-console on `http://localhost:3002` creates the M2M application and the
-organization template, `PP_LOGTO_ENDPOINT` is `http://localhost:3001` — no
+naming what is missing. The quickest tenant is `--profile idp` (below): create
+the admin account and one bootstrap M2M application in the console on
+`http://localhost:3002`, then run `deploy/logto/pp-logto-setup.sh` with
+`PP_EXTERNAL_URL=http://localhost:5173`, `SMTP_HOST=host.docker.internal
+SMTP_PORT=1025` (the `mail` profile's Mailpit) and
+`PP_ENV_FILE=apps/server/.env` — the README has the exact command.
+`PP_LOGTO_ENDPOINT` is `http://localhost:3001` — no
 `/oidc` — and `PP_LOGTO_API_RESOURCE` can stay at its default
 `https://default.logto.app/api`, which is an identifier and not somewhere
 anything connects. Spaces are then created from the app by an instance admin,
 which creates their organizations in Logto; a space left over from an older
 database is linked with **Link to Logto** on its People pane.
 
-Two development-only wrinkles. **A webhook cannot reach `localhost`** from
-Logto Cloud, so either run the local IdP — where both sides are on your
-machine — or expose the server through a tunnel and point the webhook at that;
+Two development-only wrinkles. **No webhook reaches a development server**:
+Logto Cloud cannot reach `localhost`, and a local Logto refuses to deliver to
+`host.docker.internal` or any other private address. Expose the server through
+a public tunnel and point the webhook at that if you need it;
 without it, membership still converges, just at sign-in and on the hourly
 ticker rather than instantly. And **the two consent scopes are per
 application**: an app registered before this feature existed has neither, and

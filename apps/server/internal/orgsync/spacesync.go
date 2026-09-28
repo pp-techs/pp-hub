@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
@@ -132,6 +133,12 @@ func (s *Service) Link(ctx context.Context, space store.Space, confirmStranded b
 // error, and a space already linked to this organization skips to the end.
 func (s *Service) runLink(ctx context.Context, spaceID pgtype.UUID, orgID string) error {
 	space, err := s.q.GetSpace(ctx, spaceID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		// Deleted while the job waited. There is nothing left to link, and
+		// retrying would fail the same way forever.
+		slog.WarnContext(ctx, "link skipped: space no longer exists", "space", spaceID.String(), "org", orgID)
+		return nil
+	}
 	if err != nil {
 		return err
 	}

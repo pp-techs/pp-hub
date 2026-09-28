@@ -134,12 +134,18 @@ pp-hub/
 │   │   └── src/hooks/              # use-mobile.ts — the sidebar's md breakpoint
 │   └── utils/                      # shared TS utils (template package, dist via vp pack)
 ├── deploy/
-│   └── compose/
-│       ├── compose.dev.yml         # services only — app runs from source; profiles: worker, s3, idp
-│       ├── compose.prod.yml        # everything, for a VPS / Dokploy; profile: s3
-│       ├── .env.dev.example        # → .env (git-ignored), dev values
-│       ├── .env.prod.example       # → .env (git-ignored), production values
-│       └── seaweedfs/s3.json       # dev credentials for the S3 profile
+│   ├── compose/
+│   │   ├── compose.dev.yml         # services only — app runs from source; profiles: worker, s3, idp, mail
+│   │   ├── compose.prod.yml        # pp-hub, for a VPS / Dokploy; profile: s3
+│   │   ├── compose.logto.yml       # self-hosted Logto + its Postgres, deployed beside compose.prod.yml
+│   │   ├── .env.dev.example        # → .env (git-ignored), dev values
+│   │   ├── .env.prod.example       # → .env (git-ignored), production values
+│   │   └── seaweedfs/s3.json       # dev credentials for the S3 profile
+│   ├── pp-generate.sh              # writes both stacks, filled envs, ports overrides + Caddyfile to deploy/out/ (git-ignored)
+│   ├── logto/pp-logto-setup.sh     # configures a Logto tenant for pp-hub via the Management API
+│   ├── lib/pp-env.sh               # env-file helper shared by the two scripts above
+│   ├── backup/                     # pp-backup.sh / pp-restore.sh
+│   └── weblate/                    # translation platform stack and setup
 ├── docs/                           # this documentation
 └── package.json                    # bun workspaces, Vite+ catalog
 ```
@@ -147,8 +153,8 @@ pp-hub/
 ## Entry Points
 
 - Web dev: `vp run web#dev` (root `vp run dev`); Vite proxies `/api`, `/auth`, `/s` → `localhost:8080`.
-- Server local: `cp apps/server/.env.example apps/server/.env` (fill `PP_OIDC_*`), then `set -a && source .env && set +a && go run ./cmd/server` from `apps/server`. The binary has no dotenv loader, so the file must be sourced.
-- Dev stack: `docker compose -f deploy/compose/compose.dev.yml up -d` — postgres + OnlyOffice at :9980. Profiles add the worker, SeaweedFS and a self-hosted Logto. Full setup: [docs/deployment.md](../deployment.md).
+- Server local: `cp apps/server/.env.example apps/server/.env`, then fill the OIDC and Logto values with `deploy/logto/pp-logto-setup.sh` (`PP_ENV_FILE=apps/server/.env`; command in the README), then `set -a && source .env && set +a && go run ./cmd/server` from `apps/server`. The binary has no dotenv loader, so the file must be sourced.
+- Dev stack: `docker compose -f deploy/compose/compose.dev.yml up -d` — postgres + OnlyOffice at :9980. Profiles add the worker, SeaweedFS, a self-hosted Logto and Mailpit. Full setup: [docs/deployment.md](../deployment.md); production install: [docs/self-hosting.md](../self-hosting.md).
 
 ## Notes
 

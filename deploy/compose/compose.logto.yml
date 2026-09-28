@@ -1,0 +1,69 @@
+# Self-hosted Logto for pp-hub: the identity provider and the source of truth
+# for who belongs to which space. A stack of its own, deployed next to
+# compose.prod.yml, because it outlives any one pp-hub release and has its own
+# database and backups.
+#
+#   docker compose -p logto -f deploy/compose/compose.logto.yml \
+#     --env-file deploy/compose/.env.logto up -d
+#
+# Like compose.prod.yml it publishes no host ports. Route two domains to the
+# `logto` service — with a reverse proxy on the host (deploy/pp-generate.sh
+# writes a ports override and a Caddyfile) or a platform's domain settings:
+#
+#   LOGTO_ENDPOINT        → container port 3001  (sign-in, OIDC, Management API)
+#   LOGTO_ADMIN_ENDPOINT  → container port 3002  (admin console)
+#
+# Both must be https in production: they are what browsers and pp-hub reach,
+# and the OIDC issuer Logto advertises is derived from LOGTO_ENDPOINT.
+#
+# After the first start, open LOGTO_ADMIN_ENDPOINT, create the admin account,
+# then follow docs/self-hosting.md: one bootstrap machine-to-machine app, and
+# deploy/logto/pp-logto-setup.sh configures everything else.
+
+services:
+  logto-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: logto
+      POSTGRES_PASSWORD: "${LOGTO_DB_PASSWORD:?set in .env - URL-safe, e.g. openssl rand -hex 24}"
+      POSTGRES_DB: logto
+    volumes:
+      - logto_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U logto"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  logto:
+    # Pinned for the same reason the pp-hub images are: pp-logto-setup.sh
+    # speaks this version's Management API, and an upgrade is a decision.
+    image: "svhd/logto:${LOGTO_IMAGE_TAG:-1.43.0}"
+    restart: unless-stopped
+    # `db seed --swe` is a no-op once the database exists; alteration keeps
+    # the schema current after an image upgrade.
+    entrypoint:
+      ["sh", "-c", "npm run cli db seed -- --swe && npm run alteration deploy latest && npm start"]
+    environment:
+      # Behind a TLS-terminating proxy: trust X-Forwarded-Proto so the issuer
+      # and redirects stay https.
+      TRUST_PROXY_HEADER: "true"
+      DB_URL: "postgres://logto:${LOGTO_DB_PASSWORD}@logto-db:5432/logto"
+      ENDPOINT: "${LOGTO_ENDPOINT:?set in .env - e.g. https://auth.example.com}"
+      ADMIN_ENDPOINT: "${LOGTO_ADMIN_ENDPOINT:?set in .env - e.g. https://auth-admin.example.com}"
+    expose:
+      - "3001"
+      - "3002"
+    depends_on:
+      logto-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/api/status || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+volumes:
+  logto_pg_data:

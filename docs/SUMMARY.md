@@ -240,6 +240,7 @@ Product goals, use cases, business rules, and constraints.
 
 Repository-specific docs outside the standard topic folders.
 
-| File                           | Description                                                                                                                                                                         |
-| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [deployment.md](deployment.md) | Prod + dev compose, env convention, the Logto setup checklist and its variables, the same-origin constraint, security headers, network segments, Dokploy, `/s/` routing, known gaps |
+| File                               | Description                                                                                                                                                                         |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [self-hosting.md](self-hosting.md) | Step-by-step install on any Docker host: generate the files, start Logto, `pp-logto-setup.sh`, start pp-hub, first sign-in, day two, troubleshooting                                |
+| [deployment.md](deployment.md)     | Prod + dev compose, env convention, the Logto setup checklist and its variables, the same-origin constraint, security headers, network segments, Dokploy, `/s/` routing, known gaps |
