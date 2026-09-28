@@ -29,6 +29,8 @@ pp-hub/
 │   │       │   ├── group-list.tsx        # Groups pane: the space's groups and who is in them
 │   │       │   ├── invite-modal.tsx      # the one way into a space: an email + the admin toggle (better-modal)
 │   │       │   ├── no-admin-banner.tsx   # "this space has no administrator", above the space Outlet
+│   │       │   ├── unlinked-space-alert.tsx # People pane: the space mirrors no Logto organization; instance admins get Link to Logto
+│   │       │   ├── link-space-modal.tsx  # Link to Logto: pushable vs stranded members, stranded need a confirm (better-modal)
 │   │       │   ├── grantee-picker.tsx    # picks a group or a space member, filtered locally
 │   │       │   ├── user-avatar.tsx       # avatar with fallback
 │   │       │   ├── confirm-dialog.tsx    # confirmation modal
@@ -103,7 +105,7 @@ pp-hub/
 │           │   ├── security_events.go # GET /admin/security-events (+ filters) and its CSV /export
 │           │   ├── users.go        # user profile CRUD
 │           │   ├── groups.go       # groups API + the folder-grant endpoints
-│           │   ├── logto_hook.go   # POST /hooks/logto — HMAC over the raw body, then enqueue
+│           │   ├── webhooks.go     # POST /hooks/logto — HMAC over the raw body, then enqueue an org or user reconcile
 │           │   └── spaces_members.go # space members API (list/add/remove, set-admin) + the departure queue
 │           ├── store/              # ✅ sqlc queries, embedded migrations runner
 │           │   └── migrations/     # 0001_init.sql baseline, then one file per change:
@@ -111,9 +113,11 @@ pp-hub/
 │           │                       #    0004_user_avatars.sql, 0005_logto_orgs.sql,
 │           │                       #    0006_system_config.sql, 0007_idp_profile.sql,
 │           │                       #    0008_read_audit.sql, 0009_direct_share_uniq.sql,
-│           │                       #    0010_resumable_uploads.sql
+│           │                       #    0010_resumable_uploads.sql, 0011_blob_integrity.sql,
+│           │                       #    0012_detached_orgs.sql
 │           ├── users/              # user service layer (profile)
-│           ├── orgsync/            # ✅ Logto Management API client + the reconciler that owns space_members
+│           ├── orgsync/            # ✅ Logto sync: client.go (Management API), orgsync.go (membership reconciler, jobs, sweep),
+│           │                       #    accounts.go (accounts), spacesync.go (create, rename, Link to Logto)
 │           ├── spaces/             # space CRUD, membership, the Admin group, leaving a space
 │           │   ├── spaces.go       # RequireAdmin/SetAdmin/AddMember; RevokeMembership is immediate, CompleteDeparture archives what a leaver owned
 │           │   └── permissions_db_test.go # DB-backed; skipped unless PP_TEST_DATABASE_URL is set

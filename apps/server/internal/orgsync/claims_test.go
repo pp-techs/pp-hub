@@ -55,9 +55,9 @@ func TestClaimsMatchTheConfiguredRoleCaseInsensitively(t *testing.T) {
 	}
 }
 
-// A token from a provider that has never heard of organizations decodes to
-// nothing, and must reconcile nothing rather than revoking every membership.
-func TestClaimsFromANonLogtoProviderAreEmpty(t *testing.T) {
+// No organizations means no memberships, and in particular no admin role
+// conjured out of nothing.
+func TestEmptyClaimsGrantNothing(t *testing.T) {
 	if got := (Claims{}).admins("admin"); len(got) != 0 {
 		t.Errorf("empty claims produced %v", got)
 	}

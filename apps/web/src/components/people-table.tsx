@@ -46,6 +46,7 @@ import {
   useSpaceMembers,
 } from "@/lib/queries";
 import { InviteModal } from "@/components/invite-modal";
+import { UnlinkedSpaceAlert } from "@/components/unlinked-space-alert";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 
 // eslint-disable-next-line lingui/no-unlocalized-strings -- sentinel for "no group filter", not copy
@@ -148,6 +149,7 @@ export function PeopleTable({ space, groupFilter, onGroupFilterChange }: PeopleT
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
+        {!space.idp_org_id && <UnlinkedSpaceAlert space={space} />}
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex flex-col gap-0.5">
             <h2 className="font-heading text-sm font-medium">
@@ -163,6 +165,7 @@ export function PeopleTable({ space, groupFilter, onGroupFilterChange }: PeopleT
           <div className="flex shrink-0 items-center gap-2">
             {isAdmin && (
               <Button
+                disabled={!space.idp_org_id}
                 onClick={() =>
                   void InviteModal.show({
                     spaceId,

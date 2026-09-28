@@ -27,6 +27,7 @@ export const keys = {
   // invalidating keys.spaces must not wipe them (prefix matching).
   members: (spaceId: string) => ["members", spaceId] as const,
   departures: (spaceId: string) => ["departures", spaceId] as const,
+  linkPreview: (spaceId: string) => ["link-preview", spaceId] as const,
   groups: (spaceId: string) => ["groups", spaceId] as const,
   groupMembers: (spaceId: string, groupId: string) => ["groups", spaceId, groupId] as const,
   grants: (nodeId: string) => ["grants", nodeId] as const,

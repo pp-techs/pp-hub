@@ -7,8 +7,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -29,20 +31,41 @@ import (
 //	PP_TEST_DATABASE_URL=postgres://pphub:pphub@localhost:5433/pphub go test ./internal/orgsync/
 const testIssuer = "https://logto.test/oidc"
 
-// fakeLogto serves the two Management API calls reconcile makes, plus the
-// token endpoint. Its roster is swapped between reconciles to model somebody
-// joining or leaving upstream.
+// fakeLogto serves the Management API calls reconcile and sign-in make, plus
+// the token endpoint. Its roster is swapped between reconciles to model
+// somebody joining or leaving upstream.
 type fakeLogto struct {
 	t       *testing.T
 	roster  []map[string]any
 	calls   int
 	server  *httptest.Server
 	orgName string
+	// invitations is what GET /api/organization-invitations lists; accepted
+	// records each PUT …/status as invitation id → acceptedUserId.
+	invitations []map[string]any
+	accepted    map[string]string
+	// accounts is the tenant's users by id; an id missing here answers 404.
+	// unlisted hides an account from GET /api/users while GET /api/users/{id}
+	// still finds it, which is what a short page looks like.
+	accounts map[string]map[string]any
+	unlisted map[string]bool
+	// missingOrgs answer 404, as a deleted organization does. created lists
+	// the organizations POSTed; added and admins record who was put into
+	// which organization and whether with the admin role; renamed is the last
+	// PATCHed name per organization.
+	missingOrgs map[string]bool
+	created     []string
+	added       map[string][]string
+	admins      map[string]bool
+	renamed     map[string]string
 }
 
 func newFakeLogto(t *testing.T) *fakeLogto {
 	t.Helper()
-	f := &fakeLogto{t: t, orgName: "Acme"}
+	f := &fakeLogto{t: t, orgName: "Acme", accepted: map[string]string{},
+		accounts: map[string]map[string]any{}, unlisted: map[string]bool{},
+		missingOrgs: map[string]bool{}, added: map[string][]string{},
+		admins: map[string]bool{}, renamed: map[string]string{}}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/oidc/token", func(w http.ResponseWriter, r *http.Request) {
 		if id, secret, ok := r.BasicAuth(); !ok || id != "m2m" || secret != "secret" {
@@ -51,17 +74,103 @@ func newFakeLogto(t *testing.T) *fakeLogto {
 		}
 		writeJSON(w, map[string]any{"access_token": "token", "expires_in": 3600})
 	})
+	mux.HandleFunc("/api/organizations", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Name string `json:"name"`
+		}
+		if r.Method != http.MethodPost || json.NewDecoder(r.Body).Decode(&body) != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		id := fmt.Sprintf("org-created-%d-%d-%s", os.Getpid(), len(f.created), t.Name())
+		f.created = append(f.created, id)
+		writeJSON(w, map[string]any{"id": id, "name": body.Name})
+	})
 	mux.HandleFunc("/api/organizations/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") != "Bearer token" {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		if strings.HasSuffix(r.URL.Path, "/users") {
-			f.calls++
-			writeJSON(w, f.roster)
+		parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/organizations/"), "/")
+		orgID := parts[0]
+		if f.missingOrgs[orgID] {
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		writeJSON(w, map[string]any{"id": "org_acme", "name": f.orgName})
+		switch {
+		case len(parts) == 1 && r.Method == http.MethodPatch:
+			var body struct {
+				Name string `json:"name"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			f.renamed[orgID] = body.Name
+			w.WriteHeader(http.StatusOK)
+		case len(parts) == 1:
+			writeJSON(w, map[string]any{"id": orgID, "name": f.orgName})
+		case len(parts) == 2 && parts[1] == "users" && r.Method == http.MethodPost:
+			var body struct {
+				UserIDs []string `json:"userIds"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			f.added[orgID] = append(f.added[orgID], body.UserIDs...)
+			w.WriteHeader(http.StatusCreated)
+		case len(parts) == 2 && parts[1] == "users":
+			f.calls++
+			writeJSON(w, f.roster)
+		case len(parts) == 4 && parts[1] == "users" && parts[3] == "roles":
+			var body struct {
+				Names []string `json:"organizationRoleNames"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			f.admins[orgID+"/"+parts[2]] = slices.Contains(body.Names, "admin")
+			w.WriteHeader(http.StatusOK)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	})
+	mux.HandleFunc("/api/organization-invitations", func(w http.ResponseWriter, r *http.Request) {
+		invitee := r.URL.Query().Get("invitee")
+		out := []map[string]any{}
+		for _, inv := range f.invitations {
+			if inv["invitee"] == invitee {
+				out = append(out, inv)
+			}
+		}
+		writeJSON(w, out)
+	})
+	mux.HandleFunc("/api/organization-invitations/", func(w http.ResponseWriter, r *http.Request) {
+		id, ok := strings.CutSuffix(strings.TrimPrefix(r.URL.Path, "/api/organization-invitations/"), "/status")
+		if r.Method != http.MethodPut || !ok {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		var body struct {
+			Status         string `json:"status"`
+			AcceptedUserID string `json:"acceptedUserId"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Status != "Accepted" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		f.accepted[id] = body.AcceptedUserID
+		writeJSON(w, map[string]any{"id": id, "status": "Accepted"})
+	})
+	mux.HandleFunc("/api/users", func(w http.ResponseWriter, r *http.Request) {
+		out := []map[string]any{}
+		for id, u := range f.accounts {
+			if !f.unlisted[id] {
+				out = append(out, u)
+			}
+		}
+		writeJSON(w, out)
+	})
+	mux.HandleFunc("/api/users/", func(w http.ResponseWriter, r *http.Request) {
+		u, ok := f.accounts[strings.TrimPrefix(r.URL.Path, "/api/users/")]
+		if !ok {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		writeJSON(w, u)
 	})
 	f.server = httptest.NewServer(mux)
 	t.Cleanup(f.server.Close)
@@ -109,7 +218,7 @@ func testEnv(t *testing.T) (*store.Queries, *spaces.Service, *fakeLogto, *orgsyn
 	q := store.New(pool)
 	sp := spaces.NewService(q)
 	logto := newFakeLogto(t)
-	return q, sp, logto, orgsync.NewService(q, sp, users.NewService(q, nil), orgsync.NewClient(logto.settings()), testIssuer)
+	return q, sp, logto, orgsync.NewService(q, sp, users.NewService(q, nil), orgsync.NewClient(logto.settings()), testIssuer, "https://hub.test")
 }
 
 // linkedSpace creates a space owned by a throwaway account and points it at
@@ -395,5 +504,58 @@ func TestReconcileSkipsAnUnlinkedOrganization(t *testing.T) {
 	_, _, _, svc := testEnv(t)
 	if err := svc.ReconcileOrg(context.Background(), "org-nobody-mirrors"); err != nil {
 		t.Errorf("reconcile of an unmirrored organization = %v, want nil", err)
+	}
+}
+
+// Logto sends an organization invitation but leaves accepting it to the
+// application. Before this ran at sign-in nothing accepted it, and an invitee
+// signed up into an empty drive. Only a live, pending invitation counts, and
+// the membership it produces must survive the reconcile that follows — the
+// ID token predates the acceptance and does not list the organization.
+func TestSignInAcceptsPendingInvitationsIntoTheSpace(t *testing.T) {
+	q, sp, logto, svc := testEnv(t)
+	ctx := context.Background()
+	space, orgID := linkedSpace(t, q, sp)
+
+	email := "invitee-" + orgID + "@test.local"
+	user, err := q.CreateUser(ctx, store.CreateUserParams{
+		OidcSub: "sub-invitee-" + orgID, OidcIss: testIssuer, Email: email, Name: "invitee",
+	})
+	if err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	live := time.Now().Add(time.Hour).UnixMilli()
+	logto.invitations = []map[string]any{
+		{"id": "inv-live", "organizationId": orgID, "invitee": email, "status": "Pending", "expiresAt": live,
+			"organizationRoles": []map[string]any{{"id": "r1", "name": "admin"}}},
+		{"id": "inv-expired", "organizationId": "org-stale", "invitee": email, "status": "Pending",
+			"expiresAt": time.Now().Add(-time.Hour).UnixMilli()},
+		{"id": "inv-revoked", "organizationId": "org-revoked", "invitee": email, "status": "Revoked", "expiresAt": live},
+	}
+
+	accepted, err := svc.AcceptInvitations(ctx, user, email)
+	if err != nil {
+		t.Fatalf("accept invitations: %v", err)
+	}
+	if got := logto.accepted["inv-live"]; got != user.OidcSub {
+		t.Errorf("live invitation accepted by %q, want the Logto user id %q", got, user.OidcSub)
+	}
+	for _, id := range []string{"inv-expired", "inv-revoked"} {
+		if _, done := logto.accepted[id]; done {
+			t.Errorf("%s was accepted", id)
+		}
+	}
+
+	if err := svc.ReconcileUser(ctx, user, orgsync.Claims{}.With(accepted)); err != nil {
+		t.Fatalf("reconcile: %v", err)
+	}
+	if err := sp.RequireMember(ctx, space.ID, user.ID); err != nil {
+		t.Fatalf("accepted invitation did not make them a member: %v", err)
+	}
+	if !sp.IsAdmin(ctx, space.ID, user.ID) {
+		t.Error("the invitation's admin role did not reach the Admin group")
+	}
+	if _, departed := pendingFor(t, q, space.ID, email); departed {
+		t.Error("the fresh membership was recorded as a departure")
 	}
 }

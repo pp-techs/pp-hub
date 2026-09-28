@@ -94,6 +94,23 @@ export interface Space {
   idp_org_id?: string;
 }
 
+/** A space member as the link preview names them. */
+export interface SpaceMemberRef {
+  user_id: string;
+  email: string;
+  name: string;
+}
+
+/**
+ * What linking an unlinked space to a new Logto organization does to its
+ * members: `pushable` join the organization with their current role,
+ * `stranded` have no account in the Logto tenant and become departures.
+ */
+export interface LinkPreview {
+  pushable: SpaceMemberRef[];
+  stranded: SpaceMemberRef[];
+}
+
 /**
  * Where pp-hub learned that somebody had left the organization. Mirrors
  * `space_departures.source`.
@@ -126,8 +143,8 @@ export interface SpaceDeparture {
 /**
  * The answer to adding a member by email. `added` means the address already
  * had an account upstream and is a member now; `invited` means the identity
- * provider emailed them an organization invitation and they will appear here
- * once they accept it.
+ * provider emailed them an organization invitation, accepted for them the
+ * first time they sign in with that address.
  */
 export interface AddMemberResult {
   status: "added" | "invited";

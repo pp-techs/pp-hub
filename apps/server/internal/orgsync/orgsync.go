@@ -23,12 +23,16 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
+	"net/url"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/nhatbui/pp-hub/apps/server/internal/audit"
 	"github.com/nhatbui/pp-hub/apps/server/internal/spaces"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 	"github.com/nhatbui/pp-hub/apps/server/internal/users"
@@ -42,8 +46,7 @@ const JobKind = "org:reconcile"
 const inviteTTL = 14 * 24 * time.Hour
 
 // ErrNotLinked: the space mirrors no organization, so there is no upstream to
-// change. Distinct from ErrDisabled, which is about this server's credentials
-// rather than this space's configuration.
+// change.
 var ErrNotLinked = errors.New("orgsync: space is not linked to an organization")
 
 // Sources recorded on a departure row — how pp-hub learned somebody left.
@@ -65,21 +68,20 @@ type Service struct {
 	// the same string auth.resolveUser writes, or the member's first sign-in
 	// creates a second account beside the one reconcile made for them.
 	issuer string
+	// publicURL is this server's browser-facing origin, which the invitation
+	// email links back to.
+	publicURL string
+	// audit records account changes Logto reported: a suspension that arrives
+	// by webhook must leave the same trail as one an admin clicked.
+	audit *audit.Service
 }
 
-func NewService(q *store.Queries, sp *spaces.Service, profiles *users.Service, client *Client, issuer string) *Service {
-	return &Service{q: q, spaces: sp, profiles: profiles, client: client, issuer: issuer}
+func NewService(q *store.Queries, sp *spaces.Service, profiles *users.Service, client *Client, issuer, publicURL string) *Service {
+	return &Service{
+		q: q, spaces: sp, profiles: profiles, client: client,
+		issuer: issuer, publicURL: publicURL, audit: audit.New(q),
+	}
 }
-
-// Enabled reports whether the Management API is reachable. The claim-driven
-// path works without it; every write and every full reconcile does not.
-func (s *Service) Enabled() bool { return s.client.Enabled() }
-
-// Configured reports whether organizations own membership on this install,
-// which is true as soon as an endpoint is named. It is the question "does
-// pp-hub still decide who belongs to a company" — the answer gates space
-// creation — as opposed to Enabled, which asks whether it can write upstream.
-func (s *Service) Configured() bool { return s.client.Configured() }
 
 // --- sign-in path ---
 
@@ -114,6 +116,62 @@ func (c Claims) admins(adminRole string) map[string]bool {
 	return out
 }
 
+// With returns the union of two claim sets. Duplicates are harmless: admins
+// folds them into one map entry.
+func (c Claims) With(o Claims) Claims {
+	return Claims{
+		Organizations:     append(slices.Clone(c.Organizations), o.Organizations...),
+		OrganizationRoles: append(slices.Clone(c.OrganizationRoles), o.OrganizationRoles...),
+	}
+}
+
+// AcceptInvitations accepts every live organization invitation addressed to
+// email on this person's behalf, and returns the memberships that produced as
+// claims.
+//
+// It exists because Logto sends the invitation but leaves accepting it to the
+// application, and without this nothing ever does: the invitee signs up,
+// belongs to no organization, and lands on an empty drive. Accepting at
+// sign-in rather than behind a landing page keeps the invitation email a
+// plain "sign in here" link with nothing in it worth stealing.
+//
+// The caller must pass only a *verified* address. The invitation is the
+// admin's statement about an address, and honouring it for an unverified
+// claim would let anybody who can type a colleague's email into a self-service
+// IdP collect that colleague's invitations.
+//
+// The returned claims must be merged into the ID token's before
+// ReconcileUser: the token was minted before the acceptance, so on its own it
+// omits these organizations and ReconcileUser would treat the fresh
+// membership as a departure.
+func (s *Service) AcceptInvitations(ctx context.Context, user store.User, email string) (Claims, error) {
+	var accepted Claims
+	// Only an account keyed on this Logto tenant has a Logto user id to
+	// accept with; oidc_sub is that id exactly when oidc_iss is ours.
+	if email == "" || user.OidcIss != s.issuer {
+		return accepted, nil
+	}
+	invitations, err := s.client.PendingInvitations(ctx, email)
+	if err != nil {
+		return accepted, err
+	}
+	var errs []error
+	for _, inv := range invitations {
+		if err := s.client.AcceptInvitation(ctx, inv.ID, user.OidcSub); err != nil {
+			// One bad invitation must not cost the others.
+			errs = append(errs, fmt.Errorf("accept invitation %s to %s: %w", inv.ID, inv.OrganizationID, err))
+			continue
+		}
+		slog.InfoContext(ctx, "organization invitation accepted at sign-in",
+			"org", inv.OrganizationID, "invitation", inv.ID, "user", user.ID.String())
+		accepted.Organizations = append(accepted.Organizations, inv.OrganizationID)
+		for _, role := range inv.OrganizationRoles {
+			accepted.OrganizationRoles = append(accepted.OrganizationRoles, inv.OrganizationID+":"+role.Name)
+		}
+	}
+	return accepted, errors.Join(errs...)
+}
+
 // ReconcileUser converges one person's membership from their own ID token.
 //
 // It is deliberately one-sided about what it trusts: the claims describe this
@@ -123,9 +181,12 @@ func (s *Service) ReconcileUser(ctx context.Context, user store.User, claims Cla
 	want := claims.admins(s.client.cfg.AdminRole)
 
 	for orgID, isAdmin := range want {
-		space, err := s.ensureSpace(ctx, orgID, user)
+		space, ok, err := s.ensureSpace(ctx, orgID, user)
 		if err != nil {
 			return fmt.Errorf("space for organization %s: %w", orgID, err)
+		}
+		if !ok {
+			continue // its space was deleted here; see detached_orgs
 		}
 		if err := s.applyMembership(ctx, space.ID, user.ID, isAdmin); err != nil {
 			return err
@@ -146,6 +207,19 @@ func (s *Service) ReconcileUser(ctx context.Context, user store.User, claims Cla
 		if _, still := want[space.IdpOrgID.String]; still {
 			continue
 		}
+		// Missing from the token can also mean the organization itself is
+		// gone, and deletion does not travel: that space is unlinked and
+		// kept, not emptied one sign-in at a time. Departures are rare, so
+		// the extra lookup costs nothing that matters.
+		gone, err := s.orgGone(ctx, space)
+		if err != nil {
+			slog.WarnContext(ctx, "organization lookup before a sign-in departure; leaving it to the sweep",
+				"org", space.IdpOrgID.String, "user", user.ID.String(), "err", err)
+			continue
+		}
+		if gone {
+			continue
+		}
 		if err := s.depart(ctx, space.ID, user.ID, SourceSignin); err != nil {
 			return err
 		}
@@ -153,49 +227,72 @@ func (s *Service) ReconcileUser(ctx context.Context, user store.User, claims Cla
 	return nil
 }
 
-// ensureSpace finds or creates the space mirroring an organization.
+// ensureSpace finds or creates the space mirroring an organization. ok is
+// false for an organization whose space was deleted here (detached_orgs):
+// its members still carry it in their tokens, and recreating an empty space
+// for it at the next sign-in would undo the deletion.
 //
 // Creation happens here, at a sign-in, rather than from the Organization.Created
 // webhook, for a structural reason: spaces.owner_id is NOT NULL, and a webhook
 // carries no user to own the result. The first member through the door owns
 // it; their admin status is then corrected from the organization like
 // everybody else's, so owning the row buys nothing on its own.
-func (s *Service) ensureSpace(ctx context.Context, orgID string, creator store.User) (store.Space, error) {
+func (s *Service) ensureSpace(ctx context.Context, orgID string, creator store.User) (store.Space, bool, error) {
 	space, err := s.q.GetSpaceByOrgID(ctx, pgtype.Text{String: orgID, Valid: true})
 	if err == nil {
-		return space, nil
+		return space, true, nil
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
-		return store.Space{}, err
+		return store.Space{}, false, err
+	}
+	if detached, err := s.q.IsOrgDetached(ctx, orgID); err != nil || detached {
+		return store.Space{}, false, err
 	}
 
 	name := orgID
-	if s.Enabled() {
-		if org, err := s.client.Organization(ctx, orgID); err != nil {
-			slog.WarnContext(ctx, "organization lookup", "org", orgID, "err", err)
-		} else if org.Name != "" {
-			name = org.Name
-		}
+	if org, err := s.client.Organization(ctx, orgID); err != nil {
+		slog.WarnContext(ctx, "organization lookup", "org", orgID, "err", err)
+	} else if org.Name != "" {
+		name = org.Name
 	}
 	space, err = s.spaces.Create(ctx, name, creator.ID)
 	if err != nil {
-		return store.Space{}, err
+		return store.Space{}, false, err
 	}
 	if err := s.q.SetSpaceOrg(ctx, store.SetSpaceOrgParams{
 		ID: space.ID, IdpOrgID: pgtype.Text{String: orgID, Valid: true},
 	}); err != nil {
-		return store.Space{}, err
+		return store.Space{}, false, err
 	}
 	space.IdpOrgID = pgtype.Text{String: orgID, Valid: true}
 	slog.InfoContext(ctx, "space created for organization", "org", orgID, "space", space.ID, "name", name)
 	// The creator is one member of possibly many. Pull the rest now rather
 	// than making each colleague wait for their own first sign-in.
-	if s.Enabled() {
-		if err := s.Enqueue(ctx, orgID); err != nil {
-			slog.WarnContext(ctx, "enqueue reconcile after space creation", "org", orgID, "err", err)
-		}
+	if err := s.Enqueue(ctx, orgID); err != nil {
+		slog.WarnContext(ctx, "enqueue reconcile after space creation", "org", orgID, "err", err)
 	}
-	return space, nil
+	return space, true, nil
+}
+
+// orgGone reports whether a linked space's organization no longer exists,
+// and unlinks the space when so. Deletion does not travel between the two
+// systems: the space keeps its members and content and simply stops
+// mirroring anything, the same state as a space that was never linked.
+func (s *Service) orgGone(ctx context.Context, space store.Space) (bool, error) {
+	_, err := s.client.Organization(ctx, space.IdpOrgID.String)
+	if Status(err) != http.StatusNotFound {
+		return false, err
+	}
+	return true, s.unlink(ctx, space)
+}
+
+func (s *Service) unlink(ctx context.Context, space store.Space) error {
+	if err := s.q.SetSpaceOrg(ctx, store.SetSpaceOrgParams{ID: space.ID}); err != nil {
+		return err
+	}
+	slog.WarnContext(ctx, "organization deleted upstream; space unlinked and kept",
+		"org", space.IdpOrgID.String, "space", space.ID.String(), "name", space.Name)
+	return nil
 }
 
 // applyMembership makes one person's local rows agree with one organization.
@@ -230,14 +327,13 @@ func (s *Service) depart(ctx context.Context, spaceID, userID pgtype.UUID, sourc
 
 // --- full reconcile ---
 
-// ReconcileOrg converges a space against its organization's whole member list.
+// ReconcileOrg converges a space against its organization: its name and its
+// whole member list. An organization Logto no longer has unlinks the space
+// instead (orgGone).
 //
 // An organization with no space is not an error and not a reason to create
 // one: nobody has signed in from it yet, and creating a space needs an owner.
 func (s *Service) ReconcileOrg(ctx context.Context, orgID string) error {
-	if !s.Enabled() {
-		return ErrDisabled
-	}
 	space, err := s.q.GetSpaceByOrgID(ctx, pgtype.Text{String: orgID, Valid: true})
 	if errors.Is(err, pgx.ErrNoRows) {
 		slog.DebugContext(ctx, "reconcile skipped: no space mirrors this organization", "org", orgID)
@@ -245,6 +341,19 @@ func (s *Service) ReconcileOrg(ctx context.Context, orgID string) error {
 	}
 	if err != nil {
 		return err
+	}
+
+	org, err := s.client.Organization(ctx, orgID)
+	if Status(err) == http.StatusNotFound {
+		return s.unlink(ctx, space)
+	}
+	if err != nil {
+		return err
+	}
+	if org.Name != "" && org.Name != space.Name {
+		if err := s.q.SetSpaceName(ctx, store.SetSpaceNameParams{ID: space.ID, Name: org.Name}); err != nil {
+			return err
+		}
 	}
 
 	members, err := s.client.OrgMembers(ctx, orgID)
@@ -288,7 +397,8 @@ func (s *Service) ReconcileOrg(ctx context.Context, orgID string) error {
 }
 
 // ensureUser resolves an organization member to a local account, creating one
-// when they have never signed in, and mirrors the profile fields the IdP owns.
+// when they have never signed in, and mirrors what the IdP owns about them —
+// address, name, profile fields and suspension (applyAccount).
 //
 // Pre-creating accounts is a deliberate reversal of the rule that nothing
 // creates an account ahead of its owner's first login. That rule was right
@@ -296,19 +406,12 @@ func (s *Service) ReconcileOrg(ctx context.Context, orgID string) error {
 // exact and comes from the system that issued it, and refusing to pre-create
 // would make the People page show a subset of the company — which is the
 // disagreement this whole design exists to remove.
-//
-// A profile sync failure is logged, not returned: the account resolved, and
-// membership is what the caller is converging.
 func (s *Service) ensureUser(ctx context.Context, m Member) (store.User, error) {
 	user, err := s.resolveMember(ctx, m)
 	if err != nil {
 		return store.User{}, err
 	}
-	synced, err := s.profiles.SyncIdPProfile(ctx, user, m.Profile)
-	if err != nil {
-		slog.WarnContext(ctx, "idp profile sync", "user", user.ID.String(), "logto_user", m.ID, "err", err)
-	}
-	return synced, nil
+	return s.applyAccount(ctx, user, m)
 }
 
 func (s *Service) resolveMember(ctx context.Context, m Member) (store.User, error) {
@@ -377,7 +480,7 @@ func (s *Service) Add(ctx context.Context, space store.Space, email string, asAd
 		return Outcome{}, err
 	}
 	if !found {
-		if err := s.client.Invite(ctx, orgID, email, asAdmin, inviteTTL); err != nil {
+		if err := s.client.Invite(ctx, orgID, email, asAdmin, inviteTTL, s.inviteLink(email)); err != nil {
 			return Outcome{}, err
 		}
 		return Outcome{Invited: true, Email: email}, nil
@@ -426,20 +529,30 @@ func (s *Service) SetAdmin(ctx context.Context, space store.Space, user store.Us
 }
 
 func (s *Service) orgOf(space store.Space) (string, error) {
-	if !s.Enabled() {
-		return "", ErrDisabled
-	}
 	if !space.IdpOrgID.Valid || space.IdpOrgID.String == "" {
 		return "", ErrNotLinked
 	}
 	return space.IdpOrgID.String, nil
 }
 
+// inviteLink is where the invitation email sends somebody: this server's
+// sign-in, with their address pre-filled. There is no invitation id in it
+// because there is nothing to redeem — AcceptInvitations matches on the
+// verified address once they are signed in.
+func (s *Service) inviteLink(email string) string {
+	return s.publicURL + "/auth/login?login_hint=" + url.QueryEscape(email)
+}
+
 // --- worker ---
 
 type jobPayload struct {
-	OrgID string `json:"org_id"`
+	OrgID   string `json:"org_id,omitempty"`
+	UserID  string `json:"user_id,omitempty"`
+	SpaceID string `json:"space_id,omitempty"`
 }
+
+// jobKinds is every job this worker drains.
+var jobKinds = []string{JobKind, UserJobKind, LinkJobKind}
 
 // Enqueue schedules a reconcile. The webhook endpoint does nothing else: a
 // delivery must be acknowledged in milliseconds, and the work it describes
@@ -453,27 +566,15 @@ func (s *Service) Enqueue(ctx context.Context, orgID string) error {
 	return err
 }
 
-// Run drains reconcile jobs and sweeps every linked space hourly.
+// Run drains reconcile jobs and sweeps every linked space and every account
+// hourly.
 //
 // The sweep is not redundant with the webhook. A delivery can be lost, a
 // signature can be rotated, and the endpoint can be unreachable during a
 // deploy; without a floor on staleness, any of those leaves a former employee
 // in a space until they happen to sign in — which, having left, they will not.
 func (s *Service) Run(ctx context.Context) {
-	if !s.Enabled() {
-		// Two very different states, and an operator debugging "why did
-		// nothing happen when I removed them in Logto" needs to be able to
-		// tell them apart from one line.
-		if s.Configured() {
-			slog.InfoContext(ctx, "orgsync: sign-in claims only",
-				"reason", "no M2M credentials",
-				"effect", "no webhook is acted on and no hourly sweep runs; membership converges when each person signs in")
-		} else {
-			slog.InfoContext(ctx, "orgsync idle: no Logto tenant configured")
-		}
-		return
-	}
-	slog.InfoContext(ctx, "orgsync started", "kind", JobKind)
+	slog.InfoContext(ctx, "orgsync started", "kinds", jobKinds)
 	jobs := time.NewTicker(3 * time.Second)
 	defer jobs.Stop()
 	sweep := time.NewTicker(time.Hour)
@@ -491,7 +592,7 @@ func (s *Service) Run(ctx context.Context) {
 }
 
 func (s *Service) drain(ctx context.Context) {
-	claimed, err := s.q.ClaimJobs(ctx, store.ClaimJobsParams{Kinds: []string{JobKind}, Lim: 5})
+	claimed, err := s.q.ClaimJobs(ctx, store.ClaimJobsParams{Kinds: jobKinds, Lim: 5})
 	if err != nil {
 		if !errors.Is(err, pgx.ErrNoRows) && ctx.Err() == nil {
 			slog.WarnContext(ctx, "claim reconcile jobs", "err", err)
@@ -500,16 +601,29 @@ func (s *Service) drain(ctx context.Context) {
 	}
 	for _, job := range claimed {
 		var payload jobPayload
-		if err := json.Unmarshal(job.Payload, &payload); err != nil || payload.OrgID == "" {
+		_ = json.Unmarshal(job.Payload, &payload)
+		var spaceID pgtype.UUID
+		if payload.SpaceID != "" && spaceID.Scan(payload.SpaceID) != nil {
+			spaceID = pgtype.UUID{}
+		}
+		var run func() error
+		switch {
+		case job.Kind == JobKind && payload.OrgID != "":
+			run = func() error { return s.ReconcileOrg(ctx, payload.OrgID) }
+		case job.Kind == UserJobKind && payload.UserID != "":
+			run = func() error { return s.ReconcileAccount(ctx, payload.UserID) }
+		case job.Kind == LinkJobKind && payload.OrgID != "" && spaceID.Valid:
+			run = func() error { return s.runLink(ctx, spaceID, payload.OrgID) }
+		default:
 			// Unparseable payload will never parse. Retrying burns attempts
 			// and hides the real one behind it.
 			_ = s.q.FailJob(ctx, store.FailJobParams{ID: job.ID, LastError: pgtype.Text{
-				String: "reconcile payload carries no org_id", Valid: true,
+				String: "reconcile payload names nothing to reconcile", Valid: true,
 			}})
 			continue
 		}
-		if err := s.ReconcileOrg(ctx, payload.OrgID); err != nil {
-			slog.WarnContext(ctx, "reconcile organization", "org", payload.OrgID, "err", err)
+		if err := run(); err != nil {
+			slog.WarnContext(ctx, "reconcile", "kind", job.Kind, "org", payload.OrgID, "logto_user", payload.UserID, "err", err)
 			_ = s.q.RequeueJob(ctx, store.RequeueJobParams{ID: job.ID, LastError: pgtype.Text{
 				String: err.Error(), Valid: true,
 			}})
@@ -520,6 +634,11 @@ func (s *Service) drain(ctx context.Context) {
 }
 
 func (s *Service) sweep(ctx context.Context) {
+	// Accounts first: a suspension or a deletion is the more urgent news,
+	// and a deleted account's organizations are then reconciled below.
+	if err := s.sweepAccounts(ctx); err != nil {
+		slog.WarnContext(ctx, "hourly account sweep", "err", err)
+	}
 	linked, err := s.q.ListLinkedSpaces(ctx)
 	if err != nil {
 		slog.WarnContext(ctx, "list linked spaces", "err", err)

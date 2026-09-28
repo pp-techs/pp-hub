@@ -205,6 +205,12 @@ type Blob struct {
 	DamagedAt   pgtype.Timestamptz `json:"damaged_at"`
 }
 
+type DetachedOrg struct {
+	OrgID      string             `json:"org_id"`
+	DetachedAt pgtype.Timestamptz `json:"detached_at"`
+	DetachedBy pgtype.UUID        `json:"detached_by"`
+}
+
 type FileLock struct {
 	NodeID    pgtype.UUID        `json:"node_id"`
 	LockToken string             `json:"lock_token"`

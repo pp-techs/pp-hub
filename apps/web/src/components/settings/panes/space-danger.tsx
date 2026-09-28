@@ -58,7 +58,8 @@ export function SpaceDangerPane() {
         <CardDescription>
           <Trans>
             Removes “{spaceName}” and everything in it — every file, version, share and member. The
-            blobs are released and cannot be recovered.
+            blobs are released and cannot be recovered. Its Logto organization is kept; delete it in
+            Logto too if the company is gone.
           </Trans>
         </CardDescription>
       </CardHeader>

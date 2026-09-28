@@ -2,12 +2,13 @@
 INSERT INTO security_events (kind, user_id, subject, ip, user_agent, request_id, detail, node_id)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
 
--- An event no request caused — an alert the watcher raised. There is no user,
--- user agent or request id to attach; the address is the one the event is
--- about.
+-- An event no request caused — an alert the watcher raised, or an account
+-- change the identity provider reported. There is no user agent or request id
+-- to attach; the address is the one the event is about, and the user is the
+-- account it concerns when there is one.
 -- name: RecordSystemSecurityEvent :exec
-INSERT INTO security_events (kind, subject, ip, detail)
-VALUES (@kind, @subject, @ip, @detail);
+INSERT INTO security_events (kind, user_id, subject, ip, detail)
+VALUES (@kind, @user_id, @subject, @ip, @detail);
 
 -- The console's tail. The actor's email is joined in so a row still reads as a
 -- person rather than a UUID, and falls back to the recorded subject when the

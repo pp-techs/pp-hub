@@ -230,34 +230,27 @@ func nodeToDTOMeta(n store.NodeWithMeta) nodeDTO {
 
 // --- Spaces handlers ---
 
-// canCreateSpaces reports whether this caller may mint a space by hand.
+// canCreateSpaces reports whether this caller may create a space.
 //
-// The rule is one line because the decision is: if the identity provider
-// owns who belongs to which company, then it owns which companies exist, and
-// the only exception is the operator who has to be able to make an unlinked
-// one. It is also on the profile DTO, so the client hides the action rather
-// than offering a button that answers 403.
+// A space is a company, and companies are Logto organizations: creating one
+// here creates the organization upstream (handleCreateSpace), which is an
+// instance administrator's act, not a member's. It is also on the profile
+// DTO, so the client hides the action rather than offering a 403.
 func (s *Server) canCreateSpaces(u *store.User) bool {
-	return !s.orgs.Configured() || u.IsAdmin
+	return u.IsAdmin
 }
 
-// handleCreateSpace makes a space by hand.
+// handleCreateSpace creates a company: a Logto organization, with the caller
+// seated in it as admin, mirrored as a space (orgsync.CreateSpace).
 //
-// Once organizations own membership this is no longer an ordinary user's
-// action. A space is a company; companies come from the identity provider,
-// and a member who can mint one has made themselves its admin — which is
-// exactly the authority the organization role was supposed to decide. The
-// result is also a space nothing reconciles, so it drifts from the directory
-// by construction.
-//
-// It stays open to an instance admin, who needs it for a local space with no
-// organization behind it, and to everybody on an install with no Logto tenant
-// configured at all — there, pp-hub is still the only place spaces exist.
+// It is an instance administrator's action. A member who could mint a space
+// would have made themselves the admin of a company, which is exactly the
+// authority the organization role is supposed to decide.
 func (s *Server) handleCreateSpace(w http.ResponseWriter, r *http.Request) {
 	u := caller(r)
 	if !s.canCreateSpaces(u) {
 		writeProblem(w, http.StatusForbidden, "Forbidden",
-			"spaces come from identity-provider organizations on this server; ask an administrator to create the organization, and the space appears when its first member signs in")
+			"spaces are identity-provider organizations; ask an administrator to create one")
 		return
 	}
 	var body struct {
@@ -271,9 +264,9 @@ func (s *Server) handleCreateSpace(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "name is required")
 		return
 	}
-	sp, err := s.spaces.Create(r.Context(), strings.TrimSpace(body.Name), u.ID)
+	sp, err := s.orgs.CreateSpace(r.Context(), *u, strings.TrimSpace(body.Name))
 	if err != nil {
-		Error(w, r, err)
+		s.identityProviderError(w, r, err, "spaces")
 		return
 	}
 	// Creation takes the same optional settings the settings screen edits.
@@ -1299,13 +1292,24 @@ func (s *Server) spaceError(w http.ResponseWriter, r *http.Request, err error) {
 		writeProblem(w, http.StatusConflict, "Conflict", err.Error())
 	case errors.Is(err, orgsync.ErrNotLinked):
 		writeProblem(w, http.StatusUnprocessableEntity, "Unprocessable Entity",
-			"this space mirrors no identity-provider organization, so its membership cannot be changed here")
-	case errors.Is(err, orgsync.ErrDisabled):
-		writeProblem(w, http.StatusServiceUnavailable, "Service Unavailable",
-			"this server holds no management credentials for the identity provider, so membership can only be changed there; it reaches pp-hub when the person next signs in")
+			"this space mirrors no identity-provider organization yet; an instance administrator can link it")
+	case errors.Is(err, orgsync.ErrAlreadyLinked), errors.Is(err, orgsync.ErrStrandedMembers):
+		writeProblem(w, http.StatusConflict, "Conflict", err.Error())
+	default:
+		s.identityProviderError(w, r, err, "membership")
+	}
+}
+
+// identityProviderError maps a failed write to Logto onto a status the admin
+// can act on; what names the thing that could not be changed.
+func (s *Server) identityProviderError(w http.ResponseWriter, r *http.Request, err error, what string) {
+	switch {
+	case errors.Is(err, orgsync.ErrNoIdentity):
+		writeProblem(w, http.StatusUnprocessableEntity, "Unprocessable Entity",
+			"this account was not issued by the identity provider, so "+what+" cannot be changed there")
 	case errors.Is(err, orgsync.ErrUnreachable):
 		writeProblem(w, http.StatusServiceUnavailable, "Service Unavailable",
-			"the identity provider is unreachable, so membership cannot be changed right now")
+			"the identity provider is unreachable, so "+what+" cannot be changed right now")
 	case orgsync.Status(err) != 0:
 		// Upstream said no. Its status is the honest one to relay — a flat
 		// 500 would send an operator looking through this server's logs for

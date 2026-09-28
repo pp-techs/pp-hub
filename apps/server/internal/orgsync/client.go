@@ -18,12 +18,6 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/users"
 )
 
-// ErrDisabled is returned by every write when no Logto tenant is configured.
-// It is a distinct error rather than a silent no-op because the caller is an
-// admin who just asked for a membership change: answering "done" without
-// doing it is the one outcome worth ruling out.
-var ErrDisabled = errors.New("orgsync: no Logto tenant configured")
-
 // ErrUnreachable is a transport failure talking to Logto, as opposed to Logto
 // answering with a refusal. The two deserve different status codes: one is an
 // outage, the other is a rejected request.
@@ -61,6 +55,9 @@ type Member struct {
 	Name    string
 	Profile users.IdPProfile
 	IsAdmin bool
+	// Suspended is Logto's isSuspended, nil when the response did not carry
+	// it. A pointer because an absent field must never read as "reactivate".
+	Suspended *bool
 }
 
 // Client talks to the Logto Management API with a machine-to-machine token.
@@ -89,14 +86,6 @@ func NewClient(cfg config.LogtoSettings) *Client {
 		http: &http.Client{Timeout: 15 * time.Second},
 	}
 }
-
-func (c *Client) Enabled() bool { return c != nil && c.cfg.Enabled() }
-
-// Configured reports whether organizations own membership here, which is
-// true from the moment an endpoint is named — the sign-in claims arrive with
-// no credentials at all. Enabled is the narrower question of whether the
-// Management API can be called.
-func (c *Client) Configured() bool { return c != nil && c.cfg.Configured() }
 
 // accessToken returns a live M2M token, fetching one when the cached copy is
 // within a minute of expiry.
@@ -144,9 +133,6 @@ func (c *Client) accessToken(ctx context.Context) (string, error) {
 
 // do performs one Management API call. out may be nil for 204 responses.
 func (c *Client) do(ctx context.Context, method, path string, in, out any) error {
-	if !c.Enabled() {
-		return ErrDisabled
-	}
 	token, err := c.accessToken(ctx)
 	if err != nil {
 		return err
@@ -194,6 +180,7 @@ type logtoUser struct {
 	Name         string `json:"name"`
 	Username     string `json:"username"`
 	Avatar       string `json:"avatar"`
+	IsSuspended  *bool  `json:"isSuspended"`
 	Profile      struct {
 		Gender string `json:"gender"`
 	} `json:"profile"`
@@ -204,7 +191,7 @@ type logtoUser struct {
 }
 
 func (u logtoUser) member(adminRole string) Member {
-	m := Member{ID: u.ID, Email: u.PrimaryEmail, Name: u.Name, Profile: users.IdPProfile{
+	m := Member{ID: u.ID, Email: u.PrimaryEmail, Name: u.Name, Suspended: u.IsSuspended, Profile: users.IdPProfile{
 		Picture: u.Avatar,
 		Phone:   u.PrimaryPhone,
 		Gender:  u.Profile.Gender,
@@ -244,8 +231,8 @@ func (c *Client) OrgMembers(ctx context.Context, orgID string) ([]Member, error)
 	}
 }
 
-// Organization is the upstream's own name for itself, used when a space is
-// created for an organization nobody has linked yet.
+// Organization is the upstream's own record of a company: its id and the
+// name the space mirrors.
 type Organization struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
@@ -256,6 +243,17 @@ func (c *Client) Organization(ctx context.Context, orgID string) (Organization, 
 	var org Organization
 	err := c.do(ctx, http.MethodGet, "/api/organizations/"+url.PathEscape(orgID), nil, &org)
 	return org, err
+}
+
+func (c *Client) CreateOrganization(ctx context.Context, name string) (Organization, error) {
+	var org Organization
+	err := c.do(ctx, http.MethodPost, "/api/organizations", map[string]any{"name": name}, &org)
+	return org, err
+}
+
+func (c *Client) RenameOrganization(ctx context.Context, orgID, name string) error {
+	return c.do(ctx, http.MethodPatch, "/api/organizations/"+url.PathEscape(orgID),
+		map[string]any{"name": name}, nil)
 }
 
 // FindUserByEmail resolves an address to an existing Logto account.
@@ -275,6 +273,42 @@ func (c *Client) FindUserByEmail(ctx context.Context, email string) (Member, boo
 		}
 	}
 	return Member{}, false, nil
+}
+
+// User reads one account. A 404 means Logto no longer has it, which the
+// caller tells apart through Status.
+func (c *Client) User(ctx context.Context, userID string) (Member, error) {
+	var u logtoUser
+	if err := c.do(ctx, http.MethodGet, "/api/users/"+url.PathEscape(userID), nil, &u); err != nil {
+		return Member{}, err
+	}
+	return u.member(c.cfg.AdminRole), nil
+}
+
+// Users lists every account in the tenant. A company is tens to hundreds of
+// people, so this is a handful of pages an hour.
+func (c *Client) Users(ctx context.Context) ([]Member, error) {
+	var out []Member
+	for page := 1; ; page++ {
+		var batch []logtoUser
+		path := fmt.Sprintf("/api/users?page=%d&page_size=%d", page, pageSize)
+		if err := c.do(ctx, http.MethodGet, path, nil, &batch); err != nil {
+			return nil, err
+		}
+		for _, u := range batch {
+			out = append(out, u.member(c.cfg.AdminRole))
+		}
+		if len(batch) < pageSize {
+			return out, nil
+		}
+	}
+}
+
+// SetSuspended suspends or reactivates an account. Logto refuses a
+// suspended account's next sign-in; pp-hub's own sessions are ended locally.
+func (c *Client) SetSuspended(ctx context.Context, userID string, suspended bool) error {
+	return c.do(ctx, http.MethodPatch, "/api/users/"+url.PathEscape(userID)+"/is-suspended",
+		map[string]any{"isSuspended": suspended}, nil)
 }
 
 func (c *Client) AddMember(ctx context.Context, orgID, userID string) error {
@@ -307,12 +341,17 @@ func (c *Client) SetAdmin(ctx context.Context, orgID, userID string, admin bool)
 // Logto renders the tenant's OrganizationInvitation template and sends it. A
 // 501 back means no email connector is configured, which the caller reports
 // as such — an invitation nobody receives is not an invitation.
-func (c *Client) Invite(ctx context.Context, orgID, email string, admin bool, ttl time.Duration) error {
+//
+// link fills the template's {{link}}. Logto substitutes only what it is
+// given, so without it the email's call to action points nowhere. It needs no
+// invitation id: acceptance happens at sign-in (AcceptInvitations), keyed on
+// the verified address, so the link only has to get the invitee signed in.
+func (c *Client) Invite(ctx context.Context, orgID, email string, admin bool, ttl time.Duration, link string) error {
 	body := map[string]any{
 		"organizationId": orgID,
 		"invitee":        email,
 		"expiresAt":      time.Now().Add(ttl).UnixMilli(),
-		"messagePayload": map[string]any{},
+		"messagePayload": map[string]any{"link": link},
 	}
 	if admin {
 		roleID, err := c.adminRole(ctx)
@@ -322,6 +361,51 @@ func (c *Client) Invite(ctx context.Context, orgID, email string, admin bool, tt
 		body["organizationRoleIds"] = []string{roleID}
 	}
 	return c.do(ctx, http.MethodPost, "/api/organization-invitations", body, nil)
+}
+
+// Invitation is an organization invitation as Logto lists it, with the roles
+// the invitee receives on acceptance.
+type Invitation struct {
+	ID                string `json:"id"`
+	OrganizationID    string `json:"organizationId"`
+	Invitee           string `json:"invitee"`
+	Status            string `json:"status"`
+	ExpiresAt         int64  `json:"expiresAt"`
+	OrganizationRoles []struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	} `json:"organizationRoles"`
+}
+
+// PendingInvitations returns the invitations addressed to email that can
+// still be accepted.
+//
+// Logto keeps accepted, revoked and expired invitations in the same list and
+// flips an expired one's status lazily, so both the status and the deadline
+// are checked here. The address is compared again for the same reason
+// FindUserByEmail does: the filter is the upstream's, the decision is ours.
+func (c *Client) PendingInvitations(ctx context.Context, email string) ([]Invitation, error) {
+	var all []Invitation
+	if err := c.do(ctx, http.MethodGet,
+		"/api/organization-invitations?invitee="+url.QueryEscape(email), nil, &all); err != nil {
+		return nil, err
+	}
+	now := time.Now().UnixMilli()
+	out := all[:0]
+	for _, inv := range all {
+		if inv.Status == "Pending" && inv.ExpiresAt > now && strings.EqualFold(inv.Invitee, email) {
+			out = append(out, inv)
+		}
+	}
+	return out, nil
+}
+
+// AcceptInvitation marks an invitation accepted by userID, which is what
+// makes Logto add them to the organization with the invitation's roles.
+func (c *Client) AcceptInvitation(ctx context.Context, invitationID, userID string) error {
+	return c.do(ctx, http.MethodPut,
+		"/api/organization-invitations/"+url.PathEscape(invitationID)+"/status",
+		map[string]any{"status": "Accepted", "acceptedUserId": userID}, nil)
 }
 
 // adminRole resolves the configured role name to its id, which only the

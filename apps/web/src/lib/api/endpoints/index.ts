@@ -20,6 +20,7 @@ import type {
   Share,
   UsageCategory,
   ShareInfo,
+  LinkPreview,
   Space,
   TrashNode,
   TreeNode,
@@ -64,6 +65,26 @@ export async function updateSpace(spaceId: string, settings: SpaceSettings): Pro
 /** Removes the space and everything in it. Not recoverable. */
 export async function deleteSpace(spaceId: string): Promise<void> {
   const res = await api.delete(`api/v1/spaces/${spaceId}`);
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+}
+
+/** What linking this unlinked space would do to its members. Instance admin only. */
+export async function getLinkPreview(spaceId: string): Promise<LinkPreview> {
+  const res = await api.get(`api/v1/spaces/${spaceId}/link-preview`);
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<LinkPreview>;
+}
+
+/**
+ * Creates a Logto organization for this space and queues the push of its
+ * members; the space reads as linked once that has run. `confirmStranded`
+ * acknowledges members with no Logto account, who become departures — the
+ * server answers 409 without it when there are any.
+ */
+export async function linkSpace(spaceId: string, confirmStranded: boolean): Promise<void> {
+  const res = await api.post(`api/v1/spaces/${spaceId}/link`, {
+    json: { confirm_stranded: confirmStranded },
+  });
   if (!res.ok) throw new ApiError(res.status, await res.text());
 }
 

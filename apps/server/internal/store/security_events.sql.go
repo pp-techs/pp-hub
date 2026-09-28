@@ -394,23 +394,26 @@ func (q *Queries) RecordSecurityEvent(ctx context.Context, arg RecordSecurityEve
 }
 
 const recordSystemSecurityEvent = `-- name: RecordSystemSecurityEvent :exec
-INSERT INTO security_events (kind, subject, ip, detail)
-VALUES ($1, $2, $3, $4)
+INSERT INTO security_events (kind, user_id, subject, ip, detail)
+VALUES ($1, $2, $3, $4, $5)
 `
 
 type RecordSystemSecurityEventParams struct {
-	Kind    string `json:"kind"`
-	Subject string `json:"subject"`
-	Ip      string `json:"ip"`
-	Detail  []byte `json:"detail"`
+	Kind    string      `json:"kind"`
+	UserID  pgtype.UUID `json:"user_id"`
+	Subject string      `json:"subject"`
+	Ip      string      `json:"ip"`
+	Detail  []byte      `json:"detail"`
 }
 
-// An event no request caused — an alert the watcher raised. There is no user,
-// user agent or request id to attach; the address is the one the event is
-// about.
+// An event no request caused — an alert the watcher raised, or an account
+// change the identity provider reported. There is no user agent or request id
+// to attach; the address is the one the event is about, and the user is the
+// account it concerns when there is one.
 func (q *Queries) RecordSystemSecurityEvent(ctx context.Context, arg RecordSystemSecurityEventParams) error {
 	_, err := q.db.Exec(ctx, recordSystemSecurityEvent,
 		arg.Kind,
+		arg.UserID,
 		arg.Subject,
 		arg.Ip,
 		arg.Detail,

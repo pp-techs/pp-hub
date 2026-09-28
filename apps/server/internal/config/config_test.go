@@ -85,57 +85,28 @@ func TestDeriveKeyFollowsTheMaster(t *testing.T) {
 	}
 }
 
-// A half-configured tenant must fail startup. The alternative is discovering
-// it at the first membership change an admin attempts — the least convenient
+// Logto is the only identity provider, so a server without every piece of it
+// must refuse to start. The alternative is discovering it at the first
+// membership change or suspension an admin attempts — the least convenient
 // moment, and the hardest to attribute to a missing variable.
-func TestLogtoRejectsAHalfConfiguredTenant(t *testing.T) {
+func TestLogtoRefusesAnIncompleteTenant(t *testing.T) {
 	cases := map[string]LogtoSettings{
-		"credentials without endpoint": {ClientID: "m2m", ClientSecret: "s"},
+		"unset":                        {},
+		"endpoint only":                {Endpoint: "https://tenant.logto.app"},
 		"endpoint without secret":      {Endpoint: "https://tenant.logto.app", ClientID: "m2m"},
+		"credentials without endpoint": {ClientID: "m2m", ClientSecret: "s"},
 		"endpoint is not a URL":        {Endpoint: "tenant.logto.app", ClientID: "m2m", ClientSecret: "s"},
-		// A signing key with nothing to act through: the delivery would be
-		// verified and then dropped, which reads as working and is not.
-		"webhook key without credentials": {Endpoint: "https://tenant.logto.app", WebhookKey: "k"},
 	}
 	for name, l := range cases {
-		if err := l.validate(); err == nil {
+		if err := l.Validate(); err == nil {
 			t.Errorf("%s: accepted", name)
 		}
 	}
 }
 
-// An endpoint with no credentials is a real mode, not a mistake: the sign-in
-// path reconciles from the ID token's organization claims and makes no
-// outbound call, so organizations can own membership before anybody has
-// created a machine-to-machine application.
-func TestLogtoAcceptsAnEndpointWithoutCredentials(t *testing.T) {
-	l := LogtoSettings{Endpoint: "http://localhost:3001", AdminRole: "admin"}
-	if err := l.validate(); err != nil {
-		t.Fatalf("claim-only tenant rejected: %v", err)
-	}
-	if !l.Configured() {
-		t.Error("an endpoint alone does not make organizations authoritative")
-	}
-	if l.Enabled() {
-		t.Error("the Management API reports itself reachable with no credentials")
-	}
-}
-
-// Unset is a supported state, not an error: an install with no Logto tenant
-// still serves files, it simply changes no memberships.
-func TestLogtoAcceptsUnset(t *testing.T) {
-	var l LogtoSettings
-	if err := l.validate(); err != nil {
-		t.Fatalf("unset tenant rejected: %v", err)
-	}
-	if l.Configured() || l.Enabled() {
-		t.Error("an unset tenant reports itself configured or enabled")
-	}
-}
-
-// The shape Load() builds when every PP_LOGTO_* variable is set. A missing
-// webhook key warns but does not refuse: the hourly sweep still converges.
-func TestLogtoAcceptsAFullyConfiguredTenant(t *testing.T) {
+// A missing webhook key warns but does not refuse: the hourly sweep and the
+// next sign-in still converge.
+func TestLogtoAcceptsAFullyConfiguredTenantWithoutAWebhookKey(t *testing.T) {
 	l := LogtoSettings{
 		Endpoint:     "https://tenant.logto.app",
 		ClientID:     "m2m",
@@ -143,11 +114,8 @@ func TestLogtoAcceptsAFullyConfiguredTenant(t *testing.T) {
 		APIResource:  "https://tenant.logto.app/api",
 		AdminRole:    "admin",
 	}
-	if err := l.validate(); err != nil {
+	if err := l.Validate(); err != nil {
 		t.Fatalf("valid tenant rejected: %v", err)
-	}
-	if !l.Enabled() {
-		t.Error("a fully configured tenant reports itself disabled")
 	}
 }
 

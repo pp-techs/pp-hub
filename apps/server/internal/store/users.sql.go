@@ -400,6 +400,53 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 	return items, nil
 }
 
+const listUsersByIssuer = `-- name: ListUsersByIssuer :many
+SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp FROM users WHERE oidc_iss = $1
+`
+
+// Every account this identity provider issued, for the hourly account sweep.
+func (q *Queries) ListUsersByIssuer(ctx context.Context, oidcIss string) ([]User, error) {
+	rows, err := q.db.Query(ctx, listUsersByIssuer, oidcIss)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.OidcSub,
+			&i.OidcIss,
+			&i.Email,
+			&i.Name,
+			&i.DisplayName,
+			&i.AvatarUrl,
+			&i.Bio,
+			&i.Settings,
+			&i.IsAdmin,
+			&i.LastSeen,
+			&i.EmailHash,
+			&i.SuspendedAt,
+			&i.CreatedAt,
+			&i.AvatarBlob,
+			&i.AvatarMime,
+			&i.Phone,
+			&i.Gender,
+			&i.IdpPicture,
+			&i.AvatarFromIdp,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const searchUsers = `-- name: SearchUsers :many
 SELECT u.id, u.email, u.name, u.display_name, u.avatar_url
 FROM users u
@@ -621,6 +668,49 @@ type SetUserIdpDetailsParams struct {
 
 func (q *Queries) SetUserIdpDetails(ctx context.Context, arg SetUserIdpDetailsParams) (User, error) {
 	row := q.db.QueryRow(ctx, setUserIdpDetails, arg.ID, arg.Phone, arg.Gender)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.OidcSub,
+		&i.OidcIss,
+		&i.Email,
+		&i.Name,
+		&i.DisplayName,
+		&i.AvatarUrl,
+		&i.Bio,
+		&i.Settings,
+		&i.IsAdmin,
+		&i.LastSeen,
+		&i.EmailHash,
+		&i.SuspendedAt,
+		&i.CreatedAt,
+		&i.AvatarBlob,
+		&i.AvatarMime,
+		&i.Phone,
+		&i.Gender,
+		&i.IdpPicture,
+		&i.AvatarFromIdp,
+	)
+	return i, err
+}
+
+const setUserIdpIdentity = `-- name: SetUserIdpIdentity :one
+UPDATE users SET email = $2, name = $3
+WHERE id = $1
+RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp
+`
+
+type SetUserIdpIdentityParams struct {
+	ID    pgtype.UUID `json:"id"`
+	Email string      `json:"email"`
+	Name  string      `json:"name"`
+}
+
+// The same IdP-owned fields, refreshed from the Management API rather than
+// from a sign-in, so last_seen is left alone: nobody was seen.
+func (q *Queries) SetUserIdpIdentity(ctx context.Context, arg SetUserIdpIdentityParams) (User, error) {
+	row := q.db.QueryRow(ctx, setUserIdpIdentity, arg.ID, arg.Email, arg.Name)
 	var i User
 	err := row.Scan(
 		&i.ID,

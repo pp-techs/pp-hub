@@ -1,5 +1,4 @@
-// Package auth implements generic OIDC login (Logto, or any compliant
-// provider) and server-side sessions.
+// Package auth implements OIDC login against Logto and server-side sessions.
 //
 // Two things here are deliberately configurable and easy to get wrong:
 //
@@ -9,7 +8,7 @@
 // visits (authorization and end-session) are rebased onto the external origin;
 // token, userinfo and JWKS stay internal because only the server calls them.
 // In the usual single-origin deployment the two strings are equal and none of
-// this does anything. Nothing provider-specific is hardcoded.
+// this does anything.
 //
 // A session is a row in `sessions`, not a signed blob. The cookie carries an
 // opaque 256-bit token and the database stores only its SHA-256, so a session
@@ -88,43 +87,35 @@ type Service struct {
 	// deployment that is meant to be https is exactly the case the flag has to
 	// survive.
 	secure bool
-	// orgs applies the organization claims to local membership. Nil when no
-	// Logto tenant is configured, which is the whole of the fallback: a
-	// sign-in still works, it simply changes no memberships.
+	// orgs accepts invitations and applies the organization claims to local
+	// membership. Set by SetReconciler before the server starts serving.
 	orgs Reconciler
 	// profiles mirrors the IdP-owned profile fields — avatar, phone, gender
 	// — onto the account at every sign-in.
 	profiles *users.Service
 }
 
-// scopes are what the authorization request asks for.
-//
-// An OIDC provider is free to reject a scope it does not know or has not
-// granted this client, and a rejected scope fails the whole sign-in. So
-// anything beyond the three every provider serves is asked for only when the
-// install says the provider will accept it:
-//
-//   - `phone` (OIDC Core §5.4) when PP_OIDC_PHONE_SCOPE=1. Logto refuses it
-//     for a third-party application until its Permissions include it.
-//   - The two organization scopes, which are Logto-specific, when a Logto
-//     endpoint is configured; sending them unconditionally would make
-//     sign-in fail on Keycloak or Authentik for a feature that install is
-//     not using.
+// scopes are what the authorization request asks for: the three every
+// provider serves, Logto's two organization scopes — which put
+// `organizations` and `organization_roles` in the ID token — and `phone`
+// (OIDC Core §5.4) only when PP_OIDC_PHONE_SCOPE=1, because Logto refuses it
+// for a third-party application until its Permissions include it, and a
+// refused scope fails the whole sign-in.
 func scopes(cfg *config.Config) []string {
-	s := []string{oidc.ScopeOpenID, "profile", "email"}
+	s := []string{oidc.ScopeOpenID, "profile", "email",
+		"urn:logto:scope:organizations", "urn:logto:scope:organization_roles"}
 	if cfg.OIDCPhoneScope {
 		s = append(s, "phone")
-	}
-	if cfg.Logto.Endpoint != "" {
-		s = append(s, "urn:logto:scope:organizations", "urn:logto:scope:organization_roles")
 	}
 	return s
 }
 
 // Reconciler applies the organization claims in an ID token to local
-// membership. Implemented by orgsync.Service; an interface here only so the
-// dependency is stated where it is used.
+// membership, after accepting whatever invitations are waiting for the
+// person signing in. Implemented by orgsync.Service; an interface here only
+// so the dependency is stated where it is used.
 type Reconciler interface {
+	AcceptInvitations(ctx context.Context, user store.User, email string) (orgsync.Claims, error)
 	ReconcileUser(ctx context.Context, user store.User, claims orgsync.Claims) error
 }
 
@@ -221,10 +212,29 @@ func (s *Service) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	// PKCE binds the code to this browser, so a code intercepted in the
 	// redirect is useless without the verifier. The nonce binds the ID token
 	// to this handshake, so a token replayed from another one is rejected.
-	http.Redirect(w, r, s.oauth.AuthCodeURL(tx.State,
+	opts := []oauth2.AuthCodeOption{
 		oidc.Nonce(tx.Nonce),
 		oauth2.S256ChallengeOption(tx.Verifier),
-	), http.StatusFound)
+	}
+	// The invitation email links here with the invitee's address, so the
+	// IdP opens on it rather than on a blank form. Standard OIDC; a provider
+	// that ignores it loses nothing.
+	if hint := loginHint(r.URL.Query().Get("login_hint")); hint != "" {
+		opts = append(opts, oauth2.SetAuthURLParam("login_hint", hint))
+	}
+	http.Redirect(w, r, s.oauth.AuthCodeURL(tx.State, opts...), http.StatusFound)
+}
+
+// loginHint passes through an address-shaped hint and drops anything else.
+// It is forwarded to the IdP verbatim, so it is bounded like every other
+// client-controlled value that leaves this process.
+func loginHint(raw string) string {
+	hint := strings.TrimSpace(raw)
+	if len(hint) > 254 || !strings.Contains(hint, "@") ||
+		strings.ContainsFunc(hint, func(r rune) bool { return r <= ' ' || r == 0x7f }) {
+		return ""
+	}
+	return hint
 }
 
 func (s *Service) HandleCallback(w http.ResponseWriter, r *http.Request) {
@@ -324,21 +334,45 @@ func (s *Service) HandleCallback(w http.ResponseWriter, r *http.Request) {
 // satisfy without one of them taking the other's half-built self.
 func (s *Service) SetReconciler(r Reconciler) { s.orgs = r }
 
-// reconcileOrgs applies the organization claims before the session is issued,
-// so the first page load already lists the right spaces.
+// reconcileOrgs accepts the invitations waiting for this person, then applies
+// the organization claims before the session is issued, so the first page
+// load already lists the right spaces — including one they were invited to a
+// minute ago.
 //
 // A failure is logged and swallowed. The claims describe membership, not
 // identity: refusing the sign-in would lock somebody out of spaces they are
 // already in because a *different* space could not be updated, and the
 // hourly sweep will converge it anyway.
 func (s *Service) reconcileOrgs(r *http.Request, user store.User, claims idClaims) {
-	if s.orgs == nil || (len(claims.Organizations) == 0 && len(claims.OrganizationRoles) == 0) {
-		return
-	}
-	if err := s.orgs.ReconcileUser(r.Context(), user, orgsync.Claims{
+	orgClaims := orgsync.Claims{
 		Organizations:     claims.Organizations,
 		OrganizationRoles: claims.OrganizationRoles,
-	}); err != nil {
+	}
+	var accepted orgsync.Claims
+	// Only a verified address may redeem an invitation made out to it.
+	if bool(claims.EmailVerified) {
+		var err error
+		accepted, err = s.orgs.AcceptInvitations(r.Context(), user, claims.Email)
+		if err != nil {
+			slog.ErrorContext(r.Context(), "organization invitations at sign-in", "user", user.Email, "err", err)
+		}
+		// The ID token predates the acceptance; without the merge the new
+		// membership would read as a departure.
+		orgClaims = orgClaims.With(accepted)
+	}
+	// An absent `organizations` claim is not the same as an empty one. Empty
+	// is Logto saying "no organizations", and leaving every linked space is
+	// the right reading of it. Absent means the sign-in application was not
+	// granted the organization scopes — a deployment mistake — and reading
+	// that as "left everything" would evict every member at their next
+	// sign-in.
+	if claims.Organizations == nil && len(accepted.Organizations) == 0 {
+		slog.WarnContext(r.Context(), "ID token carries no organizations claim; membership left to the sweep",
+			"user", user.Email,
+			"advice", "grant urn:logto:scope:organizations and urn:logto:scope:organization_roles to the sign-in application")
+		return
+	}
+	if err := s.orgs.ReconcileUser(r.Context(), user, orgClaims); err != nil {
 		slog.ErrorContext(r.Context(), "organization reconcile at sign-in", "user", user.Email, "err", err)
 	}
 }
@@ -459,8 +493,8 @@ type idClaims struct {
 	PhoneNumber string `json:"phone_number"`
 	Gender      string `json:"gender"`
 	// Organization claims, present only when the two urn:logto:scope:*
-	// scopes were requested and granted. Absent on every other provider,
-	// which decodes to empty slices and reconciles nothing.
+	// scopes were granted. Absent decodes to nil and empty to a non-nil
+	// empty slice; reconcileOrgs tells the two apart.
 	Organizations     []string `json:"organizations"`
 	OrganizationRoles []string `json:"organization_roles"`
 }

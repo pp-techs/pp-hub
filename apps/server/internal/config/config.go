@@ -101,10 +101,10 @@ type Config struct {
 	// unset every request appears to come from the proxy, so one caller can
 	// spend the whole instance's budget.
 	TrustedProxies []string
-	// Logto configures the organization sync. Membership is a mirror of a
-	// Logto organization, so this is not optional decoration: with it
-	// unset, a linked space has no upstream to reconcile against and its
-	// membership can only be changed by the reconciler that never runs.
+	// Logto is the identity provider and the source of truth for who belongs
+	// to which company. cmd/server refuses to start without it
+	// (LogtoSettings.Validate); the worker never talks to Logto and does not
+	// need it.
 	Logto LogtoSettings
 	// SMTP configures the outgoing mail relay. Environment variables are the
 	// fallback; an admin override in /admin/settings replaces them.
@@ -217,9 +217,6 @@ func Load() (*Config, error) {
 	if err := c.validateBlobBackend(); err != nil {
 		return nil, err
 	}
-	if err := c.Logto.validate(); err != nil {
-		return nil, err
-	}
 	if err := c.SMTP.Validate(); err != nil {
 		return nil, fmt.Errorf("PP_SMTP_*: %w", err)
 	}
@@ -257,9 +254,8 @@ func (c *Config) validateBlobBackend() error {
 	}
 }
 
-// LogtoSettings is everything needed to read and write a Logto tenant's
-// organizations. Membership is a projection of them, so an install with this
-// unset can still serve files but cannot change who may see them.
+// LogtoSettings is everything needed to read and write the Logto tenant:
+// accounts, organizations, membership and invitations.
 type LogtoSettings struct {
 	// Endpoint is Logto's base URL — *not* the OIDC issuer, which carries a
 	// /oidc suffix. The Management API and the token endpoint both hang off
@@ -285,54 +281,27 @@ type LogtoSettings struct {
 	AdminRole string
 }
 
-// Configured reports whether organizations own membership on this install.
-// True as soon as an endpoint is named, because that is what makes the
-// sign-in claims arrive — and once membership comes from organizations, so
-// do spaces, whether or not the Management API is reachable.
-func (l LogtoSettings) Configured() bool { return l.Endpoint != "" }
-
-// Enabled reports whether the Management API can be reached. Everything the
-// sync does on the write side is gated on this; the read side degrades to
-// the sign-in claims, which need no credentials at all.
-func (l LogtoSettings) Enabled() bool {
-	return l.Configured() && l.ClientID != "" && l.ClientSecret != ""
-}
-
-// validate refuses a half-configured tenant rather than failing at the first
-// membership change an admin attempts, which is both the least convenient
-// moment to discover it and the hardest to attribute.
+// Validate refuses to start the server without a usable Logto tenant.
 //
-// "Half-configured" deliberately does not include an endpoint with no
-// credentials. That is a real, supported mode: the sign-in path reconciles
-// from the ID token's organization claims and makes no outbound call, so an
-// install can mirror organizations before anybody has created a
-// machine-to-machine application. What it cannot do is write, or converge
-// somebody who is not signing in — and it says so rather than pretending.
-func (l LogtoSettings) validate() error {
+// Logto is the only identity provider pp-hub supports, and the Management
+// API is how every membership, suspension and invitation is written and how
+// anybody who is not signing in is kept current. There is no degraded mode
+// to fall back to, so a missing piece is a startup error rather than a
+// surprise at the first change an admin attempts.
+func (l LogtoSettings) Validate() error {
 	if l.Endpoint == "" {
-		if l.ClientID != "" || l.ClientSecret != "" {
-			return fmt.Errorf("PP_LOGTO_M2M_CLIENT_ID is set but PP_LOGTO_ENDPOINT is empty")
-		}
-		slog.Warn("PP_LOGTO_* unset: organization sync is off",
-			"effect", "space membership cannot be changed from the app and no organization is mirrored")
-		return nil
+		return fmt.Errorf("PP_LOGTO_ENDPOINT is required: Logto is the identity provider and the source of membership")
 	}
 	if !strings.HasPrefix(l.Endpoint, "http://") && !strings.HasPrefix(l.Endpoint, "https://") {
 		return fmt.Errorf("PP_LOGTO_ENDPOINT must be an absolute URL, got %q", l.Endpoint)
 	}
-	switch {
-	case l.ClientID == "" && l.ClientSecret == "":
-		slog.Warn("PP_LOGTO_ENDPOINT is set without M2M credentials: organization sync runs from sign-in claims only",
-			"effect", "membership converges when a person signs in; it cannot be changed from the app, and somebody who never signs in is never reconciled")
-	case l.ClientID == "" || l.ClientSecret == "":
-		return fmt.Errorf("PP_LOGTO_M2M_CLIENT_ID and PP_LOGTO_M2M_CLIENT_SECRET must be set together")
+	if l.ClientID == "" || l.ClientSecret == "" {
+		return fmt.Errorf("PP_LOGTO_M2M_CLIENT_ID and PP_LOGTO_M2M_CLIENT_SECRET are required: " +
+			"a machine-to-machine application with the Management API `all` permission")
 	}
-	if l.WebhookKey != "" && !l.Enabled() {
-		return fmt.Errorf("PP_LOGTO_WEBHOOK_KEY is set but the M2M credentials are not: a delivery can only be acted on through the Management API")
-	}
-	if l.Enabled() && l.WebhookKey == "" {
+	if l.WebhookKey == "" {
 		slog.Warn("PP_LOGTO_WEBHOOK_KEY unset: /hooks/logto refuses every delivery",
-			"effect", "membership changes made in Logto are only picked up at the next sign-in or hourly reconcile")
+			"effect", "changes made in Logto are only picked up at the next sign-in or hourly sweep")
 	}
 	return nil
 }

@@ -2,7 +2,7 @@
 
 ## Actors
 
-- **User** — authenticated via OIDC (Logto in dev; any OIDC provider works).
+- **User** — authenticated via OIDC against Logto, the only supported identity provider; which spaces they belong to is their Logto organizations.
 - **Space member** — belongs to a space. Membership alone opens no file: what they reach is what they created plus what has been granted to them or to a group they are in.
 - **Space admin** — member of the space's automatic `Admin` group. Runs membership, groups and space settings; gains no file access from it.
 - **Anonymous visitor** — holds a share link token, no account.

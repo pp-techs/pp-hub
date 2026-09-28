@@ -1,8 +1,14 @@
 package auth
 
 import (
+	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+
+	"github.com/nhatbui/pp-hub/apps/server/internal/orgsync"
+	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 )
 
 // safeNext is the only thing standing between /auth/login?next=… and an open
@@ -126,5 +132,45 @@ func TestOIDCTxRoundTrip(t *testing.T) {
 	}
 	if out != in {
 		t.Fatalf("got %+v, want %+v", out, in)
+	}
+}
+
+type recordingReconciler struct {
+	reconciled []orgsync.Claims
+}
+
+func (f *recordingReconciler) AcceptInvitations(context.Context, store.User, string) (orgsync.Claims, error) {
+	return orgsync.Claims{}, nil
+}
+
+func (f *recordingReconciler) ReconcileUser(_ context.Context, _ store.User, c orgsync.Claims) error {
+	f.reconciled = append(f.reconciled, c)
+	return nil
+}
+
+// An empty `organizations` claim is Logto saying "no organizations" and must
+// reconcile — that is how leaving the last one is noticed at sign-in. An
+// absent claim means the sign-in application lacks the organization scopes,
+// and reconciling it as empty would evict every member as they sign in.
+func TestOrganizationClaimAbsentIsNotEmpty(t *testing.T) {
+	decode := func(raw string) idClaims {
+		var c idClaims
+		if err := json.Unmarshal([]byte(raw), &c); err != nil {
+			t.Fatal(err)
+		}
+		return c
+	}
+	req := httptest.NewRequest(http.MethodGet, "/auth/callback", nil)
+
+	absent := &recordingReconciler{}
+	(&Service{orgs: absent}).reconcileOrgs(req, store.User{}, decode(`{"email":"a@b.test"}`))
+	if len(absent.reconciled) != 0 {
+		t.Errorf("a token without the claim was reconciled as %v", absent.reconciled)
+	}
+
+	empty := &recordingReconciler{}
+	(&Service{orgs: empty}).reconcileOrgs(req, store.User{}, decode(`{"email":"a@b.test","organizations":[]}`))
+	if len(empty.reconciled) != 1 {
+		t.Errorf("an empty organizations claim was not reconciled")
 	}
 }

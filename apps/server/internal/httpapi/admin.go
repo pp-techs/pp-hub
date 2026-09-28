@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"time"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/audit"
 	"github.com/nhatbui/pp-hub/apps/server/internal/mail"
+	"github.com/nhatbui/pp-hub/apps/server/internal/orgsync"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 	"github.com/nhatbui/pp-hub/apps/server/internal/sysconfig"
 )
@@ -115,6 +117,18 @@ func (s *Server) handleAdminUpdateUser(w http.ResponseWriter, r *http.Request) {
 	if body.Suspended != nil {
 		if isSelf && *body.Suspended {
 			writeProblem(w, http.StatusBadRequest, "Bad Request", "you cannot suspend yourself")
+			return
+		}
+		target, err := s.store.GetUser(r.Context(), userID)
+		if err != nil {
+			writeProblem(w, http.StatusNotFound, "Not Found", "user not found")
+			return
+		}
+		// Logto decides who may use pp-hub, so the suspension goes there
+		// first; a local-only one would be undone by the next account sweep.
+		// An account Logto never issued has nothing upstream to change.
+		if err := s.orgs.SetSuspended(r.Context(), target, *body.Suspended); err != nil && !errors.Is(err, orgsync.ErrNoIdentity) {
+			s.identityProviderError(w, r, err, "suspension")
 			return
 		}
 		var at pgtype.Timestamptz

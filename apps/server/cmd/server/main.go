@@ -54,6 +54,9 @@ func run() error {
 	}
 	defer closeDeps()
 	cfg, queries, blobs := deps.Cfg, deps.Queries, deps.Blobs
+	if err := cfg.Logto.Validate(); err != nil {
+		return err
+	}
 
 	// Up before OIDC discovery so a server stuck waiting for its IdP is still
 	// scrapeable. A bind failure is logged, not fatal: losing metrics must
@@ -160,7 +163,7 @@ func run() error {
 	// needs this before the first callback lands, and the worker drains the
 	// reconcile jobs the webhook enqueues.
 	orgSvc := orgsync.NewService(queries, spacesSvc, usersSvc,
-		orgsync.NewClient(cfg.Logto), cfg.OIDCIssuerExt)
+		orgsync.NewClient(cfg.Logto), cfg.OIDCIssuerExt, cfg.ExternalURL)
 	authSvc.SetReconciler(orgSvc)
 	go orgSvc.Run(ctx)
 
@@ -212,8 +215,8 @@ func run() error {
 	}
 }
 
-// waitForOIDC retries discovery until the IdP is up (a cold Logto or Keycloak
-// takes a while to migrate its own schema).
+// waitForOIDC retries discovery until Logto is up (a cold one takes a while to
+// migrate its own schema).
 //
 // It logs the first failure and then every tenth attempt. Silence here used to
 // mean a container that is "running", never healthy, and says nothing for two

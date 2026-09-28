@@ -219,6 +219,8 @@ func (s *Server) Router() http.Handler {
 				r.Delete("/", s.handleDeleteSpace)
 				r.Get("/departures", s.handleListDepartures)
 				r.Post("/departures/{userID}/complete", s.handleCompleteDeparture)
+				r.Get("/link-preview", s.handleLinkPreview)
+				r.Post("/link", s.handleLinkSpace)
 				r.Get("/children", s.handleListChildren)
 				r.Get("/tree", s.handleListTree)
 				r.Get("/trash", s.handleListDeleted)

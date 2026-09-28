@@ -12,6 +12,17 @@ UPDATE users SET email = $2, name = $3, last_seen = now()
 WHERE id = $1
 RETURNING *;
 
+-- The same IdP-owned fields, refreshed from the Management API rather than
+-- from a sign-in, so last_seen is left alone: nobody was seen.
+-- name: SetUserIdpIdentity :one
+UPDATE users SET email = $2, name = $3
+WHERE id = $1
+RETURNING *;
+
+-- Every account this identity provider issued, for the hourly account sweep.
+-- name: ListUsersByIssuer :many
+SELECT * FROM users WHERE oidc_iss = $1;
+
 -- Re-points an existing account at a new (issuer, subject) pair.
 --
 -- Identity is keyed on (oidc_iss, oidc_sub), and oidc_iss is a URL an operator

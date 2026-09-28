@@ -755,6 +755,15 @@ re-authentication loop.
 An instance admin cannot revoke their own instance-admin flag or suspend
 themselves; both are refused server-side.
 
+**Logto decides suspension (M38).** The admin console's Suspend/Reinstate
+writes `PATCH /api/users/{id}/is-suspended` upstream first, then applies the
+local half; the other direction arrives by the `User.SuspensionStatus.Updated`
+webhook and the hourly account sweep, which set `suspended_at` and end every
+session. An account Logto no longer has is suspended the same way — never
+deleted, because it owns files and history — and each organization it was in
+is reconciled at once so its memberships become departures. Only an account
+issued by some other provider keeps a local-only suspension.
+
 ## Organization Sync
 
 A space mirrors one Logto organization (`spaces.idp_org_id`, unique where
@@ -764,9 +773,9 @@ converges the local set against it. No human writes that table, and nothing in
 pp-hub decides membership.
 
 - **Three signals, one behaviour.** A returning user's `organizations` and
-  `organization_roles` ID-token claims, a
-  `Organization.Membership.Updated` webhook, and an hourly ticker all mean the
-  same thing — "this organization changed" — and all run the same convergence.
+  `organization_roles` ID-token claims, an `Organization.*` webhook, and an
+  hourly ticker all mean the same thing — "this organization changed" — and
+  all run the same convergence, which also mirrors the organization's name.
   No path applies a delta: webhook payloads arrive unordered, so applying
   `addedUserIds`/`removedUserIds` incrementally would be a correctness bug,
   while converging is idempotent and order-free.
@@ -780,18 +789,38 @@ pp-hub decides membership.
   is added to the organization and reconciled — **201** `{"status":"added"}`;
   an address that does not gets an organization invitation sent by Logto's own
   email connector — **202** `{"status":"invited"}`. A space with no
-  `idp_org_id` answers **422**, an unreachable Logto **503**, and an existing
+  `idp_org_id` answers **422**, an unreachable Logto **503**, a refusal from
+  Logto **502**, and an existing
   member **409**. There is no token for pp-hub to mint, store or redeem, and no
-  acceptance route.
-- **Creating a space is no longer an ordinary user's action.** A space is a
-  company, so once the identity provider decides who belongs to which company,
-  it decides which companies exist. `POST /spaces` answers **403** for an
-  ordinary member: minting one would have awarded them the `Admin` group on it,
-  which is exactly the authority the organization role was supposed to decide,
-  and the result would be a space no reconcile ever touches. An instance admin
-  (`users.is_admin`) keeps the route for a deliberately unlinked space, and an
-  install with no Logto tenant keeps it for everyone. The profile carries
-  `can_create_spaces` so the client hides the control rather than offering a 403.
+  acceptance route: Logto leaves accepting to the application, and pp-hub does
+  it at sign-in (M38) — every live invitation made out to the **verified** email
+  claim is accepted with the person's Logto user id and merged into the token's
+  organization claims before they are reconciled. The email's `{{link}}` is
+  `{PP_EXTERNAL_URL}/auth/login?login_hint=<address>`.
+- **Creating a space is an instance admin's action, and it writes through.**
+  A space is a company, so the identity provider decides which companies
+  exist. `POST /spaces` answers **403** for anybody but an instance admin
+  (`users.is_admin`): minting one would have awarded an ordinary member the
+  `Admin` group on it, which is exactly the authority the organization role
+  was supposed to decide. For an instance admin it creates the Logto
+  organization first, seats them in it with the admin role, then mirrors it
+  as a space — there is no way to create a space that mirrors nothing. The
+  profile carries `can_create_spaces` so the client hides the control rather
+  than offering a 403.
+- **Renaming a space renames the organization.** `PATCH /spaces/{id}` with a
+  new name writes it to Logto first; a rename in the Console arrives with the
+  next reconcile.
+- **Deletion does not travel.** Deleting a space keeps its organization in
+  Logto and records it in `detached_orgs`, so the members' next sign-in does
+  not recreate the space; an organization deleted in Logto unlinks its space
+  (`idp_org_id = NULL`) and leaves members and content where they are.
+- **An unlinked space is linked by an instance admin.** A space created before
+  the sync, or whose organization was deleted, gets one through
+  `GET /spaces/{id}/link-preview` and `POST /spaces/{id}/link` (**202**): the
+  members this Logto tenant issued are pushed into a new organization with
+  their current role, and the rest — who have no Logto account — become
+  departures, which the request must acknowledge with `confirm_stranded`
+  (**409** otherwise).
 - **Members who have never signed in still exist.** Reconciliation pre-creates
   the `users` row from the Management API response, keyed on
   `(oidc_iss, oidc_sub)`, so the People page shows the organization rather than
@@ -801,8 +830,9 @@ pp-hub decides membership.
   seen, and `space_departures` holds the destructive half until an admin asks
   for it.
 - **The space DTO carries the two facts a client needs to say any of this.**
-  `idp_org_id` is absent when the space is unlinked, which is how the UI knows
-  the add-member form has nowhere to send an address; `admin_count` is how many
+  `idp_org_id` is absent when the space is unlinked, which is how the People
+  pane knows to disable Invite and show the unlinked alert (with **Link to
+  Logto** for an instance admin); `admin_count` is how many
   people are in the `Admin` group, and `0` is what raises the no-administrator
   banner. Both ride on `GET /spaces`, `POST /spaces` and
   `PATCH /spaces/{id}` — no extra round trip for a banner that has to render on

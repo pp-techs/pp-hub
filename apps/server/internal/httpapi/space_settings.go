@@ -80,6 +80,14 @@ func (s *Server) handleUpdateSpace(w http.ResponseWriter, r *http.Request) {
 	if body.AllowPublicLinks != nil {
 		next.AllowPublicLinks = *body.AllowPublicLinks
 	}
+	// The name is the organization's: rename it upstream first, or the next
+	// reconcile would put the old one back.
+	if next.Name != space.Name {
+		if err := s.orgs.Rename(r.Context(), space, next.Name); err != nil {
+			s.identityProviderError(w, r, err, "the space name")
+			return
+		}
+	}
 	updated, err := s.store.UpdateSpaceSettings(r.Context(), next)
 	if err != nil {
 		if isUniqueViolation(err) {
@@ -124,21 +132,111 @@ func spaceSettingsFrom(sp store.Space, slug, description string, defaultAsAdmin 
 	return next, ""
 }
 
+// handleDeleteSpace deletes the space and everything in it. Its organization
+// stays in Logto — deletion does not travel — so it is recorded as detached
+// in the same transaction, or its members' next sign-in would recreate an
+// empty space for it.
 func (s *Server) handleDeleteSpace(w http.ResponseWriter, r *http.Request) {
-	_, _, ok := s.requireSpaceAdmin(w, r)
+	u, space, ok := s.requireSpaceAdmin(w, r)
 	if !ok {
 		return
 	}
-	spaceID, err := uuidParam(r, "spaceID")
+	err := s.store.InTx(r.Context(), func(q *store.Queries) error {
+		if space.IdpOrgID.Valid {
+			if err := q.DetachOrg(r.Context(), store.DetachOrgParams{
+				OrgID: space.IdpOrgID.String, DetachedBy: u.ID,
+			}); err != nil {
+				return err
+			}
+		}
+		return q.DeleteSpace(r.Context(), space.ID)
+	})
 	if err != nil {
-		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
-		return
-	}
-	if err := s.store.DeleteSpace(r.Context(), spaceID); err != nil {
 		Error(w, r, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+type linkPreviewDTO struct {
+	// Pushable members join the new organization with their current role.
+	Pushable []spaceMemberRefDTO `json:"pushable"`
+	// Stranded members have no account in the Logto tenant; linking turns
+	// each of them into a departure.
+	Stranded []spaceMemberRefDTO `json:"stranded"`
+}
+
+type spaceMemberRefDTO struct {
+	UserID string `json:"user_id"`
+	Email  string `json:"email"`
+	Name   string `json:"name"`
+}
+
+func memberRefs(users []store.User) []spaceMemberRefDTO {
+	out := make([]spaceMemberRefDTO, 0, len(users))
+	for _, u := range users {
+		out = append(out, spaceMemberRefDTO{UserID: uuidString(u.ID), Email: u.Email, Name: u.Name})
+	}
+	return out
+}
+
+// linkTarget resolves the space for the two link routes, which belong to an
+// instance administrator: linking creates a company upstream.
+func (s *Server) linkTarget(w http.ResponseWriter, r *http.Request) (store.Space, bool) {
+	if s.requireAdmin(w, r) == nil {
+		return store.Space{}, false
+	}
+	spaceID, err := uuidParam(r, "spaceID")
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
+		return store.Space{}, false
+	}
+	space, err := s.spaces.Get(r.Context(), spaceID)
+	if err != nil {
+		s.spaceError(w, r, err)
+		return store.Space{}, false
+	}
+	return space, true
+}
+
+// handleLinkPreview says what linking an unlinked space would do to its
+// members, before anybody commits to it.
+func (s *Server) handleLinkPreview(w http.ResponseWriter, r *http.Request) {
+	space, ok := s.linkTarget(w, r)
+	if !ok {
+		return
+	}
+	pushable, stranded, err := s.orgs.LinkPreview(r.Context(), space)
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, linkPreviewDTO{Pushable: memberRefs(pushable), Stranded: memberRefs(stranded)})
+}
+
+// handleLinkSpace creates an organization for an unlinked space and queues
+// the push of its members; the space reads as linked once that has run.
+// Members with no Logto account must be acknowledged with confirm_stranded.
+func (s *Server) handleLinkSpace(w http.ResponseWriter, r *http.Request) {
+	space, ok := s.linkTarget(w, r)
+	if !ok {
+		return
+	}
+	var body struct {
+		ConfirmStranded bool `json:"confirm_stranded"`
+	}
+	if r.ContentLength != 0 {
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid body")
+			return
+		}
+	}
+	orgID, err := s.orgs.Link(r.Context(), space, body.ConfirmStranded)
+	if err != nil {
+		s.spaceError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusAccepted, map[string]string{"status": "linking", "idp_org_id": orgID})
 }
 
 func uuidString(id pgtype.UUID) string {

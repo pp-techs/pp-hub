@@ -36,11 +36,11 @@ A minimal, self-hosted Google Workspace alternative: Drive, collaborative office
 
 ## Deployment Model
 
-Self-host all-in-one: a single `docker compose up` brings up the app server, Postgres, OnlyOffice Document Server, and the identity provider (**Logto**; any OIDC provider works — Logto Cloud is the default dev IdP).
+Self-host all-in-one: a single `docker compose up` brings up the app server, Postgres, OnlyOffice Document Server, and the identity provider (**Logto**, the only one supported — it also owns organizations, membership and accounts; Logto Cloud is the default dev IdP).
 
 ## Success Criteria (MVP)
 
-- A new user can log in via OIDC, create a space, upload files, organize folders.
+- A new user can log in via Logto, land in their organization's space, upload files, organize folders.
 - A user can share a file to a teammate (direct) and to an outsider (link, view/download).
 - Two users can co-edit the same .docx in browser with realtime collaboration.
 - Every file save/upload produces a restorable previous version.

@@ -28,6 +28,23 @@ func (q *Queries) ClearDeparture(ctx context.Context, arg ClearDepartureParams) 
 	return err
 }
 
+const detachOrg = `-- name: DetachOrg :exec
+INSERT INTO detached_orgs (org_id, detached_by) VALUES ($1, $2)
+ON CONFLICT (org_id) DO NOTHING
+`
+
+type DetachOrgParams struct {
+	OrgID      string      `json:"org_id"`
+	DetachedBy pgtype.UUID `json:"detached_by"`
+}
+
+// Remember that this organization's space was deleted here, so sign-in does
+// not recreate it.
+func (q *Queries) DetachOrg(ctx context.Context, arg DetachOrgParams) error {
+	_, err := q.db.Exec(ctx, detachOrg, arg.OrgID, arg.DetachedBy)
+	return err
+}
+
 const getPendingDeparture = `-- name: GetPendingDeparture :one
 SELECT space_id, user_id, detected_at, source, resolved_at, resolved_by FROM space_departures
 WHERE space_id = $1 AND user_id = $2 AND resolved_at IS NULL
@@ -78,6 +95,17 @@ func (q *Queries) GetSpaceByOrgID(ctx context.Context, idpOrgID pgtype.Text) (Sp
 		&i.IdpOrgID,
 	)
 	return i, err
+}
+
+const isOrgDetached = `-- name: IsOrgDetached :one
+SELECT EXISTS (SELECT 1 FROM detached_orgs WHERE org_id = $1)
+`
+
+func (q *Queries) IsOrgDetached(ctx context.Context, orgID string) (bool, error) {
+	row := q.db.QueryRow(ctx, isOrgDetached, orgID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const listLinkedSpaces = `-- name: ListLinkedSpaces :many
@@ -177,6 +205,56 @@ func (q *Queries) ListPendingDepartures(ctx context.Context, spaceID pgtype.UUID
 	return items, nil
 }
 
+const listSpaceMemberAccounts = `-- name: ListSpaceMemberAccounts :many
+SELECT u.id, u.tenant_id, u.oidc_sub, u.oidc_iss, u.email, u.name, u.display_name, u.avatar_url, u.bio, u.settings, u.is_admin, u.last_seen, u.email_hash, u.suspended_at, u.created_at, u.avatar_blob, u.avatar_mime, u.phone, u.gender, u.idp_picture, u.avatar_from_idp FROM space_members m JOIN users u ON u.id = m.user_id
+WHERE m.space_id = $1
+ORDER BY u.email
+`
+
+// Every member's account, identity key included, for pushing a space's
+// membership up to a new organization.
+func (q *Queries) ListSpaceMemberAccounts(ctx context.Context, spaceID pgtype.UUID) ([]User, error) {
+	rows, err := q.db.Query(ctx, listSpaceMemberAccounts, spaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.OidcSub,
+			&i.OidcIss,
+			&i.Email,
+			&i.Name,
+			&i.DisplayName,
+			&i.AvatarUrl,
+			&i.Bio,
+			&i.Settings,
+			&i.IsAdmin,
+			&i.LastSeen,
+			&i.EmailHash,
+			&i.SuspendedAt,
+			&i.CreatedAt,
+			&i.AvatarBlob,
+			&i.AvatarMime,
+			&i.Phone,
+			&i.Gender,
+			&i.IdpPicture,
+			&i.AvatarFromIdp,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSpaceMemberIDs = `-- name: ListSpaceMemberIDs :many
 SELECT user_id FROM space_members WHERE space_id = $1
 `
@@ -202,6 +280,15 @@ func (q *Queries) ListSpaceMemberIDs(ctx context.Context, spaceID pgtype.UUID) (
 		return nil, err
 	}
 	return items, nil
+}
+
+const reattachOrg = `-- name: ReattachOrg :exec
+DELETE FROM detached_orgs WHERE org_id = $1
+`
+
+func (q *Queries) ReattachOrg(ctx context.Context, orgID string) error {
+	_, err := q.db.Exec(ctx, reattachOrg, orgID)
+	return err
 }
 
 const recordDeparture = `-- name: RecordDeparture :exec
@@ -243,6 +330,21 @@ func (q *Queries) ResolveDeparture(ctx context.Context, arg ResolveDeparturePara
 	return err
 }
 
+const setSpaceName = `-- name: SetSpaceName :exec
+UPDATE spaces SET name = $2 WHERE id = $1
+`
+
+type SetSpaceNameParams struct {
+	ID   pgtype.UUID `json:"id"`
+	Name string      `json:"name"`
+}
+
+// The organization's name, mirrored by reconcile.
+func (q *Queries) SetSpaceName(ctx context.Context, arg SetSpaceNameParams) error {
+	_, err := q.db.Exec(ctx, setSpaceName, arg.ID, arg.Name)
+	return err
+}
+
 const setSpaceOrg = `-- name: SetSpaceOrg :exec
 UPDATE spaces SET idp_org_id = $2 WHERE id = $1
 `
@@ -252,9 +354,9 @@ type SetSpaceOrgParams struct {
 	IdpOrgID pgtype.Text `json:"idp_org_id"`
 }
 
-// Link a space to the Logto organization it mirrors. Separate from CreateSpace
-// because an unlinked space is a valid state and the link is set once,
-// afterwards, by whichever path discovered the organization.
+// Link a space to the Logto organization it mirrors, or unlink it with NULL.
+// Separate from CreateSpace because the link is set by whichever path
+// discovered or created the organization, after the space row exists.
 func (q *Queries) SetSpaceOrg(ctx context.Context, arg SetSpaceOrgParams) error {
 	_, err := q.db.Exec(ctx, setSpaceOrg, arg.ID, arg.IdpOrgID)
 	return err

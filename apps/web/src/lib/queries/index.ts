@@ -59,6 +59,8 @@ export { useNodeSearch, MIN_QUERY_LENGTH } from "./search";
 export {
   useUpdateSpace,
   useDeleteSpace,
+  useLinkPreview,
+  useLinkSpace,
   adminStatsOptions,
   useAdminStats,
   useUpdateAdminUser,

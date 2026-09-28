@@ -7,7 +7,8 @@ used to stand here — "all tables carry `tenant_id`" — was never true. It sit
 on the tables the baseline `0001_init.sql` created (`users`, `spaces`,
 `groups`, `nodes`, `uploads`, `shares`, `jobs`, `activity_events`) as
 `TEXT NOT NULL DEFAULT 'default'`, and on nothing added since: `sessions`
-(`0002`), `security_events` (`0003`) and `space_departures` (`0005`) have no
+(`0002`), `security_events` (`0003`), `space_departures` (`0005`) and
+`detached_orgs` (`0012`) have no
 such column. No INSERT anywhere supplies a value, so the default is the only
 value in the database. It is read by exactly three predicates in
 `queries/users.sql` — `SearchUsers`, `ListUsers`, `CountUsers` —
@@ -221,12 +222,15 @@ spaces(id, tenant_id, name, owner_id, quota_bytes, used_bytes,
                                                 -- space mirrors; NULL = unlinked
        created_at)
   UNIQUE (idp_org_id) WHERE idp_org_id IS NOT NULL   -- spaces_idp_org_uniq
-  -- Partial on purpose. Any number of spaces may sit unlinked — a space
-  -- created before an organization exists is still a space, and reconciling
-  -- it is a no-op — but a linked organization belongs to exactly one space:
-  -- two spaces mirroring one organization would each revoke the other's
-  -- members on every reconcile. A plain UNIQUE would instead allow one
-  -- unlinked space and refuse the second.
+  -- Partial on purpose. Any number of spaces may sit unlinked — one that
+  -- predates the sync, or one whose organization was deleted in Logto (a 404
+  -- unlinks rather than empties it); reconciling it is a no-op until an
+  -- instance admin links it (Link to Logto) — but a linked organization
+  -- belongs to exactly one space: two spaces mirroring one organization would
+  -- each revoke the other's members on every reconcile. A plain UNIQUE would
+  -- instead allow one unlinked space and refuse the second.
+  -- spaces.name mirrors the organization's name: a rename writes it to Logto
+  -- first, and every reconcile copies the organization's name back.
 
 space_members(space_id, user_id, created_at)
   PRIMARY KEY (space_id, user_id)
@@ -255,6 +259,16 @@ space_departures(space_id, user_id,             -- both ON DELETE CASCADE
   -- membership; the row is what the People page reads, and the only hot query
   -- against it is "what is still pending in this space" — hence the partial
   -- index and no other.
+
+detached_orgs(org_id,                           -- PK; a Logto organization id
+              detached_at,
+              detached_by)                      -- ON DELETE SET NULL from users
+  -- (0012) Organizations whose space was deliberately deleted here. Deleting a
+  -- space does not delete its organization, but its members still carry it in
+  -- their ID tokens and the next sign-in would create a fresh, empty space for
+  -- it. The space delete inserts this row in the same transaction; sign-in and
+  -- reconcile skip a detached organization (ensureSpace), and linking a space
+  -- to it again deletes the row (ReattachOrg).
 
 groups(id, tenant_id, space_id, name, description,
        is_everyone, is_admin,                   -- the two automatic groups

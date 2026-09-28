@@ -6,10 +6,13 @@ import {
   deleteSpace,
   getAdminSettings,
   getAdminStats,
+  getLinkPreview,
+  linkSpace,
   sendTestEmail,
   updateAdminSettings,
   updateAdminUser,
   updateSpace,
+  type Space,
   type SpaceSettings,
 } from "@/lib/api";
 import { keys } from "./keys";
@@ -28,6 +31,42 @@ export function useDeleteSpace() {
     mutationFn: (spaceId: string) => deleteSpace(spaceId),
     // The whole space is gone: every listing keyed to it is now wrong.
     onSuccess: () => void qc.invalidateQueries(),
+  });
+}
+
+export function useLinkPreview(spaceId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: keys.linkPreview(spaceId),
+    queryFn: () => getLinkPreview(spaceId),
+    enabled,
+  });
+}
+
+/**
+ * Linking finishes in a background job: the request returns once the
+ * organization exists, and the members are pushed afterwards. So the space
+ * list is refetched every two seconds until this space carries its
+ * `idp_org_id` — or for a minute, after which the next ordinary refetch
+ * picks it up.
+ */
+export function useLinkSpace(spaceId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (confirmStranded: boolean) => linkSpace(spaceId, confirmStranded),
+    onSuccess: () => {
+      const linked = () =>
+        qc.getQueryData<Space[]>(keys.spaces)?.find((s) => s.id === spaceId)?.idp_org_id;
+      const started = Date.now();
+      const poll = setInterval(() => {
+        if (linked() || Date.now() - started > 60_000) {
+          clearInterval(poll);
+          void qc.invalidateQueries({ queryKey: keys.members(spaceId) });
+          void qc.invalidateQueries({ queryKey: keys.departures(spaceId) });
+          return;
+        }
+        void qc.invalidateQueries({ queryKey: keys.spaces });
+      }, 2_000);
+    },
   });
 }
 

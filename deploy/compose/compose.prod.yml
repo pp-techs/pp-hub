@@ -146,12 +146,11 @@ services:
       PP_S3_SECRET_ACCESS_KEY: "${PP_S3_SECRET_ACCESS_KEY:-}"
       PP_S3_PATH_STYLE: "${PP_S3_PATH_STYLE:-1}"
 
-      # Membership mirrors a Logto organization. Unset (PP_LOGTO_ENDPOINT
-      # empty) is a supported state: the server serves files and changes no
-      # memberships. Half-configured is refused at startup.
-      PP_LOGTO_ENDPOINT: "${PP_LOGTO_ENDPOINT:-}"
-      PP_LOGTO_M2M_CLIENT_ID: "${PP_LOGTO_M2M_CLIENT_ID:-}"
-      PP_LOGTO_M2M_CLIENT_SECRET: "${PP_LOGTO_M2M_CLIENT_SECRET:-}"
+      # Logto is the identity provider and the source of membership; the
+      # server refuses to start without the endpoint and the M2M credentials.
+      PP_LOGTO_ENDPOINT: "${PP_LOGTO_ENDPOINT:?set in .env}"
+      PP_LOGTO_M2M_CLIENT_ID: "${PP_LOGTO_M2M_CLIENT_ID:?set in .env}"
+      PP_LOGTO_M2M_CLIENT_SECRET: "${PP_LOGTO_M2M_CLIENT_SECRET:?set in .env}"
       PP_LOGTO_API_RESOURCE: "${PP_LOGTO_API_RESOURCE:-https://default.logto.app/api}"
       PP_LOGTO_WEBHOOK_KEY: "${PP_LOGTO_WEBHOOK_KEY:-}"
       PP_LOGTO_ORG_ROLE_ADMIN: "${PP_LOGTO_ORG_ROLE_ADMIN:-admin}"

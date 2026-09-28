@@ -4,11 +4,11 @@ The delivery history and the open roadmap. Each shipped milestone ended in a
 working end-to-end state inside the compose stack; its file keeps the decision
 that shaped it and the artifacts that carry it, not the forensics.
 
-Numbering is dependency order, not chronology — M25–M26 and M30–M37 landed after
+Numbering is dependency order, not chronology — M25–M26 and M30–M38 landed after
 M33–M35. **M12–M14 never existed** (`M12` was only the header of the retired
 `0012_personal_folders.sql`; M13 and M14 appear nowhere). Everything shipped
 through M15 is consolidated into `0001_init.sql`, and migration numbering
-restarted at `0002` with M20's sessions table: today only `0002`–`0011` exist as
+restarted at `0002` with M20's sessions table: today only `0002`–`0012` exist as
 files, so M7/M9/M10/M11 below name the tables they added rather than the
 migrations that carried them. Work that never got a number is recorded inside
 the milestone that owns its area and says so there, so nothing has to be looked
@@ -52,6 +52,7 @@ Each shipped milestone has its own file under [`milestones/`](milestones/) with 
 | M35 | Instance settings in the admin console                 | ✅         | [detail](milestones/M35.md) |
 | M36 | Sharing hardening                                      | ✅         | [detail](milestones/M36.md) |
 | M37 | Blob integrity                                         | ✅         | [detail](milestones/M37.md) |
+| M38 | Two-way Logto sync                                     | ✅         | [detail](milestones/M38.md) |
 
 ## Upcoming — M27 Onward
 
@@ -84,10 +85,11 @@ plus admin status arrive from the IdP. What is left is the rest of the directory
 — no SCIM, no admin create-user, and **no group sync**, because a Logto
 organization template is tenant-wide and cannot express a per-space group, so
 department structure below the company line is still built here and kept in step
-by hand. Deprovisioning is the harder half and M33 only moved it: a departure is
-revoked immediately and torn down per space on an admin's confirmation, but there
-is still no `DeleteUser`, suspension is still terminal, and there is no
-instance-level equivalent of the archive hand-off.
+by hand. Deprovisioning is the harder half: a departure is revoked immediately
+and torn down per space on an admin's confirmation, and since M38 a suspension
+or deletion in Logto suspends the account and ends its sessions — but there is
+still no `DeleteUser`, and no instance-level equivalent of the archive
+hand-off.
 
 ### Phase C — Collaboration and storage honesty
 

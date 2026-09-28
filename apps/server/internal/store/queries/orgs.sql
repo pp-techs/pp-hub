@@ -1,8 +1,31 @@
 -- name: SetSpaceOrg :exec
--- Link a space to the Logto organization it mirrors. Separate from CreateSpace
--- because an unlinked space is a valid state and the link is set once,
--- afterwards, by whichever path discovered the organization.
+-- Link a space to the Logto organization it mirrors, or unlink it with NULL.
+-- Separate from CreateSpace because the link is set by whichever path
+-- discovered or created the organization, after the space row exists.
 UPDATE spaces SET idp_org_id = $2 WHERE id = $1;
+
+-- name: SetSpaceName :exec
+-- The organization's name, mirrored by reconcile.
+UPDATE spaces SET name = $2 WHERE id = $1;
+
+-- name: DetachOrg :exec
+-- Remember that this organization's space was deleted here, so sign-in does
+-- not recreate it.
+INSERT INTO detached_orgs (org_id, detached_by) VALUES ($1, $2)
+ON CONFLICT (org_id) DO NOTHING;
+
+-- name: IsOrgDetached :one
+SELECT EXISTS (SELECT 1 FROM detached_orgs WHERE org_id = $1);
+
+-- name: ReattachOrg :exec
+DELETE FROM detached_orgs WHERE org_id = $1;
+
+-- name: ListSpaceMemberAccounts :many
+-- Every member's account, identity key included, for pushing a space's
+-- membership up to a new organization.
+SELECT u.* FROM space_members m JOIN users u ON u.id = m.user_id
+WHERE m.space_id = $1
+ORDER BY u.email;
 
 -- name: GetSpaceByOrgID :one
 SELECT * FROM spaces WHERE idp_org_id = $1 LIMIT 1;

@@ -151,7 +151,8 @@ func (s *Service) Record(r *http.Request, e Event) {
 }
 
 // RecordSystem writes an event no request caused, attributed to ip — the
-// address it is about. User, node and request context stay empty.
+// address it is about, empty when there is none. Node and request context
+// stay empty; the user is kept when the event names one.
 func (s *Service) RecordSystem(ctx context.Context, e Event, ip string) {
 	if s == nil || s.q == nil {
 		return
@@ -159,6 +160,7 @@ func (s *Service) RecordSystem(ctx context.Context, e Event, ip string) {
 	ctx = context.WithoutCancel(ctx)
 	err := s.q.RecordSystemSecurityEvent(ctx, store.RecordSystemSecurityEventParams{
 		Kind:    string(e.Kind),
+		UserID:  e.UserID,
 		Subject: e.Subject,
 		Ip:      ip,
 		Detail:  encodeDetail(e.Detail),

@@ -31,7 +31,8 @@ interface InviteProps extends Record<string, unknown> {
  * provider's to decide: pp-hub asks it to put the address in the space's
  * organization and mirrors whatever comes back. An address it already knows
  * is a member the moment this returns; one it does not gets an organization
- * invitation by mail and shows up here once it is accepted. There is no
+ * invitation by mail, which the server accepts on their behalf the first time
+ * they sign in with that address — that is when they show up here. There is no
  * account picker any more — there is nothing local left to pick from.
  *
  * The only way into a space: `settings/people` opens it, nothing else does.
@@ -76,7 +77,7 @@ export const InviteModal = createModal<InviteProps>(
           onSuccess: (result) => {
             if (result.status === "invited") {
               toast.success(t`Invitation sent to ${address}`, {
-                description: t`They have no account yet, so the identity provider emailed them one. They join this space as soon as they accept.`,
+                description: t`They have no account yet, so the identity provider emailed them a sign-in link. They join this space the first time they sign in with that address.`,
               });
             } else {
               toast.success(t`${address} is now a member`, {
@@ -137,7 +138,7 @@ export const InviteModal = createModal<InviteProps>(
               <p className="text-muted-foreground text-[10px]">
                 <Trans>
                   An address that already has an account joins immediately. Any other address is
-                  emailed an invitation by the identity provider and appears here once accepted.
+                  emailed an invitation by the identity provider and appears here once they sign in.
                 </Trans>
               </p>
             </div>
