@@ -71,7 +71,7 @@ func (q *Queries) GetPendingDeparture(ctx context.Context, arg GetPendingDepartu
 }
 
 const getSpaceByOrgID = `-- name: GetSpaceByOrgID :one
-SELECT id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at, allow_public_links, idp_org_id FROM spaces WHERE idp_org_id = $1 LIMIT 1
+SELECT id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at, allow_public_links, idp_org_id, avatar_blob, avatar_mime FROM spaces WHERE idp_org_id = $1 LIMIT 1
 `
 
 func (q *Queries) GetSpaceByOrgID(ctx context.Context, idpOrgID pgtype.Text) (Space, error) {
@@ -93,6 +93,8 @@ func (q *Queries) GetSpaceByOrgID(ctx context.Context, idpOrgID pgtype.Text) (Sp
 		&i.CreatedAt,
 		&i.AllowPublicLinks,
 		&i.IdpOrgID,
+		&i.AvatarBlob,
+		&i.AvatarMime,
 	)
 	return i, err
 }
@@ -109,7 +111,7 @@ func (q *Queries) IsOrgDetached(ctx context.Context, orgID string) (bool, error)
 }
 
 const listLinkedSpaces = `-- name: ListLinkedSpaces :many
-SELECT id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at, allow_public_links, idp_org_id FROM spaces WHERE idp_org_id IS NOT NULL ORDER BY created_at
+SELECT id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at, allow_public_links, idp_org_id, avatar_blob, avatar_mime FROM spaces WHERE idp_org_id IS NOT NULL ORDER BY created_at
 `
 
 // Every space with an upstream organization, for the periodic reconcile. The
@@ -140,6 +142,8 @@ func (q *Queries) ListLinkedSpaces(ctx context.Context) ([]Space, error) {
 			&i.CreatedAt,
 			&i.AllowPublicLinks,
 			&i.IdpOrgID,
+			&i.AvatarBlob,
+			&i.AvatarMime,
 		); err != nil {
 			return nil, err
 		}

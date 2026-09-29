@@ -176,8 +176,12 @@ function SpaceDetails({
   return (
     <div className="flex flex-col gap-4 p-3">
       <div className="flex items-center gap-3">
-        <div className="bg-muted/50 flex size-10 shrink-0 items-center justify-center rounded-md">
-          <Building2 className="text-muted-foreground size-5" />
+        <div className="bg-muted/50 flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md">
+          {space.avatar_url ? (
+            <img src={space.avatar_url} alt="" className="size-10 object-cover" />
+          ) : (
+            <Building2 className="text-muted-foreground size-5" />
+          )}
         </div>
         <div className="min-w-0">
           <p className="truncate text-sm font-medium">{space.name}</p>

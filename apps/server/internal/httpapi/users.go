@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/nhatbui/pp-hub/apps/server/internal/avatar"
 	"github.com/nhatbui/pp-hub/apps/server/internal/blob"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 	"github.com/nhatbui/pp-hub/apps/server/internal/users"
@@ -117,7 +118,7 @@ func (s *Server) handleUpdateMyProfile(w http.ResponseWriter, r *http.Request) {
 // caller's profile at them.
 func (s *Server) handleUploadAvatar(w http.ResponseWriter, r *http.Request) {
 	u := caller(r)
-	if !parseUpload(w, r, users.AvatarMaxBytes) {
+	if !parseUpload(w, r, avatar.MaxBytes) {
 		return
 	}
 	file, _, err := r.FormFile("avatar")
@@ -129,10 +130,10 @@ func (s *Server) handleUploadAvatar(w http.ResponseWriter, r *http.Request) {
 
 	url, err := s.users.UploadAvatar(r.Context(), u.ID, file)
 	switch {
-	case errors.Is(err, users.ErrNotImage):
+	case errors.Is(err, avatar.ErrNotImage):
 		writeProblem(w, http.StatusUnsupportedMediaType, "Unsupported Media Type", err.Error())
 		return
-	case errors.Is(err, users.ErrAvatarConflict):
+	case errors.Is(err, avatar.ErrAvatarConflict):
 		writeProblem(w, http.StatusConflict, "Conflict", "the avatar changed meanwhile; try again")
 		return
 	case err != nil:

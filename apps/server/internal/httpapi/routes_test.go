@@ -46,6 +46,11 @@ var clientRoutes = []string{
 	"PATCH /api/v1/spaces/{spaceID}/",
 	"DELETE /api/v1/spaces/{spaceID}/",
 
+	// A space's picture: stored in the CAS, served to its members.
+	"GET /api/v1/spaces/{spaceID}/avatar",
+	"POST /api/v1/spaces/{spaceID}/avatar",
+	"DELETE /api/v1/spaces/{spaceID}/avatar",
+
 	// Groups and the grants that give them access to folders.
 	"GET /api/v1/spaces/{spaceID}/groups/",
 	"POST /api/v1/spaces/{spaceID}/groups/",

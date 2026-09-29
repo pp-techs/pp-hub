@@ -41,6 +41,7 @@ pp-hub/
 │   │       │   ├── link-space-modal.tsx  # Link to Logto: pushable vs stranded members, stranded need a confirm (better-modal)
 │   │       │   ├── grantee-picker.tsx    # picks a group or a space member, filtered locally
 │   │       │   ├── user-avatar.tsx       # avatar with fallback
+│   │       │   ├── space-avatar.tsx      # the space's picture, editable by its admins
 │   │       │   ├── confirm-dialog.tsx    # confirmation modal
 │   │       │   ├── app-sidebar.tsx       # the rail: header + nav bands + footer, one Sidebar
 │   │       │   ├── nav-create.tsx        # rail: the accented New row (upload files/folder, mkdir)
@@ -140,12 +141,13 @@ pp-hub/
 │           │                       #    0010_resumable_uploads.sql, 0011_blob_integrity.sql,
 │           │                       #    0012_detached_orgs.sql, 0013_block_documents.sql,
 │           │                       #    0014_markdown_mime.sql, 0015_comments_notifications.sql,
-│           │                       #    0016_content_search.sql
+│           │                       #    0016_content_search.sql, 0017_space_avatars.sql
 │           ├── users/              # user service layer (profile)
 │           ├── orgsync/            # ✅ Logto sync: client.go (Management API), orgsync.go (membership reconciler, jobs, sweep),
 │           │                       #    accounts.go (accounts), spacesync.go (create, rename, Link to Logto)
 │           ├── spaces/             # space CRUD, membership, the Admin group, leaving a space
 │           │   ├── spaces.go       # RequireAdmin/SetAdmin/AddMember; RevokeMembership is immediate, CompleteDeparture archives what a leaver owned
+│           │   ├── avatar.go       # the space's picture in the CAS (upload/clear; the URL is derived from the blob)
 │           │   └── permissions_db_test.go # DB-backed; skipped unless PP_TEST_DATABASE_URL is set
 │           ├── groups/             # groups + the grants that open folders
 │           ├── fs/                 # file tree, versioning, move/copy/rename; quota (EnsureRoom), version retention;

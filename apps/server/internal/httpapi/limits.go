@@ -17,7 +17,7 @@ import (
 //
 // http.MaxBytesReader fixes the actual problem: the reader stops, so nothing
 // past the ceiling is ever written anywhere. It guards the two bodies that
-// still arrive whole — the avatar (users.AvatarMaxBytes, shared with the IdP
+// still arrive whole — the avatar (avatar.MaxBytes, shared with the IdP
 // picture fetch) and WOPI PutFile. File uploads go through the resumable
 // routes instead (uploads.go), where the cap is checked against the declared
 // length at creation and no chunk can run past that length.

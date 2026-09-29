@@ -50,6 +50,16 @@ same picture moves nothing. Every avatar write is conditional on the blob it rea
 so of two concurrent writers exactly one lands and the other gets `ErrAvatarConflict`; the
 loser's blob is left unreferenced for GC once the store's claim lapses.
 
+A space's picture (migration `0017_space_avatars.sql`) is the same shape with one
+difference: there is no `spaces.avatar_url` column. `spaces.avatar_blob` /
+`avatar_mime` are the reference, counted by the same kind of trigger, and the
+rendered `/api/v1/spaces/{id}/avatar?v=<hash prefix>` is **derived** at DTO time
+(`spaces.AvatarURL`), so a URL can never go stale of its blob. Writing is
+admin-only (`spaces.RequireAdmin`), reading is member-only, and the same
+conditional swap applies — `internal/avatar` holds the sniff-and-store step both
+this and the user avatar share. A clear (`DELETE …/avatar`) empties the columns
+and the trigger releases the blob.
+
 ### Profile fields the IdP owns
 
 `users.Service.SyncIdPProfile` mirrors the IdP's `picture`, `phone_number` and `gender` at every
@@ -220,6 +230,7 @@ spaces(id, tenant_id, name, owner_id, quota_bytes, used_bytes,
        allow_public_links,                      -- may anyone mint a /s/ link here?
        idp_org_id,                              -- the Logto organization this
                                                 -- space mirrors; NULL = unlinked
+       avatar_blob, avatar_mime,                -- the space's picture in the CAS (0017)
        created_at)
   UNIQUE (idp_org_id) WHERE idp_org_id IS NOT NULL   -- spaces_idp_org_uniq
   -- Partial on purpose. Any number of spaces may sit unlinked — one that
@@ -304,8 +315,8 @@ blobs(hash, size, ref_count, created_at,       -- blake3 hash = PK
       released_at, pinned_until,               -- GC: when ref_count last hit 0; a write's claim (0011)
       verified_at, damaged_at)                 -- scrub bookkeeping (0011)
   -- ref_count is maintained by triggers on node_versions, previews,
-  -- users.avatar_blob and node_attachments, cascades included; no application
-  -- code moves it.
+  -- users.avatar_blob, node_attachments and spaces.avatar_blob, cascades
+  -- included; no application code moves it.
 
 file_locks(node_id, lock_token, expires_at)     -- WOPI locks, and block-document rooms'
   -- A room's token is `collab:<nodeId>.<epoch>` (M39): taken when the room loads,
@@ -399,7 +410,7 @@ notifications(id, user_id, kind, actor_id, node_id, thread_id, comment_id,
 ## Invariants
 
 - `node_versions` are immutable; restore = flip `nodes.current_version_id`.
-- Every `blob_hash` referenced by a version exists in `blobs` (the store claims the row before installing the bytes, and the version trigger creates it if somehow absent). `ref_count` equals the number of version, preview, avatar and attachment rows naming the hash — kept by trigger in the same statement as the reference, including the `node_attachments` rows a purge removes by cascade; the daily storage audit recounts and logs any correction as a bug. See [storage.md](storage.md#garbage-collection).
+- Every `blob_hash` referenced by a version exists in `blobs` (the store claims the row before installing the bytes, and the version trigger creates it if somehow absent). `ref_count` equals the number of version, preview, user- or space-avatar and attachment rows naming the hash — kept by trigger in the same statement as the reference, including the `node_attachments` rows a purge removes by cascade; the daily storage audit recounts and logs any correction as a bug. See [storage.md](storage.md#garbage-collection).
 - An attachment lives exactly as long as its document: one row per (document, blob), attaching the same bytes twice is the row already there, and the reference is released only when the document is purged (a copy holds its own row).
 - A `file_locks` row whose token starts `collab:` belongs to a block-document room. REST replacement is refused through it (423) like an OnlyOffice lock; restoring a version is let through, because the room reseeds itself.
 - A file node always has at least one version.

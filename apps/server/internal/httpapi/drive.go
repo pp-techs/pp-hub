@@ -50,6 +50,11 @@ type spaceDTO struct {
 	// unlinked space, which nothing reconciles and whose membership no
 	// endpoint will change.
 	IdpOrgID string `json:"idp_org_id,omitempty"`
+	// AvatarURL is the space's picture, derived from spaces.avatar_blob at
+	// DTO time (spaces.AvatarURL) — there is no stored URL to go stale.
+	// Empty when the space has none, which is what makes the UI fall back to
+	// initials.
+	AvatarURL string `json:"avatar_url"`
 	// ArchiveRootID is where departed members' content lands; admins browse
 	// it there. Empty only on a space whose creation failed partway.
 	ArchiveRootID string `json:"archive_root_id,omitempty"`
@@ -133,6 +138,7 @@ func spaceToDTO(sp store.Space, isAdmin bool, adminCount int64) spaceDTO {
 		IsAdmin:            isAdmin,
 		AdminCount:         adminCount,
 		IdpOrgID:           sp.IdpOrgID.String,
+		AvatarURL:          spaces.AvatarURL(sp.ID, sp.AvatarBlob),
 		CreatedAt:          sp.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
 		Slug:               sp.Slug,
 		Description:        sp.Description,

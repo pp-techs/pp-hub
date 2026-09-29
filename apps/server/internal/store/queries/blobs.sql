@@ -1,6 +1,6 @@
 -- ref_count is maintained by triggers on node_versions, previews,
--- users.avatar_blob (migration 0011) and node_attachments (0013). Nothing here
--- moves it by hand.
+-- users.avatar_blob (migration 0011), node_attachments (0013) and
+-- spaces.avatar_blob (0017). Nothing here moves it by hand.
 
 -- name: ClaimBlob :one
 -- Records a hash before its bytes are installed and pins it against GC for
@@ -31,6 +31,7 @@ WHERE b.ref_count = 0
   AND NOT EXISTS (SELECT 1 FROM node_versions v WHERE v.blob_hash = b.hash)
   AND NOT EXISTS (SELECT 1 FROM previews p WHERE p.blob_hash = b.hash)
   AND NOT EXISTS (SELECT 1 FROM users u WHERE u.avatar_blob = b.hash)
+  AND NOT EXISTS (SELECT 1 FROM spaces s WHERE s.avatar_blob = b.hash)
   AND NOT EXISTS (SELECT 1 FROM node_attachments a WHERE a.blob_hash = b.hash)
 ORDER BY b.released_at
 LIMIT $1;
@@ -47,6 +48,7 @@ WHERE b.hash = $1
   AND NOT EXISTS (SELECT 1 FROM node_versions v WHERE v.blob_hash = b.hash)
   AND NOT EXISTS (SELECT 1 FROM previews p WHERE p.blob_hash = b.hash)
   AND NOT EXISTS (SELECT 1 FROM users u WHERE u.avatar_blob = b.hash)
+  AND NOT EXISTS (SELECT 1 FROM spaces s WHERE s.avatar_blob = b.hash)
   AND NOT EXISTS (SELECT 1 FROM node_attachments a WHERE a.blob_hash = b.hash)
 RETURNING b.size;
 
@@ -60,6 +62,8 @@ WITH refs AS (
     SELECT blob_hash, count(*) FROM previews GROUP BY blob_hash
     UNION ALL
     SELECT avatar_blob, count(*) FROM users WHERE avatar_blob <> '' GROUP BY avatar_blob
+    UNION ALL
+    SELECT avatar_blob, count(*) FROM spaces WHERE avatar_blob <> '' GROUP BY avatar_blob
     UNION ALL
     SELECT blob_hash, count(*) FROM node_attachments GROUP BY blob_hash
 ), actual AS (
@@ -87,7 +91,9 @@ INSERT INTO blobs (hash, size, ref_count)
 SELECT @hash::text, @size::bigint,
        ((SELECT count(*) FROM node_versions v WHERE v.blob_hash = @hash::text)
       + (SELECT count(*) FROM previews p WHERE p.blob_hash = @hash::text)
-      + (SELECT count(*) FROM users u WHERE u.avatar_blob = @hash::text))::int
+      + (SELECT count(*) FROM users u WHERE u.avatar_blob = @hash::text)
+      + (SELECT count(*) FROM spaces s WHERE s.avatar_blob = @hash::text)
+      + (SELECT count(*) FROM node_attachments a WHERE a.blob_hash = @hash::text))::int
 ON CONFLICT (hash) DO NOTHING;
 
 -- name: MarkBlobVerified :exec

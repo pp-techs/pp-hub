@@ -159,7 +159,7 @@ msgstr ""
 msgid "{folders, plural, one {# folder selected} other {# folders selected}}"
 msgstr ""
 
-#: src/components/preview-panel.tsx:242
+#: src/components/preview-panel.tsx:246
 msgid "{folders, plural, one {# folder} other {# folders}} and {files, plural, one {# file} other {# files}}"
 msgstr ""
 
@@ -336,21 +336,21 @@ msgstr ""
 msgid "{trashed, plural, one {# in trash} other {# in trash}}"
 msgstr ""
 
-#: src/components/preview-panel.tsx:222
+#: src/components/preview-panel.tsx:226
 #: src/components/storage-meter.tsx:56
 msgid "{used} of {quota}"
 msgstr ""
 
-#: src/components/preview-panel.tsx:226
+#: src/components/preview-panel.tsx:230
 #: src/components/storage-meter.tsx:60
 msgid "{used} used"
 msgstr ""
 
-#: src/components/settings/panes/space-general.tsx:243
+#: src/components/settings/panes/space-general.tsx:257
 msgid "{usedSize} in use of {quotaSize}."
 msgstr ""
 
-#: src/components/settings/panes/space-general.tsx:247
+#: src/components/settings/panes/space-general.tsx:261
 msgid "{usedSize} in use."
 msgstr ""
 
@@ -564,7 +564,7 @@ msgstr ""
 msgid "Add without preview"
 msgstr ""
 
-#: src/components/preview-panel.tsx:384
+#: src/components/preview-panel.tsx:388
 msgid "Added by {ownerName}"
 msgstr ""
 
@@ -574,10 +574,10 @@ msgstr ""
 
 #: src/components/command-palette.tsx:191
 #: src/components/people-table.tsx:217
-#: src/components/preview-panel.tsx:250
+#: src/components/preview-panel.tsx:254
 #: src/components/settings/panes/account-profile.tsx:234
-#: src/components/space-switcher.tsx:77
-#: src/components/space-switcher.tsx:109
+#: src/components/space-switcher.tsx:85
+#: src/components/space-switcher.tsx:117
 msgid "Admin"
 msgstr ""
 
@@ -672,7 +672,7 @@ msgstr ""
 msgid "Anyone holding the link can view this item without signing in. A link never carries editing, and nobody can re-share it onward — download is the one choice it offers."
 msgstr ""
 
-#: src/components/preview-panel.tsx:284
+#: src/components/preview-panel.tsx:288
 #: src/components/share-dialog.tsx:642
 #: src/components/share-dialog.tsx:1006
 msgid "Anyone with the link"
@@ -765,7 +765,7 @@ msgstr ""
 msgid "Callout"
 msgstr ""
 
-#: src/components/preview-panel.tsx:437
+#: src/components/preview-panel.tsx:441
 msgid "Can download"
 msgstr ""
 
@@ -774,7 +774,7 @@ msgstr ""
 msgid "Can edit"
 msgstr ""
 
-#: src/components/preview-panel.tsx:438
+#: src/components/preview-panel.tsx:442
 msgid "Can share"
 msgstr ""
 
@@ -819,6 +819,10 @@ msgstr ""
 #: src/components/share-dialog.tsx:577
 #: src/components/share-dialog.tsx:669
 msgid "Change access for {name}"
+msgstr ""
+
+#: src/components/space-avatar.tsx:76
+msgid "Change space avatar"
 msgstr ""
 
 #: src/components/share-dialog.tsx:584
@@ -967,7 +971,7 @@ msgstr ""
 msgid "Connection lost"
 msgstr ""
 
-#: src/components/preview-panel.tsx:237
+#: src/components/preview-panel.tsx:241
 msgid "Contents"
 msgstr ""
 
@@ -1087,6 +1091,10 @@ msgstr ""
 msgid "Could not paste “{nodeName}”"
 msgstr ""
 
+#: src/components/space-avatar.tsx:92
+msgid "Could not remove the space avatar"
+msgstr ""
+
 #: src/components/comments/comments-panel.tsx:336
 msgid "Could not reopen the thread"
 msgstr ""
@@ -1105,7 +1113,7 @@ msgid "Could not revoke"
 msgstr ""
 
 #: src/components/settings/panes/account-profile.tsx:124
-#: src/components/settings/panes/space-general.tsx:124
+#: src/components/settings/panes/space-general.tsx:125
 msgid "Could not save"
 msgstr ""
 
@@ -1141,6 +1149,10 @@ msgstr ""
 msgid "Could not sign you in"
 msgstr ""
 
+#: src/components/space-avatar.tsx:49
+msgid "Could not update the space avatar"
+msgstr ""
+
 #: src/components/user-avatar.tsx:38
 msgid "Could not update your avatar"
 msgstr ""
@@ -1164,7 +1176,7 @@ msgstr ""
 msgid "Create group"
 msgstr ""
 
-#: src/components/space-switcher.tsx:119
+#: src/components/space-switcher.tsx:127
 msgid "Create new space"
 msgstr ""
 
@@ -1343,7 +1355,7 @@ msgid "Descending"
 msgstr ""
 
 #: src/components/group-list.tsx:382
-#: src/components/settings/panes/space-general.tsx:160
+#: src/components/settings/panes/space-general.tsx:174
 #: src/routes/drive.tsx:272
 msgid "Description"
 msgstr ""
@@ -1359,8 +1371,8 @@ msgstr ""
 #: src/components/listing-controls.tsx:127
 #: src/components/preview-modal.tsx:146
 #: src/components/preview-panel.tsx:110
-#: src/components/preview-panel.tsx:233
-#: src/components/preview-panel.tsx:366
+#: src/components/preview-panel.tsx:237
+#: src/components/preview-panel.tsx:370
 msgid "Details"
 msgstr ""
 
@@ -1382,7 +1394,7 @@ msgid "Direction"
 msgstr ""
 
 #: src/components/settings/panes/account-profile.tsx:202
-#: src/components/settings/panes/space-general.tsx:257
+#: src/components/settings/panes/space-general.tsx:271
 #: src/routes/admin.settings.tsx:598
 #: src/routes/admin.settings.tsx:894
 msgid "Discard"
@@ -1425,7 +1437,7 @@ msgstr ""
 #: src/components/editor-header.tsx:133
 #: src/components/node-actions.tsx:140
 #: src/components/preview-modal.tsx:124
-#: src/components/preview-panel.tsx:341
+#: src/components/preview-panel.tsx:345
 #: src/components/selection-bar.tsx:64
 #: src/components/version-list.tsx:122
 #: src/routes/s/$token.tsx:216
@@ -1470,7 +1482,7 @@ msgstr ""
 msgid "Each row is a live session. Signing one out takes effect immediately — the device is asked to sign in again the next time it reaches the server."
 msgstr ""
 
-#: src/components/preview-panel.tsx:434
+#: src/components/preview-panel.tsx:438
 #: src/components/share-dialog.tsx:333
 msgid "edit"
 msgstr ""
@@ -1534,11 +1546,11 @@ msgstr ""
 msgid "Empty diagram — click to add Mermaid source"
 msgstr ""
 
-#: src/components/settings/panes/space-general.tsx:231
+#: src/components/settings/panes/space-general.tsx:245
 msgid "Empty keeps trashed items until someone deletes them. A number purges them automatically — and permanently — once it passes."
 msgstr ""
 
-#: src/components/settings/panes/space-general.tsx:214
+#: src/components/settings/panes/space-general.tsx:228
 msgid "Empty means unlimited."
 msgstr ""
 
@@ -1675,7 +1687,7 @@ msgstr ""
 
 #: src/components/doc-editor/labels.ts:40
 #: src/components/preview-modal.tsx:155
-#: src/components/preview-panel.tsx:369
+#: src/components/preview-panel.tsx:373
 msgid "File"
 msgstr ""
 
@@ -1755,7 +1767,7 @@ msgid "Flowcharts, sequences, and more"
 msgstr ""
 
 #: src/components/node-grid.tsx:323
-#: src/components/preview-panel.tsx:369
+#: src/components/preview-panel.tsx:373
 msgid "Folder"
 msgstr ""
 
@@ -1784,7 +1796,7 @@ msgstr ""
 msgid "Folders this group opens"
 msgstr ""
 
-#: src/components/settings/panes/space-general.tsx:228
+#: src/components/settings/panes/space-general.tsx:242
 msgid "Forever"
 msgstr ""
 
@@ -1960,7 +1972,7 @@ msgstr ""
 msgid "I understand they will lose access"
 msgstr ""
 
-#: src/components/settings/panes/space-general.tsx:130
+#: src/components/settings/panes/space-general.tsx:131
 msgid "Identity"
 msgstr ""
 
@@ -2136,7 +2148,7 @@ msgstr ""
 msgid "Light"
 msgstr ""
 
-#: src/components/settings/panes/space-general.tsx:198
+#: src/components/settings/panes/space-general.tsx:212
 msgid "Limits"
 msgstr ""
 
@@ -2206,7 +2218,7 @@ msgstr ""
 msgid "Loses access: {losing}."
 msgstr ""
 
-#: src/components/settings/panes/space-general.tsx:154
+#: src/components/settings/panes/space-general.tsx:168
 msgid "Lowercase letters, numbers and dashes. Leave empty for none."
 msgstr ""
 
@@ -2231,7 +2243,7 @@ msgstr ""
 msgid "Male"
 msgstr ""
 
-#: src/components/preview-panel.tsx:381
+#: src/components/preview-panel.tsx:385
 msgid "Managed by"
 msgstr ""
 
@@ -2248,7 +2260,7 @@ msgstr ""
 msgid "Markdown (.md)"
 msgstr ""
 
-#: src/components/settings/panes/space-general.tsx:151
+#: src/components/settings/panes/space-general.tsx:165
 #: src/routes/drive.tsx:263
 msgid "marketing"
 msgstr ""
@@ -2279,7 +2291,7 @@ msgstr ""
 
 #: src/components/command-palette.tsx:191
 #: src/components/people-table.tsx:214
-#: src/components/preview-panel.tsx:250
+#: src/components/preview-panel.tsx:254
 #: src/components/settings/panes/account-profile.tsx:234
 msgid "Member"
 msgstr ""
@@ -2293,12 +2305,12 @@ msgid "member removed"
 msgstr ""
 
 #: src/components/group-list.tsx:113
-#: src/components/preview-panel.tsx:249
+#: src/components/preview-panel.tsx:253
 #: src/components/settings/panes.ts:91
 msgid "Members"
 msgstr ""
 
-#: src/components/settings/panes/space-general.tsx:173
+#: src/components/settings/panes/space-general.tsx:187
 msgid "Membership"
 msgstr ""
 
@@ -2322,7 +2334,7 @@ msgstr ""
 #: src/components/node-list.tsx:99
 #: src/components/node-table.tsx:70
 #: src/components/preview-modal.tsx:158
-#: src/components/preview-panel.tsx:392
+#: src/components/preview-panel.tsx:396
 #: src/components/settings/panes/account-general.tsx:45
 #: src/components/space-node-table.tsx:91
 #: src/routes/s/$token.tsx:563
@@ -2440,7 +2452,7 @@ msgstr ""
 msgid "New markdown document"
 msgstr ""
 
-#: src/components/settings/panes/space-general.tsx:180
+#: src/components/settings/panes/space-general.tsx:194
 #: src/routes/drive.tsx:284
 msgid "New members are admins by default"
 msgstr ""
@@ -2533,7 +2545,7 @@ msgid "No preview available — use Download to view this file."
 msgstr ""
 
 #: src/components/settings/panes/account-profile.tsx:205
-#: src/components/settings/panes/space-general.tsx:260
+#: src/components/settings/panes/space-general.tsx:274
 msgid "No unsaved changes"
 msgstr ""
 
@@ -2587,7 +2599,7 @@ msgstr ""
 msgid "Not set"
 msgstr ""
 
-#: src/components/preview-panel.tsx:445
+#: src/components/preview-panel.tsx:449
 msgid "Not shared."
 msgstr ""
 
@@ -2671,7 +2683,7 @@ msgstr ""
 #: src/components/node-actions.tsx:132
 #: src/components/preview-content.tsx:281
 #: src/components/preview-modal.tsx:115
-#: src/components/preview-panel.tsx:331
+#: src/components/preview-panel.tsx:335
 #: src/components/share-dialog.tsx:696
 msgid "Open"
 msgstr ""
@@ -2731,7 +2743,7 @@ msgstr ""
 #: src/components/node-list.tsx:105
 #: src/components/node-table.tsx:76
 #: src/components/preview-modal.tsx:157
-#: src/components/preview-panel.tsx:389
+#: src/components/preview-panel.tsx:393
 #: src/components/share-dialog.tsx:1010
 msgid "Owner"
 msgstr ""
@@ -2774,7 +2786,7 @@ msgstr ""
 
 #: src/components/grantee-picker.tsx:120
 #: src/components/people-table.tsx:156
-#: src/components/preview-panel.tsx:202
+#: src/components/preview-panel.tsx:206
 msgid "People"
 msgstr ""
 
@@ -2820,7 +2832,7 @@ msgid "Press D anywhere outside a text field to flip between light and dark."
 msgstr ""
 
 #: src/components/node-actions.tsx:109
-#: src/components/preview-panel.tsx:331
+#: src/components/preview-panel.tsx:335
 msgid "Preview"
 msgstr ""
 
@@ -2945,6 +2957,10 @@ msgstr ""
 
 #: src/routes/admin.settings.tsx:848
 msgid "Remove password"
+msgstr ""
+
+#: src/components/space-avatar.tsx:87
+msgid "Remove space avatar"
 msgstr ""
 
 #: src/components/node-actions.tsx:177
@@ -3101,7 +3117,7 @@ msgid "Save"
 msgstr ""
 
 #: src/components/settings/panes/account-profile.tsx:191
-#: src/components/settings/panes/space-general.tsx:254
+#: src/components/settings/panes/space-general.tsx:268
 #: src/routes/admin.settings.tsx:602
 #: src/routes/admin.settings.tsx:898
 msgid "Save changes"
@@ -3189,7 +3205,7 @@ msgstr ""
 msgid "Select a file or folder to see its details."
 msgstr ""
 
-#: src/components/space-switcher.tsx:73
+#: src/components/space-switcher.tsx:81
 msgid "Select a space"
 msgstr ""
 
@@ -3253,7 +3269,7 @@ msgstr ""
 msgid "Settings"
 msgstr ""
 
-#: src/components/settings/panes/space-general.tsx:123
+#: src/components/settings/panes/space-general.tsx:124
 #: src/routes/admin.settings.tsx:334
 #: src/routes/admin.settings.tsx:701
 msgid "Settings saved"
@@ -3266,7 +3282,7 @@ msgstr ""
 
 #: src/components/editor-header.tsx:91
 #: src/components/node-actions.tsx:186
-#: src/components/preview-panel.tsx:350
+#: src/components/preview-panel.tsx:354
 #: src/components/selection-bar.tsx:69
 #: src/components/share-dialog.tsx:493
 msgid "Share"
@@ -3303,7 +3319,7 @@ msgstr ""
 msgid "Shared with you"
 msgstr ""
 
-#: src/components/preview-panel.tsx:405
+#: src/components/preview-panel.tsx:409
 msgid "Sharing"
 msgstr ""
 
@@ -3323,8 +3339,12 @@ msgstr ""
 msgid "Showing {shown} of {total}"
 msgstr ""
 
-#: src/components/settings/panes/space-general.tsx:138
+#: src/components/settings/panes/space-general.tsx:152
 msgid "Shown in the switcher and every breadcrumb."
+msgstr ""
+
+#: src/components/settings/panes/space-general.tsx:143
+msgid "Shown where the space is named. PNG, JPEG, GIF or WebP."
 msgstr ""
 
 #: src/components/nodes/embed-link-modal.tsx:75
@@ -3385,7 +3405,7 @@ msgstr ""
 #: src/components/node-list.tsx:102
 #: src/components/node-table.tsx:73
 #: src/components/preview-modal.tsx:156
-#: src/components/preview-panel.tsx:371
+#: src/components/preview-panel.tsx:375
 #: src/components/settings/panes/account-general.tsx:46
 #: src/components/space-node-table.tsx:94
 #: src/components/trash-panel.tsx:297
@@ -3430,11 +3450,19 @@ msgstr ""
 msgid "Sort descending"
 msgstr ""
 
+#: src/components/space-avatar.tsx:90
+msgid "Space avatar removed"
+msgstr ""
+
+#: src/components/space-avatar.tsx:47
+msgid "Space avatar updated"
+msgstr ""
+
 #: src/components/folder-actions.tsx:226
 msgid "Space information"
 msgstr ""
 
-#: src/components/settings/panes/space-general.tsx:135
+#: src/components/settings/panes/space-general.tsx:149
 msgid "Space name"
 msgstr ""
 
@@ -3443,12 +3471,12 @@ msgid "Space not found"
 msgstr ""
 
 #: src/components/nav-user.tsx:113
-#: src/components/preview-panel.tsx:196
+#: src/components/preview-panel.tsx:200
 msgid "Space settings"
 msgstr ""
 
 #: src/components/command-palette.tsx:181
-#: src/components/space-switcher.tsx:92
+#: src/components/space-switcher.tsx:100
 #: src/routes/admin.users.tsx:116
 #: src/routes/admin.users.tsx:163
 #: src/routes/login.tsx:133
@@ -3487,7 +3515,7 @@ msgstr ""
 msgid "Status"
 msgstr ""
 
-#: src/components/preview-panel.tsx:211
+#: src/components/preview-panel.tsx:215
 #: src/components/storage-meter.tsx:41
 #: src/routes/drive/$spaceId/home.tsx:151
 msgid "Storage"
@@ -3497,7 +3525,7 @@ msgstr ""
 msgid "Storage & Uploads"
 msgstr ""
 
-#: src/components/settings/panes/space-general.tsx:203
+#: src/components/settings/panes/space-general.tsx:217
 #: src/routes/drive.tsx:303
 msgid "Storage quota (GB)"
 msgstr ""
@@ -3546,7 +3574,7 @@ msgstr ""
 msgid "Team"
 msgstr ""
 
-#: src/components/preview-panel.tsx:381
+#: src/components/preview-panel.tsx:385
 msgid "Team folder"
 msgstr ""
 
@@ -3826,7 +3854,7 @@ msgstr ""
 msgid "Trash is empty"
 msgstr ""
 
-#: src/components/settings/panes/space-general.tsx:220
+#: src/components/settings/panes/space-general.tsx:234
 msgid "Trash retention (days)"
 msgstr ""
 
@@ -3844,7 +3872,7 @@ msgid "Turn into"
 msgstr ""
 
 #: src/components/preview-modal.tsx:155
-#: src/components/preview-panel.tsx:369
+#: src/components/preview-panel.tsx:373
 msgid "Type"
 msgstr ""
 
@@ -3868,7 +3896,7 @@ msgstr ""
 msgid "Unknown IP"
 msgstr ""
 
-#: src/components/settings/panes/space-general.tsx:211
+#: src/components/settings/panes/space-general.tsx:225
 #: src/routes/drive.tsx:312
 msgid "Unlimited"
 msgstr ""
@@ -3878,7 +3906,7 @@ msgid "Unordered list"
 msgstr ""
 
 #: src/components/settings/panes/account-profile.tsx:205
-#: src/components/settings/panes/space-general.tsx:260
+#: src/components/settings/panes/space-general.tsx:274
 msgid "Unsaved changes"
 msgstr ""
 
@@ -3961,7 +3989,7 @@ msgstr ""
 msgid "Uploading…"
 msgstr ""
 
-#: src/components/settings/panes/space-general.tsx:145
+#: src/components/settings/panes/space-general.tsx:159
 msgid "URL slug"
 msgstr ""
 
@@ -4011,8 +4039,8 @@ msgstr ""
 #: src/components/editor-header.tsx:100
 #: src/components/node-actions.tsx:161
 #: src/components/preview-modal.tsx:149
-#: src/components/preview-panel.tsx:356
-#: src/components/preview-panel.tsx:396
+#: src/components/preview-panel.tsx:360
+#: src/components/preview-panel.tsx:400
 msgid "Versions"
 msgstr ""
 
@@ -4037,7 +4065,7 @@ msgstr ""
 msgid "Video"
 msgstr ""
 
-#: src/components/preview-panel.tsx:434
+#: src/components/preview-panel.tsx:438
 #: src/components/share-dialog.tsx:333
 msgid "view"
 msgstr ""
@@ -4073,7 +4101,7 @@ msgstr ""
 msgid "Welcome to pp-hub"
 msgstr ""
 
-#: src/components/settings/panes/space-general.tsx:166
+#: src/components/settings/panes/space-general.tsx:180
 #: src/routes/drive.tsx:278
 msgid "What lives in this space?"
 msgstr ""
@@ -4086,7 +4114,7 @@ msgstr ""
 msgid "When a group you are in is given a folder, or someone shares one with you, it appears here."
 msgstr ""
 
-#: src/components/settings/panes/space-general.tsx:182
+#: src/components/settings/panes/space-general.tsx:196
 msgid "When on, everyone you invite can change these settings. Change it per-person on the Members pane."
 msgstr ""
 
@@ -4195,7 +4223,7 @@ msgstr ""
 msgid "You uploaded"
 msgstr ""
 
-#: src/components/preview-panel.tsx:250
+#: src/components/preview-panel.tsx:254
 msgid "Your access"
 msgstr ""
 

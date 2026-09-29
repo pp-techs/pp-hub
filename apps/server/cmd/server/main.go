@@ -81,7 +81,7 @@ func run() error {
 	}
 
 	fsSvc := fs.NewService(queries, blobs)
-	spacesSvc := spaces.NewService(queries)
+	spacesSvc := spaces.NewService(queries, blobs)
 	shareSvc := share.NewService(queries)
 	// A purpose-bound subkey, never the master secret: a leaked WOPI token
 	// must not be a session, and rotating one class must not rotate the other.

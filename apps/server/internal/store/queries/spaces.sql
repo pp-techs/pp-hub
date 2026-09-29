@@ -41,6 +41,19 @@ UPDATE spaces SET used_bytes = $2 WHERE id = $1;
 -- the Everyone/Admin groups.
 UPDATE spaces SET archive_root_id = $2 WHERE id = $1;
 
+-- name: SetSpaceAvatar :one
+-- A space's avatar. The swap is conditional on the blob the space held when
+-- the write started, so of two concurrent uploads exactly one lands and the
+-- other gets no row (→ ErrAvatarConflict). An empty blob clears the avatar;
+-- the trigger on spaces moves the reference either way.
+UPDATE spaces
+SET avatar_blob = @avatar_blob, avatar_mime = @avatar_mime
+WHERE id = @id AND avatar_blob = @prev_blob
+RETURNING *;
+
+-- name: GetSpaceAvatar :one
+SELECT avatar_blob, avatar_mime FROM spaces WHERE id = $1;
+
 -- name: ListSpaceMembersDetailed :many
 -- Members with the two figures the settings table shows that a plain member
 -- row cannot: how many live files they own here, and when they were last seen.

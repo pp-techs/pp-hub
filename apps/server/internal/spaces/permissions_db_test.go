@@ -42,7 +42,7 @@ func testEnv(t *testing.T) (*store.Queries, *spaces.Service, *share.Service) {
 		t.Fatalf("migrate: %v", err)
 	}
 	q := store.New(pool)
-	return q, spaces.NewService(q), share.NewService(q)
+	return q, spaces.NewService(q, nil), share.NewService(q)
 }
 
 // user creates a throwaway account. oidc_sub is unique per call so runs do not

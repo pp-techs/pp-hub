@@ -281,6 +281,20 @@ func TestRefCountFollowsTheReferencingRows(t *testing.T) {
 	if n := e.refs(t, hc); n != 1 {
 		t.Fatalf("avatar cleared: ref_count(c) = %d, want 1", n)
 	}
+
+	// A space's avatar is a reference the same way, on its own trigger.
+	if _, err := e.q.SetSpaceAvatar(ctx, store.SetSpaceAvatarParams{ID: e.space.ID, AvatarBlob: hc, PrevBlob: ""}); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.refs(t, hc); n != 2 {
+		t.Fatalf("space avatar set: ref_count(c) = %d, want 2", n)
+	}
+	if _, err := e.q.SetSpaceAvatar(ctx, store.SetSpaceAvatarParams{ID: e.space.ID, AvatarBlob: "", PrevBlob: hc}); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.refs(t, hc); n != 1 {
+		t.Fatalf("space avatar cleared: ref_count(c) = %d, want 1", n)
+	}
 }
 
 // Bytes in the store with no row — what a crash between writing and

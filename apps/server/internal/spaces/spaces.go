@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/nhatbui/pp-hub/apps/server/internal/blob"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 )
 
@@ -30,17 +31,19 @@ var (
 // Service wraps space queries with membership checks.
 type Service struct {
 	q *store.Queries
+	// blobs holds space-avatar bytes.
+	blobs blob.Store
 }
 
-func NewService(q *store.Queries) *Service {
-	return &Service{q: q}
+func NewService(q *store.Queries, blobs blob.Store) *Service {
+	return &Service{q: q, blobs: blobs}
 }
 
 // inTx runs fn with a copy of the service bound to one transaction. Nested
 // calls — Create calling AddMember — open savepoints.
 func (s *Service) inTx(ctx context.Context, fn func(*Service) error) error {
 	return s.q.InTx(ctx, func(q *store.Queries) error {
-		return fn(&Service{q: q})
+		return fn(&Service{q: q, blobs: s.blobs})
 	})
 }
 

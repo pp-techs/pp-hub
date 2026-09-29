@@ -12,6 +12,7 @@ import { useSpace, useUpdateSpace } from "@/lib/queries";
 import { useFormatters } from "@/lib/format";
 import { useActiveSpaceId } from "@/lib/use-active-space";
 import { SectionLabel } from "@/components/section-label";
+import { SpaceAvatar } from "@/components/space-avatar";
 import { useSettingsDirty } from "@/components/settings/settings-dirty";
 import { FieldSkeleton } from "@/components/settings/field-skeleton";
 import { LoadingStatus } from "@/components/loading";
@@ -129,6 +130,19 @@ function GeneralForm({ space }: { space: Space }) {
         <SectionLabel>
           <Trans>Identity</Trans>
         </SectionLabel>
+
+        <div className="flex items-center gap-4">
+          <SpaceAvatar
+            spaceId={space.id}
+            src={space.avatar_url}
+            name={space.name}
+            size="md"
+            editable
+          />
+          <p className="text-muted-foreground text-[10px]">
+            <Trans>Shown where the space is named. PNG, JPEG, GIF or WebP.</Trans>
+          </p>
+        </div>
 
         <div className="flex flex-col gap-1">
           <Label htmlFor="space-name">

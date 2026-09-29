@@ -73,6 +73,8 @@ export interface SpaceMember {
 export interface Space {
   id: string;
   name: string;
+  /** The space's picture. Empty when it has none — the UI falls back to initials. */
+  avatar_url: string;
   is_admin: boolean;
   used_bytes: number;
   /** Byte allowance for the space. 0 means unlimited. */

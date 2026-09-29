@@ -31,7 +31,7 @@ func (q *Queries) AddSpaceMember(ctx context.Context, arg AddSpaceMemberParams) 
 const createSpace = `-- name: CreateSpace :one
 INSERT INTO spaces (name, owner_id)
 VALUES ($1, $2)
-RETURNING id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at, allow_public_links, idp_org_id
+RETURNING id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at, allow_public_links, idp_org_id, avatar_blob, avatar_mime
 `
 
 type CreateSpaceParams struct {
@@ -58,12 +58,14 @@ func (q *Queries) CreateSpace(ctx context.Context, arg CreateSpaceParams) (Space
 		&i.CreatedAt,
 		&i.AllowPublicLinks,
 		&i.IdpOrgID,
+		&i.AvatarBlob,
+		&i.AvatarMime,
 	)
 	return i, err
 }
 
 const getSpace = `-- name: GetSpace :one
-SELECT id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at, allow_public_links, idp_org_id FROM spaces WHERE id = $1 LIMIT 1
+SELECT id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at, allow_public_links, idp_org_id, avatar_blob, avatar_mime FROM spaces WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetSpace(ctx context.Context, id pgtype.UUID) (Space, error) {
@@ -85,12 +87,30 @@ func (q *Queries) GetSpace(ctx context.Context, id pgtype.UUID) (Space, error) {
 		&i.CreatedAt,
 		&i.AllowPublicLinks,
 		&i.IdpOrgID,
+		&i.AvatarBlob,
+		&i.AvatarMime,
 	)
 	return i, err
 }
 
+const getSpaceAvatar = `-- name: GetSpaceAvatar :one
+SELECT avatar_blob, avatar_mime FROM spaces WHERE id = $1
+`
+
+type GetSpaceAvatarRow struct {
+	AvatarBlob string `json:"avatar_blob"`
+	AvatarMime string `json:"avatar_mime"`
+}
+
+func (q *Queries) GetSpaceAvatar(ctx context.Context, id pgtype.UUID) (GetSpaceAvatarRow, error) {
+	row := q.db.QueryRow(ctx, getSpaceAvatar, id)
+	var i GetSpaceAvatarRow
+	err := row.Scan(&i.AvatarBlob, &i.AvatarMime)
+	return i, err
+}
+
 const listMySpaces = `-- name: ListMySpaces :many
-SELECT s.id, s.tenant_id, s.name, s.owner_id, s.quota_bytes, s.used_bytes, s.slug, s.description, s.archived_at, s.trash_retention_days, s.archive_root_id, s.default_as_admin, s.created_at, s.allow_public_links, s.idp_org_id FROM spaces s
+SELECT s.id, s.tenant_id, s.name, s.owner_id, s.quota_bytes, s.used_bytes, s.slug, s.description, s.archived_at, s.trash_retention_days, s.archive_root_id, s.default_as_admin, s.created_at, s.allow_public_links, s.idp_org_id, s.avatar_blob, s.avatar_mime FROM spaces s
 JOIN space_members m ON m.space_id = s.id
 WHERE m.user_id = $1
 ORDER BY s.created_at
@@ -121,6 +141,8 @@ func (q *Queries) ListMySpaces(ctx context.Context, userID pgtype.UUID) ([]Space
 			&i.CreatedAt,
 			&i.AllowPublicLinks,
 			&i.IdpOrgID,
+			&i.AvatarBlob,
+			&i.AvatarMime,
 		); err != nil {
 			return nil, err
 		}
@@ -275,6 +297,54 @@ type SetArchiveRootParams struct {
 func (q *Queries) SetArchiveRoot(ctx context.Context, arg SetArchiveRootParams) error {
 	_, err := q.db.Exec(ctx, setArchiveRoot, arg.ID, arg.ArchiveRootID)
 	return err
+}
+
+const setSpaceAvatar = `-- name: SetSpaceAvatar :one
+UPDATE spaces
+SET avatar_blob = $1, avatar_mime = $2
+WHERE id = $3 AND avatar_blob = $4
+RETURNING id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at, allow_public_links, idp_org_id, avatar_blob, avatar_mime
+`
+
+type SetSpaceAvatarParams struct {
+	AvatarBlob string      `json:"avatar_blob"`
+	AvatarMime string      `json:"avatar_mime"`
+	ID         pgtype.UUID `json:"id"`
+	PrevBlob   string      `json:"prev_blob"`
+}
+
+// A space's avatar. The swap is conditional on the blob the space held when
+// the write started, so of two concurrent uploads exactly one lands and the
+// other gets no row (→ ErrAvatarConflict). An empty blob clears the avatar;
+// the trigger on spaces moves the reference either way.
+func (q *Queries) SetSpaceAvatar(ctx context.Context, arg SetSpaceAvatarParams) (Space, error) {
+	row := q.db.QueryRow(ctx, setSpaceAvatar,
+		arg.AvatarBlob,
+		arg.AvatarMime,
+		arg.ID,
+		arg.PrevBlob,
+	)
+	var i Space
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.Name,
+		&i.OwnerID,
+		&i.QuotaBytes,
+		&i.UsedBytes,
+		&i.Slug,
+		&i.Description,
+		&i.ArchivedAt,
+		&i.TrashRetentionDays,
+		&i.ArchiveRootID,
+		&i.DefaultAsAdmin,
+		&i.CreatedAt,
+		&i.AllowPublicLinks,
+		&i.IdpOrgID,
+		&i.AvatarBlob,
+		&i.AvatarMime,
+	)
+	return i, err
 }
 
 const updateSpaceUsedBytes = `-- name: UpdateSpaceUsedBytes :exec

@@ -44,7 +44,7 @@ func feedEnv(t *testing.T) (*Server, *store.Queries) {
 	// Only the services the three feeds and the reachability filter reach:
 	// no blob store is touched by a listing.
 	return &Server{
-		spaces:   spaces.NewService(q),
+		spaces:   spaces.NewService(q, nil),
 		fs:       fs.NewService(q, nil),
 		share:    share.NewService(q),
 		activity: activity.NewService(q),

@@ -75,6 +75,24 @@ export async function deleteSpace(spaceId: string): Promise<void> {
   if (!res.ok) throw new ApiError(res.status, await res.text());
 }
 
+/** The space's picture. Bytes are sniffed server-side: PNG, JPEG, GIF or WebP. */
+export async function uploadSpaceAvatar(
+  spaceId: string,
+  file: File,
+): Promise<{ avatar_url: string }> {
+  const form = new FormData();
+  form.append("avatar", file);
+  const res = await api.post(`api/v1/spaces/${spaceId}/avatar`, { body: form });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json();
+}
+
+/** Removes the picture; the space falls back to its initials everywhere. */
+export async function clearSpaceAvatar(spaceId: string): Promise<void> {
+  const res = await api.delete(`api/v1/spaces/${spaceId}/avatar`);
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+}
+
 /** What linking this unlinked space would do to its members. Instance admin only. */
 export async function getLinkPreview(spaceId: string): Promise<LinkPreview> {
   const res = await api.get(`api/v1/spaces/${spaceId}/link-preview`);

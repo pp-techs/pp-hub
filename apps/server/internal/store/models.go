@@ -394,6 +394,8 @@ type Space struct {
 	CreatedAt          pgtype.Timestamptz `json:"created_at"`
 	AllowPublicLinks   bool               `json:"allow_public_links"`
 	IdpOrgID           pgtype.Text        `json:"idp_org_id"`
+	AvatarBlob         string             `json:"avatar_blob"`
+	AvatarMime         string             `json:"avatar_mime"`
 }
 
 type SpaceDeparture struct {

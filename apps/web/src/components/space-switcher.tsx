@@ -65,9 +65,17 @@ export function SpaceSwitcher({ spaceId }: { spaceId: string | undefined }) {
                 aria-label={t`Switch space`}
                 className="data-popup-open:bg-sidebar-accent data-popup-open:text-sidebar-accent-foreground"
               >
-                <div className="bg-foreground text-background flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg text-[11px] font-semibold">
-                  {current ? monogram(current.name) : "—"}
-                </div>
+                {current?.avatar_url ? (
+                  <img
+                    src={current.avatar_url}
+                    alt=""
+                    className="flex aspect-square size-8 shrink-0 rounded-lg object-cover"
+                  />
+                ) : (
+                  <div className="bg-foreground text-background flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg text-[11px] font-semibold">
+                    {current ? monogram(current.name) : "—"}
+                  </div>
+                )}
                 <div className="grid flex-1 text-left leading-tight">
                   <span className="truncate text-sm font-medium">
                     {current?.name ?? t`Select a space`}

@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/nhatbui/pp-hub/apps/server/internal/avatar"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 )
 
@@ -96,7 +97,7 @@ func (s *Service) syncPicture(ctx context.Context, u store.User, picture string)
 		return u, fmt.Errorf("fetch idp picture: %w", err)
 	}
 	a, err := s.storeAvatar(ctx, u.ID, bytes.NewReader(body))
-	if errors.Is(err, ErrNotImage) {
+	if errors.Is(err, avatar.ErrNotImage) {
 		// An SVG or an HTML error page, say. Recorded, so the same URL is not
 		// fetched again on every sign-in only to be refused again.
 		next, recErr := record()
@@ -120,7 +121,7 @@ func (s *Service) swapIdPAvatar(ctx context.Context, u store.User, a storedAvata
 		IdpPicture: seen, PrevBlob: u.AvatarBlob,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return u, ErrAvatarConflict
+		return u, avatar.ErrAvatarConflict
 	}
 	if err != nil {
 		return u, err
@@ -155,12 +156,12 @@ func (s *Service) fetchPicture(ctx context.Context, raw string) ([]byte, error) 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("status %d", resp.StatusCode)
 	}
-	body, err := io.ReadAll(io.LimitReader(resp.Body, AvatarMaxBytes+1))
+	body, err := io.ReadAll(io.LimitReader(resp.Body, avatar.MaxBytes+1))
 	if err != nil {
 		return nil, err
 	}
-	if len(body) > AvatarMaxBytes {
-		return nil, fmt.Errorf("larger than %d bytes", AvatarMaxBytes)
+	if len(body) > avatar.MaxBytes {
+		return nil, fmt.Errorf("larger than %d bytes", avatar.MaxBytes)
 	}
 	return body, nil
 }

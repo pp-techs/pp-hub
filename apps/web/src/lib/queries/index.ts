@@ -64,6 +64,8 @@ export { useNodeSearch, MIN_QUERY_LENGTH } from "./search";
 export {
   useUpdateSpace,
   useDeleteSpace,
+  useUploadSpaceAvatar,
+  useClearSpaceAvatar,
   useLinkPreview,
   useLinkSpace,
   adminStatsOptions,

@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  clearSpaceAvatar,
   deleteAdminSetting,
   deleteSpace,
   getAdminSettings,
@@ -12,6 +13,7 @@ import {
   updateAdminSettings,
   updateAdminUser,
   updateSpace,
+  uploadSpaceAvatar,
   type Space,
   type SpaceSettings,
 } from "@/lib/api";
@@ -21,6 +23,27 @@ export function useUpdateSpace(spaceId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (settings: SpaceSettings) => updateSpace(spaceId, settings),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: keys.spaces }),
+  });
+}
+
+/**
+ * The space list is the only space cache — `useSpace` reads from it — so a
+ * new picture invalidates that and every surface (the rail, the space sheet,
+ * the settings form) repaints together.
+ */
+export function useUploadSpaceAvatar(spaceId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => uploadSpaceAvatar(spaceId, file),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: keys.spaces }),
+  });
+}
+
+export function useClearSpaceAvatar(spaceId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => clearSpaceAvatar(spaceId),
     onSuccess: () => void qc.invalidateQueries({ queryKey: keys.spaces }),
   });
 }

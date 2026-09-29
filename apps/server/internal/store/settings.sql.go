@@ -89,7 +89,7 @@ UPDATE spaces
 SET name = $2, slug = $3, description = $4, default_as_admin = $5, quota_bytes = $6,
     trash_retention_days = $7, allow_public_links = $8
 WHERE id = $1
-RETURNING id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at, allow_public_links, idp_org_id
+RETURNING id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at, allow_public_links, idp_org_id, avatar_blob, avatar_mime
 `
 
 type UpdateSpaceSettingsParams struct {
@@ -131,6 +131,8 @@ func (q *Queries) UpdateSpaceSettings(ctx context.Context, arg UpdateSpaceSettin
 		&i.CreatedAt,
 		&i.AllowPublicLinks,
 		&i.IdpOrgID,
+		&i.AvatarBlob,
+		&i.AvatarMime,
 	)
 	return i, err
 }

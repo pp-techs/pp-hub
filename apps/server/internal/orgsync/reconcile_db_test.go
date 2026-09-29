@@ -216,7 +216,7 @@ func testEnv(t *testing.T) (*store.Queries, *spaces.Service, *fakeLogto, *orgsyn
 		t.Fatalf("migrate: %v", err)
 	}
 	q := store.New(pool)
-	sp := spaces.NewService(q)
+	sp := spaces.NewService(q, nil)
 	logto := newFakeLogto(t)
 	return q, sp, logto, orgsync.NewService(q, sp, users.NewService(q, nil), orgsync.NewClient(logto.settings()), testIssuer, "https://hub.test")
 }
