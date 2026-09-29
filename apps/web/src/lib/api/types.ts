@@ -361,6 +361,15 @@ export interface SearchResult extends Node {
   space_name: string;
   /** Immediate parent folder; empty at the top level of a space. */
   parent_name: string;
+  /**
+   * Why this hit matched: its name, or text inside the file (markdown and
+   * plain text are indexed). Absent on the lists that reuse this shape.
+   */
+  match?: "name" | "content";
+  /** Content hits only: ~160 characters around the match, `…` already added where cut. */
+  snippet?: string;
+  /** `[start, end)` code-point offsets into `snippet`, sorted and non-overlapping. */
+  snippet_highlights?: [number, number][];
 }
 
 /** A file the caller themselves last touched, with what they did to it. */
@@ -528,6 +537,26 @@ export interface CollabSession {
   lossy: boolean;
 }
 
+/** One node of a ProseMirror document as JSON — the shape `mdoc.Parse` emits and Tiptap reads. */
+export interface DocumentNodeJSON {
+  type: string;
+  attrs?: Record<string, unknown>;
+  content?: DocumentNodeJSON[];
+  marks?: { type: string; attrs?: Record<string, unknown> }[];
+  text?: string;
+}
+
+/**
+ * `GET /nodes/{id}/document` (and `/s/{token}/document`): a markdown file
+ * parsed on the server, for rendering without joining the collab room.
+ * `version` is the version number the document was read from.
+ */
+export interface MarkdownDocument {
+  doc: DocumentNodeJSON;
+  lossy: boolean;
+  version: number;
+}
+
 /**
  * What an anonymous visitor is told about the link itself. A link is always
  * view level (edit-via-link is post-MVP); `can_download` is the only choice
@@ -610,4 +639,74 @@ export interface Grant {
   level: "view" | "edit";
   can_download: boolean;
   can_share: boolean;
+}
+
+// ─── Comments and notifications ─────────────────────────────────────────────
+
+/** Who wrote a comment or caused a notification. */
+export interface SocialUser {
+  id: string;
+  name: string;
+  avatar_url: string;
+}
+
+/** One message in a comment thread. */
+export interface DocComment {
+  id: string;
+  author: SocialUser;
+  body: string;
+  created_at: string;
+  edited_at?: string;
+}
+
+/**
+ * A discussion anchored in a markdown document by a `comment` mark carrying
+ * its id. The mark lives in the document; everything else lives here.
+ */
+export interface DocCommentThread {
+  id: string;
+  resolved: boolean;
+  resolved_at?: string;
+  resolved_by?: SocialUser;
+  created_at: string;
+  created_by: SocialUser;
+  comments: DocComment[];
+}
+
+export type NotificationKind = "comment" | "reply" | "mention";
+
+export interface AppNotification {
+  id: string;
+  kind: NotificationKind;
+  actor: SocialUser;
+  node: { id: string; name: string; space_id: string };
+  thread_id?: string;
+  comment_id?: string;
+  excerpt: string;
+  created_at: string;
+  read_at?: string;
+}
+
+export interface NotificationPage {
+  items: AppNotification[];
+  next_cursor?: string;
+}
+
+/** `GET /templates/markdown`: a starting point for a new markdown document, in the caller's locale. */
+export interface MarkdownTemplate {
+  id: string;
+  name: string;
+  description: string;
+}
+
+/**
+ * `POST /nodes/{id}/unfurl`: what the server read from a link for a bookmark
+ * card. `thumbnail` is already stored as an attachment of the document
+ * (`attachment:<hash>`) — the card never hotlinks another site's image.
+ */
+export interface UnfurledLink {
+  url: string;
+  title: string;
+  description: string;
+  thumbnail?: string;
 }

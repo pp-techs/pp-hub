@@ -1,0 +1,51 @@
+{
+  "name": "whitespace",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "a"
+          },
+          {
+            "type": "text",
+            "text": " b ",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t1"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": "c"
+          },
+          {
+            "type": "text",
+            "text": " ",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t2"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": "d"
+          }
+        ]
+      }
+    ]
+  },
+  "js_output": "a b c d",
+  "yupdate_b64": "AQsBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQFhhgECEWNvbW1lbnQtLW9jQzR5ZFpREXsidGhyZWFkSWQiOiJ0MSJ9hAEDAyBiIIYBBhFjb21tZW50LS1vY0M0eWRaUQRudWxshAEHAWOGAQgRY29tbWVudC0tMWVoTTBVYjcReyJ0aHJlYWRJZCI6InQyIn2EAQkBIIYBChFjb21tZW50LS0xZWhNMFViNwRudWxshAELAWQA"
+}

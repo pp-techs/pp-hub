@@ -1,0 +1,98 @@
+{
+  "name": "hard-break",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "one",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t1"
+                }
+              }
+            ]
+          },
+          {
+            "type": "hardBreak"
+          },
+          {
+            "type": "text",
+            "text": "two",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t1"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " x"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "one"
+          },
+          {
+            "type": "hardBreak"
+          },
+          {
+            "type": "text",
+            "text": "two",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t2"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " y"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "one",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t3"
+                }
+              }
+            ]
+          },
+          {
+            "type": "hardBreak"
+          },
+          {
+            "type": "text",
+            "text": "two"
+          }
+        ]
+      }
+    ]
+  },
+  "js_output": "one  \ntwo x\n\none  \ntwo y\n\none  \ntwo",
+  "yupdate_b64": "ARwBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBgABARFjb21tZW50LS1vY0M0eWRaURF7InRocmVhZElkIjoidDEifYQBAgNvbmWGAQURY29tbWVudC0tb2NDNHlkWlEEbnVsbIcBAQMJaGFyZEJyZWFrhwEHBgYAAQgRY29tbWVudC0tb2NDNHlkWlEReyJ0aHJlYWRJZCI6InQxIn2EAQkDdHdvhgEMEWNvbW1lbnQtLW9jQzR5ZFpRBG51bGyEAQ0CIHiHAQADCXBhcmFncmFwaAcAARAGBAABEQNvbmWHAREDCWhhcmRCcmVha4cBFQYGAAEWEWNvbW1lbnQtLTFlaE0wVWI3EXsidGhyZWFkSWQiOiJ0MiJ9hAEXA3R3b4YBGhFjb21tZW50LS0xZWhNMFViNwRudWxshAEbAiB5hwEQAwlwYXJhZ3JhcGgHAAEeBgYAAR8RY29tbWVudC0tTTlBMUVwdkYReyJ0aHJlYWRJZCI6InQzIn2EASADb25lhgEjEWNvbW1lbnQtLU05QTFFcHZGBG51bGyHAR8DCWhhcmRCcmVha4cBJQYEAAEmA3R3bwA="
+}

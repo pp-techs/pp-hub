@@ -109,8 +109,15 @@ export function useCreateFolder(spaceId: string, parentId?: string) {
 export function useCreateDocument(spaceId: string, parentId?: string) {
   const invalidate = useInvalidateChildren(spaceId);
   return useMutation({
-    mutationFn: ({ kind, name }: { kind: DocumentKind; name: string }) =>
-      createDocument(spaceId, kind, name, parentId),
+    mutationFn: ({
+      kind,
+      name,
+      template,
+    }: {
+      kind: DocumentKind;
+      name: string;
+      template?: { id: string; locale: string };
+    }) => createDocument(spaceId, kind, name, parentId, template),
     onSuccess: invalidate,
   });
 }
@@ -249,6 +256,8 @@ export function useRestoreVersion(spaceId: string) {
     onSuccess: (_d, { nodeId }) => {
       void invalidate();
       void qc.invalidateQueries({ queryKey: keys.versions(nodeId) });
+      // The rendered current version is now the restored one.
+      void qc.invalidateQueries({ queryKey: keys.document(nodeId) });
     },
   });
 }

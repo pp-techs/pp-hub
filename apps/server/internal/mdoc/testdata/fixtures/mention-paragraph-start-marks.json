@@ -1,0 +1,51 @@
+{
+  "name": "mention-paragraph-start-marks",
+  "input": "<!-- slash:mention {\"id\":\"doc:7\",\"label\":\"Spec\"} -->@Spec<!-- /slash:mention --> is **final**.\n\nnext",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "mention",
+            "attrs": {
+              "id": "doc:7",
+              "label": "Spec"
+            }
+          },
+          {
+            "type": "text",
+            "text": " is "
+          },
+          {
+            "type": "text",
+            "text": "final",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": "."
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "next"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "<!-- slash:mention {\"id\":\"doc:7\",\"label\":\"Spec\"} -->@Spec<!-- /slash:mention --> is **final**.\n\nnext",
+  "yupdate_b64": "AQ0BAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQADB21lbnRpb24oAAEBAmlkAXcFZG9jOjcoAAEBBWxhYmVsAXcEU3BlY4cBAQYEAAEEBCBpcyCGAQgEYm9sZAJ7fYQBCQVmaW5hbIYBDgRib2xkBG51bGyEAQ8BLocBAAMJcGFyYWdyYXBoBwABEQYEAAESBG5leHQA",
+  "expect_lossy": false
+}

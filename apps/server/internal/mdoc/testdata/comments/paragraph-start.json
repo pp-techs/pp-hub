@@ -1,0 +1,31 @@
+{
+  "name": "paragraph-start",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Hello",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t1"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " world"
+          }
+        ]
+      }
+    ]
+  },
+  "js_output": "Hello world",
+  "yupdate_b64": "AQYBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBgABARFjb21tZW50LS1vY0M0eWRaURF7InRocmVhZElkIjoidDEifYQBAgVIZWxsb4YBBxFjb21tZW50LS1vY0M0eWRaUQRudWxshAEIBiB3b3JsZAA="
+}

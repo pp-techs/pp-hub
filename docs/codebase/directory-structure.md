@@ -7,15 +7,18 @@ pp-hub/
 ├── apps/
 │   ├── web/                        # React SPA
 │   │   ├── Dockerfile              # Vite build → nginx; the public entry point in prod
-│   │   ├── nginx.conf              # serves the bundle, proxies the API on one origin (+ the collab WebSocket location)
+│   │   ├── nginx.conf              # serves the bundle, proxies the API on one origin (+ the collab WebSocket and the unbuffered notification-stream locations)
 │   │   ├── scripts/mdoc-fixtures.ts # writes the Go mdoc golden fixtures from slash-editor itself
 │   │   ├── tests/mdoc-go-updates.test.ts # slash-editor must read the Go-built room seeds back
 │   │   └── src/
 │   │       ├── lib/
 │   │       │   ├── api/            # ky client, types, endpoints, utils; tus.ts = resumable upload client
 │   │       │   ├── collab/         # block documents: use-collab-room.ts (room, epochs, recheck, pagehide),
-│   │       │   │                   #   mdoc-kit.ts (the v1 block set, shared with the fixture script),
-│   │       │   │                   #   attachments.ts (tus upload with attach_to), presence.ts
+│   │       │   │                   #   mdoc-kit.ts (the block set, shared with the renderer and the fixture script),
+│   │       │   │                   #   attachments.ts (tus upload with attach_to, altFromFileName),
+│   │       │   │                   #   presence.ts (colour + initials per user), mentions.ts (@ items)
+│   │       │   ├── comments.ts     # comment thread store over REST: 10 s poll while a document is open (M29)
+│   │       │   ├── event-stream.ts # SSE subscription with capped exponential reconnect (notifications)
 │   │       │   ├── queries/        # TanStack Query hooks (per-resource)
 │   │       │   ├── query-client.ts # shared QueryClient
 │   │       │   ├── ui-store.ts     # zustand ephemeral UI state
@@ -46,10 +49,17 @@ pp-hub/
 │   │       │   ├── move-dialog.tsx       # "Move to…" folder picker (better-modal)
 │   │       │   ├── drop-zone.tsx         # drag-and-drop overlay over the listing
 │   │       │   ├── transfer-tray.tsx     # upload queue tray, mounted by the shell
-│   │       │   ├── command-palette.tsx   # ⌘K search across every space
 │   │       │   ├── continue-cards.tsx    # Home: the few files you were last in
-│   │       │   ├── doc-editor/           # the block editor: doc-editor.tsx, lossy-edit-modal.tsx, labels.ts
-│   │       │   ├── nodes/                # slash-editor node views we own: image, file, mermaid (attachment: src)
+│   │       │   ├── command-palette.tsx   # ⌘K search across every space; content matches show a highlighted snippet
+│   │       │   ├── doc-editor/           # the block editor: doc-editor.tsx, outline-panel.tsx, lossy-edit-modal.tsx, labels.ts
+│   │       │   ├── nodes/                # slash-editor node views we own: image, file, video, embed (+ embed-link-modal),
+│   │       │   │                         #   mention, mermaid (attachment: src)
+│   │       │   ├── markdown-document-view/ # read-only renderer of GET …/document: preview, version preview, share page
+│   │       │   ├── table-controls.tsx    # block editor: add/delete rows and columns, header toggle, delete table
+│   │       │   ├── new-document-dialog.tsx # New → Document/Spreadsheet/…; the markdown template picker
+│   │       │   ├── version-preview-modal.tsx # a rendered markdown version with Restore
+│   │       │   ├── comments/             # comments panel, composer (with @mention), avatars (M29)
+│   │       │   ├── notifications-bell.tsx # unread badge + list in the site and editor headers (M29)
 │   │       │   ├── settings/             # the one settings dialog (see below)
 │   │       │   │   ├── settings-modal.tsx       # shell: nav, header, unsaved-changes guard
 │   │       │   │   ├── settings-hash-bridge.tsx # `#settings/<pane>` → open/closed modal
@@ -87,8 +97,8 @@ pp-hub/
 │   │           └── drive/$spaceId/      # route.tsx (space guard) + index.tsx (listing)
 │   │                                    #   + home / recent / starred / shared / trash
 │   └── server/                     # Go backend — own go.mod
-│       ├── cmd/server/             # entry point: OIDC wait, http.Server; owns migrations
-│       ├── cmd/worker/             # optional preview worker (pdftoppm/ffmpeg); --backfill
+│       ├── cmd/server/             # entry point: OIDC wait, http.Server; owns migrations; binds before collab Start (listenThenStart)
+│       ├── cmd/worker/             # optional preview worker (pdftoppm/ffmpeg); --backfill (previews + text extraction)
 │       ├── Dockerfile              # targets: worker (poppler+ffmpeg), server (slim, default); copies third_party/
 │       ├── third_party/ygo/        # reearth/ygo v1.50.0, patched (PATCHES.md); go.mod `replace`s onto it
 │       ├── .env.example            # → .env (git-ignored), sourced for local dev
@@ -106,6 +116,11 @@ pp-hub/
 │           │   ├── server.go       # the router, and the middleware that makes it safe by group
 │           │   ├── csrf.go         # sameOrigin: every mutation, before authentication; socketOrigin: the collab upgrade
 │           │   ├── collab.go       # GET /nodes/{id}/collab, the /collab/{room} socket, /nodes/{id}/attachments/{hash}
+│           │   ├── documents.go    # block documents outside the editor: /document, /export, /unfurl, /templates/markdown,
+│           │   │                   #    /s/{token}/document and /attachments/{hash}; Range for attachments
+│           │   ├── comments.go     # comment threads and comments (M29)
+│           │   ├── notifications.go # notification list, unread count, mark read, the SSE /stream
+│           │   ├── search.go       # GET /search: name + content matches, snippets
 │           │   ├── ratelimit.go    # per-IP token buckets on the anonymous surfaces
 │           │   ├── limits.go       # body ceilings outside tus: limitBody (WOPI PutFile), parseUpload (avatar)
 │           │   ├── uploads.go      # tus 1.0.0 /api/v1/uploads — every browser upload; WOPI PutFile is the other writer
@@ -124,7 +139,8 @@ pp-hub/
 │           │                       #    0008_read_audit.sql, 0009_direct_share_uniq.sql,
 │           │                       #    0010_resumable_uploads.sql, 0011_blob_integrity.sql,
 │           │                       #    0012_detached_orgs.sql, 0013_block_documents.sql,
-│           │                       #    0014_markdown_mime.sql
+│           │                       #    0014_markdown_mime.sql, 0015_comments_notifications.sql,
+│           │                       #    0016_content_search.sql
 │           ├── users/              # user service layer (profile)
 │           ├── orgsync/            # ✅ Logto sync: client.go (Management API), orgsync.go (membership reconciler, jobs, sweep),
 │           │                       #    accounts.go (accounts), spacesync.go (create, rename, Link to Logto)
@@ -135,12 +151,20 @@ pp-hub/
 │           ├── fs/                 # file tree, versioning, move/copy/rename; quota (EnsureRoom), version retention;
 │           │                       #    markdown.go (.md → text/markdown), attachments.go (node_attachments)
 │           ├── collab/             # ✅ block-document rooms over ygo: epochs, locks, write-back, reseed, 60 s recheck
-│           ├── mdoc/               # ✅ markdown ↔ ProseMirror ↔ Y.XmlFragment; testdata/ = golden fixtures
+│           ├── mdoc/               # ✅ markdown ↔ ProseMirror ↔ Y.XmlFragment; mentions, Go-only comment markers
+│           │                       #    (format in mdoc.go); Attachments/Mentions/PlainText/MapAttachments;
+│           │                       #    testdata/ = golden fixtures
+│           ├── blockdoc/           # ✅ a version as a read-only tree, the export zip, templates/<lang>/*.md
+│           ├── unfurl/             # ✅ SSRF-safe link-preview fetch for the embed block
+│           ├── comments/           # ✅ M29 threads on block documents: who may do what, who is told
+│           ├── notifications/      # ✅ M29 rows, the per-process SSE broker, notify:mentions job
+│           ├── textsearch/         # ✅ M27 folding, query building, snippets (pure)
 │           ├── uploads/            # ✅ resumable upload rows + staging files in <PP_BLOB_ROOT>/.uploads; 24h idle sweep
 │           ├── blob/               # CAS Store interface + local and S3 impls; Ingest takes over a staged upload
 │           ├── share/              # grants — user, group, link — and the caps they resolve to
 │           ├── wopi/               # WOPI host endpoints; access tokens signed with a derived subkey
-│           └── preview/            # renderers + job loop; jobs.kind routes, previews.kind is the artifact
+│           └── preview/            # renderers + job loop; jobs.kind routes, previews.kind is the artifact;
+│                                   #    extract.go = extract:text for content search, backfill.go
 ├── packages/
 │   ├── ui/                         # @workspace/ui — shadcn/ui preset (base-ui) + design tokens (globals.css)
 │   │   ├── src/components/         # primitives; `sidebar.tsx` owns the drive shell's geometry

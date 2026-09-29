@@ -1,0 +1,32 @@
+{
+  "name": "mention-heading",
+  "input": "## Owner <!-- slash:mention {\"id\":\"user:1\",\"label\":\"A\"} -->@A<!-- /slash:mention -->\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "heading",
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Owner "
+          },
+          {
+            "type": "mention",
+            "attrs": {
+              "id": "user:1",
+              "label": "A"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "output": "## Owner <!-- slash:mention {\"id\":\"user:1\",\"label\":\"A\"} -->@A<!-- /slash:mention -->",
+  "yupdate_b64": "AQcBAAcBB2NvbnRlbnQDB2hlYWRpbmcHAAEABgQAAQEGT3duZXIghwEBAwdtZW50aW9uKAABCAJpZAF3BnVzZXI6MSgAAQgFbGFiZWwBdwFBKAABAAVsZXZlbAF9AgA=",
+  "expect_lossy": false
+}

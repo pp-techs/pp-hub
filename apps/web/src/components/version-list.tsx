@@ -1,11 +1,12 @@
 import { toast } from "sonner";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Download, RotateCcw } from "lucide-react";
+import { Download, Eye, RotateCcw } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { Badge } from "@workspace/ui/components/badge";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { LoadingStatus } from "@/components/loading";
-import { capsOf, type Node } from "@/lib/api";
+import { VersionPreviewModal } from "@/components/version-preview-modal";
+import { capsOf, isMarkdownFile, type Node, type Version } from "@/lib/api";
 import { useRestoreVersion, useVersions } from "@/lib/queries";
 import { useFormatters } from "@/lib/format";
 
@@ -17,6 +18,10 @@ import { useFormatters } from "@/lib/format";
  * not a version's, so a per-version download button would have nothing behind
  * it. Restoring makes an old version current, which is the way to get at it —
  * and it is a write, so a reader sees the history without the button.
+ *
+ * A markdown document's versions can also be viewed rendered: the server
+ * parses any of them on request (behind the download capability, like the
+ * bytes), and the preview offers the same Restore as the row.
  */
 export function VersionList({ node, onRestored }: { node: Node; onRestored?: () => void }) {
   const { t } = useLingui();
@@ -24,6 +29,7 @@ export function VersionList({ node, onRestored }: { node: Node; onRestored?: () 
   const caps = capsOf(node);
   const versions = useVersions(node.id);
   const restore = useRestoreVersion(node.space_id);
+  const viewable = caps.download && isMarkdownFile(node);
 
   if (versions.isPending) {
     return (
@@ -50,6 +56,32 @@ export function VersionList({ node, onRestored }: { node: Node; onRestored?: () 
 
   const current = versions.data[0]?.id;
 
+  const restoreTo = (v: Version) => {
+    const versionNo = v.version_no;
+    restore.mutate(
+      { nodeId: node.id, versionId: v.id },
+      {
+        onSuccess: () => {
+          toast.success(t`Restored version ${versionNo}`, {
+            description: t`It is now the current version.`,
+          });
+          onRestored?.();
+        },
+        onError: (e) => toast.error(e.message),
+      },
+    );
+  };
+
+  const view = (v: Version) => {
+    VersionPreviewModal.show({ node, version: v, canRestore: caps.edit && v.id !== current }).then(
+      (restoreIt) => {
+        if (restoreIt) restoreTo(v);
+      },
+      // Reopened on another version before an answer: nothing was decided.
+      () => undefined,
+    );
+  };
+
   return (
     <div className="flex flex-col gap-3">
       <ul className="border-border flex flex-col gap-3 border-l pl-3">
@@ -75,6 +107,11 @@ export function VersionList({ node, onRestored }: { node: Node; onRestored?: () 
                 {f.relative(v.created_at)} · {f.size(v.size)}
               </span>
               <div className="flex items-center gap-1">
+                {viewable && (
+                  <Button variant="ghost" size="xs" onClick={() => view(v)}>
+                    <Eye data-icon="inline-start" /> <Trans>View</Trans>
+                  </Button>
+                )}
                 {v.id === current
                   ? caps.download && (
                       <Button
@@ -90,20 +127,7 @@ export function VersionList({ node, onRestored }: { node: Node; onRestored?: () 
                         variant="ghost"
                         size="xs"
                         disabled={restore.isPending}
-                        onClick={() => {
-                          restore.mutate(
-                            { nodeId: node.id, versionId: v.id },
-                            {
-                              onSuccess: () => {
-                                toast.success(t`Restored version ${versionNo}`, {
-                                  description: t`It is now the current version.`,
-                                });
-                                onRestored?.();
-                              },
-                              onError: (e) => toast.error(e.message),
-                            },
-                          );
-                        }}
+                        onClick={() => restoreTo(v)}
                       >
                         <RotateCcw data-icon="inline-start" /> <Trans>Restore</Trans>
                       </Button>

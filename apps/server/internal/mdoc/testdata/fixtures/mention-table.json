@@ -1,0 +1,98 @@
+{
+  "name": "mention-table",
+  "input": "| who | what |\n| --- | --- |\n| by <!-- slash:mention {\"id\":\"user:1\",\"label\":\"A\"} -->@A<!-- /slash:mention --> | see <!-- slash:mention {\"id\":\"doc:2\",\"label\":\"Spec\"} -->@Spec<!-- /slash:mention --> |\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "table",
+        "content": [
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableHeader",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "who"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableHeader",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "what"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "by "
+                      },
+                      {
+                        "type": "mention",
+                        "attrs": {
+                          "id": "user:1",
+                          "label": "A"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "see "
+                      },
+                      {
+                        "type": "mention",
+                        "attrs": {
+                          "id": "doc:2",
+                          "label": "Spec"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "\n| who                                                                            | what                                                                                 |\n| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |\n| by <!-- slash:mention {\"id\":\"user:1\",\"label\":\"A\"} -->@A<!-- /slash:mention --> | see <!-- slash:mention {\"id\":\"doc:2\",\"label\":\"Spec\"} -->@Spec<!-- /slash:mention --> |\n",
+  "yupdate_b64": "ASEBAAcBB2NvbnRlbnQDBXRhYmxlBwABAAMIdGFibGVSb3cHAAEBAwt0YWJsZUhlYWRlcgcAAQIDCXBhcmFncmFwaAcAAQMGBAABBAN3aG8oAAECB2NvbHNwYW4BfQEoAAECB3Jvd3NwYW4BfQGHAQIDC3RhYmxlSGVhZGVyBwABCgMJcGFyYWdyYXBoBwABCwYEAAEMBHdoYXQoAAEKB2NvbHNwYW4BfQEoAAEKB3Jvd3NwYW4BfQGHAQEDCHRhYmxlUm93BwABEwMJdGFibGVDZWxsBwABFAMJcGFyYWdyYXBoBwABFQYEAAEWA2J5IIcBFgMHbWVudGlvbigAARoCaWQBdwZ1c2VyOjEoAAEaBWxhYmVsAXcBQSgAARQHY29sc3BhbgF9ASgAARQHcm93c3BhbgF9AYcBFAMJdGFibGVDZWxsBwABHwMJcGFyYWdyYXBoBwABIAYEAAEhBHNlZSCHASEDB21lbnRpb24oAAEmAmlkAXcFZG9jOjIoAAEmBWxhYmVsAXcEU3BlYygAAR8HY29sc3BhbgF9ASgAAR8Hcm93c3BhbgF9AQA=",
+  "expect_lossy": false
+}

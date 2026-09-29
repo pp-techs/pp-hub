@@ -12,6 +12,13 @@ export const keys = {
   node: (nodeId: string) => ["node", nodeId] as const,
   versions: (nodeId: string) => ["versions", nodeId] as const,
   collab: (nodeId: string) => ["collab", nodeId] as const,
+  // A markdown file parsed for read-only rendering. `null` is the current
+  // version, which moves with every write-back; a past version never changes.
+  document: (nodeId: string, versionId?: string) =>
+    ["document", nodeId, versionId ?? null] as const,
+  shareDocument: (token: string, nodeId: string) => ["share-document", token, nodeId] as const,
+  // Named in the UI's language, so the locale is part of the key.
+  markdownTemplates: (locale: string) => ["templates", "markdown", locale] as const,
   tree: (spaceId: string, parentId?: string) => ["tree", spaceId, parentId ?? null] as const,
   search: (query: string, spaceId?: string, kind?: string, ownerId?: string, modified?: number) =>
     ["search", query, spaceId ?? null, kind ?? null, ownerId ?? null, modified ?? null] as const,
@@ -51,4 +58,11 @@ export const keys = {
       offset,
     ] as const,
   adminSettings: ["admin", "settings"] as const,
+  // Comment threads of one markdown document.
+  comments: (nodeId: string) => ["comments", nodeId] as const,
+  // The inbox: the list pages and the unread badge share the root, so one
+  // invalidation after "mark read" or a live event refreshes both.
+  notifications: ["notifications"] as const,
+  notificationList: ["notifications", "list"] as const,
+  notificationUnread: ["notifications", "unread"] as const,
 };

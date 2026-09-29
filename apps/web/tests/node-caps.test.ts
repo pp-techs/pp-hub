@@ -57,6 +57,13 @@ test("without download, nothing that hands over the bytes is offered", () => {
   expect(menu).toContain("preview"); // the derived preview is still theirs
 });
 
+test("export with images is a markdown download, so it needs both", () => {
+  const doc = (caps: NodeCaps) => file(caps, { name: "notes.md", mime: "text/markdown" });
+  expect(keys(doc(CAPS.reader))).toContain("export");
+  expect(keys(doc(CAPS.noDownload))).not.toContain("export");
+  expect(keys(file(CAPS.owner))).not.toContain("export");
+});
+
 test("a copy needs somewhere to land", () => {
   expect(keys(file(CAPS.owner), false)).not.toContain("copy");
   expect(keys(file(CAPS.owner), false)).toContain("clipboard-copy");

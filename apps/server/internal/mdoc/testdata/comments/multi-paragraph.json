@@ -1,0 +1,52 @@
+{
+  "name": "multi-paragraph",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "first "
+          },
+          {
+            "type": "text",
+            "text": "end",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t1"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "start",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t1"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " second"
+          }
+        ]
+      }
+    ]
+  },
+  "js_output": "first end\n\nstart second",
+  "yupdate_b64": "AQwBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQZmaXJzdCCGAQcRY29tbWVudC0tb2NDNHlkWlEReyJ0aHJlYWRJZCI6InQxIn2EAQgDZW5khgELEWNvbW1lbnQtLW9jQzR5ZFpRBG51bGyHAQADCXBhcmFncmFwaAcAAQ0GBgABDhFjb21tZW50LS1vY0M0eWRaURF7InRocmVhZElkIjoidDEifYQBDwVzdGFydIYBFBFjb21tZW50LS1vY0M0eWRaUQRudWxshAEVByBzZWNvbmQA"
+}

@@ -54,6 +54,8 @@ export {
 
 // Block documents
 export { collabOptions } from "./collab";
+export { nodeDocumentOptions, useNodeDocument, useShareDocument } from "./documents";
+export { useMarkdownTemplates } from "./templates";
 
 // Search
 export { useNodeSearch, MIN_QUERY_LENGTH } from "./search";
@@ -107,3 +109,12 @@ export {
   useSpaceDepartures,
   useCompleteDeparture,
 } from "./users";
+
+// Comments and notifications
+export { commentsOptions } from "./comments";
+export {
+  useNotifications,
+  useUnreadNotificationCount,
+  useMarkNotificationsRead,
+  useNotificationStream,
+} from "./notifications";

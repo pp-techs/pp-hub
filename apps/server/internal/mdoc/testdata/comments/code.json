@@ -1,0 +1,73 @@
+{
+  "name": "code",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "run ",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t1"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": "make all",
+            "marks": [
+              {
+                "type": "code"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " now",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t1"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " "
+          },
+          {
+            "type": "text",
+            "text": "x",
+            "marks": [
+              {
+                "type": "code"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": "y",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t2"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "js_output": "run `make all` now `x`y",
+  "yupdate_b64": "ARIBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBgABARFjb21tZW50LS1vY0M0eWRaURF7InRocmVhZElkIjoidDEifYQBAgRydW4ghgEGEWNvbW1lbnQtLW9jQzR5ZFpRBG51bGyGAQcEY29kZQJ7fYQBCAhtYWtlIGFsbIYBEARjb2RlBG51bGyGARERY29tbWVudC0tb2NDNHlkWlEReyJ0aHJlYWRJZCI6InQxIn2EARIEIG5vd4YBFhFjb21tZW50LS1vY0M0eWRaUQRudWxshAEXASCGARgEY29kZQJ7fYQBGQF4hgEaBGNvZGUEbnVsbIYBGxFjb21tZW50LS0xZWhNMFViNxF7InRocmVhZElkIjoidDIifYQBHAF5hgEdEWNvbW1lbnQtLTFlaE0wVWI3BG51bGwA"
+}

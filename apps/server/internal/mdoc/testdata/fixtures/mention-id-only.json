@@ -1,0 +1,33 @@
+{
+  "name": "mention-id-only",
+  "input": "Hi <!-- slash:mention {\"id\":\"user:1\"} -->@<!-- /slash:mention --> there\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Hi "
+          },
+          {
+            "type": "mention",
+            "attrs": {
+              "id": "user:1",
+              "label": ""
+            }
+          },
+          {
+            "type": "text",
+            "text": " there"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "Hi <!-- slash:mention {\"id\":\"user:1\",\"label\":\"\"} -->@<!-- /slash:mention --> there",
+  "yupdate_b64": "AQgBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQNIaSCHAQEDB21lbnRpb24oAAEFAmlkAXcGdXNlcjoxKAABBQVsYWJlbAF3AIcBBQYEAAEIBiB0aGVyZQA=",
+  "expect_lossy": false
+}

@@ -1,0 +1,22 @@
+{
+  "name": "mention-bad-payload",
+  "input": "Hi <!-- slash:mention {\"id\":} -->@A<!-- /slash:mention --> x\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Hi @A x"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "Hi @A x",
+  "yupdate_b64": "AQMBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQdIaSBAQSB4AA==",
+  "expect_lossy": false
+}

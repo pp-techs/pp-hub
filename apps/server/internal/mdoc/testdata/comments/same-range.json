@@ -1,0 +1,41 @@
+{
+  "name": "same-range",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "say "
+          },
+          {
+            "type": "text",
+            "text": "both",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t1"
+                }
+              },
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t2"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " here"
+          }
+        ]
+      }
+    ]
+  },
+  "js_output": "say both here",
+  "yupdate_b64": "AQkBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQRzYXkghgEFEWNvbW1lbnQtLW9jQzR5ZFpREXsidGhyZWFkSWQiOiJ0MSJ9hgEGEWNvbW1lbnQtLTFlaE0wVWI3EXsidGhyZWFkSWQiOiJ0MiJ9hAEHBGJvdGiGAQsRY29tbWVudC0tb2NDNHlkWlEEbnVsbIYBDBFjb21tZW50LS0xZWhNMFViNwRudWxshAENBSBoZXJlAA=="
+}

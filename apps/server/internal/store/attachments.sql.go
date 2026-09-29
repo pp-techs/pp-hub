@@ -99,3 +99,101 @@ func (q *Queries) GetAttachment(ctx context.Context, arg GetAttachmentParams) (N
 	)
 	return i, err
 }
+
+const listAttachmentHolders = `-- name: ListAttachmentHolders :many
+SELECT n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name, n.current_version_id, n.deleted_at, n.deleted_by, n.created_by, n.created_at, n.team_root_id, a.node_id, a.blob_hash, a.name, a.mime, a.size, a.created_by, a.created_at
+FROM node_attachments a
+JOIN nodes n ON n.id = a.node_id
+WHERE a.blob_hash = $1
+  AND a.node_id <> $2
+  AND n.deleted_at IS NULL
+ORDER BY a.created_at
+LIMIT 32
+`
+
+type ListAttachmentHoldersParams struct {
+	BlobHash  string      `json:"blob_hash"`
+	ExcludeID pgtype.UUID `json:"exclude_id"`
+}
+
+type ListAttachmentHoldersRow struct {
+	Node           Node           `json:"node"`
+	NodeAttachment NodeAttachment `json:"node_attachment"`
+}
+
+// The live documents other than exclude_id that hold a blob as an
+// attachment: where a reference pasted from another document can be adopted
+// from, if its writer may download one of them. Bounded: one readable holder
+// is enough, and a blob pasted into thousands of documents is not a reason
+// for a write-back to resolve access thousands of times.
+func (q *Queries) ListAttachmentHolders(ctx context.Context, arg ListAttachmentHoldersParams) ([]ListAttachmentHoldersRow, error) {
+	rows, err := q.db.Query(ctx, listAttachmentHolders, arg.BlobHash, arg.ExcludeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListAttachmentHoldersRow
+	for rows.Next() {
+		var i ListAttachmentHoldersRow
+		if err := rows.Scan(
+			&i.Node.ID,
+			&i.Node.TenantID,
+			&i.Node.SpaceID,
+			&i.Node.ParentID,
+			&i.Node.Kind,
+			&i.Node.Name,
+			&i.Node.CurrentVersionID,
+			&i.Node.DeletedAt,
+			&i.Node.DeletedBy,
+			&i.Node.CreatedBy,
+			&i.Node.CreatedAt,
+			&i.Node.TeamRootID,
+			&i.NodeAttachment.NodeID,
+			&i.NodeAttachment.BlobHash,
+			&i.NodeAttachment.Name,
+			&i.NodeAttachment.Mime,
+			&i.NodeAttachment.Size,
+			&i.NodeAttachment.CreatedBy,
+			&i.NodeAttachment.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAttachments = `-- name: ListAttachments :many
+SELECT node_id, blob_hash, name, mime, size, created_by, created_at FROM node_attachments WHERE node_id = $1 ORDER BY created_at, blob_hash
+`
+
+func (q *Queries) ListAttachments(ctx context.Context, nodeID pgtype.UUID) ([]NodeAttachment, error) {
+	rows, err := q.db.Query(ctx, listAttachments, nodeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []NodeAttachment
+	for rows.Next() {
+		var i NodeAttachment
+		if err := rows.Scan(
+			&i.NodeID,
+			&i.BlobHash,
+			&i.Name,
+			&i.Mime,
+			&i.Size,
+			&i.CreatedBy,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

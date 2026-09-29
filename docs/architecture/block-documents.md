@@ -1,9 +1,13 @@
 # Block Documents (Markdown + slash-editor)
 
-> **Status: shipped — M39 ✅** ([milestones.md](milestones.md),
-> [detail](milestones/M39.md)). This describes what is built. It began as the
-> design written before the code; where the build departed from it, the text
-> below says what shipped and why.
+> **Status: shipped — M39 ✅, completed by M40 ✅** ([milestones.md](milestones.md),
+> [M39](milestones/M39.md), [M40](milestones/M40.md)). This describes what is
+> built. It began as the design written before the code; where the build
+> departed from it, the text below says what shipped and why. M39 delivered the
+> editor and live co-editing; M40 the rest of a document's life — templates,
+> read-only rendering (signed in and through a link), export, link bookmarks,
+> video, @mentions and comment anchors, the last two carried by M29's comments
+> and notifications.
 
 ## The problem
 
@@ -28,10 +32,10 @@ previewed as a text snippet, and that was all.
 | Imported `.md` that would not survive a round trip | Opens read-only; **Edit** warns first                                                            |
 | Crash window                                       | Up to ~5 min of unflushed edits may be lost on a crash; graceful shutdown flushes                |
 
-**Not in v1:** comments (they are M29's, and slash-editor's comment anchors do
-not survive markdown anyway), @mentions, the AI block, sub-pages and databases,
-editing through a share link, offline editing, more than one collaboration
-instance.
+**Not built:** the AI block, sub-pages and databases, editing through a share
+link (a link renders the document read-only), offline editing, more than one
+collaboration instance, and email for comments or mentions (notifications are
+in-app only).
 
 ## Architecture
 
@@ -69,13 +73,22 @@ flowchart LR
 
 ### API surface
 
-| Route                                        | What it does                                                                                                       |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `GET /api/v1/nodes/{id}/collab`              | `{room, can_write, lossy}`. Needs `CapDownload` and a markdown file; 413 for a document over 16 MiB                |
-| `GET /api/v1/collab/{room}`                  | The room's WebSocket (Hocuspocus protocol). Wrapped in `socketOrigin`; the room authorizes node, epoch and mode    |
-| `GET /api/v1/nodes/{id}/attachments/{hash}`  | An attachment's bytes, needing `CapDownload` on the document; images inline, anything else as a download           |
-| `POST /api/v1/uploads` with `attach_to=<id>` | The tus upload, addressed to a document; needs `CapEdit` on it. The commit answers the hash in `Upload-Attachment` |
-| `POST /api/v1/spaces/{id}/documents`         | `kind=markdown` creates an empty `.md`                                                                             |
+| Route                                         | What it does                                                                                                                                                |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/v1/nodes/{id}/collab`               | `{room, can_write, lossy}`. Needs `CapDownload` and a markdown file; 413 for a document over 16 MiB                                                         |
+| `GET /api/v1/collab/{room}`                   | The room's WebSocket (Hocuspocus protocol). Wrapped in `socketOrigin`; the room authorizes node, epoch and mode                                             |
+| `GET /api/v1/nodes/{id}/attachments/{hash}`   | An attachment's bytes, needing `CapDownload` on the document; images and video inline (with `Range`), anything else as a download                           |
+| `POST /api/v1/uploads` with `attach_to=<id>`  | The tus upload, addressed to a document; needs `CapEdit` on it. The commit answers the hash in `Upload-Attachment`                                          |
+| `POST /api/v1/spaces/{id}/documents`          | `kind=markdown` creates an `.md`, empty or from `"template": "<id>"` (M40)                                                                                  |
+| `GET /api/v1/templates/markdown`              | `[{id, name, description}]` in `?locale=` or the caller's saved language (en, vi)                                                                           |
+| `GET /api/v1/nodes/{id}/document`             | `{doc, lossy, version}`: the current version, or `?version=<id>`, as a ProseMirror tree. `CapDownload`; 400 if not markdown; 404 for another node's version |
+| `GET /api/v1/nodes/{id}/export`               | `application/zip`: the markdown with attachments rewritten to `assets/…`, and those files. `CapDownload`; audited as a download                             |
+| `POST /api/v1/nodes/{id}/unfurl`              | `{url}` → `{url, title, description, thumbnail?}` for a link bookmark. `CapEdit` on the document                                                            |
+| `GET /s/{token}/document?node=<id>`           | The same tree through a public link: the link must allow download and cover the node                                                                        |
+| `GET /s/{token}/attachments/{hash}?node=<id>` | An attachment through a link, on the same terms                                                                                                             |
+
+Comments and notifications have routes of their own, listed under
+[Comments](#comments).
 
 The 16 MiB ceiling (`maxDocumentBytes`) exists because a live Y.Doc costs a
 multiple of its markdown, and nobody writes a document that size by hand.
@@ -153,20 +166,24 @@ the way `@tiptap/y-tiptap` does:
 `Read` walks the fragment back into that tree and `Render` writes it as
 markdown, frontmatter in front.
 
-The v1 block set, in slash-editor's schema names:
+The block set, in slash-editor's schema names:
 
 - **Nodes:** `paragraph`, `heading`, `bulletList`/`orderedList`/`listItem`,
   `taskList`/`taskItem`, `blockquote`, `codeBlock`, `horizontalRule`,
   `table`/`tableRow`/`tableCell`/`tableHeader`, `callout`,
   `details`/`detailsSummary`/`detailsContent` (toggle), `columns`/`column`,
-  `mermaid`, `image`, `file`, `hardBreak`.
-- **Marks:** `bold`, `italic`, `strike`, `code`, `link`.
+  `mermaid`, `image`, `file`, `video`, `embed` (a link bookmark: `url`,
+  `title`, `description`, `thumbnail`), `mention` (inline, `{id, label}`),
+  `hardBreak`. `video`, `embed` and `mention` joined in M40.
+- **Marks:** `bold`, `italic`, `strike`, `code`, `link`, and `comment`
+  (`{threadId}`, M40), which only Go persists — [below](#comment-anchors).
 
-The web editor turns off what `createBlockKit()` ships beyond that — `video`,
-`embed`, `comment`, and StarterKit's `underline` (it serializes as
+The web editor turns off only StarterKit's `underline` (it serializes as
 `++text++`). Those options live once, in `apps/web/src/lib/collab/mdoc-kit.ts`
-(`createMdocKit`), used by the editor and by the fixture script alike, so the
-schema a browser can write is exactly the schema `mdoc` can store.
+(`createMdocKit`), used by the editor, the read-only renderer and the fixture
+script alike, so the schema a browser can write is exactly the schema `mdoc`
+can store; `mention: {items}` and `comment: {store}` pass through to
+slash-editor.
 
 **Block ids are written by `Parse`.** Every block carries an `id` attr
 (`data-block-id`); `parseMarkdown` emits none, and an editor mounting an
@@ -178,10 +195,51 @@ the trailing empty paragraph, so neither ever reaches the markdown. The editor
 also mounts only after the first sync: mounted on an empty document it would
 write its own paragraph into the room ahead of the content.
 
+`mdoc` also exposes the pure helpers the rest of the server needs from a
+document: `Attachments` (hashes referenced by image, file, video and embed
+thumbnail), `Mentions` (mention ids in document order, deduplicated),
+`PlainText` (the searchable text, for [M27](preview-pipeline.md)) and
+`MapAttachments` (rewrite every `attachment:<hash>` src, for export).
+
+### Mentions
+
+A mention is slash-editor's own inline marker pair,
+`<!-- slash:mention {"id":"user:<uuid>","label":"Ann"} -->@Ann<!-- /slash:mention -->`,
+written byte for byte as its serializer does. Ids are `user:<uuid>` (a space
+member; the chip is the person) or `doc:<uuid>` (a markdown document in the
+space; the chip links to `/edit/<id>`). `Parse` reads a line that starts with a
+mention as paragraph text, where slash-editor's own parser misreads it.
+
+### Comment anchors
+
+slash-editor's serializer drops the comment mark, and its anchors do not
+survive markdown, so `mdoc` persists the mark itself as an HTML-comment pair
+GitHub and other renderers hide:
+
+```md
+Hello <!-- slash:comment {"threadId":"T"} -->world<!-- /slash:comment {"threadId":"T"} -->!
+```
+
+An open marker and the next close of the same thread enclose the text; pairs of
+different threads interleave, so overlapping and nested threads need nothing
+more. Markers sit outside emphasis, link and code delimiters, and removing them
+leaves exactly slash-editor's markdown (table cells are padded as if they were
+absent). A marker never starts a line — CommonMark would open an HTML block and
+show the line raw — nor sits inside a code span: it moves right to the next safe
+boundary and records `"back":n`, the UTF-16 units it moved past. Pairs stay
+inside one textblock; a thread spanning blocks has a pair in each. Malformed or
+unpaired markers are dropped without flagging the document lossy. The full
+format is the package documentation in `internal/mdoc/mdoc.go`.
+
+The thread itself — its comments, who resolved it — is a database row
+([Comments](#comments)); the markdown carries only its id. That is why a thread
+survives a room reload, a version restore and a download: the anchor lives in
+the file.
+
 ### Golden fixtures
 
 `bun apps/web/scripts/mdoc-fixtures.ts`, run against the same
-`@slash-editor/core` as `apps/web` and the same `createMdocKit()`, writes 121
+`@slash-editor/core` as `apps/web` and the same `createMdocKit()`, writes 169
 fixtures to `internal/mdoc/testdata/fixtures/` — the input, its frontmatter,
 slash-editor's `parseMarkdown` JSON, its `serializeMarkdown` output, a Y
 update built by `@tiptap/y-tiptap`, and whether `Parse` must flag it lossy —
@@ -284,7 +342,11 @@ session behind it.
   holds a `.docx` (M24). The prefix is how the edge tells a room's lock apart:
   restoring a version is let through it (below). Unloading releases the lock,
   and `Hub.Start` clears every `collab:` lock a previous process left — with
-  one instance, no room can be resident before it serves.
+  one instance, no room can be resident before it serves. `cmd/server` runs
+  `Hub.Start` only after the HTTP listener is bound (`listenThenStart`): a
+  failed bind means another process is serving on the address — a second copy
+  started by mistake, or a restart racing the old one's drain — and clearing
+  first would strip its rooms of their locks before this process exited.
 - **Reseed.** A version restored while no room is loaded is simply what the
   next load parses. Restoring while a room is open goes through
   `Hub.Reseed`: the room's unwritten edits are written first, as a version of
@@ -343,7 +405,9 @@ node_attachments(node_id, blob_hash, name, mime, size, created_by, created_at,
 - Reading is `GET /api/v1/nodes/{id}/attachments/{hash}`, requiring
   `CapDownload` on the document — whoever can open it sees its images. A hash
   the document does not hold is 404 whether or not another document holds it.
-  Only images render inline (not SVG); anything else downloads.
+  Images and videos render inline (not SVG); anything else downloads. `Range`
+  is served — a `<video>` needs it to seek — even from an S3 body that cannot
+  seek backwards (`forwardSeeker`).
 - The markdown stores `attachment:<hash>`. slash-editor has no `src` resolver
   hook, so the image and file node views (`components/nodes/`, ours) resolve
   it against the current document; the editor passes `image: false` and
@@ -352,13 +416,140 @@ node_attachments(node_id, blob_hash, name, mime, size, created_by, created_at,
   rewriting. The image view resizes by dragging and stores `width` in the
   slash marker.
 - Paths that bypass the node views — `getHTML()`, clipboard and drag HTML —
-  carry the raw scheme. An image pasted into a different document resolves
-  against a document with no such row and shows broken; v1 accepts that.
+  carry the raw scheme. **Write-back adopts** what arrives that way (M40):
+  each write-back compares `mdoc.Attachments` with the document's rows and
+  copies a missing one from a live document that holds it, provided the writer
+  may download that document. Holding a hash is not access to its bytes, so a
+  hash pasted by someone who can read no holder stays broken, as it was.
+  Adoption is best effort (quota, a failed lookup) and never fails the
+  write-back.
 - An attachment lives as long as its document, because older versions may
   still reference it.
 
-A `.md` downloaded out of pp-hub keeps `attachment:` references that resolve
-nowhere else; exporting a document with its assets is not in v1.
+A plain `.md` download keeps `attachment:` references that resolve nowhere
+else; [export](#export) is the way out with the images.
+
+## Templates
+
+`internal/blockdoc/templates/<lang>/<id>.md`, embedded: meeting notes,
+outline, project spec, runbook and weekly report, in English and Vietnamese.
+`GET /api/v1/templates/markdown` lists them in `?locale=` or the caller's saved
+language (any `vi` tag is Vietnamese, everything else English — the rule office
+templates use), and `POST /spaces/{id}/documents` takes `"template": "<id>"`
+with `kind:"markdown"` (400 for an unknown id, or with any other kind). The
+templates are written in the block set and in the form `mdoc.Render` writes,
+so a document made from one opens editable, is not lossy, and is not
+rewritten by its first save — `templates_test.go` holds that. The web picker
+is in the new-document dialog.
+
+## Read-only rendering
+
+`GET /api/v1/nodes/{id}/document` answers a version — the current one, or
+`?version=` — as the ProseMirror tree `mdoc.Parse` produces, with `lossy` and
+the version number. It takes `CapDownload`, like `/content` and `/collab`: the
+tree is the whole document. It is audited as a view.
+
+The web renders it with one component, `components/markdown-document-view`
+(`MarkdownDocumentView({doc, attachmentUrl})`), a non-editable Tiptap on
+`createMdocKit` with the editor's own node views in read-only mode — so a
+document looks the same read as edited. Its callers are the preview panel for
+markdown, the version preview modal (`version-preview-modal.tsx`, with a
+**Restore** action), and the share page.
+
+**Through a link**, `/s/{token}/document?node=<id>` and
+`/s/{token}/attachments/{hash}?node=<id>` answer the same tree and bytes on the
+terms of the link's other byte routes: the link must allow download and cover
+the node (the link's own node when `?node=` is absent). A link that does not
+allow download shows no document, for the reason `/content` needs download
+(M21). Editing through a link is not built.
+
+## Export
+
+`GET /api/v1/nodes/{id}/export` (`internal/blockdoc/export.go`) writes
+`<base>.zip`: `<name>.md` with every `attachment:<hash>` the document holds
+rewritten (`mdoc.MapAttachments`) to `assets/<unique filename>`, and those
+files under `assets/` — a document that still renders once it leaves pp-hub.
+A reference to an attachment the document does not hold is left as it is: it
+resolves nowhere, in pp-hub or out of it. Everything that can fail with a
+status fails before the response is committed. It takes `CapDownload` and is
+audited as a download. The web offers it as **Export with images (.zip)** in
+node actions and the editor header's download menu.
+
+## Link bookmarks (unfurl)
+
+The `embed` block in bookmark mode shows a link's title, description and
+preview image. The browser cannot fetch another origin's page (and CSP
+`img-src` is `'self'`, so an image is never hotlinked), so the server does:
+`POST /api/v1/nodes/{docId}/unfurl {"url"}`, `CapEdit` on the document.
+
+A server-side fetch of a URL a user typed is a server-side request forgery
+surface, so `internal/unfurl` is built against it:
+
+- the address is checked **when the connection is dialled** — after DNS, on
+  every attempt and every redirect — and private, loopback, link-local,
+  metadata and otherwise non-public addresses are refused, so neither a
+  hostname resolving to `127.0.0.1`, a redirect to `169.254.169.254` nor DNS
+  rebinding gets through;
+- proxies from the environment are ignored (a proxy would dial on our behalf,
+  unchecked);
+- only absolute `http`/`https` URLs without credentials, at most 5 redirects;
+- 5 s per fetch end to end, the first 1 MiB of HTML parsed (the metadata is in
+  the head), a preview image sniffed as PNG, JPEG, GIF or WebP and at most
+  5 MiB.
+
+The preview image is stored as an attachment of the document under the upload
+cap and the space's quota, named after the site it came from, and the
+bookmark's `thumbnail` is its `attachment:<hash>`. An image that cannot be had
+leaves the bookmark without one rather than failing it.
+
+## Comments
+
+Comments are M29's ([milestone](milestones/M29.md)), and block documents are
+the only thing they attach to. `internal/comments` owns threads and comments;
+`internal/notifications` tells people about them. The anchor is the
+[comment marker](#comment-anchors) in the markdown; the rows are
+`comment_threads` and `comments` (migration `0015`,
+[data-model.md](data-model.md)), which cascade when the document is purged
+— a trashed document keeps its threads, so restoring it restores the
+conversation.
+
+| Route                                                | What it does                                                                                        |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `GET /api/v1/nodes/{id}/comments`                    | `{threads: [...]}`, each with its comments, oldest first                                            |
+| `POST /api/v1/nodes/{id}/comment-threads`            | `{body, mentions?}` opens a thread; the server generates the id the editor then marks the text with |
+| `POST /api/v1/comment-threads/{id}/comments`         | `{body, mentions?}` replies, reopening a resolved thread                                            |
+| `PATCH /api/v1/comments/{id}`                        | `{body}` — the author only                                                                          |
+| `DELETE /api/v1/comments/{id}`                       | The author, or `CapEdit` on the document; the thread goes with its last comment                     |
+| `POST /api/v1/comment-threads/{id}/resolve`/`reopen` | The thread's opener, or `CapEdit`; idempotent                                                       |
+
+**Reading and writing take `CapDownload`**, not `CapEdit`: whoever can open
+the document can take part in its discussion, which is how a reviewer with
+read-only access leaves a remark. A body is at most 10 000 characters and names
+at most 50 people.
+
+**Who is told.** A new thread notifies the document's owner (`comment`); a
+reply notifies the thread's participants and the owner (`reply`); anyone
+named in `mentions` gets a `mention` instead — each person once, a mention
+winning, never the actor, and nobody who cannot currently open the document.
+The rows are written in the comment's own transaction and pushed to open tabs
+once it commits.
+
+**Mentions in the document** notify too. The version hook enqueues a
+`notify:mentions` job per markdown version; it diffs `mdoc.Mentions` against
+the previous version and notifies each `user:<uuid>` newly mentioned who can
+view the node, recording the version so a retried job cannot notify twice. It
+runs in `cmd/server`, never in the worker, because the broker holding the open
+streams is that process's.
+
+On the web, `lib/comments.ts` is the thread store over REST — polled every
+10 s while the document is open and refetched on focus and after a mutation —
+and `components/comments/` the panel and composer (with @mention of space
+members), both mounted by `doc-editor.tsx`: the composer comments the current
+selection, and the panel toggles from the editor header. `/edit/<id>?thread=`
+opens the document on a thread, which is where a notification leads.
+
+Notifications themselves — the bell, the list, the SSE stream — are described
+in [M29](milestones/M29.md) and [data-model.md](data-model.md#comments-and-notifications).
 
 ## Web
 
@@ -373,6 +564,22 @@ nowhere else; exporting a document with its assets is not in v1.
   from the provider (which the SyncStatus patch makes truthful) and a
   Read-only badge; the lossy warning is a better-modal dialog
   (`lossy-edit-modal.tsx`).
+- Presence: each collaborator gets a colour and initials, stable per user id
+  and derived from the display name (`lib/collab/presence.ts`).
+- Editing aids (M40): table controls (add or delete a row or column, toggle
+  the header row, delete the table — `components/table-controls.tsx`); an
+  outline panel of the headings, click to scroll, toggled from the editor
+  header (`doc-editor/outline-panel.tsx`); `@` mentions of space members and
+  of markdown documents in the space (`lib/collab/mentions.ts`,
+  `nodes/mention-node-view.tsx`); a video node view and an embed node view
+  whose slash item asks for a URL and unfurls it (`nodes/embed-link-modal.tsx`);
+  an uploaded image's alt text taken from its file name (`q3-roadmap.png`
+  reads "q3 roadmap", `altFromFileName`); and a narrow-screen layout where
+  the padding shrinks, the block handle is hidden and side panels overlay the
+  document below `md`.
+- A markdown document's versions are written by the server with no event to
+  the page, so `routes/edit/$nodeId.tsx` refetches the node every 30 s and the
+  header's version number does not go stale.
 - `lib/collab/use-collab-room.ts` owns the connection. Read-only comes from
   `can_write`, not from the provider. On every close it re-reads `/collab`: a
   4xx destroys the provider, a different room rebuilds the Y.Doc and provider,
@@ -393,16 +600,25 @@ nowhere else; exporting a document with its assets is not in v1.
   requested host): CSP3 lets `'self'` cover it, older WebKit does not.
 - Metrics: `pphub_collab_rooms`, `pphub_collab_peers`,
   `pphub_collab_flush_duration_seconds`, `pphub_collab_flush_failures_total`.
-- One server instance hosts every room. Several instances would need ygo's
-  cluster relay and are out of scope, as they are for the rate limiter.
+- nginx proxies `/api/v1/notifications/stream` (Server-Sent Events) unbuffered
+  with a 1 h timeout; the server writes a heartbeat every 25 s.
+- **Outbound HTTP.** Link bookmarks make the server fetch public web pages; an
+  install with no egress simply gets bookmarks without a title or image.
+- One server instance hosts every room and every notification stream. Several
+  instances would need ygo's cluster relay and a shared broker, and are out of
+  scope, as they are for the rate limiter.
 
 See [deployment.md](../deployment.md#block-document-collaboration).
 
 ## Testing
 
-- **Unit:** `mdoc` against the 121 golden fixtures and `schema.json`, including
+- **Unit:** `mdoc` against the 169 golden fixtures and `schema.json`, including
   block ids and the trailing paragraph, frontmatter, and the lossy flag; the
-  Go-built seeds decoded by slash-editor in `mdoc-go-updates.test.ts`.
+  comment-marker cases in `testdata/comments/` and the helpers
+  (`comment_test.go`, `helpers_test.go`); the Go-built seeds, comment cases
+  included, decoded by slash-editor in `mdoc-go-updates.test.ts`;
+  `blockdoc/templates_test.go`; `unfurl_test.go` (refused addresses,
+  redirects, limits).
 - **Database-backed** (`httpapi/collab_db_test.go`, real router, hub,
   websocket client and Postgres): the authorization matrix; a read-only peer's
   edits dropped; `Recheck` closing only the affected peers; write-back of
@@ -410,13 +626,27 @@ See [deployment.md](../deployment.md#block-document-collaboration).
   edits as their authors; the lock while resident; reseed on restore; stale
   room locks released at start. `attachments_db_test.go`: attachment access
   follows the document's, and reference counting through copy and purge.
+  `documents_db_test.go` (M40): the document tree follows download and
+  versions, the share-link tree and attachments, the export zip with its
+  assets, creation from a template, unfurl storing the preview image, video
+  `Range`, write-back adopting only readable attachments, and a mark-only
+  change (a comment anchor) still writing a version. `comments_db_test.go`
+  (M29): the comment permission matrix, resolve rules, threads going with
+  their document, notification recipients, unread and mark-read, the stream
+  delivering to the recipient only, and document mentions notifying readers.
 - **Structural:** the collab route is authenticated, and refuses a foreign or
-  missing `Origin` before ygo loads the room.
+  missing `Origin` before ygo loads the room. `cmd/server/main_test.go`: the
+  listener is bound before the hub starts.
 - **Smoke (browser):** two users in separate browser contexts co-edited one
   document live, with presence avatars and remote carets; versions were written
   per author; the downloaded `.md` was GFM, with a `> [!TIP]` callout and
   `![](attachment:<hash>)`; an uploaded image rendered through the attachments
   endpoint; a lossy upload opened read-only behind the **Edit** warning.
+- **Smoke (browser, M40, on a cloned database):** a document created from a
+  template; a comment with an @mention raised the other user's badge live over
+  SSE (Vietnamese UI) and its deep link opened the thread; an @mention in the
+  document notified after write-back; outline and table controls; the
+  share-link read-only render; the export zip; a content-search snippet.
 
 ## Spike (Phase 0)
 

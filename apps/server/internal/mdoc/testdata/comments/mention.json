@@ -1,0 +1,74 @@
+{
+  "name": "mention",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "mention",
+            "attrs": {
+              "id": "user:1",
+              "label": "Ann"
+            }
+          },
+          {
+            "type": "text",
+            "text": " said",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t1"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " hi"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "ask ",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t2"
+                }
+              }
+            ]
+          },
+          {
+            "type": "mention",
+            "attrs": {
+              "id": "user:2",
+              "label": "Bo"
+            }
+          },
+          {
+            "type": "text",
+            "text": " now",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t2"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "js_output": "<!-- slash:mention {\"id\":\"user:1\",\"label\":\"Ann\"} -->@Ann<!-- /slash:mention --> said hi\n\nask <!-- slash:mention {\"id\":\"user:2\",\"label\":\"Bo\"} -->@Bo<!-- /slash:mention --> now",
+  "yupdate_b64": "ARUBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQADB21lbnRpb24oAAEBAmlkAXcGdXNlcjoxKAABAQVsYWJlbAF3A0FubocBAQYGAAEEEWNvbW1lbnQtLW9jQzR5ZFpREXsidGhyZWFkSWQiOiJ0MSJ9hAEFBSBzYWlkhgEKEWNvbW1lbnQtLW9jQzR5ZFpRBG51bGyEAQsDIGhphwEAAwlwYXJhZ3JhcGgHAAEPBgYAARARY29tbWVudC0tMWVoTTBVYjcReyJ0aHJlYWRJZCI6InQyIn2EAREEYXNrIIYBFRFjb21tZW50LS0xZWhNMFViNwRudWxshwEQAwdtZW50aW9uKAABFwJpZAF3BnVzZXI6MigAARcFbGFiZWwBdwJCb4cBFwYGAAEaEWNvbW1lbnQtLTFlaE0wVWI3EXsidGhyZWFkSWQiOiJ0MiJ9hAEbBCBub3eGAR8RY29tbWVudC0tMWVoTTBVYjcEbnVsbAA="
+}

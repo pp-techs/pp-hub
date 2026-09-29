@@ -1,0 +1,20 @@
+{
+  "name": "video-poster",
+  "input": "<!-- slash:video {\"poster\":\"attachment:beef03\"} -->\n[attachment:0123abcd](attachment:0123abcd)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "video",
+        "attrs": {
+          "poster": "attachment:beef03",
+          "src": "attachment:0123abcd"
+        }
+      }
+    ]
+  },
+  "output": "<!-- slash:video {\"poster\":\"attachment:beef03\"} -->\n[attachment:0123abcd](attachment:0123abcd)",
+  "yupdate_b64": "AQQBAAcBB2NvbnRlbnQDBXZpZGVvKAABAANzcmMBdxNhdHRhY2htZW50OjAxMjNhYmNkKAABAAZwb3N0ZXIBdxFhdHRhY2htZW50OmJlZWYwMygAAQAGc3RhdHVzAXcFcmVhZHkA",
+  "expect_lossy": false
+}

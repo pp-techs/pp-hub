@@ -1,0 +1,35 @@
+{
+  "name": "simple",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Hello "
+          },
+          {
+            "type": "text",
+            "text": "world",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t1"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": "!"
+          }
+        ]
+      }
+    ]
+  },
+  "js_output": "Hello world!",
+  "yupdate_b64": "AQcBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQZIZWxsbyCGAQcRY29tbWVudC0tb2NDNHlkWlEReyJ0aHJlYWRJZCI6InQxIn2EAQgFd29ybGSGAQ0RY29tbWVudC0tb2NDNHlkWlEEbnVsbIQBDgEhAA=="
+}

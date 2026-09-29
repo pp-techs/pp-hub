@@ -1,0 +1,35 @@
+{
+  "name": "escaped-text",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "*not* "
+          },
+          {
+            "type": "text",
+            "text": "<b> & [x]",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t1"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " _y_"
+          }
+        ]
+      }
+    ]
+  },
+  "js_output": "\\*not\\* &lt;b&gt; &amp; \\[x\\] \\_y\\_",
+  "yupdate_b64": "AQcBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQYqbm90KiCGAQcRY29tbWVudC0tb2NDNHlkWlEReyJ0aHJlYWRJZCI6InQxIn2EAQgJPGI+ICYgW3hdhgEREWNvbW1lbnQtLW9jQzR5ZFpRBG51bGyEARIEIF95XwA="
+}

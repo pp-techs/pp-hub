@@ -2,7 +2,7 @@ import { defaultBlockTypes, type BubbleToolbarItem } from "@slash-editor/core";
 import { useBubbleToolbar } from "@slash-editor/react";
 import type { Editor } from "@tiptap/core";
 import { useLingui } from "@lingui/react/macro";
-import { ChevronDownIcon, RemoveFormattingIcon } from "lucide-react";
+import { ChevronDownIcon, MessageSquarePlusIcon, RemoveFormattingIcon } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import {
   DropdownMenu,
@@ -86,8 +86,9 @@ function ToolbarButton({ editor, item }: { editor: Editor; item: BubbleToolbarIt
 
 /**
  * Inline formatting over a selection: block type, the v1 marks (bold,
- * italic, strike, code, link — nothing the markdown cannot keep) and
- * clear-formatting.
+ * italic, strike, code, link — nothing the markdown cannot keep),
+ * clear-formatting, and — when the editor has a comment store — a comment
+ * on the selected text.
  */
 export function BubbleToolbar({ editor }: { editor: Editor }) {
   const { t } = useLingui();
@@ -125,6 +126,27 @@ export function BubbleToolbar({ editor }: { editor: Editor }) {
           />
           <TooltipContent>{t`Clear formatting`}</TooltipContent>
         </Tooltip>
+        {editor.storage.comment?.store ? (
+          <>
+            <Separator orientation="vertical" className="mx-0.5 h-4" />
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => editor.commands.openCommentComposer()}
+                  >
+                    <MessageSquarePlusIcon data-icon="inline-start" />
+                    <span>{t`Comment`}</span>
+                  </Button>
+                }
+              />
+              <TooltipContent>{t`Comment on the selected text`}</TooltipContent>
+            </Tooltip>
+          </>
+        ) : null}
       </PopoverContent>
     </Popover>
   );

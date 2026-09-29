@@ -1,0 +1,21 @@
+{
+  "name": "embed-iframe",
+  "input": "<!-- slash:embed {\"mode\":\"iframe\"} -->\n[Map](<https://maps.example/embed?q=(1,2)>)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "embed",
+        "attrs": {
+          "mode": "iframe",
+          "url": "https://maps.example/embed?q=(1,2)",
+          "title": "Map"
+        }
+      }
+    ]
+  },
+  "output": "<!-- slash:embed {\"mode\":\"iframe\"} -->\n[Map](<https://maps.example/embed?q=(1,2)>)",
+  "yupdate_b64": "AQQBAAcBB2NvbnRlbnQDBWVtYmVkKAABAAN1cmwBdyJodHRwczovL21hcHMuZXhhbXBsZS9lbWJlZD9xPSgxLDIpKAABAARtb2RlAXcGaWZyYW1lKAABAAV0aXRsZQF3A01hcAA=",
+  "expect_lossy": false
+}

@@ -2,6 +2,7 @@ package mdoc
 
 import (
 	"bytes"
+	"maps"
 	"regexp"
 	"strings"
 
@@ -33,6 +34,7 @@ func Parse(src []byte) (Parsed, error) {
 	content := p.blocks(s, true)
 	content = append(content, Node{Type: "paragraph", Content: []Node{}})
 	doc := Node{Type: "doc", Content: content}
+	resolveComments(&doc)
 	assignIDs(&doc)
 	var frontmatter []byte
 	if fm != nil {
@@ -53,12 +55,14 @@ func splitFrontmatter(src []byte) (fm, body []byte) {
 	return src[:loc[1]], src[loc[1]:]
 }
 
-var gm = goldmark.New(goldmark.WithExtensions(
-	extension.Table, extension.Strikethrough, extension.TaskList, extension.Footnote,
-))
+var gm = goldmark.New(
+	goldmark.WithParser(newParser()),
+	goldmark.WithExtensions(extension.Table, extension.Strikethrough, extension.TaskList, extension.Footnote),
+)
 
 // inlineGM parses text as nothing but paragraphs: marked's inlineTokens.
 var inlineGM = goldmark.New(
+	goldmark.WithParser(newParser()),
 	goldmark.WithParserOptions(
 		parser.WithBlockParsers(util.Prioritized(parser.NewParagraphParser(), 1000)),
 		parser.WithParagraphTransformers(),
@@ -295,10 +299,16 @@ func (p *mdParser) custom(src string, start int) (entries []entry, n int, ok boo
 	if node, raw, ok := p.columns(r); ok {
 		return one(node, raw, true)
 	}
-	if node, raw, ok := p.media(r, "file", "name", []string{"size", "mime"}, false); ok {
+	if node, raw, ok := p.media(r, "embed", "url", "title", []string{"mode", "description", "thumbnail"}, false); ok {
 		return one(node, raw, true)
 	}
-	if node, raw, ok := p.media(r, "image", "alt", []string{"width"}, true); ok {
+	if node, raw, ok := p.media(r, "video", "src", "", []string{"poster"}, false); ok {
+		return one(node, raw, true)
+	}
+	if node, raw, ok := p.media(r, "file", "src", "name", []string{"size", "mime"}, false); ok {
+		return one(node, raw, true)
+	}
+	if node, raw, ok := p.media(r, "image", "src", "alt", []string{"width"}, true); ok {
 		return one(node, raw, true)
 	}
 	if node, raw, ok := p.details(r); ok {
@@ -313,8 +323,11 @@ func (p *mdParser) custom(src string, start int) (entries []entry, n int, ok boo
 	if node, raw, ok := p.orderedList(r); ok {
 		return one(node, raw, false)
 	}
-	if m := anyMarkerLine.FindString(r); m != "" {
-		p.lossy = true
+	if m := anyMarkerLine.FindString(r); m != "" && !startsInlineRun([]byte(m)) {
+		// A stray comment marker loses no content.
+		if !commentMarkerPrefix.MatchString(strings.TrimLeft(m, " ")) {
+			p.lossy = true
+		}
 		return []entry{{start: start, fullLine: true}}, len(m), true
 	}
 	return nil, 0, false
@@ -345,7 +358,10 @@ func nonEmptyBlocks(content []Node) []Node {
 	return content
 }
 
-func (p *mdParser) media(r, typ, labelAttr string, markerKeys []string, image bool) (Node, int, bool) {
+// media is mediaMarkdown's tokenizer and parseMarkdown: an optional marker
+// carrying markerKeys, then one link line whose href goes to hrefAttr and
+// whose label (unless it repeats the href) to labelAttr, if any.
+func (p *mdParser) media(r, typ, hrefAttr, labelAttr string, markerKeys []string, image bool) (Node, int, bool) {
 	m := readMarker(r, typ)
 	if m == nil && !image {
 		return Node{}, 0, false
@@ -362,7 +378,7 @@ func (p *mdParser) media(r, typ, labelAttr string, markerKeys []string, image bo
 	if !blankRest.MatchString(r[raw:]) {
 		return Node{}, 0, false
 	}
-	attrs := map[string]any{"src": link.href}
+	attrs := map[string]any{hrefAttr: link.href}
 	if m != nil {
 		for _, k := range markerKeys {
 			if v, ok := m.attrs[k]; ok {
@@ -370,10 +386,12 @@ func (p *mdParser) media(r, typ, labelAttr string, markerKeys []string, image bo
 			}
 		}
 	}
-	if link.label != "" && link.label != link.href {
-		attrs[labelAttr] = link.label
-	} else {
-		attrs[labelAttr] = nil
+	if labelAttr != "" {
+		if link.label != "" && link.label != link.href {
+			attrs[labelAttr] = link.label
+		} else {
+			attrs[labelAttr] = nil
+		}
 	}
 	return Node{Type: typ, Attrs: attrs}, raw, true
 }
@@ -990,6 +1008,9 @@ func (p *mdParser) inline(n ast.Node, src []byte) []Node {
 			b.Write(seg.Value(src))
 		}
 		html := b.String()
+		if edge, ok := parseCommentMarker(html); ok {
+			return []Node{edge}
+		}
 		if inlineMarker.MatchString(html) {
 			return nil
 		}
@@ -998,6 +1019,8 @@ func (p *mdParser) inline(n ast.Node, src []byte) []Node {
 			return []Node{{Type: "text", Text: t}}
 		}
 		return nil
+	case *mentionNode:
+		return []Node{{Type: "mention", Attrs: maps.Clone(x.attrs)}}
 	case *east.TaskCheckBox:
 		return nil
 	case *east.FootnoteLink:

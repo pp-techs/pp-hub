@@ -190,15 +190,16 @@ export function DriveWriteProvider({ children }: { children: ReactNode }) {
     (kind: DocumentKind) => {
       const { spaceId: into, label } = target;
       if (!into || !target.canWrite) return;
-      void NewDocumentDialog.show({ kind, destination: label }).then((name) => {
-        if (!name) return;
+      void NewDocumentDialog.show({ kind, destination: label }).then((choice) => {
+        if (!choice) return;
+        const { name, template } = choice;
         // Open tab immediately inside the Create click's user activation,
         // avoiding popup blockers on Safari/WebKit that block async window.open.
         // eslint-disable-next-line lingui/no-unlocalized-strings -- target window
         const tab = window.open("", "_blank");
         if (tab) tab.opener = null;
         mkdoc.mutate(
-          { kind, name },
+          { kind, name, template },
           {
             onSuccess: (made) => {
               if (tab) {

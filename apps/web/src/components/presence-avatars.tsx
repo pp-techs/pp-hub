@@ -3,12 +3,14 @@ import { usePresence } from "@slash-editor/react";
 import { useLingui } from "@lingui/react/macro";
 import { Avatar, AvatarFallback, AvatarGroup } from "@workspace/ui/components/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@workspace/ui/components/tooltip";
+import { presenceInitials } from "@/lib/collab/presence";
 
 /**
- * Everyone else in the document, as initials in their caret colour — the
+ * Everyone else in the document, as initials in their presence colour — the
  * same colour their cursor carries in the text, so a face can be matched to
- * a caret at a glance. The local user is left out: `usePresence` skips our
- * own awareness client.
+ * a caret at a glance. Both come from the user id, the initials from the
+ * display name (or the email when there is none). The local user is left
+ * out: `usePresence` skips our own awareness client.
  */
 export function PresenceAvatars({ provider }: { provider: PresenceProvider }) {
   const { t } = useLingui();
@@ -31,7 +33,7 @@ export function PresenceAvatars({ provider }: { provider: PresenceProvider }) {
                     className="font-medium text-white"
                     style={color ? { backgroundColor: color } : undefined}
                   >
-                    {name.slice(0, 1).toUpperCase()}
+                    {presenceInitials(name)}
                   </AvatarFallback>
                 </Avatar>
               }

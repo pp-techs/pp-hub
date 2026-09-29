@@ -1,0 +1,35 @@
+{
+  "name": "soft-break",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "line one\n"
+          },
+          {
+            "type": "text",
+            "text": "line two",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t1"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " end"
+          }
+        ]
+      }
+    ]
+  },
+  "js_output": "line one\nline two end",
+  "yupdate_b64": "AQcBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQlsaW5lIG9uZQqGAQoRY29tbWVudC0tb2NDNHlkWlEReyJ0aHJlYWRJZCI6InQxIn2EAQsIbGluZSB0d2+GARMRY29tbWVudC0tb2NDNHlkWlEEbnVsbIQBFAQgZW5kAA=="
+}

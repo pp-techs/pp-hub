@@ -4,13 +4,13 @@ import { useLingui } from "@lingui/react/macro";
 import { ImageIcon } from "lucide-react";
 import { useRef, useState, type PointerEvent } from "react";
 import { UploadableNodeView } from "@/components/nodes/uploadable-node-view";
-import { resolveAttachment } from "@/lib/collab/attachments";
+import { resolveAttachment, type AttachmentUrl } from "@/lib/collab/attachments";
 
 /** Narrowest an image can be dragged to, in CSS pixels. */
 const MIN_WIDTH = 80;
 
 export function ImageNodeView(
-  props: NodeViewProps & { adapter: UploadAdapter; documentId: string },
+  props: NodeViewProps & { adapter?: UploadAdapter; attachmentUrl: AttachmentUrl },
 ) {
   const { t } = useLingui();
   return (
@@ -23,7 +23,7 @@ export function ImageNodeView(
       renderReady={(attrs) => (
         <ResizableImage
           {...props}
-          src={resolveAttachment(props.documentId, attrs.src)}
+          src={resolveAttachment(attrs.src, props.attachmentUrl)}
           alt={(props.node.attrs.alt as string | null) ?? ""}
         />
       )}

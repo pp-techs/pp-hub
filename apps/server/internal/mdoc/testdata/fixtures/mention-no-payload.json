@@ -1,0 +1,33 @@
+{
+  "name": "mention-no-payload",
+  "input": "Hi <!-- slash:mention -->@Bob<!-- /slash:mention --> there\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Hi "
+          },
+          {
+            "type": "mention",
+            "attrs": {
+              "id": null,
+              "label": "Bob"
+            }
+          },
+          {
+            "type": "text",
+            "text": " there"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "Hi <!-- slash:mention {\"label\":\"Bob\"} -->@Bob<!-- /slash:mention --> there",
+  "yupdate_b64": "AQcBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQNIaSCHAQEDB21lbnRpb24oAAEFBWxhYmVsAXcDQm9ihwEFBgQAAQcGIHRoZXJlAA==",
+  "expect_lossy": false
+}

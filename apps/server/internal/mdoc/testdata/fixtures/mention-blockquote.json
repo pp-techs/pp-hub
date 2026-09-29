@@ -1,0 +1,34 @@
+{
+  "name": "mention-blockquote",
+  "input": "> cc <!-- slash:mention {\"id\":\"user:1\",\"label\":\"A\"} -->@A<!-- /slash:mention -->\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "blockquote",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "cc "
+              },
+              {
+                "type": "mention",
+                "attrs": {
+                  "id": "user:1",
+                  "label": "A"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "> cc <!-- slash:mention {\"id\":\"user:1\",\"label\":\"A\"} -->@A<!-- /slash:mention -->",
+  "yupdate_b64": "AQcBAAcBB2NvbnRlbnQDCmJsb2NrcXVvdGUHAAEAAwlwYXJhZ3JhcGgHAAEBBgQAAQIDY2MghwECAwdtZW50aW9uKAABBgJpZAF3BnVzZXI6MSgAAQYFbGFiZWwBdwFBAA==",
+  "expect_lossy": false
+}

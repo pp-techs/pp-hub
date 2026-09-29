@@ -1,0 +1,43 @@
+{
+  "name": "same-thread-twice",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "a",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t1"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " b "
+          },
+          {
+            "type": "text",
+            "text": "c",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t1"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "js_output": "a b c",
+  "yupdate_b64": "AQkBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBgABARFjb21tZW50LS1vY0M0eWRaURF7InRocmVhZElkIjoidDEifYQBAgFhhgEDEWNvbW1lbnQtLW9jQzR5ZFpRBG51bGyEAQQDIGIghgEHEWNvbW1lbnQtLW9jQzR5ZFpREXsidGhyZWFkSWQiOiJ0MSJ9hAEIAWOGAQkRY29tbWVudC0tb2NDNHlkWlEEbnVsbAA="
+}

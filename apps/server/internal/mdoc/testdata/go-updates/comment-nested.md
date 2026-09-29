@@ -1,0 +1,1 @@
+x <!-- slash:comment {"threadId":"t1"} -->outer <!-- slash:comment {"threadId":"t2"} -->inner<!-- /slash:comment {"threadId":"t2"} --> outer<!-- /slash:comment {"threadId":"t1"} -->

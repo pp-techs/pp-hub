@@ -1,0 +1,98 @@
+{
+  "name": "mention-list",
+  "input": "- ask <!-- slash:mention {\"id\":\"user:1\",\"label\":\"A\"} -->@A<!-- /slash:mention -->\n- [ ] and <!-- slash:mention {\"id\":\"user:2\",\"label\":\"B\"} -->@B<!-- /slash:mention --> too\n\n1. then <!-- slash:mention {\"id\":\"doc:9\",\"label\":\"Doc\"} -->@Doc<!-- /slash:mention -->\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "bulletList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "ask "
+                  },
+                  {
+                    "type": "mention",
+                    "attrs": {
+                      "id": "user:1",
+                      "label": "A"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "taskList",
+        "content": [
+          {
+            "type": "taskItem",
+            "attrs": {
+              "checked": false
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "and "
+                  },
+                  {
+                    "type": "mention",
+                    "attrs": {
+                      "id": "user:2",
+                      "label": "B"
+                    }
+                  },
+                  {
+                    "type": "text",
+                    "text": " too"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "orderedList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "then "
+                  },
+                  {
+                    "type": "mention",
+                    "attrs": {
+                      "id": "doc:9",
+                      "label": "Doc"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "- ask <!-- slash:mention {\"id\":\"user:1\",\"label\":\"A\"} -->@A<!-- /slash:mention -->\n\n- [ ] and <!-- slash:mention {\"id\":\"user:2\",\"label\":\"B\"} -->@B<!-- /slash:mention --> too\n\n1. then <!-- slash:mention {\"id\":\"doc:9\",\"label\":\"Doc\"} -->@Doc<!-- /slash:mention -->",
+  "yupdate_b64": "ARwBAAcBB2NvbnRlbnQDCmJ1bGxldExpc3QHAAEAAwhsaXN0SXRlbQcAAQEDCXBhcmFncmFwaAcAAQIGBAABAwRhc2sghwEDAwdtZW50aW9uKAABCAJpZAF3BnVzZXI6MSgAAQgFbGFiZWwBdwFBhwEAAwh0YXNrTGlzdAcAAQsDCHRhc2tJdGVtBwABDAMJcGFyYWdyYXBoBwABDQYEAAEOBGFuZCCHAQ4DB21lbnRpb24oAAETAmlkAXcGdXNlcjoyKAABEwVsYWJlbAF3AUKHARMGBAABFgQgdG9vKAABDAdjaGVja2VkAXmHAQsDC29yZGVyZWRMaXN0BwABHAMIbGlzdEl0ZW0HAAEdAwlwYXJhZ3JhcGgHAAEeBgQAAR8FdGhlbiCHAR8DB21lbnRpb24oAAElAmlkAXcFZG9jOjkoAAElBWxhYmVsAXcDRG9jKAABHAVzdGFydAF9AQA=",
+  "expect_lossy": false
+}

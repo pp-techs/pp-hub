@@ -13,8 +13,8 @@ target deployment: **one company, 20–100 users, several departments,
 self-hosted, no compliance auditor yet**.
 
 It is the evidence, not the plan. [milestones.md](milestones.md) holds the
-plan: every remaining gap below is carried by a named milestone, **M27
-through M29** (M30 and M31 now closed), and each heading here says which.
+plan: every remaining gap below is carried by a named milestone, **M27 and
+M28** (M29, M30 and M31 now closed), and each heading here says which.
 Nothing there is scheduled — the numbers are an order the dependencies
 suggest, and the phasing at the end explains that order. What stays here is
 the reason each item is (or was) on the list and the `file:line` that lets a
@@ -29,9 +29,11 @@ backup, a readiness probe that actually fails when a dependency has, and a
 REST write that cannot silently discard an open editor's work. The permission
 model (M15) is stricter by default than Google Drive's, WOPI co-editing is
 real, and versioning, trash retention, blob GC, quota and search all work.
-What remains missing is the layer above that: content search, richer audit,
-directory sync, comments, and the honest storage accounting Phase B and C
-carry.
+What was missing is the layer above that: content search, richer audit,
+directory sync, comments, and honest storage accounting. Audit (M26),
+comments (M29) and accounting (M30) are closed and content search is half
+done (M27, markdown and plain text); office-document search and directory
+sync remain.
 
 ## P0 — blocks an internal rollout
 
@@ -142,23 +144,31 @@ Ordered by what a 20–100 person, multi-department deployment feels first. Each
 heading names the milestone that carries it; the phasing at the end places
 that milestone in a phase.
 
-### Search only matches file names — M27
+### Search only matches file names — M27, partially closed
 
-`pg_trgm` and one GIN index on `nodes.name` — `nodes_name_trgm`, partial on
-`deleted_at IS NULL` (`0001_init.sql:4` and `:200`; M7 added both, back when
-the schema was a run of deltas rather than one squashed baseline). That is the
-whole of it: `GET /api/v1/search` ranks a prefix match over a mid-string one
-and falls back to trigram similarity on the name.
+**Markdown and plain-text files are content-searched since M27's first half**
+(migration `0016_content_search.sql`): an `extract:text` job writes each
+file's current text into `node_texts`, folded so Vietnamese matches without
+accents, and `GET /api/v1/search` merges content hits with name hits — every
+name hit first — returning `match`, `snippet` and `snippet_highlights`.
+Existing files are backfilled by `cmd/server` at startup. Access filtering is
+unchanged. See [preview-pipeline.md](preview-pipeline.md#text-extraction).
+
+**Still open: office documents and PDFs** — the files a company actually
+keeps its contracts in — are matched by name only, as are images (no OCR).
+That was the original gap: `pg_trgm` and one GIN index on `nodes.name`
+(`nodes_name_trgm`, partial on `deleted_at IS NULL`), a prefix match ranked
+over a mid-string one, trigram similarity as the fallback.
 
 Google Drive indexes document contents and OCRs images. For a company document
 store this is the difference between "find the contract" and "remember which
 folder the contract is in" — and the second one stops working at about the
 point a second department joins.
 
-The pieces to build on already exist: the preview pipeline is a DB-backed job
-queue with an optional worker (`preview-pipeline.md`), and office documents
-already pass through OnlyOffice conversion, so a text-extraction job kind is an
-addition to a working pattern rather than new infrastructure.
+The office half is now an addition to a working path: the extraction registry
+routes by job kind, office documents already pass through OnlyOffice
+conversion in `cmd/worker`, and an office extractor registered there needs no
+change to storage, backfill or search.
 
 ### `activity_events` is a feed, not an audit log — closed in M21 and M26
 
@@ -222,12 +232,16 @@ Nothing watched the log on its own; `internal/alert` now does, for one rule —
 a burst of failed sign-ins from one address raises a `security_alert` row, a
 `pphub_security_alerts_total` increment and an email to the instance admins.
 
-### No comments — M29
+### No comments — closed in M29
 
-Drive's primary collaboration surface. No table, no endpoints, no UI — it has
-been deferred at every milestone since M10, whose own entry in
-[milestones.md](milestones.md) says so and whose successor repeats it, as "a
-whole subsystem", which is accurate.
+Drive's primary collaboration surface, deferred at every milestone since M10.
+M29 built it for **block documents**: threads anchored in the markdown by a
+comment marker, `comment_threads`/`comments`/`notifications` (`0015`), REST
+routes under `CapDownload`, a comments panel in the editor, and in-app
+notifications — a bell with an unread badge, delivered live over Server-Sent
+Events — for comments, replies and @mentions in comments or in the document
+text. Deliberately not built: comments on office files and any email for comments or mentions. See
+[milestones/M29.md](milestones/M29.md).
 
 ### Uploads are not resumable — closed in M30
 
@@ -503,21 +517,19 @@ out of it by decision and have no milestone.
 `security_events` now records intentional reads as well as access changes,
 filters by node and date, exports as CSV, and alerts on bursts of failed
 sign-ins; see the audit-log section above. Then **M27 — content-indexed
-search** as a new preview-pipeline job kind, then **M28 — directory sync**,
-which is the pre-provisioning and IdP-group-sync half of "Identity is managed
-by hand". These are what changes when the user count crosses a couple of
-departments, and each one is additive to a pattern that already exists.
+search** as a new preview-pipeline job kind — **markdown and plain text done**,
+office documents open — then **M28 — directory sync**, which is the
+pre-provisioning and IdP-group-sync half of "Identity is managed by hand".
+These are what changes when the user count crosses a couple of departments,
+and each one is additive to a pattern that already exists.
 
-**Phase C — collaboration and storage honesty.** **M29 — comments and
-notifications**, which is now the in-app half of that problem: M33 deleted the
-transport M23 built along with the invitation it carried, so **M31 and M35 put
-it back** — outgoing mail is configured in Admin › Settings and already sends
-share notifications and failed-login alerts — and M29 owns the rest: the
-`notifications` table, the route, the in-app delivery story, and what a comment
-notification says; **M30 — resumable upload and honest accounting — done**: tus
-uploads against the formerly dead `uploads` table, version retention, and a
-quota that counts every stored version; and **M31 — document creation — done**
-from a template.
+**Phase C — collaboration and storage honesty — done.** **M29 — comments and
+notifications — done**: comments on block documents with in-app notifications
+over a live stream, beside the share-notification and alert mail M31 and M35
+put back after M33 deleted M23's transport; **M30 — resumable upload and
+honest accounting — done**: tus uploads against the formerly dead `uploads`
+table, version retention, and a quota that counts every stored version; and
+**M31 — document creation — done** from a template.
 
 **Named but unscheduled.** A gap with no milestone is still a gap, and the
 risk of a roadmap is that it stops being visible: `style-src
@@ -534,7 +546,8 @@ that has been restored from, a locked file that a REST upload cannot silently
 overwrite, a
 `/readyz` that actually fails when a dependency has, and an avatar upload
 that survives a reload — provided everyone understands that search finds
-names rather than contents and that there are no comments. A company-wide
+office documents and PDFs by name only (markdown and plain text by content)
+and that comments exist only on block documents. A company-wide
 rollout across several departments needs the rest of Phase B as well, M27's
-content search above all; the audit half — "who read this", the question that
+office-document search above all; the audit half — "who read this", the question that
 gets asked within the first week rather than the first month — M26 answered.

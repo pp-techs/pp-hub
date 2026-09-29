@@ -1,0 +1,33 @@
+{
+  "name": "mention-user",
+  "input": "Ping <!-- slash:mention {\"id\":\"user:3f1c2a44-9b0e-4c1d-8a7e-2b6f0c9d1e55\",\"label\":\"Lan Anh\"} -->@Lan Anh<!-- /slash:mention --> today.\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Ping "
+          },
+          {
+            "type": "mention",
+            "attrs": {
+              "id": "user:3f1c2a44-9b0e-4c1d-8a7e-2b6f0c9d1e55",
+              "label": "Lan Anh"
+            }
+          },
+          {
+            "type": "text",
+            "text": " today."
+          }
+        ]
+      }
+    ]
+  },
+  "output": "Ping <!-- slash:mention {\"id\":\"user:3f1c2a44-9b0e-4c1d-8a7e-2b6f0c9d1e55\",\"label\":\"Lan Anh\"} -->@Lan Anh<!-- /slash:mention --> today.",
+  "yupdate_b64": "AQgBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQVQaW5nIIcBAQMHbWVudGlvbigAAQcCaWQBdyl1c2VyOjNmMWMyYTQ0LTliMGUtNGMxZC04YTdlLTJiNmYwYzlkMWU1NSgAAQcFbGFiZWwBdwdMYW4gQW5ohwEHBgQAAQoHIHRvZGF5LgA=",
+  "expect_lossy": false
+}

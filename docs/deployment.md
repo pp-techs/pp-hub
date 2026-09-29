@@ -569,10 +569,41 @@ origin exactly, and a missing `Origin` is refused as well.
 **One `server` instance hosts every room.** A room's live document, its epoch
 and the file lock it holds belong to the process; at startup the server clears
 every `collab:` lock a previous process left, which is only safe because no
-other instance can be holding one. Several instances would need ygo's cluster
-relay and are out of scope, like the rate limiter. On `SIGTERM` the server
-stops accepting, then writes every room back before exiting, so up to ~5 min of
-edits are at risk only on a crash, not a deploy.
+other instance can be holding one — and it does so only once its listener is
+bound, so a second copy started by mistake fails on the port before it can
+strip the running one's rooms of their locks. Several instances would need
+ygo's cluster relay and are out of scope, like the rate limiter. On `SIGTERM`
+the server stops accepting, then writes every room back before exiting, so up
+to ~5 min of edits are at risk only on a crash, not a deploy.
+
+### Notification stream
+
+In-app notifications (M29) arrive over Server-Sent Events at
+`GET /api/v1/notifications/stream`, and nginx gives it an exact-match
+location: `location = /api/v1/notifications/stream` with `proxy_buffering off`
+and `proxy_cache off` — buffered, each event would sit in nginx until the
+buffer filled, i.e. forever — and a 1 h read/send timeout. The server writes a
+heartbeat comment every 25 s, so an hour of silence is a dead client. The
+location sets no `proxy_set_header`, so the server-level headers are
+inherited. A proxy or CDN in front of nginx must not buffer this path either;
+the client reconnects with backoff and refetches the list, so a proxy that
+cuts idle responses costs only a reconnect.
+
+Like the rooms, the streams belong to one process
+(`notifications.Broker`), and so does the `notify:mentions` job that feeds
+them: it runs in `server`, never in `worker`. One `server` instance.
+
+### Outbound HTTP for link previews
+
+A link bookmark in a block document (`POST /api/v1/nodes/{id}/unfurl`) makes
+`server` fetch the linked page and its preview image from the public
+internet, at an address a user typed. It is SSRF-hardened in code (`internal/unfurl`: destinations checked at
+dial time, every redirect included, against private, loopback, link-local and
+metadata ranges; `HTTP_PROXY`/`HTTPS_PROXY` ignored; http/https only; 5 s,
+1 MiB of HTML, 5 MiB images), so no configuration is required. An install
+without egress just gets bookmarks without a title or image; if egress is
+filtered, allow outbound 80/443 from the `server` container for bookmarks to
+work.
 
 ### Network segments
 
@@ -1111,6 +1142,9 @@ service. The worker is bursty — it spawns `pdftoppm`/`ffmpeg` per job with a
 - **`style-src 'unsafe-inline'` in the CSP.** The only loose directive that is
   not load-bearing for a feature; removing it needs changes in `apps/web`,
   not in the deployment.
+- **The notification stream and the collaboration rooms are per process.**
+  Both live in the `server` process's memory; a second replica would host
+  rooms and deliver notifications the first cannot see. Run one.
 - **Read auditing is deduplicated, not exhaustive.** `security_events` records
   intentional reads (downloads, folder zips, inline views, editor opens) at
   most once per person, file and kind per hour, per replica; thumbnails and

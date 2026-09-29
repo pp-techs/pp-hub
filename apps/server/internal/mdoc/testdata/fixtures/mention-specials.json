@@ -1,0 +1,33 @@
+{
+  "name": "mention-specials",
+  "input": "Hi <!-- slash:mention {\"id\":\"user:2\",\"label\":\"a*b_c [x] <y> & \\u002d\\u002d z\"} -->@a*b_c [x] <y> & -- z<!-- /slash:mention -->!\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Hi "
+          },
+          {
+            "type": "mention",
+            "attrs": {
+              "id": "user:2",
+              "label": "a*b_c [x] <y> & -- z"
+            }
+          },
+          {
+            "type": "text",
+            "text": "!"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "Hi <!-- slash:mention {\"id\":\"user:2\",\"label\":\"a*b_c [x] <y> & \\u002d\\u002d z\"} -->@a*b_c [x] <y> & -- z<!-- /slash:mention -->!",
+  "yupdate_b64": "AQgBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQNIaSCHAQEDB21lbnRpb24oAAEFAmlkAXcGdXNlcjoyKAABBQVsYWJlbAF3FGEqYl9jIFt4XSA8eT4gJiAtLSB6hwEFBgQAAQgBIQA=",
+  "expect_lossy": false
+}

@@ -1,0 +1,36 @@
+{
+  "name": "mention-hard-break",
+  "input": "One <!-- slash:mention {\"id\":\"user:1\",\"label\":\"A\"} -->@A<!-- /slash:mention -->  \nnext line\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "One "
+          },
+          {
+            "type": "mention",
+            "attrs": {
+              "id": "user:1",
+              "label": "A"
+            }
+          },
+          {
+            "type": "hardBreak"
+          },
+          {
+            "type": "text",
+            "text": "next line"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "One <!-- slash:mention {\"id\":\"user:1\",\"label\":\"A\"} -->@A<!-- /slash:mention -->  \nnext line",
+  "yupdate_b64": "AQkBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQRPbmUghwEBAwdtZW50aW9uKAABBgJpZAF3BnVzZXI6MSgAAQYFbGFiZWwBdwFBhwEGAwloYXJkQnJlYWuHAQkGBAABCgluZXh0IGxpbmUA",
+  "expect_lossy": false
+}

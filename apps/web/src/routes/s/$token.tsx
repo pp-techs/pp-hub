@@ -21,6 +21,7 @@ import {
   EmptyTitle,
 } from "@workspace/ui/components/empty";
 import {
+  isMarkdownFile,
   shareDownloadAllUrl,
   shareNodeContentUrl,
   shareNodeDownloadUrl,
@@ -31,6 +32,7 @@ import { useFormatters } from "@/lib/format";
 import { pageTitle } from "@/lib/i18n";
 import { NodeIcon } from "@/components/node-icon";
 import { LoadingStatus, SkeletonTableRows } from "@/components/loading";
+import { SharedMarkdownView } from "@/components/markdown-document-view";
 
 export const Route = createFileRoute("/s/$token")({
   head: () => ({ meta: [{ title: pageTitle(msg`Shared`) }] }),
@@ -55,6 +57,11 @@ interface Crumb {
  * shows a single card. Nothing here offers rename, upload, delete or share,
  * and owner names are stripped server-side, so the page cannot leak who works
  * at the organisation.
+ *
+ * A markdown document — the shared file, or one opened from a shared folder —
+ * is rendered in the page, the way the block editor lays it out, when the
+ * link allows downloads (the server gates `/document` exactly as it gates
+ * the bytes). Without that the page keeps to names and details.
  */
 function ShareLanding() {
   const { token } = useParams({ from: "/s/$token" });
@@ -62,6 +69,8 @@ function ShareLanding() {
   const f = useFormatters();
   const info = useShareInfo(token);
   const [trail, setTrail] = useState<Crumb[]>([]);
+  // A markdown file opened from the folder listing, shown in place of it.
+  const [openDoc, setOpenDoc] = useState<Node | null>(null);
 
   const root = info.data?.node;
   const isFolder = root?.kind === "dir";
@@ -119,7 +128,12 @@ function ShareLanding() {
   }
 
   const canDownload = info.data.can_download;
-  const crumbs: Crumb[] = [{ name: root.name }, ...trail];
+  const crumbs: Crumb[] = [
+    { name: root.name },
+    ...trail,
+    ...(openDoc ? [{ id: openDoc.id, name: openDoc.name }] : []),
+  ];
+  const rendersRoot = canDownload && root.kind === "file" && isMarkdownFile(root);
   const sharedBy = info.data.shared_by;
   const expiresOn = info.data.expires_at ? f.date(info.data.expires_at) : null;
   const itemCount = children.data?.length ?? 0;
@@ -184,15 +198,17 @@ function ShareLanding() {
               render={
                 <a
                   href={
-                    isFolder
-                      ? shareDownloadAllUrl(token, currentDir)
-                      : shareNodeDownloadUrl(token, root.id)
+                    openDoc
+                      ? shareNodeDownloadUrl(token, openDoc.id)
+                      : isFolder
+                        ? shareDownloadAllUrl(token, currentDir)
+                        : shareNodeDownloadUrl(token, root.id)
                   }
                 />
               }
             >
               <Download data-icon="inline-start" />
-              {isFolder ? <Trans>Download all</Trans> : <Trans>Download</Trans>}
+              {isFolder && !openDoc ? <Trans>Download all</Trans> : <Trans>Download</Trans>}
             </Button>
           )}
         </div>
@@ -211,7 +227,10 @@ function ShareLanding() {
                     <button
                       type="button"
                       className="text-muted-foreground hover:text-foreground truncate transition-colors"
-                      onClick={() => setTrail((prev) => prev.slice(0, i))}
+                      onClick={() => {
+                        setOpenDoc(null);
+                        setTrail((prev) => prev.slice(0, i));
+                      }}
                     >
                       {crumb.name}
                     </button>
@@ -220,17 +239,24 @@ function ShareLanding() {
               ))}
             </nav>
 
-            <ShareTable
-              token={token}
-              nodes={children.data ?? []}
-              isPending={children.isPending}
-              canDownload={canDownload}
-              onOpenFolder={(node) =>
-                setTrail((prev) => [...prev, { id: node.id, name: node.name }])
-              }
-            />
+            {openDoc ? (
+              <SharedMarkdownView token={token} nodeId={openDoc.id} className="py-2" />
+            ) : (
+              <ShareTable
+                token={token}
+                nodes={children.data ?? []}
+                isPending={children.isPending}
+                canDownload={canDownload}
+                onOpenFolder={(node) =>
+                  setTrail((prev) => [...prev, { id: node.id, name: node.name }])
+                }
+                onOpenDocument={setOpenDoc}
+              />
+            )}
           </>
         )}
+
+        {rendersRoot && <SharedMarkdownView token={token} nodeId={root.id} className="py-2" />}
 
         <div className="border-border flex items-start gap-2 rounded-lg border p-3">
           <Shield className="text-muted-foreground mt-0.5 size-4 shrink-0" />
@@ -264,9 +290,18 @@ interface ShareTableProps {
   isPending: boolean;
   canDownload: boolean;
   onOpenFolder: (node: Node) => void;
+  /** Renders a markdown file in the page; offered only when the link can download. */
+  onOpenDocument: (node: Node) => void;
 }
 
-function ShareTable({ token, nodes, isPending, canDownload, onOpenFolder }: ShareTableProps) {
+function ShareTable({
+  token,
+  nodes,
+  isPending,
+  canDownload,
+  onOpenFolder,
+  onOpenDocument,
+}: ShareTableProps) {
   const { t } = useLingui();
   const f = useFormatters();
 
@@ -312,14 +347,15 @@ function ShareTable({ token, nodes, isPending, canDownload, onOpenFolder }: Shar
           nodes.map((n) => {
             // Named local so the extracted message reads `{nodeName}` rather than `{0}`.
             const nodeName = n.name;
+            const readable = canDownload && isMarkdownFile(n);
             return (
               <TableRow key={n.id}>
                 <TableCell>
-                  {n.kind === "dir" ? (
+                  {n.kind === "dir" || readable ? (
                     <button
                       type="button"
                       className="flex min-w-0 items-center gap-2 text-left"
-                      onClick={() => onOpenFolder(n)}
+                      onClick={() => (readable ? onOpenDocument(n) : onOpenFolder(n))}
                     >
                       <NodeIcon node={n} />
                       <span className="truncate font-medium hover:underline">{n.name}</span>
@@ -347,20 +383,33 @@ function ShareTable({ token, nodes, isPending, canDownload, onOpenFolder }: Shar
                         outcome was a 403. */}
                       {canDownload && (
                         <>
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            aria-label={t`Preview ${nodeName}`}
-                            render={
-                              <a
-                                href={shareNodeContentUrl(token, n.id)}
-                                target="_blank"
-                                rel="noreferrer"
-                              />
-                            }
-                          >
-                            <Eye />
-                          </Button>
+                          {/* A markdown file previews rendered, in the page;
+                            its raw `/content` is source text. */}
+                          {readable ? (
+                            <Button
+                              variant="ghost"
+                              size="icon-xs"
+                              aria-label={t`Preview ${nodeName}`}
+                              onClick={() => onOpenDocument(n)}
+                            >
+                              <Eye />
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="icon-xs"
+                              aria-label={t`Preview ${nodeName}`}
+                              render={
+                                <a
+                                  href={shareNodeContentUrl(token, n.id)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                />
+                              }
+                            >
+                              <Eye />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon-xs"

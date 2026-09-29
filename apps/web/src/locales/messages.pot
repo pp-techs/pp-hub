@@ -21,6 +21,10 @@ msgstr ""
 msgid "“{nodeName}” cut — paste it in another folder"
 msgstr ""
 
+#: src/components/comments/comments-panel.tsx:515
+msgid "(edited)"
+msgstr ""
+
 #: src/components/share-dialog.tsx:468
 msgid "(included with edit)"
 msgstr ""
@@ -138,7 +142,7 @@ msgstr ""
 msgid "{failed, plural, one {# failed} other {# failed}}"
 msgstr ""
 
-#: src/components/preview-panel.tsx:130
+#: src/components/preview-panel.tsx:132
 msgid "{files, plural, one {# file selected} other {# files selected}}"
 msgstr ""
 
@@ -151,15 +155,15 @@ msgstr ""
 msgid "{files, plural, one {# version} other {# versions}}"
 msgstr ""
 
-#: src/components/preview-panel.tsx:132
+#: src/components/preview-panel.tsx:134
 msgid "{folders, plural, one {# folder selected} other {# folders selected}}"
 msgstr ""
 
-#: src/components/preview-panel.tsx:240
+#: src/components/preview-panel.tsx:242
 msgid "{folders, plural, one {# folder} other {# folders}} and {files, plural, one {# file} other {# files}}"
 msgstr ""
 
-#: src/components/preview-panel.tsx:134
+#: src/components/preview-panel.tsx:136
 msgid "{folders, plural, one {# folder} other {# folders}} and {files, plural, one {# file} other {# files}} selected"
 msgstr ""
 
@@ -175,7 +179,7 @@ msgstr ""
 msgid "{ip} · last active {lastActive} · signed in {signedIn}"
 msgstr ""
 
-#: src/routes/s/$token.tsx:177
+#: src/routes/s/$token.tsx:191
 msgid "{itemCount, plural, one {# item} other {# items}}"
 msgstr ""
 
@@ -196,11 +200,11 @@ msgstr ""
 msgid "{loadedSize} transferred"
 msgstr ""
 
-#: src/components/command-palette.tsx:163
+#: src/components/command-palette.tsx:164
 msgid "{MIN_QUERY_LENGTH, plural, one {Type at least # character to search.} other {Type at least # characters to search.}}"
 msgstr ""
 
-#: src/lib/queries/nodes.ts:216
+#: src/lib/queries/nodes.ts:223
 msgid "{moved, plural, one {Moved # item} other {Moved # items}}"
 msgstr ""
 
@@ -214,6 +218,10 @@ msgstr ""
 
 #: src/components/share-dialog.tsx:602
 msgid "{name} no longer has access"
+msgstr ""
+
+#: src/components/version-preview-modal.tsx:44
+msgid "{nodeName} — version {versionNo}"
 msgstr ""
 
 #: src/components/trash-panel.tsx:322
@@ -256,11 +264,11 @@ msgstr ""
 msgid "{shared, plural, one {# grantee} other {# grantees}}"
 msgstr ""
 
-#: src/routes/s/$token.tsx:133
+#: src/routes/s/$token.tsx:147
 msgid "{sharedBy} shared this file"
 msgstr ""
 
-#: src/routes/s/$token.tsx:131
+#: src/routes/s/$token.tsx:145
 msgid "{sharedBy} shared this folder"
 msgstr ""
 
@@ -328,12 +336,12 @@ msgstr ""
 msgid "{trashed, plural, one {# in trash} other {# in trash}}"
 msgstr ""
 
-#: src/components/preview-panel.tsx:220
+#: src/components/preview-panel.tsx:222
 #: src/components/storage-meter.tsx:56
 msgid "{used} of {quota}"
 msgstr ""
 
-#: src/components/preview-panel.tsx:224
+#: src/components/preview-panel.tsx:226
 #: src/components/storage-meter.tsx:60
 msgid "{used} used"
 msgstr ""
@@ -358,12 +366,20 @@ msgstr ""
 msgid "<0>{actor}</0> added <1>{nodeName}</1> to <2>{spaceName}</2>"
 msgstr ""
 
+#: src/components/notifications-bell.tsx:195
+msgid "<0>{actor}</0> commented on <1>{doc}</1>"
+msgstr ""
+
 #: src/components/activity-feed.tsx:55
 msgid "<0>{actor}</0> created <1>{nodeName}</1> in <2>{spaceName}</2>"
 msgstr ""
 
 #: src/components/activity-feed.tsx:123
 msgid "<0>{actor}</0> invited <1>{nodeName}</1> to <2>{spaceName}</2>"
+msgstr ""
+
+#: src/components/notifications-bell.tsx:185
+msgid "<0>{actor}</0> mentioned you in <1>{doc}</1>"
 msgstr ""
 
 #: src/components/activity-feed.tsx:69
@@ -380,6 +396,10 @@ msgstr ""
 
 #: src/components/activity-feed.tsx:62
 msgid "<0>{actor}</0> renamed <1>{nodeName}</1> in <2>{spaceName}</2>"
+msgstr ""
+
+#: src/components/notifications-bell.tsx:190
+msgid "<0>{actor}</0> replied in <1>{doc}</1>"
 msgstr ""
 
 #: src/components/activity-feed.tsx:83
@@ -508,12 +528,24 @@ msgstr ""
 msgid "Add {name} to a group"
 msgstr ""
 
+#: src/components/comments/comment-composer.tsx:91
+msgid "Add a comment… (@ to mention)"
+msgstr ""
+
 #: src/components/nodes/file-node-view.tsx:22
 msgid "Add a file"
 msgstr ""
 
+#: src/components/nodes/video-node-view.tsx:24
+msgid "Add a video"
+msgstr ""
+
 #: src/components/nodes/image-node-view.tsx:21
 msgid "Add an image"
+msgstr ""
+
+#: src/components/nodes/embed-node-view.tsx:96
+msgid "Add link"
 msgstr ""
 
 #: src/components/grantee-picker.tsx:68
@@ -524,11 +556,15 @@ msgstr ""
 msgid "Add someone to this group…"
 msgstr ""
 
-#: src/components/node-actions.tsx:162
+#: src/components/node-actions.tsx:176
 msgid "Add star"
 msgstr ""
 
-#: src/components/preview-panel.tsx:367
+#: src/components/nodes/embed-link-modal.tsx:124
+msgid "Add without preview"
+msgstr ""
+
+#: src/components/preview-panel.tsx:384
 msgid "Added by {ownerName}"
 msgstr ""
 
@@ -536,9 +572,9 @@ msgstr ""
 msgid "Added to {groupName}"
 msgstr ""
 
-#: src/components/command-palette.tsx:190
+#: src/components/command-palette.tsx:191
 #: src/components/people-table.tsx:217
-#: src/components/preview-panel.tsx:248
+#: src/components/preview-panel.tsx:250
 #: src/components/settings/panes/account-profile.tsx:234
 #: src/components/space-switcher.tsx:77
 #: src/components/space-switcher.tsx:109
@@ -574,7 +610,7 @@ msgstr ""
 msgid "Admins change space settings and manage people."
 msgstr ""
 
-#: src/components/doc-editor/labels.ts:48
+#: src/components/doc-editor/labels.ts:50
 msgid "Advanced blocks"
 msgstr ""
 
@@ -590,7 +626,7 @@ msgstr ""
 msgid "Alert window must be between 1 and 1440 minutes"
 msgstr ""
 
-#: src/components/command-palette.tsx:40
+#: src/components/command-palette.tsx:41
 msgid "All"
 msgstr ""
 
@@ -628,7 +664,7 @@ msgstr ""
 msgid "An address that already has an account joins immediately. Any other address is emailed an invitation by the identity provider and appears here once they sign in."
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:177
+#: src/components/doc-editor/doc-editor.tsx:259
 msgid "Anonymous"
 msgstr ""
 
@@ -636,13 +672,13 @@ msgstr ""
 msgid "Anyone holding the link can view this item without signing in. A link never carries editing, and nobody can re-share it onward — download is the one choice it offers."
 msgstr ""
 
-#: src/components/preview-panel.tsx:282
+#: src/components/preview-panel.tsx:284
 #: src/components/share-dialog.tsx:642
 #: src/components/share-dialog.tsx:1006
 msgid "Anyone with the link"
 msgstr ""
 
-#: src/routes/s/$token.tsx:243
+#: src/routes/s/$token.tsx:269
 msgid "Anyone with this link can view and download these files. You cannot edit or upload, and you cannot see who else has access."
 msgstr ""
 
@@ -680,14 +716,14 @@ msgid "Avatar updated"
 msgstr ""
 
 #: src/components/admin-header.tsx:22
-#: src/components/editor-header.tsx:43
+#: src/components/editor-header.tsx:50
 #: src/routes/admin.settings.tsx:65
 #: src/routes/admin.users.tsx:85
 #: src/routes/drive/$spaceId/route.tsx:51
 msgid "Back to Drive"
 msgstr ""
 
-#: src/components/doc-editor/labels.ts:47
+#: src/components/doc-editor/labels.ts:49
 msgid "Basic blocks"
 msgstr ""
 
@@ -695,12 +731,20 @@ msgstr ""
 msgid "Bio"
 msgstr ""
 
-#: src/components/doc-editor/labels.ts:55
+#: src/components/new-document-dialog.tsx:79
+msgid "Blank"
+msgstr ""
+
+#: src/components/doc-editor/labels.ts:57
 msgid "Bold"
 msgstr ""
 
+#: src/components/doc-editor/labels.ts:42
+msgid "Bookmark a web page"
+msgstr ""
+
 #: src/components/locale-provider.tsx:85
-#: src/routes/s/$token.tsx:202
+#: src/routes/s/$token.tsx:218
 msgid "Breadcrumb"
 msgstr ""
 
@@ -713,11 +757,11 @@ msgid "Bulleted list"
 msgstr ""
 
 #: src/components/doc-editor/labels.ts:31
-#: src/components/doc-editor/labels.ts:70
+#: src/components/doc-editor/labels.ts:72
 msgid "Callout"
 msgstr ""
 
-#: src/components/preview-panel.tsx:420
+#: src/components/preview-panel.tsx:437
 msgid "Can download"
 msgstr ""
 
@@ -726,7 +770,7 @@ msgstr ""
 msgid "Can edit"
 msgstr ""
 
-#: src/components/preview-panel.tsx:421
+#: src/components/preview-panel.tsx:438
 msgid "Can share"
 msgstr ""
 
@@ -739,12 +783,16 @@ msgstr ""
 msgid "Can view + download"
 msgstr ""
 
+#: src/components/comments/comment-composer.tsx:96
+#: src/components/comments/comments-panel.tsx:423
+#: src/components/comments/comments-panel.tsx:561
 #: src/components/confirm-dialog.tsx:71
 #: src/components/doc-editor/lossy-edit-modal.tsx:39
 #: src/components/group-list.tsx:394
 #: src/components/link-space-modal.tsx:135
 #: src/components/move-dialog.tsx:127
-#: src/components/new-document-dialog.tsx:102
+#: src/components/new-document-dialog.tsx:169
+#: src/components/nodes/embed-link-modal.tsx:116
 #: src/components/settings/panes/account-security.tsx:46
 #: src/components/share-dialog.tsx:869
 #: src/components/team-folder-dialog.tsx:87
@@ -790,8 +838,8 @@ msgstr ""
 msgid "Clear file filter"
 msgstr ""
 
-#: src/components/bubble-toolbar.tsx:118
-#: src/components/bubble-toolbar.tsx:126
+#: src/components/bubble-toolbar.tsx:119
+#: src/components/bubble-toolbar.tsx:127
 msgid "Clear formatting"
 msgstr ""
 
@@ -804,11 +852,20 @@ msgid "Cleared"
 msgstr ""
 
 #: src/components/locale-provider.tsx:80
+#: src/components/version-preview-modal.tsx:59
 msgid "Close"
 msgstr ""
 
-#: src/components/preview-panel.tsx:110
+#: src/components/comments/comments-panel.tsx:231
+msgid "Close comments"
+msgstr ""
+
+#: src/components/preview-panel.tsx:112
 msgid "Close details"
+msgstr ""
+
+#: src/components/doc-editor/outline-panel.tsx:101
+msgid "Close outline"
 msgstr ""
 
 #: src/components/preview-modal.tsx:66
@@ -832,7 +889,7 @@ msgstr ""
 msgid "Collapse My Drive"
 msgstr ""
 
-#: src/components/doc-editor/labels.ts:119
+#: src/components/doc-editor/labels.ts:121
 msgid "Collapse toggle"
 msgstr ""
 
@@ -856,8 +913,36 @@ msgstr ""
 msgid "Collapsible small title"
 msgstr ""
 
-#: src/components/doc-editor/labels.ts:42
+#: src/components/table-controls.tsx:113
+msgid "Column"
+msgstr ""
+
+#: src/components/doc-editor/labels.ts:44
 msgid "Columns"
+msgstr ""
+
+#: src/components/bubble-toolbar.tsx:142
+#: src/components/comments/comment-composer.tsx:99
+#: src/components/comments/comment-input.tsx:124
+msgid "Comment"
+msgstr ""
+
+#: src/components/comments/comments-panel.tsx:525
+msgid "Comment actions"
+msgstr ""
+
+#: src/components/bubble-toolbar.tsx:146
+msgid "Comment on the selected text"
+msgstr ""
+
+#: src/components/comments/comments-panel.tsx:352
+msgid "Comment thread"
+msgstr ""
+
+#: src/components/comments/comments-panel.tsx:219
+#: src/components/comments/comments-panel.tsx:224
+#: src/components/doc-editor/doc-editor.tsx:157
+msgid "Comments"
 msgstr ""
 
 #: src/components/people-table.tsx:357
@@ -878,7 +963,7 @@ msgstr ""
 msgid "Connection lost"
 msgstr ""
 
-#: src/components/preview-panel.tsx:235
+#: src/components/preview-panel.tsx:237
 msgid "Contents"
 msgstr ""
 
@@ -902,14 +987,18 @@ msgstr ""
 msgid "Copied as “{copyName}”"
 msgstr ""
 
-#: src/components/block-handle.tsx:211
-#: src/components/node-actions.tsx:217
+#: src/components/block-handle.tsx:219
+#: src/components/node-actions.tsx:231
 #: src/components/share-dialog.tsx:833
 msgid "Copy"
 msgstr ""
 
 #: src/components/invite-modal.tsx:90
 msgid "Could not add {address}"
+msgstr ""
+
+#: src/components/comments/comment-composer.tsx:59
+msgid "Could not add the comment"
 msgstr ""
 
 #: src/components/group-list.tsx:242
@@ -929,11 +1018,11 @@ msgstr ""
 msgid "Could not copy the link"
 msgstr ""
 
-#: src/components/drive-write.tsx:220
+#: src/components/drive-write.tsx:221
 msgid "Could not create “{name}”"
 msgstr ""
 
-#: src/components/drive-write.tsx:282
+#: src/components/drive-write.tsx:283
 msgid "Could not create folder"
 msgstr ""
 
@@ -962,6 +1051,10 @@ msgstr ""
 msgid "Could not delete “{name}”"
 msgstr ""
 
+#: src/components/comments/comments-panel.tsx:345
+msgid "Could not delete the comment"
+msgstr ""
+
 #: src/components/trash-panel.tsx:445
 msgid "Could not empty the trash"
 msgstr ""
@@ -978,16 +1071,24 @@ msgstr ""
 msgid "Could not load your sessions."
 msgstr ""
 
-#: src/lib/queries/nodes.ts:211
+#: src/lib/queries/nodes.ts:218
 msgid "Could not move “{nodeName}”"
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:131
+#: src/components/doc-editor/doc-editor.tsx:210
 msgid "Could not open the document"
 msgstr ""
 
 #: src/components/drive-write.tsx:147
 msgid "Could not paste “{nodeName}”"
+msgstr ""
+
+#: src/components/comments/comments-panel.tsx:336
+msgid "Could not reopen the thread"
+msgstr ""
+
+#: src/components/comments/comments-panel.tsx:336
+msgid "Could not resolve the thread"
 msgstr ""
 
 #: src/components/trash-panel.tsx:134
@@ -1004,8 +1105,16 @@ msgstr ""
 msgid "Could not save"
 msgstr ""
 
+#: src/components/comments/comments-panel.tsx:492
+msgid "Could not save the comment"
+msgstr ""
+
 #: src/components/settings/panes/account-general.tsx:149
 msgid "Could not save your notification setting."
+msgstr ""
+
+#: src/components/comments/comments-panel.tsx:325
+msgid "Could not send the reply"
 msgstr ""
 
 #: src/components/share-dialog.tsx:277
@@ -1032,14 +1141,14 @@ msgstr ""
 msgid "Could not update your avatar"
 msgstr ""
 
-#: src/components/drive-write.tsx:295
-#: src/components/new-document-dialog.tsx:105
+#: src/components/drive-write.tsx:296
+#: src/components/new-document-dialog.tsx:172
 #: src/components/team-folder-dialog.tsx:90
 #: src/routes/drive.tsx:321
 msgid "Create"
 msgstr ""
 
-#: src/components/drive-write.tsx:269
+#: src/components/drive-write.tsx:270
 msgid "Create a folder in {destination}."
 msgstr ""
 
@@ -1071,11 +1180,11 @@ msgstr ""
 msgid "Created \"{created}\""
 msgstr ""
 
-#: src/components/drive-write.tsx:280
+#: src/components/drive-write.tsx:281
 msgid "Created “{createdName}” in {destination}"
 msgstr ""
 
-#: src/components/drive-write.tsx:211
+#: src/components/drive-write.tsx:212
 msgid "Created “{createdName}” in {label}"
 msgstr ""
 
@@ -1091,7 +1200,7 @@ msgstr ""
 msgid "Creates a Logto organization named “{spaceName}” and makes it the source of truth for who belongs to this space."
 msgstr ""
 
-#: src/components/new-document-dialog.tsx:72
+#: src/components/new-document-dialog.tsx:103
 msgid "Creates it in {destination} and opens it in the editor."
 msgstr ""
 
@@ -1099,7 +1208,7 @@ msgstr ""
 msgid "Creating…"
 msgstr ""
 
-#: src/components/version-list.tsx:70
+#: src/components/version-list.tsx:102
 msgid "Current"
 msgstr ""
 
@@ -1107,7 +1216,7 @@ msgstr ""
 msgid "Current access"
 msgstr ""
 
-#: src/components/node-actions.tsx:208
+#: src/components/node-actions.tsx:222
 msgid "Cut"
 msgstr ""
 
@@ -1148,7 +1257,9 @@ msgstr ""
 msgid "Default space quota"
 msgstr ""
 
-#: src/components/block-handle.tsx:248
+#: src/components/block-handle.tsx:256
+#: src/components/comments/comments-panel.tsx:452
+#: src/components/comments/comments-panel.tsx:542
 #: src/components/selection-bar.tsx:88
 msgid "Delete"
 msgstr ""
@@ -1161,6 +1272,10 @@ msgstr ""
 msgid "Delete {groupName}"
 msgstr ""
 
+#: src/components/table-controls.tsx:143
+msgid "Delete column"
+msgstr ""
+
 #: src/components/trash-panel.tsx:397
 #: src/components/trash-panel.tsx:414
 #: src/components/trash-panel.tsx:416
@@ -1171,10 +1286,23 @@ msgstr ""
 msgid "Delete group"
 msgstr ""
 
+#: src/components/table-controls.tsx:103
+msgid "Delete row"
+msgstr ""
+
 #: src/components/settings/panes/space-danger.tsx:85
 #: src/components/settings/panes/space-danger.tsx:96
 #: src/components/settings/panes/space-danger.tsx:98
 msgid "Delete space"
+msgstr ""
+
+#: src/components/table-controls.tsx:159
+#: src/components/table-controls.tsx:163
+msgid "Delete table"
+msgstr ""
+
+#: src/components/comments/comments-panel.tsx:446
+msgid "Delete this comment?"
 msgstr ""
 
 #: src/components/settings/panes/space-danger.tsx:56
@@ -1216,11 +1344,19 @@ msgstr ""
 msgid "Description"
 msgstr ""
 
+#: src/components/comments/comments-panel.tsx:373
+msgid "Detached"
+msgstr ""
+
+#: src/components/comments/comments-panel.tsx:264
+msgid "Detached — the commented text was removed"
+msgstr ""
+
 #: src/components/listing-controls.tsx:127
 #: src/components/preview-modal.tsx:146
-#: src/components/preview-panel.tsx:108
-#: src/components/preview-panel.tsx:231
-#: src/components/preview-panel.tsx:349
+#: src/components/preview-panel.tsx:110
+#: src/components/preview-panel.tsx:233
+#: src/components/preview-panel.tsx:366
 msgid "Details"
 msgstr ""
 
@@ -1281,33 +1417,34 @@ msgstr ""
 msgid "download"
 msgstr ""
 
-#: src/components/editor-header.tsx:99
-#: src/components/node-actions.tsx:136
+#: src/components/editor-header.tsx:108
+#: src/components/editor-header.tsx:133
+#: src/components/node-actions.tsx:139
 #: src/components/preview-modal.tsx:124
-#: src/components/preview-panel.tsx:324
+#: src/components/preview-panel.tsx:341
 #: src/components/selection-bar.tsx:64
-#: src/components/version-list.tsx:85
-#: src/routes/s/$token.tsx:195
+#: src/components/version-list.tsx:122
+#: src/routes/s/$token.tsx:211
 msgid "Download"
 msgstr ""
 
-#: src/routes/s/$token.tsx:367
+#: src/routes/s/$token.tsx:416
 msgid "Download {nodeName}"
 msgstr ""
 
-#: src/routes/s/$token.tsx:195
+#: src/routes/s/$token.tsx:211
 msgid "Download all"
 msgstr ""
 
-#: src/components/preview-content.tsx:262
+#: src/components/preview-content.tsx:269
 msgid "Downloads are off for this file, so it can only be opened by its owner."
 msgstr ""
 
-#: src/components/block-handle.tsx:127
+#: src/components/block-handle.tsx:135
 msgid "Drag to move, click to open menu"
 msgstr ""
 
-#: src/components/block-handle.tsx:114
+#: src/components/block-handle.tsx:122
 msgid "Drag to reorder, click to open the block menu"
 msgstr ""
 
@@ -1325,7 +1462,7 @@ msgstr ""
 msgid "Due"
 msgstr ""
 
-#: src/components/block-handle.tsx:235
+#: src/components/block-handle.tsx:243
 msgid "Duplicate"
 msgstr ""
 
@@ -1333,13 +1470,14 @@ msgstr ""
 msgid "Each row is a live session. Signing one out takes effect immediately — the device is asked to sign in again the next time it reaches the server."
 msgstr ""
 
-#: src/components/preview-panel.tsx:417
+#: src/components/preview-panel.tsx:434
 #: src/components/share-dialog.tsx:333
 msgid "edit"
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:102
-#: src/components/node-actions.tsx:128
+#: src/components/comments/comments-panel.tsx:536
+#: src/components/doc-editor/doc-editor.tsx:144
+#: src/components/node-actions.tsx:131
 msgid "Edit"
 msgstr ""
 
@@ -1373,6 +1511,15 @@ msgstr ""
 
 #: src/components/settings/panes/account-profile.tsx:183
 msgid "Email, phone and gender are managed by your identity provider — change them there. A new picture set there also replaces the avatar uploaded here."
+msgstr ""
+
+#: src/components/nodes/embed-link-modal.tsx:129
+msgid "Embed"
+msgstr ""
+
+#: src/components/nodes/embed-link-modal.tsx:72
+#: src/components/nodes/embed-node-view.tsx:85
+msgid "Embed a link"
 msgstr ""
 
 #: src/components/trash-panel.tsx:432
@@ -1409,6 +1556,10 @@ msgstr ""
 msgid "Enter a new name for this item."
 msgstr ""
 
+#: src/components/nodes/embed-link-modal.tsx:110
+msgid "Enter a web address starting with http:// or https://."
+msgstr ""
+
 #: src/routes/admin.settings.tsx:686
 msgid "Enter the password: saving here replaces the environment configuration."
 msgstr ""
@@ -1417,7 +1568,7 @@ msgstr ""
 msgid "Environment variable"
 msgstr ""
 
-#: src/components/command-palette.tsx:233
+#: src/components/command-palette.tsx:242
 msgid "esc to close"
 msgstr ""
 
@@ -1470,7 +1621,7 @@ msgstr ""
 msgid "Expand My Drive"
 msgstr ""
 
-#: src/components/doc-editor/labels.ts:118
+#: src/components/doc-editor/labels.ts:120
 msgid "Expand toggle"
 msgstr ""
 
@@ -1485,6 +1636,11 @@ msgstr ""
 #: src/components/people-table.tsx:184
 #: src/routes/admin.security.tsx:260
 msgid "Export CSV"
+msgstr ""
+
+#: src/components/editor-header.tsx:125
+#: src/components/node-actions.tsx:152
+msgid "Export with images (.zip)"
 msgstr ""
 
 #: src/components/people-table.tsx:622
@@ -1519,7 +1675,7 @@ msgstr ""
 
 #: src/components/doc-editor/labels.ts:40
 #: src/components/preview-modal.tsx:155
-#: src/components/preview-panel.tsx:352
+#: src/components/preview-panel.tsx:369
 msgid "File"
 msgstr ""
 
@@ -1535,7 +1691,7 @@ msgstr ""
 msgid "file downloaded"
 msgstr ""
 
-#: src/routes/s/$token.tsx:156
+#: src/routes/s/$token.tsx:170
 msgid "file names and details only"
 msgstr ""
 
@@ -1547,13 +1703,13 @@ msgstr ""
 msgid "File: {nodeName}"
 msgstr ""
 
-#: src/components/command-palette.tsx:41
+#: src/components/command-palette.tsx:42
 #: src/components/node-grid.tsx:126
 #: src/routes/admin.users.tsx:118
 msgid "Files"
 msgstr ""
 
-#: src/components/command-palette.tsx:201
+#: src/components/command-palette.tsx:202
 msgid "Files and folders"
 msgstr ""
 
@@ -1603,7 +1759,7 @@ msgid "Flowcharts, sequences, and more"
 msgstr ""
 
 #: src/components/node-grid.tsx:323
-#: src/components/preview-panel.tsx:352
+#: src/components/preview-panel.tsx:369
 msgid "Folder"
 msgstr ""
 
@@ -1615,11 +1771,11 @@ msgstr ""
 msgid "Folder information"
 msgstr ""
 
-#: src/components/drive-write.tsx:290
+#: src/components/drive-write.tsx:291
 msgid "Folder name"
 msgstr ""
 
-#: src/components/command-palette.tsx:42
+#: src/components/command-palette.tsx:43
 #: src/components/node-grid.tsx:119
 msgid "Folders"
 msgstr ""
@@ -1754,7 +1910,7 @@ msgstr ""
 msgid "Groups decide what people can open. Give a group a file or folder from that item’s “Share” dialog."
 msgstr ""
 
-#: src/components/presence-avatars.tsx:22
+#: src/components/presence-avatars.tsx:24
 msgid "Guest"
 msgstr ""
 
@@ -1762,19 +1918,28 @@ msgstr ""
 msgid "Handover for {who} is complete"
 msgstr ""
 
+#: src/components/table-controls.tsx:149
+#: src/components/table-controls.tsx:151
+msgid "Header row"
+msgstr ""
+
 #: src/components/doc-editor/labels.ts:24
-#: src/components/doc-editor/labels.ts:64
+#: src/components/doc-editor/labels.ts:66
 msgid "Heading 1"
 msgstr ""
 
 #: src/components/doc-editor/labels.ts:25
-#: src/components/doc-editor/labels.ts:65
+#: src/components/doc-editor/labels.ts:67
 msgid "Heading 2"
 msgstr ""
 
 #: src/components/doc-editor/labels.ts:26
-#: src/components/doc-editor/labels.ts:66
+#: src/components/doc-editor/labels.ts:68
 msgid "Heading 3"
+msgstr ""
+
+#: src/components/doc-editor/outline-panel.tsx:108
+msgid "Headings you add appear here."
 msgstr ""
 
 #: src/components/doc-editor/labels.ts:31
@@ -1782,7 +1947,7 @@ msgid "Highlighted aside"
 msgstr ""
 
 #: src/components/nav-space.tsx:43
-#: src/components/site-header.tsx:31
+#: src/components/site-header.tsx:32
 #: src/routes/drive/$spaceId/home.tsx:22
 msgid "Home"
 msgstr ""
@@ -1819,17 +1984,33 @@ msgstr ""
 msgid "Implicit TLS / SMTPS (port 465)"
 msgstr ""
 
-#: src/components/node-actions.tsx:155
+#: src/components/node-actions.tsx:169
 msgid "Information"
 msgstr ""
 
-#: src/components/doc-editor/labels.ts:58
+#: src/components/doc-editor/labels.ts:60
 msgid "Inline code"
 msgstr ""
 
-#: src/components/block-handle.tsx:85
-#: src/components/block-handle.tsx:103
+#: src/components/block-handle.tsx:93
+#: src/components/block-handle.tsx:111
 msgid "Insert block below"
+msgstr ""
+
+#: src/components/table-controls.tsx:125
+msgid "Insert column left"
+msgstr ""
+
+#: src/components/table-controls.tsx:132
+msgid "Insert column right"
+msgstr ""
+
+#: src/components/table-controls.tsx:88
+msgid "Insert row above"
+msgstr ""
+
+#: src/components/table-controls.tsx:92
+msgid "Insert row below"
 msgstr ""
 
 #: src/routes/admin.settings.tsx:367
@@ -1859,19 +2040,23 @@ msgstr ""
 msgid "IP"
 msgstr ""
 
-#: src/components/version-list.tsx:99
+#: src/components/version-list.tsx:66
 msgid "It is now the current version."
+msgstr ""
+
+#: src/components/comments/comments-panel.tsx:449
+msgid "It is the only comment in its thread, so the thread is deleted too."
 msgstr ""
 
 #: src/routes/drive/$spaceId/route.tsx:48
 msgid "It may have been deleted, or you no longer have access."
 msgstr ""
 
-#: src/routes/s/$token.tsx:110
+#: src/routes/s/$token.tsx:119
 msgid "It may have expired, been revoked, or never existed. Ask whoever sent it for a new one."
 msgstr ""
 
-#: src/components/doc-editor/labels.ts:56
+#: src/components/doc-editor/labels.ts:58
 msgid "Italic"
 msgstr ""
 
@@ -1959,8 +2144,9 @@ msgstr ""
 msgid "Limits"
 msgstr ""
 
-#: src/components/doc-editor/labels.ts:59
+#: src/components/doc-editor/labels.ts:61
 #: src/components/link-space-modal.tsx:141
+#: src/components/nodes/embed-link-modal.tsx:87
 msgid "Link"
 msgstr ""
 
@@ -1968,11 +2154,15 @@ msgstr ""
 msgid "Link address"
 msgstr ""
 
+#: src/components/doc-editor/labels.ts:42
+msgid "Link card"
+msgstr ""
+
 #: src/components/share-dialog.tsx:827
 msgid "Link copied"
 msgstr ""
 
-#: src/routes/s/$token.tsx:161
+#: src/routes/s/$token.tsx:175
 msgid "Link expires {expiresOn}"
 msgstr ""
 
@@ -1985,7 +2175,7 @@ msgstr ""
 msgid "Linking {spaceName}"
 msgstr ""
 
-#: src/components/doc-editor/labels.ts:67
+#: src/components/doc-editor/labels.ts:69
 #: src/components/folder-actions.tsx:241
 #: src/components/settings/panes/account-general.tsx:39
 msgid "List"
@@ -2032,7 +2222,7 @@ msgstr ""
 msgid "Mail"
 msgstr ""
 
-#: src/components/node-actions.tsx:225
+#: src/components/node-actions.tsx:239
 msgid "Make a copy"
 msgstr ""
 
@@ -2045,8 +2235,21 @@ msgstr ""
 msgid "Male"
 msgstr ""
 
-#: src/components/preview-panel.tsx:364
+#: src/components/preview-panel.tsx:381
 msgid "Managed by"
+msgstr ""
+
+#: src/components/notifications-bell.tsx:102
+msgid "Mark all read"
+msgstr ""
+
+#: src/components/notifications-bell.tsx:218
+#: src/components/notifications-bell.tsx:219
+msgid "Mark as read"
+msgstr ""
+
+#: src/components/editor-header.tsx:118
+msgid "Markdown (.md)"
 msgstr ""
 
 #: src/components/settings/panes/space-general.tsx:151
@@ -2070,7 +2273,7 @@ msgstr ""
 msgid "Maximum upload size must be a valid number (0 for unlimited)"
 msgstr ""
 
-#: src/components/doc-editor/labels.ts:49
+#: src/components/doc-editor/labels.ts:51
 msgid "Media"
 msgstr ""
 
@@ -2078,9 +2281,9 @@ msgstr ""
 msgid "Medium section title"
 msgstr ""
 
-#: src/components/command-palette.tsx:190
+#: src/components/command-palette.tsx:191
 #: src/components/people-table.tsx:214
-#: src/components/preview-panel.tsx:248
+#: src/components/preview-panel.tsx:250
 #: src/components/settings/panes/account-profile.tsx:234
 msgid "Member"
 msgstr ""
@@ -2094,7 +2297,7 @@ msgid "member removed"
 msgstr ""
 
 #: src/components/group-list.tsx:113
-#: src/components/preview-panel.tsx:247
+#: src/components/preview-panel.tsx:249
 #: src/components/settings/panes.ts:91
 msgid "Members"
 msgstr ""
@@ -2123,10 +2326,10 @@ msgstr ""
 #: src/components/node-list.tsx:99
 #: src/components/node-table.tsx:70
 #: src/components/preview-modal.tsx:158
-#: src/components/preview-panel.tsx:375
+#: src/components/preview-panel.tsx:392
 #: src/components/settings/panes/account-general.tsx:45
 #: src/components/space-node-table.tsx:91
-#: src/routes/s/$token.tsx:300
+#: src/routes/s/$token.tsx:335
 msgid "Modified"
 msgstr ""
 
@@ -2155,13 +2358,13 @@ msgstr ""
 msgid "Move “{name}”"
 msgstr ""
 
-#: src/components/node-actions.tsx:234
+#: src/components/node-actions.tsx:248
 #: src/routes/drive/$spaceId/index.tsx:641
 #: src/routes/drive/$spaceId/index.tsx:650
 msgid "Move to trash"
 msgstr ""
 
-#: src/components/node-actions.tsx:191
+#: src/components/node-actions.tsx:205
 msgid "Move to…"
 msgstr ""
 
@@ -2170,13 +2373,13 @@ msgid "Moved {done, plural, one {# item} other {# items}} to {destination}"
 msgstr ""
 
 #: src/components/nav-space.tsx:151
-#: src/components/site-header.tsx:168
+#: src/components/site-header.tsx:170
 msgid "My Drive"
 msgstr ""
 
 #: src/components/group-list.tsx:369
 #: src/components/listing-controls.tsx:23
-#: src/components/new-document-dialog.tsx:86
+#: src/components/new-document-dialog.tsx:121
 #: src/components/node-list.tsx:96
 #: src/components/node-table.tsx:67
 #: src/components/settings/panes/account-general.tsx:44
@@ -2184,7 +2387,7 @@ msgstr ""
 #: src/components/team-folder-dialog.tsx:74
 #: src/components/trash-panel.tsx:282
 #: src/routes/drive.tsx:243
-#: src/routes/s/$token.tsx:297
+#: src/routes/s/$token.tsx:332
 msgid "Name"
 msgstr ""
 
@@ -2204,7 +2407,7 @@ msgstr ""
 msgid "Name it after the people, not the folder — one group usually opens several."
 msgstr ""
 
-#: src/components/command-palette.tsx:227
+#: src/components/command-palette.tsx:236
 msgid "navigate"
 msgstr ""
 
@@ -2222,11 +2425,11 @@ msgid "New"
 msgstr ""
 
 #: src/components/folder-actions.tsx:100
-#: src/components/new-document-dialog.tsx:68
+#: src/components/new-document-dialog.tsx:99
 msgid "New document"
 msgstr ""
 
-#: src/components/drive-write.tsx:266
+#: src/components/drive-write.tsx:267
 #: src/components/folder-actions.tsx:69
 msgid "New folder"
 msgstr ""
@@ -2237,7 +2440,7 @@ msgid "New group"
 msgstr ""
 
 #: src/components/folder-actions.tsx:91
-#: src/components/new-document-dialog.tsx:69
+#: src/components/new-document-dialog.tsx:100
 msgid "New markdown document"
 msgstr ""
 
@@ -2247,7 +2450,7 @@ msgid "New members are admins by default"
 msgstr ""
 
 #: src/components/folder-actions.tsx:118
-#: src/components/new-document-dialog.tsx:67
+#: src/components/new-document-dialog.tsx:98
 msgid "New presentation"
 msgstr ""
 
@@ -2256,7 +2459,7 @@ msgid "New public link"
 msgstr ""
 
 #: src/components/folder-actions.tsx:109
-#: src/components/new-document-dialog.tsx:66
+#: src/components/new-document-dialog.tsx:97
 msgid "New spreadsheet"
 msgstr ""
 
@@ -2275,6 +2478,14 @@ msgstr ""
 
 #: src/components/slash-menu.tsx:63
 msgid "No blocks match “{query}”."
+msgstr ""
+
+#: src/components/comments/comments-panel.tsx:254
+msgid "No comments yet."
+msgstr ""
+
+#: src/components/comments/comments-panel.tsx:252
+msgid "No comments yet. Select some text and choose Comment to start a thread."
 msgstr ""
 
 #: src/components/trash-panel.tsx:254
@@ -2301,7 +2512,7 @@ msgstr ""
 msgid "No groups yet."
 msgstr ""
 
-#: src/components/command-palette.tsx:173
+#: src/components/command-palette.tsx:174
 msgid "No matches for “{queryText}”"
 msgstr ""
 
@@ -2309,11 +2520,19 @@ msgstr ""
 msgid "No matching files or folders"
 msgstr ""
 
+#: src/components/notifications-bell.tsx:123
+msgid "No notifications yet."
+msgstr ""
+
 #: src/components/people-table.tsx:291
 msgid "No one matches these filters."
 msgstr ""
 
-#: src/components/preview-content.tsx:282
+#: src/components/comments/comments-panel.tsx:250
+msgid "No open comments."
+msgstr ""
+
+#: src/components/preview-content.tsx:289
 msgid "No preview available — use Download to view this file."
 msgstr ""
 
@@ -2346,6 +2565,10 @@ msgstr ""
 msgid "Nobody in this group yet — it opens nothing for anyone."
 msgstr ""
 
+#: src/components/mention-menu.tsx:54
+msgid "Nobody or nothing matches."
+msgstr ""
+
 #: src/components/share-dialog.tsx:506
 msgid "Nobody reaches this — not even a space admin — unless a line here says so."
 msgstr ""
@@ -2368,7 +2591,7 @@ msgstr ""
 msgid "Not set"
 msgstr ""
 
-#: src/components/preview-panel.tsx:428
+#: src/components/preview-panel.tsx:445
 msgid "Not shared."
 msgstr ""
 
@@ -2406,8 +2629,14 @@ msgstr ""
 msgid "Noticed when they last signed in"
 msgstr ""
 
+#: src/components/notifications-bell.tsx:74
+#: src/components/notifications-bell.tsx:91
 #: src/components/settings/panes/account-general.tsx:127
 msgid "Notifications"
+msgstr ""
+
+#: src/components/notifications-bell.tsx:74
+msgid "Notifications, {count} unread"
 msgstr ""
 
 #: src/components/doc-editor/labels.ts:28
@@ -2418,7 +2647,7 @@ msgstr ""
 msgid "Office"
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:296
+#: src/components/doc-editor/doc-editor.tsx:433
 msgid "Offline"
 msgstr ""
 
@@ -2434,25 +2663,25 @@ msgstr ""
 msgid "Only an administrator can read the security log."
 msgstr ""
 
-#: src/routes/edit/$nodeId.tsx:136
+#: src/routes/edit/$nodeId.tsx:142
 msgid "OnlyOffice editor"
 msgstr ""
 
-#: src/components/command-palette.tsx:230
+#: src/components/command-palette.tsx:239
 msgid "open"
 msgstr ""
 
-#: src/components/drive-write.tsx:213
-#: src/components/node-actions.tsx:128
-#: src/components/preview-content.tsx:275
+#: src/components/drive-write.tsx:214
+#: src/components/node-actions.tsx:131
+#: src/components/preview-content.tsx:282
 #: src/components/preview-modal.tsx:115
-#: src/components/preview-panel.tsx:314
+#: src/components/preview-panel.tsx:331
 #: src/components/share-dialog.tsx:696
 msgid "Open"
 msgstr ""
 
-#: src/components/node-actions.tsx:115
-#: src/components/preview-content.tsx:149
+#: src/components/node-actions.tsx:118
+#: src/components/preview-content.tsx:151
 msgid "Open in new tab"
 msgstr ""
 
@@ -2464,8 +2693,8 @@ msgstr ""
 msgid "opened in editor"
 msgstr ""
 
-#: src/routes/edit/$nodeId.tsx:45
-#: src/routes/edit/$nodeId.tsx:104
+#: src/routes/edit/$nodeId.tsx:51
+#: src/routes/edit/$nodeId.tsx:110
 msgid "Opening editor…"
 msgstr ""
 
@@ -2493,6 +2722,12 @@ msgstr ""
 msgid "Outgoing mail settings reset"
 msgstr ""
 
+#: src/components/doc-editor/doc-editor.tsx:150
+#: src/components/doc-editor/outline-panel.tsx:94
+#: src/components/doc-editor/outline-panel.tsx:99
+msgid "Outline"
+msgstr ""
+
 #: src/routes/admin.users.tsx:108
 msgid "Overview"
 msgstr ""
@@ -2500,7 +2735,7 @@ msgstr ""
 #: src/components/node-list.tsx:105
 #: src/components/node-table.tsx:76
 #: src/components/preview-modal.tsx:157
-#: src/components/preview-panel.tsx:372
+#: src/components/preview-panel.tsx:389
 #: src/components/share-dialog.tsx:1010
 msgid "Owner"
 msgstr ""
@@ -2521,7 +2756,7 @@ msgstr ""
 msgid "Paste a link…"
 msgstr ""
 
-#: src/components/block-handle.tsx:223
+#: src/components/block-handle.tsx:231
 msgid "Paste below"
 msgstr ""
 
@@ -2533,7 +2768,7 @@ msgstr ""
 msgid "Paused"
 msgstr ""
 
-#: src/components/preview-content.tsx:141
+#: src/components/preview-content.tsx:143
 msgid "PDF preview of {name}"
 msgstr ""
 
@@ -2543,8 +2778,12 @@ msgstr ""
 
 #: src/components/grantee-picker.tsx:120
 #: src/components/people-table.tsx:156
-#: src/components/preview-panel.tsx:200
+#: src/components/preview-panel.tsx:202
 msgid "People"
+msgstr ""
+
+#: src/components/comments/comment-input.tsx:139
+msgid "People to mention"
 msgstr ""
 
 #. placeholder {0}: node.child_count
@@ -2584,16 +2823,17 @@ msgstr ""
 msgid "Press D anywhere outside a text field to flip between light and dark."
 msgstr ""
 
-#: src/components/node-actions.tsx:104
-#: src/components/preview-panel.tsx:314
+#: src/components/node-actions.tsx:107
+#: src/components/preview-panel.tsx:331
 msgid "Preview"
 msgstr ""
 
-#: src/routes/s/$token.tsx:353
+#: src/routes/s/$token.tsx:392
+#: src/routes/s/$token.tsx:401
 msgid "Preview {nodeName}"
 msgstr ""
 
-#: src/components/preview-content.tsx:75
+#: src/components/preview-content.tsx:77
 msgid "Preview not available yet — it is generated shortly after upload."
 msgstr ""
 
@@ -2634,7 +2874,7 @@ msgid "Purges in"
 msgstr ""
 
 #: src/components/doc-editor/labels.ts:30
-#: src/components/doc-editor/labels.ts:69
+#: src/components/doc-editor/labels.ts:71
 msgid "Quote"
 msgstr ""
 
@@ -2642,16 +2882,16 @@ msgstr ""
 msgid "re-share"
 msgstr ""
 
-#: src/routes/edit/$nodeId.tsx:98
+#: src/routes/edit/$nodeId.tsx:104
 msgid "read-only"
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:96
+#: src/components/doc-editor/doc-editor.tsx:138
 msgid "Read-only"
 msgstr ""
 
 #: src/components/nav-space.tsx:46
-#: src/components/site-header.tsx:32
+#: src/components/site-header.tsx:33
 #: src/routes/drive/$spaceId/home.tsx:98
 #: src/routes/drive/$spaceId/recent.tsx:13
 msgid "Recent"
@@ -2710,7 +2950,7 @@ msgstr ""
 msgid "Remove password"
 msgstr ""
 
-#: src/components/node-actions.tsx:162
+#: src/components/node-actions.tsx:176
 msgid "Remove star"
 msgstr ""
 
@@ -2730,7 +2970,7 @@ msgstr ""
 msgid "Removes “{spaceName}” and everything in it — every file, version, share and member. The blobs are released and cannot be recovered. Its Logto organization is kept; delete it in Logto too if the company is gone."
 msgstr ""
 
-#: src/components/node-actions.tsx:181
+#: src/components/node-actions.tsx:195
 #: src/components/selection-bar.tsx:74
 #: src/routes/drive/$spaceId/index.tsx:602
 msgid "Rename"
@@ -2740,12 +2980,26 @@ msgstr ""
 msgid "Renamed to “{restored}” — the old name was taken."
 msgstr ""
 
+#: src/components/comments/comments-panel.tsx:387
+#: src/components/comments/comments-panel.tsx:388
+msgid "Reopen thread"
+msgstr ""
+
 #: src/routes/admin.security.tsx:103
 msgid "Repeated failed sign-ins"
 msgstr ""
 
 #: src/components/upload-conflict-dialog.tsx:124
 msgid "Replace"
+msgstr ""
+
+#: src/components/comments/comments-panel.tsx:426
+#: src/components/comments/comments-panel.tsx:437
+msgid "Reply"
+msgstr ""
+
+#: src/components/comments/comments-panel.tsx:417
+msgid "Reply… (@ to mention)"
 msgstr ""
 
 #: src/components/people-table.tsx:67
@@ -2764,8 +3018,21 @@ msgstr ""
 msgid "Resize image"
 msgstr ""
 
+#: src/components/comments/comments-panel.tsx:387
+#: src/components/comments/comments-panel.tsx:388
+msgid "Resolve thread"
+msgstr ""
+
+#: src/components/comments/comments-panel.tsx:379
+msgid "Resolved"
+msgstr ""
+
+#: src/components/comments/comments-panel.tsx:229
+msgid "Resolved ({resolvedCount})"
+msgstr ""
+
 #: src/components/trash-panel.tsx:389
-#: src/components/version-list.tsx:108
+#: src/components/version-list.tsx:132
 msgid "Restore"
 msgstr ""
 
@@ -2773,11 +3040,15 @@ msgstr ""
 msgid "Restore {selectedCount}"
 msgstr ""
 
+#: src/components/version-preview-modal.tsx:64
+msgid "Restore this version"
+msgstr ""
+
 #: src/components/trash-panel.tsx:125
 msgid "Restored “{restored}”"
 msgstr ""
 
-#: src/components/version-list.tsx:98
+#: src/components/version-list.tsx:65
 msgid "Restored version {versionNo}"
 msgstr ""
 
@@ -2790,12 +3061,12 @@ msgstr ""
 msgid "Retention period (days)"
 msgstr ""
 
-#: src/components/nodes/uploadable-node-view.tsx:92
+#: src/components/nodes/uploadable-node-view.tsx:97
 #: src/components/transfer-tray.tsx:212
 msgid "Retry"
 msgstr ""
 
-#: src/components/nodes/uploadable-node-view.tsx:52
+#: src/components/nodes/uploadable-node-view.tsx:57
 msgid "Retry upload"
 msgstr ""
 
@@ -2819,10 +3090,15 @@ msgstr ""
 msgid "Right-click here, or use New, to add something."
 msgstr ""
 
-#: src/components/doc-editor/labels.ts:41
+#: src/components/table-controls.tsx:76
+msgid "Row"
+msgstr ""
+
+#: src/components/doc-editor/labels.ts:43
 msgid "Rows and columns of cells"
 msgstr ""
 
+#: src/components/comments/comments-panel.tsx:564
 #: src/routes/drive/$spaceId/index.tsx:629
 msgid "Save"
 msgstr ""
@@ -2834,11 +3110,15 @@ msgstr ""
 msgid "Save changes"
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:286
+#: src/components/doc-editor/doc-editor.tsx:423
 msgid "Saved"
 msgstr ""
 
-#: src/routes/edit/$nodeId.tsx:98
+#: src/components/version-preview-modal.tsx:49
+msgid "Saved {created} · {size}"
+msgstr ""
+
+#: src/routes/edit/$nodeId.tsx:104
 msgid "saved by OnlyOffice"
 msgstr ""
 
@@ -2854,13 +3134,13 @@ msgstr ""
 msgid "Saving a new version removes the oldest ones beyond this number. The current version is always kept."
 msgstr ""
 
-#: src/components/command-palette.tsx:118
+#: src/components/command-palette.tsx:119
 msgid "Search"
 msgstr ""
 
-#: src/components/command-palette.tsx:119
-#: src/components/command-palette.tsx:127
+#: src/components/command-palette.tsx:120
 #: src/components/command-palette.tsx:128
+#: src/components/command-palette.tsx:129
 msgid "Search files, folders and spaces"
 msgstr ""
 
@@ -2872,7 +3152,7 @@ msgstr ""
 msgid "Search..."
 msgstr ""
 
-#: src/components/command-palette.tsx:171
+#: src/components/command-palette.tsx:172
 msgid "Searching…"
 msgstr ""
 
@@ -2908,7 +3188,7 @@ msgstr ""
 msgid "Select {nodeName}"
 msgstr ""
 
-#: src/components/preview-panel.tsx:128
+#: src/components/preview-panel.tsx:130
 msgid "Select a file or folder to see its details."
 msgstr ""
 
@@ -2940,7 +3220,7 @@ msgstr ""
 msgid "Separate teams, each with its own groups and shared folders."
 msgstr ""
 
-#: src/routes/s/$token.tsx:410
+#: src/routes/s/$token.tsx:459
 msgid "Served by pp-hub · self-hosted"
 msgstr ""
 
@@ -2987,9 +3267,9 @@ msgstr ""
 msgid "Settings sections"
 msgstr ""
 
-#: src/components/editor-header.tsx:84
-#: src/components/node-actions.tsx:171
-#: src/components/preview-panel.tsx:333
+#: src/components/editor-header.tsx:91
+#: src/components/node-actions.tsx:185
+#: src/components/preview-panel.tsx:350
 #: src/components/selection-bar.tsx:69
 #: src/components/share-dialog.tsx:493
 msgid "Share"
@@ -3011,27 +3291,35 @@ msgstr ""
 msgid "share revoked"
 msgstr ""
 
-#: src/routes/s/$token.tsx:36
+#: src/routes/s/$token.tsx:38
 msgid "Shared"
 msgstr ""
 
 #: src/components/nav-space.tsx:45
-#: src/components/site-header.tsx:34
+#: src/components/site-header.tsx:35
 #: src/routes/drive/$spaceId/shared.tsx:11
 #: src/routes/drive/$spaceId/shared.tsx:32
 msgid "Shared with me"
 msgstr ""
 
-#: src/routes/s/$token.tsx:400
+#: src/routes/s/$token.tsx:449
 msgid "Shared with you"
 msgstr ""
 
-#: src/components/preview-panel.tsx:388
+#: src/components/preview-panel.tsx:405
 msgid "Sharing"
 msgstr ""
 
 #: src/routes/admin.security.tsx:400
 msgid "Show all events for this item"
+msgstr ""
+
+#: src/components/comments/comments-panel.tsx:437
+msgid "Show in document"
+msgstr ""
+
+#: src/components/notifications-bell.tsx:149
+msgid "Show older"
 msgstr ""
 
 #: src/components/people-table.tsx:204
@@ -3042,7 +3330,11 @@ msgstr ""
 msgid "Shown in the switcher and every breadcrumb."
 msgstr ""
 
-#: src/components/doc-editor/labels.ts:42
+#: src/components/nodes/embed-link-modal.tsx:75
+msgid "Shows the page as a card with its title, description and preview image."
+msgstr ""
+
+#: src/components/doc-editor/labels.ts:44
 msgid "Side-by-side layout"
 msgstr ""
 
@@ -3051,7 +3343,7 @@ msgid "Sidebar"
 msgstr ""
 
 #: src/routes/login.tsx:54
-#: src/routes/s/$token.tsx:403
+#: src/routes/s/$token.tsx:452
 msgid "Sign in"
 msgstr ""
 
@@ -3096,11 +3388,11 @@ msgstr ""
 #: src/components/node-list.tsx:102
 #: src/components/node-table.tsx:73
 #: src/components/preview-modal.tsx:156
-#: src/components/preview-panel.tsx:354
+#: src/components/preview-panel.tsx:371
 #: src/components/settings/panes/account-general.tsx:46
 #: src/components/space-node-table.tsx:94
 #: src/components/trash-panel.tsx:297
-#: src/routes/s/$token.tsx:303
+#: src/routes/s/$token.tsx:338
 msgid "Size"
 msgstr ""
 
@@ -3118,6 +3410,10 @@ msgstr ""
 
 #: src/components/doc-editor/labels.ts:26
 msgid "Small section title"
+msgstr ""
+
+#: src/components/markdown-document-view/read-only-editor.tsx:68
+msgid "Some formatting in this file cannot be shown here. Download it to see all of it."
 msgstr ""
 
 #: src/routes/login.tsx:45
@@ -3150,11 +3446,11 @@ msgid "Space not found"
 msgstr ""
 
 #: src/components/nav-user.tsx:113
-#: src/components/preview-panel.tsx:194
+#: src/components/preview-panel.tsx:196
 msgid "Space settings"
 msgstr ""
 
-#: src/components/command-palette.tsx:180
+#: src/components/command-palette.tsx:181
 #: src/components/space-switcher.tsx:92
 #: src/routes/admin.users.tsx:116
 #: src/routes/admin.users.tsx:163
@@ -3176,10 +3472,14 @@ msgid "Star a file from its ⋯ menu to keep it here."
 msgstr ""
 
 #: src/components/nav-space.tsx:47
-#: src/components/site-header.tsx:33
+#: src/components/site-header.tsx:34
 #: src/routes/drive/$spaceId/home.tsx:128
 #: src/routes/drive/$spaceId/starred.tsx:11
 msgid "Starred"
+msgstr ""
+
+#: src/components/new-document-dialog.tsx:79
+msgid "Start from an empty page."
 msgstr ""
 
 #: src/routes/admin.settings.tsx:610
@@ -3190,7 +3490,7 @@ msgstr ""
 msgid "Status"
 msgstr ""
 
-#: src/components/preview-panel.tsx:209
+#: src/components/preview-panel.tsx:211
 #: src/components/storage-meter.tsx:41
 #: src/routes/drive/$spaceId/home.tsx:151
 msgid "Storage"
@@ -3213,11 +3513,11 @@ msgstr ""
 msgid "Stored — leave blank to keep"
 msgstr ""
 
-#: src/components/doc-editor/labels.ts:57
+#: src/components/doc-editor/labels.ts:59
 msgid "Strikethrough"
 msgstr ""
 
-#: src/components/doc-editor/labels.ts:50
+#: src/components/doc-editor/labels.ts:52
 msgid "Structure"
 msgstr ""
 
@@ -3233,7 +3533,7 @@ msgstr ""
 msgid "Switch space"
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:291
+#: src/components/doc-editor/doc-editor.tsx:428
 msgid "Syncing…"
 msgstr ""
 
@@ -3241,7 +3541,7 @@ msgstr ""
 msgid "System"
 msgstr ""
 
-#: src/components/doc-editor/labels.ts:41
+#: src/components/doc-editor/labels.ts:43
 msgid "Table"
 msgstr ""
 
@@ -3249,12 +3549,20 @@ msgstr ""
 msgid "Team"
 msgstr ""
 
-#: src/components/preview-panel.tsx:364
+#: src/components/preview-panel.tsx:381
 msgid "Team folder"
 msgstr ""
 
 #: src/components/settings/panes/account-profile.tsx:156
 msgid "Tell your colleagues what you work on"
+msgstr ""
+
+#: src/components/new-document-dialog.tsx:138
+msgid "Template"
+msgstr ""
+
+#: src/components/new-document-dialog.tsx:162
+msgid "Templates could not be loaded; the document starts blank."
 msgstr ""
 
 #: src/routes/admin.settings.tsx:711
@@ -3264,6 +3572,10 @@ msgstr ""
 #: src/components/bubble-toolbar.tsx:32
 #: src/components/doc-editor/labels.ts:23
 msgid "Text"
+msgstr ""
+
+#: src/components/comments/comments-panel.tsx:153
+msgid "That comment thread no longer exists."
 msgstr ""
 
 #: src/components/upload-conflict-dialog.tsx:79
@@ -3287,6 +3599,10 @@ msgstr ""
 msgid "The identity provider's response could not be verified. Try again."
 msgstr ""
 
+#: src/components/nodes/embed-link-modal.tsx:61
+msgid "The link could not be read."
+msgstr ""
+
 #: src/components/link-space-modal.tsx:51
 msgid "The organization exists; its members are being added now. The space shows as linked in a moment."
 msgstr ""
@@ -3296,7 +3612,12 @@ msgstr ""
 msgid "the public link"
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:134
+#: src/components/comments/comments-panel.tsx:450
+msgid "The rest of the thread stays."
+msgstr ""
+
+#: src/components/doc-editor/doc-editor.tsx:215
+#: src/components/markdown-document-view/index.tsx:121
 msgid "The server did not answer."
 msgstr ""
 
@@ -3312,7 +3633,7 @@ msgstr ""
 msgid "Theme"
 msgstr ""
 
-#: src/routes/s/$token.tsx:285
+#: src/routes/s/$token.tsx:320
 msgid "There is nothing shared here yet."
 msgstr ""
 
@@ -3348,7 +3669,7 @@ msgstr ""
 msgid "This address is on a different mail domain from yours"
 msgstr ""
 
-#: src/components/preview-content.tsx:145
+#: src/components/preview-content.tsx:147
 msgid "This browser can't display PDFs inline."
 msgstr ""
 
@@ -3364,7 +3685,11 @@ msgstr ""
 msgid "This device stays signed in."
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:115
+#: src/components/markdown-document-view/index.tsx:116
+msgid "This document cannot be shown"
+msgstr ""
+
+#: src/components/doc-editor/doc-editor.tsx:193
 msgid "This document is not available"
 msgstr ""
 
@@ -3372,11 +3697,11 @@ msgstr ""
 msgid "This file contains formatting the block editor cannot keep, such as raw HTML or footnotes. Saving rewrites the file without it. The original stays in version history, and you can restore it from there."
 msgstr ""
 
-#: src/components/preview-content.tsx:271
+#: src/components/preview-content.tsx:278
 msgid "This file opens in the office editor."
 msgstr ""
 
-#: src/routes/s/$token.tsx:138
+#: src/routes/s/$token.tsx:152
 msgid "This file was shared with you"
 msgstr ""
 
@@ -3385,11 +3710,11 @@ msgid "this folder"
 msgstr ""
 
 #: src/routes/drive/$spaceId/index.tsx:522
-#: src/routes/s/$token.tsx:282
+#: src/routes/s/$token.tsx:317
 msgid "This folder is empty"
 msgstr ""
 
-#: src/routes/s/$token.tsx:136
+#: src/routes/s/$token.tsx:150
 msgid "This folder was shared with you"
 msgstr ""
 
@@ -3401,11 +3726,11 @@ msgstr ""
 msgid "This group opens no folders, so nobody loses access."
 msgstr ""
 
-#: src/routes/s/$token.tsx:248
+#: src/routes/s/$token.tsx:274
 msgid "This link does not allow downloads, so it shows the names, sizes and dates of these files but cannot open their contents."
 msgstr ""
 
-#: src/routes/s/$token.tsx:107
+#: src/routes/s/$token.tsx:116
 msgid "This link is not available"
 msgstr ""
 
@@ -3437,7 +3762,7 @@ msgstr ""
 msgid "This space is not linked to an organization yet, so nobody can be added to it. An instance administrator has to link it first — there is nothing to fix from this screen."
 msgstr ""
 
-#: src/components/preview-content.tsx:164
+#: src/components/preview-content.tsx:166
 msgid "This video can't be played here — use Download."
 msgstr ""
 
@@ -3449,7 +3774,7 @@ msgstr ""
 msgid "To date"
 msgstr ""
 
-#: src/components/doc-editor/labels.ts:68
+#: src/components/doc-editor/labels.ts:70
 msgid "To-do"
 msgstr ""
 
@@ -3457,22 +3782,22 @@ msgstr ""
 msgid "To-do list"
 msgstr ""
 
-#: src/components/doc-editor/labels.ts:71
+#: src/components/doc-editor/labels.ts:73
 msgid "Toggle"
 msgstr ""
 
 #: src/components/doc-editor/labels.ts:34
-#: src/components/doc-editor/labels.ts:72
+#: src/components/doc-editor/labels.ts:74
 msgid "Toggle heading 1"
 msgstr ""
 
 #: src/components/doc-editor/labels.ts:35
-#: src/components/doc-editor/labels.ts:73
+#: src/components/doc-editor/labels.ts:75
 msgid "Toggle heading 2"
 msgstr ""
 
 #: src/components/doc-editor/labels.ts:36
-#: src/components/doc-editor/labels.ts:74
+#: src/components/doc-editor/labels.ts:76
 msgid "Toggle heading 3"
 msgstr ""
 
@@ -3489,7 +3814,7 @@ msgid "Top level"
 msgstr ""
 
 #: src/components/nav-space.tsx:49
-#: src/components/site-header.tsx:35
+#: src/components/site-header.tsx:36
 #: src/components/storage-breakdown.tsx:38
 #: src/components/trash-panel.tsx:202
 #: src/routes/drive/$spaceId/trash.tsx:8
@@ -3509,20 +3834,20 @@ msgstr ""
 msgid "Try a different search."
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:140
+#: src/components/doc-editor/doc-editor.tsx:221
 msgid "Try again"
 msgstr ""
 
-#: src/components/block-handle.tsx:173
+#: src/components/block-handle.tsx:181
 msgid "Turn into"
 msgstr ""
 
 #: src/components/preview-modal.tsx:155
-#: src/components/preview-panel.tsx:352
+#: src/components/preview-panel.tsx:369
 msgid "Type"
 msgstr ""
 
-#: src/components/doc-editor/labels.ts:63
+#: src/components/doc-editor/labels.ts:65
 msgid "Type “/” for blocks…"
 msgstr ""
 
@@ -3534,7 +3859,7 @@ msgstr ""
 msgid "Type the space name to confirm"
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:53
+#: src/components/doc-editor/doc-editor.tsx:68
 msgid "Type to search"
 msgstr ""
 
@@ -3556,11 +3881,11 @@ msgstr ""
 msgid "Unsaved changes"
 msgstr ""
 
-#: src/components/new-document-dialog.tsx:50
+#: src/components/new-document-dialog.tsx:70
 msgid "Untitled"
 msgstr ""
 
-#: src/components/new-document-dialog.tsx:44
+#: src/components/new-document-dialog.tsx:64
 msgid "Untitled document"
 msgstr ""
 
@@ -3568,11 +3893,15 @@ msgstr ""
 msgid "Untitled file"
 msgstr ""
 
-#: src/components/new-document-dialog.tsx:48
+#: src/components/doc-editor/outline-panel.tsx:126
+msgid "Untitled heading"
+msgstr ""
+
+#: src/components/new-document-dialog.tsx:68
 msgid "Untitled presentation"
 msgstr ""
 
-#: src/components/new-document-dialog.tsx:46
+#: src/components/new-document-dialog.tsx:66
 msgid "Untitled spreadsheet"
 msgstr ""
 
@@ -3580,8 +3909,12 @@ msgstr ""
 msgid "Update"
 msgstr ""
 
-#: src/components/nodes/uploadable-node-view.tsx:103
+#: src/components/nodes/uploadable-node-view.tsx:108
 msgid "Upload"
+msgstr ""
+
+#: src/components/doc-editor/labels.ts:41
+msgid "Upload a video"
 msgstr ""
 
 #: src/components/doc-editor/labels.ts:39
@@ -3592,7 +3925,7 @@ msgstr ""
 msgid "Upload cancelled"
 msgstr ""
 
-#: src/components/nodes/uploadable-node-view.tsx:67
+#: src/components/nodes/uploadable-node-view.tsx:72
 #: src/components/transfer-tray.tsx:254
 #: src/lib/collab/attachments.ts:21
 #: src/lib/upload-store.ts:498
@@ -3623,7 +3956,7 @@ msgstr ""
 msgid "Uploading {current} of {total}"
 msgstr ""
 
-#: src/components/nodes/uploadable-node-view.tsx:65
+#: src/components/nodes/uploadable-node-view.tsx:70
 msgid "Uploading…"
 msgstr ""
 
@@ -3658,7 +3991,7 @@ msgstr ""
 msgid "Version"
 msgstr ""
 
-#: src/components/editor-header.tsx:65
+#: src/components/editor-header.tsx:72
 msgid "version {version}"
 msgstr ""
 
@@ -3666,7 +3999,7 @@ msgstr ""
 msgid "version {versionNo}"
 msgstr ""
 
-#: src/components/version-list.tsx:66
+#: src/components/version-list.tsx:98
 msgid "Version {versionNo}"
 msgstr ""
 
@@ -3674,15 +4007,15 @@ msgstr ""
 msgid "Version history"
 msgstr ""
 
-#: src/components/editor-header.tsx:93
-#: src/components/node-actions.tsx:146
+#: src/components/editor-header.tsx:100
+#: src/components/node-actions.tsx:160
 #: src/components/preview-modal.tsx:149
-#: src/components/preview-panel.tsx:339
-#: src/components/preview-panel.tsx:379
+#: src/components/preview-panel.tsx:356
+#: src/components/preview-panel.tsx:396
 msgid "Versions"
 msgstr ""
 
-#: src/components/version-list.tsx:117
+#: src/components/version-list.tsx:141
 msgid "Versions are immutable. Restoring makes the selected version current; it does not delete anything."
 msgstr ""
 
@@ -3698,17 +4031,19 @@ msgstr ""
 msgid "Versions of “{nodeName}”"
 msgstr ""
 
+#: src/components/doc-editor/labels.ts:41
 #: src/components/storage-breakdown.tsx:32
 msgid "Video"
 msgstr ""
 
-#: src/components/preview-panel.tsx:417
+#: src/components/preview-panel.tsx:434
 #: src/components/share-dialog.tsx:333
 msgid "view"
 msgstr ""
 
 #: src/components/folder-actions.tsx:178
 #: src/components/settings/panes/account-general.tsx:182
+#: src/components/version-list.tsx:112
 msgid "View"
 msgstr ""
 
@@ -3717,7 +4052,7 @@ msgstr ""
 msgid "View all"
 msgstr ""
 
-#: src/routes/s/$token.tsx:154
+#: src/routes/s/$token.tsx:168
 msgid "view and download"
 msgstr ""
 
@@ -3779,7 +4114,7 @@ msgstr ""
 msgid "You are not in any space yet."
 msgstr ""
 
-#: src/routes/s/$token.tsx:239
+#: src/routes/s/$token.tsx:265
 msgid "You are viewing a shared link"
 msgstr ""
 
@@ -3851,11 +4186,11 @@ msgstr ""
 msgid "You uploaded"
 msgstr ""
 
-#: src/components/preview-panel.tsx:248
+#: src/components/preview-panel.tsx:250
 msgid "Your access"
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:118
+#: src/components/doc-editor/doc-editor.tsx:196
 msgid "Your access may have been removed, or the file is no longer a markdown document."
 msgstr ""
 

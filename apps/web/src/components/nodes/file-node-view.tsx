@@ -3,11 +3,11 @@ import type { NodeViewProps } from "@tiptap/react";
 import { useLingui } from "@lingui/react/macro";
 import { PaperclipIcon } from "lucide-react";
 import { UploadableNodeView } from "@/components/nodes/uploadable-node-view";
-import { resolveAttachment } from "@/lib/collab/attachments";
+import { resolveAttachment, type AttachmentUrl } from "@/lib/collab/attachments";
 import { useFormatters } from "@/lib/format";
 
 export function FileNodeView(
-  props: NodeViewProps & { adapter: UploadAdapter; documentId: string },
+  props: NodeViewProps & { adapter?: UploadAdapter; attachmentUrl: AttachmentUrl },
 ) {
   const { t } = useLingui();
   const f = useFormatters();
@@ -23,7 +23,7 @@ export function FileNodeView(
       retry={(id, override) => props.editor.commands.retryFile(id, override)}
       renderReady={(attrs) => (
         <a
-          href={resolveAttachment(props.documentId, attrs.src)}
+          href={resolveAttachment(attrs.src, props.attachmentUrl)}
           download={name}
           target="_blank"
           rel="noopener noreferrer"

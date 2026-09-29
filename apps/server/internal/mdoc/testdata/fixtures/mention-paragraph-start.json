@@ -1,0 +1,29 @@
+{
+  "name": "mention-paragraph-start",
+  "input": "<!-- slash:mention {\"id\":\"user:1\",\"label\":\"Ann\"} -->@Ann<!-- /slash:mention --> said \\*\\*hi\\*\\*",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "mention",
+            "attrs": {
+              "id": "user:1",
+              "label": "Ann"
+            }
+          },
+          {
+            "type": "text",
+            "text": " said **hi**"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "<!-- slash:mention {\"id\":\"user:1\",\"label\":\"Ann\"} -->@Ann<!-- /slash:mention --> said \\*\\*hi\\*\\*",
+  "yupdate_b64": "AQYBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQADB21lbnRpb24oAAEBAmlkAXcGdXNlcjoxKAABAQVsYWJlbAF3A0FubocBAQYEAAEEDCBzYWlkICoqaGkqKgA=",
+  "expect_lossy": false
+}

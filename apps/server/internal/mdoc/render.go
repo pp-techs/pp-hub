@@ -43,10 +43,16 @@ func isEmptyOutput(md string) bool {
 // excludedFromMarkdown mirrors the media nodes' excludeFromMarkdown: a
 // placeholder or an upload that has not landed has no URL to write.
 func excludedFromMarkdown(n *Node) bool {
-	if n.Type != "image" && n.Type != "file" {
+	var href string
+	switch n.Type {
+	case "image", "file", "video":
+		href = "src"
+	case "embed":
+		href = "url"
+	default:
 		return false
 	}
-	if !truthy(n.Attrs["src"]) {
+	if !truthy(n.Attrs[href]) {
 		return true
 	}
 	status, ok := n.Attrs["status"]
@@ -265,9 +271,17 @@ func renderNode(n, parent *Node, index int) string {
 			"<!-- /slash:columns -->",
 		}, "\n\n")
 	case "image":
-		return renderMedia(n, "image", "alt", []string{"width"}, true)
+		return renderMedia(n, "image", "src", "alt", []string{"width"}, true)
 	case "file":
-		return renderMedia(n, "file", "name", []string{"size", "mime"}, false)
+		return renderMedia(n, "file", "src", "name", []string{"size", "mime"}, false)
+	case "video":
+		return renderMedia(n, "video", "src", "", []string{"poster"}, false)
+	case "embed":
+		return renderMedia(n, "embed", "url", "title", []string{"mode", "description", "thumbnail"}, false)
+	case "mention":
+		label := attrString(n.Attrs["label"])
+		return renderMarker("mention", orderedAttrs{{"id", n.Attrs["id"]}, {"label", n.Attrs["label"]}}) +
+			"@" + label + mentionClose
 	}
 	return ""
 }
@@ -455,8 +469,8 @@ func renderMarker(typ string, attrs orderedAttrs) string {
 }
 
 // renderMedia is mediaMarkdown's renderMarkdown.
-func renderMedia(n *Node, typ, labelAttr string, markerKeys []string, image bool) string {
-	href := attrString(n.Attrs["src"])
+func renderMedia(n *Node, typ, hrefAttr, labelAttr string, markerKeys []string, image bool) string {
+	href := attrString(n.Attrs[hrefAttr])
 	carried := orderedAttrs{}
 	for _, k := range markerKeys {
 		if v, ok := n.Attrs[k]; ok {
@@ -474,7 +488,7 @@ func renderMedia(n *Node, typ, labelAttr string, markerKeys []string, image bool
 		out = renderMarker(typ, carried) + "\n"
 	}
 	label := ""
-	if truthy(n.Attrs[labelAttr]) {
+	if labelAttr != "" && truthy(n.Attrs[labelAttr]) {
 		label = attrString(n.Attrs[labelAttr])
 	} else if !image {
 		label = href
@@ -554,12 +568,12 @@ func renderTable(n *Node, h helpers) string {
 	for _, r := range rows {
 		for i := range columns {
 			if i < len(r) {
-				widths[i] = max(widths[i], jsLen(r[i].text))
+				widths[i] = max(widths[i], cellWidth(r[i].text))
 			}
 			widths[i] = max(widths[i], 3)
 		}
 	}
-	pad := func(s string, w int) string { return s + strings.Repeat(" ", max(0, w-jsLen(s))) }
+	pad := func(s string, w int) string { return s + strings.Repeat(" ", max(0, w-cellWidth(s))) }
 	textAt := func(r []cell, i int) string {
 		if i < len(r) {
 			return r[i].text
@@ -934,9 +948,28 @@ func markClosing(typ string, m *Mark, mode string) string {
 	return ""
 }
 
-// renderInline is renderNodesWithMarkBoundaries.
+// renderInline is renderNodesWithMarkBoundaries, plus the comment markers
+// when inline content carries comment marks.
 func renderInline(nodes []Node, parent *Node, sep string) string {
-	result := make([]string, 0, len(nodes))
+	if sep == "" && hasCommentMarks(nodes) {
+		return renderCommented(nodes, parent)
+	}
+	pieces, kept := renderPieces(nodes, parent)
+	out := make([]string, 0, len(pieces))
+	for i, s := range pieces {
+		if kept[i] {
+			out = append(out, s)
+		}
+	}
+	return strings.Join(out, sep)
+}
+
+// renderPieces is renderNodesWithMarkBoundaries up to the join: each node's
+// output (mark delimiters included), and whether it produced any (a node
+// without a type is skipped, it adds no separator).
+func renderPieces(nodes []Node, parent *Node) (pieces []string, kept []bool) {
+	pieces = make([]string, len(nodes))
+	kept = make([]bool, len(nodes))
 	active := newMarkMap()
 	reopenHTML := map[string]bool{}
 	modes := map[string]string{}
@@ -955,6 +988,7 @@ func renderInline(nodes []Node, parent *Node, sep string) string {
 		if node.Type == "" {
 			continue
 		}
+		kept[i] = true
 		if node.Type != "text" {
 			nodeMarks := map[string]bool{}
 			for _, m := range node.Marks {
@@ -988,7 +1022,7 @@ func renderInline(nodes []Node, parent *Node, sep string) string {
 					active.set(k, reopen.get(k))
 				}
 			}
-			result = append(result, before+content+after)
+			pieces[i] = before + content + after
 			continue
 		}
 
@@ -1092,7 +1126,7 @@ func renderInline(nodes []Node, parent *Node, sep string) string {
 			active.delete(k)
 			delete(modes, k)
 		}
-		result = append(result, text+trailingWS+middleWS)
+		pieces[i] = text + trailingWS + middleWS
 	}
-	return strings.Join(result, sep)
+	return pieces, kept
 }

@@ -350,7 +350,8 @@ func (h *Hub) persistTimed(ctx context.Context, rm *room) error {
 // persist is writeBack's body. Caller holds rm.mu.
 func (h *Hub) persist(ctx context.Context, rm *room) error {
 	frag := rm.doc.GetXmlFragment(mdoc.FragmentName)
-	out := mdoc.Render(mdoc.Read(frag), rm.frontmatter)
+	doc := mdoc.Read(frag)
+	out := mdoc.Render(doc, rm.frontmatter)
 
 	ver, err := h.store.GetCurrentVersion(ctx, rm.nodeID)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -375,6 +376,7 @@ func (h *Hub) persist(ctx context.Context, rm *room) error {
 	}
 	node, err := h.files.Get(ctx, rm.nodeID)
 	if err == nil {
+		h.adopt(ctx, node, doc, writer)
 		_, _, err = h.files.PutFile(ctx, node.SpaceID, node.ParentID, node.ID, node.Name, bytes.NewReader(out), writer)
 	}
 	if errors.Is(err, fs.ErrNotFound) || errors.Is(err, fs.ErrNotFile) {
@@ -382,6 +384,57 @@ func (h *Hub) persist(ctx context.Context, rm *room) error {
 		return nil
 	}
 	return err
+}
+
+// adopt copies into doc the attachments its markdown references and it does
+// not hold — an image pasted from another document names a hash only that
+// document holds, and would otherwise render broken here. A reference is
+// adopted from a live document that holds it and that writer, the user behind
+// the change, may download: holding the hash is not access to its bytes, so a
+// hash typed or pasted by someone who cannot read any holder stays broken.
+// Adopting is best effort — a failure (quota, a lookup) leaves the reference
+// broken, as it was before, and never costs the write-back.
+func (h *Hub) adopt(ctx context.Context, node store.Node, doc mdoc.Node, writer pgtype.UUID) {
+	refs := mdoc.Attachments(doc)
+	if len(refs) == 0 {
+		return
+	}
+	held, err := h.files.ListAttachments(ctx, node.ID)
+	if err != nil {
+		h.log.WarnContext(ctx, "adopt attachments: list", "node", node.ID, "err", err)
+		return
+	}
+	have := make(map[string]bool, len(held))
+	for _, a := range held {
+		have[a.BlobHash] = true
+	}
+	for _, hash := range refs {
+		if have[hash] || !blob.IsHash(hash) {
+			continue
+		}
+		if err := h.adoptOne(ctx, node, hash, writer); err != nil {
+			h.log.WarnContext(ctx, "adopt attachment", "node", node.ID, "hash", hash, "err", err)
+		}
+	}
+}
+
+// adoptOne adopts hash from the first holder writer may download, if any.
+func (h *Hub) adoptOne(ctx context.Context, node store.Node, hash string, writer pgtype.UUID) error {
+	holders, err := h.files.AttachmentHolders(ctx, hash, node.ID)
+	if err != nil {
+		return err
+	}
+	for _, holder := range holders {
+		caps, err := h.access.EffectiveCapsForNode(ctx, holder.Node, writer)
+		if err != nil {
+			return err
+		}
+		if caps.Download {
+			_, err := h.files.AdoptAttachment(ctx, node.ID, holder.NodeAttachment, writer)
+			return err
+		}
+	}
+	return nil
 }
 
 // loadedRoom is the document's resident room, or nil.

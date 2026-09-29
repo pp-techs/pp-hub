@@ -1,0 +1,22 @@
+{
+  "name": "mention-unclosed",
+  "input": "Hi <!-- slash:mention {\"id\":\"user:1\",\"label\":\"A\"} -->@A and more\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Hi @A and more"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "Hi @A and more",
+  "yupdate_b64": "AQMBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQ5IaSBAQSBhbmQgbW9yZQA=",
+  "expect_lossy": false
+}

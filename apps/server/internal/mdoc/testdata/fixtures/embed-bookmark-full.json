@@ -1,0 +1,23 @@
+{
+  "name": "embed-bookmark-full",
+  "input": "<!-- slash:embed {\"mode\":\"bookmark\",\"description\":\"An example \\u002d\\u002d site\",\"thumbnail\":\"attachment:c0ffee\"} -->\n[Example \\[site\\]](https://example.com/a?b=1)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "embed",
+        "attrs": {
+          "mode": "bookmark",
+          "description": "An example -- site",
+          "thumbnail": "attachment:c0ffee",
+          "url": "https://example.com/a?b=1",
+          "title": "Example [site]"
+        }
+      }
+    ]
+  },
+  "output": "<!-- slash:embed {\"mode\":\"bookmark\",\"description\":\"An example \\u002d\\u002d site\",\"thumbnail\":\"attachment:c0ffee\"} -->\n[Example \\[site\\]](https://example.com/a?b=1)",
+  "yupdate_b64": "AQYBAAcBB2NvbnRlbnQDBWVtYmVkKAABAAN1cmwBdxlodHRwczovL2V4YW1wbGUuY29tL2E/Yj0xKAABAARtb2RlAXcIYm9va21hcmsoAAEABXRpdGxlAXcORXhhbXBsZSBbc2l0ZV0oAAEAC2Rlc2NyaXB0aW9uAXcSQW4gZXhhbXBsZSAtLSBzaXRlKAABAAl0aHVtYm5haWwBdxFhdHRhY2htZW50OmMwZmZlZQA=",
+  "expect_lossy": false
+}

@@ -1,17 +1,22 @@
 import type { AnyExtension } from "@tiptap/core";
-import { createBlockKit } from "@slash-editor/core";
-
-type BlockKitOptions = NonNullable<Parameters<typeof createBlockKit>[0]>;
+import { createBlockKit, type BlockKitOptions, type MentionOptions } from "@slash-editor/core";
 
 /**
- * The v1 block set: exactly what `apps/server/internal/mdoc` stores. Keep in
- * sync with the Go golden fixtures (`bun apps/web/scripts/mdoc-fixtures.ts`).
+ * `createMdocKit` options: `createBlockKit`'s, except `mention.items` is
+ * optional (a surface without a provider — the read-only renderer, the
+ * fixture generator — still needs the `mention` node in its schema).
+ *
+ * The v1 schema is image, file, video, embed, mermaid, table, columns,
+ * mention and the comment mark on top of the baseline set. Passing `false`
+ * for one of those is only valid when `extend` supplies a variant of the
+ * same node (e.g. `Video.extend({ addNodeView })`); otherwise the schema
+ * drifts from what `apps/server/internal/mdoc` stores.
  */
-export const MDOC_KIT_OPTIONS = {
-  video: false,
-  embed: false,
-  comment: false,
-} as const satisfies BlockKitOptions;
+export type MdocKitOptions = Omit<BlockKitOptions, "mention"> & {
+  mention?: Partial<MentionOptions> | false;
+};
+
+const noMentions: MentionOptions["items"] = () => [];
 
 /**
  * StarterKit ships `underline` (serialized as `++x++`) and `BlockKitOptions`
@@ -23,7 +28,18 @@ export function withoutUnderline(extensions: AnyExtension[]): AnyExtension[] {
   );
 }
 
-/** `createBlockKit` narrowed to the v1 block set; `options` add editor wiring. */
-export function createMdocKit(options: BlockKitOptions = {}): AnyExtension[] {
-  return withoutUnderline(createBlockKit({ ...options, ...MDOC_KIT_OPTIONS }));
+/**
+ * `createBlockKit` narrowed to the v1 block set: exactly what
+ * `apps/server/internal/mdoc` stores. Keep in sync with the Go golden
+ * fixtures (`bun apps/web/scripts/mdoc-fixtures.ts`). `mention: {items}` and
+ * `comment: {store}` pass through to slash-editor.
+ */
+export function createMdocKit(options: MdocKitOptions = {}): AnyExtension[] {
+  const { mention, ...rest } = options;
+  return withoutUnderline(
+    createBlockKit({
+      ...rest,
+      mention: mention === false ? false : { items: noMentions, ...mention },
+    }),
+  );
 }

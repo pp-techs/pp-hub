@@ -1,0 +1,36 @@
+{
+  "name": "mention-after-hard-break",
+  "input": "one  \n<!-- slash:mention {\"id\":\"user:2\",\"label\":\"Bo\"} -->@Bo<!-- /slash:mention --> two",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "one"
+          },
+          {
+            "type": "hardBreak"
+          },
+          {
+            "type": "mention",
+            "attrs": {
+              "id": "user:2",
+              "label": "Bo"
+            }
+          },
+          {
+            "type": "text",
+            "text": " two"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "one  \n<!-- slash:mention {\"id\":\"user:2\",\"label\":\"Bo\"} -->@Bo<!-- /slash:mention --> two",
+  "yupdate_b64": "AQkBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQNvbmWHAQEDCWhhcmRCcmVha4cBBQMHbWVudGlvbigAAQYCaWQBdwZ1c2VyOjIoAAEGBWxhYmVsAXcCQm+HAQYGBAABCQQgdHdvAA==",
+  "expect_lossy": false
+}

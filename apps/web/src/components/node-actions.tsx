@@ -5,6 +5,7 @@ import {
   Download,
   ExternalLink,
   Eye,
+  FileArchive,
   FolderInput,
   History,
   Info,
@@ -23,6 +24,8 @@ import {
   canOpenInTab,
   canRestructure,
   capsOf,
+  exportDocumentUrl,
+  isMarkdownFile,
   openEditor,
   openInTab,
   opensInEditor,
@@ -139,6 +142,17 @@ export function nodeActions(
         shortcut: "⌘D",
         // eslint-disable-next-line lingui/no-unlocalized-strings -- window.open target
         run: () => window.open(downloadUrl(node), "_blank"),
+      });
+    }
+    // The `.md` alone keeps `attachment:` references that only resolve in
+    // pp-hub; the export carries the images and files beside it.
+    if (caps.download && isMarkdownFile(node)) {
+      actions.push({
+        key: "export",
+        label: msg`Export with images (.zip)`,
+        icon: FileArchive,
+        // eslint-disable-next-line lingui/no-unlocalized-strings -- window.open target
+        run: () => window.open(exportDocumentUrl(node.id), "_blank"),
       });
     }
     actions.push({

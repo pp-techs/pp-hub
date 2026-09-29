@@ -1,0 +1,63 @@
+{
+  "name": "mention-details",
+  "input": "<details>\n<summary>By <!-- slash:mention {\"id\":\"user:1\",\"label\":\"A\"} -->@A<!-- /slash:mention --></summary>\n\nBody <!-- slash:mention {\"id\":\"user:2\",\"label\":\"B\"} -->@B<!-- /slash:mention -->.\n\n</details>\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "details",
+        "attrs": {
+          "open": false,
+          "level": 0
+        },
+        "content": [
+          {
+            "type": "detailsSummary",
+            "content": [
+              {
+                "type": "text",
+                "text": "By "
+              },
+              {
+                "type": "mention",
+                "attrs": {
+                  "id": "user:1",
+                  "label": "A"
+                }
+              }
+            ]
+          },
+          {
+            "type": "detailsContent",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Body "
+                  },
+                  {
+                    "type": "mention",
+                    "attrs": {
+                      "id": "user:2",
+                      "label": "B"
+                    }
+                  },
+                  {
+                    "type": "text",
+                    "text": "."
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "<details>\n<summary>By <!-- slash:mention {\"id\":\"user:1\",\"label\":\"A\"} -->@A<!-- /slash:mention --></summary>\n\nBody <!-- slash:mention {\"id\":\"user:2\",\"label\":\"B\"} -->@B<!-- /slash:mention -->.\n\n</details>",
+  "yupdate_b64": "ARIBAAcBB2NvbnRlbnQDB2RldGFpbHMHAAEAAw5kZXRhaWxzU3VtbWFyeQcAAQEGBAABAgNCeSCHAQIDB21lbnRpb24oAAEGAmlkAXcGdXNlcjoxKAABBgVsYWJlbAF3AUGHAQEDDmRldGFpbHNDb250ZW50BwABCQMJcGFyYWdyYXBoBwABCgYEAAELBUJvZHkghwELAwdtZW50aW9uKAABEQJpZAF3BnVzZXI6MigAAREFbGFiZWwBdwFChwERBgQAARQBLigAAQAEb3BlbgF5KAABAAVsZXZlbAF9AAA=",
+  "expect_lossy": false
+}

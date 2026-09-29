@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -23,6 +24,7 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/gc"
 	"github.com/nhatbui/pp-hub/apps/server/internal/httpapi"
 	"github.com/nhatbui/pp-hub/apps/server/internal/mail"
+	"github.com/nhatbui/pp-hub/apps/server/internal/notifications"
 	"github.com/nhatbui/pp-hub/apps/server/internal/notify"
 	"github.com/nhatbui/pp-hub/apps/server/internal/obs"
 	"github.com/nhatbui/pp-hub/apps/server/internal/orgsync"
@@ -88,13 +90,38 @@ func run() error {
 	// and ffmpeg, which live in cmd/worker; jobs for those kinds stay pending
 	// until such a worker exists, and are never claimed-and-failed here.
 	previewWorker := preview.NewWorker(queries, blobs,
-		preview.ImageRenderer{}, preview.SVGRenderer{}, preview.TextRenderer{})
+		preview.ImageRenderer{}, preview.SVGRenderer{}, preview.TextRenderer{}).
+		WithExtractors(preview.TextExtractor{})
+	// Content search (M27) indexes a node's current version: a restored
+	// older version commits nothing, so it is re-extracted here instead.
+	fsSvc.SetRestoreHook(func(ctx context.Context, ver store.NodeVersion) {
+		if err := previewWorker.Reindex(ctx, ver); err != nil {
+			slog.WarnContext(ctx, "enqueue text extraction", "err", err)
+		}
+	})
+	// Files stored before content search existed get indexed without an
+	// operator step; the scan skips everything already indexed or queued.
+	go func() {
+		if n, err := preview.BackfillText(ctx, queries); err != nil {
+			slog.WarnContext(ctx, "text extraction backfill", "enqueued", n, "err", err)
+		} else if n > 0 {
+			slog.InfoContext(ctx, "text extraction backfill", "enqueued", n)
+		}
+	}()
+	// In-app notifications (M29). One service per process: its broker holds
+	// the open streams, and the mention job below delivers through it, so
+	// the job runs here and never in cmd/worker.
+	notificationsSvc := notifications.NewService(queries, blobs, shareSvc)
 	fsSvc.SetVersionHook(func(ctx context.Context, ver store.NodeVersion, name string) {
 		if err := previewWorker.Enqueue(ctx, ver, name); err != nil {
 			slog.WarnContext(ctx, "enqueue preview", "err", err)
 		}
+		if err := notificationsSvc.EnqueueMentions(ctx, ver); err != nil {
+			slog.WarnContext(ctx, "enqueue mention notifications", "err", err)
+		}
 	})
 	go previewWorker.Run(ctx)
+	go notificationsSvc.Run(ctx)
 
 	// Reclaims disk from blobs nothing references any more (without it,
 	// every permanent delete leaks its bytes forever), re-hashes stored
@@ -105,7 +132,8 @@ func run() error {
 	// defaults to 0 (never), so this is inert until a space opts in.
 	go gc.NewTrashWorker(fsSvc).Run(ctx)
 
-	// Sweep expired WOPI locks, dead sessions and aged security events.
+	// Sweep expired WOPI locks, dead sessions, aged security events and
+	// read notifications past notifications.ReadRetention.
 	//
 	// The first two are pure housekeeping — an expired lock is ignored and an
 	// expired session is refused on lookup — but the third is a retention
@@ -157,6 +185,11 @@ func run() error {
 				} else if n > 0 {
 					slog.InfoContext(ctx, "aged security events purged", "count", n)
 				}
+				if n, err := notificationsSvc.Purge(ctx, time.Now().Add(-notifications.ReadRetention)); err != nil {
+					slog.WarnContext(ctx, "notification sweep", "err", err)
+				} else if n > 0 {
+					slog.InfoContext(ctx, "read notifications purged", "count", n)
+				}
 			}
 		}
 	}()
@@ -168,13 +201,10 @@ func run() error {
 	authSvc.SetReconciler(orgSvc)
 	go orgSvc.Run(ctx)
 
-	// The block editor's rooms (M39). Start clears the locks a previous
-	// process's rooms left: this is the one instance that hosts rooms.
+	// The block editor's rooms (M39). Started below, once the listener is
+	// bound: starting clears the locks a previous process's rooms left.
 	collabHub := collab.New(fsSvc, shareSvc, queries, metrics.Collab,
 		collab.Config{Origin: httpapi.OriginOf(cfg.ExternalURL)})
-	if err := collabHub.Start(ctx); err != nil {
-		return err
-	}
 	api := httpapi.NewServer(httpapi.Deps{
 		Auth:            authSvc,
 		Spaces:          spacesSvc,
@@ -198,6 +228,7 @@ func run() error {
 		SysConfig:       syscfg,
 		Mail:            mailer,
 		Notifier:        notifier,
+		Notifications:   notificationsSvc,
 		Metrics:         metrics.HTTP,
 	})
 	srv := &http.Server{
@@ -206,10 +237,20 @@ func run() error {
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
+	// The listener first, the hub after it. Starting the hub releases every
+	// room lock in the database, which is only right when no other process
+	// is hosting rooms — and a process still serving on this address is
+	// exactly what a failed bind reveals (a second copy started by mistake,
+	// or a restart racing the old one's drain). Cleared before the bind, its
+	// rooms would lose their locks to a process that then exits.
+	ln, err := listenThenStart(cfg.Addr, func() error { return collabHub.Start(ctx) })
+	if err != nil {
+		return err
+	}
 	errCh := make(chan error, 1)
 	go func() {
-		slog.InfoContext(ctx, "listening", "addr", cfg.Addr, "external", cfg.ExternalURL)
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		slog.InfoContext(ctx, "listening", "addr", ln.Addr().String(), "external", cfg.ExternalURL)
+		if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- err
 		}
 	}()
@@ -229,9 +270,29 @@ func run() error {
 		defer cancel()
 		roomsClosed := make(chan error, 1)
 		srv.RegisterOnShutdown(func() { roomsClosed <- collabHub.Shutdown(shutdownCtx) })
+		// Notification streams never end on their own; without this,
+		// Shutdown would wait out its whole grace period for them.
+		srv.RegisterOnShutdown(notificationsSvc.Shutdown)
 		err := srv.Shutdown(shutdownCtx)
 		return errors.Join(err, <-roomsClosed)
 	}
+}
+
+// listenThenStart binds addr and only then runs start, closing the listener
+// if start fails. A bind that fails runs nothing.
+func listenThenStart(addr string, start func() error) (net.Listener, error) {
+	if addr == "" {
+		addr = ":http" // as http.Server.ListenAndServe
+	}
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		return nil, err
+	}
+	if err := start(); err != nil {
+		_ = ln.Close()
+		return nil, err
+	}
+	return ln, nil
 }
 
 // waitForOIDC retries discovery until Logto is up (a cold one takes a while to

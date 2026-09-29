@@ -1,0 +1,25 @@
+{
+  "name": "mention-paragraph-only",
+  "input": "<!-- slash:mention {\"id\":\"user:1\",\"label\":\"Ann\"} -->@Ann<!-- /slash:mention -->",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "mention",
+            "attrs": {
+              "id": "user:1",
+              "label": "Ann"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "output": "<!-- slash:mention {\"id\":\"user:1\",\"label\":\"Ann\"} -->@Ann<!-- /slash:mention -->",
+  "yupdate_b64": "AQQBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQADB21lbnRpb24oAAEBAmlkAXcGdXNlcjoxKAABAQVsYWJlbAF3A0FubgA=",
+  "expect_lossy": false
+}

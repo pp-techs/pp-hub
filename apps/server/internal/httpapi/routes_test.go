@@ -101,6 +101,25 @@ var clientRoutes = []string{
 	"GET /api/v1/nodes/{nodeID}/collab",
 	"GET /api/v1/collab/{room}",
 	"GET /api/v1/nodes/{nodeID}/attachments/{hash}",
+	"GET /api/v1/nodes/{nodeID}/document",
+	"GET /api/v1/nodes/{nodeID}/export",
+	"POST /api/v1/nodes/{nodeID}/unfurl",
+	"GET /api/v1/templates/markdown",
+	"GET /s/{token}/document",
+	"GET /s/{token}/attachments/{hash}",
+
+	// Comments on block documents, and in-app notifications (M29).
+	"GET /api/v1/nodes/{nodeID}/comments",
+	"POST /api/v1/nodes/{nodeID}/comment-threads",
+	"POST /api/v1/comment-threads/{threadID}/comments",
+	"POST /api/v1/comment-threads/{threadID}/resolve",
+	"POST /api/v1/comment-threads/{threadID}/reopen",
+	"PATCH /api/v1/comments/{commentID}",
+	"DELETE /api/v1/comments/{commentID}",
+	"GET /api/v1/notifications",
+	"GET /api/v1/notifications/unread-count",
+	"POST /api/v1/notifications/read",
+	"GET /api/v1/notifications/stream",
 
 	"GET /s/{token}/",
 	"GET /s/{token}/download",
@@ -300,5 +319,38 @@ func TestCollabSocketRefusesForeignOrigins(t *testing.T) {
 				t.Fatalf("refusal status %d, want 403", rec.Code)
 			}
 		})
+	}
+}
+
+// A link visitor has no session: the block-document routes of a link are
+// registered with the other /s routes, outside the authenticated group, so
+// the anonymous page can render the document and its images. The token and
+// the node's place in the link authorize them instead (shareScope).
+func TestShareDocumentRoutesArePublic(t *testing.T) {
+	guard := reflect.ValueOf((&Server{}).authenticated).Pointer()
+	want := map[string]bool{"GET /s/{token}/document": false, "GET /s/{token}/attachments/{hash}": false}
+	err := chi.Walk(
+		(&Server{}).Router().(chi.Routes),
+		func(method, route string, _ http.Handler, middlewares ...func(http.Handler) http.Handler) error {
+			key := method + " " + route
+			if _, ok := want[key]; !ok {
+				return nil
+			}
+			want[key] = true
+			for _, mw := range middlewares {
+				if reflect.ValueOf(mw).Pointer() == guard {
+					t.Errorf("%s demands a session a link visitor does not have", key)
+				}
+			}
+			return nil
+		},
+	)
+	if err != nil {
+		t.Fatalf("walk routes: %v", err)
+	}
+	for route, seen := range want {
+		if !seen {
+			t.Errorf("%s is not registered", route)
+		}
 	}
 }

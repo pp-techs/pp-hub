@@ -31,6 +31,7 @@ jobs.kind = how to render        │  previews.kind = what was produced
   render:video   ─┤              │
   render:office  ─┘              │
   snippet:text   ────────────────────> text        (first 4KB, verbatim)
+  extract:text   ────────────────────> node_texts row (M27, not a preview)
 ```
 
 - A **job kind** is a routing key. It decides which process may claim the work,
@@ -70,6 +71,32 @@ speculatively rendered. `.epub` is a zip the editor handles but a rendered
    `FOR UPDATE SKIP LOCKED`, renders it, and upserts a `previews` row keyed by
    `(node_version_id, preview_kind)`.
 4. `handlePreview` looks up that `(current_version_id, kind)` pair.
+
+## Text extraction
+
+Content search (M27) rides the same `jobs` table and claim loop, but its job
+produces a `node_texts` row instead of a preview blob
+(`internal/preview/extract.go`, migration `0016_content_search.sql`). An
+extraction kind is a routing key exactly like a render kind: a process claims
+only the kinds it registered an `Extractor` for.
+
+- **`extract:text`** covers `text/markdown` — parsed and flattened by
+  `mdoc.PlainText`, so the index and its snippets carry the words and not the
+  markdown syntax — and `text/plain`. Both are pure Go and run in
+  `cmd/server`; the worker is not needed.
+- The version hook enqueues it next to the preview job, and a restored older
+  version (which commits nothing new) is re-enqueued by `fs.SetRestoreHook`
+  (`Worker.Reindex`).
+- The row holds the text of the node's **current** version, normalised,
+  capped at 256 KiB and folded by `internal/textsearch` (lower-cased, accents
+  removed, rune for rune, so Vietnamese matches without the `unaccent`
+  extension). The upsert is guarded so a late job for a superseded version
+  cannot overwrite newer text, and search joins on
+  `nodes.current_version_id`, so a row that has not caught up is not matched
+  rather than served stale.
+- **Office documents are not extracted yet.** They will need their own kind,
+  registered in `cmd/worker` beside the converter and added to the MIME map;
+  storage, backfill and search need no change.
 
 ## Where rendering happens
 
@@ -300,6 +327,11 @@ and no in-flight job, keyset-paginated, 200 at a time with a 250ms pause. Only
 _current_ versions are considered — `handlePreview` serves
 `nodes.current_version_id`, so rendering superseded versions would burn CPU on
 blobs no endpoint can reach. Safe to re-run.
+
+Text extraction has its own sweep, `preview.BackfillText`, which `--backfill`
+also runs — and which `cmd/server` runs by itself at every startup, because its
+extractors live there: a drive upgraded to content search becomes searchable
+without an operator step. It skips files already indexed or queued.
 
 Known gap: there is no priority lane, so on a large install fresh uploads queue
 behind the backlog. The fix is a `run_at` offset on backfilled jobs.

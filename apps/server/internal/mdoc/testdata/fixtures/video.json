@@ -1,0 +1,19 @@
+{
+  "name": "video",
+  "input": "<!-- slash:video -->\n[attachment:0123abcd](attachment:0123abcd)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "video",
+        "attrs": {
+          "src": "attachment:0123abcd"
+        }
+      }
+    ]
+  },
+  "output": "<!-- slash:video -->\n[attachment:0123abcd](attachment:0123abcd)",
+  "yupdate_b64": "AQMBAAcBB2NvbnRlbnQDBXZpZGVvKAABAANzcmMBdxNhdHRhY2htZW50OjAxMjNhYmNkKAABAAZzdGF0dXMBdwVyZWFkeQA=",
+  "expect_lossy": false
+}

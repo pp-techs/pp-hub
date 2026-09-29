@@ -43,7 +43,7 @@ func main() {
 func run() error {
 	obs.InitLogging()
 	backfill := flag.Bool("backfill", false,
-		"enqueue preview jobs for existing files that have none, then exit")
+		"enqueue preview and text-extraction jobs for existing files that have none, then exit")
 	flag.Parse()
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

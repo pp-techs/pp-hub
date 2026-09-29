@@ -84,3 +84,26 @@
 4. PDF, video and office rendering needs poppler/ffmpeg/OnlyOffice and runs in
    an optional worker. Without it those files fall back to their type icon
    rather than erroring — deploying the worker later backfills them.
+
+## Block Documents
+
+### UC-11: Write a document together
+
+1. **New → Document** creates a `.md` file in the current folder, blank or from a template (meeting notes, outline, project spec, runbook, weekly report — in English or Vietnamese).
+2. `/edit/<id>` opens it in the block editor; everyone with edit access types into the same document live, with presence avatars and remote carets. Readers who may download it follow along read-only.
+3. Images, videos and files dropped in become attachments of the document; an embed block turns a URL into a bookmark with the page’s title and image, fetched by the server.
+4. The room writes ordinary versions; a version can be previewed rendered and restored.
+5. **Export with images (.zip)** takes the markdown out with its assets; a share link that allows download shows the document rendered, read-only.
+
+### UC-12: Discuss a document
+
+1. Anyone who can open the document selects text and comments on it; others reply, and the thread's opener or an editor resolves it.
+2. `@name` in a comment, or a mention written into the document itself, notifies that person — only if they can open the document.
+3. The document's owner hears about new threads, participants about replies. The bell in the header shows the unread count, updated live; clicking an item opens the document on the thread. There is no email for comments.
+
+## Search
+
+### UC-13: Find a file by what it says
+
+1. The ⌘K palette matches names across every space the user belongs to, and — for markdown and plain-text files — their contents, accent-insensitively.
+2. A content match shows a snippet with the matched words highlighted; name matches rank first. Results are filtered to what the user can reach, as for name search. Office documents and PDFs are matched by name only.

@@ -1,0 +1,81 @@
+{
+  "name": "mention-list-start",
+  "input": "- <!-- slash:mention {\"id\":\"user:1\",\"label\":\"Ann\"} -->@Ann<!-- /slash:mention -->\n- <!-- slash:mention {\"id\":\"user:2\",\"label\":\"Bo\"} -->@Bo<!-- /slash:mention --> owns it\n\n- [x] <!-- slash:mention {\"id\":\"user:3\",\"label\":\"Cy\"} -->@Cy<!-- /slash:mention -->",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "bulletList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "mention",
+                    "attrs": {
+                      "id": "user:1",
+                      "label": "Ann"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "mention",
+                    "attrs": {
+                      "id": "user:2",
+                      "label": "Bo"
+                    }
+                  },
+                  {
+                    "type": "text",
+                    "text": " owns it"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "taskList",
+        "content": [
+          {
+            "type": "taskItem",
+            "attrs": {
+              "checked": true
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "mention",
+                    "attrs": {
+                      "id": "user:3",
+                      "label": "Cy"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "- <!-- slash:mention {\"id\":\"user:1\",\"label\":\"Ann\"} -->@Ann<!-- /slash:mention -->\n- <!-- slash:mention {\"id\":\"user:2\",\"label\":\"Bo\"} -->@Bo<!-- /slash:mention --> owns it\n\n- [x] <!-- slash:mention {\"id\":\"user:3\",\"label\":\"Cy\"} -->@Cy<!-- /slash:mention -->",
+  "yupdate_b64": "ARQBAAcBB2NvbnRlbnQDCmJ1bGxldExpc3QHAAEAAwhsaXN0SXRlbQcAAQEDCXBhcmFncmFwaAcAAQIDB21lbnRpb24oAAEDAmlkAXcGdXNlcjoxKAABAwVsYWJlbAF3A0FubocBAQMIbGlzdEl0ZW0HAAEGAwlwYXJhZ3JhcGgHAAEHAwdtZW50aW9uKAABCAJpZAF3BnVzZXI6MigAAQgFbGFiZWwBdwJCb4cBCAYEAAELCCBvd25zIGl0hwEAAwh0YXNrTGlzdAcAARQDCHRhc2tJdGVtBwABFQMJcGFyYWdyYXBoBwABFgMHbWVudGlvbigAARcCaWQBdwZ1c2VyOjMoAAEXBWxhYmVsAXcCQ3koAAEVB2NoZWNrZWQBeAA=",
+  "expect_lossy": false
+}

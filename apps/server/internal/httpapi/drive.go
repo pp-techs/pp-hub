@@ -17,6 +17,7 @@ import (
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/activity"
 	"github.com/nhatbui/pp-hub/apps/server/internal/audit"
+	"github.com/nhatbui/pp-hub/apps/server/internal/blockdoc"
 	"github.com/nhatbui/pp-hub/apps/server/internal/collab"
 	"github.com/nhatbui/pp-hub/apps/server/internal/fs"
 	"github.com/nhatbui/pp-hub/apps/server/internal/office"
@@ -578,18 +579,27 @@ func (s *Server) handleCreateDocument(w http.ResponseWriter, r *http.Request) {
 		Kind     string `json:"kind"`
 		Name     string `json:"name"`
 		ParentID string `json:"parent_id"`
+		// Template and Locale apply to kind=markdown: the block-document
+		// template to start from (GET /templates/markdown), in the language
+		// the picker listed it in (the caller's saved one when absent).
+		Template string `json:"template"`
+		Locale   string `json:"locale"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid body")
 		return
 	}
 
-	// A block document (M39) is an empty .md file; the office kinds start
-	// from a template.
+	// A block document (M39) is an empty .md file or one of blockdoc's
+	// templates; the office kinds start from a blank office file.
 	markdown := body.Kind == "markdown"
 	kind, ok := office.ParseKind(body.Kind)
 	if !ok && !markdown {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "kind must be document|spreadsheet|presentation|markdown")
+		return
+	}
+	if body.Template != "" && !markdown {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "a template applies only to kind markdown")
 		return
 	}
 	ext := kind.Ext()
@@ -624,7 +634,19 @@ func (s *Server) handleCreateDocument(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var content []byte
-	if !markdown {
+	switch {
+	case markdown && body.Template != "":
+		tpl, err := blockdoc.TemplateContent(body.Template, s.templateLocale(r, body.Locale))
+		if errors.Is(err, blockdoc.ErrUnknownTemplate) {
+			writeProblem(w, http.StatusBadRequest, "Bad Request", "unknown template")
+			return
+		}
+		if err != nil {
+			Error(w, r, err)
+			return
+		}
+		content = tpl
+	case !markdown:
 		tpl, err := office.Template(kind, users.DecodePreferences(u.Settings).Locale)
 		if err != nil {
 			Error(w, r, err)
@@ -639,7 +661,11 @@ func (s *Server) handleCreateDocument(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.activity.Node(r.Context(), u.ID, node, activity.KindCreated, map[string]any{"template": body.Kind})
+	detail := map[string]any{"template": body.Kind}
+	if body.Template != "" {
+		detail["document_template"] = body.Template
+	}
+	s.activity.Node(r.Context(), u.ID, node, activity.KindCreated, detail)
 	writeJSON(w, http.StatusCreated, nodeToDTO(node, &ver).withCaps(share.CapsOwner))
 }
 

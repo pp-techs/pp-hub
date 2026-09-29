@@ -1,0 +1,29 @@
+{
+  "name": "mention-after-one-char",
+  "input": "x <!-- slash:mention {\"id\":\"user:1\",\"label\":\"Ann\"} -->@Ann<!-- /slash:mention -->",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "x "
+          },
+          {
+            "type": "mention",
+            "attrs": {
+              "id": "user:1",
+              "label": "Ann"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "output": "x <!-- slash:mention {\"id\":\"user:1\",\"label\":\"Ann\"} -->@Ann<!-- /slash:mention -->",
+  "yupdate_b64": "AQYBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQJ4IIcBAQMHbWVudGlvbigAAQQCaWQBdwZ1c2VyOjEoAAEEBWxhYmVsAXcDQW5uAA==",
+  "expect_lossy": false
+}

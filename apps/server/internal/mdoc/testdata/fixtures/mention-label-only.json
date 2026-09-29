@@ -1,0 +1,29 @@
+{
+  "name": "mention-label-only",
+  "input": "Hi <!-- slash:mention {\"label\":\"Bob\"} -->@Robert<!-- /slash:mention -->\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Hi "
+          },
+          {
+            "type": "mention",
+            "attrs": {
+              "id": null,
+              "label": "Bob"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "output": "Hi <!-- slash:mention {\"label\":\"Bob\"} -->@Bob<!-- /slash:mention -->",
+  "yupdate_b64": "AQUBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQNIaSCHAQEDB21lbnRpb24oAAEFBWxhYmVsAXcDQm9iAA==",
+  "expect_lossy": false
+}

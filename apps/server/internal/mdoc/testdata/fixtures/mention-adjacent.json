@@ -1,0 +1,40 @@
+{
+  "name": "mention-adjacent",
+  "input": "Both <!-- slash:mention {\"id\":\"user:1\",\"label\":\"A\"} -->@A<!-- /slash:mention --><!-- slash:mention {\"id\":\"user:2\",\"label\":\"B\"} -->@B<!-- /slash:mention --> here\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Both "
+          },
+          {
+            "type": "mention",
+            "attrs": {
+              "id": "user:1",
+              "label": "A"
+            }
+          },
+          {
+            "type": "mention",
+            "attrs": {
+              "id": "user:2",
+              "label": "B"
+            }
+          },
+          {
+            "type": "text",
+            "text": " here"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "Both <!-- slash:mention {\"id\":\"user:1\",\"label\":\"A\"} -->@A<!-- /slash:mention --><!-- slash:mention {\"id\":\"user:2\",\"label\":\"B\"} -->@B<!-- /slash:mention --> here",
+  "yupdate_b64": "AQsBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQVCb3RoIIcBAQMHbWVudGlvbigAAQcCaWQBdwZ1c2VyOjEoAAEHBWxhYmVsAXcBQYcBBwMHbWVudGlvbigAAQoCaWQBdwZ1c2VyOjIoAAEKBWxhYmVsAXcBQocBCgYEAAENBSBoZXJlAA==",
+  "expect_lossy": false
+}

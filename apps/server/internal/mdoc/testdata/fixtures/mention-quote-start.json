@@ -1,0 +1,54 @@
+{
+  "name": "mention-quote-start",
+  "input": "> <!-- slash:mention {\"id\":\"user:1\",\"label\":\"Ann\"} -->@Ann<!-- /slash:mention --> wrote\n\n> [!WARNING]\n> <!-- slash:mention {\"id\":\"user:2\",\"label\":\"Bo\"} -->@Bo<!-- /slash:mention -->",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "blockquote",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "mention",
+                "attrs": {
+                  "id": "user:1",
+                  "label": "Ann"
+                }
+              },
+              {
+                "type": "text",
+                "text": " wrote"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "attrs": {
+          "icon": "⚠️"
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "mention",
+                "attrs": {
+                  "id": "user:2",
+                  "label": "Bo"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "> <!-- slash:mention {\"id\":\"user:1\",\"label\":\"Ann\"} -->@Ann<!-- /slash:mention --> wrote\n\n> [!WARNING]\n> <!-- slash:mention {\"id\":\"user:2\",\"label\":\"Bo\"} -->@Bo<!-- /slash:mention -->",
+  "yupdate_b64": "AQ0BAAcBB2NvbnRlbnQDCmJsb2NrcXVvdGUHAAEAAwlwYXJhZ3JhcGgHAAEBAwdtZW50aW9uKAABAgJpZAF3BnVzZXI6MSgAAQIFbGFiZWwBdwNBbm6HAQIGBAABBQYgd3JvdGWHAQADB2NhbGxvdXQHAAEMAwlwYXJhZ3JhcGgHAAENAwdtZW50aW9uKAABDgJpZAF3BnVzZXI6MigAAQ4FbGFiZWwBdwJCbygAAQwEaWNvbgF3BuKaoO+4jwA=",
+  "expect_lossy": false
+}

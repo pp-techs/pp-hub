@@ -1,0 +1,61 @@
+{
+  "name": "nested",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "x "
+          },
+          {
+            "type": "text",
+            "text": "outer ",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t1"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": "inner",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t1"
+                }
+              },
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t2"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " outer",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t1"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "js_output": "x outer inner outer",
+  "yupdate_b64": "AQ4BAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQJ4IIYBAxFjb21tZW50LS1vY0M0eWRaURF7InRocmVhZElkIjoidDEifYQBBAZvdXRlciCGAQoRY29tbWVudC0tb2NDNHlkWlEEbnVsbIYBCxFjb21tZW50LS1vY0M0eWRaURF7InRocmVhZElkIjoidDEifYYBDBFjb21tZW50LS0xZWhNMFViNxF7InRocmVhZElkIjoidDIifYQBDQVpbm5lcoYBEhFjb21tZW50LS1vY0M0eWRaUQRudWxshgETEWNvbW1lbnQtLTFlaE0wVWI3BG51bGyGARQRY29tbWVudC0tb2NDNHlkWlEReyJ0aHJlYWRJZCI6InQxIn2EARUGIG91dGVyhgEbEWNvbW1lbnQtLW9jQzR5ZFpRBG51bGwA"
+}

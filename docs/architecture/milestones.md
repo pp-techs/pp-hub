@@ -4,11 +4,11 @@ The delivery history and the open roadmap. Each shipped milestone ended in a
 working end-to-end state inside the compose stack; its file keeps the decision
 that shaped it and the artifacts that carry it, not the forensics.
 
-Numbering is dependency order, not chronology — M25–M26 and M30–M39 landed after
+Numbering is dependency order, not chronology — M25–M26 and M29–M40 landed after
 M33–M35. **M12–M14 never existed** (`M12` was only the header of the retired
 `0012_personal_folders.sql`; M13 and M14 appear nowhere). Everything shipped
 through M15 is consolidated into `0001_init.sql`, and migration numbering
-restarted at `0002` with M20's sessions table: today only `0002`–`0012` exist as
+restarted at `0002` with M20's sessions table: today only `0002`–`0016` exist as
 files, so M7/M9/M10/M11 below name the tables they added rather than the
 migrations that carried them. Work that never got a number is recorded inside
 the milestone that owns its area and says so there, so nothing has to be looked
@@ -41,9 +41,9 @@ Each shipped milestone has its own file under [`milestones/`](milestones/) with 
 | M24 | The REST/WOPI write collision                          | ✅         | [detail](milestones/M24.md) |
 | M25 | Observability                                          | ✅         | [detail](milestones/M25.md) |
 | M26 | Audit completeness                                     | ✅         | [detail](milestones/M26.md) |
-| M27 | Content-indexed search                                 | 🔜 planned | below                       |
+| M27 | Content-indexed search                                 | 🟡 partial | below                       |
 | M28 | Directory sync                                         | 🔜 planned | below                       |
-| M29 | Comments and notifications                             | 🔜 planned | below                       |
+| M29 | Comments and notifications                             | ✅         | [detail](milestones/M29.md) |
 | M30 | Resumable upload and honest accounting                 | ✅         | [detail](milestones/M30.md) |
 | M31 | Document creation, and share notifications             | ✅         | [detail](milestones/M31.md) |
 | M32 | The UI speaks more than one language                   | ✅         | [detail](milestones/M32.md) |
@@ -54,29 +54,40 @@ Each shipped milestone has its own file under [`milestones/`](milestones/) with 
 | M37 | Blob integrity                                         | ✅         | [detail](milestones/M37.md) |
 | M38 | Two-way Logto sync                                     | ✅         | [detail](milestones/M38.md) |
 | M39 | Block documents (Markdown + slash-editor)              | ✅         | [detail](milestones/M39.md) |
+| M40 | Block documents, completed                             | ✅         | [detail](milestones/M40.md) |
 
 ## Upcoming — M27 Onward
 
-Everything above shipped, including the P0 register in full as of M24. None of
-the below is scheduled; the numbering is the order the dependencies suggest,
-which is also [production-readiness.md](production-readiness.md)'s phasing. Each
-entry names the section of that document holding the evidence rather than
-restating it, so there is one place to check whether a gap is still real.
+Everything above shipped except M27's office half and M28, including the P0
+register in full as of M24. None of the below is scheduled; the numbering is
+the order the dependencies suggest, which is also
+[production-readiness.md](production-readiness.md)'s phasing. Each entry names
+the section of that document holding the evidence rather than restating it, so
+there is one place to check whether a gap is still real.
 
 ### Phase B — The multi-department layer
 
 Additive to patterns that already exist.
 
-#### M27 — Content-Indexed Search 🔜 planned
+#### M27 — Content-Indexed Search 🟡 markdown and plain text shipped
 
-P1, "Search only matches file names". `GET /api/v1/search` ranks a prefix match
-over a mid-string one and falls back to trigram similarity on `nodes.name`; that
-is all of it, and it is the difference between finding the contract and
-remembering which folder it is in. Additive rather than new infrastructure: text
-extraction is a new `jobs.kind` on the DB-backed preview queue and its optional
-worker, and office documents already pass through OnlyOffice conversion on that
-path. Finishing it means the job kind, an index over the extracted text, and a
-ranking that merges it with the name match.
+P1, "Search only matches file names". **Shipped for markdown and plain text**
+(migration `0016_content_search.sql`): an `extract:text` job on the preview
+queue, enqueued by the version hook (and on restore) for `text/markdown` —
+through `mdoc.PlainText`, so snippets carry no markdown syntax — and
+`text/plain`, writes one `node_texts` row per file from its current version,
+folded for accent-insensitive Vietnamese by `internal/textsearch`; `cmd/server`
+backfills existing files at startup. `GET /api/v1/search` merges the two
+matches — every name hit above every content-only hit, `ts_rank` within
+content — and each item says `match: "name" | "content"` with a `snippet` and
+`snippet_highlights` (rune offsets); the palette shows them.
+[preview-pipeline.md](preview-pipeline.md#text-extraction) has the detail.
+
+**What remains is office documents** (and any other format — PDF text is not
+extracted either). The
+registry is ready for them: an extractor needs its own job kind, registered in
+`cmd/worker` beside the OnlyOffice converter and added to the MIME map, and
+storage, backfill and search need no change.
 
 #### M28 — Directory Sync 🔜 planned
 
@@ -94,15 +105,10 @@ hand-off.
 
 ### Phase C — Collaboration and storage honesty
 
-#### M29 — Comments and Notifications 🔜 planned
-
-P1, "No comments": a whole subsystem — a table, endpoints and two UIs, the
-preview modal and the editor — deferred in those words since M10. **The
-notification half is partially shipped**: M31 added the transport path and
-share-notification email, so what remains is an in-app notification story
-(`notifications` table, route, SSE or websocket) and applying it to comments,
-which is the case that needs it most — a comment nobody is told about is a
-comment nobody answers.
+M29 shipped (comments on block documents with in-app notifications and a
+live stream — [detail](milestones/M29.md)). What it deliberately did not
+build: comment or mention **email**, and comments on anything but a block
+document.
 
 ### Named but Unscheduled
 
@@ -150,5 +156,5 @@ so they are found rather than rediscovered:
   and driven through `docker compose run`/`exec`.
 - [production-readiness.md](production-readiness.md) holds everything that stood
   between M21 and an internal rollout: the P0 register, now fully closed; the P1
-  gaps against Google Drive still open — content search, comments, IdP group sync
-  (M27–M29) — and the phases both documents follow.
+  gaps against Google Drive still open — content search for office documents
+  (M27) and IdP group sync (M28) — and the phases both documents follow.

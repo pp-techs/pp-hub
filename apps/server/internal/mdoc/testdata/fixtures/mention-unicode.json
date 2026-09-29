@@ -1,0 +1,33 @@
+{
+  "name": "mention-unicode",
+  "input": "Chào <!-- slash:mention {\"id\":\"user:3\",\"label\":\"Nguyễn Văn 🎉\"} -->@Nguyễn Văn 🎉<!-- /slash:mention -->.\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Chào "
+          },
+          {
+            "type": "mention",
+            "attrs": {
+              "id": "user:3",
+              "label": "Nguyễn Văn 🎉"
+            }
+          },
+          {
+            "type": "text",
+            "text": "."
+          }
+        ]
+      }
+    ]
+  },
+  "output": "Chào <!-- slash:mention {\"id\":\"user:3\",\"label\":\"Nguyễn Văn 🎉\"} -->@Nguyễn Văn 🎉<!-- /slash:mention -->.",
+  "yupdate_b64": "AQgBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQZDaMOgbyCHAQEDB21lbnRpb24oAAEHAmlkAXcGdXNlcjozKAABBwVsYWJlbAF3Ek5ndXnhu4VuIFbEg24g8J+OiYcBBwYEAAEKAS4A",
+  "expect_lossy": false
+}

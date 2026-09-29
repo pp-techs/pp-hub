@@ -1,0 +1,46 @@
+{
+  "name": "media-in-callout",
+  "input": "> [!TIP]\n> Watch:\n>\n> <!-- slash:video {\"poster\":\"attachment:bb\"} -->\n> [attachment:aa](attachment:aa)\n>\n> <!-- slash:embed {\"mode\":\"bookmark\",\"description\":\"d\"} -->\n> [X](https://x.example)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "callout",
+        "attrs": {
+          "icon": "💡"
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Watch:"
+              }
+            ]
+          },
+          {
+            "type": "video",
+            "attrs": {
+              "poster": "attachment:bb",
+              "src": "attachment:aa"
+            }
+          },
+          {
+            "type": "embed",
+            "attrs": {
+              "mode": "bookmark",
+              "description": "d",
+              "url": "https://x.example",
+              "title": "X"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "output": "> [!TIP]\n> Watch:\n>\n> <!-- slash:video {\"poster\":\"attachment:bb\"} -->\n> [attachment:aa](attachment:aa)\n>\n> <!-- slash:embed {\"mode\":\"bookmark\",\"description\":\"d\"} -->\n> [X](https://x.example)",
+  "yupdate_b64": "AQ4BAAcBB2NvbnRlbnQDB2NhbGxvdXQHAAEAAwlwYXJhZ3JhcGgHAAEBBgQAAQIGV2F0Y2g6hwEBAwV2aWRlbygAAQkDc3JjAXcNYXR0YWNobWVudDphYSgAAQkGcG9zdGVyAXcNYXR0YWNobWVudDpiYigAAQkGc3RhdHVzAXcFcmVhZHmHAQkDBWVtYmVkKAABDQN1cmwBdxFodHRwczovL3guZXhhbXBsZSgAAQ0EbW9kZQF3CGJvb2ttYXJrKAABDQV0aXRsZQF3AVgoAAENC2Rlc2NyaXB0aW9uAXcBZCgAAQAEaWNvbgF3BPCfkqEA",
+  "expect_lossy": false
+}

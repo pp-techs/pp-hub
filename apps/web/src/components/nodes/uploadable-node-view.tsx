@@ -17,8 +17,11 @@ interface UploadableNodeViewProps extends NodeViewProps {
   accept: string;
   icon: LucideIcon;
   emptyLabel: string;
-  /** Adapter used for a freshly picked `File` — the host's, not this component's, choice. */
-  adapter: UploadAdapter;
+  /**
+   * Adapter used for a freshly picked `File` — the host's, not this
+   * component's, choice. A read-only rendering has none and offers no picker.
+   */
+  adapter?: UploadAdapter;
   /** `editor.commands.retry<Type>` — bound by the per-node wrapper so this stays generic. */
   retry: (id: string, override?: { file: File; adapter: UploadAdapter }) => boolean;
   /** Renders the node once it has a `src` (ready or mid-retry after a prior success). */
@@ -26,10 +29,11 @@ interface UploadableNodeViewProps extends NodeViewProps {
 }
 
 /**
- * Shared placeholder/progress/error chrome for the `image` and `file` node
- * views: core carries `status`/`error` in doc attrs, this renders them and
- * drives `retry<Type>`. Picking a file is only offered while the editor is
- * editable — a reader sees the placeholder and nothing to press.
+ * Shared placeholder/progress/error chrome for the uploadable node views
+ * (image, file, video): core carries `status`/`error` in doc attrs, this
+ * renders them and drives `retry<Type>`. Picking a file is only offered while
+ * the editor is editable and has an adapter — a reader sees the placeholder
+ * and nothing to press.
  */
 export function UploadableNodeView(props: UploadableNodeViewProps) {
   const { editor, node, accept, icon: Icon, emptyLabel, adapter, retry, renderReady } = props;
@@ -37,7 +41,8 @@ export function UploadableNodeView(props: UploadableNodeViewProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const attrs = node.attrs as UploadableNodeAttrs;
   // `setEditable` does not re-render node views on its own.
-  const editable = useEditorState({ editor, selector: ({ editor: e }) => e.isEditable });
+  const editable =
+    useEditorState({ editor, selector: ({ editor: e }) => e.isEditable }) && !!adapter;
 
   if (attrs.src) {
     return (
@@ -111,7 +116,7 @@ export function UploadableNodeView(props: UploadableNodeViewProps) {
         onChange={(event) => {
           const file = event.target.files?.[0];
           event.target.value = "";
-          if (file) retry(attrs.id, { file, adapter });
+          if (file && adapter) retry(attrs.id, { file, adapter });
         }}
       />
     </NodeViewWrapper>

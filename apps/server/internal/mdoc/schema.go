@@ -27,6 +27,9 @@ var nodeAttrDefaults = map[string]map[string]any{
 	"detailsContent": {"id": nil},
 	"image":          {"id": nil, "src": nil, "alt": nil, "width": nil, "status": "ready", "error": nil},
 	"file":           {"id": nil, "src": nil, "name": nil, "size": nil, "mime": nil, "status": "ready", "error": nil},
+	"video":          {"id": nil, "src": nil, "poster": nil, "status": "ready", "error": nil},
+	"embed":          {"id": nil, "url": nil, "mode": "bookmark", "title": nil, "description": nil, "thumbnail": nil},
+	"mention":        {"id": nil, "label": nil},
 	"table":          {"id": nil},
 	"tableRow":       {},
 	"tableHeader":    {"id": nil, "colspan": 1.0, "rowspan": 1.0, "colwidth": nil, "align": nil},
@@ -37,17 +40,18 @@ var nodeAttrDefaults = map[string]map[string]any{
 
 // markAttrDefaults is every mark type's attribute set with its default.
 var markAttrDefaults = map[string]map[string]any{
-	"link":   {"href": nil, "target": "_blank", "rel": "noopener noreferrer nofollow", "class": nil, "title": nil},
-	"bold":   {},
-	"code":   {},
-	"italic": {},
-	"strike": {},
+	"link":    {"href": nil, "target": "_blank", "rel": "noopener noreferrer nofollow", "class": nil, "title": nil},
+	"bold":    {},
+	"code":    {},
+	"italic":  {},
+	"strike":  {},
+	"comment": {"threadId": nil},
 }
 
 // markOrder is the schema's mark rank order (Tiptap extension priority):
 // ProseMirror sorts a node's marks by it, and the serializer nests
 // lower-ranked marks outside higher-ranked ones.
-var markOrder = []string{"link", "bold", "code", "italic", "strike"}
+var markOrder = []string{"link", "bold", "code", "italic", "strike", "comment"}
 
 func markRank(name string) int {
 	for i, m := range markOrder {
@@ -64,7 +68,12 @@ func isCodeType(name string) bool {
 	return name == "codeBlock" || name == "mermaid" || name == "code"
 }
 
+// hasIDAttr reports whether nodeType carries a BlockId block id. A mention's
+// "id" is the mentioned entity (`user:<uuid>`), not a block id.
 func hasIDAttr(nodeType string) bool {
+	if nodeType == "mention" {
+		return false
+	}
 	_, ok := nodeAttrDefaults[nodeType]["id"]
 	return ok
 }

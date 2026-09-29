@@ -5,10 +5,12 @@ import { ExternalLink } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { LoadingStatus } from "@/components/loading";
+import { NodeMarkdownView } from "@/components/markdown-document-view";
 import type { Node } from "@/lib/api";
 import {
   capsOf,
   contentUrl,
+  isMarkdownFile,
   isOfficeFile,
   openEditor,
   openInTab,
@@ -243,6 +245,11 @@ function PreviewBody({ node }: { node: Node }) {
     if (mime === "application/pdf") return <PdfPreview node={node} />;
     // eslint-disable-next-line lingui/no-unlocalized-strings -- MIME type prefix
     if (mime.startsWith("video/")) return <VideoPreview node={node} />;
+  }
+  // A markdown document reads as what it is, laid out the way the editor
+  // shows it, rather than as its source text. Same capability as the bytes.
+  if (canRead && isMarkdownFile(node)) {
+    return <NodeMarkdownView node={node} className="px-8 py-6" />;
   }
   // eslint-disable-next-line lingui/no-unlocalized-strings -- MIME type prefix
   if (mime.startsWith("image/")) {

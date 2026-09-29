@@ -1,0 +1,59 @@
+{
+  "name": "mark-boundary",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "x "
+          },
+          {
+            "type": "text",
+            "text": "ab",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": "cd",
+            "marks": [
+              {
+                "type": "bold"
+              },
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t1"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": "ef",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t1"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " y"
+          }
+        ]
+      }
+    ]
+  },
+  "js_output": "x **abcd**ef y",
+  "yupdate_b64": "AQ8BAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQJ4IIYBAwRib2xkAnt9hAEEAmFihgEGBGJvbGQEbnVsbIYBBwRib2xkAnt9hgEIEWNvbW1lbnQtLW9jQzR5ZFpREXsidGhyZWFkSWQiOiJ0MSJ9hAEJAmNkhgELBGJvbGQEbnVsbIYBDBFjb21tZW50LS1vY0M0eWRaUQRudWxshgENEWNvbW1lbnQtLW9jQzR5ZFpREXsidGhyZWFkSWQiOiJ0MSJ9hAEOAmVmhgEQEWNvbW1lbnQtLW9jQzR5ZFpRBG51bGyEARECIHkA"
+}

@@ -1,0 +1,65 @@
+{
+  "name": "across-marks",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "plain "
+          },
+          {
+            "type": "text",
+            "text": "bold",
+            "marks": [
+              {
+                "type": "bold"
+              },
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t1"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " and ",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t1"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": "italic",
+            "marks": [
+              {
+                "type": "italic"
+              },
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t1"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " end"
+          }
+        ]
+      }
+    ]
+  },
+  "js_output": "plain **bold** and *italic* end",
+  "yupdate_b64": "AREBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQZwbGFpbiCGAQcEYm9sZAJ7fYYBCBFjb21tZW50LS1vY0M0eWRaURF7InRocmVhZElkIjoidDEifYQBCQRib2xkhgENBGJvbGQEbnVsbIYBDhFjb21tZW50LS1vY0M0eWRaUQRudWxshgEPEWNvbW1lbnQtLW9jQzR5ZFpREXsidGhyZWFkSWQiOiJ0MSJ9hAEQBSBhbmQghgEVEWNvbW1lbnQtLW9jQzR5ZFpRBG51bGyGARYGaXRhbGljAnt9hgEXEWNvbW1lbnQtLW9jQzR5ZFpREXsidGhyZWFkSWQiOiJ0MSJ9hAEYBml0YWxpY4YBHgZpdGFsaWMEbnVsbIYBHxFjb21tZW50LS1vY0M0eWRaUQRudWxshAEgBCBlbmQA"
+}

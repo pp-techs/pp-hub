@@ -1,0 +1,47 @@
+{
+  "name": "mention-details-start",
+  "input": "<details open>\n<summary>Owners</summary>\n\n<!-- slash:mention {\"id\":\"user:1\",\"label\":\"Ann\"} -->@Ann<!-- /slash:mention -->\n\n</details>",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "details",
+        "attrs": {
+          "open": true
+        },
+        "content": [
+          {
+            "type": "detailsSummary",
+            "content": [
+              {
+                "type": "text",
+                "text": "Owners"
+              }
+            ]
+          },
+          {
+            "type": "detailsContent",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "mention",
+                    "attrs": {
+                      "id": "user:1",
+                      "label": "Ann"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "<details open>\n<summary>Owners</summary>\n\n<!-- slash:mention {\"id\":\"user:1\",\"label\":\"Ann\"} -->@Ann<!-- /slash:mention -->\n\n</details>",
+  "yupdate_b64": "AQsBAAcBB2NvbnRlbnQDB2RldGFpbHMHAAEAAw5kZXRhaWxzU3VtbWFyeQcAAQEGBAABAgZPd25lcnOHAQEDDmRldGFpbHNDb250ZW50BwABCQMJcGFyYWdyYXBoBwABCgMHbWVudGlvbigAAQsCaWQBdwZ1c2VyOjEoAAELBWxhYmVsAXcDQW5uKAABAARvcGVuAXgoAAEABWxldmVsAX0AAA==",
+  "expect_lossy": false
+}

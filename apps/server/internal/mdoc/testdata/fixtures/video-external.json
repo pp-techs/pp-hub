@@ -1,0 +1,19 @@
+{
+  "name": "video-external",
+  "input": "<!-- slash:video -->\n[https://cdn.example/a b.mp4](<https://cdn.example/a b.mp4>)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "video",
+        "attrs": {
+          "src": "https://cdn.example/a b.mp4"
+        }
+      }
+    ]
+  },
+  "output": "<!-- slash:video -->\n[https://cdn.example/a b.mp4](<https://cdn.example/a b.mp4>)",
+  "yupdate_b64": "AQMBAAcBB2NvbnRlbnQDBXZpZGVvKAABAANzcmMBdxtodHRwczovL2Nkbi5leGFtcGxlL2EgYi5tcDQoAAEABnN0YXR1cwF3BXJlYWR5AA==",
+  "expect_lossy": false
+}

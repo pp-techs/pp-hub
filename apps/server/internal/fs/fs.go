@@ -46,6 +46,7 @@ type Service struct {
 	q         *store.Queries
 	blobs     blob.Store
 	onVersion VersionHook
+	onRestore RestoreHook
 	retention func() int
 }
 
@@ -56,6 +57,17 @@ func NewService(q *store.Queries, blobs blob.Store) *Service {
 // SetVersionHook registers a post-commit callback (preview enqueue).
 func (s *Service) SetVersionHook(h VersionHook) {
 	s.onVersion = h
+}
+
+// RestoreHook is called after RestoreVersion re-points a node at an older
+// version. No version is committed, so the VersionHook does not fire; what
+// is keyed to the node's current version (the content-search index) still
+// has to follow.
+type RestoreHook func(ctx context.Context, ver store.NodeVersion)
+
+// SetRestoreHook registers the post-restore callback (text re-extraction).
+func (s *Service) SetRestoreHook(h RestoreHook) {
+	s.onRestore = h
 }
 
 // SetVersionRetention registers how many versions of a file to keep, read at
@@ -662,7 +674,13 @@ func (s *Service) RestoreVersion(ctx context.Context, nodeID, versionID pgtype.U
 	if ver.NodeID != nodeID {
 		return ErrNotFound
 	}
-	return s.q.SetCurrentVersion(ctx, store.SetCurrentVersionParams{ID: nodeID, CurrentVersionID: versionID})
+	if err := s.q.SetCurrentVersion(ctx, store.SetCurrentVersionParams{ID: nodeID, CurrentVersionID: versionID}); err != nil {
+		return err
+	}
+	if s.onRestore != nil {
+		s.onRestore(ctx, ver)
+	}
+	return nil
 }
 
 // ListDeleted returns soft-deleted nodes in a space.

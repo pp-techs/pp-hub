@@ -1,0 +1,1 @@
+say <!-- slash:comment {"threadId":"t1"} --><!-- slash:comment {"threadId":"t2"} -->both<!-- /slash:comment {"threadId":"t2"} --><!-- /slash:comment {"threadId":"t1"} --> here

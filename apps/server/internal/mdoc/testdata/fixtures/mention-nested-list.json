@@ -1,0 +1,62 @@
+{
+  "name": "mention-nested-list",
+  "input": "- top\n  - by <!-- slash:mention {\"id\":\"user:1\",\"label\":\"A\"} -->@A<!-- /slash:mention --> deep\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "bulletList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "top"
+                  }
+                ]
+              },
+              {
+                "type": "bulletList",
+                "content": [
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "by "
+                          },
+                          {
+                            "type": "mention",
+                            "attrs": {
+                              "id": "user:1",
+                              "label": "A"
+                            }
+                          },
+                          {
+                            "type": "text",
+                            "text": " deep"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "- top\n  - by <!-- slash:mention {\"id\":\"user:1\",\"label\":\"A\"} -->@A<!-- /slash:mention --> deep",
+  "yupdate_b64": "AQ8BAAcBB2NvbnRlbnQDCmJ1bGxldExpc3QHAAEAAwhsaXN0SXRlbQcAAQEDCXBhcmFncmFwaAcAAQIGBAABAwN0b3CHAQIDCmJ1bGxldExpc3QHAAEHAwhsaXN0SXRlbQcAAQgDCXBhcmFncmFwaAcAAQkGBAABCgNieSCHAQoDB21lbnRpb24oAAEOAmlkAXcGdXNlcjoxKAABDgVsYWJlbAF3AUGHAQ4GBAABEQUgZGVlcAA=",
+  "expect_lossy": false
+}

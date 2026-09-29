@@ -1,0 +1,29 @@
+{
+  "name": "mention-no-id-start",
+  "input": "<!-- slash:mention {\"label\":\"guest\"} -->@guest<!-- /slash:mention --> joined",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "mention",
+            "attrs": {
+              "id": null,
+              "label": "guest"
+            }
+          },
+          {
+            "type": "text",
+            "text": " joined"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "<!-- slash:mention {\"label\":\"guest\"} -->@guest<!-- /slash:mention --> joined",
+  "yupdate_b64": "AQUBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQADB21lbnRpb24oAAEBBWxhYmVsAXcFZ3Vlc3SHAQEGBAABAwcgam9pbmVkAA==",
+  "expect_lossy": false
+}

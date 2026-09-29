@@ -2,17 +2,12 @@ package httpapi
 
 import (
 	"errors"
-	"io"
-	"mime"
 	"net/http"
-	"strconv"
-	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/audit"
-	"github.com/nhatbui/pp-hub/apps/server/internal/blob"
 	"github.com/nhatbui/pp-hub/apps/server/internal/collab"
 	"github.com/nhatbui/pp-hub/apps/server/internal/fs"
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
@@ -49,15 +44,8 @@ func (s *Server) handleCollabSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sess, err := s.collab.Open(r.Context(), node)
-	switch {
-	case errors.Is(err, collab.ErrNotMarkdown):
-		writeProblem(w, http.StatusBadRequest, "Bad Request", err.Error())
-		return
-	case errors.Is(err, collab.ErrTooLarge):
-		writeProblem(w, http.StatusRequestEntityTooLarge, "Payload Too Large", err.Error())
-		return
-	case err != nil:
-		s.nodeError(w, r, err)
+	if err != nil {
+		s.documentError(w, r, err)
 		return
 	}
 	mode := "view"
@@ -95,55 +83,14 @@ func (s *Server) handleCollabSocket(w http.ResponseWriter, r *http.Request) {
 	s.collab.ServeSocket(w, r, chi.URLParam(r, "room"), collab.Peer{User: sess.User.ID, Session: sess.ID})
 }
 
-// handleAttachment serves an image or file dropped into a document. It takes
-// download on the document: the bytes are original content, and whoever can
-// open the document sees its images. A hash the document does not hold is a
-// 404 whether or not another document holds it.
+// handleAttachment serves an image, video or file dropped into a document. It
+// takes download on the document: the bytes are original content, and
+// whoever can open the document sees its images. A hash the document does
+// not hold is a 404 whether or not another document holds it.
 func (s *Server) handleAttachment(w http.ResponseWriter, r *http.Request) {
 	u, node, _ := s.requireNodeCaps(w, r, share.CapDownload)
 	if u == nil {
 		return
 	}
-	hash := chi.URLParam(r, "hash")
-	if !blob.IsHash(hash) {
-		writeProblem(w, http.StatusNotFound, "Not Found", "no such attachment")
-		return
-	}
-	att, rc, err := s.fs.OpenAttachment(r.Context(), node.ID, hash)
-	if errors.Is(err, fs.ErrNotFound) {
-		writeProblem(w, http.StatusNotFound, "Not Found", "no such attachment")
-		return
-	}
-	if err != nil {
-		Error(w, r, err)
-		return
-	}
-	defer rc.Close()
-	s.audit.RecordRead(r, audit.Read{Kind: audit.KindFileViewed, User: u, Node: node,
-		Detail: map[string]any{"attachment": att.BlobHash}})
-
-	// Only an image renders in place, and only one the browser cannot be
-	// talked into executing (inlineMimes has no SVG); a PDF or a video
-	// dropped into a document downloads.
-	disposition := "attachment"
-	if strings.HasPrefix(strings.ToLower(att.Mime), "image/") {
-		disposition = inlineDisposition(att.Mime)
-	}
-	cd := mime.FormatMediaType(disposition, map[string]string{"filename": att.Name})
-	if cd == "" {
-		cd = disposition
-	}
-	w.Header().Set("Content-Type", att.Mime)
-	w.Header().Set("Content-Disposition", cd)
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	// Content-addressed within the document: these bytes never change.
-	// Private, because only this caller's access let them out.
-	w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
-	w.Header().Set("ETag", `"`+att.BlobHash+`"`)
-	if rs, ok := rc.(io.ReadSeeker); ok {
-		http.ServeContent(w, r, att.Name, att.CreatedAt.Time, rs)
-		return
-	}
-	w.Header().Set("Content-Length", strconv.FormatInt(att.Size, 10))
-	_, _ = io.Copy(w, rc)
+	s.serveAttachment(w, r, node, chi.URLParam(r, "hash"), audit.Read{Kind: audit.KindFileViewed, User: u, Node: node})
 }

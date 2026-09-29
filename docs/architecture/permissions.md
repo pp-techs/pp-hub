@@ -221,12 +221,12 @@ weaker rule of its own.
 Node-addressed routes go through `requireNodeCaps(w, r, need share.Cap)`, which
 resolves the node and demands one capability:
 
-| Capability    | Routes                                                                                                                                                                             |
-| :------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CapView`     | `GET /nodes/{id}`, `/children`, `/tree`, `/preview?kind=thumbnail`, versions, star                                                                                                 |
-| `CapDownload` | `GET /nodes/{id}/download` (file or streamed zip), `/content`, `/preview?kind=text`, copy source, `POST /nodes/{id}/edit-session`, `GET /nodes/{id}/collab`, `/attachments/{hash}` |
-| `CapEdit`     | rename, move (plus [the move rules](#moving-changes-who-can-reach-it)), delete, upload-into, version restore, trash restore/purge, WOPI save, tus upload with `attach_to`          |
-| `CapShare`    | list/create/revoke shares, list/upsert/revoke group grants, `GET /nodes/{id}/inherited-access` — each change also bounded by [Monotonicity](#monotonicity)                         |
+| Capability    | Routes                                                                                                                                                                                                                                                      |
+| :------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CapView`     | `GET /nodes/{id}`, `/children`, `/tree`, `/preview?kind=thumbnail`, versions, star                                                                                                                                                                          |
+| `CapDownload` | `GET /nodes/{id}/download` (file or streamed zip), `/content`, `/preview?kind=text`, copy source, `POST /nodes/{id}/edit-session`, `GET /nodes/{id}/collab`, `/attachments/{hash}`, `/document`, `/export`, `/comments`, `POST /nodes/{id}/comment-threads` |
+| `CapEdit`     | rename, move (plus [the move rules](#moving-changes-who-can-reach-it)), delete, upload-into, version restore, trash restore/purge, WOPI save, tus upload with `attach_to`, `POST /nodes/{id}/unfurl`                                                        |
+| `CapShare`    | list/create/revoke shares, list/upsert/revoke group grants, `GET /nodes/{id}/inherited-access` — each change also bounded by [Monotonicity](#monotonicity)                                                                                                  |
 
 Creating into a folder goes through `requireParentWrite`:
 
@@ -321,9 +321,12 @@ at a different `Content-Type`.
 | `GET /wopi/files/{id}/contents`                              | token rank ≥ 2 (= `CapDownload`) | The Document Server fetching the whole document for the editor      |
 | `POST /nodes/{id}/edit-session`                              | `CapDownload`                    | Minting the token above; there is no "open without fetching"        |
 | `GET /nodes/{id}/collab`, `GET /collab/{room}`               | `CapDownload`                    | A block document's room: sync hands the whole document over         |
-| `GET /nodes/{id}/attachments/{hash}`                         | `CapDownload` on the document    | An image or file dropped into a block document                      |
+| `GET /nodes/{id}/attachments/{hash}`                         | `CapDownload` on the document    | An image, video or file dropped into a block document               |
+| `GET /nodes/{id}/document`                                   | `CapDownload`                    | A block document's whole tree, for the read-only view               |
+| `GET /nodes/{id}/export`                                     | `CapDownload`                    | The markdown and every attachment as a zip; audited as a download   |
+| `GET /s/{token}/document`, `/s/{token}/attachments/{hash}`   | the link's `can_download`        | The read-only view through a link, node inside the link             |
 
-Three notes on the table:
+Four notes on the table:
 
 - **A machine token is not a person.** `wopi.SystemSubject` — the preview
   worker's conversion fetch — has no subject to resolve a capability for, so
@@ -353,6 +356,18 @@ Three notes on the table:
   creation and again at commit, and reading one takes `CapDownload` on it; a
   hash the document does not hold is 404 even if another document holds it.
   See [block-documents.md](block-documents.md).
+- **Comments and notifications (M29).** Taking part in a document's
+  discussion takes `CapDownload` on it — reading threads, opening one,
+  replying — because whoever can open the document can already read every
+  word it annotates. Routes addressed by thread or comment id resolve the
+  document first and check the same capability. Beyond that, editing a
+  comment is its author's alone; deleting one is its author's or `CapEdit`'s;
+  resolving or reopening a thread is its opener's or `CapEdit`'s. Nobody is
+  notified about a document they cannot currently download, and the
+  notification list and unread count drop items whose document the reader can
+  no longer download, so a revoked grant stops the excerpts too. The stream
+  re-checks its session every 60 s. **Unfurl** takes `CapEdit`: it stores an
+  attachment on the document.
 
 ### Every Node Carries Its Own Answer
 

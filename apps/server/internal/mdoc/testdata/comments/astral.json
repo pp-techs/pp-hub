@@ -1,0 +1,43 @@
+{
+  "name": "astral",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "🎉 party",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t1"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " 🎉"
+          },
+          {
+            "type": "text",
+            "text": "x🎉",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t2"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "js_output": "🎉 party 🎉x🎉",
+  "yupdate_b64": "AQkBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBgABARFjb21tZW50LS1vY0M0eWRaURF7InRocmVhZElkIjoidDEifYQBAgrwn46JIHBhcnR5hgEKEWNvbW1lbnQtLW9jQzR5ZFpRBG51bGyEAQsFIPCfjomGAQ4RY29tbWVudC0tMWVoTTBVYjcReyJ0aHJlYWRJZCI6InQyIn2EAQ8FePCfjomGARIRY29tbWVudC0tMWVoTTBVYjcEbnVsbAA="
+}

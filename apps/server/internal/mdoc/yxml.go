@@ -16,10 +16,12 @@ import (
 //     the null ones, values typed as lib0 writes JS values;
 //   - every run of adjacent text nodes is one Y.XmlText whose delta has one
 //     insert per text node, formatted with one attribute per mark: key = mark
-//     name, value = the mark's full attribute object (`{}` for none). y-tiptap
-//     suffixes the key with `--<hash>` only for marks that do not exclude
-//     themselves (comment), none of which is in the v1 set; Read strips such
-//     a suffix all the same.
+//     name, value = the mark's full attribute object (`{}` for none). A mark
+//     that does not exclude itself (comment, several threads may overlap) is
+//     keyed `<name>--<hash of the mark's JSON>` instead, as y-tiptap does;
+//     Read strips the suffix;
+//   - marks on inline nodes other than text are not stored (y-tiptap drops
+//     them too).
 
 // Fill appends doc.Content into frag using @tiptap/y-tiptap's encoding. Call
 // inside Transact.
@@ -77,7 +79,8 @@ func yText(nodes []Node) *crdt.YXmlText {
 		if len(n.Marks) > 0 {
 			attrs = make(crdt.Attributes, len(n.Marks))
 			for _, m := range n.Marks {
-				attrs[m.Type] = toYValue(withDefaults(m.Attrs, markAttrDefaults[m.Type]))
+				ma := withDefaults(m.Attrs, markAttrDefaults[m.Type])
+				attrs[yMarkKey(m.Type, ma)] = toYValue(ma)
 			}
 		}
 		delta = append(delta, crdt.Delta{Op: crdt.DeltaOpInsert, Insert: n.Text, Attributes: attrs})
@@ -200,26 +203,26 @@ func readText(t *crdt.YXmlText) []Node {
 			continue
 		}
 		n := Node{Type: "text", Text: s}
+		keys := make([]string, 0, len(d.Attributes))
 		for k, v := range d.Attributes {
-			if v == nil {
-				continue
+			if v != nil {
+				keys = append(keys, k)
 			}
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
 			name := k
 			if m := hashedMarkName.FindStringSubmatch(k); m != nil {
 				name = m[1]
 			}
 			mark := Mark{Type: name}
-			if attrs, ok := fromYValue(v).(map[string]any); ok && len(attrs) > 0 {
+			if attrs, ok := fromYValue(d.Attributes[k]).(map[string]any); ok && len(attrs) > 0 {
 				mark.Attrs = attrs
 			}
 			n.Marks = append(n.Marks, mark)
 		}
 		sort.SliceStable(n.Marks, func(i, j int) bool {
-			ri, rj := markRank(n.Marks[i].Type), markRank(n.Marks[j].Type)
-			if ri != rj {
-				return ri < rj
-			}
-			return n.Marks[i].Type < n.Marks[j].Type
+			return markRank(n.Marks[i].Type) < markRank(n.Marks[j].Type)
 		})
 		out = append(out, n)
 	}

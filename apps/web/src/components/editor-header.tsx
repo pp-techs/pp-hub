@@ -1,13 +1,20 @@
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { ArrowLeft, Download, History, Link2 } from "lucide-react";
+import { ArrowLeft, Download, FileArchive, FileText, History, Link2 } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { Skeleton } from "@workspace/ui/components/skeleton";
-import { capsOf, type Node } from "@/lib/api";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@workspace/ui/components/dropdown-menu";
+import { capsOf, exportDocumentUrl, isMarkdownFile, type Node } from "@/lib/api";
 import { useUiStore } from "@/lib/ui-store";
 import { useFormatters } from "@/lib/format";
 import { NodeIcon } from "@/components/node-icon";
+import { NotificationsBell } from "@/components/notifications-bell";
 import { ShareDialog } from "@/components/share-dialog";
 
 /**
@@ -92,7 +99,34 @@ export function EditorHeader({
         >
           <History data-icon="inline-start" /> <Trans>Versions</Trans>
         </Button>
-        {node && capsOf(node).download && (
+        {/* A markdown document downloads two ways: the `.md` alone, whose
+            `attachment:` references only resolve inside pp-hub, or a zip
+            with its images and files beside it. */}
+        {node && capsOf(node).download && isMarkdownFile(node) ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={<Button variant="ghost" size="icon-sm" aria-label={t`Download`} />}
+            >
+              <Download />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                // eslint-disable-next-line lingui/no-unlocalized-strings -- API route path and window.open target
+                onClick={() => window.open(`/api/v1/nodes/${nodeId}/download`, "_blank")}
+              >
+                <FileText />
+                <Trans>Markdown (.md)</Trans>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                // eslint-disable-next-line lingui/no-unlocalized-strings -- window.open target
+                onClick={() => window.open(exportDocumentUrl(nodeId), "_blank")}
+              >
+                <FileArchive />
+                <Trans>Export with images (.zip)</Trans>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : node && capsOf(node).download ? (
           <Button
             variant="ghost"
             size="icon-sm"
@@ -101,7 +135,8 @@ export function EditorHeader({
           >
             <Download />
           </Button>
-        )}
+        ) : null}
+        <NotificationsBell />
       </div>
     </header>
   );

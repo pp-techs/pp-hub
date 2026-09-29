@@ -1,5 +1,6 @@
 // Package preview implements background job workers that generate file
-// previews (image/PDF/video thumbnails, text snippets).
+// previews (image/PDF/video thumbnails, text snippets) and extract the text
+// content search indexes (extract.go).
 //
 // Two different kinds live here and must not be confused:
 //
@@ -87,30 +88,41 @@ type selfFetching interface {
 	FetchesOwnSource() bool
 }
 
-// Worker claims jobs and generates previews.
+// Worker claims jobs and generates previews and extracted text.
 type Worker struct {
-	q         *store.Queries
-	blobs     blob.Store
-	renderers map[string]Renderer
-	kinds     []string // derived from renderers; the ClaimJobs filter
+	q          *store.Queries
+	blobs      blob.Store
+	renderers  map[string]Renderer
+	extractors map[string]Extractor
+	kinds      []string // derived from renderers and extractors; the ClaimJobs filter
 }
 
 // NewWorker registers the renderers this process can run. A Worker with no
 // renderers never claims anything — it is still useful for GetPreviewBlob,
 // which is how the API server reads previews it did not generate.
 func NewWorker(q *store.Queries, blobs blob.Store, rs ...Renderer) *Worker {
-	w := &Worker{q: q, blobs: blobs, renderers: make(map[string]Renderer, len(rs))}
+	w := &Worker{
+		q: q, blobs: blobs,
+		renderers:  make(map[string]Renderer, len(rs)),
+		extractors: map[string]Extractor{},
+	}
 	for _, r := range rs {
 		w.renderers[r.Kind()] = r
 	}
-	w.kinds = slices.Sorted(maps.Keys(w.renderers))
+	w.kinds = w.deriveKinds()
 	return w
+}
+
+func (w *Worker) deriveKinds() []string {
+	kinds := slices.Concat(slices.Collect(maps.Keys(w.renderers)), slices.Collect(maps.Keys(w.extractors)))
+	slices.Sort(kinds)
+	return kinds
 }
 
 // Kinds are the job kinds this worker will claim.
 func (w *Worker) Kinds() []string { return w.kinds }
 
-// Payload for preview jobs.
+// Payload for preview and extraction jobs.
 type Payload struct {
 	NodeVersionID string `json:"node_version_id"`
 	NodeID        string `json:"node_id"`
@@ -119,21 +131,13 @@ type Payload struct {
 	Name          string `json:"name"`
 }
 
-// Enqueue schedules a preview job for a new version.
+// Enqueue schedules the preview job and the text-extraction job a new version
+// needs; a MIME type with neither enqueues nothing.
 func (w *Worker) Enqueue(ctx context.Context, ver store.NodeVersion, name string) error {
-	kind := kindForMime(ver.Mime)
-	if kind == "" {
-		return nil // no preview for this type
-	}
-	payload, _ := json.Marshal(Payload{
-		NodeVersionID: uuidStr(ver.ID),
-		NodeID:        uuidStr(ver.NodeID),
-		BlobHash:      ver.BlobHash,
-		Mime:          ver.Mime,
-		Name:          name,
-	})
-	_, err := w.q.EnqueueJob(ctx, store.EnqueueJobParams{Kind: kind, Payload: payload})
-	return err
+	return errors.Join(
+		w.enqueue(ctx, kindForMime(ver.Mime), ver, name),
+		w.enqueue(ctx, extractKindForMime(ver.Mime), ver, name),
+	)
 }
 
 // officeMimes render through OnlyOffice's conversion API.
@@ -276,6 +280,9 @@ func (w *Worker) process(ctx context.Context, job store.Job) error {
 		return fmt.Errorf("bad version id: %w", err)
 	}
 
+	if e, ok := w.extractors[job.Kind]; ok {
+		return w.extract(ctx, e, p, versionID)
+	}
 	// ClaimJobs filters on w.kinds, so this can only miss if a kind was
 	// unregistered between the claim and here — requeue rather than fail.
 	renderer, ok := w.renderers[job.Kind]

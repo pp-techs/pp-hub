@@ -4,13 +4,16 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
+	"github.com/nhatbui/pp-hub/apps/server/internal/textsearch"
 )
 
 const (
@@ -108,7 +111,11 @@ func parseSearchQuery(v url.Values) (searchQuery, error) {
 	return out, nil
 }
 
-// handleSearch answers GET /api/v1/search?q=&space=&kind=&limit=.
+// handleSearch answers GET /api/v1/search?q=&space=&kind=&owner=&modified=&limit=.
+//
+// A node matches on its name or on the text of its current version (M27,
+// markdown and plain text); every name hit ranks above every content-only
+// hit, and a content-only hit carries a snippet.
 //
 // Scope is the caller's space membership, enforced by joining space_members in
 // the query rather than filtering afterwards — a result the user may not see
@@ -123,6 +130,32 @@ func parseSearchQuery(v url.Values) (searchQuery, error) {
 // paying an unbounded number of queries to hide that.
 const searchOverfetch = 5
 
+// Snippet source window, in characters of the stored text: enough lead for
+// the snippet's own context and word-boundary snapping, and enough after the
+// hit to fill textsearch.SnippetRunes.
+const (
+	excerptBefore = 200
+	excerptLen    = 600
+)
+
+// searchHitDTO is one /search result.
+type searchHitDTO struct {
+	searchResultDTO
+	// Match is why the node is listed: "name", or "content" when only the
+	// text of its current version matched.
+	Match string `json:"match"`
+	// Snippet and SnippetHighlights are set on content hits only. The
+	// highlights are [start, end) rune offsets into Snippet, sorted and
+	// non-overlapping; a leading or trailing "…" is part of Snippet.
+	Snippet           *string   `json:"snippet,omitempty"`
+	SnippetHighlights *[][2]int `json:"snippet_highlights,omitempty"`
+}
+
+const (
+	matchName    = "name"
+	matchContent = "content"
+)
+
 func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	u := caller(r)
 
@@ -135,6 +168,8 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 		writeShortQueryResult(w)
 		return
 	}
+	tq := textsearch.ParseQuery(q.query)
+	tsquery, like := tq.TSQuery(), tq.LikePattern()
 
 	// Over-fetch, then narrow to what the caller can actually reach.
 	//
@@ -144,13 +179,15 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	// filter runs afterwards in one batch — which is why the limit has to be
 	// applied after filtering, not by the database.
 	rows, err := s.fs.Search(r.Context(), store.SearchNodesParams{
-		UserID:        u.ID,
-		SpaceID:       q.spaceID,
-		Kind:          q.kind,
-		OwnerID:       q.ownerID,
-		ModifiedAfter: q.modifiedAfter,
-		Query:         q.query,
-		ResultLimit:   q.limit * searchOverfetch,
+		UserID:         u.ID,
+		SpaceID:        q.spaceID,
+		Kind:           q.kind,
+		OwnerID:        q.ownerID,
+		ModifiedAfter:  q.modifiedAfter,
+		Query:          q.query,
+		ContentTsquery: pgtype.Text{String: tsquery, Valid: tsquery != ""},
+		ContentLike:    pgtype.Text{String: like, Valid: like != ""},
+		ResultLimit:    q.limit * searchOverfetch,
 	})
 	if err != nil {
 		Error(w, r, err)
@@ -163,21 +200,63 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 		Error(w, r, err)
 		return
 	}
+	// A content hit discloses what the file says, so it needs what reading
+	// the file needs — the same CapDownload the text preview asks for. A
+	// view-only grantee still finds the file by name.
+	rows = slices.DeleteFunc(rows, func(n store.SearchNodesRow) bool {
+		return !n.NameMatch && !rc.caps(n.ID).Has(share.CapDownload)
+	})
 	if len(rows) > int(q.limit) {
 		rows = rows[:q.limit]
 	}
 
-	out := make([]searchResultDTO, 0, len(rows))
+	// Snippets are cut only for the page actually returned, after the
+	// access filter: nothing is read from a document the caller cannot open.
+	var contentIDs []pgtype.UUID
+	for _, n := range rows {
+		if !n.NameMatch {
+			contentIDs = append(contentIDs, n.ID)
+		}
+	}
+	excerpts := map[pgtype.UUID]store.NodeTextExcerptsRow{}
+	if len(contentIDs) > 0 {
+		ex, err := s.store.NodeTextExcerpts(r.Context(), store.NodeTextExcerptsParams{
+			ExcerptLen:    excerptLen,
+			ContextBefore: excerptBefore,
+			Terms:         tq.Terms,
+			Phrase:        tq.Phrase,
+			NodeIds:       contentIDs,
+		})
+		if err != nil {
+			Error(w, r, err)
+			return
+		}
+		for _, e := range ex {
+			excerpts[e.NodeID] = e
+		}
+	}
+
+	out := make([]searchHitDTO, 0, len(rows))
 	for _, n := range rows {
 		d := searchRowToDTO(n)
 		rc.stamp(&d.nodeDTO, n.ID)
-		out = append(out, d)
+		hit := searchHitDTO{searchResultDTO: d, Match: matchName}
+		if !n.NameMatch {
+			hit.Match = matchContent
+			e := excerpts[n.ID]
+			snippet, highlights := tq.Snippet(e.Excerpt, e.ExcerptStart > 1, e.MoreAfter)
+			if highlights == nil {
+				highlights = [][2]int{}
+			}
+			hit.Snippet, hit.SnippetHighlights = &snippet, &highlights
+		}
+		out = append(out, hit)
 	}
 	writeJSON(w, http.StatusOK, out)
 }
 
 func writeShortQueryResult(w http.ResponseWriter) {
-	writeJSON(w, http.StatusOK, []searchResultDTO{})
+	writeJSON(w, http.StatusOK, []searchHitDTO{})
 }
 
 func searchRowToDTO(n store.SearchNodesRow) searchResultDTO {

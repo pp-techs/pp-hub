@@ -205,6 +205,24 @@ type Blob struct {
 	DamagedAt   pgtype.Timestamptz `json:"damaged_at"`
 }
 
+type Comment struct {
+	ID        pgtype.UUID        `json:"id"`
+	ThreadID  pgtype.UUID        `json:"thread_id"`
+	AuthorID  pgtype.UUID        `json:"author_id"`
+	Body      string             `json:"body"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	EditedAt  pgtype.Timestamptz `json:"edited_at"`
+}
+
+type CommentThread struct {
+	ID         pgtype.UUID        `json:"id"`
+	NodeID     pgtype.UUID        `json:"node_id"`
+	CreatedBy  pgtype.UUID        `json:"created_by"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	ResolvedAt pgtype.Timestamptz `json:"resolved_at"`
+	ResolvedBy pgtype.UUID        `json:"resolved_by"`
+}
+
 type DetachedOrg struct {
 	OrgID      string             `json:"org_id"`
 	DetachedAt pgtype.Timestamptz `json:"detached_at"`
@@ -279,6 +297,15 @@ type NodeStar struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
+type NodeText struct {
+	NodeID        pgtype.UUID        `json:"node_id"`
+	NodeVersionID pgtype.UUID        `json:"node_version_id"`
+	Content       string             `json:"content"`
+	Folded        string             `json:"folded"`
+	Tsv           interface{}        `json:"tsv"`
+	ExtractedAt   pgtype.Timestamptz `json:"extracted_at"`
+}
+
 type NodeVersion struct {
 	ID        pgtype.UUID        `json:"id"`
 	NodeID    pgtype.UUID        `json:"node_id"`
@@ -288,6 +315,20 @@ type NodeVersion struct {
 	VersionNo int32              `json:"version_no"`
 	CreatedBy pgtype.UUID        `json:"created_by"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type Notification struct {
+	ID        pgtype.UUID        `json:"id"`
+	UserID    pgtype.UUID        `json:"user_id"`
+	Kind      string             `json:"kind"`
+	ActorID   pgtype.UUID        `json:"actor_id"`
+	NodeID    pgtype.UUID        `json:"node_id"`
+	ThreadID  pgtype.UUID        `json:"thread_id"`
+	CommentID pgtype.UUID        `json:"comment_id"`
+	VersionID pgtype.UUID        `json:"version_id"`
+	Excerpt   string             `json:"excerpt"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	ReadAt    pgtype.Timestamptz `json:"read_at"`
 }
 
 type Preview struct {

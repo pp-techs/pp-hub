@@ -1,0 +1,67 @@
+{
+  "name": "mention-marks",
+  "input": "Hey **bold <!-- slash:mention {\"id\":\"user:1\",\"label\":\"A\"} -->@A<!-- /slash:mention --> bold** and *it <!-- slash:mention {\"id\":\"user:2\",\"label\":\"B\"} -->@B<!-- /slash:mention -->*\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Hey "
+          },
+          {
+            "type": "text",
+            "text": "bold ",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ]
+          },
+          {
+            "type": "mention",
+            "attrs": {
+              "id": "user:1",
+              "label": "A"
+            }
+          },
+          {
+            "type": "text",
+            "text": " bold",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " and "
+          },
+          {
+            "type": "text",
+            "text": "it ",
+            "marks": [
+              {
+                "type": "italic"
+              }
+            ]
+          },
+          {
+            "type": "mention",
+            "attrs": {
+              "id": "user:2",
+              "label": "B"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "output": "Hey **bold** <!-- slash:mention {\"id\":\"user:1\",\"label\":\"A\"} -->@A<!-- /slash:mention --> **bold** and *it* <!-- slash:mention {\"id\":\"user:2\",\"label\":\"B\"} -->@B<!-- /slash:mention -->",
+  "yupdate_b64": "ARQBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQRIZXkghgEFBGJvbGQCe32EAQYFYm9sZCCGAQsEYm9sZARudWxshwEBAwdtZW50aW9uKAABDQJpZAF3BnVzZXI6MSgAAQ0FbGFiZWwBdwFBhwENBgYAARAEYm9sZAJ7fYQBEQUgYm9sZIYBFgRib2xkBG51bGyEARcFIGFuZCCGARwGaXRhbGljAnt9hAEdA2l0IIYBIAZpdGFsaWMEbnVsbIcBEAMHbWVudGlvbigAASICaWQBdwZ1c2VyOjIoAAEiBWxhYmVsAXcBQgA=",
+  "expect_lossy": false
+}

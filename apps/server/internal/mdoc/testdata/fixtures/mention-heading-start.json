@@ -1,0 +1,28 @@
+{
+  "name": "mention-heading-start",
+  "input": "### <!-- slash:mention {\"id\":\"user:1\",\"label\":\"Ann\"} -->@Ann<!-- /slash:mention -->",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "heading",
+        "attrs": {
+          "level": 3
+        },
+        "content": [
+          {
+            "type": "mention",
+            "attrs": {
+              "id": "user:1",
+              "label": "Ann"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "output": "### <!-- slash:mention {\"id\":\"user:1\",\"label\":\"Ann\"} -->@Ann<!-- /slash:mention -->",
+  "yupdate_b64": "AQUBAAcBB2NvbnRlbnQDB2hlYWRpbmcHAAEAAwdtZW50aW9uKAABAQJpZAF3BnVzZXI6MSgAAQEFbGFiZWwBdwNBbm4oAAEABWxldmVsAX0DAA==",
+  "expect_lossy": false
+}

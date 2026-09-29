@@ -9,6 +9,7 @@ import {
   canPreview,
   capsOf,
   openEditor,
+  isMarkdownFile,
   opensInEditor,
   hasThumbnail,
   previewUrl,
@@ -22,6 +23,7 @@ import { useSettingsNavigation } from "@/lib/use-settings-hash";
 import { useUiStore } from "@/lib/ui-store";
 import { LoadingStatus } from "@/components/loading";
 import { NodeIcon } from "@/components/node-icon";
+import { NodeMarkdownView } from "@/components/markdown-document-view";
 import { PreviewModal } from "@/components/preview-modal";
 import { ShareDialog } from "@/components/share-dialog";
 import { storagePct } from "@/components/storage-meter";
@@ -286,24 +288,39 @@ function NodeDetails({ node }: { node: Node }) {
   const ownerName = node.owner;
 
   const hasThumb = hasThumbnail(node);
+  // A markdown document has no thumbnail artifact; its first screen,
+  // rendered, says more than an icon. Same capability as the bytes.
+  const showsDocument = caps.download && isMarkdownFile(node);
 
   return (
     <div className="flex flex-col gap-4 p-3">
       {/* Thumbnail */}
-      <div className="bg-muted/50 flex aspect-[4/3] items-center justify-center overflow-hidden rounded-md">
-        {hasThumb ? (
-          <img
-            src={previewUrl(node)}
-            alt=""
-            className={cn(
-              "size-full",
-              thumbnailFit(node) === "cover" ? "object-cover" : "object-contain",
-            )}
-          />
-        ) : (
-          <NodeIcon node={node} className="size-10" />
-        )}
-      </div>
+      {showsDocument ? (
+        <div className="bg-background border-border relative aspect-[4/3] overflow-hidden rounded-md border">
+          {/* Half scale: a page's opening lines at a glance. `inert` keeps
+              its links and toggles out of the tab order of a sheet whose
+              actions are below. */}
+          <div inert className="pointer-events-none w-[200%] origin-top-left scale-50 select-none">
+            <NodeMarkdownView node={node} className="p-6" />
+          </div>
+          <div className="from-background pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t" />
+        </div>
+      ) : (
+        <div className="bg-muted/50 flex aspect-[4/3] items-center justify-center overflow-hidden rounded-md">
+          {hasThumb ? (
+            <img
+              src={previewUrl(node)}
+              alt=""
+              className={cn(
+                "size-full",
+                thumbnailFit(node) === "cover" ? "object-cover" : "object-contain",
+              )}
+            />
+          ) : (
+            <NodeIcon node={node} className="size-10" />
+          )}
+        </div>
+      )}
 
       {/* Primary actions. Each is hidden when the caller does not hold it:
           the panel describes one node, and on a shared folder the answer

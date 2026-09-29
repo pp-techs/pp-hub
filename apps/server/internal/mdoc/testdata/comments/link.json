@@ -1,0 +1,53 @@
+{
+  "name": "link",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "see "
+          },
+          {
+            "type": "text",
+            "text": "the ",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "https://x.example"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": "docs",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "https://x.example"
+                }
+              },
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t1"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " now"
+          }
+        ]
+      }
+    ]
+  },
+  "js_output": "see [the docs](https://x.example) now",
+  "yupdate_b64": "AQwBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQRzZWUghgEFBGxpbmtteyJocmVmIjoiaHR0cHM6Ly94LmV4YW1wbGUiLCJ0YXJnZXQiOiJfYmxhbmsiLCJyZWwiOiJub29wZW5lciBub3JlZmVycmVyIG5vZm9sbG93IiwiY2xhc3MiOm51bGwsInRpdGxlIjpudWxsfYQBBgR0aGUghgEKBGxpbmsEbnVsbIYBCwRsaW5rbXsiaHJlZiI6Imh0dHBzOi8veC5leGFtcGxlIiwidGFyZ2V0IjoiX2JsYW5rIiwicmVsIjoibm9vcGVuZXIgbm9yZWZlcnJlciBub2ZvbGxvdyIsImNsYXNzIjpudWxsLCJ0aXRsZSI6bnVsbH2GAQwRY29tbWVudC0tb2NDNHlkWlEReyJ0aHJlYWRJZCI6InQxIn2EAQ0EZG9jc4YBEQRsaW5rBG51bGyGARIRY29tbWVudC0tb2NDNHlkWlEEbnVsbIQBEwQgbm93AA=="
+}

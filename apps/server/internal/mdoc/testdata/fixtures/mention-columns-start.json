@@ -1,0 +1,56 @@
+{
+  "name": "mention-columns-start",
+  "input": "<!-- slash:columns -->\n\n<!-- slash:mention {\"id\":\"user:1\",\"label\":\"Ann\"} -->@Ann<!-- /slash:mention -->\n\n<!-- slash:column -->\n\n<!-- slash:mention {\"id\":\"user:2\",\"label\":\"Bo\"} -->@Bo<!-- /slash:mention --> too\n\n<!-- /slash:columns -->",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "columns",
+        "content": [
+          {
+            "type": "column",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "mention",
+                    "attrs": {
+                      "id": "user:1",
+                      "label": "Ann"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "column",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "mention",
+                    "attrs": {
+                      "id": "user:2",
+                      "label": "Bo"
+                    }
+                  },
+                  {
+                    "type": "text",
+                    "text": " too"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "<!-- slash:columns -->\n\n<!-- slash:mention {\"id\":\"user:1\",\"label\":\"Ann\"} -->@Ann<!-- /slash:mention -->\n\n<!-- slash:column -->\n\n<!-- slash:mention {\"id\":\"user:2\",\"label\":\"Bo\"} -->@Bo<!-- /slash:mention --> too\n\n<!-- /slash:columns -->",
+  "yupdate_b64": "AQ0BAAcBB2NvbnRlbnQDB2NvbHVtbnMHAAEAAwZjb2x1bW4HAAEBAwlwYXJhZ3JhcGgHAAECAwdtZW50aW9uKAABAwJpZAF3BnVzZXI6MSgAAQMFbGFiZWwBdwNBbm6HAQEDBmNvbHVtbgcAAQYDCXBhcmFncmFwaAcAAQcDB21lbnRpb24oAAEIAmlkAXcGdXNlcjoyKAABCAVsYWJlbAF3AkJvhwEIBgQAAQsEIHRvbwA=",
+  "expect_lossy": false
+}

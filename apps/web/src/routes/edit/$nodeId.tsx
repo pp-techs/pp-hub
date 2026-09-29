@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
 import { createEditSession, isMarkdownFile, type EditSession, type Node } from "@/lib/api";
-import { nodeOptions, requireAuth, useNode } from "@/lib/queries";
+import { nodeOptions, requireAuth } from "@/lib/queries";
 import { pageTitle } from "@/lib/i18n";
 import { useLocale } from "@/components/locale-provider";
 import { useTheme } from "@/components/theme-provider";
@@ -13,6 +14,11 @@ import { DocEditor } from "@/components/doc-editor/doc-editor";
 
 export const Route = createFileRoute("/edit/$nodeId")({
   head: () => ({ meta: [{ title: pageTitle(msg`Editing`) }] }),
+  // `thread` opens a markdown document's comments on that thread — where a
+  // comment notification links to.
+  validateSearch: (search: Record<string, unknown>): { thread?: string } => ({
+    thread: typeof search.thread === "string" && search.thread ? search.thread : undefined,
+  }),
   beforeLoad: async ({ context, location }) => {
     await requireAuth(context.queryClient, location.href);
   },
@@ -29,7 +35,15 @@ export const Route = createFileRoute("/edit/$nodeId")({
  */
 function EditPage() {
   const { nodeId } = Route.useParams();
-  const node = useNode(nodeId);
+  const { thread } = Route.useSearch();
+  // A markdown document's versions are written by the server when the room
+  // goes quiet, with no event to the page, so the header's "version n" is
+  // refreshed on a timer instead of going stale for the whole session.
+  const node = useQuery({
+    ...nodeOptions(nodeId),
+    refetchInterval: (query) =>
+      query.state.data && isMarkdownFile(query.state.data) ? 30_000 : false,
+  });
 
   return (
     <div className="bg-background text-foreground flex h-svh flex-col">
@@ -47,7 +61,7 @@ function EditPage() {
           )}
         </>
       ) : isMarkdownFile(node.data) ? (
-        <DocEditor node={node.data} />
+        <DocEditor node={node.data} thread={thread} />
       ) : (
         <OfficeEditor node={node.data} />
       )}

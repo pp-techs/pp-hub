@@ -1,0 +1,59 @@
+{
+  "name": "mention-link",
+  "input": "Go [to <!-- slash:mention {\"id\":\"doc:1\",\"label\":\"D\"} -->@D<!-- /slash:mention --> now](https://x.y) ok\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Go "
+          },
+          {
+            "type": "text",
+            "text": "to ",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "https://x.y",
+                  "title": null
+                }
+              }
+            ]
+          },
+          {
+            "type": "mention",
+            "attrs": {
+              "id": "doc:1",
+              "label": "D"
+            }
+          },
+          {
+            "type": "text",
+            "text": " now",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "https://x.y",
+                  "title": null
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " ok"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "Go [to](https://x.y) <!-- slash:mention {\"id\":\"doc:1\",\"label\":\"D\"} -->@D<!-- /slash:mention --> [now](https://x.y) ok",
+  "yupdate_b64": "AQ4BAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQNHbyCGAQQEbGlua2d7ImhyZWYiOiJodHRwczovL3gueSIsInRhcmdldCI6Il9ibGFuayIsInJlbCI6Im5vb3BlbmVyIG5vcmVmZXJyZXIgbm9mb2xsb3ciLCJjbGFzcyI6bnVsbCwidGl0bGUiOm51bGx9hAEFA3RvIIYBCARsaW5rBG51bGyHAQEDB21lbnRpb24oAAEKAmlkAXcFZG9jOjEoAAEKBWxhYmVsAXcBRIcBCgYGAAENBGxpbmtneyJocmVmIjoiaHR0cHM6Ly94LnkiLCJ0YXJnZXQiOiJfYmxhbmsiLCJyZWwiOiJub29wZW5lciBub3JlZmVycmVyIG5vZm9sbG93IiwiY2xhc3MiOm51bGwsInRpdGxlIjpudWxsfYQBDgQgbm93hgESBGxpbmsEbnVsbIQBEwMgb2sA",
+  "expect_lossy": false
+}

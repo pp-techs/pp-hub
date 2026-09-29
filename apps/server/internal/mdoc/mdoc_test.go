@@ -82,7 +82,9 @@ func normalizeNode(n Node) Node {
 	} else if n.Attrs != nil {
 		out.Attrs = maps.Clone(n.Attrs)
 	}
-	delete(out.Attrs, "id")
+	if hasIDAttr(n.Type) {
+		delete(out.Attrs, "id")
+	}
 	for _, m := range n.Marks {
 		mm := Mark{Type: m.Type, Attrs: m.Attrs}
 		if defaults, ok := markAttrDefaults[m.Type]; ok {
@@ -91,8 +93,15 @@ func normalizeNode(n Node) Node {
 		out.Marks = append(out.Marks, mm)
 	}
 	// Node.fromJSON orders marks by schema rank; parseMarkdown's raw JSON
-	// keeps parse order.
-	sort.SliceStable(out.Marks, func(i, j int) bool { return markRank(out.Marks[i].Type) < markRank(out.Marks[j].Type) })
+	// keeps parse order. Overlapping marks of one type (comments) compare
+	// as a set.
+	sort.SliceStable(out.Marks, func(i, j int) bool {
+		ri, rj := markRank(out.Marks[i].Type), markRank(out.Marks[j].Type)
+		if ri != rj {
+			return ri < rj
+		}
+		return jsJSON(out.Marks[i].Attrs) < jsJSON(out.Marks[j].Attrs)
+	})
 	for _, c := range n.Content {
 		out.Content = append(out.Content, normalizeNode(c))
 	}
@@ -119,7 +128,7 @@ func checkIDs(t *testing.T, n Node, seen map[string]bool) {
 	t.Helper()
 	id, has := n.Attrs["id"]
 	if !hasIDAttr(n.Type) {
-		if has {
+		if _, declared := nodeAttrDefaults[n.Type]["id"]; has && !declared {
 			t.Errorf("%s carries an id", n.Type)
 		}
 	} else {
@@ -256,9 +265,11 @@ func TestFillAppends(t *testing.T) {
 }
 
 // TestGoUpdates keeps testdata/go-updates/<name>.b64 = base64 of
-// Seed(Parse(input)) for every fixture; apps/web/tests/mdoc-go-updates.test.ts
-// decodes them with yjs + y-tiptap (base64 because Vite can import text, not
-// bytes, and the web tests have no Node fs). -update rewrites a file only when its document
+// Seed(Parse(input)) for every fixture, and for every comment fixture
+// comment-<name>.b64 = base64 of Seed(json) plus comment-<name>.md =
+// Render(json); apps/web/tests/mdoc-go-updates.test.ts decodes them with
+// yjs + y-tiptap (base64 because Vite can import text, not bytes, and the web
+// tests have no Node fs). -update rewrites an update only when its document
 // changed (ids and Y client ids are random).
 func TestGoUpdates(t *testing.T) {
 	dir := filepath.Join("testdata", "go-updates")
@@ -268,31 +279,52 @@ func TestGoUpdates(t *testing.T) {
 		}
 	}
 	names := map[string]bool{}
-	for _, fx := range loadFixtures(t) {
-		names[fx.Name+".b64"] = true
-		parsed, err := Parse([]byte(fx.Input))
-		if err != nil {
-			t.Fatal(err)
-		}
-		want := normalize(t, parsed.Doc)
-		file := filepath.Join(dir, fx.Name+".b64")
+	keep := func(name string, doc Node) {
+		names[name] = true
+		want := normalize(t, doc)
+		file := filepath.Join(dir, name)
 		existing, err := os.ReadFile(file)
 		if err == nil {
 			existing, err = base64.StdEncoding.DecodeString(strings.TrimSpace(string(existing)))
 		}
-		current := err == nil && normalize(t, applyUpdate(t, existing)) == want
-		if current {
+		if err == nil && normalize(t, applyUpdate(t, existing)) == want {
+			return
+		}
+		if !*update {
+			t.Errorf("%s is stale; run go test ./internal/mdoc/ -run TestGoUpdates -update", file)
+			return
+		}
+		seed, err := Seed(doc)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(file, []byte(base64.StdEncoding.EncodeToString(seed)+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, fx := range loadFixtures(t) {
+		parsed, err := Parse([]byte(fx.Input))
+		if err != nil {
+			t.Fatal(err)
+		}
+		keep(fx.Name+".b64", parsed.Doc)
+	}
+	for _, fx := range loadCommentFixtures(t) {
+		doc := withTrailingParagraph(fx.JSON)
+		assignIDs(&doc)
+		keep("comment-"+fx.Name+".b64", doc)
+		name := "comment-" + fx.Name + ".md"
+		names[name] = true
+		md := Render(doc, nil)
+		file := filepath.Join(dir, name)
+		if existing, err := os.ReadFile(file); err == nil && string(existing) == string(md) {
 			continue
 		}
 		if !*update {
 			t.Errorf("%s is stale; run go test ./internal/mdoc/ -run TestGoUpdates -update", file)
 			continue
 		}
-		seed, err := Seed(parsed.Doc)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(file, []byte(base64.StdEncoding.EncodeToString(seed)+"\n"), 0o644); err != nil {
+		if err := os.WriteFile(file, md, 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}

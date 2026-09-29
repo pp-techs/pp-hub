@@ -19,6 +19,7 @@ import { useUiStore } from "@/lib/ui-store";
 import { isValidMoveTarget } from "@/lib/drag-drop";
 import { HeaderSlot } from "@/components/header-slot";
 import { NavSearch } from "@/components/nav-search";
+import { NotificationsBell } from "@/components/notifications-bell";
 
 /**
  * Path segment -> the label the breadcrumb shows. Descriptors rather than
@@ -72,6 +73,7 @@ export function SiteHeader() {
       <div className="ml-auto flex shrink-0 items-center gap-1 lg:gap-2">
         <NavSearch />
         <HeaderSlot />
+        <NotificationsBell />
       </div>
     </header>
   );

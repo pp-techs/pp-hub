@@ -1,0 +1,60 @@
+{
+  "name": "media-in-list",
+  "input": "- item\n\n  <!-- slash:video -->\n  [attachment:aa](attachment:aa)\n- next\n\n  <!-- slash:embed {\"mode\":\"bookmark\"} -->\n  [X](https://x.example)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "bulletList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "item"
+                  }
+                ]
+              },
+              {
+                "type": "video",
+                "attrs": {
+                  "src": "attachment:aa"
+                }
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "next"
+                  }
+                ]
+              },
+              {
+                "type": "embed",
+                "attrs": {
+                  "mode": "bookmark",
+                  "url": "https://x.example",
+                  "title": "X"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "- item\n  <!-- slash:video -->\n  [attachment:aa](attachment:aa)\n- next\n  <!-- slash:embed {\"mode\":\"bookmark\"} -->\n  [X](https://x.example)",
+  "yupdate_b64": "ARABAAcBB2NvbnRlbnQDCmJ1bGxldExpc3QHAAEAAwhsaXN0SXRlbQcAAQEDCXBhcmFncmFwaAcAAQIGBAABAwRpdGVthwECAwV2aWRlbygAAQgDc3JjAXcNYXR0YWNobWVudDphYSgAAQgGc3RhdHVzAXcFcmVhZHmHAQEDCGxpc3RJdGVtBwABCwMJcGFyYWdyYXBoBwABDAYEAAENBG5leHSHAQwDBWVtYmVkKAABEgN1cmwBdxFodHRwczovL3guZXhhbXBsZSgAARIEbW9kZQF3CGJvb2ttYXJrKAABEgV0aXRsZQF3AVgA",
+  "expect_lossy": false
+}

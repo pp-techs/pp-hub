@@ -1,0 +1,31 @@
+{
+  "name": "video-no-marker",
+  "input": "[clip](attachment:0123abcd)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "clip",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "attachment:0123abcd",
+                  "title": null
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "[clip](attachment:0123abcd)",
+  "yupdate_b64": "AQUBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBgABAQRsaW5rb3siaHJlZiI6ImF0dGFjaG1lbnQ6MDEyM2FiY2QiLCJ0YXJnZXQiOiJfYmxhbmsiLCJyZWwiOiJub29wZW5lciBub3JlZmVycmVyIG5vZm9sbG93IiwiY2xhc3MiOm51bGwsInRpdGxlIjpudWxsfYQBAgRjbGlwhgEGBGxpbmsEbnVsbAA=",
+  "expect_lossy": false
+}

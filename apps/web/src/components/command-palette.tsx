@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
@@ -28,6 +28,7 @@ import {
 import { MIN_QUERY_LENGTH, useNodeSearch, useSpaces } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
 import { useDebounced } from "@/lib/use-debounced";
+import { highlightSegments } from "@/lib/highlight";
 import { PreviewModal } from "@/components/preview-modal";
 import { NodeIcon } from "@/components/node-icon";
 
@@ -207,8 +208,16 @@ export function CommandPalette() {
                         value={`node:${node.id}`}
                         onSelect={() => openNode(node)}
                       >
-                        <NodeIcon node={node} className="size-3.5 shrink-0" />
-                        <span className="truncate">{node.name}</span>
+                        <NodeIcon node={node} className="size-3.5 shrink-0 self-start mt-0.5" />
+                        <span className="flex min-w-0 flex-col gap-0.5">
+                          <span className="truncate">{node.name}</span>
+                          {node.match === "content" && node.snippet ? (
+                            <SearchSnippet
+                              text={node.snippet}
+                              highlights={node.snippet_highlights}
+                            />
+                          ) : null}
+                        </span>
                         <CommandShortcut className="flex items-center gap-1.5 text-[10px] font-normal tracking-normal text-muted-foreground">
                           {hint && <span className="max-w-[200px] truncate">{hint}</span>}
                           <CornerDownLeft className="text-muted-foreground hidden size-3 shrink-0 group-data-selected/command-item:inline-block" />
@@ -235,5 +244,34 @@ export function CommandPalette() {
         </div>
       </Command>
     </CommandDialog>
+  );
+}
+
+/**
+ * The text around a content match, the matched runs marked. The server
+ * already trimmed it and added the ellipses; offsets are in code points.
+ */
+function SearchSnippet({
+  text,
+  highlights,
+}: {
+  text: string;
+  highlights: [number, number][] | undefined;
+}) {
+  return (
+    <span className="text-muted-foreground line-clamp-2 text-[11px] leading-snug">
+      {highlightSegments(text, highlights).map((segment, i) =>
+        segment.hit ? (
+          <mark
+            key={i}
+            className="text-foreground rounded-[2px] bg-amber-200/70 dark:bg-amber-400/30"
+          >
+            {segment.text}
+          </mark>
+        ) : (
+          <Fragment key={i}>{segment.text}</Fragment>
+        ),
+      )}
+    </span>
   );
 }

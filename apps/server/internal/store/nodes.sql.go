@@ -1418,44 +1418,58 @@ func (q *Queries) RestoreNode(ctx context.Context, arg RestoreNodeParams) error 
 }
 
 const searchNodes = `-- name: SearchNodes :many
+WITH content_hits AS (
+  SELECT t.node_id, t.node_version_id,
+         ts_rank(t.tsv, to_tsquery('simple', $8::text)) AS rank
+  FROM node_texts t
+  WHERE t.tsv @@ to_tsquery('simple', $8::text)
+     OR t.folded LIKE '%' || $9::text || '%'
+)
 SELECT
   n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
   n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id,
   v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
   u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email,
   s.name AS space_name,
-  COALESCE(p.name, '')::text AS parent_name
+  COALESCE(p.name, '')::text AS parent_name,
+  (n.name ILIKE '%' || $2::text || '%')::bool AS name_match
 FROM nodes n
 JOIN space_members m ON m.space_id = n.space_id AND m.user_id = $1
 JOIN spaces s ON s.id = n.space_id
 LEFT JOIN node_versions v ON v.id = n.current_version_id
 LEFT JOIN users u ON u.id = n.created_by
 LEFT JOIN nodes p ON p.id = n.parent_id AND p.deleted_at IS NULL
+LEFT JOIN content_hits h ON h.node_id = n.id AND h.node_version_id = n.current_version_id
 WHERE n.deleted_at IS NULL
-  AND ($2::uuid IS NULL OR n.space_id = $2::uuid)
-  AND ($3::node_kind IS NULL OR n.kind = $3::node_kind)
-  AND ($4::uuid IS NULL OR n.created_by = $4::uuid)
+  AND ($3::uuid IS NULL OR n.space_id = $3::uuid)
+  AND ($4::node_kind IS NULL OR n.kind = $4::node_kind)
+  AND ($5::uuid IS NULL OR n.created_by = $5::uuid)
   -- Modified time is the current version's timestamp for a file and the
   -- node's own for a folder, so the filter has to consider both.
-  AND ($5::timestamptz IS NULL
-       OR COALESCE(v.created_at, n.created_at) >= $5::timestamptz)
-  AND n.name ILIKE '%' || $6::text || '%'
+  AND ($6::timestamptz IS NULL
+       OR COALESCE(v.created_at, n.created_at) >= $6::timestamptz)
+  AND (n.name ILIKE '%' || $2::text || '%' OR h.node_id IS NOT NULL)
 ORDER BY
-  (lower(n.name) LIKE lower($6::text) || '%') DESC,
-  similarity(n.name, $6::text) DESC,
+  (n.name ILIKE '%' || $2::text || '%') DESC,
+  (lower(n.name) LIKE lower($2::text) || '%') DESC,
+  (CASE WHEN n.name ILIKE '%' || $2::text || '%'
+        THEN similarity(n.name, $2::text) ELSE 0 END) DESC,
+  COALESCE(h.rank, 0) DESC,
   n.kind,
   n.name
 LIMIT $7
 `
 
 type SearchNodesParams struct {
-	UserID        pgtype.UUID        `json:"user_id"`
-	SpaceID       pgtype.UUID        `json:"space_id"`
-	Kind          NullNodeKind       `json:"kind"`
-	OwnerID       pgtype.UUID        `json:"owner_id"`
-	ModifiedAfter pgtype.Timestamptz `json:"modified_after"`
-	Query         string             `json:"query"`
-	ResultLimit   int32              `json:"result_limit"`
+	UserID         pgtype.UUID        `json:"user_id"`
+	Query          string             `json:"query"`
+	SpaceID        pgtype.UUID        `json:"space_id"`
+	Kind           NullNodeKind       `json:"kind"`
+	OwnerID        pgtype.UUID        `json:"owner_id"`
+	ModifiedAfter  pgtype.Timestamptz `json:"modified_after"`
+	ResultLimit    int32              `json:"result_limit"`
+	ContentTsquery pgtype.Text        `json:"content_tsquery"`
+	ContentLike    pgtype.Text        `json:"content_like"`
 }
 
 type SearchNodesRow struct {
@@ -1482,20 +1496,32 @@ type SearchNodesRow struct {
 	OwnerEmail       pgtype.Text        `json:"owner_email"`
 	SpaceName        string             `json:"space_name"`
 	ParentName       string             `json:"parent_name"`
+	NameMatch        bool               `json:"name_match"`
 }
 
-// Name search across every space the caller belongs to, or one space when
-// $2 is supplied. Ranked by trigram similarity so the closest name comes
-// first, with an exact prefix match promoted above a mid-string one.
+// Name and content search across every space the caller belongs to, or one
+// space when space_id is supplied.
+//
+// A node matches on its name (ILIKE, as always) or on the text extracted from
+// its *current* version (node_texts): the folded full-text query, or the
+// folded substring when the caller asks for the fallback. A NULL
+// content_tsquery / content_like disables that branch — NULL rather than ”
+// so a generic plan never runs LIKE '%%' against the trigram index.
+//
+// Every name hit ranks above every content-only hit; within names, an exact
+// prefix beats a mid-string match and then trigram similarity decides;
+// within content, ts_rank does.
 func (q *Queries) SearchNodes(ctx context.Context, arg SearchNodesParams) ([]SearchNodesRow, error) {
 	rows, err := q.db.Query(ctx, searchNodes,
 		arg.UserID,
+		arg.Query,
 		arg.SpaceID,
 		arg.Kind,
 		arg.OwnerID,
 		arg.ModifiedAfter,
-		arg.Query,
 		arg.ResultLimit,
+		arg.ContentTsquery,
+		arg.ContentLike,
 	)
 	if err != nil {
 		return nil, err
@@ -1528,6 +1554,7 @@ func (q *Queries) SearchNodes(ctx context.Context, arg SearchNodesParams) ([]Sea
 			&i.OwnerEmail,
 			&i.SpaceName,
 			&i.ParentName,
+			&i.NameMatch,
 		); err != nil {
 			return nil, err
 		}

@@ -1,0 +1,65 @@
+{
+  "name": "overlap",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "a "
+          },
+          {
+            "type": "text",
+            "text": "b ",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t1"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": "c ",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t1"
+                }
+              },
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t2"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": "d",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t2"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " e"
+          }
+        ]
+      }
+    ]
+  },
+  "js_output": "a b c d e",
+  "yupdate_b64": "AQ8BAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQJhIIYBAxFjb21tZW50LS1vY0M0eWRaURF7InRocmVhZElkIjoidDEifYQBBAJiIIYBBhFjb21tZW50LS1vY0M0eWRaUQRudWxshgEHEWNvbW1lbnQtLW9jQzR5ZFpREXsidGhyZWFkSWQiOiJ0MSJ9hgEIEWNvbW1lbnQtLTFlaE0wVWI3EXsidGhyZWFkSWQiOiJ0MiJ9hAEJAmMghgELEWNvbW1lbnQtLW9jQzR5ZFpRBG51bGyGAQwRY29tbWVudC0tMWVoTTBVYjcEbnVsbIYBDRFjb21tZW50LS0xZWhNMFViNxF7InRocmVhZElkIjoidDIifYQBDgFkhgEPEWNvbW1lbnQtLTFlaE0wVWI3BG51bGyEARACIGUA"
+}

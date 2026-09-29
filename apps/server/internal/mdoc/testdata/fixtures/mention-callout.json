@@ -1,0 +1,41 @@
+{
+  "name": "mention-callout",
+  "input": "> [!NOTE]\n> Ask <!-- slash:mention {\"id\":\"user:1\",\"label\":\"A\"} -->@A<!-- /slash:mention --> first.\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "callout",
+        "attrs": {
+          "icon": "ℹ️"
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Ask "
+              },
+              {
+                "type": "mention",
+                "attrs": {
+                  "id": "user:1",
+                  "label": "A"
+                }
+              },
+              {
+                "type": "text",
+                "text": " first."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "> [!NOTE]\n> Ask <!-- slash:mention {\"id\":\"user:1\",\"label\":\"A\"} -->@A<!-- /slash:mention --> first.",
+  "yupdate_b64": "AQoBAAcBB2NvbnRlbnQDB2NhbGxvdXQHAAEAAwlwYXJhZ3JhcGgHAAEBBgQAAQIEQXNrIIcBAgMHbWVudGlvbigAAQcCaWQBdwZ1c2VyOjEoAAEHBWxhYmVsAXcBQYcBBwYEAAEKByBmaXJzdC4oAAEABGljb24BdwbihLnvuI8A",
+  "expect_lossy": false
+}

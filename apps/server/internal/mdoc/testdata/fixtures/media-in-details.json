@@ -1,0 +1,50 @@
+{
+  "name": "media-in-details",
+  "input": "<details open>\n<summary>Media</summary>\n\n<!-- slash:video -->\n[attachment:aa](attachment:aa)\n\n<!-- slash:embed {\"mode\":\"bookmark\"} -->\n[X](https://x.example)\n\n</details>\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "details",
+        "attrs": {
+          "open": true,
+          "level": 0
+        },
+        "content": [
+          {
+            "type": "detailsSummary",
+            "content": [
+              {
+                "type": "text",
+                "text": "Media"
+              }
+            ]
+          },
+          {
+            "type": "detailsContent",
+            "content": [
+              {
+                "type": "video",
+                "attrs": {
+                  "src": "attachment:aa"
+                }
+              },
+              {
+                "type": "embed",
+                "attrs": {
+                  "mode": "bookmark",
+                  "url": "https://x.example",
+                  "title": "X"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "<details open>\n<summary>Media</summary>\n\n<!-- slash:video -->\n[attachment:aa](attachment:aa)\n\n<!-- slash:embed {\"mode\":\"bookmark\"} -->\n[X](https://x.example)\n\n</details>",
+  "yupdate_b64": "AQ4BAAcBB2NvbnRlbnQDB2RldGFpbHMHAAEAAw5kZXRhaWxzU3VtbWFyeQcAAQEGBAABAgVNZWRpYYcBAQMOZGV0YWlsc0NvbnRlbnQHAAEIAwV2aWRlbygAAQkDc3JjAXcNYXR0YWNobWVudDphYSgAAQkGc3RhdHVzAXcFcmVhZHmHAQkDBWVtYmVkKAABDAN1cmwBdxFodHRwczovL3guZXhhbXBsZSgAAQwEbW9kZQF3CGJvb2ttYXJrKAABDAV0aXRsZQF3AVgoAAEABG9wZW4BeCgAAQAFbGV2ZWwBfQAA",
+  "expect_lossy": false
+}

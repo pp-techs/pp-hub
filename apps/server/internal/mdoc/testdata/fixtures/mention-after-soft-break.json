@@ -1,0 +1,39 @@
+{
+  "name": "mention-after-soft-break",
+  "input": "one\n<!-- slash:mention {\"id\":\"user:2\",\"label\":\"Bo\"} -->@Bo<!-- /slash:mention -->  \n<!-- slash:mention {\"id\":\"user:3\",\"label\":\"Cy\"} -->@Cy<!-- /slash:mention -->",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "one\n"
+          },
+          {
+            "type": "mention",
+            "attrs": {
+              "id": "user:2",
+              "label": "Bo"
+            }
+          },
+          {
+            "type": "hardBreak"
+          },
+          {
+            "type": "mention",
+            "attrs": {
+              "id": "user:3",
+              "label": "Cy"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "output": "one\n<!-- slash:mention {\"id\":\"user:2\",\"label\":\"Bo\"} -->@Bo<!-- /slash:mention -->  \n<!-- slash:mention {\"id\":\"user:3\",\"label\":\"Cy\"} -->@Cy<!-- /slash:mention -->",
+  "yupdate_b64": "AQoBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQRvbmUKhwEBAwdtZW50aW9uKAABBgJpZAF3BnVzZXI6MigAAQYFbGFiZWwBdwJCb4cBBgMJaGFyZEJyZWFrhwEJAwdtZW50aW9uKAABCgJpZAF3BnVzZXI6MygAAQoFbGFiZWwBdwJDeQA=",
+  "expect_lossy": false
+}

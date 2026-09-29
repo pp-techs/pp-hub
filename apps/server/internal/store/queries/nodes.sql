@@ -213,22 +213,40 @@ WHERE n.space_id = $1 AND n.deleted_at IS NOT NULL
 ORDER BY n.deleted_at DESC;
 
 -- name: SearchNodes :many
--- Name search across every space the caller belongs to, or one space when
--- $2 is supplied. Ranked by trigram similarity so the closest name comes
--- first, with an exact prefix match promoted above a mid-string one.
+-- Name and content search across every space the caller belongs to, or one
+-- space when space_id is supplied.
+--
+-- A node matches on its name (ILIKE, as always) or on the text extracted from
+-- its *current* version (node_texts): the folded full-text query, or the
+-- folded substring when the caller asks for the fallback. A NULL
+-- content_tsquery / content_like disables that branch — NULL rather than ''
+-- so a generic plan never runs LIKE '%%' against the trigram index.
+--
+-- Every name hit ranks above every content-only hit; within names, an exact
+-- prefix beats a mid-string match and then trigram similarity decides;
+-- within content, ts_rank does.
+WITH content_hits AS (
+  SELECT t.node_id, t.node_version_id,
+         ts_rank(t.tsv, to_tsquery('simple', sqlc.narg('content_tsquery')::text)) AS rank
+  FROM node_texts t
+  WHERE t.tsv @@ to_tsquery('simple', sqlc.narg('content_tsquery')::text)
+     OR t.folded LIKE '%' || sqlc.narg('content_like')::text || '%'
+)
 SELECT
   n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
   n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id,
   v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
   u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email,
   s.name AS space_name,
-  COALESCE(p.name, '')::text AS parent_name
+  COALESCE(p.name, '')::text AS parent_name,
+  (n.name ILIKE '%' || sqlc.arg('query')::text || '%')::bool AS name_match
 FROM nodes n
 JOIN space_members m ON m.space_id = n.space_id AND m.user_id = $1
 JOIN spaces s ON s.id = n.space_id
 LEFT JOIN node_versions v ON v.id = n.current_version_id
 LEFT JOIN users u ON u.id = n.created_by
 LEFT JOIN nodes p ON p.id = n.parent_id AND p.deleted_at IS NULL
+LEFT JOIN content_hits h ON h.node_id = n.id AND h.node_version_id = n.current_version_id
 WHERE n.deleted_at IS NULL
   AND (sqlc.narg('space_id')::uuid IS NULL OR n.space_id = sqlc.narg('space_id')::uuid)
   AND (sqlc.narg('kind')::node_kind IS NULL OR n.kind = sqlc.narg('kind')::node_kind)
@@ -237,10 +255,13 @@ WHERE n.deleted_at IS NULL
   -- node's own for a folder, so the filter has to consider both.
   AND (sqlc.narg('modified_after')::timestamptz IS NULL
        OR COALESCE(v.created_at, n.created_at) >= sqlc.narg('modified_after')::timestamptz)
-  AND n.name ILIKE '%' || sqlc.arg('query')::text || '%'
+  AND (n.name ILIKE '%' || sqlc.arg('query')::text || '%' OR h.node_id IS NOT NULL)
 ORDER BY
+  (n.name ILIKE '%' || sqlc.arg('query')::text || '%') DESC,
   (lower(n.name) LIKE lower(sqlc.arg('query')::text) || '%') DESC,
-  similarity(n.name, sqlc.arg('query')::text) DESC,
+  (CASE WHEN n.name ILIKE '%' || sqlc.arg('query')::text || '%'
+        THEN similarity(n.name, sqlc.arg('query')::text) ELSE 0 END) DESC,
+  COALESCE(h.rank, 0) DESC,
   n.kind,
   n.name
 LIMIT sqlc.arg('result_limit');

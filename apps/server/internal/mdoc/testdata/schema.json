@@ -71,6 +71,21 @@
       "status": "ready",
       "error": null
     },
+    "video": {
+      "id": null,
+      "src": null,
+      "poster": null,
+      "status": "ready",
+      "error": null
+    },
+    "embed": {
+      "id": null,
+      "url": null,
+      "mode": "bookmark",
+      "title": null,
+      "description": null,
+      "thumbnail": null
+    },
     "table": {
       "id": null
     },
@@ -94,6 +109,10 @@
     },
     "column": {
       "id": null
+    },
+    "mention": {
+      "id": null,
+      "label": null
     }
   },
   "marks": {
@@ -107,13 +126,17 @@
     "bold": {},
     "code": {},
     "italic": {},
-    "strike": {}
+    "strike": {},
+    "comment": {
+      "threadId": null
+    }
   },
   "mark_order": [
     "link",
     "bold",
     "code",
     "italic",
-    "strike"
+    "strike",
+    "comment"
   ]
 }

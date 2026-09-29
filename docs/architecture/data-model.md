@@ -354,7 +354,47 @@ uploads(id, tenant_id, space_id, parent_id, node_id, attach_to,  -- tus resumabl
 
 jobs(id, kind, payload, status, run_at, attempts)        -- kind routes to a worker;
                                                          -- run_at = claimed-at while running
+
+node_texts(node_id PK, node_version_id, content, folded,  -- M27 content search (0016)
+           tsv GENERATED (to_tsvector('simple', folded)), extracted_at)
+  -- One row per file: the text of its *current* version, written by the
+  -- extract:text job. content is NFC-normalised, capped, valid UTF-8 (what
+  -- snippets are cut from); folded is content lower-cased without diacritics,
+  -- rune for rune (textsearch.Fold), so a hit's position in folded is its
+  -- position in content. GIN on tsv, GIN trigram on folded. Both FKs cascade.
 ```
+
+## Comments and Notifications
+
+Migration `0015_comments_notifications.sql` (M29):
+
+```sql
+comment_threads(id, node_id, created_by, created_at, resolved_at, resolved_by)
+  -- node_id ON DELETE CASCADE: purged with the document; a trashed one keeps them.
+  CHECK ((resolved_at IS NULL) = (resolved_by IS NULL))
+
+comments(id, thread_id, author_id, body, created_at, edited_at)
+  -- thread_id ON DELETE CASCADE; body <> ''. The service deletes a thread with
+  -- its last comment, in the same transaction.
+
+notifications(id, user_id, kind, actor_id, node_id, thread_id, comment_id,
+              version_id, excerpt, created_at, read_at)
+  -- kind IN ('comment', 'reply', 'mention'). node/thread/comment cascade, so a
+  -- notification goes with what it points at. version_id is set by the
+  -- notify:mentions job and is deliberately not a foreign key — pruning the
+  -- version must not take the notification with it.
+  UNIQUE (user_id, version_id) WHERE version_id IS NOT NULL  -- a retried job cannot notify twice
+```
+
+- A thread's anchor is not in the database: the markdown carries its id in a
+  comment marker ([block-documents.md](block-documents.md#comment-anchors)).
+  A thread whose marker was deleted from the text still exists and is listed.
+- Read notifications are purged 30 days after they were read
+  (`notifications.ReadRetention`) by the five-minute sweep in `cmd/server`;
+  unread ones stay until read or until what they point at is deleted.
+- Indexes serve the list (`user_id, created_at DESC, id DESC`, keyset paged),
+  the unread count (partial on `read_at IS NULL`) and the purge (partial on
+  `read_at IS NOT NULL`).
 
 ## Invariants
 
@@ -377,7 +417,7 @@ jobs(id, kind, payload, status, run_at, attempts)        -- kind routes to a wor
 
 - **List a folder**: `WHERE space_id AND parent_id AND deleted_at IS NULL` — single indexed query. No ltree/materialized path in MVP: move = update one row; recursive subtree listing is rare.
 - **Version history**: `WHERE node_id ORDER BY version_no DESC`.
-- **Search**: `nodes.name ILIKE '%…%'`, answered by the GIN trigram index `nodes_name_trgm` (partial on `deleted_at IS NULL`). A B-tree cannot serve an infix match, and people search for `forecast` expecting `Q1-forecast-final.xlsx`. The same index backs `similarity()` for ranking, and results are scoped by joining `space_members` — supported by `space_members_by_user`, since the table's `(space_id, user_id)` primary key cannot serve a user-first probe.
+- **Search**: `nodes.name ILIKE '%…%'`, answered by the GIN trigram index `nodes_name_trgm` (partial on `deleted_at IS NULL`). A B-tree cannot serve an infix match, and people search for `forecast` expecting `Q1-forecast-final.xlsx`. The same index backs `similarity()` for ranking, and results are scoped by joining `space_members` — supported by `space_members_by_user`, since the table's `(space_id, user_id)` primary key cannot serve a user-first probe. Since M27, `SearchNodes` also matches `node_texts` — the folded full-text query, or a folded substring as fallback — joined on `node_version_id = nodes.current_version_id` so stale text is never matched; every name hit ranks above every content-only hit, and `ts_rank` orders the content hits.
 - **Trash**: `WHERE space_id AND deleted_at IS NOT NULL`. `ListDeletedWithMeta` joins the current version and owner, and adds two derived columns — `location` (ancestor names joined with `" / "`, from a recursive CTE) and `child_count` (direct live children) — so a row can say where it came from and how much comes back with it.
 - **Effective capabilities**: `NodeAccessCaps` (`queries/shares.sql`) — one recursive CTE that takes an array of node ids and returns, per node, whether the caller owns it (`nodes.created_by` anywhere up the chain) plus the `BOOL_OR` of every grant flag reachable on the node **or any ancestor**, via a direct share or a group they belong to. Batched on purpose: a listing resolves every row in one query instead of one walk per row. It replaced a loop issuing one `GetNodeParent` per tree level per node, which also stopped widening at depth 100.
 - **Buried content**: `ListTrashRootsWithUserContent` climbs from the caller's own live nodes to the first tombstoned ancestor, so the trash can show a folder somebody else trashed with the caller's work inside it. `CountForeignOwnedInSubtree` and `CountOwnedInSubtree` walk the other way for the "this holds N items other people made" warnings. All four subtree walks cap at depth 100.

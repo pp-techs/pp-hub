@@ -1,6 +1,6 @@
 import { msg } from "@lingui/core/macro";
 import type { UploadAdapter, UploadResult } from "@slash-editor/core";
-import { ApiError, attachmentUrl, startResumableUpload } from "@/lib/api";
+import { ApiError, startResumableUpload } from "@/lib/api";
 import { i18n } from "@/lib/i18n";
 
 /**
@@ -59,14 +59,32 @@ export function attachmentAdapter(documentId: string): UploadAdapter<AttachmentR
   };
 }
 
+/** Turns an attachment hash into a URL: the document's own route, a share link's, … */
+export type AttachmentUrl = (hash: string) => string;
+
 /**
  * The URL a node view renders for `src`. An `attachment:` reference resolves
- * against the document being edited; anything else (a link someone typed
- * into the markdown) is used as written.
+ * through `attachmentUrl` — the editor's document, or the share link or
+ * version a read-only view renders — and anything else (a link someone
+ * typed into the markdown) is used as written.
  */
-export function resolveAttachment(documentId: string, src: string | null): string | undefined {
+export function resolveAttachment(
+  src: string | null,
+  attachmentUrl: AttachmentUrl,
+): string | undefined {
   if (!src) return undefined;
-  return src.startsWith(SCHEME) ? attachmentUrl(documentId, src.slice(SCHEME.length)) : src;
+  return src.startsWith(SCHEME) ? attachmentUrl(src.slice(SCHEME.length)) : src;
+}
+
+/**
+ * An uploaded image's alt text, from its file name: `q3-roadmap.png` reads
+ * as "q3 roadmap" — better than no text at all, and the markdown keeps it
+ * as `![…]`. A name that is nothing but an extension keeps the whole name.
+ */
+export function altFromFileName(name: string): string {
+  const dot = name.lastIndexOf(".");
+  const base = (dot > 0 ? name.slice(0, dot) : name).replace(/[_-]+/g, " ").trim();
+  return base || name;
 }
 
 /**

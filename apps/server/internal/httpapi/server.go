@@ -12,9 +12,11 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/auth"
 	"github.com/nhatbui/pp-hub/apps/server/internal/blob"
 	"github.com/nhatbui/pp-hub/apps/server/internal/collab"
+	"github.com/nhatbui/pp-hub/apps/server/internal/comments"
 	"github.com/nhatbui/pp-hub/apps/server/internal/fs"
 	"github.com/nhatbui/pp-hub/apps/server/internal/groups"
 	"github.com/nhatbui/pp-hub/apps/server/internal/mail"
+	"github.com/nhatbui/pp-hub/apps/server/internal/notifications"
 	"github.com/nhatbui/pp-hub/apps/server/internal/notify"
 	"github.com/nhatbui/pp-hub/apps/server/internal/obs"
 	"github.com/nhatbui/pp-hub/apps/server/internal/orgsync"
@@ -23,6 +25,7 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/spaces"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 	"github.com/nhatbui/pp-hub/apps/server/internal/sysconfig"
+	"github.com/nhatbui/pp-hub/apps/server/internal/unfurl"
 	"github.com/nhatbui/pp-hub/apps/server/internal/uploads"
 	"github.com/nhatbui/pp-hub/apps/server/internal/users"
 	"github.com/nhatbui/pp-hub/apps/server/internal/wopi"
@@ -59,6 +62,13 @@ type Server struct {
 	trustedProxies []string
 	// metrics records the HTTP series; nil disables them.
 	metrics *obs.HTTPMetrics
+	// comments and notifications are M29's threads and in-app
+	// notifications; notifications also owns the live streams.
+	comments      *comments.Service
+	notifications *notifications.Service
+	// unfurl fetches link bookmarks; nil fetches public addresses only
+	// (publicUnfurl). Tests give it one that may reach an httptest server.
+	unfurl *unfurl.Fetcher
 }
 
 // Deps is what the HTTP edge needs. A struct rather than a parameter list
@@ -92,6 +102,9 @@ type Deps struct {
 	SysConfig       *sysconfig.Service
 	Mail            *mail.Sender
 	Notifier        *notify.Notifier
+	// Notifications is the process's one notifications service: its broker
+	// holds the open streams, and the mention job delivers through it too.
+	Notifications *notifications.Service
 	// Metrics records the HTTP series; nil disables them.
 	Metrics *obs.HTTPMetrics
 }
@@ -123,6 +136,8 @@ func NewServer(d Deps) *Server {
 		sysconfig:      d.SysConfig,
 		mail:           d.Mail,
 		notify:         d.Notifier,
+		comments:       comments.NewService(d.Store, d.Notifications),
+		notifications:  d.Notifications,
 		metrics:        d.Metrics,
 	}
 	if s.sysconfig == nil {
@@ -276,6 +291,11 @@ func (s *Server) Router() http.Handler {
 			r.Post("/edit-session", s.handleEditSession)
 			r.Get("/collab", s.handleCollabSession)
 			r.Get("/attachments/{hash}", s.handleAttachment)
+			r.Get("/document", s.handleDocument)
+			r.Get("/export", s.handleExport)
+			r.Post("/unfurl", s.handleUnfurl)
+			r.Get("/comments", s.handleListComments)
+			r.Post("/comment-threads", s.handleCreateCommentThread)
 			r.Get("/preview", s.handlePreview)
 			r.Get("/grants", s.handleListGrants)
 			r.Put("/grants", s.handleUpsertGrant)
@@ -286,6 +306,21 @@ func (s *Server) Router() http.Handler {
 		// Origin before ygo sees the request (see socketOrigin).
 		// TestCollabSocketRefusesForeignOrigins holds the route to it.
 		r.With(s.socketOrigin).Get("/collab/{room}", s.handleCollabSocket)
+		// The templates a new block document can start from.
+		r.Get("/templates/markdown", s.handleListMarkdownTemplates)
+		// Comments (M29): a thread's and a comment's routes resolve the
+		// document behind them and take download on it, like the node's.
+		r.Post("/comment-threads/{threadID}/comments", s.handleReplyComment)
+		r.Post("/comment-threads/{threadID}/resolve", s.handleResolveThread)
+		r.Post("/comment-threads/{threadID}/reopen", s.handleReopenThread)
+		r.Patch("/comments/{commentID}", s.handleEditComment)
+		r.Delete("/comments/{commentID}", s.handleDeleteComment)
+		// In-app notifications. The stream is Server-Sent Events, which
+		// nginx must not buffer (its own location in nginx.conf).
+		r.Get("/notifications", s.handleListNotifications)
+		r.Get("/notifications/unread-count", s.handleUnreadNotifications)
+		r.Post("/notifications/read", s.handleMarkNotificationsRead)
+		r.Get("/notifications/stream", s.handleNotificationStream)
 		// Resumable uploads (tus 1.0.0). The only way file content enters
 		// through the API: a chunk at a time, each one short enough to finish
 		// inside whatever request deadline a proxy in front imposes.
@@ -322,6 +357,10 @@ func (s *Server) Router() http.Handler {
 		r.Get("/content", s.handleShareNodeContent)
 		r.Get("/node-download", s.handleShareNodeDownload)
 		r.Get("/download-all", s.handleShareDownloadAll)
+		// A block document through the link: its tree for the read-only
+		// view, and its attachments. Same terms as the bytes routes above.
+		r.Get("/document", s.handleShareDocument)
+		r.Get("/attachments/{hash}", s.handleShareAttachment)
 	})
 	return r
 }

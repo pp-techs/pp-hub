@@ -38,6 +38,8 @@ const BLOCKS: Record<string, ItemCopy> = {
   "horizontal-rule": { title: msg`Divider`, description: msg`Visual separator` },
   image: { title: msg`Image`, description: msg`Upload an image` },
   file: { title: msg`File`, description: msg`Upload or attach a file` },
+  video: { title: msg`Video`, description: msg`Upload a video` },
+  embed: { title: msg`Link card`, description: msg`Bookmark a web page` },
   table: { title: msg`Table`, description: msg`Rows and columns of cells` },
   columns: { title: msg`Columns`, description: msg`Side-by-side layout` },
 };
@@ -74,11 +76,7 @@ const PLACEHOLDERS: Record<PlaceholderKey, MessageDescriptor> = {
   toggleHeading3: msg`Toggle heading 3`,
 };
 
-/**
- * Slash items the v1 block set can store. `video` and `embed` are out of the
- * schema; their items would only ever be hidden by `when`, so they are
- * dropped outright.
- */
+/** Slash items the v1 block set can store — every one this file has copy for. */
 const V1_SLASH_ITEMS = defaultSlashItems.filter((item) => item.id in BLOCKS);
 
 export function blockTitle(i18n: I18n, id: string, fallback: string): string {
@@ -94,9 +92,12 @@ export function markLabel(i18n: I18n, id: string, fallback: string): string {
 /**
  * The slash menu's items in the active language. The English title stays
  * among the aliases, so a query typed in English still finds a block in any
- * language.
+ * language. `runs` replaces what an item does, by id.
  */
-export function localizedSlashItems(i18n: I18n): SlashItem[] {
+export function localizedSlashItems(
+  i18n: I18n,
+  runs: Partial<Record<string, SlashItem["run"]>> = {},
+): SlashItem[] {
   return V1_SLASH_ITEMS.map((item) => {
     const copy = BLOCKS[item.id]!;
     const group = GROUPS[item.group];
@@ -106,6 +107,7 @@ export function localizedSlashItems(i18n: I18n): SlashItem[] {
       description: copy.description ? i18n._(copy.description) : item.description,
       group: group ? i18n._(group) : item.group,
       aliases: [...(item.aliases ?? []), item.title.toLowerCase()],
+      run: runs[item.id] ?? item.run,
     };
   });
 }

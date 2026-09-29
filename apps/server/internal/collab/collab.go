@@ -29,7 +29,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/reearth/ygo/provider/websocket"
 
-	"github.com/nhatbui/pp-hub/apps/server/internal/fs"
+	"github.com/nhatbui/pp-hub/apps/server/internal/blockdoc"
 	"github.com/nhatbui/pp-hub/apps/server/internal/mdoc"
 	"github.com/nhatbui/pp-hub/apps/server/internal/obs"
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
@@ -71,6 +71,10 @@ type Files interface {
 	Get(ctx context.Context, nodeID pgtype.UUID) (store.Node, error)
 	OpenFile(ctx context.Context, nodeID pgtype.UUID) (store.Node, store.NodeVersion, io.ReadCloser, error)
 	PutFile(ctx context.Context, spaceID, parentID, fileID pgtype.UUID, name string, r io.Reader, creator pgtype.UUID) (store.Node, store.NodeVersion, error)
+	// The attachments a write-back adopts (see Hub.adopt).
+	ListAttachments(ctx context.Context, docID pgtype.UUID) ([]store.NodeAttachment, error)
+	AttachmentHolders(ctx context.Context, hash string, exclude pgtype.UUID) ([]store.ListAttachmentHoldersRow, error)
+	AdoptAttachment(ctx context.Context, docID pgtype.UUID, from store.NodeAttachment, creator pgtype.UUID) (store.NodeAttachment, error)
 }
 
 // Access resolves what a user may do with a node (share.Service).
@@ -88,13 +92,6 @@ type Store interface {
 }
 
 var (
-	// ErrNotMarkdown refuses a room for a file whose current version is not
-	// a block document.
-	ErrNotMarkdown = errors.New("this file is not a markdown document")
-	// ErrTooLarge refuses a room for a document too big to hold in memory
-	// as a live Y.Doc.
-	ErrTooLarge = errors.New("this document is too large to open in the editor")
-
 	// errRoomGone refuses to load a room whose epoch is not the one pending:
 	// a stale client, or a server-side write racing the room's unload.
 	errRoomGone = errors.New("collab: room is not pending")
@@ -108,10 +105,6 @@ const lockPrefix = "collab:"
 
 // IsLockToken reports whether a file_locks token is a collaboration room's.
 func IsLockToken(token string) bool { return strings.HasPrefix(token, lockPrefix) }
-
-// maxDocumentBytes bounds the markdown a room will load. A live Y.Doc costs a
-// multiple of its markdown, and nobody writes a 16 MiB document by hand.
-const maxDocumentBytes = 16 << 20
 
 // Config is the room policy. The zero value of any field takes its default.
 type Config struct {
@@ -397,25 +390,13 @@ func newEpoch() string {
 	return hex.EncodeToString(b)
 }
 
-// parseCurrent reads and parses a document's current version.
+// parseCurrent reads and parses a document's current version; blockdoc's
+// errors refuse one that is not markdown or too large to hold as a Y.Doc.
 func (h *Hub) parseCurrent(ctx context.Context, nodeID pgtype.UUID) (mdoc.Parsed, error) {
 	_, ver, rc, err := h.files.OpenFile(ctx, nodeID)
 	if err != nil {
 		return mdoc.Parsed{}, err
 	}
 	defer rc.Close()
-	if !fs.IsMarkdown(ver.Mime) {
-		return mdoc.Parsed{}, ErrNotMarkdown
-	}
-	if ver.Size > maxDocumentBytes {
-		return mdoc.Parsed{}, ErrTooLarge
-	}
-	src, err := io.ReadAll(io.LimitReader(rc, maxDocumentBytes+1))
-	if err != nil {
-		return mdoc.Parsed{}, err
-	}
-	if len(src) > maxDocumentBytes {
-		return mdoc.Parsed{}, ErrTooLarge
-	}
-	return mdoc.Parse(src)
+	return blockdoc.Parse(ver, rc)
 }

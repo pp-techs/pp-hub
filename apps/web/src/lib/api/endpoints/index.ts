@@ -9,11 +9,16 @@ import type {
   AdminUser,
   CollabSession,
   CreateShareBody,
+  DocComment,
+  DocCommentThread,
   DocumentKind,
   EditSession,
   InheritedAccess,
+  MarkdownDocument,
+  MarkdownTemplate,
   MoveImpact,
   Node,
+  NotificationPage,
   RecentNode,
   RestoreResult,
   SearchKind,
@@ -25,6 +30,7 @@ import type {
   Space,
   TrashNode,
   TreeNode,
+  UnfurledLink,
   Version,
 } from "../types";
 
@@ -173,14 +179,26 @@ export async function createTeamFolder(spaceId: string, name: string): Promise<N
   return res.json() as Promise<Node>;
 }
 
+/**
+ * `template` (markdown only) seeds the new document from one of
+ * `getMarkdownTemplates()` instead of leaving it empty, written in `locale` —
+ * the language the picker listed it in.
+ */
 export async function createDocument(
   spaceId: string,
   kind: DocumentKind,
   name: string,
   parentId?: string,
+  template?: { id: string; locale: string },
 ): Promise<Node> {
   const res = await api.post(`api/v1/spaces/${spaceId}/documents`, {
-    json: { kind, name, parent_id: parentId },
+    json: {
+      kind,
+      name,
+      parent_id: parentId,
+      template: template?.id,
+      locale: template?.locale,
+    },
   });
   if (!res.ok) throw new ApiError(res.status, await res.text());
   return res.json() as Promise<Node>;
@@ -468,6 +486,58 @@ export function attachmentUrl(nodeId: string, hash: string): string {
   return `/api/v1/nodes/${nodeId}/attachments/${encodeURIComponent(hash)}`;
 }
 
+/**
+ * Starting points for a new markdown document, named in `locale` — the UI's
+ * language, which need not be the browser's or the saved profile's.
+ */
+export async function getMarkdownTemplates(locale: string): Promise<MarkdownTemplate[]> {
+  const res = await api.get("api/v1/templates/markdown", { searchParams: { locale } });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<MarkdownTemplate[]>;
+}
+
+/**
+ * Reads a link server-side for a bookmark card in `documentId`. Needs edit
+ * access to the document: the thumbnail is stored as one of its attachments.
+ */
+export async function unfurlLink(documentId: string, url: string): Promise<UnfurledLink> {
+  const res = await api.post(`api/v1/nodes/${documentId}/unfurl`, { json: { url } });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<UnfurledLink>;
+}
+
+/**
+ * A markdown file parsed for read-only rendering: the current version, or
+ * `versionId` when given (it must be one of this node's versions).
+ */
+export async function getNodeDocument(
+  nodeId: string,
+  versionId?: string,
+): Promise<MarkdownDocument> {
+  const res = await api.get(`api/v1/nodes/${nodeId}/document`, {
+    searchParams: versionId ? { version: versionId } : {},
+  });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<MarkdownDocument>;
+}
+
+/** A markdown file inside a share link, parsed for rendering. The link must allow downloads. */
+export async function getShareDocument(token: string, nodeId: string): Promise<MarkdownDocument> {
+  const res = await api.get(`s/${token}/document`, { searchParams: { node: nodeId } });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<MarkdownDocument>;
+}
+
+/** An attachment of `docId` as a share-link visitor reaches it. */
+export function shareAttachmentUrl(token: string, docId: string, hash: string): string {
+  return `/s/${token}/attachments/${encodeURIComponent(hash)}?node=${docId}`;
+}
+
+/** The document as a zip: the `.md` with its attachments under `assets/`. */
+export function exportDocumentUrl(nodeId: string): string {
+  return `/api/v1/nodes/${nodeId}/export`;
+}
+
 // ─── Auth Actions ───────────────────────────────────────────────────────────
 
 /**
@@ -504,4 +574,97 @@ export async function getShared(spaceId: string): Promise<Node[]> {
   const res = await api.get(`api/v1/shared?space=${spaceId}`);
   if (!res.ok) throw new ApiError(res.status, await res.text());
   return res.json() as Promise<Node[]>;
+}
+
+// ─── Comments and notifications ─────────────────────────────────────────────
+
+/** Every comment thread on a markdown document, resolved ones included. */
+export async function getCommentThreads(nodeId: string): Promise<DocCommentThread[]> {
+  const res = await api.get(`api/v1/nodes/${nodeId}/comments`);
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  const body = (await res.json()) as { threads: DocCommentThread[] };
+  return body.threads;
+}
+
+/** Starts a thread; the server picks its id, which the caller then anchors in the document. */
+export async function createCommentThread(
+  nodeId: string,
+  body: string,
+  mentions?: string[],
+): Promise<DocCommentThread> {
+  const res = await api.post(`api/v1/nodes/${nodeId}/comment-threads`, {
+    json: { body, mentions },
+  });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<DocCommentThread>;
+}
+
+export async function replyToThread(
+  threadId: string,
+  body: string,
+  mentions?: string[],
+): Promise<DocCommentThread> {
+  const res = await api.post(`api/v1/comment-threads/${threadId}/comments`, {
+    json: { body, mentions },
+  });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<DocCommentThread>;
+}
+
+/** Author only. */
+export async function editComment(commentId: string, body: string): Promise<DocComment> {
+  const res = await api.patch(`api/v1/comments/${commentId}`, { json: { body } });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<DocComment>;
+}
+
+/** The author, or anyone who can edit the document. The last comment takes its thread with it. */
+export async function deleteComment(commentId: string): Promise<void> {
+  const res = await api.delete(`api/v1/comments/${commentId}`);
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+}
+
+export async function setThreadResolved(
+  threadId: string,
+  resolved: boolean,
+): Promise<DocCommentThread> {
+  const res = await api.post(
+    `api/v1/comment-threads/${threadId}/${resolved ? "resolve" : "reopen"}`,
+  );
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<DocCommentThread>;
+}
+
+/** Newest first; pass the previous page's `next_cursor` for the next one. */
+export async function getNotifications(cursor?: string, limit = 20): Promise<NotificationPage> {
+  const searchParams: Record<string, string> = { limit: String(limit) };
+  if (cursor) searchParams.cursor = cursor;
+  const res = await api.get("api/v1/notifications", { searchParams });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<NotificationPage>;
+}
+
+export async function getUnreadNotificationCount(): Promise<number> {
+  const res = await api.get("api/v1/notifications/unread-count");
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  const body = (await res.json()) as { count: number };
+  return body.count;
+}
+
+/**
+ * Marks the given notifications read, or every one of them when `ids` is
+ * `"all"`. Answers the unread count left.
+ */
+export async function markNotificationsRead(ids: string[] | "all"): Promise<number> {
+  const res = await api.post("api/v1/notifications/read", {
+    json: ids === "all" ? { all: true } : { ids },
+  });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  const body = (await res.json()) as { count: number };
+  return body.count;
+}
+
+/** Server-Sent Events: one `notification` event per new item, for the signed-in user. */
+export function notificationStreamUrl(): string {
+  return "/api/v1/notifications/stream";
 }

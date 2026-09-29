@@ -1,0 +1,47 @@
+{
+  "name": "special-thread-ids",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "a "
+          },
+          {
+            "type": "text",
+            "text": "b",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t--1\"x<y>"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " "
+          },
+          {
+            "type": "text",
+            "text": "c",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "js_output": "a b c",
+  "yupdate_b64": "AQoBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQJhIIYBAxFjb21tZW50LS04WmllZGpTVRl7InRocmVhZElkIjoidC0tMVwieDx5PiJ9hAEEAWKGAQURY29tbWVudC0tOFppZWRqU1UEbnVsbIQBBgEghgEHEWNvbW1lbnQtLW9wQlZhSGl5M3sidGhyZWFkSWQiOiIwYjhlMWYyYS02YzNkLTRlNWYtOWExYi03YzJkM2U0ZjVhNmIifYQBCAFjhgEJEWNvbW1lbnQtLW9wQlZhSGl5BG51bGwA"
+}

@@ -6,8 +6,12 @@ export default defineConfig({
   },
   fmt: {
     // Written by apps/web/scripts/mdoc-fixtures.ts; reformatting them would
-    // make every regeneration a diff.
-    ignorePatterns: ["apps/server/internal/mdoc/testdata/**"],
+    // make every regeneration a diff. The block-document templates are in the
+    // exact form mdoc.Render writes (blockdoc's tests hold them to it).
+    ignorePatterns: [
+      "apps/server/internal/mdoc/testdata/**",
+      "apps/server/internal/blockdoc/templates/**",
+    ],
   },
   lint: {
     jsPlugins: [

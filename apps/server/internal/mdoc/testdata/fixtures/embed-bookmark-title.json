@@ -1,0 +1,21 @@
+{
+  "name": "embed-bookmark-title",
+  "input": "<!-- slash:embed {\"mode\":\"bookmark\"} -->\n[Example](https://example.com)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "embed",
+        "attrs": {
+          "mode": "bookmark",
+          "url": "https://example.com",
+          "title": "Example"
+        }
+      }
+    ]
+  },
+  "output": "<!-- slash:embed {\"mode\":\"bookmark\"} -->\n[Example](https://example.com)",
+  "yupdate_b64": "AQQBAAcBB2NvbnRlbnQDBWVtYmVkKAABAAN1cmwBdxNodHRwczovL2V4YW1wbGUuY29tKAABAARtb2RlAXcIYm9va21hcmsoAAEABXRpdGxlAXcHRXhhbXBsZQA=",
+  "expect_lossy": false
+}
