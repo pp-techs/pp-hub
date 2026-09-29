@@ -1,4 +1,5 @@
 import { lazy, Suspense } from "react";
+import type { RefObject } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { FileWarning } from "lucide-react";
@@ -48,17 +49,19 @@ export function MarkdownDocumentView(props: ReadOnlyEditorProps) {
 
 /**
  * A signed-in reader's view of a markdown file: the current version, or
- * `versionId`. The server gates `/document` on the download capability, as
- * it does the file's bytes.
+ * `versionId`. The server gates `/document` on the view capability, as it does
+ * the file's bytes.
  */
 export function NodeMarkdownView({
   node,
   versionId,
   className,
+  outlineScrollRef,
 }: {
   node: Node;
   versionId?: string;
   className?: string;
+  outlineScrollRef?: RefObject<HTMLElement | null>;
 }) {
   const document = useNodeDocument(node.id, versionId);
   if (!document.data) return <DocumentPending query={document} className={className} />;
@@ -69,6 +72,7 @@ export function NodeMarkdownView({
       lossy={document.data.lossy}
       attachmentUrl={(hash) => attachmentUrl(node.id, hash)}
       className={className}
+      outlineScrollRef={outlineScrollRef}
     />
   );
 }
@@ -78,10 +82,12 @@ export function SharedMarkdownView({
   token,
   nodeId,
   className,
+  outlineScrollRef,
 }: {
   token: string;
   nodeId: string;
   className?: string;
+  outlineScrollRef?: RefObject<HTMLElement | null>;
 }) {
   const document = useShareDocument(token, nodeId);
   if (!document.data) return <DocumentPending query={document} className={className} />;
@@ -92,6 +98,7 @@ export function SharedMarkdownView({
       lossy={document.data.lossy}
       attachmentUrl={(hash) => shareAttachmentUrl(token, nodeId, hash)}
       className={className}
+      outlineScrollRef={outlineScrollRef}
     />
   );
 }

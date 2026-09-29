@@ -32,7 +32,7 @@ Mounted under `/wopi`:
 | Endpoint                                                              | Purpose                                                                                                               |
 | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | `GET /wopi/files/{id}`                                                | `CheckFileInfo` — returns `BaseFileName, Size, OwnerId, UserId, UserCanWrite, Version, SupportsUpdate, SupportsLocks` |
-| `GET /wopi/files/{id}/contents`                                       | `GetFile` — streams the blob of `current_version_id`; **rank ≥ 2** for a user token                                   |
+| `GET /wopi/files/{id}/contents`                                       | `GetFile` — streams the blob of `current_version_id`; **rank ≥ 1** for rendering in view mode                         |
 | `POST /wopi/files/{id}/contents`                                      | `PutFile` — writes new blob, appends `node_version` (which counts the blob reference); **rank 3**                     |
 | `POST /wopi/files/{id}` (`X-WOPI-Override: LOCK/UNLOCK/REFRESH_LOCK`) | Lock management against `file_locks`; **rank 3**                                                                      |
 
@@ -62,40 +62,28 @@ set `PP_WOPI_SERVER_URL` to a public URL **and** re-add a `location /wopi/` in
 
 ## Read-Only Sessions
 
-`POST /nodes/{id}/edit-session` takes **`CapDownload`**, not `CapView` and not
-`CapEdit`. Opening a document in OnlyOffice means the Document Server fetches
-the whole file and the browser renders it, so there is no version of this that
-is "viewing without downloading" — the bytes leave the server either way.
+`POST /nodes/{id}/edit-session` takes **`CapView`**. Reading an office document
+is viewing it: OnlyOffice opens in read-only mode (`/view`), and the Document
+Server fetches the document so the browser can render it.
 
-It used to take `CapView`, on the argument that OnlyOffice is the only
-component able to render an office document at all (the preview worker
-produces a 256px thumbnail of the first page and nothing more), so demanding
-more would leave a reader with no way to look at a `.docx` they were
-legitimately shared. That argument does not survive contact with `GetFile`:
-the session it minted could fetch the complete file, so it was a route around
-the no-download half of a grant — mint a token with `CapView`, let the editor
-fetch, keep the document — while `GET /nodes/{id}/content` refused the same
-person for the same bytes.
+What the caller holds decides the _session_ capability:
 
-The cost is real and accepted: **a reader granted view-without-download
-cannot open an office document at all, only its thumbnail.** That is the
-honest consequence of the grant they were given, and it is the same line
-[permissions.md](permissions.md) draws for `/content` and
-`/preview?kind=text`.
+| Caller        | Token `perm` | Editor URL | `CheckFileInfo.UserCanWrite` | `PutFile` / lock ops | `DisablePrint` / `DisableExport` |
+| :------------ | :----------- | :--------- | :--------------------------- | :------------------- | :------------------------------- |
+| `CapEdit`     | 3            | `/edit`    | `true`                       | allowed              | `false`                          |
+| `CapDownload` | 2            | `/view`    | `false`                      | **403**              | `false`                          |
+| `CapView`     | 1            | `/view`    | `false`                      | **403**              | `true`                           |
 
-What the caller holds still decides the _session_, not whether there is one:
+A read-only session is rank **1** (view-only) or rank **2** (view + download).
+`GetFile` requires rank ≥ 1 so OnlyOffice can fetch the file bytes to render
+the view. When rank is 1 (view without download), `CheckFileInfo` sets
+`DisablePrint: true, DisableExport: true, DisableCopy: true` so the viewer
+cannot export or save a copy from the OnlyOffice UI.
 
-| Caller        | Token `perm` | Editor URL | `CheckFileInfo.UserCanWrite` | `PutFile` / lock ops |
-| :------------ | :----------- | :--------- | :--------------------------- | :------------------- |
-| `CapEdit`     | 3            | `/edit`    | `true`                       | allowed              |
-| `CapDownload` | 2            | `/view`    | `false`                      | **403**              |
-| `CapView`     | —            | —          | —                            | no session is minted |
-
-A read-only session is rank **2**, not rank 1. `GetFile` requires rank ≥ 2 for
-a user token — handing over the complete file is a download however the editor
-frames it — so rank 1 would mint a session that cannot fetch its own document.
-Rank 1 is still meaningful on the scale `rankFromCaps` produces; it simply
-cannot open an editor.
+**Shared links.** An anonymous visitor on `/s/{token}` views office files
+through `GET /s/{token}/edit-session?node=<id>`, which mints a rank 1 (or 2 if
+the link allows download) read-only session. The token is tied to the link's
+creator, so revoking the creator's access revokes the link's editor session too.
 
 The rank is signed into the token, so the write refusal does not depend on
 OnlyOffice honouring `UserCanWrite`. The response carries `can_write`, and the

@@ -7,14 +7,19 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"net/url"
 	"path"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/audit"
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
+	"github.com/nhatbui/pp-hub/apps/server/internal/users"
+	"github.com/nhatbui/pp-hub/apps/server/internal/wopi"
 )
 
 // errOutsideShare marks a request for a node the link does not cover.
@@ -127,23 +132,16 @@ func (s *Server) handleShareChildren(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// handleShareNodeContent serves a file inside the share inline.
-//
-// It needs download, not view. Serving the original bytes *is* the download,
-// whatever the Content-Disposition says: a `can_download: false` link that
-// answered this endpoint handed over a byte-identical copy of the file — and
-// of every file in the subtree, one `?node=` at a time — which made the
-// switch a label rather than a rule. The authenticated counterpart gets this
-// right (`handleContent` is `share.CapDownload`); the comment that used to
-// sit here claimed otherwise and was simply wrong.
-//
-// A no-download visitor is not left with nothing: the preview endpoints serve
-// artifacts derived from the file rather than the file.
+// handleShareNodeContent serves a file inside the share inline, for the
+// browser to render — the point of a link. Viewing is what a link grants, so
+// this needs no download flag; only the routes that hand the bytes over
+// deliberately (/node-download, /download, /download-all) do.
 func (s *Server) handleShareNodeContent(w http.ResponseWriter, r *http.Request) {
-	s.serveShareFile(w, r, "inline", true, audit.KindFileViewed)
+	s.serveShareFile(w, r, "inline", false, audit.KindFileViewed)
 }
 
-// handleShareNodeDownload forces a download of a file inside the share.
+// handleShareNodeDownload forces a download of a file inside the share, and
+// so needs the link's download flag.
 func (s *Server) handleShareNodeDownload(w http.ResponseWriter, r *http.Request) {
 	s.serveShareFile(w, r, "attachment", true, audit.KindFileDownloaded)
 }
@@ -306,4 +304,65 @@ func publicName(u store.User) string {
 		return u.DisplayName
 	}
 	return u.Name
+}
+
+// handleShareEditSession returns an OnlyOffice session URL for an office file inside a share.
+func (s *Server) handleShareEditSession(w http.ResponseWriter, r *http.Request) {
+	sh, node, ok := s.shareScope(w, r, "node")
+	if !ok {
+		return
+	}
+	if node.Kind != store.NodeKindFile {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "not a file")
+		return
+	}
+	ver, err := s.store.GetCurrentVersion(r.Context(), node.ID)
+	if err != nil {
+		s.nodeError(w, r, err)
+		return
+	}
+	if !isOfficeNode(node, ver.Mime) {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "file type not supported by editor")
+		return
+	}
+
+	caps, _ := share.LinkCaps(sh)
+	permRank, mode := 1, "view"
+	if caps.Download {
+		permRank = 2
+	}
+
+	token, err := s.wopi.SignToken(sh.CreatedBy, node.ID, permRank)
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+
+	nodeIDStr, _ := node.ID.Value()
+	wopiSrc := s.wopiServerURL + "/wopi/files/" + nodeIDStr.(string)
+	editorURL := s.onlyOfficeURL + "/hosting/wopi/" + wopiDocumentType(node.Name) + "/" + mode +
+		"?WOPISrc=" + url.QueryEscape(wopiSrc)
+	if ui := strings.TrimSpace(r.URL.Query().Get("ui")); ui != "" && users.ValidLocale(ui) {
+		editorURL += "&ui=" + url.QueryEscape(ui)
+	}
+	switch r.URL.Query().Get("theme") {
+	case "light":
+		editorURL += "&thm=1"
+	case "dark":
+		editorURL += "&thm=0"
+	}
+	s.audit.RecordRead(r, audit.Read{
+		Kind:     audit.KindFileOpened,
+		ShareID:  sh.ID,
+		SharedBy: sh.CreatedBy,
+		Node:     node,
+		Detail:   map[string]any{"mode": mode},
+	})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"editor_url":       editorURL,
+		"wopi_src":         wopiSrc,
+		"token":            token,
+		"access_token_ttl": time.Now().Add(wopi.TokenTTL).UnixMilli(),
+		"can_write":        false,
+	})
 }

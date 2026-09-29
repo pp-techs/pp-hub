@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -9,7 +10,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -237,11 +237,10 @@ func TestWopiTokenIsBoundToItsFile(t *testing.T) {
 	}
 }
 
-// An editor session is a way to read the whole file, so it needs download —
-// not view. It used to accept view and mint a rank-1 token, which made the
-// editor a route around the no-download half of a grant: take the token,
-// GET /contents, keep the file. handleContent refuses the same caller.
-func TestWopiRefusesViewOnlyReads(t *testing.T) {
+// A view-only caller has rank 1: CheckFileInfo says UserCanWrite=false and
+// DisablePrint=true, PutFile is refused (403), while CheckFileInfo and GetFile
+// authorization succeed so OnlyOffice can render the document.
+func TestWopiViewOnlySession(t *testing.T) {
 	srv, q := wopiEnv(t)
 	ctx := context.Background()
 	f := newWopiFixture(t, srv, q, "viewonly")
@@ -257,9 +256,40 @@ func TestWopiRefusesViewOnlyReads(t *testing.T) {
 	}
 
 	// The token still says rank 3; wopiClaims clamps it to the caller's live
-	// access, which is now view.
-	if rec := wopiRequest(t, srv.handleWopiGetFile, "GET", id, f.token); rec.Code != http.StatusForbidden {
-		t.Errorf("view-only caller read the file bytes: %d %s", rec.Code, rec.Body)
+	// access, which is now view (rank 1).
+	var rank int
+	probe := func(w http.ResponseWriter, r *http.Request) {
+		c, ok := srv.wopiClaims(w, r)
+		if ok {
+			rank = c.claims.PermRank
+		}
+	}
+	wopiRequest(t, probe, "GET", id, f.token)
+	if rank != 1 {
+		t.Errorf("clamped rank = %d, want 1", rank)
+	}
+
+	// CheckFileInfo reports UserCanWrite=false and DisablePrint=true.
+	rec := wopiRequest(t, srv.handleWopiCheckFileInfo, "GET", id, f.token)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("CheckFileInfo status %d", rec.Code)
+	}
+	var info struct {
+		UserCanWrite bool `json:"UserCanWrite"`
+		DisablePrint bool `json:"DisablePrint"`
+	}
+	_ = json.Unmarshal(rec.Body.Bytes(), &info)
+	if info.UserCanWrite {
+		t.Error("view-only caller has UserCanWrite=true")
+	}
+	if !info.DisablePrint {
+		t.Error("view-only caller should have DisablePrint=true")
+	}
+
+	// PutFile is forbidden for rank 1.
+	putRec := wopiRequest(t, srv.handleWopiPutFile, "POST", id, f.token)
+	if putRec.Code != http.StatusForbidden {
+		t.Errorf("PutFile on view-only session: %d, want 403", putRec.Code)
 	}
 }
 

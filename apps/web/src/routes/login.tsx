@@ -17,7 +17,8 @@ import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/al
 import { Button } from "@workspace/ui/components/button";
 import { fetchMe } from "@/lib/queries";
 import { safePath } from "@/lib/safe-path";
-import { pageTitle } from "@/lib/i18n";
+import { PRODUCT_NAME, pageTitle } from "@/lib/i18n";
+import { BrandMark } from "@/components/brand-mark";
 
 /**
  * Why a sign-in attempt came back here.
@@ -67,20 +68,6 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
-/**
- * The product monogram, drawn the same way a space monogram is in the rail
- * (`space-switcher.tsx`), so the first tile somebody sees is the tile they
- * keep seeing.
- */
-function BrandMark() {
-  return (
-    <div className="bg-foreground text-background flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg text-[11px] font-semibold">
-      {/* eslint-disable-next-line lingui/no-unlocalized-strings -- product monogram */}
-      pp
-    </div>
-  );
-}
-
 function Feature({
   icon: Icon,
   title,
@@ -123,10 +110,7 @@ function LoginPage() {
         <section className="hidden flex-col gap-6 lg:flex">
           <div className="flex items-center gap-2.5">
             <BrandMark />
-            <span className="text-sm font-medium tracking-tight">
-              {/* eslint-disable-next-line lingui/no-unlocalized-strings -- product name */}
-              pp-hub
-            </span>
+            <span className="text-sm font-medium tracking-tight">{PRODUCT_NAME}</span>
           </div>
           <div className="grid gap-2">
             <h1 className="font-heading max-w-sm text-xl font-semibold tracking-tight">
@@ -158,7 +142,7 @@ function LoginPage() {
               <BrandMark />
             </div>
             <CardTitle className="text-base tracking-tight">
-              <Trans>Sign in to pp-hub</Trans>
+              <Trans>Sign in to {PRODUCT_NAME}</Trans>
             </CardTitle>
             <CardDescription>
               <Trans>Continue with the identity provider your administrator configured.</Trans>

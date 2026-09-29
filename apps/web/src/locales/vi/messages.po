@@ -179,7 +179,7 @@ msgstr "{hidden, plural, other {và # mục nữa}}"
 msgid "{ip} · last active {lastActive} · signed in {signedIn}"
 msgstr "{ip} · hoạt động gần nhất {lastActive} · đăng nhập {signedIn}"
 
-#: src/routes/s/$token.tsx:191
+#: src/routes/s/$token.tsx:196
 msgid "{itemCount, plural, one {# item} other {# items}}"
 msgstr "{itemCount, plural, one {# mục} other {# mục}}"
 
@@ -264,11 +264,11 @@ msgstr "{selected, plural, one {Đã chọn #} other {Đã chọn #}}"
 msgid "{shared, plural, one {# grantee} other {# grantees}}"
 msgstr "{shared, plural, one {# người được cấp quyền} other {# người được cấp quyền}}"
 
-#: src/routes/s/$token.tsx:147
+#: src/routes/s/$token.tsx:158
 msgid "{sharedBy} shared this file"
 msgstr "{sharedBy} đã chia sẻ tệp này"
 
-#: src/routes/s/$token.tsx:145
+#: src/routes/s/$token.tsx:156
 msgid "{sharedBy} shared this folder"
 msgstr "{sharedBy} đã chia sẻ thư mục này"
 
@@ -494,7 +494,7 @@ msgstr "tài khoản bị tạm ngưng"
 msgid "account unsuspended"
 msgstr "tài khoản được bỏ tạm ngưng"
 
-#: src/routes/login.tsx:190
+#: src/routes/login.tsx:174
 msgid "Accounts are provisioned by an administrator."
 msgstr "Tài khoản do quản trị viên cấp."
 
@@ -556,7 +556,7 @@ msgstr "Thêm người hoặc nhóm…"
 msgid "Add someone to this group…"
 msgstr "Thêm người vào nhóm này…"
 
-#: src/components/node-actions.tsx:176
+#: src/components/node-actions.tsx:175
 msgid "Add star"
 msgstr "Gắn sao"
 
@@ -656,7 +656,7 @@ msgstr "Cho phép chia sẻ lại"
 msgid "Already here"
 msgstr "Đã có ở đây"
 
-#: src/routes/login.tsx:44
+#: src/routes/login.tsx:45
 msgid "An account already exists with this email address under a different identity provider. Contact an administrator."
 msgstr "Đã tồn tại tài khoản với địa chỉ email này ở một nhà cung cấp danh tính khác. Hãy liên hệ quản trị viên."
 
@@ -682,9 +682,13 @@ msgstr "Bất kỳ ai có liên kết đều có thể xem mục này mà không
 msgid "Anyone with the link"
 msgstr "Bất kỳ ai có liên kết"
 
-#: src/routes/s/$token.tsx:269
+#: src/routes/s/$token.tsx:297
 msgid "Anyone with this link can view and download these files. You cannot edit or upload, and you cannot see who else has access."
 msgstr "Bất kỳ ai có liên kết này đều có thể xem và tải xuống các tệp này. Bạn không thể chỉnh sửa hay tải lên, và không thấy được ai khác có quyền truy cập."
+
+#: src/routes/s/$token.tsx:302
+msgid "Anyone with this link can view these files. Downloads are off, so there is no button to save a copy. You cannot edit or upload, and you cannot see who else has access."
+msgstr "Bất kỳ ai có liên kết này đều có thể xem các tệp này. Tính năng tải xuống đã tắt nên không có nút lưu bản sao. Bạn không thể chỉnh sửa hay tải lên, và không thấy được ai khác có quyền truy cập."
 
 #: src/components/settings/panes/account-general.tsx:158
 msgid "Appearance"
@@ -748,7 +752,7 @@ msgid "Bookmark a web page"
 msgstr "Đánh dấu một trang web"
 
 #: src/components/locale-provider.tsx:85
-#: src/routes/s/$token.tsx:218
+#: src/routes/s/$token.tsx:223
 msgid "Breadcrumb"
 msgstr "Đường dẫn"
 
@@ -868,7 +872,7 @@ msgstr "Đóng bình luận"
 msgid "Close details"
 msgstr "Đóng chi tiết"
 
-#: src/components/doc-editor/outline-panel.tsx:101
+#: src/components/doc-editor/outline-panel.tsx:60
 msgid "Close outline"
 msgstr "Đóng mục lục"
 
@@ -975,11 +979,11 @@ msgstr "Nội dung"
 msgid "Continue where you left off"
 msgstr "Tiếp tục từ chỗ đang dở"
 
-#: src/routes/login.tsx:184
+#: src/routes/login.tsx:168
 msgid "Continue with SSO"
 msgstr "Tiếp tục với SSO"
 
-#: src/routes/login.tsx:164
+#: src/routes/login.tsx:148
 msgid "Continue with the identity provider your administrator configured."
 msgstr "Tiếp tục với nhà cung cấp danh tính do quản trị viên của bạn thiết lập."
 
@@ -992,7 +996,7 @@ msgid "Copied as “{copyName}”"
 msgstr "Đã sao chép thành “{copyName}”"
 
 #: src/components/block-handle.tsx:219
-#: src/components/node-actions.tsx:231
+#: src/components/node-actions.tsx:230
 #: src/components/share-dialog.tsx:833
 msgid "Copy"
 msgstr "Sao chép"
@@ -1137,7 +1141,7 @@ msgstr "Không thể đăng xuất thiết bị đó"
 msgid "Could not sign out. Please try again."
 msgstr "Không thể đăng xuất. Vui lòng thử lại."
 
-#: src/routes/login.tsx:171
+#: src/routes/login.tsx:155
 msgid "Could not sign you in"
 msgstr "Không thể đăng nhập"
 
@@ -1220,7 +1224,7 @@ msgstr "Hiện tại"
 msgid "Current access"
 msgstr "Quyền truy cập hiện tại"
 
-#: src/components/node-actions.tsx:222
+#: src/components/node-actions.tsx:221
 msgid "Cut"
 msgstr "Cắt"
 
@@ -1423,26 +1427,26 @@ msgstr "tải xuống"
 
 #: src/components/editor-header.tsx:108
 #: src/components/editor-header.tsx:133
-#: src/components/node-actions.tsx:139
+#: src/components/node-actions.tsx:138
 #: src/components/preview-modal.tsx:124
 #: src/components/preview-panel.tsx:341
 #: src/components/selection-bar.tsx:64
 #: src/components/version-list.tsx:122
-#: src/routes/s/$token.tsx:211
+#: src/routes/s/$token.tsx:216
 msgid "Download"
 msgstr "Tải xuống"
 
-#: src/routes/s/$token.tsx:416
+#: src/routes/s/$token.tsx:643
 msgid "Download {nodeName}"
 msgstr "Tải xuống {nodeName}"
 
-#: src/routes/s/$token.tsx:211
+#: src/routes/s/$token.tsx:216
 msgid "Download all"
 msgstr "Tải xuống tất cả"
 
 #: src/components/preview-content.tsx:269
-msgid "Downloads are off for this file, so it can only be opened by its owner."
-msgstr "Tính năng tải xuống đã tắt cho tệp này, nên chỉ chủ sở hữu mới có thể mở."
+#~ msgid "Downloads are off for this file, so it can only be opened by its owner."
+#~ msgstr "Tính năng tải xuống đã tắt cho tệp này, nên chỉ chủ sở hữu mới có thể mở."
 
 #: src/components/block-handle.tsx:135
 msgid "Drag to move, click to open menu"
@@ -1454,7 +1458,7 @@ msgstr "Kéo để sắp xếp lại, nhấn để mở menu khối"
 
 #: src/routes/drive.tsx:33
 #: src/routes/drive/$spaceId/index.tsx:85
-#: src/routes/login.tsx:143
+#: src/routes/login.tsx:127
 msgid "Drive"
 msgstr "Drive"
 
@@ -1481,7 +1485,7 @@ msgstr "chỉnh sửa"
 
 #: src/components/comments/comments-panel.tsx:536
 #: src/components/doc-editor/doc-editor.tsx:144
-#: src/components/node-actions.tsx:131
+#: src/components/node-actions.tsx:130
 msgid "Edit"
 msgstr "Chỉnh sửa"
 
@@ -1493,11 +1497,11 @@ msgstr "Chỉnh sửa “{name}” trong trình soạn thảo khối?"
 msgid "Edit anyway"
 msgstr "Vẫn chỉnh sửa"
 
-#: src/routes/login.tsx:147
+#: src/routes/login.tsx:131
 msgid "Edit documents and spreadsheets together in the browser."
 msgstr "Cùng chỉnh sửa tài liệu và bảng tính ngay trong trình duyệt."
 
-#: src/routes/edit/$nodeId.tsx:15
+#: src/routes/edit/$nodeId.tsx:16
 msgid "Editing"
 msgstr "Chỉnh sửa"
 
@@ -1643,7 +1647,7 @@ msgid "Export CSV"
 msgstr "Xuất CSV"
 
 #: src/components/editor-header.tsx:125
-#: src/components/node-actions.tsx:152
+#: src/components/node-actions.tsx:151
 msgid "Export with images (.zip)"
 msgstr "Xuất kèm hình ảnh (.zip)"
 
@@ -1696,8 +1700,8 @@ msgid "file downloaded"
 msgstr ""
 
 #: src/routes/s/$token.tsx:170
-msgid "file names and details only"
-msgstr "chỉ tên tệp và chi tiết"
+#~ msgid "file names and details only"
+#~ msgstr "chỉ tên tệp và chi tiết"
 
 #: src/routes/admin.security.tsx:95
 msgid "file viewed"
@@ -1942,7 +1946,7 @@ msgstr "Tiêu đề 2"
 msgid "Heading 3"
 msgstr "Tiêu đề 3"
 
-#: src/components/doc-editor/outline-panel.tsx:108
+#: src/components/doc-editor/outline-panel.tsx:68
 msgid "Headings you add appear here."
 msgstr "Các tiêu đề bạn thêm sẽ hiện ở đây."
 
@@ -1988,7 +1992,7 @@ msgstr "Hình ảnh"
 msgid "Implicit TLS / SMTPS (port 465)"
 msgstr "TLS ngầm định / SMTPS (cổng 465)"
 
-#: src/components/node-actions.tsx:169
+#: src/components/node-actions.tsx:168
 msgid "Information"
 msgstr "Thông tin"
 
@@ -2056,7 +2060,7 @@ msgstr "Đây là bình luận duy nhất trong chuỗi, nên chuỗi bình lu�
 msgid "It may have been deleted, or you no longer have access."
 msgstr "Mục này có thể đã bị xoá, hoặc bạn không còn quyền truy cập."
 
-#: src/routes/s/$token.tsx:119
+#: src/routes/s/$token.tsx:127
 msgid "It may have expired, been revoked, or never existed. Ask whoever sent it for a new one."
 msgstr "Liên kết có thể đã hết hạn, bị thu hồi hoặc chưa từng tồn tại. Hãy yêu cầu người gửi cấp liên kết mới."
 
@@ -2178,7 +2182,7 @@ msgstr "Đã sao chép liên kết"
 #~ msgid "Link created (shown once)"
 #~ msgstr "Đã tạo liên kết (chỉ hiển thị một lần)"
 
-#: src/routes/s/$token.tsx:175
+#: src/routes/s/$token.tsx:180
 msgid "Link expires {expiresOn}"
 msgstr "Liên kết hết hạn {expiresOn}"
 
@@ -2254,7 +2258,7 @@ msgstr "Chữ thường, số và dấu gạch ngang. Không bắt buộc."
 msgid "Mail"
 msgstr "Thư"
 
-#: src/components/node-actions.tsx:239
+#: src/components/node-actions.tsx:238
 msgid "Make a copy"
 msgstr "Tạo bản sao"
 
@@ -2350,11 +2354,11 @@ msgstr "Tư cách thành viên"
 msgid "Mermaid diagram"
 msgstr "Sơ đồ Mermaid"
 
-#: src/routes/login.tsx:198
+#: src/routes/login.tsx:182
 msgid "Minimal self-hosted workspace: drive, office, spaces."
 msgstr "Không gian làm việc tự lưu trữ tối giản: Drive, Office, không gian."
 
-#: src/routes/login.tsx:136
+#: src/routes/login.tsx:120
 msgid "Minimal self-hosted workspace: drive, office, spaces. Nothing leaves the machine you run it on."
 msgstr "Không gian làm việc tự lưu trữ tối giản: Drive, Office, không gian. Không dữ liệu nào rời khỏi máy bạn chạy nó."
 
@@ -2369,7 +2373,7 @@ msgstr ""
 #: src/components/preview-panel.tsx:392
 #: src/components/settings/panes/account-general.tsx:45
 #: src/components/space-node-table.tsx:91
-#: src/routes/s/$token.tsx:335
+#: src/routes/s/$token.tsx:563
 msgid "Modified"
 msgstr "Đã sửa đổi"
 
@@ -2398,13 +2402,13 @@ msgstr "Di chuyển"
 msgid "Move “{name}”"
 msgstr "Di chuyển “{name}”"
 
-#: src/components/node-actions.tsx:248
+#: src/components/node-actions.tsx:247
 #: src/routes/drive/$spaceId/index.tsx:641
 #: src/routes/drive/$spaceId/index.tsx:650
 msgid "Move to trash"
 msgstr "Chuyển vào thùng rác"
 
-#: src/components/node-actions.tsx:205
+#: src/components/node-actions.tsx:204
 msgid "Move to…"
 msgstr "Di chuyển đến…"
 
@@ -2427,7 +2431,7 @@ msgstr "Drive của tôi"
 #: src/components/team-folder-dialog.tsx:74
 #: src/components/trash-panel.tsx:282
 #: src/routes/drive.tsx:243
-#: src/routes/s/$token.tsx:332
+#: src/routes/s/$token.tsx:560
 msgid "Name"
 msgstr "Tên"
 
@@ -2576,7 +2580,7 @@ msgstr "Không có ai khớp với các bộ lọc này."
 msgid "No open comments."
 msgstr "Không có bình luận đang mở."
 
-#: src/components/preview-content.tsx:289
+#: src/components/preview-content.tsx:288
 msgid "No preview available — use Download to view this file."
 msgstr "Không có bản xem trước — dùng Tải xuống để xem tệp này."
 
@@ -2691,11 +2695,11 @@ msgstr "Thông báo, {count} chưa đọc"
 msgid "Numbered list"
 msgstr "Danh sách đánh số"
 
-#: src/routes/login.tsx:146
+#: src/routes/login.tsx:130
 msgid "Office"
 msgstr "Office"
 
-#: src/components/doc-editor/doc-editor.tsx:433
+#: src/components/doc-editor/doc-editor.tsx:434
 msgid "Offline"
 msgstr "Ngoại tuyến"
 
@@ -2715,7 +2719,7 @@ msgstr "Chỉ quản trị viên không gian mới có thể thêm hoặc xoá t
 msgid "Only an administrator can read the security log."
 msgstr "Chỉ quản trị viên mới đọc được nhật ký bảo mật."
 
-#: src/routes/edit/$nodeId.tsx:142
+#: src/routes/edit/$nodeId.tsx:150
 msgid "OnlyOffice editor"
 msgstr "Trình chỉnh sửa OnlyOffice"
 
@@ -2724,15 +2728,15 @@ msgid "open"
 msgstr "mở"
 
 #: src/components/drive-write.tsx:214
-#: src/components/node-actions.tsx:131
-#: src/components/preview-content.tsx:282
+#: src/components/node-actions.tsx:130
+#: src/components/preview-content.tsx:281
 #: src/components/preview-modal.tsx:115
 #: src/components/preview-panel.tsx:331
 #: src/components/share-dialog.tsx:696
 msgid "Open"
 msgstr "Mở"
 
-#: src/components/node-actions.tsx:118
+#: src/components/node-actions.tsx:117
 #: src/components/preview-content.tsx:151
 msgid "Open in new tab"
 msgstr "Mở trong tab mới"
@@ -2745,8 +2749,8 @@ msgstr "Mở liên kết"
 msgid "opened in editor"
 msgstr ""
 
-#: src/routes/edit/$nodeId.tsx:51
-#: src/routes/edit/$nodeId.tsx:110
+#: src/routes/edit/$nodeId.tsx:59
+#: src/routes/edit/$nodeId.tsx:118
 msgid "Opening editor…"
 msgstr "Đang mở trình chỉnh sửa…"
 
@@ -2775,8 +2779,8 @@ msgid "Outgoing mail settings reset"
 msgstr "Đã đặt lại cài đặt thư gửi đi"
 
 #: src/components/doc-editor/doc-editor.tsx:150
-#: src/components/doc-editor/outline-panel.tsx:94
-#: src/components/doc-editor/outline-panel.tsx:99
+#: src/components/doc-editor/outline-panel.tsx:52
+#: src/components/doc-editor/outline-panel.tsx:57
 msgid "Outline"
 msgstr "Mục lục"
 
@@ -2890,8 +2894,9 @@ msgstr "Nhấn D ở bất kỳ đâu ngoài ô nhập văn bản để chuyển
 msgid "Preview"
 msgstr "Xem trước"
 
-#: src/routes/s/$token.tsx:392
-#: src/routes/s/$token.tsx:401
+#: src/routes/s/$token.tsx:345
+#: src/routes/s/$token.tsx:618
+#: src/routes/s/$token.tsx:627
 msgid "Preview {nodeName}"
 msgstr "Xem trước {nodeName}"
 
@@ -2944,7 +2949,7 @@ msgstr "Trích dẫn"
 msgid "re-share"
 msgstr "chia sẻ lại"
 
-#: src/routes/edit/$nodeId.tsx:104
+#: src/routes/edit/$nodeId.tsx:112
 msgid "read-only"
 msgstr "chỉ đọc"
 
@@ -3012,7 +3017,7 @@ msgstr "Gỡ liên kết"
 msgid "Remove password"
 msgstr "Xoá mật khẩu"
 
-#: src/components/node-actions.tsx:176
+#: src/components/node-actions.tsx:175
 msgid "Remove star"
 msgstr "Bỏ gắn sao"
 
@@ -3036,7 +3041,7 @@ msgstr "Được gỡ khỏi không gian này tại đây"
 msgid "Removes “{spaceName}” and everything in it — every file, version, share and member. The blobs are released and cannot be recovered. Its Logto organization is kept; delete it in Logto too if the company is gone."
 msgstr "Xoá “{spaceName}” và mọi thứ bên trong — mọi tệp, phiên bản, chia sẻ và thành viên. Dữ liệu sẽ được giải phóng và không thể khôi phục. Tổ chức Logto của nó vẫn được giữ; hãy xoá cả trong Logto nếu công ty không còn nữa."
 
-#: src/components/node-actions.tsx:195
+#: src/components/node-actions.tsx:194
 #: src/components/selection-bar.tsx:74
 #: src/routes/drive/$spaceId/index.tsx:602
 msgid "Rename"
@@ -3180,7 +3185,7 @@ msgstr "Lưu"
 msgid "Save changes"
 msgstr "Lưu thay đổi"
 
-#: src/components/doc-editor/doc-editor.tsx:423
+#: src/components/doc-editor/doc-editor.tsx:424
 msgid "Saved"
 msgstr "Đã lưu"
 
@@ -3188,7 +3193,7 @@ msgstr "Đã lưu"
 msgid "Saved {created} · {size}"
 msgstr "Đã lưu {created} · {size}"
 
-#: src/routes/edit/$nodeId.tsx:104
+#: src/routes/edit/$nodeId.tsx:112
 msgid "saved by OnlyOffice"
 msgstr "được lưu bởi OnlyOffice"
 
@@ -3295,13 +3300,17 @@ msgstr "Gửi email thử nghiệm"
 msgid "Sends to {targetEmail}. Save changes first."
 msgstr "Gửi tới {targetEmail}. Hãy lưu thay đổi trước."
 
-#: src/routes/login.tsx:150
+#: src/routes/login.tsx:134
 msgid "Separate teams, each with its own groups and shared folders."
 msgstr "Các đội riêng biệt, mỗi đội có nhóm và thư mục dùng chung riêng."
 
+#: src/routes/s/$token.tsx:681
+msgid "Served by {PRODUCT_NAME} · self-hosted"
+msgstr "Cung cấp bởi {PRODUCT_NAME} · tự lưu trữ"
+
 #: src/routes/s/$token.tsx:459
-msgid "Served by pp-hub · self-hosted"
-msgstr "Cung cấp bởi pp-hub · tự lưu trữ"
+#~ msgid "Served by pp-hub · self-hosted"
+#~ msgstr "Cung cấp bởi pp-hub · tự lưu trữ"
 
 #: src/components/settings/panes/account-profile.tsx:99
 msgid "Server admin"
@@ -3352,7 +3361,7 @@ msgid "Settings sections"
 msgstr "Mục cài đặt"
 
 #: src/components/editor-header.tsx:91
-#: src/components/node-actions.tsx:185
+#: src/components/node-actions.tsx:184
 #: src/components/preview-panel.tsx:350
 #: src/components/selection-bar.tsx:69
 #: src/components/share-dialog.tsx:493
@@ -3375,7 +3384,7 @@ msgstr ""
 msgid "share revoked"
 msgstr "đã thu hồi chia sẻ"
 
-#: src/routes/s/$token.tsx:38
+#: src/routes/s/$token.tsx:44
 msgid "Shared"
 msgstr "Đã chia sẻ"
 
@@ -3386,7 +3395,7 @@ msgstr "Đã chia sẻ"
 msgid "Shared with me"
 msgstr "Được chia sẻ với tôi"
 
-#: src/routes/s/$token.tsx:449
+#: src/routes/s/$token.tsx:671
 msgid "Shared with you"
 msgstr "Được chia sẻ với bạn"
 
@@ -3426,14 +3435,18 @@ msgstr "Bố cục song song"
 msgid "Sidebar"
 msgstr "Thanh bên"
 
-#: src/routes/login.tsx:54
-#: src/routes/s/$token.tsx:452
+#: src/routes/login.tsx:55
+#: src/routes/s/$token.tsx:674
 msgid "Sign in"
 msgstr "Đăng nhập"
 
+#: src/routes/login.tsx:145
+msgid "Sign in to {PRODUCT_NAME}"
+msgstr "Đăng nhập vào {PRODUCT_NAME}"
+
 #: src/routes/login.tsx:161
-msgid "Sign in to pp-hub"
-msgstr "Đăng nhập pp-hub"
+#~ msgid "Sign in to pp-hub"
+#~ msgstr "Đăng nhập pp-hub"
 
 #: src/components/nav-user.tsx:138
 msgid "Sign out"
@@ -3448,11 +3461,11 @@ msgstr "Đăng xuất khỏi mọi nơi khác"
 msgid "Sign out everywhere else?"
 msgstr "Đăng xuất khỏi mọi nơi khác?"
 
-#: src/routes/login.tsx:174
+#: src/routes/login.tsx:158
 msgid "Sign-in failed. Try again."
 msgstr "Đăng nhập thất bại. Thử lại."
 
-#: src/routes/login.tsx:42
+#: src/routes/login.tsx:43
 msgid "Sign-in was cancelled."
 msgstr "Đã huỷ đăng nhập."
 
@@ -3480,7 +3493,7 @@ msgstr "Thiết bị đã đăng nhập"
 #: src/components/settings/panes/account-general.tsx:46
 #: src/components/space-node-table.tsx:94
 #: src/components/trash-panel.tsx:297
-#: src/routes/s/$token.tsx:338
+#: src/routes/s/$token.tsx:566
 msgid "Size"
 msgstr "Kích thước"
 
@@ -3500,11 +3513,11 @@ msgstr "Slug"
 msgid "Small section title"
 msgstr "Tiêu đề phần nhỏ"
 
-#: src/components/markdown-document-view/read-only-editor.tsx:68
+#: src/components/markdown-document-view/read-only-editor.tsx:88
 msgid "Some formatting in this file cannot be shown here. Download it to see all of it."
 msgstr "Một số định dạng trong tệp này không hiển thị được ở đây. Hãy tải xuống để xem đầy đủ."
 
-#: src/routes/login.tsx:45
+#: src/routes/login.tsx:46
 msgid "Something went wrong on our side. Try again in a moment."
 msgstr "Đã xảy ra lỗi từ phía chúng tôi. Thử lại sau giây lát."
 
@@ -3542,7 +3555,7 @@ msgstr "Cài đặt không gian"
 #: src/components/space-switcher.tsx:92
 #: src/routes/admin.users.tsx:116
 #: src/routes/admin.users.tsx:163
-#: src/routes/login.tsx:149
+#: src/routes/login.tsx:133
 msgid "Spaces"
 msgstr "Không gian"
 
@@ -3621,7 +3634,7 @@ msgstr "Đã tạm khoá"
 msgid "Switch space"
 msgstr "Chuyển không gian"
 
-#: src/components/doc-editor/doc-editor.tsx:428
+#: src/components/doc-editor/doc-editor.tsx:429
 msgid "Syncing…"
 msgstr "Đang đồng bộ…"
 
@@ -3675,7 +3688,7 @@ msgstr "Chuỗi bình luận đó không còn tồn tại."
 msgid "That name is taken"
 msgstr "Tên này đã được sử dụng"
 
-#: src/routes/login.tsx:39
+#: src/routes/login.tsx:40
 msgid "That sign-in link expired or was already used. Start again from this page."
 msgstr "Liên kết đăng nhập đã hết hạn hoặc đã được dùng. Hãy bắt đầu lại từ trang này."
 
@@ -3684,11 +3697,11 @@ msgstr "Liên kết đăng nhập đã hết hạn hoặc đã được dùng. H
 msgid "The identity provider could not be reached. Nothing was changed; try again in a moment."
 msgstr "Không kết nối được với nhà cung cấp danh tính. Chưa có gì thay đổi; hãy thử lại sau giây lát."
 
-#: src/routes/login.tsx:40
+#: src/routes/login.tsx:41
 msgid "The identity provider refused to complete the sign-in. Try again."
 msgstr "Nhà cung cấp danh tính đã từ chối hoàn tất đăng nhập. Thử lại."
 
-#: src/routes/login.tsx:41
+#: src/routes/login.tsx:42
 msgid "The identity provider's response could not be verified. Try again."
 msgstr "Không thể xác minh phản hồi từ nhà cung cấp danh tính. Thử lại."
 
@@ -3710,7 +3723,7 @@ msgid "The rest of the thread stays."
 msgstr "Phần còn lại của chuỗi bình luận vẫn được giữ."
 
 #: src/components/doc-editor/doc-editor.tsx:215
-#: src/components/markdown-document-view/index.tsx:121
+#: src/components/markdown-document-view/index.tsx:128
 msgid "The server did not answer."
 msgstr "Máy chủ không phản hồi."
 
@@ -3726,7 +3739,7 @@ msgstr "Tệp của họ vẫn được giữ nguyên và chờ bàn giao ở m�
 msgid "Theme"
 msgstr "Giao diện"
 
-#: src/routes/s/$token.tsx:320
+#: src/routes/s/$token.tsx:548
 msgid "There is nothing shared here yet."
 msgstr "Chưa có gì được chia sẻ ở đây."
 
@@ -3758,7 +3771,7 @@ msgstr "Họ không sở hữu gì ở đây nên không có gì chuyển vào K
 msgid "They will be added to {destination}"
 msgstr "Họ sẽ được thêm vào {destination}"
 
-#: src/routes/login.tsx:43
+#: src/routes/login.tsx:44
 msgid "This account is suspended. Contact an administrator."
 msgstr "Tài khoản này đã bị tạm khoá. Hãy liên hệ quản trị viên."
 
@@ -3782,7 +3795,7 @@ msgstr "Thiết bị này"
 msgid "This device stays signed in."
 msgstr "Thiết bị này luôn ở trạng thái đăng nhập."
 
-#: src/components/markdown-document-view/index.tsx:116
+#: src/components/markdown-document-view/index.tsx:123
 msgid "This document cannot be shown"
 msgstr "Không thể hiển thị tài liệu này"
 
@@ -3794,11 +3807,11 @@ msgstr "Tài liệu này không khả dụng"
 msgid "This file contains formatting the block editor cannot keep, such as raw HTML or footnotes. Saving rewrites the file without it. The original stays in version history, and you can restore it from there."
 msgstr "Tệp này chứa định dạng mà trình soạn thảo khối không giữ được, chẳng hạn HTML thô hoặc chú thích cuối trang. Khi lưu, tệp sẽ được ghi lại mà không có phần đó. Bản gốc vẫn nằm trong lịch sử phiên bản và bạn có thể khôi phục từ đó."
 
-#: src/components/preview-content.tsx:278
+#: src/components/preview-content.tsx:277
 msgid "This file opens in the office editor."
 msgstr "Tệp này mở trong trình soạn thảo Office."
 
-#: src/routes/s/$token.tsx:152
+#: src/routes/s/$token.tsx:163
 msgid "This file was shared with you"
 msgstr "Tệp này đã được chia sẻ với bạn"
 
@@ -3807,11 +3820,11 @@ msgid "this folder"
 msgstr "thư mục này"
 
 #: src/routes/drive/$spaceId/index.tsx:522
-#: src/routes/s/$token.tsx:317
+#: src/routes/s/$token.tsx:545
 msgid "This folder is empty"
 msgstr "Thư mục này trống"
 
-#: src/routes/s/$token.tsx:150
+#: src/routes/s/$token.tsx:161
 msgid "This folder was shared with you"
 msgstr "Thư mục này đã được chia sẻ với bạn"
 
@@ -3823,11 +3836,19 @@ msgstr "Nhóm này chứa các quản trị viên của không gian. Dùng công
 msgid "This group opens no folders, so nobody loses access."
 msgstr "Nhóm này không mở thư mục nào, nên không ai mất quyền truy cập."
 
-#: src/routes/s/$token.tsx:274
-msgid "This link does not allow downloads, so it shows the names, sizes and dates of these files but cannot open their contents."
-msgstr "Liên kết này không cho phép tải xuống, nên chỉ hiển thị tên, kích thước và ngày của các tệp này mà không thể mở nội dung."
+#: src/routes/s/$token.tsx:422
+msgid "This kind of file cannot be shown here, and this link does not allow downloads."
+msgstr "Loại tệp này không thể hiển thị tại đây, và liên kết này không cho phép tải xuống."
 
-#: src/routes/s/$token.tsx:116
+#: src/routes/s/$token.tsx:420
+msgid "This kind of file cannot be shown here. Download it to open it."
+msgstr "Loại tệp này không thể hiển thị tại đây. Hãy tải xuống để mở."
+
+#: src/routes/s/$token.tsx:274
+#~ msgid "This link does not allow downloads, so it shows the names, sizes and dates of these files but cannot open their contents."
+#~ msgstr "Liên kết này không cho phép tải xuống, nên chỉ hiển thị tên, kích thước và ngày của các tệp này mà không thể mở nội dung."
+
+#: src/routes/s/$token.tsx:124
 msgid "This link is not available"
 msgstr "Liên kết này không khả dụng"
 
@@ -3990,7 +4011,7 @@ msgstr "Tài liệu không tên"
 msgid "Untitled file"
 msgstr "Tệp không tên"
 
-#: src/components/doc-editor/outline-panel.tsx:126
+#: src/components/doc-editor/outline-panel.tsx:86
 msgid "Untitled heading"
 msgstr "Tiêu đề chưa đặt tên"
 
@@ -4045,7 +4066,7 @@ msgstr "Tải lên hoặc đính kèm tệp"
 #~ msgid "Upload, organise and share files, with every version kept."
 #~ msgstr "Tải lên, sắp xếp và chia sẻ tệp, lưu giữ mọi phiên bản."
 
-#: src/routes/login.tsx:144
+#: src/routes/login.tsx:128
 msgid "Upload, organise and share files, with their version history."
 msgstr "Tải lên, sắp xếp và chia sẻ tệp, kèm lịch sử phiên bản."
 
@@ -4109,7 +4130,7 @@ msgid "Version history"
 msgstr "Lịch sử phiên bản"
 
 #: src/components/editor-header.tsx:100
-#: src/components/node-actions.tsx:160
+#: src/components/node-actions.tsx:159
 #: src/components/preview-modal.tsx:149
 #: src/components/preview-panel.tsx:356
 #: src/components/preview-panel.tsx:396
@@ -4153,9 +4174,13 @@ msgstr "Xem"
 msgid "View all"
 msgstr "Xem tất cả"
 
-#: src/routes/s/$token.tsx:168
+#: src/routes/s/$token.tsx:176
 msgid "view and download"
 msgstr "xem và tải xuống"
+
+#: src/routes/s/$token.tsx:176
+msgid "view only"
+msgstr "chỉ xem"
 
 #: src/components/doc-editor/labels.ts:38
 msgid "Visual separator"
@@ -4219,7 +4244,7 @@ msgstr "Bạn chưa thuộc không gian nào"
 msgid "You are not in any space yet."
 msgstr "Bạn chưa thuộc không gian nào."
 
-#: src/routes/s/$token.tsx:265
+#: src/routes/s/$token.tsx:293
 msgid "You are viewing a shared link"
 msgstr "Bạn đang xem một liên kết được chia sẻ"
 
@@ -4240,6 +4265,10 @@ msgstr "Bạn đã tạo"
 #: src/routes/drive/$spaceId/recent.tsx:32
 msgid "You deleted"
 msgstr "Bạn đã xoá"
+
+#: src/components/preview-content.tsx:268
+msgid "You do not have access to this file."
+msgstr "Bạn không có quyền truy cập tệp này."
 
 #: src/routes/drive/$spaceId/home.tsx:45
 #: src/routes/drive/$spaceId/recent.tsx:36
@@ -4303,6 +4332,6 @@ msgstr "Có thể quyền truy cập của bạn đã bị gỡ, hoặc tệp kh
 msgid "Your spaces"
 msgstr "Không gian của bạn"
 
-#: src/routes/login.tsx:133
+#: src/routes/login.tsx:117
 msgid "Your workspace, on your own server."
 msgstr "Không gian làm việc của bạn, trên máy chủ của chính bạn."

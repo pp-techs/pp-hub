@@ -92,11 +92,11 @@ flowchart LR
 
 A grant carries a **level** plus two independent **flags**:
 
-| Column         | Values           | Meaning                                                     |
-| :------------- | :--------------- | :---------------------------------------------------------- |
-| `level`        | `view` \| `edit` | `edit` allows mutation; `view` is read-side                 |
-| `can_download` | boolean          | `GET /nodes/{id}/download` — the file, or a folder as a zip |
-| `can_share`    | boolean          | may create further grants on the subtree                    |
+| Column         | Values           | Meaning                                                       |
+| :------------- | :--------------- | :------------------------------------------------------------ |
+| `level`        | `view` \| `edit` | `edit` allows mutation; `view` is reading the file            |
+| `can_download` | boolean          | save a copy: `GET /nodes/{id}/download`, or a folder as a zip |
+| `can_share`    | boolean          | may create further grants on the subtree                      |
 
 Two database CHECKs hold the shape:
 
@@ -105,31 +105,22 @@ Two database CHECKs hold the shape:
 - `shares_link_ck` — a link is always `level = 'view'` with `can_share = false`.
   Edit-via-link stays post-MVP, and links must not chain.
 
-`can_download` gates **the bytes themselves**, in every route that would hand
-them over: `GET /nodes/{id}/download`, the folder zip, and
-`GET /nodes/{id}/content` — the inline stream the PDF viewer, `<img>` and
-`<video>` read. Serving `/content` under `CapView`, as it once did, made the
-flag a label: a reader could open the file in a tab and keep it. What a reader
-without download still gets is `GET /nodes/{id}/preview?kind=thumbnail`, a
-256px rasterization the preview worker _derived_ from the file, which is
-view-gated and stays so. `?kind=text` is not in that category and no longer
-pretends to be: it is the first 4 KiB of the source, byte for byte, which for
-a note, a CSV, a config file or a key is usually the whole document, so it
-takes `CapDownload` too. The client follows rather than guesses:
-`PreviewBody` gates on `caps.download`, falls back to the stored thumbnail for
-an image, asks for `?kind=text` only when the capability is there — requesting
-it without would be a guaranteed 403 rendered as "preview not ready", which is
-a lie about why — and otherwise says plainly that downloads are off for this
-file. "Open in new tab" and "Download" are not offered. Drive draws the line
-in the same place. The full list of byte-serving paths and what each demands
-is below.
+**View reads; download saves.** A viewer may open the file and see it — the
+inline stream (`GET /nodes/{id}/content`), a block document's tree
+(`/document`), its attachments, the text preview, and the content search — and
+`can_download` is what adds the routes that hand a copy over deliberately:
+`/download`, the folder zip, `/export`, and copy-as-source. The honest limit is
+that a render is still the file's bytes: a browser viewing a PDF or an image
+can save it, so `can_download` is the difference between "save" being offered
+and being worked around. It is a UX distinction that the UI keeps consistent,
+not an encryption boundary, and nothing here tries to make the bytes
+unsaveable by deriving a separate render.
 
-`can_download` is also what **copying** takes. `POST /nodes/{id}/copy`
-authorises the source with `CapDownload` and the destination with
-`requireParentWrite`, so a reader may work from somebody else's file in their
-own folder — and a reader denied download cannot launder the bytes through a
-copy. Requiring `CapEdit` on the source, as it once did, denied the ordinary
-case while leaving the loophole open.
+`can_download` also gates **copying**. `POST /nodes/{id}/copy` authorises the
+source with `CapDownload` and the destination with `requireParentWrite`, so a
+reader may work from somebody else's file in their own folder — a copy is a
+lasting one, which is more than a look. Copy needs both rights because it
+creates a node of the caller's own.
 
 `can_share` is **independent of level** in storage and on the wire: a viewer may
 be allowed to pass their view on, and an editor may be denied re-sharing. Share
@@ -221,12 +212,12 @@ weaker rule of its own.
 Node-addressed routes go through `requireNodeCaps(w, r, need share.Cap)`, which
 resolves the node and demands one capability:
 
-| Capability    | Routes                                                                                                                                                                                                                                                      |
-| :------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CapView`     | `GET /nodes/{id}`, `/children`, `/tree`, `/preview?kind=thumbnail`, versions, star                                                                                                                                                                          |
-| `CapDownload` | `GET /nodes/{id}/download` (file or streamed zip), `/content`, `/preview?kind=text`, copy source, `POST /nodes/{id}/edit-session`, `GET /nodes/{id}/collab`, `/attachments/{hash}`, `/document`, `/export`, `/comments`, `POST /nodes/{id}/comment-threads` |
-| `CapEdit`     | rename, move (plus [the move rules](#moving-changes-who-can-reach-it)), delete, upload-into, version restore, trash restore/purge, WOPI save, tus upload with `attach_to`, `POST /nodes/{id}/unfurl`                                                        |
-| `CapShare`    | list/create/revoke shares, list/upsert/revoke group grants, `GET /nodes/{id}/inherited-access` — each change also bounded by [Monotonicity](#monotonicity)                                                                                                  |
+| Capability    | Routes                                                                                                                                                                                                                                                        |
+| :------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `CapView`     | `GET /nodes/{id}`, `/children`, `/tree`, `/preview?kind=thumbnail`, versions, star, `/content`, `/preview?kind=text`, `/document`, `/attachments/{hash}`, `/comments` and `POST /nodes/{id}/comment-threads`, `POST /nodes/{id}/edit-session`, content search |
+| `CapDownload` | `GET /nodes/{id}/download` (file or streamed zip), `/export`, copy source, `GET /nodes/{id}/collab`                                                                                                                                                           |
+| `CapEdit`     | rename, move (plus [the move rules](#moving-changes-who-can-reach-it)), delete, upload-into, version restore, trash restore/purge, WOPI save, tus upload with `attach_to`, `POST /nodes/{id}/unfurl`                                                          |
+| `CapShare`    | list/create/revoke shares, list/upsert/revoke group grants, `GET /nodes/{id}/inherited-access` — each change also bounded by [Monotonicity](#monotonicity)                                                                                                    |
 
 Creating into a folder goes through `requireParentWrite`:
 
@@ -300,31 +291,34 @@ as a grant).
 `GET /usage` is deliberately **not** narrowed: it is an aggregate of bytes per
 MIME family, names nothing, and the rail already shows the space quota beside it.
 
-### Handing Over the File Is a Download
+### Reading Is View; Saving Is Download
 
-One rule decides every row below: **handing over the complete file is a
-download, whatever the `Content-Disposition` says.** Inline versus attachment
-is a rendering hint to a browser; it is not an access-control boundary, and
-treating it as one is how three separate routes ended up serving byte-identical
-originals to callers who had been refused exactly that. What a view-only reader
-may have is something _derived_ from the file — a rasterization — not the file
-at a different `Content-Type`.
+One rule decides every row below: **reading the file is view, and taking a
+copy away is download.** View opens the file — the inline stream the browser
+renders, the block document's tree, its attachments, the text preview. Download
+adds the routes that deliberately hand the bytes over: the file as an
+attachment, the folder as a zip, the export, a copy whose source is authorised
+with it.
 
-| Path                                                         | Demands                          | Why                                                                 |
-| :----------------------------------------------------------- | :------------------------------- | :------------------------------------------------------------------ |
-| `GET /nodes/{id}/download`                                   | `CapDownload`                    | The file, or a folder streamed as a zip                             |
-| `GET /nodes/{id}/content`                                    | `CapDownload`                    | Same bytes, `inline` for the allowlisted MIME types                 |
-| `GET /nodes/{id}/preview?kind=thumbnail`                     | `CapView`                        | 256px PNG the worker rendered; genuinely derived                    |
-| `GET /nodes/{id}/preview?kind=text`                          | `CapDownload`                    | A verbatim 4 KiB prefix of the source — the document, not a summary |
-| `GET /s/{token}/download`, `/node-download`, `/download-all` | the link's `can_download`        | Attachment, anonymous                                               |
-| `GET /s/{token}/content`                                     | the link's `can_download`        | Inline, anonymous — and it is the same bytes as `/node-download`    |
-| `GET /wopi/files/{id}/contents`                              | token rank ≥ 2 (= `CapDownload`) | The Document Server fetching the whole document for the editor      |
-| `POST /nodes/{id}/edit-session`                              | `CapDownload`                    | Minting the token above; there is no "open without fetching"        |
-| `GET /nodes/{id}/collab`, `GET /collab/{room}`               | `CapDownload`                    | A block document's room: sync hands the whole document over         |
-| `GET /nodes/{id}/attachments/{hash}`                         | `CapDownload` on the document    | An image, video or file dropped into a block document               |
-| `GET /nodes/{id}/document`                                   | `CapDownload`                    | A block document's whole tree, for the read-only view               |
-| `GET /nodes/{id}/export`                                     | `CapDownload`                    | The markdown and every attachment as a zip; audited as a download   |
-| `GET /s/{token}/document`, `/s/{token}/attachments/{hash}`   | the link's `can_download`        | The read-only view through a link, node inside the link             |
+The honest limit: a render is still the file's bytes. A browser showing a PDF
+or an image can be told to save it, so `can_download` is the difference between
+offering a save and not — not a wall around the bytes. Deriving a separate
+render to make them unsaveable is a different design and is not this one.
+
+| Path                                                                          | Demands                      | Why                                                                 |
+| :---------------------------------------------------------------------------- | :--------------------------- | :------------------------------------------------------------------ |
+| `GET /nodes/{id}/download`                                                    | `CapDownload`                | The file, or a folder streamed as a zip                             |
+| `GET /nodes/{id}/content`                                                     | `CapView`                    | The same bytes, `inline` for the allowlisted MIME types             |
+| `GET /nodes/{id}/preview?kind=thumbnail`                                      | `CapView`                    | 256px PNG the worker rendered; genuinely derived                    |
+| `GET /nodes/{id}/preview?kind=text`                                           | `CapView`                    | A 4 KiB prefix of the source — a read, like the file itself         |
+| `GET /s/{token}/content`, `/document`, `/attachments/{hash}`, `/edit-session` | the link (always view)       | Inline render, anonymous                                            |
+| `GET /s/{token}/download`, `/node-download`, `/download-all`                  | the link's `can_download`    | Attachment, anonymous                                               |
+| `GET /wopi/files/{id}/contents`                                               | token rank ≥ 1 (= `CapView`) | The Document Server fetching the document to render it in view mode |
+| `POST /nodes/{id}/edit-session`                                               | `CapView`                    | Minting a read-only or edit session for OnlyOffice                  |
+| `GET /nodes/{id}/collab`, `GET /collab/{room}`                                | `CapDownload`                | A block document's room: sync hands the whole document over         |
+| `GET /nodes/{id}/attachments/{hash}`                                          | `CapView` on the document    | An image, video or file dropped into a block document               |
+| `GET /nodes/{id}/document`                                                    | `CapView`                    | A block document's whole tree, for the read-only view               |
+| `GET /nodes/{id}/export`                                                      | `CapDownload`                | The markdown and every attachment as a zip; audited as a download   |
 
 Four notes on the table:
 
@@ -334,15 +328,13 @@ Four notes on the table:
   which is why that exemption is load-bearing rather than cosmetic. The token
   comes from this deployment, is scoped to one node, lasts five minutes, and
   the signing key is its authorization.
-- **The accepted cost.** A reader granted view-without-download cannot open an
-  office document at all — only its thumbnail, which is the first page at
-  256px. There is no version of "view a `.docx` without downloading it": the
-  Document Server fetches the whole file and the browser renders it, so the
-  bytes leave the server either way. The old behaviour (an editor session on
-  `CapView`, rank 1 sufficient for `GetFile`) was not a kinder reading of the
-  grant, it was a way around it. A read-only session is now rank 2 rather than
-  rank 1, because rank 1 would mint a session that cannot fetch its own
-  document; rank 3 is still what `PutFile` and the lock operations demand. See
+- **Office documents in view mode.** View opens office documents (`.docx`, `.xlsx`,
+  `.pptx`, etc.) in OnlyOffice read-only mode (`/view`). `POST /nodes/{id}/edit-session`
+  takes `CapView` and mints rank 1 (or rank 2 if `CapDownload`). `GetFile` allows rank ≥ 1
+  so OnlyOffice can fetch the file bytes to display the document, while `CheckFileInfo`
+  disables print and export (`DisablePrint`, `DisableExport`, `DisableCopy`) when rank < 2,
+  and `PutFile` / lock ops require rank 3 (`CapEdit`). The same read-only view is
+  provided to public links through `GET /s/{token}/edit-session`. See
   [office-integration.md](office-integration.md).
 - **Block documents (M39).** The collaboration socket is authorized by the
   room itself, not `requireNodeCaps`: `Authorize` demands `CapDownload` and
@@ -353,19 +345,19 @@ Four notes on the table:
   changed, so a revoked peer is refused on reconnect and a downgraded one
   returns read-only. Attachments follow their document, not a grant of their
   own: uploading one (`attach_to`) takes `CapEdit` on the document, checked at
-  creation and again at commit, and reading one takes `CapDownload` on it; a
+  creation and again at commit, and reading one takes `CapView` on it; a
   hash the document does not hold is 404 even if another document holds it.
   See [block-documents.md](block-documents.md).
 - **Comments and notifications (M29).** Taking part in a document's
-  discussion takes `CapDownload` on it — reading threads, opening one,
-  replying — because whoever can open the document can already read every
-  word it annotates. Routes addressed by thread or comment id resolve the
+  discussion takes `CapView` on it — reading threads, opening one,
+  replying — because whoever can read the document can read every word it
+  annotates. Routes addressed by thread or comment id resolve the
   document first and check the same capability. Beyond that, editing a
   comment is its author's alone; deleting one is its author's or `CapEdit`'s;
   resolving or reopening a thread is its opener's or `CapEdit`'s. Nobody is
-  notified about a document they cannot currently download, and the
+  notified about a document they cannot currently view, and the
   notification list and unread count drop items whose document the reader can
-  no longer download, so a revoked grant stops the excerpts too. The stream
+  no longer view, so a revoked grant stops the excerpts too. The stream
   re-checks its session every 60 s. **Unfurl** takes `CapEdit`: it stores an
   attachment on the document.
 
@@ -619,17 +611,21 @@ content still marked as a team's.
 ## Anonymous Link Browsing
 
 A link resolves without a user to `share.LinkCaps`: view, plus download when
-the link says so. Every route under `/s/{token}` that serves original bytes —
-`/content` as well as `/node-download`, `/download` and `/download-all` (zip)
-— requires the download flag. `/content` once served the file inline under
-view on the reasoning that a view-only link needs something to show; what it
-actually did was hand over a byte-identical copy of every file in the subtree,
-one `?node=` at a time, which made `can_download: false` a label rather than a
-rule. There is no preview endpoint under `/s/{token}` — previews are
-authenticated — so a no-download link is now honestly what it is: names,
-sizes and dates, and no file bytes at all. The share page says so in those
-words rather than promising a preview the server will refuse, which is the
-trade this fix makes and the reason it is worth stating twice.
+the link says so. View is the whole point of a link — it opens what the link
+covers: `/content` renders a file inline, `/document` a markdown document's
+tree, `/attachments/{hash}` its images, and the page draws a PDF, an image, a
+video or a text file from those bytes. The download flag adds only the routes
+that hand a copy over deliberately — `/node-download`, `/download` and
+`/download-all` (zip) — and the page offers no save button without it.
+
+The line is not a wall and the docs should not pretend it is: a streamed render
+is the file's bytes, so a visitor who can view a PDF can also save it from the
+browser. What `can_download: false` means is that saving is not _offered_ —
+there is no Download button, no zip, and no exported bundle. An earlier version
+of this code resolved that tension by refusing `/content` too, which made a
+link without download useless for its purpose: it could only list names, sizes
+and dates. The token is also short now — sixteen base62 characters — so the
+URL is one a person can read back over a call.
 
 Every node id an anonymous caller supplies is walked back up to the share root
 before anything is served. A node outside that subtree answers **404, not
@@ -655,10 +651,10 @@ path per way. A link whose creator has left the space fails the same check,
 because resolution step 0 (membership) fails for them.
 
 Nor is a link ever **wider** than its creator's access today. Monotonicity is
-checked when a link is minted; a creator since narrowed to view-only must not
-keep handing out the bytes anonymously, so `resolveLinkNode` clears the
+checked when a link is minted; a creator since narrowed to view-without-download
+must not keep handing out the bytes anonymously, so `resolveLinkNode` clears the
 link's download flag whenever the creator no longer holds `CapDownload`.
-Every byte route reads the flag through `LinkCaps`, so the clamp reaches all
+Every download route reads the flag through `LinkCaps`, so the clamp reaches all
 of them, and `GET /s/{token}` reports `can_download: false`.
 
 ## Archive

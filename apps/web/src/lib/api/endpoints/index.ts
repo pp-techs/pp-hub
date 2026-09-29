@@ -466,6 +466,23 @@ export async function createEditSession(
   return res.json() as Promise<EditSession>;
 }
 
+/** Mints an OnlyOffice view session for an office document inside a share link. */
+export async function createShareEditSession(
+  token: string,
+  nodeId?: string,
+  locale?: string,
+  theme?: "light" | "dark",
+): Promise<EditSession> {
+  const query = new URLSearchParams();
+  if (nodeId) query.set("node", nodeId);
+  if (locale) query.set("ui", locale);
+  if (theme) query.set("theme", theme);
+  const suffix = query.size > 0 ? `?${query.toString()}` : "";
+  const res = await api.get(`s/${token}/edit-session${suffix}`);
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<EditSession>;
+}
+
 // ─── Block documents ────────────────────────────────────────────────────────
 
 /** The room a markdown document is edited in right now, and what this user may do there. */

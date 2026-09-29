@@ -325,7 +325,7 @@ shares(id, tenant_id, node_id,                  -- file or folder; inherits down
        grantee_user_id,                         -- direct only
        grantee_group_id,                        -- group only
        level,                                   -- view | edit
-       can_download,                            -- raw bytes
+       can_download,                            -- save a copy, not read it
        can_share,                               -- may re-grant on this subtree
        expires_at, created_by, created_at)
   UNIQUE (node_id, grantee_group_id) WHERE kind = 'group'

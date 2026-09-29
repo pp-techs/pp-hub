@@ -103,7 +103,7 @@ func TestAttachmentsFollowTheirDocumentsAccess(t *testing.T) {
 		{"owner", f.owner, http.StatusOK},
 		{"editor", f.editor, http.StatusOK},
 		{"reader", f.reader, http.StatusOK},
-		{"view only", f.viewer, http.StatusForbidden},
+		{"view only", f.viewer, http.StatusOK},
 		{"member without a grant", f.stranger, http.StatusForbidden},
 	} {
 		got := rig.attachment(t, tc.u, f.doc, pngHash)

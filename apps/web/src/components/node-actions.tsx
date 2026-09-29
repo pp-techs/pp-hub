@@ -110,9 +110,8 @@ export function nodeActions(
       shortcut: "Space",
       run: () => handlers.onPreview(node),
     });
-    // Opening the bytes in a tab hands the file over as surely as Download
-    // does, and `/content` refuses it without the capability.
-    if (canOpenInTab(node) && caps.download) {
+    // Opening the bytes in a tab is reading them: `/content` takes view.
+    if (canOpenInTab(node) && caps.view) {
       actions.push({
         key: "open-tab",
         label: msg`Open in new tab`,

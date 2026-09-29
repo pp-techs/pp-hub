@@ -179,7 +179,7 @@ msgstr ""
 msgid "{ip} · last active {lastActive} · signed in {signedIn}"
 msgstr ""
 
-#: src/routes/s/$token.tsx:191
+#: src/routes/s/$token.tsx:196
 msgid "{itemCount, plural, one {# item} other {# items}}"
 msgstr ""
 
@@ -264,11 +264,11 @@ msgstr ""
 msgid "{shared, plural, one {# grantee} other {# grantees}}"
 msgstr ""
 
-#: src/routes/s/$token.tsx:147
+#: src/routes/s/$token.tsx:158
 msgid "{sharedBy} shared this file"
 msgstr ""
 
-#: src/routes/s/$token.tsx:145
+#: src/routes/s/$token.tsx:156
 msgid "{sharedBy} shared this folder"
 msgstr ""
 
@@ -494,7 +494,7 @@ msgstr ""
 msgid "account unsuspended"
 msgstr ""
 
-#: src/routes/login.tsx:190
+#: src/routes/login.tsx:174
 msgid "Accounts are provisioned by an administrator."
 msgstr ""
 
@@ -556,7 +556,7 @@ msgstr ""
 msgid "Add someone to this group…"
 msgstr ""
 
-#: src/components/node-actions.tsx:176
+#: src/components/node-actions.tsx:175
 msgid "Add star"
 msgstr ""
 
@@ -656,7 +656,7 @@ msgstr ""
 msgid "Already here"
 msgstr ""
 
-#: src/routes/login.tsx:44
+#: src/routes/login.tsx:45
 msgid "An account already exists with this email address under a different identity provider. Contact an administrator."
 msgstr ""
 
@@ -678,8 +678,12 @@ msgstr ""
 msgid "Anyone with the link"
 msgstr ""
 
-#: src/routes/s/$token.tsx:269
+#: src/routes/s/$token.tsx:297
 msgid "Anyone with this link can view and download these files. You cannot edit or upload, and you cannot see who else has access."
+msgstr ""
+
+#: src/routes/s/$token.tsx:302
+msgid "Anyone with this link can view these files. Downloads are off, so there is no button to save a copy. You cannot edit or upload, and you cannot see who else has access."
 msgstr ""
 
 #: src/components/settings/panes/account-general.tsx:158
@@ -744,7 +748,7 @@ msgid "Bookmark a web page"
 msgstr ""
 
 #: src/components/locale-provider.tsx:85
-#: src/routes/s/$token.tsx:218
+#: src/routes/s/$token.tsx:223
 msgid "Breadcrumb"
 msgstr ""
 
@@ -864,7 +868,7 @@ msgstr ""
 msgid "Close details"
 msgstr ""
 
-#: src/components/doc-editor/outline-panel.tsx:101
+#: src/components/doc-editor/outline-panel.tsx:60
 msgid "Close outline"
 msgstr ""
 
@@ -971,11 +975,11 @@ msgstr ""
 msgid "Continue where you left off"
 msgstr ""
 
-#: src/routes/login.tsx:184
+#: src/routes/login.tsx:168
 msgid "Continue with SSO"
 msgstr ""
 
-#: src/routes/login.tsx:164
+#: src/routes/login.tsx:148
 msgid "Continue with the identity provider your administrator configured."
 msgstr ""
 
@@ -988,7 +992,7 @@ msgid "Copied as “{copyName}”"
 msgstr ""
 
 #: src/components/block-handle.tsx:219
-#: src/components/node-actions.tsx:231
+#: src/components/node-actions.tsx:230
 #: src/components/share-dialog.tsx:833
 msgid "Copy"
 msgstr ""
@@ -1133,7 +1137,7 @@ msgstr ""
 msgid "Could not sign out. Please try again."
 msgstr ""
 
-#: src/routes/login.tsx:171
+#: src/routes/login.tsx:155
 msgid "Could not sign you in"
 msgstr ""
 
@@ -1216,7 +1220,7 @@ msgstr ""
 msgid "Current access"
 msgstr ""
 
-#: src/components/node-actions.tsx:222
+#: src/components/node-actions.tsx:221
 msgid "Cut"
 msgstr ""
 
@@ -1419,25 +1423,21 @@ msgstr ""
 
 #: src/components/editor-header.tsx:108
 #: src/components/editor-header.tsx:133
-#: src/components/node-actions.tsx:139
+#: src/components/node-actions.tsx:138
 #: src/components/preview-modal.tsx:124
 #: src/components/preview-panel.tsx:341
 #: src/components/selection-bar.tsx:64
 #: src/components/version-list.tsx:122
-#: src/routes/s/$token.tsx:211
+#: src/routes/s/$token.tsx:216
 msgid "Download"
 msgstr ""
 
-#: src/routes/s/$token.tsx:416
+#: src/routes/s/$token.tsx:643
 msgid "Download {nodeName}"
 msgstr ""
 
-#: src/routes/s/$token.tsx:211
+#: src/routes/s/$token.tsx:216
 msgid "Download all"
-msgstr ""
-
-#: src/components/preview-content.tsx:269
-msgid "Downloads are off for this file, so it can only be opened by its owner."
 msgstr ""
 
 #: src/components/block-handle.tsx:135
@@ -1450,7 +1450,7 @@ msgstr ""
 
 #: src/routes/drive.tsx:33
 #: src/routes/drive/$spaceId/index.tsx:85
-#: src/routes/login.tsx:143
+#: src/routes/login.tsx:127
 msgid "Drive"
 msgstr ""
 
@@ -1477,7 +1477,7 @@ msgstr ""
 
 #: src/components/comments/comments-panel.tsx:536
 #: src/components/doc-editor/doc-editor.tsx:144
-#: src/components/node-actions.tsx:131
+#: src/components/node-actions.tsx:130
 msgid "Edit"
 msgstr ""
 
@@ -1489,11 +1489,11 @@ msgstr ""
 msgid "Edit anyway"
 msgstr ""
 
-#: src/routes/login.tsx:147
+#: src/routes/login.tsx:131
 msgid "Edit documents and spreadsheets together in the browser."
 msgstr ""
 
-#: src/routes/edit/$nodeId.tsx:15
+#: src/routes/edit/$nodeId.tsx:16
 msgid "Editing"
 msgstr ""
 
@@ -1639,7 +1639,7 @@ msgid "Export CSV"
 msgstr ""
 
 #: src/components/editor-header.tsx:125
-#: src/components/node-actions.tsx:152
+#: src/components/node-actions.tsx:151
 msgid "Export with images (.zip)"
 msgstr ""
 
@@ -1689,10 +1689,6 @@ msgstr ""
 
 #: src/routes/admin.security.tsx:93
 msgid "file downloaded"
-msgstr ""
-
-#: src/routes/s/$token.tsx:170
-msgid "file names and details only"
 msgstr ""
 
 #: src/routes/admin.security.tsx:95
@@ -1938,7 +1934,7 @@ msgstr ""
 msgid "Heading 3"
 msgstr ""
 
-#: src/components/doc-editor/outline-panel.tsx:108
+#: src/components/doc-editor/outline-panel.tsx:68
 msgid "Headings you add appear here."
 msgstr ""
 
@@ -1984,7 +1980,7 @@ msgstr ""
 msgid "Implicit TLS / SMTPS (port 465)"
 msgstr ""
 
-#: src/components/node-actions.tsx:169
+#: src/components/node-actions.tsx:168
 msgid "Information"
 msgstr ""
 
@@ -2052,7 +2048,7 @@ msgstr ""
 msgid "It may have been deleted, or you no longer have access."
 msgstr ""
 
-#: src/routes/s/$token.tsx:119
+#: src/routes/s/$token.tsx:127
 msgid "It may have expired, been revoked, or never existed. Ask whoever sent it for a new one."
 msgstr ""
 
@@ -2162,7 +2158,7 @@ msgstr ""
 msgid "Link copied"
 msgstr ""
 
-#: src/routes/s/$token.tsx:175
+#: src/routes/s/$token.tsx:180
 msgid "Link expires {expiresOn}"
 msgstr ""
 
@@ -2222,7 +2218,7 @@ msgstr ""
 msgid "Mail"
 msgstr ""
 
-#: src/components/node-actions.tsx:239
+#: src/components/node-actions.tsx:238
 msgid "Make a copy"
 msgstr ""
 
@@ -2310,11 +2306,11 @@ msgstr ""
 msgid "Mermaid diagram"
 msgstr ""
 
-#: src/routes/login.tsx:198
+#: src/routes/login.tsx:182
 msgid "Minimal self-hosted workspace: drive, office, spaces."
 msgstr ""
 
-#: src/routes/login.tsx:136
+#: src/routes/login.tsx:120
 msgid "Minimal self-hosted workspace: drive, office, spaces. Nothing leaves the machine you run it on."
 msgstr ""
 
@@ -2329,7 +2325,7 @@ msgstr ""
 #: src/components/preview-panel.tsx:392
 #: src/components/settings/panes/account-general.tsx:45
 #: src/components/space-node-table.tsx:91
-#: src/routes/s/$token.tsx:335
+#: src/routes/s/$token.tsx:563
 msgid "Modified"
 msgstr ""
 
@@ -2358,13 +2354,13 @@ msgstr ""
 msgid "Move “{name}”"
 msgstr ""
 
-#: src/components/node-actions.tsx:248
+#: src/components/node-actions.tsx:247
 #: src/routes/drive/$spaceId/index.tsx:641
 #: src/routes/drive/$spaceId/index.tsx:650
 msgid "Move to trash"
 msgstr ""
 
-#: src/components/node-actions.tsx:205
+#: src/components/node-actions.tsx:204
 msgid "Move to…"
 msgstr ""
 
@@ -2387,7 +2383,7 @@ msgstr ""
 #: src/components/team-folder-dialog.tsx:74
 #: src/components/trash-panel.tsx:282
 #: src/routes/drive.tsx:243
-#: src/routes/s/$token.tsx:332
+#: src/routes/s/$token.tsx:560
 msgid "Name"
 msgstr ""
 
@@ -2532,7 +2528,7 @@ msgstr ""
 msgid "No open comments."
 msgstr ""
 
-#: src/components/preview-content.tsx:289
+#: src/components/preview-content.tsx:288
 msgid "No preview available — use Download to view this file."
 msgstr ""
 
@@ -2643,11 +2639,11 @@ msgstr ""
 msgid "Numbered list"
 msgstr ""
 
-#: src/routes/login.tsx:146
+#: src/routes/login.tsx:130
 msgid "Office"
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:433
+#: src/components/doc-editor/doc-editor.tsx:434
 msgid "Offline"
 msgstr ""
 
@@ -2663,7 +2659,7 @@ msgstr ""
 msgid "Only an administrator can read the security log."
 msgstr ""
 
-#: src/routes/edit/$nodeId.tsx:142
+#: src/routes/edit/$nodeId.tsx:150
 msgid "OnlyOffice editor"
 msgstr ""
 
@@ -2672,15 +2668,15 @@ msgid "open"
 msgstr ""
 
 #: src/components/drive-write.tsx:214
-#: src/components/node-actions.tsx:131
-#: src/components/preview-content.tsx:282
+#: src/components/node-actions.tsx:130
+#: src/components/preview-content.tsx:281
 #: src/components/preview-modal.tsx:115
 #: src/components/preview-panel.tsx:331
 #: src/components/share-dialog.tsx:696
 msgid "Open"
 msgstr ""
 
-#: src/components/node-actions.tsx:118
+#: src/components/node-actions.tsx:117
 #: src/components/preview-content.tsx:151
 msgid "Open in new tab"
 msgstr ""
@@ -2693,8 +2689,8 @@ msgstr ""
 msgid "opened in editor"
 msgstr ""
 
-#: src/routes/edit/$nodeId.tsx:51
-#: src/routes/edit/$nodeId.tsx:110
+#: src/routes/edit/$nodeId.tsx:59
+#: src/routes/edit/$nodeId.tsx:118
 msgid "Opening editor…"
 msgstr ""
 
@@ -2723,8 +2719,8 @@ msgid "Outgoing mail settings reset"
 msgstr ""
 
 #: src/components/doc-editor/doc-editor.tsx:150
-#: src/components/doc-editor/outline-panel.tsx:94
-#: src/components/doc-editor/outline-panel.tsx:99
+#: src/components/doc-editor/outline-panel.tsx:52
+#: src/components/doc-editor/outline-panel.tsx:57
 msgid "Outline"
 msgstr ""
 
@@ -2828,8 +2824,9 @@ msgstr ""
 msgid "Preview"
 msgstr ""
 
-#: src/routes/s/$token.tsx:392
-#: src/routes/s/$token.tsx:401
+#: src/routes/s/$token.tsx:345
+#: src/routes/s/$token.tsx:618
+#: src/routes/s/$token.tsx:627
 msgid "Preview {nodeName}"
 msgstr ""
 
@@ -2882,7 +2879,7 @@ msgstr ""
 msgid "re-share"
 msgstr ""
 
-#: src/routes/edit/$nodeId.tsx:104
+#: src/routes/edit/$nodeId.tsx:112
 msgid "read-only"
 msgstr ""
 
@@ -2950,7 +2947,7 @@ msgstr ""
 msgid "Remove password"
 msgstr ""
 
-#: src/components/node-actions.tsx:176
+#: src/components/node-actions.tsx:175
 msgid "Remove star"
 msgstr ""
 
@@ -2970,7 +2967,7 @@ msgstr ""
 msgid "Removes “{spaceName}” and everything in it — every file, version, share and member. The blobs are released and cannot be recovered. Its Logto organization is kept; delete it in Logto too if the company is gone."
 msgstr ""
 
-#: src/components/node-actions.tsx:195
+#: src/components/node-actions.tsx:194
 #: src/components/selection-bar.tsx:74
 #: src/routes/drive/$spaceId/index.tsx:602
 msgid "Rename"
@@ -3110,7 +3107,7 @@ msgstr ""
 msgid "Save changes"
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:423
+#: src/components/doc-editor/doc-editor.tsx:424
 msgid "Saved"
 msgstr ""
 
@@ -3118,7 +3115,7 @@ msgstr ""
 msgid "Saved {created} · {size}"
 msgstr ""
 
-#: src/routes/edit/$nodeId.tsx:104
+#: src/routes/edit/$nodeId.tsx:112
 msgid "saved by OnlyOffice"
 msgstr ""
 
@@ -3216,12 +3213,12 @@ msgstr ""
 msgid "Sends to {targetEmail}. Save changes first."
 msgstr ""
 
-#: src/routes/login.tsx:150
+#: src/routes/login.tsx:134
 msgid "Separate teams, each with its own groups and shared folders."
 msgstr ""
 
-#: src/routes/s/$token.tsx:459
-msgid "Served by pp-hub · self-hosted"
+#: src/routes/s/$token.tsx:681
+msgid "Served by {PRODUCT_NAME} · self-hosted"
 msgstr ""
 
 #: src/components/settings/panes/account-profile.tsx:99
@@ -3268,7 +3265,7 @@ msgid "Settings sections"
 msgstr ""
 
 #: src/components/editor-header.tsx:91
-#: src/components/node-actions.tsx:185
+#: src/components/node-actions.tsx:184
 #: src/components/preview-panel.tsx:350
 #: src/components/selection-bar.tsx:69
 #: src/components/share-dialog.tsx:493
@@ -3291,7 +3288,7 @@ msgstr ""
 msgid "share revoked"
 msgstr ""
 
-#: src/routes/s/$token.tsx:38
+#: src/routes/s/$token.tsx:44
 msgid "Shared"
 msgstr ""
 
@@ -3302,7 +3299,7 @@ msgstr ""
 msgid "Shared with me"
 msgstr ""
 
-#: src/routes/s/$token.tsx:449
+#: src/routes/s/$token.tsx:671
 msgid "Shared with you"
 msgstr ""
 
@@ -3342,13 +3339,13 @@ msgstr ""
 msgid "Sidebar"
 msgstr ""
 
-#: src/routes/login.tsx:54
-#: src/routes/s/$token.tsx:452
+#: src/routes/login.tsx:55
+#: src/routes/s/$token.tsx:674
 msgid "Sign in"
 msgstr ""
 
-#: src/routes/login.tsx:161
-msgid "Sign in to pp-hub"
+#: src/routes/login.tsx:145
+msgid "Sign in to {PRODUCT_NAME}"
 msgstr ""
 
 #: src/components/nav-user.tsx:138
@@ -3364,11 +3361,11 @@ msgstr ""
 msgid "Sign out everywhere else?"
 msgstr ""
 
-#: src/routes/login.tsx:174
+#: src/routes/login.tsx:158
 msgid "Sign-in failed. Try again."
 msgstr ""
 
-#: src/routes/login.tsx:42
+#: src/routes/login.tsx:43
 msgid "Sign-in was cancelled."
 msgstr ""
 
@@ -3392,7 +3389,7 @@ msgstr ""
 #: src/components/settings/panes/account-general.tsx:46
 #: src/components/space-node-table.tsx:94
 #: src/components/trash-panel.tsx:297
-#: src/routes/s/$token.tsx:338
+#: src/routes/s/$token.tsx:566
 msgid "Size"
 msgstr ""
 
@@ -3412,11 +3409,11 @@ msgstr ""
 msgid "Small section title"
 msgstr ""
 
-#: src/components/markdown-document-view/read-only-editor.tsx:68
+#: src/components/markdown-document-view/read-only-editor.tsx:88
 msgid "Some formatting in this file cannot be shown here. Download it to see all of it."
 msgstr ""
 
-#: src/routes/login.tsx:45
+#: src/routes/login.tsx:46
 msgid "Something went wrong on our side. Try again in a moment."
 msgstr ""
 
@@ -3454,7 +3451,7 @@ msgstr ""
 #: src/components/space-switcher.tsx:92
 #: src/routes/admin.users.tsx:116
 #: src/routes/admin.users.tsx:163
-#: src/routes/login.tsx:149
+#: src/routes/login.tsx:133
 msgid "Spaces"
 msgstr ""
 
@@ -3533,7 +3530,7 @@ msgstr ""
 msgid "Switch space"
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:428
+#: src/components/doc-editor/doc-editor.tsx:429
 msgid "Syncing…"
 msgstr ""
 
@@ -3582,7 +3579,7 @@ msgstr ""
 msgid "That name is taken"
 msgstr ""
 
-#: src/routes/login.tsx:39
+#: src/routes/login.tsx:40
 msgid "That sign-in link expired or was already used. Start again from this page."
 msgstr ""
 
@@ -3591,11 +3588,11 @@ msgstr ""
 msgid "The identity provider could not be reached. Nothing was changed; try again in a moment."
 msgstr ""
 
-#: src/routes/login.tsx:40
+#: src/routes/login.tsx:41
 msgid "The identity provider refused to complete the sign-in. Try again."
 msgstr ""
 
-#: src/routes/login.tsx:41
+#: src/routes/login.tsx:42
 msgid "The identity provider's response could not be verified. Try again."
 msgstr ""
 
@@ -3617,7 +3614,7 @@ msgid "The rest of the thread stays."
 msgstr ""
 
 #: src/components/doc-editor/doc-editor.tsx:215
-#: src/components/markdown-document-view/index.tsx:121
+#: src/components/markdown-document-view/index.tsx:128
 msgid "The server did not answer."
 msgstr ""
 
@@ -3633,7 +3630,7 @@ msgstr ""
 msgid "Theme"
 msgstr ""
 
-#: src/routes/s/$token.tsx:320
+#: src/routes/s/$token.tsx:548
 msgid "There is nothing shared here yet."
 msgstr ""
 
@@ -3661,7 +3658,7 @@ msgstr ""
 msgid "They will be added to {destination}"
 msgstr ""
 
-#: src/routes/login.tsx:43
+#: src/routes/login.tsx:44
 msgid "This account is suspended. Contact an administrator."
 msgstr ""
 
@@ -3685,7 +3682,7 @@ msgstr ""
 msgid "This device stays signed in."
 msgstr ""
 
-#: src/components/markdown-document-view/index.tsx:116
+#: src/components/markdown-document-view/index.tsx:123
 msgid "This document cannot be shown"
 msgstr ""
 
@@ -3697,11 +3694,11 @@ msgstr ""
 msgid "This file contains formatting the block editor cannot keep, such as raw HTML or footnotes. Saving rewrites the file without it. The original stays in version history, and you can restore it from there."
 msgstr ""
 
-#: src/components/preview-content.tsx:278
+#: src/components/preview-content.tsx:277
 msgid "This file opens in the office editor."
 msgstr ""
 
-#: src/routes/s/$token.tsx:152
+#: src/routes/s/$token.tsx:163
 msgid "This file was shared with you"
 msgstr ""
 
@@ -3710,11 +3707,11 @@ msgid "this folder"
 msgstr ""
 
 #: src/routes/drive/$spaceId/index.tsx:522
-#: src/routes/s/$token.tsx:317
+#: src/routes/s/$token.tsx:545
 msgid "This folder is empty"
 msgstr ""
 
-#: src/routes/s/$token.tsx:150
+#: src/routes/s/$token.tsx:161
 msgid "This folder was shared with you"
 msgstr ""
 
@@ -3726,11 +3723,15 @@ msgstr ""
 msgid "This group opens no folders, so nobody loses access."
 msgstr ""
 
-#: src/routes/s/$token.tsx:274
-msgid "This link does not allow downloads, so it shows the names, sizes and dates of these files but cannot open their contents."
+#: src/routes/s/$token.tsx:422
+msgid "This kind of file cannot be shown here, and this link does not allow downloads."
 msgstr ""
 
-#: src/routes/s/$token.tsx:116
+#: src/routes/s/$token.tsx:420
+msgid "This kind of file cannot be shown here. Download it to open it."
+msgstr ""
+
+#: src/routes/s/$token.tsx:124
 msgid "This link is not available"
 msgstr ""
 
@@ -3893,7 +3894,7 @@ msgstr ""
 msgid "Untitled file"
 msgstr ""
 
-#: src/components/doc-editor/outline-panel.tsx:126
+#: src/components/doc-editor/outline-panel.tsx:86
 msgid "Untitled heading"
 msgstr ""
 
@@ -3944,7 +3945,7 @@ msgstr ""
 msgid "Upload or attach a file"
 msgstr ""
 
-#: src/routes/login.tsx:144
+#: src/routes/login.tsx:128
 msgid "Upload, organise and share files, with their version history."
 msgstr ""
 
@@ -4008,7 +4009,7 @@ msgid "Version history"
 msgstr ""
 
 #: src/components/editor-header.tsx:100
-#: src/components/node-actions.tsx:160
+#: src/components/node-actions.tsx:159
 #: src/components/preview-modal.tsx:149
 #: src/components/preview-panel.tsx:356
 #: src/components/preview-panel.tsx:396
@@ -4052,8 +4053,12 @@ msgstr ""
 msgid "View all"
 msgstr ""
 
-#: src/routes/s/$token.tsx:168
+#: src/routes/s/$token.tsx:176
 msgid "view and download"
+msgstr ""
+
+#: src/routes/s/$token.tsx:176
+msgid "view only"
 msgstr ""
 
 #: src/components/doc-editor/labels.ts:38
@@ -4114,7 +4119,7 @@ msgstr ""
 msgid "You are not in any space yet."
 msgstr ""
 
-#: src/routes/s/$token.tsx:265
+#: src/routes/s/$token.tsx:293
 msgid "You are viewing a shared link"
 msgstr ""
 
@@ -4134,6 +4139,10 @@ msgstr ""
 #: src/routes/drive/$spaceId/home.tsx:41
 #: src/routes/drive/$spaceId/recent.tsx:32
 msgid "You deleted"
+msgstr ""
+
+#: src/components/preview-content.tsx:268
+msgid "You do not have access to this file."
 msgstr ""
 
 #: src/routes/drive/$spaceId/home.tsx:45
@@ -4198,6 +4207,6 @@ msgstr ""
 msgid "Your spaces"
 msgstr ""
 
-#: src/routes/login.tsx:133
+#: src/routes/login.tsx:117
 msgid "Your workspace, on your own server."
 msgstr ""

@@ -726,16 +726,16 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleContent serves the file's own bytes for the browser to render in
-// place — the PDF viewer, an <img>, a <video>.
+// place — the PDF viewer, an <img>, a <video>. It takes view: reading a file
+// and keeping a copy of it are different rights, and this is the read.
 //
-// It takes the download capability, not view. The bytes are the file: a
-// reader who was refused download could otherwise open this URL in a tab and
-// keep the original, which would make "view without download" a label rather
-// than a rule. What such a reader still gets is the derived preview served by
-// /preview — a thumbnail or a text snippet, generated from the file but not
-// the file. Drive draws the line in the same place.
+// The honest limit: a streamed render is still the file's bytes, so someone
+// who can view can also save from the browser. `can_download` gates the routes
+// that hand the bytes over deliberately — /download, the folder zip, the
+// export — and the client offers no save button without it. Deriving a
+// separate render to make the bytes unsaveable is not what this does.
 func (s *Server) handleContent(w http.ResponseWriter, r *http.Request) {
-	s.serveBlob(w, r, "inline", share.CapDownload, audit.KindFileViewed)
+	s.serveBlob(w, r, "inline", share.CapView, audit.KindFileViewed)
 }
 
 // serveBlob is the funnel for a file's bytes, and so where a read is audited:

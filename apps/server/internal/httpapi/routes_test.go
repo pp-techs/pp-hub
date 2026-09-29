@@ -127,6 +127,7 @@ var clientRoutes = []string{
 	"GET /s/{token}/content",
 	"GET /s/{token}/node-download",
 	"GET /s/{token}/download-all",
+	"GET /s/{token}/edit-session",
 }
 
 func TestRouterRegistersClientRoutes(t *testing.T) {

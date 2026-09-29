@@ -201,10 +201,10 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// A content hit discloses what the file says, so it needs what reading
-	// the file needs — the same CapDownload the text preview asks for. A
-	// view-only grantee still finds the file by name.
+	// the file needs — view. A grantee reaching the node only as a name still
+	// finds it by name.
 	rows = slices.DeleteFunc(rows, func(n store.SearchNodesRow) bool {
-		return !n.NameMatch && !rc.caps(n.ID).Has(share.CapDownload)
+		return !n.NameMatch && !rc.caps(n.ID).Has(share.CapView)
 	})
 	if len(rows) > int(q.limit) {
 		rows = rows[:q.limit]

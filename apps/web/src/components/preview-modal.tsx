@@ -110,7 +110,7 @@ export const PreviewModal = createModal<Props, void>("preview", ({ node, sibling
           )}
 
           <div className="ml-auto flex shrink-0 items-center gap-1">
-            {canOpenInTab(current) && capsOf(current).download && (
+            {canOpenInTab(current) && capsOf(current).view && (
               <Button variant="ghost" size="sm" onClick={() => openInTab(current)}>
                 <ExternalLink data-icon="inline-start" /> <Trans>Open</Trans>
               </Button>

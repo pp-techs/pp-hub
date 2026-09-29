@@ -1,6 +1,7 @@
 package share
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -56,6 +57,30 @@ func TestGrantCapsNormalized(t *testing.T) {
 		if got := tt.in.Normalized(); got != tt.want {
 			t.Errorf("GrantCaps(%+v).Normalized() = %+v, want %+v", tt.in, got, tt.want)
 		}
+	}
+}
+
+func TestNewLinkTokenShape(t *testing.T) {
+	seen := map[string]bool{}
+	for range 200 {
+		token, err := newLinkToken()
+		if err != nil {
+			t.Fatalf("newLinkToken: %v", err)
+		}
+		if len(token) != linkTokenLength {
+			t.Fatalf("token %q is %d characters, want %d", token, len(token), linkTokenLength)
+		}
+		for _, c := range token {
+			if !strings.ContainsRune(linkTokenAlphabet, c) {
+				t.Fatalf("token %q holds %q, outside base62", token, c)
+			}
+		}
+		seen[token] = true
+	}
+	// A generator that returned one value, or a short alphabet, would pass
+	// everything above; 200 draws repeating is the failure this catches.
+	if len(seen) != 200 {
+		t.Errorf("200 draws produced %d distinct tokens, want 200", len(seen))
 	}
 }
 

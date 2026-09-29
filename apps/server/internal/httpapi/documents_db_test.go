@@ -102,9 +102,9 @@ func docText(n any) string {
 	return b.String()
 }
 
-// The document tree is the whole document: it takes download, like /content,
-// reads the current version or one of the node's own, and refuses what is
-// not a block document or is too big to parse.
+// The document tree is the whole document, so it needs view — reading is what
+// it is for. It reads the current version or one of the node's own, and
+// refuses what is not a block document or is too big to parse.
 func TestDocumentTreeFollowsDownloadAndVersions(t *testing.T) {
 	rig := newCollabRig(t, collab.Config{})
 	f := rig.fixture(t, "doctree", "# First\n\nOne.\n")
@@ -121,7 +121,7 @@ func TestDocumentTreeFollowsDownloadAndVersions(t *testing.T) {
 		{"owner", f.owner, http.StatusOK},
 		{"editor", f.editor, http.StatusOK},
 		{"reader", f.reader, http.StatusOK},
-		{"view only", f.viewer, http.StatusForbidden},
+		{"view only", f.viewer, http.StatusOK},
 		{"member without a grant", f.stranger, http.StatusForbidden},
 	} {
 		res := rig.do(t, tc.u, http.MethodGet, nodePath(f.doc, "/document"), nil)
@@ -159,9 +159,9 @@ func TestDocumentTreeFollowsDownloadAndVersions(t *testing.T) {
 	}
 }
 
-// Through a link, the document and its attachments are served when the link
-// allows downloads and covers the document — and only the attachments that
-// document holds.
+// Through a link, the document and its attachments are served whenever the
+// link covers the document — a link always grants view — and only the
+// attachments that document holds. The download flag is not consulted.
 func TestShareLinkServesDocumentAndAttachments(t *testing.T) {
 	rig := newCollabRig(t, collab.Config{})
 	ctx := context.Background()
@@ -220,8 +220,9 @@ func TestShareLinkServesDocumentAndAttachments(t *testing.T) {
 		path string
 		want int
 	}{
-		"document, no download":            {"/s/" + noDownload + "/document" + q, http.StatusForbidden},
-		"attachment, no download":          {"/s/" + noDownload + "/attachments/" + hash + q, http.StatusForbidden},
+		"document, no download":            {"/s/" + noDownload + "/document" + q, http.StatusOK},
+		"attachment, no download":          {"/s/" + noDownload + "/attachments/" + hash + q, http.StatusOK},
+		"document, no download, outside":   {"/s/" + noDownload + "/document?node=" + uuidString(f.doc.ID), http.StatusNotFound},
 		"document outside the link":        {"/s/" + token + "/document?node=" + uuidString(f.doc.ID), http.StatusNotFound},
 		"attachment of a doc outside":      {"/s/" + token + "/attachments/" + outsideHash + "?node=" + uuidString(f.doc.ID), http.StatusNotFound},
 		"another document's hash":          {"/s/" + token + "/attachments/" + outsideHash + q, http.StatusNotFound},
@@ -232,6 +233,53 @@ func TestShareLinkServesDocumentAndAttachments(t *testing.T) {
 		if res := rig.anon(t, tc.path, nil); res.code != tc.want {
 			t.Errorf("%s: %d, want %d", name, res.code, tc.want)
 		}
+	}
+}
+
+// An office document inside a shared link can mint an OnlyOffice view session.
+func TestShareLinkOfficeEditSession(t *testing.T) {
+	rig := newCollabRig(t, collab.Config{})
+	ctx := context.Background()
+	f := rig.fixture(t, "shareoffice", "# Not office\n")
+	sheet, _, err := rig.srv.fs.PutFile(ctx, f.space.ID, pgtype.UUID{}, pgtype.UUID{}, "model.xlsx", strings.NewReader("dummy content"), f.owner.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, token, err := rig.srv.share.CreateLink(ctx, sheet.ID, false, pgtype.Timestamptz{}, f.owner.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res := rig.anon(t, "/s/"+token+"/edit-session", nil)
+	if res.code != http.StatusOK {
+		t.Fatalf("edit-session through link: %d %s", res.code, res.body)
+	}
+	var out struct {
+		EditorURL string `json:"editor_url"`
+		Token     string `json:"token"`
+		CanWrite  bool   `json:"can_write"`
+	}
+	if err := json.Unmarshal(res.body, &out); err != nil {
+		t.Fatalf("unmarshal edit-session: %v", err)
+	}
+	if out.CanWrite {
+		t.Error("link edit-session must be read-only (can_write=false)")
+	}
+	if !strings.Contains(out.EditorURL, "/hosting/wopi/cell/view") {
+		t.Errorf("expected cell view editor URL, got: %q", out.EditorURL)
+	}
+	if out.Token == "" {
+		t.Error("missing WOPI token")
+	}
+
+	// Markdown file is not supported by office editor.
+	_, docToken, err := rig.srv.share.CreateLink(ctx, f.doc.ID, false, pgtype.Timestamptz{}, f.owner.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bad := rig.anon(t, "/s/"+docToken+"/edit-session", nil)
+	if bad.code != http.StatusBadRequest {
+		t.Errorf("markdown in office edit-session: %d, want 400", bad.code)
 	}
 }
 

@@ -119,7 +119,7 @@ func (s *Service) Subscribe(user pgtype.UUID) (*Subscription, error) {
 func (s *Service) Shutdown() { s.broker.Shutdown() }
 
 // Readers keeps the candidates who can open node — an active account holding
-// download on it, which is what opening a document takes — in their first
+// view on it, which is what opening a document takes — in their first
 // order, each once. A notification quotes the document's comments or text,
 // so nobody who could not read them is told.
 func (s *Service) Readers(ctx context.Context, node store.Node, candidates []pgtype.UUID) ([]pgtype.UUID, error) {
@@ -145,7 +145,7 @@ func (s *Service) Readers(ctx context.Context, node store.Node, candidates []pgt
 		if err != nil {
 			return nil, err
 		}
-		if caps.Download {
+		if caps.View {
 			out = append(out, id)
 		}
 	}
@@ -285,7 +285,7 @@ func (s *Service) Purge(ctx context.Context, cutoff time.Time) (int64, error) {
 	return s.q.PurgeReadNotifications(ctx, pgtype.Timestamptz{Time: cutoff, Valid: true})
 }
 
-// readable reports, per node, whether user may open it (download).
+// readable reports, per node, whether user may open it (view).
 func (s *Service) readable(ctx context.Context, user pgtype.UUID, nodes []pgtype.UUID) (map[pgtype.UUID]bool, error) {
 	out := make(map[pgtype.UUID]bool, len(nodes))
 	if len(nodes) == 0 {
@@ -296,7 +296,7 @@ func (s *Service) readable(ctx context.Context, user pgtype.UUID, nodes []pgtype
 		return nil, err
 	}
 	for id, r := range res {
-		out[id] = share.EffectiveCaps(r).Download
+		out[id] = share.EffectiveCaps(r).View
 	}
 	return out, nil
 }

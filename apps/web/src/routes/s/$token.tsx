@@ -1,5 +1,5 @@
 import { createFileRoute, useParams } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
 import { ChevronRight, Download, Eye, Info, Shield } from "lucide-react";
@@ -21,15 +21,21 @@ import {
   EmptyTitle,
 } from "@workspace/ui/components/empty";
 import {
+  createShareEditSession,
   isMarkdownFile,
+  isOfficeFile,
   shareDownloadAllUrl,
   shareNodeContentUrl,
   shareNodeDownloadUrl,
+  type EditSession,
   type Node,
 } from "@/lib/api";
 import { shareInfoOptions, useShareChildren, useShareInfo } from "@/lib/queries";
+import { useLocale } from "@/components/locale-provider";
+import { useTheme } from "@/components/theme-provider";
 import { useFormatters } from "@/lib/format";
-import { pageTitle } from "@/lib/i18n";
+import { PRODUCT_NAME, pageTitle } from "@/lib/i18n";
+import { BrandMark } from "@/components/brand-mark";
 import { NodeIcon } from "@/components/node-icon";
 import { LoadingStatus, SkeletonTableRows } from "@/components/loading";
 import { SharedMarkdownView } from "@/components/markdown-document-view";
@@ -69,6 +75,8 @@ function ShareLanding() {
   const f = useFormatters();
   const info = useShareInfo(token);
   const [trail, setTrail] = useState<Crumb[]>([]);
+  // The element the page scrolls in. A rendered document's outline follows it.
+  const contentRef = useRef<HTMLDivElement>(null);
   // A markdown file opened from the folder listing, shown in place of it.
   const [openDoc, setOpenDoc] = useState<Node | null>(null);
 
@@ -133,7 +141,10 @@ function ShareLanding() {
     ...trail,
     ...(openDoc ? [{ id: openDoc.id, name: openDoc.name }] : []),
   ];
-  const rendersRoot = canDownload && root.kind === "file" && isMarkdownFile(root);
+  const isDoc = isMarkdownFile(root);
+  const isOffice = isOfficeFile(root.name);
+  const rendersRoot = root.kind === "file" && isDoc;
+  const rendersOfficeRoot = root.kind === "file" && isOffice;
   const sharedBy = info.data.shared_by;
   const expiresOn = info.data.expires_at ? f.date(info.data.expires_at) : null;
   const itemCount = children.data?.length ?? 0;
@@ -157,18 +168,12 @@ function ShareLanding() {
       <div className="bg-muted border-border flex h-8 shrink-0 items-center gap-2 border-b px-4 text-xs">
         <Info className="text-muted-foreground size-3.5 shrink-0" />
         {/* What the link actually permits, in the visitor's words.
-
-            A link without `can_download` no longer means "look but do not
-            save": the server refuses `/content` as well as `/node-download`,
-            so no file bytes cross at all. Calling that "view only" promised a
-            preview this page cannot deliver and the server will not serve. */}
+ 
+            A link always grants reading it; `can_download` adds the right to
+            save a copy. Saying "view only" is honest: a streamed render is
+            still the file's bytes, but the page offers no way to take them. */}
         <span className="truncate">
-          {banner} ·{" "}
-          {canDownload ? (
-            <Trans>view and download</Trans>
-          ) : (
-            <Trans>file names and details only</Trans>
-          )}
+          {banner} · {canDownload ? <Trans>view and download</Trans> : <Trans>view only</Trans>}
         </span>
         {expiresOn && (
           <span className="text-muted-foreground ml-auto shrink-0 text-[10px] tabular-nums">
@@ -177,7 +182,7 @@ function ShareLanding() {
         )}
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-4">
+      <div ref={contentRef} className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-4">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex min-w-0 flex-col gap-1">
             <div className="flex items-center gap-2">
@@ -240,7 +245,18 @@ function ShareLanding() {
             </nav>
 
             {openDoc ? (
-              <SharedMarkdownView token={token} nodeId={openDoc.id} className="py-2" />
+              isMarkdownFile(openDoc) ? (
+                <SharedMarkdownView
+                  token={token}
+                  nodeId={openDoc.id}
+                  className="py-2"
+                  outlineScrollRef={contentRef}
+                />
+              ) : isOfficeFile(openDoc.name) ? (
+                <SharedOfficeView token={token} node={openDoc} />
+              ) : (
+                <SharedFileView token={token} node={openDoc} canDownload={canDownload} />
+              )
             ) : (
               <ShareTable
                 token={token}
@@ -256,7 +272,19 @@ function ShareLanding() {
           </>
         )}
 
-        {rendersRoot && <SharedMarkdownView token={token} nodeId={root.id} className="py-2" />}
+        {rendersRoot && (
+          <SharedMarkdownView
+            token={token}
+            nodeId={root.id}
+            className="py-2"
+            outlineScrollRef={contentRef}
+          />
+        )}
+        {rendersOfficeRoot && <SharedOfficeView token={token} node={root} />}
+
+        {root.kind === "file" && !rendersRoot && !rendersOfficeRoot && (
+          <SharedFileView token={token} node={root} canDownload={canDownload} />
+        )}
 
         <div className="border-border flex items-start gap-2 rounded-lg border p-3">
           <Shield className="text-muted-foreground mt-0.5 size-4 shrink-0" />
@@ -272,8 +300,9 @@ function ShareLanding() {
                 </Trans>
               ) : (
                 <Trans>
-                  This link does not allow downloads, so it shows the names, sizes and dates of
-                  these files but cannot open their contents.
+                  Anyone with this link can view these files. Downloads are off, so there is no
+                  button to save a copy. You cannot edit or upload, and you cannot see who else has
+                  access.
                 </Trans>
               )}
             </p>
@@ -284,13 +313,212 @@ function ShareLanding() {
   );
 }
 
+/**
+ * A file shared on its own, rendered in the page. The dispatch is the
+ * authenticated preview's — the browser draws what it can from the link's
+ * content URL — with one addition: text is fetched and shown as text, because
+ * the browser would otherwise download a `.csv` rather than display it.
+ *
+ * What cannot be drawn here — an archive — is named and explained.
+ */
+function SharedFileView({
+  token,
+  node,
+  canDownload,
+}: {
+  token: string;
+  node: Node;
+  canDownload: boolean;
+}) {
+  const { t } = useLingui();
+  const mime = node.mime?.split(";")[0]?.trim() ?? "";
+  const url = shareNodeContentUrl(token, node.id);
+
+  if (mime === "application/pdf") {
+    // Named local so the extracted message reads `{nodeName}` rather than `{0}`.
+    const nodeName = node.name;
+    return (
+      <object
+        data={url}
+        type="application/pdf"
+        className="min-h-[70vh] w-full"
+        aria-label={t`Preview ${nodeName}`}
+      >
+        <SharedFileFallback node={node} canDownload={canDownload} />
+      </object>
+    );
+  }
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- MIME type prefix
+  if (mime.startsWith("image/")) {
+    return <img src={url} alt={node.name} className="max-h-[70vh] w-full object-contain" />;
+  }
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- MIME type prefix
+  if (mime.startsWith("video/")) {
+    return <video controls src={url} className="max-h-[70vh] w-full" />;
+  }
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- MIME type prefix
+  if (mime.startsWith("audio/")) {
+    return <audio controls src={url} className="w-full" />;
+  }
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- MIME type prefix
+  if (mime.startsWith("text/")) {
+    return <SharedTextView url={url} node={node} canDownload={canDownload} />;
+  }
+  if (isOfficeFile(node.name)) {
+    return <SharedOfficeView token={token} node={node} />;
+  }
+  return <SharedFileFallback node={node} canDownload={canDownload} />;
+}
+
+/** Text fetched and shown verbatim: a `.csv`, a `.txt`, a note. */
+function SharedTextView({
+  url,
+  node,
+  canDownload,
+}: {
+  url: string;
+  node: Node;
+  canDownload: boolean;
+}) {
+  const [text, setText] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setFailed(false);
+    fetch(url)
+      .then((r) => (r.ok ? r.text() : Promise.reject(new Error(String(r.status)))))
+      .then((t) => {
+        if (!cancelled) setText(t);
+      })
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [url]);
+
+  if (failed) return <SharedFileFallback node={node} canDownload={canDownload} />;
+  if (text === null) return <Skeleton className="h-40 w-full" />;
+  return (
+    <pre className="bg-muted overflow-auto rounded-md p-3 text-xs whitespace-pre-wrap">{text}</pre>
+  );
+}
+
+/** Nothing to draw here: say so rather than offer a control that cannot work. */
+function SharedFileFallback({ node, canDownload }: { node: Node; canDownload: boolean }) {
+  return (
+    <Empty className="py-12">
+      <EmptyHeader>
+        <EmptyMedia>
+          <NodeIcon node={node} className="size-10" />
+        </EmptyMedia>
+        <EmptyTitle>{node.name}</EmptyTitle>
+        <EmptyDescription>
+          {canDownload ? (
+            <Trans>This kind of file cannot be shown here. Download it to open it.</Trans>
+          ) : (
+            <Trans>
+              This kind of file cannot be shown here, and this link does not allow downloads.
+            </Trans>
+          )}
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  );
+}
+
+/** An office file inside a share link, rendered via OnlyOffice in an iframe. */
+function SharedOfficeView({ token, node }: { token: string; node: Node }) {
+  const locale = useLocale();
+  const { resolvedTheme } = useTheme();
+  const [session, setSession] = useState<EditSession | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    createShareEditSession(token, node.id, locale, resolvedTheme)
+      .then((s) => {
+        if (!cancelled) setSession(s);
+      })
+      .catch((e) => {
+        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token, node.id, locale, resolvedTheme]);
+
+  if (error) {
+    return (
+      <Empty className="py-12">
+        <EmptyHeader>
+          <EmptyMedia>
+            <NodeIcon node={node} className="size-10" />
+          </EmptyMedia>
+          <EmptyTitle>{node.name}</EmptyTitle>
+          <EmptyDescription>{error}</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    );
+  }
+
+  if (!session) {
+    return (
+      <div className="flex h-[75vh] min-h-[500px] w-full flex-col gap-2 rounded-lg border p-4">
+        <Skeleton className="h-8 w-1/3" />
+        <Skeleton className="h-full w-full" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative flex h-[75vh] min-h-[500px] w-full flex-col overflow-hidden rounded-lg border">
+      <ShareOfficeFrame session={session} title={node.name} />
+    </div>
+  );
+}
+
+function ShareOfficeFrame({ session, title }: { session: EditSession; title: string }) {
+  const formRef = useRef<HTMLFormElement>(null);
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- DOM frame ID
+  const frameId = `pp-share-office-${session.token}`;
+
+  useEffect(() => {
+    formRef.current?.submit();
+  }, []);
+
+  return (
+    <>
+      <form
+        ref={formRef}
+        action={session.editor_url}
+        method="post"
+        target={frameId}
+        className="hidden"
+      >
+        <input type="hidden" name="access_token" value={session.token} />
+        <input type="hidden" name="access_token_ttl" value={session.access_token_ttl} />
+      </form>
+      <iframe
+        name={frameId}
+        title={title}
+        className="size-full border-0"
+        allow="clipboard-write"
+        allowFullScreen
+      />
+    </>
+  );
+}
+
 interface ShareTableProps {
   token: string;
   nodes: Node[];
   isPending: boolean;
   canDownload: boolean;
   onOpenFolder: (node: Node) => void;
-  /** Renders a markdown file in the page; offered only when the link can download. */
+  /** Renders a markdown or office file in the page; a link always grants reading it. */
   onOpenDocument: (node: Node) => void;
 }
 
@@ -347,7 +575,9 @@ function ShareTable({
           nodes.map((n) => {
             // Named local so the extracted message reads `{nodeName}` rather than `{0}`.
             const nodeName = n.name;
-            const readable = canDownload && isMarkdownFile(n);
+            const isDoc = isMarkdownFile(n);
+            const isOffice = isOfficeFile(n.name);
+            const readable = isDoc || isOffice;
             return (
               <TableRow key={n.id}>
                 <TableCell>
@@ -376,49 +606,45 @@ function ShareTable({
                 <TableCell>
                   {n.kind === "file" && (
                     <div className="flex items-center justify-end gap-1">
-                      {/* Both actions hang off the download capability, because
-                        both endpoints do: the server enforces `can_download` on
-                        `/content` as well as `/node-download`. Offering Preview
-                        on a view-only link was a button whose only possible
-                        outcome was a 403. */}
+                      {/* Preview reads the file, and view is what a link
+                        grants, so it is always offered. Download is the one
+                        action that hangs off `can_download`. */}
+                      {/* A markdown file previews rendered, in the page;
+                        its raw `/content` is source text. */}
+                      {readable ? (
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          aria-label={t`Preview ${nodeName}`}
+                          onClick={() => onOpenDocument(n)}
+                        >
+                          <Eye />
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          aria-label={t`Preview ${nodeName}`}
+                          render={
+                            <a
+                              href={shareNodeContentUrl(token, n.id)}
+                              target="_blank"
+                              rel="noreferrer"
+                            />
+                          }
+                        >
+                          <Eye />
+                        </Button>
+                      )}
                       {canDownload && (
-                        <>
-                          {/* A markdown file previews rendered, in the page;
-                            its raw `/content` is source text. */}
-                          {readable ? (
-                            <Button
-                              variant="ghost"
-                              size="icon-xs"
-                              aria-label={t`Preview ${nodeName}`}
-                              onClick={() => onOpenDocument(n)}
-                            >
-                              <Eye />
-                            </Button>
-                          ) : (
-                            <Button
-                              variant="ghost"
-                              size="icon-xs"
-                              aria-label={t`Preview ${nodeName}`}
-                              render={
-                                <a
-                                  href={shareNodeContentUrl(token, n.id)}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                />
-                              }
-                            >
-                              <Eye />
-                            </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            aria-label={t`Download ${nodeName}`}
-                            render={<a href={shareNodeDownloadUrl(token, n.id)} />}
-                          >
-                            <Download />
-                          </Button>
-                        </>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          aria-label={t`Download ${nodeName}`}
+                          render={<a href={shareNodeDownloadUrl(token, n.id)} />}
+                        >
+                          <Download />
+                        </Button>
                       )}
                     </div>
                   )}
@@ -438,12 +664,8 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="bg-background text-foreground flex min-h-svh flex-col">
       <header className="border-border flex h-12 shrink-0 items-center gap-2 border-b px-4">
-        <span className="bg-primary text-primary-foreground grid size-5 shrink-0 place-content-center rounded text-[10px] font-semibold">
-          {/* eslint-disable-next-line lingui/no-unlocalized-strings -- product monogram */}
-          pp
-        </span>
-        {/* eslint-disable-next-line lingui/no-unlocalized-strings -- product name */}
-        <span className="text-sm font-medium">pp-hub</span>
+        <BrandMark className="size-6" />
+        <span className="text-sm font-medium">{PRODUCT_NAME}</span>
         <span className="bg-border mx-1 h-4 w-px" />
         <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
           {t`Shared with you`}
@@ -456,7 +678,7 @@ function Shell({ children }: { children: React.ReactNode }) {
       {children}
 
       <footer className="border-border text-muted-foreground mt-auto flex h-8 shrink-0 items-center border-t px-4 text-[10px]">
-        <Trans>Served by pp-hub · self-hosted</Trans>
+        <Trans>Served by {PRODUCT_NAME} · self-hosted</Trans>
       </footer>
     </div>
   );

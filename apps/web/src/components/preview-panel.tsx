@@ -289,8 +289,8 @@ function NodeDetails({ node }: { node: Node }) {
 
   const hasThumb = hasThumbnail(node);
   // A markdown document has no thumbnail artifact; its first screen,
-  // rendered, says more than an icon. Same capability as the bytes.
-  const showsDocument = caps.download && isMarkdownFile(node);
+  // rendered, says more than an icon. Same capability as reading it.
+  const showsDocument = caps.view && isMarkdownFile(node);
 
   return (
     <div className="flex flex-col gap-4 p-3">

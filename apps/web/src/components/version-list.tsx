@@ -20,8 +20,8 @@ import { useFormatters } from "@/lib/format";
  * and it is a write, so a reader sees the history without the button.
  *
  * A markdown document's versions can also be viewed rendered: the server
- * parses any of them on request (behind the download capability, like the
- * bytes), and the preview offers the same Restore as the row.
+ * parses any of them on request (behind the view capability, like the
+ * document itself), and the preview offers the same Restore as the row.
  */
 export function VersionList({ node, onRestored }: { node: Node; onRestored?: () => void }) {
   const { t } = useLingui();
@@ -29,7 +29,7 @@ export function VersionList({ node, onRestored }: { node: Node; onRestored?: () 
   const caps = capsOf(node);
   const versions = useVersions(node.id);
   const restore = useRestoreVersion(node.space_id);
-  const viewable = caps.download && isMarkdownFile(node);
+  const viewable = caps.view && isMarkdownFile(node);
 
   if (versions.isPending) {
     return (

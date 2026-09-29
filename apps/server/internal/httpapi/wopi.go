@@ -143,6 +143,10 @@ func (s *Server) handleWopiCheckFileInfo(w http.ResponseWriter, r *http.Request)
 		"SupportsUpdate":             true,
 		"SupportsLocks":              true,
 		"SupportsExtendedLockLength": true,
+		"DisablePrint":               c.claims.PermRank < 2,
+		"HidePrintOption":            c.claims.PermRank < 2,
+		"DisableExport":              c.claims.PermRank < 2,
+		"DisableCopy":                c.claims.PermRank < 2,
 	})
 }
 
@@ -152,17 +156,10 @@ func (s *Server) handleWopiGetFile(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	// Rank 2 is download, and handing over the complete file *is* a
-	// download however the editor frames it. A view-only rank used to be
-	// enough here, which made an editor session a way around the
-	// no-download half of a grant: mint a token with CapView, fetch the
-	// bytes, keep the file. handleContent refuses the same caller.
-	//
-	// A machine token has no subject to resolve a capability for; it is
-	// minted by this deployment, scoped to one node and short-lived, and
-	// the signing key is its authorization.
-	if c.user != nil && c.claims.PermRank < 2 {
-		writeProblem(w, http.StatusForbidden, "Forbidden", "this file may be viewed but not downloaded")
+	// OnlyOffice needs the file's bytes to render it on screen. Viewing is
+	// rank 1 or above; a caller with no access at all is refused here.
+	if c.claims.PermRank < 1 {
+		writeProblem(w, http.StatusForbidden, "Forbidden", "view permission required")
 		return
 	}
 	_, ver, rc, err := s.fs.OpenFile(r.Context(), c.node.ID)
@@ -294,13 +291,10 @@ func (s *Server) wopiLockError(w http.ResponseWriter, r *http.Request, err error
 // writing and irrelevant to reading: the session was a route around the
 // no-download half of a grant.
 //
-// The cost is real and accepted: a reader granted view-without-download
-// cannot open a .docx at all, only its thumbnail. That is the honest
-// consequence of the grant they were given. The rank in the token still
-// decides read-write versus read-only, and PutFile and the lock ops still
-// refuse anything below rank 3.
+// Viewing is rank 1 or above (mode="view"). Downloading adds rank 2, and editing
+// adds rank 3 (mode="edit") which enables PutFile and file locking.
 func (s *Server) handleEditSession(w http.ResponseWriter, r *http.Request) {
-	u, node, caps := s.requireNodeCaps(w, r, share.CapDownload)
+	u, node, caps := s.requireNodeCaps(w, r, share.CapView)
 	if u == nil {
 		return
 	}
@@ -310,17 +304,17 @@ func (s *Server) handleEditSession(w http.ResponseWriter, r *http.Request) {
 	}
 	ver, err := s.store.GetCurrentVersion(r.Context(), node.ID)
 	if err != nil {
-		Error(w, r, err)
+		s.nodeError(w, r, err)
 		return
 	}
-	if !isOfficeMime(ver.Mime) {
+	if !isOfficeNode(node, ver.Mime) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "file type not supported by editor")
 		return
 	}
-	// The rank the w1 token carries: 3 = edit, 2 = download. A read-only
-	// session is rank 2 rather than 1 because GetFile now requires download
-	// — rank 1 would mint a session that could not fetch its own document.
-	permRank, mode := 2, "view"
+	permRank, mode := 1, "view"
+	if caps.Has(share.CapDownload) {
+		permRank = 2
+	}
 	if caps.Has(share.CapEdit) {
 		permRank, mode = 3, "edit"
 	}
@@ -367,6 +361,22 @@ func (s *Server) handleEditSession(w http.ResponseWriter, r *http.Request) {
 		"access_token_ttl": time.Now().Add(wopi.TokenTTL).UnixMilli(),
 		"can_write":        permRank >= 3,
 	})
+}
+
+// isOfficeNode reports whether a file can be opened by OnlyOffice, checking
+// both the stored MIME type and standard office file extensions.
+func isOfficeNode(node store.Node, mime string) bool {
+	if isOfficeMime(mime) {
+		return true
+	}
+	ext := strings.ToLower(path.Ext(node.Name))
+	switch ext {
+	case ".docx", ".doc", ".odt", ".rtf", ".epub",
+		".xlsx", ".xls", ".ods", ".csv",
+		".pptx", ".ppt", ".odp":
+		return true
+	}
+	return false
 }
 
 // isOfficeMime returns true for MIME types OnlyOffice Document Server can handle.

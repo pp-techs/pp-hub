@@ -154,9 +154,10 @@ func (rig socialRig) fixture(t *testing.T, label string) (collabFixture, store.U
 	return f, reader2
 }
 
-// Every comments route takes download on the document, and the per-comment
-// rules sit on top: edit is the author's, delete the author's or an editor's,
-// resolve and reopen the thread opener's or an editor's.
+// Every comments route takes view on the document — whoever can read it can
+// discuss it — and the per-comment rules sit on top: edit is the author's,
+// delete the author's or an editor's, resolve and reopen the thread opener's
+// or an editor's.
 func TestCommentRoutesPermissionMatrix(t *testing.T) {
 	rig := newSocialRig(t)
 	f, reader2 := rig.fixture(t, "cmatrix")
@@ -171,7 +172,7 @@ func TestCommentRoutesPermissionMatrix(t *testing.T) {
 		{"owner", f.owner, http.StatusOK},
 		{"editor", f.editor, http.StatusOK},
 		{"reader", f.reader, http.StatusOK},
-		{"view only", f.viewer, http.StatusForbidden},
+		{"view only", f.viewer, http.StatusOK},
 		{"member without a grant", f.stranger, http.StatusForbidden},
 	} {
 		if got := rig.do(t, tc.u, http.MethodGet, docPath+"/comments", nil).code; got != tc.want {
@@ -215,7 +216,7 @@ func TestCommentRoutesPermissionMatrix(t *testing.T) {
 	}{
 		{"reader2", reader2, http.StatusCreated},
 		{"editor", f.editor, http.StatusCreated},
-		{"view only", f.viewer, http.StatusForbidden},
+		{"view only", f.viewer, http.StatusCreated},
 		{"member without a grant", f.stranger, http.StatusForbidden},
 	} {
 		if _, got := rig.reply(t, tc.u, th.ID, "reply from "+tc.name); got != tc.want {
@@ -282,10 +283,10 @@ func TestCommentRoutesPermissionMatrix(t *testing.T) {
 	// Delete: the author, or an editor of the document.
 	cur := rig.threads(t, f.owner, f.doc)
 	idx := slices.IndexFunc(cur, func(x threadDTO) bool { return x.ID == th.ID })
-	if idx < 0 || len(cur[idx].Comments) != 3 {
+	if idx < 0 || len(cur[idx].Comments) != 4 {
 		t.Fatalf("thread before deletes: %+v", cur)
 	}
-	byReader2, byEditor := cur[idx].Comments[1].ID, cur[idx].Comments[2].ID
+	byReader2, byEditor, byViewer := cur[idx].Comments[1].ID, cur[idx].Comments[2].ID, cur[idx].Comments[3].ID
 	for _, tc := range []struct {
 		name, id string
 		u        store.User
@@ -297,6 +298,7 @@ func TestCommentRoutesPermissionMatrix(t *testing.T) {
 		{"editor deletes reader2's", byReader2, f.editor, http.StatusNoContent},
 		{"deleted again", byReader2, f.editor, http.StatusNotFound},
 		{"author deletes own", byEditor, f.editor, http.StatusNoContent},
+		{"editor deletes viewer's", byViewer, f.editor, http.StatusNoContent},
 	} {
 		if got := rig.do(t, tc.u, http.MethodDelete, "/api/v1/comments/"+tc.id, nil).code; got != tc.want {
 			t.Errorf("%s: %d, want %d", tc.name, got, tc.want)
@@ -374,7 +376,8 @@ func TestCommentNotificationRecipients(t *testing.T) {
 	f, reader2 := rig.fixture(t, "crecip")
 
 	// reader opens a thread naming the editor (can open), the viewer (view
-	// only: cannot), the stranger (no access) and themselves.
+	// only: can read, so can be told), the stranger (no access) and
+	// themselves.
 	th, code := rig.openThread(t, f.reader, f.doc, "Please  check\nthis section", f.editor, f.viewer, f.stranger, f.reader)
 	if code != http.StatusCreated {
 		t.Fatalf("open thread: %d", code)
@@ -392,7 +395,7 @@ func TestCommentNotificationRecipients(t *testing.T) {
 		"editor":   {"mention by crecip-reader", "reply by crecip-owner"},
 		"reader":   {"reply by crecip-editor", "mention by crecip-owner"},
 		"reader2":  nil,
-		"viewer":   nil,
+		"viewer":   {"mention by crecip-reader"},
 		"stranger": nil,
 	}
 	for name, u := range map[string]store.User{"owner": f.owner, "editor": f.editor, "reader": f.reader,
@@ -685,7 +688,7 @@ func mentionDoc(t *testing.T, text string, mentioned ...string) string {
 	return md
 }
 
-// A document mention notifies the people a new version adds — who can open
+// A document mention notifies the people a new version adds — who can read
 // the document, never its writer, once per version however often the job
 // runs — and the job runs off the version hook.
 func TestDocumentMentionsNotifyAddedReaders(t *testing.T) {
@@ -712,7 +715,7 @@ func TestDocumentMentionsNotifyAddedReaders(t *testing.T) {
 		"editor":   {"mention by cmention-owner"},
 		"reader":   {"mention by cmention-editor"},
 		"reader2":  nil,
-		"viewer":   nil,
+		"viewer":   {"mention by cmention-owner"},
 		"stranger": nil,
 	}
 	for name, u := range map[string]store.User{"owner": f.owner, "editor": f.editor, "reader": f.reader,

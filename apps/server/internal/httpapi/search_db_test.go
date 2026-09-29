@@ -202,8 +202,8 @@ func TestSearchVietnameseDiacritics(t *testing.T) {
 	}
 }
 
-// The content branch goes through the same reachability filter as names, and
-// additionally needs download: a hit's snippet is the file's text.
+// The content branch goes through the same reachability filter as names and
+// needs the same view a read takes: a hit's snippet is the file's text.
 func TestSearchContentRespectsAccess(t *testing.T) {
 	srv, q := searchEnv(t)
 	f := newContentFixture(t, srv, q, "access")
@@ -220,8 +220,9 @@ func TestSearchContentRespectsAccess(t *testing.T) {
 	if _, i := findHit(hits, secret.ID); i >= 0 {
 		t.Error("content hit leaked a file the member cannot reach")
 	}
-	if _, i := findHit(hits, viewOnly.ID); i >= 0 {
-		t.Error("content hit leaked the text of a view-only file")
+	// A view-only file can be read, so its text is a hit like any other.
+	if _, i := findHit(hits, viewOnly.ID); i < 0 {
+		t.Error("view-only file's text is searchable, and was not found")
 	}
 	if _, i := findHit(hits, f.plan.ID); i >= 0 {
 		t.Error("name hit leaked a file the member cannot reach")

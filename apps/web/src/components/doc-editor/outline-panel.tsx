@@ -24,11 +24,17 @@ export function OutlinePanel({
   editor,
   scrollRef,
   onClose,
+  className,
+  hideWhenEmpty = false,
 }: {
   editor: Editor;
   /** The element the document scrolls in. */
   scrollRef: RefObject<HTMLElement | null>;
-  onClose: () => void;
+  /** Omit for a panel that is always shown and cannot be dismissed. */
+  onClose?: () => void;
+  className?: string;
+  /** Render nothing when the document has no headings — a reader's view. */
+  hideWhenEmpty?: boolean;
 }) {
   const { t } = useLingui();
   const toc = useTableOfContents(editor, {
@@ -39,18 +45,22 @@ export function OutlinePanel({
   // Above the first heading the reader is still in its section.
   const active = toc.active ?? items[0];
 
+  if (hideWhenEmpty && items.length === 0) return null;
+
   return (
     <nav
       aria-label={t`Outline`}
-      className="border-border bg-background flex w-60 shrink-0 flex-col border-r"
+      className={cn("border-border bg-background flex w-60 shrink-0 flex-col border-r", className)}
     >
       <div className="flex h-10 shrink-0 items-center justify-between gap-2 pr-1 pl-3">
         <span className="text-muted-foreground text-xs font-medium">
           <Trans>Outline</Trans>
         </span>
-        <Button variant="ghost" size="icon-sm" aria-label={t`Close outline`} onClick={onClose}>
-          <XIcon />
-        </Button>
+        {onClose && (
+          <Button variant="ghost" size="icon-sm" aria-label={t`Close outline`} onClick={onClose}>
+            <XIcon />
+          </Button>
+        )}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-1 pb-4">
         {items.length === 0 ? (

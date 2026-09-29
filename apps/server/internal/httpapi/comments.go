@@ -129,9 +129,10 @@ func (s *Server) commentError(w http.ResponseWriter, r *http.Request, err error)
 }
 
 // requireDocumentComments resolves the document in the URL for a comments
-// route: download on a markdown document.
+// route: view on a markdown document. Whoever can read a document can discuss
+// it, and reading is now view.
 func (s *Server) requireDocumentComments(w http.ResponseWriter, r *http.Request) (*store.User, store.Node) {
-	u, node, _ := s.requireNodeCaps(w, r, share.CapDownload)
+	u, node, _ := s.requireNodeCaps(w, r, share.CapView)
 	if u == nil || !s.isMarkdownFile(w, r, node) {
 		return nil, store.Node{}
 	}
@@ -139,7 +140,7 @@ func (s *Server) requireDocumentComments(w http.ResponseWriter, r *http.Request)
 }
 
 // requireThread resolves the thread in the URL and the caller's capabilities
-// on its document, which must include download.
+// on its document, which must include view.
 func (s *Server) requireThread(w http.ResponseWriter, r *http.Request) (*store.User, store.Node, share.Caps, pgtype.UUID) {
 	threadID, err := uuidParam(r, "threadID")
 	if err != nil {
@@ -151,7 +152,7 @@ func (s *Server) requireThread(w http.ResponseWriter, r *http.Request) (*store.U
 		s.commentError(w, r, err)
 		return nil, store.Node{}, share.Caps{}, pgtype.UUID{}
 	}
-	u, node, caps := s.requireNodeCapsByID(w, r, nodeID, share.CapDownload)
+	u, node, caps := s.requireNodeCapsByID(w, r, nodeID, share.CapView)
 	return u, node, caps, threadID
 }
 
@@ -167,7 +168,7 @@ func (s *Server) requireComment(w http.ResponseWriter, r *http.Request) (*store.
 		s.commentError(w, r, err)
 		return nil, share.Caps{}, pgtype.UUID{}
 	}
-	u, _, caps := s.requireNodeCapsByID(w, r, nodeID, share.CapDownload)
+	u, _, caps := s.requireNodeCapsByID(w, r, nodeID, share.CapView)
 	return u, caps, commentID
 }
 

@@ -440,10 +440,10 @@ func (s *Server) resolveLinkNode(w http.ResponseWriter, r *http.Request) (store.
 		return store.Share{}, store.Node{}
 	}
 	// Nor is it wider than their access now. Monotonicity was checked when
-	// the link was minted; a creator since narrowed to view-only must not
-	// keep handing out the bytes anonymously through a link they made while
-	// they could download. Clamping the row here reaches every byte route,
-	// since they all read the flag through LinkCaps.
+	// the link was minted; a creator since narrowed to view without download
+	// must not keep handing out the bytes anonymously through a link they
+	// made while they could. Clamping the row here reaches every download
+	// route, since they all read the flag through LinkCaps.
 	if !caps.Has(share.CapDownload) {
 		sh.CanDownload = false
 	}

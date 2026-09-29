@@ -82,16 +82,21 @@ const catalogs: Record<Locale, () => Promise<{ messages: Messages }>> = {
 };
 
 /**
+ * The product's display name, in one place. Not translated: it is a name, and
+ * the same everywhere it appears — the window title, the sign-in page, the
+ * header of a shared link.
+ */
+export const PRODUCT_NAME = "PP Hub";
+
+/**
  * A document title, translated and suffixed with the product name.
  *
  * Route `head` functions run outside React — there is no hook to call — so
  * they hand descriptors to the i18n singleton here rather than rendering
  * text at module scope, where the catalog does not exist yet.
- *
- * `pp-hub` is a product name and is deliberately not translated.
  */
 export function pageTitle(...parts: MessageDescriptor[]): string {
-  return [...parts.map((p) => i18n._(p)), "pp-hub"].join(" · ");
+  return [...parts.map((p) => i18n._(p)), PRODUCT_NAME].join(" · ");
 }
 
 /** Load a catalog and make it current. Idempotent. */

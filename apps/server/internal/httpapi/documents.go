@@ -38,10 +38,10 @@ type documentDTO struct {
 }
 
 // handleDocument answers a version of a block document — the current one, or
-// ?version=<id> — as a document tree. The tree is the whole document, so it
-// takes download, like /content and /collab.
+// ?version=<id> — as a document tree. Rendering a document is reading it, so
+// this takes view, like the read-only view it feeds.
 func (s *Server) handleDocument(w http.ResponseWriter, r *http.Request) {
-	u, node, _ := s.requireNodeCaps(w, r, share.CapDownload)
+	u, node, _ := s.requireNodeCaps(w, r, share.CapView)
 	if u == nil {
 		return
 	}
@@ -63,11 +63,12 @@ func (s *Server) handleDocument(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, documentDTO{Doc: doc.Doc, Lossy: doc.Lossy, Version: doc.Version})
 }
 
-// handleShareDocument is handleDocument through a link: the link must allow
-// downloads and cover the node (?node=, the link's own node when absent).
+// handleShareDocument is handleDocument through a link: the link covers the
+// node (?node=, the link's own node when absent). Viewing is what a link
+// grants, so there is no further check — only the containment walk above.
 func (s *Server) handleShareDocument(w http.ResponseWriter, r *http.Request) {
 	sh, node, ok := s.shareScope(w, r, "node")
-	if !ok || !linkAllowsDownload(w, sh) {
+	if !ok {
 		return
 	}
 	doc, err := blockdoc.New(s.fs).Document(r.Context(), node.ID, pgtype.UUID{})
@@ -82,11 +83,11 @@ func (s *Server) handleShareDocument(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleShareAttachment serves an attachment of a document inside a link, on
-// the same terms as the document itself: the link allows downloads and covers
-// the document.
+// the same terms as the document itself: the link covers the document, and
+// viewing it is what the link grants.
 func (s *Server) handleShareAttachment(w http.ResponseWriter, r *http.Request) {
 	sh, node, ok := s.shareScope(w, r, "node")
-	if !ok || !linkAllowsDownload(w, sh) {
+	if !ok {
 		return
 	}
 	s.serveAttachment(w, r, node, chi.URLParam(r, "hash"),

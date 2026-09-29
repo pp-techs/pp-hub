@@ -358,9 +358,11 @@ func (s *Server) Router() http.Handler {
 		r.Get("/node-download", s.handleShareNodeDownload)
 		r.Get("/download-all", s.handleShareDownloadAll)
 		// A block document through the link: its tree for the read-only
-		// view, and its attachments. Same terms as the bytes routes above.
+		// view, and its attachments. Reading, so view is enough and the
+		// link's download flag is not consulted.
 		r.Get("/document", s.handleShareDocument)
 		r.Get("/attachments/{hash}", s.handleShareAttachment)
+		r.Get("/edit-session", s.handleShareEditSession)
 	})
 	return r
 }

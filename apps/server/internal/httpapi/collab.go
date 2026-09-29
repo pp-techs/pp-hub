@@ -84,11 +84,11 @@ func (s *Server) handleCollabSocket(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleAttachment serves an image, video or file dropped into a document. It
-// takes download on the document: the bytes are original content, and
-// whoever can open the document sees its images. A hash the document does
-// not hold is a 404 whether or not another document holds it.
+// takes view on the document: the bytes are original content, and whoever can
+// read the document sees its images. A hash the document does not hold is a
+// 404 whether or not another document holds it.
 func (s *Server) handleAttachment(w http.ResponseWriter, r *http.Request) {
-	u, node, _ := s.requireNodeCaps(w, r, share.CapDownload)
+	u, node, _ := s.requireNodeCaps(w, r, share.CapView)
 	if u == nil {
 		return
 	}

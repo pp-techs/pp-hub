@@ -231,11 +231,10 @@ export function PreviewContent({ node }: { node: Node }) {
 
 function PreviewBody({ node }: { node: Node }) {
   const mime = node.mime?.split(";")[0]?.trim() ?? "";
-  // `/content` is the file itself and takes the download capability, so a
-  // reader who was refused it is shown what the preview worker derived
-  // instead: a thumbnail, or the text snippet. There is no full-size render
-  // to fall back to, and pretending otherwise would just 403 in an <img>.
-  const canRead = capsOf(node).download;
+  // `/content` is the file itself and takes view, so anyone who can reach the
+  // node can render what the browser renders inline. Download is a separate
+  // right: it adds the save button, not the power to read.
+  const canRead = capsOf(node).view;
 
   // Dispatch on MIME, not on preview kind. The preview kind says what the
   // worker *stored* — and it stores one thumbnail for images, PDFs and video
@@ -255,10 +254,10 @@ function PreviewBody({ node }: { node: Node }) {
   if (mime.startsWith("image/")) {
     return <ImagePreview node={node} thumbUrl={previewUrl(node)} canRead={canRead} />;
   }
-  // The text artifact is the file's words, so the server gates `?kind=text`
-  // on download rather than view — only the thumbnail is a view-level
-  // artifact. Asking for it without the capability is a guaranteed 403
-  // rendered as "preview not ready", which is a lie about why.
+  // The text artifact is the file's words, in miniature; the server gates
+  // `?kind=text` on view like the file itself. Asking for it without the
+  // capability is a guaranteed 403 rendered as "preview not ready", which is
+  // a lie about why.
   if (canRead && previewKind(node.mime) === "text") {
     // eslint-disable-next-line lingui/no-unlocalized-strings -- preview artifact kind
     return <TextPreview url={previewUrl(node, "text")} />;
@@ -266,7 +265,7 @@ function PreviewBody({ node }: { node: Node }) {
   if (!canRead) {
     return (
       <Message>
-        <Trans>Downloads are off for this file, so it can only be opened by its owner.</Trans>
+        <Trans>You do not have access to this file.</Trans>
       </Message>
     );
   }

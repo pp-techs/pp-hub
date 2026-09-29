@@ -73,19 +73,19 @@ flowchart LR
 
 ### API surface
 
-| Route                                         | What it does                                                                                                                                                |
-| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/v1/nodes/{id}/collab`               | `{room, can_write, lossy}`. Needs `CapDownload` and a markdown file; 413 for a document over 16 MiB                                                         |
-| `GET /api/v1/collab/{room}`                   | The room's WebSocket (Hocuspocus protocol). Wrapped in `socketOrigin`; the room authorizes node, epoch and mode                                             |
-| `GET /api/v1/nodes/{id}/attachments/{hash}`   | An attachment's bytes, needing `CapDownload` on the document; images and video inline (with `Range`), anything else as a download                           |
-| `POST /api/v1/uploads` with `attach_to=<id>`  | The tus upload, addressed to a document; needs `CapEdit` on it. The commit answers the hash in `Upload-Attachment`                                          |
-| `POST /api/v1/spaces/{id}/documents`          | `kind=markdown` creates an `.md`, empty or from `"template": "<id>"` (M40)                                                                                  |
-| `GET /api/v1/templates/markdown`              | `[{id, name, description}]` in `?locale=` or the caller's saved language (en, vi)                                                                           |
-| `GET /api/v1/nodes/{id}/document`             | `{doc, lossy, version}`: the current version, or `?version=<id>`, as a ProseMirror tree. `CapDownload`; 400 if not markdown; 404 for another node's version |
-| `GET /api/v1/nodes/{id}/export`               | `application/zip`: the markdown with attachments rewritten to `assets/…`, and those files. `CapDownload`; audited as a download                             |
-| `POST /api/v1/nodes/{id}/unfurl`              | `{url}` → `{url, title, description, thumbnail?}` for a link bookmark. `CapEdit` on the document                                                            |
-| `GET /s/{token}/document?node=<id>`           | The same tree through a public link: the link must allow download and cover the node                                                                        |
-| `GET /s/{token}/attachments/{hash}?node=<id>` | An attachment through a link, on the same terms                                                                                                             |
+| Route                                         | What it does                                                                                                                                            |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/v1/nodes/{id}/collab`               | `{room, can_write, lossy}`. Needs `CapDownload` and a markdown file; 413 for a document over 16 MiB                                                     |
+| `GET /api/v1/collab/{room}`                   | The room's WebSocket (Hocuspocus protocol). Wrapped in `socketOrigin`; the room authorizes node, epoch and mode                                         |
+| `GET /api/v1/nodes/{id}/attachments/{hash}`   | An attachment's bytes, needing `CapView` on the document; images and video inline (with `Range`), anything else as a download                           |
+| `POST /api/v1/uploads` with `attach_to=<id>`  | The tus upload, addressed to a document; needs `CapEdit` on it. The commit answers the hash in `Upload-Attachment`                                      |
+| `POST /api/v1/spaces/{id}/documents`          | `kind=markdown` creates an `.md`, empty or from `"template": "<id>"` (M40)                                                                              |
+| `GET /api/v1/templates/markdown`              | `[{id, name, description}]` in `?locale=` or the caller's saved language (en, vi)                                                                       |
+| `GET /api/v1/nodes/{id}/document`             | `{doc, lossy, version}`: the current version, or `?version=<id>`, as a ProseMirror tree. `CapView`; 400 if not markdown; 404 for another node's version |
+| `GET /api/v1/nodes/{id}/export`               | `application/zip`: the markdown with attachments rewritten to `assets/…`, and those files. `CapDownload`; audited as a download                         |
+| `POST /api/v1/nodes/{id}/unfurl`              | `{url}` → `{url, title, description, thumbnail?}` for a link bookmark. `CapEdit` on the document                                                        |
+| `GET /s/{token}/document?node=<id>`           | The same tree through a public link, which always grants view and must cover the node                                                                   |
+| `GET /s/{token}/attachments/{hash}?node=<id>` | An attachment through a link, on the same terms                                                                                                         |
 
 Comments and notifications have routes of their own, listed under
 [Comments](#comments).
@@ -403,7 +403,7 @@ node_attachments(node_id, blob_hash, name, mime, size, created_by, created_at,
   client that lost that answer gets it from `HEAD` (`uploads.attachment_hash`).
   The same bytes attached to the same document twice are one row.
 - Reading is `GET /api/v1/nodes/{id}/attachments/{hash}`, requiring
-  `CapDownload` on the document — whoever can open it sees its images. A hash
+  `CapView` on the document — whoever can read it sees its images. A hash
   the document does not hold is 404 whether or not another document holds it.
   Images and videos render inline (not SVG); anything else downloads. `Range`
   is served — a `<video>` needs it to seek — even from an S3 body that cannot
@@ -446,22 +446,24 @@ is in the new-document dialog.
 
 `GET /api/v1/nodes/{id}/document` answers a version — the current one, or
 `?version=` — as the ProseMirror tree `mdoc.Parse` produces, with `lossy` and
-the version number. It takes `CapDownload`, like `/content` and `/collab`: the
-tree is the whole document. It is audited as a view.
+the version number. It takes `CapView`: rendering a document is reading it. It
+is audited as a view.
 
 The web renders it with one component, `components/markdown-document-view`
 (`MarkdownDocumentView({doc, attachmentUrl})`), a non-editable Tiptap on
 `createMdocKit` with the editor's own node views in read-only mode — so a
 document looks the same read as edited. Its callers are the preview panel for
 markdown, the version preview modal (`version-preview-modal.tsx`, with a
-**Restore** action), and the share page.
+**Restore** action), and the share page. The read-only kit enables
+`tableOfContents`; a caller that hands it a scroll container — the share page
+does, for a link's rendered document — also gets `OutlinePanel` beside the
+text, following that scroll and hidden below `lg` where there is no room.
 
 **Through a link**, `/s/{token}/document?node=<id>` and
 `/s/{token}/attachments/{hash}?node=<id>` answer the same tree and bytes on the
-terms of the link's other byte routes: the link must allow download and cover
-the node (the link's own node when `?node=` is absent). A link that does not
-allow download shows no document, for the reason `/content` needs download
-(M21). Editing through a link is not built.
+terms of the link's other read routes: the link must cover the node (the link's
+own node when `?node=` is absent), and a link always grants view. Editing
+through a link is not built.
 
 ## Export
 
@@ -522,7 +524,7 @@ conversation.
 | `DELETE /api/v1/comments/{id}`                       | The author, or `CapEdit` on the document; the thread goes with its last comment                     |
 | `POST /api/v1/comment-threads/{id}/resolve`/`reopen` | The thread's opener, or `CapEdit`; idempotent                                                       |
 
-**Reading and writing take `CapDownload`**, not `CapEdit`: whoever can open
+**Reading and writing take `CapView`**, not `CapEdit`: whoever can read
 the document can take part in its discussion, which is how a reviewer with
 read-only access leaves a remark. A body is at most 10 000 characters and names
 at most 50 people.

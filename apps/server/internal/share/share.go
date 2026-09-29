@@ -11,7 +11,6 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -32,7 +31,8 @@ var (
 )
 
 // Level is the tier a grant confers. edit implies view and download
-// (shares_edit_download_ck); view is a preview unless can_download is set.
+// (shares_edit_download_ck); view is read access to the file's content, and
+// can_download adds the right to take the bytes away.
 type Level = store.ShareLevel
 
 const (
@@ -140,14 +140,14 @@ func NewService(q *store.Queries) *Service {
 }
 
 // CreateLink generates a random token, stores its sha256, returns plaintext
-// once. Links are view-level and never re-share (shares_link_ck); the only
-// choice is whether raw download is allowed.
+// once. Links are view-level and never re-share (shares_link_ck): a visitor can
+// read what the link covers, and the only choice is whether they may also take
+// the bytes away.
 func (s *Service) CreateLink(ctx context.Context, nodeID pgtype.UUID, canDownload bool, expiresAt pgtype.Timestamptz, creator pgtype.UUID) (store.Share, string, error) {
-	raw := make([]byte, 32)
-	if _, err := rand.Read(raw); err != nil {
+	token, err := newLinkToken()
+	if err != nil {
 		return store.Share{}, "", err
 	}
-	token := base64.RawURLEncoding.EncodeToString(raw)
 	sum := sha256.Sum256([]byte(token))
 	sh, err := s.q.CreateShare(ctx, store.CreateShareParams{
 		NodeID:      nodeID,
@@ -160,6 +160,45 @@ func (s *Service) CreateLink(ctx context.Context, nodeID pgtype.UUID, canDownloa
 		CreatedBy:   creator,
 	})
 	return sh, token, err
+}
+
+// linkTokenAlphabet is base62: a share token ends up in a URL, so every
+// character must be one that survives being copied, pasted and mailed.
+const linkTokenAlphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+
+// linkTokenLength is 16 base62 characters, a little over 95 bits. Guessing one
+// is out of reach even before the per-token rate limit, and the token is short
+// enough to live in a link somebody reads aloud.
+const linkTokenLength = 16
+
+// newLinkToken draws a fresh link token from crypto/rand.
+//
+// 256 is not a multiple of 62, so the obvious `b % 62` would make the first
+// eight characters of the alphabet likelier than the rest. Bytes at or above
+// the largest multiple of 62 are discarded instead (248), which costs a few
+// redraws and buys back an even distribution.
+func newLinkToken() (string, error) {
+	// 248 = 256 rounded down to a multiple of 62; bytes at or above it are
+	// redrawn rather than folded in.
+	const limit byte = 248
+	out := make([]byte, linkTokenLength)
+	buf := make([]byte, linkTokenLength)
+	for i := 0; i < linkTokenLength; {
+		if _, err := rand.Read(buf); err != nil {
+			return "", err
+		}
+		for _, b := range buf {
+			if b >= limit {
+				continue
+			}
+			out[i] = linkTokenAlphabet[int(b)%len(linkTokenAlphabet)]
+			i++
+			if i == linkTokenLength {
+				break
+			}
+		}
+	}
+	return string(out), nil
 }
 
 // UpsertDirect grants a user access to a node, or replaces the grant they

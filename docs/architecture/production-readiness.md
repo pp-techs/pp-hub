@@ -237,7 +237,7 @@ a burst of failed sign-ins from one address raises a `security_alert` row, a
 Drive's primary collaboration surface, deferred at every milestone since M10.
 M29 built it for **block documents**: threads anchored in the markdown by a
 comment marker, `comment_threads`/`comments`/`notifications` (`0015`), REST
-routes under `CapDownload`, a comments panel in the editor, and in-app
+routes under `CapView`, a comments panel in the editor, and in-app
 notifications — a bell with an unread badge, delivered live over Server-Sent
 Events — for comments, replies and @mentions in comments or in the document
 text. Deliberately not built: comments on office files and any email for comments or mentions. See
