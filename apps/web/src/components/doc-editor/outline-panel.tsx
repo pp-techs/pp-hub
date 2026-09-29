@@ -1,42 +1,23 @@
 import type { Editor } from "@tiptap/core";
-import type { Node as PMNode } from "@tiptap/pm/model";
-import { useEditorState } from "@tiptap/react";
+import { useTableOfContents } from "@slash-editor/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { XIcon } from "lucide-react";
-import { useEffect, useState, type RefObject } from "react";
+import type { RefObject } from "react";
 import { Button } from "@workspace/ui/components/button";
 import { cn } from "@workspace/ui/lib/utils";
 
-interface OutlineHeading {
-  pos: number;
-  level: number;
-  text: string;
-}
-
 /** How far below the top of the scroller a heading still counts as the one being read. */
 const ACTIVE_OFFSET = 96;
-
-/** Every `h1`–`h3` in document order, wherever it sits (columns, toggles, …). */
-function collectHeadings(doc: PMNode): OutlineHeading[] {
-  const headings: OutlineHeading[] = [];
-  doc.descendants((node, pos) => {
-    if (node.type.name === "heading") {
-      const level = node.attrs.level as number;
-      if (level <= 3) headings.push({ pos, level, text: node.textContent.trim() });
-      return false;
-    }
-    return !node.isAtom;
-  });
-  return headings;
-}
 
 // eslint-disable-next-line lingui/no-unlocalized-strings -- class names
 const INDENT: Record<number, string> = { 1: "pl-2", 2: "pl-5", 3: "pl-8" };
 
 /**
- * The document's headings as a table of contents beside it. The entry for
- * the section being read is marked as the reader scrolls, and a click
- * scrolls its heading to the top. It follows the live document — a heading a
+ * The document's headings as a table of contents beside it, from
+ * slash-editor's `tableOfContents` extension (top-level `h1`–`h3`; the kit's
+ * `maxLevel` is set in `doc-editor.tsx`). The active entry follows the caret
+ * while the writer types and the scroll position otherwise; a click scrolls
+ * its heading to the top. It follows the live document — a heading a
  * collaborator types appears here as they type it.
  */
 export function OutlinePanel({
@@ -50,44 +31,13 @@ export function OutlinePanel({
   onClose: () => void;
 }) {
   const { t } = useLingui();
-  const headings = useEditorState({
-    editor,
-    selector: ({ editor: e }) => collectHeadings(e.state.doc),
+  const toc = useTableOfContents(editor, {
+    scrollContainer: scrollRef,
+    scrollOffset: ACTIVE_OFFSET,
   });
-  const [active, setActive] = useState<number | null>(null);
-
-  useEffect(() => {
-    const scroller = scrollRef.current;
-    if (!scroller) return;
-    let frame = 0;
-    const measure = () => {
-      frame = 0;
-      const limit = scroller.getBoundingClientRect().top + ACTIVE_OFFSET;
-      let current: number | null = headings[0]?.pos ?? null;
-      for (const heading of headings) {
-        const dom = editor.view.nodeDOM(heading.pos);
-        if (!(dom instanceof HTMLElement)) continue;
-        if (dom.getBoundingClientRect().top > limit) break;
-        current = heading.pos;
-      }
-      setActive(current);
-    };
-    const schedule = () => {
-      if (!frame) frame = requestAnimationFrame(measure);
-    };
-    measure();
-    scroller.addEventListener("scroll", schedule, { passive: true });
-    return () => {
-      scroller.removeEventListener("scroll", schedule);
-      if (frame) cancelAnimationFrame(frame);
-    };
-  }, [editor, headings, scrollRef]);
-
-  const jump = (pos: number) => {
-    const dom = editor.view.nodeDOM(pos);
-    // eslint-disable-next-line lingui/no-unlocalized-strings -- scroll options
-    if (dom instanceof HTMLElement) dom.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
+  const { items, select } = toc;
+  // Above the first heading the reader is still in its section.
+  const active = toc.active ?? items[0];
 
   return (
     <nav
@@ -103,27 +53,27 @@ export function OutlinePanel({
         </Button>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-1 pb-4">
-        {headings.length === 0 ? (
+        {items.length === 0 ? (
           <p className="text-muted-foreground px-2 py-1 text-xs">
             <Trans>Headings you add appear here.</Trans>
           </p>
         ) : (
           <ul className="flex flex-col">
-            {headings.map((heading) => (
-              <li key={heading.pos}>
+            {items.map((item) => (
+              <li key={item.id ?? item.pos}>
                 <button
                   type="button"
-                  aria-current={heading.pos === active ? "location" : undefined}
-                  onClick={() => jump(heading.pos)}
+                  aria-current={item.pos === active?.pos ? "location" : undefined}
+                  onClick={() => select(item)}
                   className={cn(
                     "hover:bg-muted w-full truncate rounded-md py-1 pr-2 text-left text-xs",
-                    INDENT[heading.level],
-                    heading.pos === active
+                    INDENT[item.level],
+                    item.pos === active?.pos
                       ? "text-foreground font-medium"
                       : "text-muted-foreground",
                   )}
                 >
-                  {heading.text || t`Untitled heading`}
+                  {item.text.trim() || t`Untitled heading`}
                 </button>
               </li>
             ))}

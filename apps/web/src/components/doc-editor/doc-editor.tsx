@@ -272,6 +272,7 @@ function DocSurface({
       comment: { store: commentStore },
       slash: false,
       drag: { gutterWidth: BLOCK_GUTTER_WIDTH },
+      tableOfContents: { maxLevel: 3 },
       placeholder: { resolve: (context) => localizedPlaceholder(i18n, context) },
       toggle: {
         renderToggleButton: ({ element, isOpen }) => labelToggleButton(i18n, element, isOpen),

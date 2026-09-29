@@ -568,8 +568,11 @@ in [M29](milestones/M29.md) and [data-model.md](data-model.md#comments-and-notif
   and derived from the display name (`lib/collab/presence.ts`).
 - Editing aids (M40): table controls (add or delete a row or column, toggle
   the header row, delete the table — `components/table-controls.tsx`); an
-  outline panel of the headings, click to scroll, toggled from the editor
-  header (`doc-editor/outline-panel.tsx`); `@` mentions of space members and
+  outline panel of the top-level `h1`–`h3` headings from slash-editor's
+  `tableOfContents` extension (`useTableOfContents`, `maxLevel: 3`), whose
+  active row follows the caret while typing and the scroll position otherwise,
+  click to jump, toggled from the editor header (`doc-editor/outline-panel.tsx`);
+  `@` mentions of space members and
   of markdown documents in the space (`lib/collab/mentions.ts`,
   `nodes/mention-node-view.tsx`); a video node view and an embed node view
   whose slash item asks for a URL and unfurls it (`nodes/embed-link-modal.tsx`);
