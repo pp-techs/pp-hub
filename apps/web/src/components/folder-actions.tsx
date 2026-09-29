@@ -2,14 +2,10 @@ import {
   ArrowDownAZ,
   ClipboardPaste,
   CloudUpload,
-  FileSpreadsheet,
-  FileText,
   FolderPlus,
   FolderUp,
   Info,
   LayoutGrid,
-  NotebookPen,
-  Presentation,
   RefreshCw,
   SquareDashedMousePointer,
   Users,
@@ -18,9 +14,32 @@ import type { LucideIcon } from "lucide-react";
 import { msg, plural } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
 import type { NodeView, SortField, SortOrder } from "@/lib/api";
+import { extIcon, type IconComponent } from "@/components/node-icon";
 import type { DriveWrite } from "@/components/drive-write";
 
-export type FolderActionGroup = "create" | "clipboard" | "selection" | "display" | "info";
+/**
+ * "create" and "documents" are deliberately distinct: the menus draw a
+ * separator whenever the group changes, which is what keeps the office and
+ * markdown entries together as one block instead of scattered among the
+ * folders and uploads.
+ */
+export type FolderActionGroup =
+  | "create"
+  | "documents"
+  | "clipboard"
+  | "selection"
+  | "display"
+  | "info";
+
+/** The created file's extension decides the glyph — the same `extIcon` path a
+ *  node row takes, so the menu shows the icon the file will wear once it
+ *  exists. Server-side, `KindDocument.Ext()` and friends are these suffixes. */
+/* eslint-disable lingui/no-unlocalized-strings -- file extensions, not copy */
+const DOCUMENT_ICON = extIcon("docx");
+const SPREADSHEET_ICON = extIcon("xlsx");
+const PRESENTATION_ICON = extIcon("pptx");
+const MARKDOWN_ICON = extIcon("md");
+/* eslint-enable lingui/no-unlocalized-strings */
 
 /** One choice in a radio submenu — sort field, sort order or view. */
 export interface FolderActionChoice {
@@ -38,7 +57,11 @@ export interface FolderAction {
    * `i18n._(action.label)`, which is what makes it follow a language switch.
    */
   label: MessageDescriptor;
-  icon: LucideIcon;
+  /**
+   * Lucide for the plain acts; an iconify `vscode-icons` glyph for the entries
+   * that name a file type, wearing the icon the created file will have.
+   */
+  icon: LucideIcon | IconComponent;
   group: FolderActionGroup;
   disabled?: boolean;
   /** A radio submenu. Mutually exclusive with `run`. */
@@ -87,42 +110,6 @@ export function folderActions(write: DriveWrite, listing?: ListingContext): Fold
         ]
       : []),
     {
-      key: "new-markdown",
-      label: msg`New markdown document`,
-      icon: NotebookPen,
-      group: "create",
-      disabled: !write.canWrite,
-      // eslint-disable-next-line lingui/no-unlocalized-strings -- document kind
-      run: () => write.newDocument("markdown"),
-    },
-    {
-      key: "new-document",
-      label: msg`New document`,
-      icon: FileText,
-      group: "create",
-      disabled: !write.canWrite,
-      // eslint-disable-next-line lingui/no-unlocalized-strings -- document kind
-      run: () => write.newDocument("document"),
-    },
-    {
-      key: "new-spreadsheet",
-      label: msg`New spreadsheet`,
-      icon: FileSpreadsheet,
-      group: "create",
-      disabled: !write.canWrite,
-      // eslint-disable-next-line lingui/no-unlocalized-strings -- document kind
-      run: () => write.newDocument("spreadsheet"),
-    },
-    {
-      key: "new-presentation",
-      label: msg`New presentation`,
-      icon: Presentation,
-      group: "create",
-      disabled: !write.canWrite,
-      // eslint-disable-next-line lingui/no-unlocalized-strings -- document kind
-      run: () => write.newDocument("presentation"),
-    },
-    {
       key: "upload-files",
       label: msg`Upload files`,
       icon: CloudUpload,
@@ -137,6 +124,44 @@ export function folderActions(write: DriveWrite, listing?: ListingContext): Fold
       group: "create",
       disabled: !write.canWrite,
       run: write.uploadFolder,
+    },
+    // One group of their own: the office files and the markdown document, each
+    // wearing the glyph the created file will carry (see `extIcon`).
+    {
+      key: "new-document",
+      label: msg`New document`,
+      icon: DOCUMENT_ICON,
+      group: "documents",
+      disabled: !write.canWrite,
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- document kind
+      run: () => write.newDocument("document"),
+    },
+    {
+      key: "new-spreadsheet",
+      label: msg`New spreadsheet`,
+      icon: SPREADSHEET_ICON,
+      group: "documents",
+      disabled: !write.canWrite,
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- document kind
+      run: () => write.newDocument("spreadsheet"),
+    },
+    {
+      key: "new-presentation",
+      label: msg`New presentation`,
+      icon: PRESENTATION_ICON,
+      group: "documents",
+      disabled: !write.canWrite,
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- document kind
+      run: () => write.newDocument("presentation"),
+    },
+    {
+      key: "new-markdown",
+      label: msg`New markdown document`,
+      icon: MARKDOWN_ICON,
+      group: "documents",
+      disabled: !write.canWrite,
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- document kind
+      run: () => write.newDocument("markdown"),
     },
     {
       key: "paste",

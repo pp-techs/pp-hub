@@ -8,7 +8,7 @@ import {
 import { cn } from "@workspace/ui/lib/utils";
 import type { Node } from "@/lib/api";
 
-type IconComponent = FunctionComponent<SVGProps<SVGSVGElement>>;
+export type IconComponent = FunctionComponent<SVGProps<SVGSVGElement>>;
 type IconLoader = () => Promise<{ default: IconComponent }>;
 
 /**
@@ -206,6 +206,28 @@ const BY_EXT: Record<string, string> = {
   fish: "file-type-shell",
   sql: "file-type-sql",
 };
+
+/**
+ * The glyph a file called `name` would wear — used where an action names the
+ * file it is about to create and no node exists yet (the "New …" items in the
+ * folder menus). Only the extension is consulted, as in `NodeIcon`, so the menu
+ * shows exactly the icon the created file will later get in the listing.
+ *
+ * The glyph loads lazily and the fallback is the same empty svg as `NodeIcon`'s,
+ * so a menu that opens before the glyph lands does not shift.
+ */
+export function extIcon(name: string): IconComponent {
+  const dot = name.lastIndexOf(".");
+  const ext = dot > 0 ? name.slice(dot + 1).toLowerCase() : name.toLowerCase();
+  const Icon = iconFor(BY_EXT[ext] ?? "default-file");
+  return function ExtIcon({ className }: SVGProps<SVGSVGElement>) {
+    return (
+      <Suspense fallback={<svg className={className} aria-hidden="true" />}>
+        <Icon className={className} aria-hidden="true" />
+      </Suspense>
+    );
+  };
+}
 
 /**
  * The `vscode-icons` glyph for a node: the set's default folder, or the glyph

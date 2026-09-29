@@ -93,7 +93,7 @@ msgstr "{address} is now a member"
 msgid "{buried, plural, one {# item of yours inside} other {# items of yours inside}}"
 msgstr "{buried, plural, one {# item of yours inside} other {# items of yours inside}}"
 
-#: src/routes/drive/$spaceId/index.tsx:645
+#: src/routes/drive/$spaceId/index.tsx:714
 msgid "{count, plural, one {Are you sure you want to move # item to trash?} other {Are you sure you want to move # items to trash?}}"
 msgstr "{count, plural, one {Are you sure you want to move # item to trash?} other {Are you sure you want to move # items to trash?}}"
 
@@ -101,11 +101,11 @@ msgstr "{count, plural, one {Are you sure you want to move # item to trash?} oth
 msgid "{count, plural, one {The other signed-in device will have to sign in again.} other {All # other signed-in devices will have to sign in again.}}"
 msgstr "{count, plural, one {The other signed-in device will have to sign in again.} other {All # other signed-in devices will have to sign in again.}}"
 
-#: src/routes/drive/$spaceId/index.tsx:678
+#: src/routes/drive/$spaceId/index.tsx:747
 msgid "{count, plural, one {These folders hold # item other people created. They lose access until you restore them.} other {These folders hold # items other people created. They lose access until you restore them.}}"
 msgstr "{count, plural, one {These folders hold # item other people created. They lose access until you restore them.} other {These folders hold # items other people created. They lose access until you restore them.}}"
 
-#: src/routes/drive/$spaceId/index.tsx:673
+#: src/routes/drive/$spaceId/index.tsx:742
 msgid "{count, plural, one {This folder holds # item other people created. They lose access until you restore it.} other {This folder holds # items other people created. They lose access until you restore it.}}"
 msgstr "{count, plural, one {This folder holds # item other people created. They lose access until you restore it.} other {This folder holds # items other people created. They lose access until you restore it.}}"
 
@@ -212,7 +212,7 @@ msgstr "{moved, plural, one {Moved # item} other {Moved # items}}"
 msgid "{n, plural, one {# suspended} other {# suspended}}"
 msgstr "{n, plural, one {# suspended} other {# suspended}}"
 
-#: src/components/folder-actions.tsx:250
+#: src/components/folder-actions.tsx:275
 msgid "{n, plural, one {Paste # item} other {Paste # items}}"
 msgstr "{n, plural, one {Paste # item} other {Paste # items}}"
 
@@ -556,7 +556,7 @@ msgstr "Add people or groups…"
 msgid "Add someone to this group…"
 msgstr "Add someone to this group…"
 
-#: src/components/node-actions.tsx:175
+#: src/components/node-actions.tsx:177
 msgid "Add star"
 msgstr "Add star"
 
@@ -699,7 +699,7 @@ msgstr "Appearance"
 msgid "Archive"
 msgstr "Archive"
 
-#: src/routes/drive/$spaceId/index.tsx:644
+#: src/routes/drive/$spaceId/index.tsx:713
 msgid "Are you sure you want to move \"{nodeName}\" to trash?"
 msgstr "Are you sure you want to move \"{nodeName}\" to trash?"
 
@@ -996,7 +996,7 @@ msgid "Copied as “{copyName}”"
 msgstr "Copied as “{copyName}”"
 
 #: src/components/block-handle.tsx:219
-#: src/components/node-actions.tsx:230
+#: src/components/node-actions.tsx:232
 #: src/components/share-dialog.tsx:833
 msgid "Copy"
 msgstr "Copy"
@@ -1224,7 +1224,7 @@ msgstr "Current"
 msgid "Current access"
 msgstr "Current access"
 
-#: src/components/node-actions.tsx:221
+#: src/components/node-actions.tsx:223
 msgid "Cut"
 msgstr "Cut"
 
@@ -1427,7 +1427,7 @@ msgstr "download"
 
 #: src/components/editor-header.tsx:108
 #: src/components/editor-header.tsx:133
-#: src/components/node-actions.tsx:138
+#: src/components/node-actions.tsx:140
 #: src/components/preview-modal.tsx:124
 #: src/components/preview-panel.tsx:341
 #: src/components/selection-bar.tsx:64
@@ -1485,7 +1485,7 @@ msgstr "edit"
 
 #: src/components/comments/comments-panel.tsx:536
 #: src/components/doc-editor/doc-editor.tsx:144
-#: src/components/node-actions.tsx:130
+#: src/components/node-actions.tsx:132
 msgid "Edit"
 msgstr "Edit"
 
@@ -1560,7 +1560,7 @@ msgstr "Empty trash"
 msgid "Enable"
 msgstr "Enable"
 
-#: src/routes/drive/$spaceId/index.tsx:605
+#: src/routes/drive/$spaceId/index.tsx:674
 msgid "Enter a new name for this item."
 msgstr "Enter a new name for this item."
 
@@ -1647,7 +1647,7 @@ msgid "Export CSV"
 msgstr "Export CSV"
 
 #: src/components/editor-header.tsx:125
-#: src/components/node-actions.tsx:151
+#: src/components/node-actions.tsx:153
 msgid "Export with images (.zip)"
 msgstr "Export with images (.zip)"
 
@@ -1775,7 +1775,7 @@ msgstr "Folder"
 msgid "folder downloaded"
 msgstr "folder downloaded"
 
-#: src/components/folder-actions.tsx:201
+#: src/components/folder-actions.tsx:226
 msgid "Folder information"
 msgstr "Folder information"
 
@@ -1862,7 +1862,7 @@ msgstr "grant created"
 msgid "grant revoked"
 msgstr "grant revoked"
 
-#: src/components/folder-actions.tsx:240
+#: src/components/folder-actions.tsx:265
 #: src/components/settings/panes/account-general.tsx:40
 msgid "Grid"
 msgstr "Grid"
@@ -1992,7 +1992,7 @@ msgstr "Images"
 msgid "Implicit TLS / SMTPS (port 465)"
 msgstr "Implicit TLS / SMTPS (port 465)"
 
-#: src/components/node-actions.tsx:168
+#: src/components/node-actions.tsx:170
 msgid "Information"
 msgstr "Information"
 
@@ -2196,7 +2196,7 @@ msgid "Linking {spaceName}"
 msgstr "Linking {spaceName}"
 
 #: src/components/doc-editor/labels.ts:69
-#: src/components/folder-actions.tsx:241
+#: src/components/folder-actions.tsx:266
 #: src/components/settings/panes/account-general.tsx:39
 msgid "List"
 msgstr "List"
@@ -2258,7 +2258,7 @@ msgstr "Lowercase letters, numbers and dashes. Optional."
 msgid "Mail"
 msgstr "Mail"
 
-#: src/components/node-actions.tsx:238
+#: src/components/node-actions.tsx:240
 msgid "Make a copy"
 msgstr "Make a copy"
 
@@ -2377,11 +2377,11 @@ msgstr "minutes"
 msgid "Modified"
 msgstr "Modified"
 
-#: src/components/folder-actions.tsx:233
+#: src/components/folder-actions.tsx:258
 msgid "Modified (newest)"
 msgstr "Modified (newest)"
 
-#: src/components/folder-actions.tsx:234
+#: src/components/folder-actions.tsx:259
 msgid "Modified (oldest)"
 msgstr "Modified (oldest)"
 
@@ -2402,13 +2402,13 @@ msgstr "Move"
 msgid "Move “{name}”"
 msgstr "Move “{name}”"
 
-#: src/components/node-actions.tsx:247
-#: src/routes/drive/$spaceId/index.tsx:641
-#: src/routes/drive/$spaceId/index.tsx:650
+#: src/components/node-actions.tsx:249
+#: src/routes/drive/$spaceId/index.tsx:710
+#: src/routes/drive/$spaceId/index.tsx:719
 msgid "Move to trash"
 msgstr "Move to trash"
 
-#: src/components/node-actions.tsx:204
+#: src/components/node-actions.tsx:206
 msgid "Move to…"
 msgstr "Move to…"
 
@@ -2439,11 +2439,11 @@ msgstr "Name"
 msgid "name (2)"
 msgstr "name (2)"
 
-#: src/components/folder-actions.tsx:231
+#: src/components/folder-actions.tsx:256
 msgid "Name (A–Z)"
 msgstr "Name (A–Z)"
 
-#: src/components/folder-actions.tsx:232
+#: src/components/folder-actions.tsx:257
 msgid "Name (Z–A)"
 msgstr "Name (Z–A)"
 
@@ -2464,17 +2464,17 @@ msgstr "never"
 msgid "Never"
 msgstr "Never"
 
-#: src/components/nav-create.tsx:45
+#: src/components/nav-create.tsx:49
 msgid "New"
 msgstr "New"
 
-#: src/components/folder-actions.tsx:100
+#: src/components/folder-actions.tsx:132
 #: src/components/new-document-dialog.tsx:99
 msgid "New document"
 msgstr "New document"
 
 #: src/components/drive-write.tsx:267
-#: src/components/folder-actions.tsx:69
+#: src/components/folder-actions.tsx:92
 msgid "New folder"
 msgstr "New folder"
 
@@ -2483,7 +2483,7 @@ msgstr "New folder"
 msgid "New group"
 msgstr "New group"
 
-#: src/components/folder-actions.tsx:91
+#: src/components/folder-actions.tsx:159
 #: src/components/new-document-dialog.tsx:100
 msgid "New markdown document"
 msgstr "New markdown document"
@@ -2493,7 +2493,7 @@ msgstr "New markdown document"
 msgid "New members are admins by default"
 msgstr "New members are admins by default"
 
-#: src/components/folder-actions.tsx:118
+#: src/components/folder-actions.tsx:150
 #: src/components/new-document-dialog.tsx:98
 msgid "New presentation"
 msgstr "New presentation"
@@ -2502,12 +2502,12 @@ msgstr "New presentation"
 msgid "New public link"
 msgstr "New public link"
 
-#: src/components/folder-actions.tsx:109
+#: src/components/folder-actions.tsx:141
 #: src/components/new-document-dialog.tsx:97
 msgid "New spreadsheet"
 msgstr "New spreadsheet"
 
-#: src/components/folder-actions.tsx:82
+#: src/components/folder-actions.tsx:105
 #: src/components/team-folder-dialog.tsx:53
 msgid "New team folder"
 msgstr "New team folder"
@@ -2560,7 +2560,7 @@ msgstr "No groups yet."
 msgid "No matches for “{queryText}”"
 msgstr "No matches for “{queryText}”"
 
-#: src/routes/drive/$spaceId/index.tsx:520
+#: src/routes/drive/$spaceId/index.tsx:589
 msgid "No matching files or folders"
 msgstr "No matching files or folders"
 
@@ -2728,7 +2728,7 @@ msgid "open"
 msgstr "open"
 
 #: src/components/drive-write.tsx:214
-#: src/components/node-actions.tsx:130
+#: src/components/node-actions.tsx:132
 #: src/components/preview-content.tsx:281
 #: src/components/preview-modal.tsx:115
 #: src/components/preview-panel.tsx:331
@@ -2736,7 +2736,7 @@ msgstr "open"
 msgid "Open"
 msgstr "Open"
 
-#: src/components/node-actions.tsx:117
+#: src/components/node-actions.tsx:119
 #: src/components/preview-content.tsx:151
 msgid "Open in new tab"
 msgstr "Open in new tab"
@@ -2804,7 +2804,7 @@ msgstr "Page not found."
 msgid "Password"
 msgstr "Password"
 
-#: src/components/folder-actions.tsx:247
+#: src/components/folder-actions.tsx:272
 msgid "Paste"
 msgstr "Paste"
 
@@ -2889,7 +2889,7 @@ msgstr "Port must be between 1 and 65535."
 msgid "Press D anywhere outside a text field to flip between light and dark."
 msgstr "Press D anywhere outside a text field to flip between light and dark."
 
-#: src/components/node-actions.tsx:107
+#: src/components/node-actions.tsx:109
 #: src/components/preview-panel.tsx:331
 msgid "Preview"
 msgstr "Preview"
@@ -2968,7 +2968,7 @@ msgstr "Recent"
 msgid "referenced blobs"
 msgstr "referenced blobs"
 
-#: src/components/folder-actions.tsx:189
+#: src/components/folder-actions.tsx:214
 msgid "Refresh"
 msgstr "Refresh"
 
@@ -3017,7 +3017,7 @@ msgstr "Remove link"
 msgid "Remove password"
 msgstr "Remove password"
 
-#: src/components/node-actions.tsx:175
+#: src/components/node-actions.tsx:177
 msgid "Remove star"
 msgstr "Remove star"
 
@@ -3041,9 +3041,9 @@ msgstr "Removed from this space here"
 msgid "Removes “{spaceName}” and everything in it — every file, version, share and member. The blobs are released and cannot be recovered. Its Logto organization is kept; delete it in Logto too if the company is gone."
 msgstr "Removes “{spaceName}” and everything in it — every file, version, share and member. The blobs are released and cannot be recovered. Its Logto organization is kept; delete it in Logto too if the company is gone."
 
-#: src/components/node-actions.tsx:194
+#: src/components/node-actions.tsx:196
 #: src/components/selection-bar.tsx:74
-#: src/routes/drive/$spaceId/index.tsx:602
+#: src/routes/drive/$spaceId/index.tsx:671
 msgid "Rename"
 msgstr "Rename"
 
@@ -3161,7 +3161,7 @@ msgstr "Revoke admin"
 msgid "Revoking a group’s access leaves anything its members created in here — those items stay with whoever made them."
 msgstr "Revoking a group’s access leaves anything its members created in here — those items stay with whoever made them."
 
-#: src/routes/drive/$spaceId/index.tsx:529
+#: src/routes/drive/$spaceId/index.tsx:598
 msgid "Right-click here, or use New, to add something."
 msgstr "Right-click here, or use New, to add something."
 
@@ -3174,7 +3174,7 @@ msgid "Rows and columns of cells"
 msgstr "Rows and columns of cells"
 
 #: src/components/comments/comments-panel.tsx:564
-#: src/routes/drive/$spaceId/index.tsx:629
+#: src/routes/drive/$spaceId/index.tsx:698
 msgid "Save"
 msgstr "Save"
 
@@ -3275,7 +3275,7 @@ msgstr "Select a file or folder to see its details."
 msgid "Select a space"
 msgstr "Select a space"
 
-#: src/components/folder-actions.tsx:156
+#: src/components/folder-actions.tsx:181
 msgid "Select all"
 msgstr "Select all"
 
@@ -3361,7 +3361,7 @@ msgid "Settings sections"
 msgstr "Settings sections"
 
 #: src/components/editor-header.tsx:91
-#: src/components/node-actions.tsx:184
+#: src/components/node-actions.tsx:186
 #: src/components/preview-panel.tsx:350
 #: src/components/selection-bar.tsx:69
 #: src/components/share-dialog.tsx:493
@@ -3497,11 +3497,11 @@ msgstr "Signed-in devices"
 msgid "Size"
 msgstr "Size"
 
-#: src/components/folder-actions.tsx:235
+#: src/components/folder-actions.tsx:260
 msgid "Size (largest)"
 msgstr "Size (largest)"
 
-#: src/components/folder-actions.tsx:236
+#: src/components/folder-actions.tsx:261
 msgid "Size (smallest)"
 msgstr "Size (smallest)"
 
@@ -3525,7 +3525,7 @@ msgstr "Something went wrong on our side. Try again in a moment."
 msgid "Sort ascending"
 msgstr "Sort ascending"
 
-#: src/components/folder-actions.tsx:164
+#: src/components/folder-actions.tsx:189
 #: src/components/settings/panes/account-general.tsx:189
 msgid "Sort by"
 msgstr "Sort by"
@@ -3534,7 +3534,7 @@ msgstr "Sort by"
 msgid "Sort descending"
 msgstr "Sort descending"
 
-#: src/components/folder-actions.tsx:201
+#: src/components/folder-actions.tsx:226
 msgid "Space information"
 msgstr "Space information"
 
@@ -3819,7 +3819,7 @@ msgstr "This file was shared with you"
 msgid "this folder"
 msgstr "this folder"
 
-#: src/routes/drive/$spaceId/index.tsx:522
+#: src/routes/drive/$spaceId/index.tsx:591
 #: src/routes/s/$token.tsx:545
 msgid "This folder is empty"
 msgstr "This folder is empty"
@@ -3948,7 +3948,7 @@ msgid "Trash retention (days)"
 msgstr "Trash retention (days)"
 
 #: src/components/trash-panel.tsx:257
-#: src/routes/drive/$spaceId/index.tsx:527
+#: src/routes/drive/$spaceId/index.tsx:596
 msgid "Try a different search."
 msgstr "Try a different search."
 
@@ -4050,11 +4050,11 @@ msgstr "Upload cancelled"
 msgid "Upload failed"
 msgstr "Upload failed"
 
-#: src/components/folder-actions.tsx:127
+#: src/components/folder-actions.tsx:114
 msgid "Upload files"
 msgstr "Upload files"
 
-#: src/components/folder-actions.tsx:135
+#: src/components/folder-actions.tsx:122
 msgid "Upload folder"
 msgstr "Upload folder"
 
@@ -4130,7 +4130,7 @@ msgid "Version history"
 msgstr "Version history"
 
 #: src/components/editor-header.tsx:100
-#: src/components/node-actions.tsx:159
+#: src/components/node-actions.tsx:161
 #: src/components/preview-modal.tsx:149
 #: src/components/preview-panel.tsx:356
 #: src/components/preview-panel.tsx:396
@@ -4163,7 +4163,7 @@ msgstr "Video"
 msgid "view"
 msgstr "view"
 
-#: src/components/folder-actions.tsx:178
+#: src/components/folder-actions.tsx:203
 #: src/components/settings/panes/account-general.tsx:182
 #: src/components/version-list.tsx:112
 msgid "View"

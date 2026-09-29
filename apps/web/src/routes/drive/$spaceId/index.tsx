@@ -78,7 +78,7 @@ import { HeaderActions } from "@/components/header-slot";
 import { ListingControls } from "@/components/listing-controls";
 import { useDriveWrite } from "@/components/drive-write";
 import { folderActions, type FolderAction, type ListingContext } from "@/components/folder-actions";
-import { downloadUrl } from "@/components/node-actions";
+import { downloadUrl, nodeActions } from "@/components/node-actions";
 const EMPTY_SET = new Set<string>();
 
 export const Route = createFileRoute("/drive/$spaceId/")({
@@ -450,6 +450,75 @@ function FolderView() {
   );
 
   const backgroundActions = folderActions(write, listing);
+
+  /**
+   * The keys the node menus advertise: Space previews, ⌘↵ opens in a tab,
+   * ⌘⇧S shares, F2 renames, ⌫ moves to trash. They dispatch through
+   * `nodeActions` by action key, so the keyboard runs exactly the gated
+   * action the menu would — and never offers one the caller's capabilities
+   * forbid. The per-node keys take a single selection, as their menus do;
+   * ⌫ trashes whatever is selected, as the selection bar does. ⌘D is
+   * deliberately unbound — it is the browser's own.
+   */
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.repeat || event.altKey) return;
+      // Typing and overlays keep their keys: the rename field, the dialogs
+      // (the trash confirm is an alertdialog) and the menus all answer for
+      // themselves.
+      const target = event.target as HTMLElement | null;
+      if (
+        target?.closest(
+          // eslint-disable-next-line lingui/no-unlocalized-strings -- selector, never shown
+          'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]',
+        )
+      ) {
+        return;
+      }
+      const mod = event.metaKey || event.ctrlKey;
+      const actionsFor = (node: Node) =>
+        nodeActions(
+          node,
+          nodeHandlers,
+          useUiStore.getState().openPanel,
+          starredIds.has(node.id),
+          write.canWrite,
+        );
+
+      if (event.key === "Backspace" || event.key === "Delete") {
+        if (mod) return;
+        const trashable = selectedNodes.filter((node) =>
+          actionsFor(node).some((action) => action.key === "trash"),
+        );
+        if (trashable.length === 0) return;
+        event.preventDefault();
+        setConfirmNodes(trashable);
+        return;
+      }
+
+      const single = selectedNodes.length === 1 ? selectedNodes[0] : null;
+      if (!single) return;
+      /* eslint-disable lingui/no-unlocalized-strings -- action keys and key names */
+      const wanted =
+        event.key === " " && !mod
+          ? "preview"
+          : event.key === "Enter" && mod
+            ? "open-tab"
+            : event.key.toLowerCase() === "s" && mod && event.shiftKey
+              ? "share"
+              : event.key === "F2" && !mod
+                ? "rename"
+                : null;
+      /* eslint-enable lingui/no-unlocalized-strings */
+      if (!wanted) return;
+      const action = actionsFor(single).find((a) => a.key === wanted);
+      if (!action) return;
+      event.preventDefault();
+      action.run();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectedNodes, nodeHandlers, starredIds, write.canWrite, setConfirmNodes]);
 
   // The panel follows the selection; with none it describes the folder being
   // browsed, or — at the space root, where no such node exists — the space.

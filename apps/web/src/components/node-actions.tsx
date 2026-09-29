@@ -46,9 +46,11 @@ export interface NodeAction {
    */
   label: MessageDescriptor;
   icon: LucideIcon;
-  /** Rendered right-aligned in a menu. Display only — the shortcuts are bound
-   *  by the listing, which is what actually has keyboard focus. Key names, so
-   *  not translated. */
+  /**
+   * Rendered right-aligned in a menu. Key names, so not translated. Each badge
+   * names a key the listing binds to this same action (see the folder route's
+   * key handler) — a badge with no binding is a lie the menu repeats.
+   */
   shortcut?: string;
   destructive?: boolean;
   /** Separator is drawn before this item when rendering a menu. */
@@ -137,8 +139,8 @@ export function nodeActions(
         key: "download",
         label: msg`Download`,
         icon: Download,
-        // eslint-disable-next-line lingui/no-unlocalized-strings -- keyboard key name
-        shortcut: "⌘D",
+        // No ⌘D badge: that key is the browser's own (bookmark), and the
+        // listing refuses to take it away. Download stays a menu act.
         // eslint-disable-next-line lingui/no-unlocalized-strings -- window.open target
         run: () => window.open(downloadUrl(node), "_blank"),
       });
@@ -209,7 +211,7 @@ export function nodeActions(
   // Cut/Copy stage the node for a Paste in another folder; "Make a copy"
   // duplicates it where it already is. Three neighbours, three different acts
   // — so the duplicate no longer claims the ⌘C badge, and none of the three
-  // advertises a shortcut, because nothing binds one yet.
+  // advertises a shortcut: the listing binds no key for them.
   //
   // Cut is a move, so it takes edit. Copy only reads the source — the
   // destination is where the write happens, and the paste is authorised

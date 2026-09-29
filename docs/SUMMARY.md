@@ -70,8 +70,11 @@ both hidden file inputs and the New-folder dialog, which move out of
 `drive.tsx` and `$spaceId/index.tsx`; `ui-store`'s `newFolderOpen` flag — the
 only way the dialog used to reach across that boundary — is gone.
 `folderActions()` (`components/folder-actions.tsx`) is `nodeActions()`'s
-counterpart for the folder itself: New folder, Upload files/folder, Paste,
-Select all, Sort by, View, Refresh and Folder information — Space
+counterpart for the folder itself: New folder, Upload files/folder, the
+office and markdown creation block — its own `documents` group, so the menus
+draw it apart from the folders and uploads, and each entry wearing the
+iconify `vscode-icons` glyph its created file will carry in the listing —
+Paste, Select all, Sort by, View, Refresh and Folder information — Space
 information at the root, where the details panel describes the space rather
 than a folder — rendered by both the rail's dropdown and a new background
 `ContextMenu` on the listing (right-click the empty state or the gap below

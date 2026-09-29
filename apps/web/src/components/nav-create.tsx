@@ -1,9 +1,11 @@
+import { Fragment } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Plus } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
 import {
@@ -29,7 +31,9 @@ import { folderActions } from "@/components/folder-actions";
 export function NavCreate() {
   const { i18n } = useLingui();
   const write = useDriveWrite();
-  const actions = folderActions(write).filter((a) => a.group === "create");
+  const actions = folderActions(write).filter(
+    (a) => a.group === "create" || a.group === "documents",
+  );
 
   return (
     <SidebarGroup>
@@ -48,14 +52,15 @@ export function NavCreate() {
                 }
               />
               <DropdownMenuContent align="start" className="w-48">
-                {actions.map((action) => (
-                  <DropdownMenuItem
-                    key={action.key}
-                    disabled={action.disabled}
-                    onClick={action.run}
-                  >
-                    <action.icon /> {i18n._(action.label)}
-                  </DropdownMenuItem>
+                {actions.map((action, i) => (
+                  <Fragment key={action.key}>
+                    {/* Same grouping the background menu draws: the office and
+                        markdown block sits apart from folders and uploads. */}
+                    {i > 0 && actions[i - 1]!.group !== action.group && <DropdownMenuSeparator />}
+                    <DropdownMenuItem disabled={action.disabled} onClick={action.run}>
+                      <action.icon /> {i18n._(action.label)}
+                    </DropdownMenuItem>
+                  </Fragment>
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>

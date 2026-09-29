@@ -78,7 +78,16 @@ Three layers, one direction only — components never call `api` directly:
   into the space root from inside a folder. `folderActions()`
   (`components/folder-actions.tsx`) is the single list of what a folder can
   be asked to do, exactly as `nodeActions()` is for a node; a create/upload/
-  paste item never gets a second definition in a second menu.
+  paste item never gets a second definition in a second menu. An item that
+  names the file it creates wears that file's iconify `vscode-icons` glyph
+  (`extIcon` in `components/node-icon.tsx`), never a Lucide stand-in.
+- **A `shortcut` badge is a contract.** `nodeActions` names the key, the
+  listing binds it — the folder route's key handler dispatches by action key
+  through `nodeActions` itself, so the badge and the capability gates cannot
+  drift apart. No badge ships without a binding: ⌘D is the browser's bookmark
+  key and deliberately has none. In the block editor, ⌘K opens the link
+  popover (`linkShortcut` in `lib/collab/mdoc-kit.ts`); the mark keys come
+  with the Tiptap marks.
 - **`packages/ui` is shadcn's base-ui variant** (style `base-mira`,
   `@base-ui/react`). Composition uses `render={<El/>}`, never `asChild`.
 

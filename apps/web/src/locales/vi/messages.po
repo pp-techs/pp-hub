@@ -93,7 +93,7 @@ msgstr "{address} giờ đã là thành viên"
 msgid "{buried, plural, one {# item of yours inside} other {# items of yours inside}}"
 msgstr "{buried, plural, one {# mục của bạn bên trong} other {# mục của bạn bên trong}}"
 
-#: src/routes/drive/$spaceId/index.tsx:645
+#: src/routes/drive/$spaceId/index.tsx:714
 msgid "{count, plural, one {Are you sure you want to move # item to trash?} other {Are you sure you want to move # items to trash?}}"
 msgstr "{count, plural, one {Bạn có chắc muốn chuyển # mục vào thùng rác không?} other {Bạn có chắc muốn chuyển # mục vào thùng rác không?}}"
 
@@ -101,11 +101,11 @@ msgstr "{count, plural, one {Bạn có chắc muốn chuyển # mục vào thùn
 msgid "{count, plural, one {The other signed-in device will have to sign in again.} other {All # other signed-in devices will have to sign in again.}}"
 msgstr "{count, plural, one {Tất cả # thiết bị đã đăng nhập khác sẽ phải đăng nhập lại.} other {Tất cả # thiết bị đã đăng nhập khác sẽ phải đăng nhập lại.}}"
 
-#: src/routes/drive/$spaceId/index.tsx:678
+#: src/routes/drive/$spaceId/index.tsx:747
 msgid "{count, plural, one {These folders hold # item other people created. They lose access until you restore them.} other {These folders hold # items other people created. They lose access until you restore them.}}"
 msgstr "{count, plural, one {Các thư mục này chứa # mục do người khác tạo. Họ sẽ mất quyền truy cập cho đến khi bạn khôi phục.} other {Các thư mục này chứa # mục do người khác tạo. Họ sẽ mất quyền truy cập cho đến khi bạn khôi phục.}}"
 
-#: src/routes/drive/$spaceId/index.tsx:673
+#: src/routes/drive/$spaceId/index.tsx:742
 msgid "{count, plural, one {This folder holds # item other people created. They lose access until you restore it.} other {This folder holds # items other people created. They lose access until you restore it.}}"
 msgstr "{count, plural, one {Thư mục này chứa # mục do người khác tạo. Họ sẽ mất quyền truy cập cho đến khi bạn khôi phục.} other {Thư mục này chứa # mục do người khác tạo. Họ sẽ mất quyền truy cập cho đến khi bạn khôi phục.}}"
 
@@ -212,7 +212,7 @@ msgstr "{moved, plural, one {Đã di chuyển # mục} other {Đã di chuyển #
 msgid "{n, plural, one {# suspended} other {# suspended}}"
 msgstr "{n, plural, one {# đã tạm khoá} other {# đã tạm khoá}}"
 
-#: src/components/folder-actions.tsx:250
+#: src/components/folder-actions.tsx:275
 msgid "{n, plural, one {Paste # item} other {Paste # items}}"
 msgstr "{n, plural, one {Dán # mục} other {Dán # mục}}"
 
@@ -556,7 +556,7 @@ msgstr "Thêm người hoặc nhóm…"
 msgid "Add someone to this group…"
 msgstr "Thêm người vào nhóm này…"
 
-#: src/components/node-actions.tsx:175
+#: src/components/node-actions.tsx:177
 msgid "Add star"
 msgstr "Gắn sao"
 
@@ -699,7 +699,7 @@ msgstr "Giao diện"
 msgid "Archive"
 msgstr "Kho lưu trữ tạm"
 
-#: src/routes/drive/$spaceId/index.tsx:644
+#: src/routes/drive/$spaceId/index.tsx:713
 msgid "Are you sure you want to move \"{nodeName}\" to trash?"
 msgstr "Bạn có chắc muốn chuyển \"{nodeName}\" vào thùng rác không?"
 
@@ -996,7 +996,7 @@ msgid "Copied as “{copyName}”"
 msgstr "Đã sao chép thành “{copyName}”"
 
 #: src/components/block-handle.tsx:219
-#: src/components/node-actions.tsx:230
+#: src/components/node-actions.tsx:232
 #: src/components/share-dialog.tsx:833
 msgid "Copy"
 msgstr "Sao chép"
@@ -1224,7 +1224,7 @@ msgstr "Hiện tại"
 msgid "Current access"
 msgstr "Quyền truy cập hiện tại"
 
-#: src/components/node-actions.tsx:221
+#: src/components/node-actions.tsx:223
 msgid "Cut"
 msgstr "Cắt"
 
@@ -1427,7 +1427,7 @@ msgstr "tải xuống"
 
 #: src/components/editor-header.tsx:108
 #: src/components/editor-header.tsx:133
-#: src/components/node-actions.tsx:138
+#: src/components/node-actions.tsx:140
 #: src/components/preview-modal.tsx:124
 #: src/components/preview-panel.tsx:341
 #: src/components/selection-bar.tsx:64
@@ -1485,7 +1485,7 @@ msgstr "chỉnh sửa"
 
 #: src/components/comments/comments-panel.tsx:536
 #: src/components/doc-editor/doc-editor.tsx:144
-#: src/components/node-actions.tsx:130
+#: src/components/node-actions.tsx:132
 msgid "Edit"
 msgstr "Chỉnh sửa"
 
@@ -1560,7 +1560,7 @@ msgstr "Dọn sạch thùng rác"
 msgid "Enable"
 msgstr "Bật"
 
-#: src/routes/drive/$spaceId/index.tsx:605
+#: src/routes/drive/$spaceId/index.tsx:674
 msgid "Enter a new name for this item."
 msgstr "Nhập tên mới cho mục này."
 
@@ -1647,7 +1647,7 @@ msgid "Export CSV"
 msgstr "Xuất CSV"
 
 #: src/components/editor-header.tsx:125
-#: src/components/node-actions.tsx:151
+#: src/components/node-actions.tsx:153
 msgid "Export with images (.zip)"
 msgstr "Xuất kèm hình ảnh (.zip)"
 
@@ -1775,7 +1775,7 @@ msgstr "Thư mục"
 msgid "folder downloaded"
 msgstr ""
 
-#: src/components/folder-actions.tsx:201
+#: src/components/folder-actions.tsx:226
 msgid "Folder information"
 msgstr "Thông tin thư mục"
 
@@ -1862,7 +1862,7 @@ msgstr "đã cấp quyền"
 msgid "grant revoked"
 msgstr "đã thu hồi quyền"
 
-#: src/components/folder-actions.tsx:240
+#: src/components/folder-actions.tsx:265
 #: src/components/settings/panes/account-general.tsx:40
 msgid "Grid"
 msgstr "Lưới"
@@ -1992,7 +1992,7 @@ msgstr "Hình ảnh"
 msgid "Implicit TLS / SMTPS (port 465)"
 msgstr "TLS ngầm định / SMTPS (cổng 465)"
 
-#: src/components/node-actions.tsx:168
+#: src/components/node-actions.tsx:170
 msgid "Information"
 msgstr "Thông tin"
 
@@ -2196,7 +2196,7 @@ msgid "Linking {spaceName}"
 msgstr "Đang liên kết {spaceName}"
 
 #: src/components/doc-editor/labels.ts:69
-#: src/components/folder-actions.tsx:241
+#: src/components/folder-actions.tsx:266
 #: src/components/settings/panes/account-general.tsx:39
 msgid "List"
 msgstr "Danh sách"
@@ -2258,7 +2258,7 @@ msgstr "Chữ thường, số và dấu gạch ngang. Không bắt buộc."
 msgid "Mail"
 msgstr "Thư"
 
-#: src/components/node-actions.tsx:238
+#: src/components/node-actions.tsx:240
 msgid "Make a copy"
 msgstr "Tạo bản sao"
 
@@ -2377,11 +2377,11 @@ msgstr ""
 msgid "Modified"
 msgstr "Đã sửa đổi"
 
-#: src/components/folder-actions.tsx:233
+#: src/components/folder-actions.tsx:258
 msgid "Modified (newest)"
 msgstr "Sửa đổi (mới nhất)"
 
-#: src/components/folder-actions.tsx:234
+#: src/components/folder-actions.tsx:259
 msgid "Modified (oldest)"
 msgstr "Sửa đổi (cũ nhất)"
 
@@ -2402,13 +2402,13 @@ msgstr "Di chuyển"
 msgid "Move “{name}”"
 msgstr "Di chuyển “{name}”"
 
-#: src/components/node-actions.tsx:247
-#: src/routes/drive/$spaceId/index.tsx:641
-#: src/routes/drive/$spaceId/index.tsx:650
+#: src/components/node-actions.tsx:249
+#: src/routes/drive/$spaceId/index.tsx:710
+#: src/routes/drive/$spaceId/index.tsx:719
 msgid "Move to trash"
 msgstr "Chuyển vào thùng rác"
 
-#: src/components/node-actions.tsx:204
+#: src/components/node-actions.tsx:206
 msgid "Move to…"
 msgstr "Di chuyển đến…"
 
@@ -2439,11 +2439,11 @@ msgstr "Tên"
 msgid "name (2)"
 msgstr "tên (2)"
 
-#: src/components/folder-actions.tsx:231
+#: src/components/folder-actions.tsx:256
 msgid "Name (A–Z)"
 msgstr "Tên (A–Z)"
 
-#: src/components/folder-actions.tsx:232
+#: src/components/folder-actions.tsx:257
 msgid "Name (Z–A)"
 msgstr "Tên (Z–A)"
 
@@ -2464,17 +2464,17 @@ msgstr "không bao giờ"
 msgid "Never"
 msgstr "Không bao giờ"
 
-#: src/components/nav-create.tsx:45
+#: src/components/nav-create.tsx:49
 msgid "New"
 msgstr "Mới"
 
-#: src/components/folder-actions.tsx:100
+#: src/components/folder-actions.tsx:132
 #: src/components/new-document-dialog.tsx:99
 msgid "New document"
 msgstr "Tài liệu mới"
 
 #: src/components/drive-write.tsx:267
-#: src/components/folder-actions.tsx:69
+#: src/components/folder-actions.tsx:92
 msgid "New folder"
 msgstr "Thư mục mới"
 
@@ -2483,7 +2483,7 @@ msgstr "Thư mục mới"
 msgid "New group"
 msgstr "Nhóm mới"
 
-#: src/components/folder-actions.tsx:91
+#: src/components/folder-actions.tsx:159
 #: src/components/new-document-dialog.tsx:100
 msgid "New markdown document"
 msgstr "Tài liệu markdown mới"
@@ -2493,7 +2493,7 @@ msgstr "Tài liệu markdown mới"
 msgid "New members are admins by default"
 msgstr "Thành viên mới mặc định là quản trị viên"
 
-#: src/components/folder-actions.tsx:118
+#: src/components/folder-actions.tsx:150
 #: src/components/new-document-dialog.tsx:98
 msgid "New presentation"
 msgstr "Bản trình chiếu mới"
@@ -2502,12 +2502,12 @@ msgstr "Bản trình chiếu mới"
 msgid "New public link"
 msgstr "Liên kết công khai mới"
 
-#: src/components/folder-actions.tsx:109
+#: src/components/folder-actions.tsx:141
 #: src/components/new-document-dialog.tsx:97
 msgid "New spreadsheet"
 msgstr "Bảng tính mới"
 
-#: src/components/folder-actions.tsx:82
+#: src/components/folder-actions.tsx:105
 #: src/components/team-folder-dialog.tsx:53
 msgid "New team folder"
 msgstr "Thư mục nhóm mới"
@@ -2560,7 +2560,7 @@ msgstr "Chưa có nhóm nào."
 msgid "No matches for “{queryText}”"
 msgstr "Không có kết quả cho “{queryText}”"
 
-#: src/routes/drive/$spaceId/index.tsx:520
+#: src/routes/drive/$spaceId/index.tsx:589
 msgid "No matching files or folders"
 msgstr "Không có tệp hoặc thư mục nào khớp"
 
@@ -2728,7 +2728,7 @@ msgid "open"
 msgstr "mở"
 
 #: src/components/drive-write.tsx:214
-#: src/components/node-actions.tsx:130
+#: src/components/node-actions.tsx:132
 #: src/components/preview-content.tsx:281
 #: src/components/preview-modal.tsx:115
 #: src/components/preview-panel.tsx:331
@@ -2736,7 +2736,7 @@ msgstr "mở"
 msgid "Open"
 msgstr "Mở"
 
-#: src/components/node-actions.tsx:117
+#: src/components/node-actions.tsx:119
 #: src/components/preview-content.tsx:151
 msgid "Open in new tab"
 msgstr "Mở trong tab mới"
@@ -2804,7 +2804,7 @@ msgstr "Không tìm thấy trang."
 msgid "Password"
 msgstr "Mật khẩu"
 
-#: src/components/folder-actions.tsx:247
+#: src/components/folder-actions.tsx:272
 msgid "Paste"
 msgstr "Dán"
 
@@ -2889,7 +2889,7 @@ msgstr "Cổng phải nằm trong khoảng từ 1 đến 65535."
 msgid "Press D anywhere outside a text field to flip between light and dark."
 msgstr "Nhấn D ở bất kỳ đâu ngoài ô nhập văn bản để chuyển giữa giao diện sáng và tối."
 
-#: src/components/node-actions.tsx:107
+#: src/components/node-actions.tsx:109
 #: src/components/preview-panel.tsx:331
 msgid "Preview"
 msgstr "Xem trước"
@@ -2968,7 +2968,7 @@ msgstr "Gần đây"
 msgid "referenced blobs"
 msgstr "blob được tham chiếu"
 
-#: src/components/folder-actions.tsx:189
+#: src/components/folder-actions.tsx:214
 msgid "Refresh"
 msgstr "Làm mới"
 
@@ -3017,7 +3017,7 @@ msgstr "Gỡ liên kết"
 msgid "Remove password"
 msgstr "Xoá mật khẩu"
 
-#: src/components/node-actions.tsx:175
+#: src/components/node-actions.tsx:177
 msgid "Remove star"
 msgstr "Bỏ gắn sao"
 
@@ -3041,9 +3041,9 @@ msgstr "Được gỡ khỏi không gian này tại đây"
 msgid "Removes “{spaceName}” and everything in it — every file, version, share and member. The blobs are released and cannot be recovered. Its Logto organization is kept; delete it in Logto too if the company is gone."
 msgstr "Xoá “{spaceName}” và mọi thứ bên trong — mọi tệp, phiên bản, chia sẻ và thành viên. Dữ liệu sẽ được giải phóng và không thể khôi phục. Tổ chức Logto của nó vẫn được giữ; hãy xoá cả trong Logto nếu công ty không còn nữa."
 
-#: src/components/node-actions.tsx:194
+#: src/components/node-actions.tsx:196
 #: src/components/selection-bar.tsx:74
-#: src/routes/drive/$spaceId/index.tsx:602
+#: src/routes/drive/$spaceId/index.tsx:671
 msgid "Rename"
 msgstr "Đổi tên"
 
@@ -3161,7 +3161,7 @@ msgstr "Thu hồi quyền quản trị"
 msgid "Revoking a group’s access leaves anything its members created in here — those items stay with whoever made them."
 msgstr "Thu hồi quyền truy cập của một nhóm vẫn giữ lại mọi thứ mà thành viên nhóm đã tạo ở đây — các mục đó thuộc về người đã tạo ra chúng."
 
-#: src/routes/drive/$spaceId/index.tsx:529
+#: src/routes/drive/$spaceId/index.tsx:598
 msgid "Right-click here, or use New, to add something."
 msgstr "Nhấp chuột phải vào đây, hoặc dùng Mới, để thêm nội dung."
 
@@ -3174,7 +3174,7 @@ msgid "Rows and columns of cells"
 msgstr "Các hàng và cột ô"
 
 #: src/components/comments/comments-panel.tsx:564
-#: src/routes/drive/$spaceId/index.tsx:629
+#: src/routes/drive/$spaceId/index.tsx:698
 msgid "Save"
 msgstr "Lưu"
 
@@ -3275,7 +3275,7 @@ msgstr "Chọn một tệp hoặc thư mục để xem chi tiết."
 msgid "Select a space"
 msgstr "Chọn một không gian"
 
-#: src/components/folder-actions.tsx:156
+#: src/components/folder-actions.tsx:181
 msgid "Select all"
 msgstr "Chọn tất cả"
 
@@ -3361,7 +3361,7 @@ msgid "Settings sections"
 msgstr "Mục cài đặt"
 
 #: src/components/editor-header.tsx:91
-#: src/components/node-actions.tsx:184
+#: src/components/node-actions.tsx:186
 #: src/components/preview-panel.tsx:350
 #: src/components/selection-bar.tsx:69
 #: src/components/share-dialog.tsx:493
@@ -3497,11 +3497,11 @@ msgstr "Thiết bị đã đăng nhập"
 msgid "Size"
 msgstr "Kích thước"
 
-#: src/components/folder-actions.tsx:235
+#: src/components/folder-actions.tsx:260
 msgid "Size (largest)"
 msgstr "Kích thước (lớn nhất)"
 
-#: src/components/folder-actions.tsx:236
+#: src/components/folder-actions.tsx:261
 msgid "Size (smallest)"
 msgstr "Kích thước (nhỏ nhất)"
 
@@ -3525,7 +3525,7 @@ msgstr "Đã xảy ra lỗi từ phía chúng tôi. Thử lại sau giây lát."
 msgid "Sort ascending"
 msgstr "Sắp xếp tăng dần"
 
-#: src/components/folder-actions.tsx:164
+#: src/components/folder-actions.tsx:189
 #: src/components/settings/panes/account-general.tsx:189
 msgid "Sort by"
 msgstr "Sắp xếp theo"
@@ -3534,7 +3534,7 @@ msgstr "Sắp xếp theo"
 msgid "Sort descending"
 msgstr "Sắp xếp giảm dần"
 
-#: src/components/folder-actions.tsx:201
+#: src/components/folder-actions.tsx:226
 msgid "Space information"
 msgstr "Thông tin không gian"
 
@@ -3819,7 +3819,7 @@ msgstr "Tệp này đã được chia sẻ với bạn"
 msgid "this folder"
 msgstr "thư mục này"
 
-#: src/routes/drive/$spaceId/index.tsx:522
+#: src/routes/drive/$spaceId/index.tsx:591
 #: src/routes/s/$token.tsx:545
 msgid "This folder is empty"
 msgstr "Thư mục này trống"
@@ -3948,7 +3948,7 @@ msgid "Trash retention (days)"
 msgstr "Thời gian giữ trong thùng rác (ngày)"
 
 #: src/components/trash-panel.tsx:257
-#: src/routes/drive/$spaceId/index.tsx:527
+#: src/routes/drive/$spaceId/index.tsx:596
 msgid "Try a different search."
 msgstr "Hãy thử tìm kiếm khác."
 
@@ -4050,11 +4050,11 @@ msgstr "Đã huỷ tải lên"
 msgid "Upload failed"
 msgstr "Tải lên thất bại"
 
-#: src/components/folder-actions.tsx:127
+#: src/components/folder-actions.tsx:114
 msgid "Upload files"
 msgstr "Tải tệp lên"
 
-#: src/components/folder-actions.tsx:135
+#: src/components/folder-actions.tsx:122
 msgid "Upload folder"
 msgstr "Tải thư mục lên"
 
@@ -4130,7 +4130,7 @@ msgid "Version history"
 msgstr "Lịch sử phiên bản"
 
 #: src/components/editor-header.tsx:100
-#: src/components/node-actions.tsx:159
+#: src/components/node-actions.tsx:161
 #: src/components/preview-modal.tsx:149
 #: src/components/preview-panel.tsx:356
 #: src/components/preview-panel.tsx:396
@@ -4163,7 +4163,7 @@ msgstr "Video"
 msgid "view"
 msgstr "xem"
 
-#: src/components/folder-actions.tsx:178
+#: src/components/folder-actions.tsx:203
 #: src/components/settings/panes/account-general.tsx:182
 #: src/components/version-list.tsx:112
 msgid "View"
