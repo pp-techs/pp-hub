@@ -49,11 +49,13 @@ test("the menu offers only what the caller holds", () => {
   expect(reader).not.toContain("trash");
 });
 
-test("without download, nothing that hands over the bytes is offered", () => {
+test("without download, nothing that saves the bytes is offered", () => {
   const menu = keys(file(CAPS.noDownload, { mime: "application/pdf" }));
   expect(menu).not.toContain("download");
-  expect(menu).not.toContain("open-tab");
   expect(menu).not.toContain("copy");
+  // Reading is view's, not download's: `/content` takes view, so opening the
+  // bytes in a tab stays available and only saving them away is gated.
+  expect(menu).toContain("open-tab");
   expect(menu).toContain("preview"); // the derived preview is still theirs
 });
 
