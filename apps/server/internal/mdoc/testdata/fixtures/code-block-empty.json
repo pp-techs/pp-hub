@@ -1,0 +1,20 @@
+{
+  "name": "code-block-empty",
+  "input": "```js\n```\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "codeBlock",
+        "attrs": {
+          "language": "js"
+        },
+        "content": []
+      }
+    ]
+  },
+  "output": "```js\n\n```",
+  "yupdate_b64": "AQIBAAcBB2NvbnRlbnQDCWNvZGVCbG9jaygAAQAIbGFuZ3VhZ2UBdwJqcwA=",
+  "expect_lossy": false
+}

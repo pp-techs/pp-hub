@@ -313,7 +313,11 @@ referenced vs. unreferenced (awaiting GC) blobs and bytes,
 `pphub_blobs_damaged` (blobs the scrub found missing or not matching their
 hash — alert on > 0), `pphub_blob_disk_free_bytes` and
 `pphub_blob_disk_size_bytes` for the filesystem holding `PP_BLOB_ROOT` (alert
-before it fills: uploads are what fail first), and Go/process metrics. The
+before it fills: uploads are what fail first), the block editor's
+collaboration rooms — `pphub_collab_rooms` (resident, idle ones included),
+`pphub_collab_peers`, `pphub_collab_flush_duration_seconds` and
+`pphub_collab_flush_failures_total` (write-backs that failed and are held in
+memory for a retry; alert on a rising count) — and Go/process metrics. The
 worker has no metrics port.
 
 **`PP_TRUSTED_PROXIES`** — a comma-separated list of CIDRs (a bare address is
@@ -483,8 +487,16 @@ The policy itself:
 default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';
 img-src 'self' data: blob:; media-src 'self' blob:; object-src 'self';
 frame-src 'self' ${PP_ONLYOFFICE_URL}; form-action 'self' ${PP_ONLYOFFICE_URL};
-frame-ancestors 'none'; base-uri 'none'; connect-src 'self'
+frame-ancestors 'none'; base-uri 'none';
+connect-src 'self' wss://$http_host ws://$http_host
 ```
+
+`connect-src` names the block editor's collaboration socket explicitly. CSP3
+lets `'self'` cover a `wss:` URL on the same host, but older WebKit does not
+match a `ws(s)` URL against `'self'`. `$http_host` is nginx's own variable —
+the host the browser asked for, so always this deployment — and survives the
+`PP_` envsubst filter; an https page cannot open a `ws:` socket anyway (mixed
+content), so that entry costs it nothing.
 
 Two directives are **deliberately looser than every guide recommends, and
 tightening them breaks the app**:
@@ -536,6 +548,31 @@ The access log is a custom `log_format` with a `map` that rewrites
 token is the entire authorization for anonymous access to a file and only its
 SHA-256 is stored in the database. The Go side does the same for its own log
 and for the WOPI `access_token` query parameter.
+
+### Block document collaboration
+
+The block editor (M39, [block-documents.md](architecture/block-documents.md))
+keeps a WebSocket open to `GET /api/v1/collab/{room}`, and nginx gives it a
+location of its own: `location /api/v1/collab/` passes `Upgrade` and
+`Connection` (a `map` turns an empty `Upgrade` into `close`), sets a 1 h
+`proxy_read_timeout`/`proxy_send_timeout` instead of the upload location's ten
+minutes, and turns buffering off. The server pings every socket every 15 s, so
+an hour of silence is a dead peer. Because nginx inherits `proxy_set_header`
+only into a location that sets none of its own, that location repeats every
+server-level header, the cleared client-address headers included — keep them
+in step if you change one. A proxy in front of nginx must pass WebSocket
+upgrades on this path too.
+
+The socket is refused (403) unless its `Origin` is `PP_EXTERNAL_URL`'s
+origin exactly, and a missing `Origin` is refused as well.
+
+**One `server` instance hosts every room.** A room's live document, its epoch
+and the file lock it holds belong to the process; at startup the server clears
+every `collab:` lock a previous process left, which is only safe because no
+other instance can be holding one. Several instances would need ygo's cluster
+relay and are out of scope, like the rate limiter. On `SIGTERM` the server
+stops accepting, then writes every room back before exiting, so up to ~5 min of
+edits are at risk only on a crash, not a deploy.
 
 ### Network segments
 
@@ -1027,6 +1064,11 @@ the worker. Both share one `deps` stage and use BuildKit cache mounts for the
 module and build caches, so a source-only change rebuilds in seconds. Binaries
 are built `-trimpath -ldflags="-s -w"`; the symbol tables are about a third of
 the unstripped size and nothing in production reads them.
+
+`go.mod` replaces `github.com/reearth/ygo` with the patched copy in
+`apps/server/third_party/ygo` (see its `PATCHES.md`), so the `deps` stage
+copies `third_party/` before `go mod download`; a build context without it
+fails to resolve the module.
 
 `alpine` is kept as the runtime base rather than `scratch` because it already
 carries `ca-certificates-bundle`, which the OIDC and S3 clients need for

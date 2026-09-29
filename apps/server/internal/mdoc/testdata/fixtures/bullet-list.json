@@ -1,0 +1,60 @@
+{
+  "name": "bullet-list",
+  "input": "- one\n- two\n- three\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "bulletList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "one"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "two"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "three"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "- one\n- two\n- three",
+  "yupdate_b64": "AQ0BAAcBB2NvbnRlbnQDCmJ1bGxldExpc3QHAAEAAwhsaXN0SXRlbQcAAQEDCXBhcmFncmFwaAcAAQIGBAABAwNvbmWHAQEDCGxpc3RJdGVtBwABBwMJcGFyYWdyYXBoBwABCAYEAAEJA3R3b4cBBwMIbGlzdEl0ZW0HAAENAwlwYXJhZ3JhcGgHAAEOBgQAAQ8FdGhyZWUA",
+  "expect_lossy": false
+}

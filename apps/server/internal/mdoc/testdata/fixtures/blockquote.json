@@ -1,0 +1,27 @@
+{
+  "name": "blockquote",
+  "input": "> quoted\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "blockquote",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "quoted"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "> quoted",
+  "yupdate_b64": "AQQBAAcBB2NvbnRlbnQDCmJsb2NrcXVvdGUHAAEAAwlwYXJhZ3JhcGgHAAEBBgQAAQIGcXVvdGVkAA==",
+  "expect_lossy": false
+}

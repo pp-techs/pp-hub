@@ -1,0 +1,25 @@
+{
+  "name": "code-block-lang",
+  "input": "```ts\nconst x = 1;\n\nconsole.log(x);\n```\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "codeBlock",
+        "attrs": {
+          "language": "ts"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "const x = 1;\n\nconsole.log(x);"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "```ts\nconst x = 1;\n\nconsole.log(x);\n```",
+  "yupdate_b64": "AQQBAAcBB2NvbnRlbnQDCWNvZGVCbG9jawcAAQAGBAABAR1jb25zdCB4ID0gMTsKCmNvbnNvbGUubG9nKHgpOygAAQAIbGFuZ3VhZ2UBdwJ0cwA=",
+  "expect_lossy": false
+}

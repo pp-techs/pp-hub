@@ -64,11 +64,13 @@ func NewService(q *store.Queries, dir string) (*Service, error) {
 }
 
 // CreateParams describes a new upload. NodeID set means the bytes will become
-// a new version of that file rather than a new file in ParentID.
+// a new version of that file rather than a new file in ParentID; AttachTo set
+// means they will become an attachment of that document.
 type CreateParams struct {
 	SpaceID   pgtype.UUID
 	ParentID  pgtype.UUID
 	NodeID    pgtype.UUID
+	AttachTo  pgtype.UUID
 	Name      string
 	TotalSize int64
 	CreatedBy pgtype.UUID
@@ -93,6 +95,7 @@ func (s *Service) Create(ctx context.Context, p CreateParams) (store.Upload, err
 		SpaceID:   p.SpaceID,
 		ParentID:  p.ParentID,
 		NodeID:    p.NodeID,
+		AttachTo:  p.AttachTo,
 		Name:      p.Name,
 		TotalSize: p.TotalSize,
 		TempPath:  name,
@@ -209,6 +212,15 @@ func (s *Service) Append(ctx context.Context, up store.Upload, offset int64, bod
 // with a full offset for a client that missed the final response.
 func (s *Service) Complete(ctx context.Context, id pgtype.UUID) error {
 	return s.q.CompleteUpload(ctx, id)
+}
+
+// CompleteAttachment marks an attachment upload committed and records the
+// hash its bytes became, which HEAD hands back to a client that missed the
+// final response.
+func (s *Service) CompleteAttachment(ctx context.Context, id pgtype.UUID, hash string) error {
+	return s.q.CompleteAttachmentUpload(ctx, store.CompleteAttachmentUploadParams{
+		ID: id, AttachmentHash: pgtype.Text{String: hash, Valid: true},
+	})
 }
 
 // Terminate deletes an upload and its staged bytes.

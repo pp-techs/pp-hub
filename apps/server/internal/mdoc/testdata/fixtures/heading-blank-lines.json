@@ -1,0 +1,38 @@
+{
+  "name": "heading-blank-lines",
+  "input": "# Title\n\n\n\nbody\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "heading",
+        "attrs": {
+          "level": 1
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Title"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": []
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "body"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "# Title\n\n\n\nbody",
+  "yupdate_b64": "AQgBAAcBB2NvbnRlbnQDB2hlYWRpbmcHAAEABgQAAQEFVGl0bGUoAAEABWxldmVsAX0BhwEAAwlwYXJhZ3JhcGiHAQgDCXBhcmFncmFwaAcAAQkGBAABCgRib2R5AA==",
+  "expect_lossy": false
+}

@@ -1,0 +1,22 @@
+{
+  "name": "frontmatter-empty",
+  "input": "---\n---\nBody.\n",
+  "frontmatter": "---\n---\n",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Body."
+          }
+        ]
+      }
+    ]
+  },
+  "output": "Body.",
+  "yupdate_b64": "AQMBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQVCb2R5LgA=",
+  "expect_lossy": false
+}

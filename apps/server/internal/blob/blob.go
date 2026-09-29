@@ -380,6 +380,14 @@ func IsHash(s string) bool {
 	return len(s) == 64 && isHex(s)
 }
 
+// Hash is the name Put and Ingest give p: its hex blake3-256 digest. It lets
+// a caller holding bytes ask whether they are already the ones stored under a
+// hash without reading the stored copy back.
+func Hash(p []byte) string {
+	sum := blake3.Sum256(p)
+	return hex.EncodeToString(sum[:])
+}
+
 func isHex(s string) bool {
 	for i := 0; i < len(s); i++ {
 		c := s[i]

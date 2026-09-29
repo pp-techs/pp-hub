@@ -11,6 +11,7 @@ export const keys = {
     ["children", spaceId, parentId ?? null] as const,
   node: (nodeId: string) => ["node", nodeId] as const,
   versions: (nodeId: string) => ["versions", nodeId] as const,
+  collab: (nodeId: string) => ["collab", nodeId] as const,
   tree: (spaceId: string, parentId?: string) => ["tree", spaceId, parentId ?? null] as const,
   search: (query: string, spaceId?: string, kind?: string, ownerId?: string, modified?: number) =>
     ["search", query, spaceId ?? null, kind ?? null, ownerId ?? null, modified ?? null] as const,

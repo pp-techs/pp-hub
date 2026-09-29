@@ -1,0 +1,20 @@
+{
+  "name": "image",
+  "input": "![alt text](https://example.com/a.png)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "image",
+        "attrs": {
+          "src": "https://example.com/a.png",
+          "alt": "alt text"
+        }
+      }
+    ]
+  },
+  "output": "![alt text](https://example.com/a.png)",
+  "yupdate_b64": "AQQBAAcBB2NvbnRlbnQDBWltYWdlKAABAANzcmMBdxlodHRwczovL2V4YW1wbGUuY29tL2EucG5nKAABAANhbHQBdwhhbHQgdGV4dCgAAQAGc3RhdHVzAXcFcmVhZHkA",
+  "expect_lossy": false
+}

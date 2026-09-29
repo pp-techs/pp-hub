@@ -7,10 +7,15 @@ pp-hub/
 ├── apps/
 │   ├── web/                        # React SPA
 │   │   ├── Dockerfile              # Vite build → nginx; the public entry point in prod
-│   │   ├── nginx.conf              # serves the bundle, proxies the API on one origin
+│   │   ├── nginx.conf              # serves the bundle, proxies the API on one origin (+ the collab WebSocket location)
+│   │   ├── scripts/mdoc-fixtures.ts # writes the Go mdoc golden fixtures from slash-editor itself
+│   │   ├── tests/mdoc-go-updates.test.ts # slash-editor must read the Go-built room seeds back
 │   │   └── src/
 │   │       ├── lib/
 │   │       │   ├── api/            # ky client, types, endpoints, utils; tus.ts = resumable upload client
+│   │       │   ├── collab/         # block documents: use-collab-room.ts (room, epochs, recheck, pagehide),
+│   │       │   │                   #   mdoc-kit.ts (the v1 block set, shared with the fixture script),
+│   │       │   │                   #   attachments.ts (tus upload with attach_to), presence.ts
 │   │       │   ├── queries/        # TanStack Query hooks (per-resource)
 │   │       │   ├── query-client.ts # shared QueryClient
 │   │       │   ├── ui-store.ts     # zustand ephemeral UI state
@@ -43,6 +48,8 @@ pp-hub/
 │   │       │   ├── transfer-tray.tsx     # upload queue tray, mounted by the shell
 │   │       │   ├── command-palette.tsx   # ⌘K search across every space
 │   │       │   ├── continue-cards.tsx    # Home: the few files you were last in
+│   │       │   ├── doc-editor/           # the block editor: doc-editor.tsx, lossy-edit-modal.tsx, labels.ts
+│   │       │   ├── nodes/                # slash-editor node views we own: image, file, mermaid (attachment: src)
 │   │       │   ├── settings/             # the one settings dialog (see below)
 │   │       │   │   ├── settings-modal.tsx       # shell: nav, header, unsaved-changes guard
 │   │       │   │   ├── settings-hash-bridge.tsx # `#settings/<pane>` → open/closed modal
@@ -75,14 +82,15 @@ pp-hub/
 │   │           ├── admin.users.tsx      # server administration: stats, suspend, admin flag
 │   │           ├── admin.security.tsx   # the security log: filters (kind, file, dates), CSV export
 │   │           ├── s/$token.tsx         # anonymous share-link browser (no rail, no account)
-│   │           ├── edit/$nodeId.tsx     # full-page OnlyOffice editor (opened in a new tab)
+│   │           ├── edit/$nodeId.tsx     # full-page editor (new tab): block editor for markdown, else OnlyOffice
 │   │           ├── drive.tsx            # drive shell: SidebarProvider + AppSidebar + SidebarInset
 │   │           └── drive/$spaceId/      # route.tsx (space guard) + index.tsx (listing)
 │   │                                    #   + home / recent / starred / shared / trash
 │   └── server/                     # Go backend — own go.mod
 │       ├── cmd/server/             # entry point: OIDC wait, http.Server; owns migrations
 │       ├── cmd/worker/             # optional preview worker (pdftoppm/ffmpeg); --backfill
-│       ├── Dockerfile              # targets: worker (poppler+ffmpeg), server (slim, default)
+│       ├── Dockerfile              # targets: worker (poppler+ffmpeg), server (slim, default); copies third_party/
+│       ├── third_party/ygo/        # reearth/ygo v1.50.0, patched (PATCHES.md); go.mod `replace`s onto it
 │       ├── .env.example            # → .env (git-ignored), sourced for local dev
 │       └── internal/
 │           ├── bootstrap/          # ✅ shared wiring for both entry points: config, pool, blobs
@@ -96,7 +104,8 @@ pp-hub/
 │           ├── config/             # ✅ env config; DeriveKey issues purpose-bound subkeys
 │           ├── httpapi/            # ✅ chi routes (/healthz, /auth/*, /api/v1/*, /wopi/*, /s/*, /hooks/logto)
 │           │   ├── server.go       # the router, and the middleware that makes it safe by group
-│           │   ├── csrf.go         # sameOrigin: every mutation, before authentication
+│           │   ├── csrf.go         # sameOrigin: every mutation, before authentication; socketOrigin: the collab upgrade
+│           │   ├── collab.go       # GET /nodes/{id}/collab, the /collab/{room} socket, /nodes/{id}/attachments/{hash}
 │           │   ├── ratelimit.go    # per-IP token buckets on the anonymous surfaces
 │           │   ├── limits.go       # body ceilings outside tus: limitBody (WOPI PutFile), parseUpload (avatar)
 │           │   ├── uploads.go      # tus 1.0.0 /api/v1/uploads — every browser upload; WOPI PutFile is the other writer
@@ -114,7 +123,8 @@ pp-hub/
 │           │                       #    0006_system_config.sql, 0007_idp_profile.sql,
 │           │                       #    0008_read_audit.sql, 0009_direct_share_uniq.sql,
 │           │                       #    0010_resumable_uploads.sql, 0011_blob_integrity.sql,
-│           │                       #    0012_detached_orgs.sql
+│           │                       #    0012_detached_orgs.sql, 0013_block_documents.sql,
+│           │                       #    0014_markdown_mime.sql
 │           ├── users/              # user service layer (profile)
 │           ├── orgsync/            # ✅ Logto sync: client.go (Management API), orgsync.go (membership reconciler, jobs, sweep),
 │           │                       #    accounts.go (accounts), spacesync.go (create, rename, Link to Logto)
@@ -122,7 +132,10 @@ pp-hub/
 │           │   ├── spaces.go       # RequireAdmin/SetAdmin/AddMember; RevokeMembership is immediate, CompleteDeparture archives what a leaver owned
 │           │   └── permissions_db_test.go # DB-backed; skipped unless PP_TEST_DATABASE_URL is set
 │           ├── groups/             # groups + the grants that open folders
-│           ├── fs/                 # file tree, versioning, move/copy/rename; quota (EnsureRoom), version retention
+│           ├── fs/                 # file tree, versioning, move/copy/rename; quota (EnsureRoom), version retention;
+│           │                       #    markdown.go (.md → text/markdown), attachments.go (node_attachments)
+│           ├── collab/             # ✅ block-document rooms over ygo: epochs, locks, write-back, reseed, 60 s recheck
+│           ├── mdoc/               # ✅ markdown ↔ ProseMirror ↔ Y.XmlFragment; testdata/ = golden fixtures
 │           ├── uploads/            # ✅ resumable upload rows + staging files in <PP_BLOB_ROOT>/.uploads; 24h idle sweep
 │           ├── blob/               # CAS Store interface + local and S3 impls; Ingest takes over a staged upload
 │           ├── share/              # grants — user, group, link — and the caps they resolve to
@@ -152,7 +165,7 @@ pp-hub/
 
 ## Entry Points
 
-- Web dev: `vp run web#dev` (root `vp run dev`); Vite proxies `/api`, `/auth`, `/s` → `localhost:8080`.
+- Web dev: `vp run web#dev` (root `vp run dev`); Vite proxies `/api`, `/auth`, `/s` → `localhost:8080`, `/api` with `ws: true` so the block editor's collab socket goes through the same entry.
 - Server local: `cp apps/server/.env.example apps/server/.env`, then fill the OIDC and Logto values with `deploy/logto/pp-logto-setup.sh` (`PP_ENV_FILE=apps/server/.env`; command in the README), then `set -a && source .env && set +a && go run ./cmd/server` from `apps/server`. The binary has no dotenv loader, so the file must be sourced.
 - Dev stack: `docker compose -f deploy/compose/compose.dev.yml up -d` — postgres + OnlyOffice at :9980. Profiles add the worker, SeaweedFS, a self-hosted Logto and Mailpit. Full setup: [docs/deployment.md](../deployment.md); production install: [docs/self-hosting.md](../self-hosting.md).
 

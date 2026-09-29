@@ -4,7 +4,11 @@ export default defineConfig({
   staged: {
     "*": "vp check --fix",
   },
-  fmt: {},
+  fmt: {
+    // Written by apps/web/scripts/mdoc-fixtures.ts; reformatting them would
+    // make every regeneration a diff.
+    ignorePatterns: ["apps/server/internal/mdoc/testdata/**"],
+  },
   lint: {
     jsPlugins: [
       { name: "vite-plus", specifier: "vite-plus/oxlint-plugin" },
@@ -128,6 +132,12 @@ export default defineConfig({
         // Test fixtures are literal by nature: node names, ids and expected
         // output are data, and there is no reader to translate them for.
         files: ["**/tests/**", "**/*.test.ts", "**/*.test.tsx"],
+        rules: { "lingui/no-unlocalized-strings": "off" },
+      },
+      {
+        // Developer scripts run from a terminal (the mdoc golden-fixture
+        // generator): markdown samples and file paths, no UI.
+        files: ["apps/web/scripts/**"],
         rules: { "lingui/no-unlocalized-strings": "off" },
       },
       {

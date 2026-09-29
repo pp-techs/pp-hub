@@ -587,7 +587,9 @@ func (s *Service) copyInto(
 
 	// File: a new node whose version points at the same blob, created as one
 	// unit so a failure never leaves a copy without content. The version row
-	// is the new reference; a trigger counts it.
+	// is the new reference; a trigger counts it. A block document's
+	// attachments come along the same way, so its `attachment:` references
+	// resolve in the copy without rewriting the markdown.
 	var created store.Node
 	var ver store.NodeVersion
 	err := s.inTx(ctx, func(s *Service) error {
@@ -610,8 +612,13 @@ func (s *Service) copyInto(
 		if err != nil {
 			return err
 		}
-		return s.q.SetCurrentVersion(ctx, store.SetCurrentVersionParams{
+		if err := s.q.SetCurrentVersion(ctx, store.SetCurrentVersionParams{
 			ID: created.ID, CurrentVersionID: ver.ID,
+		}); err != nil {
+			return err
+		}
+		return s.q.CopyAttachments(ctx, store.CopyAttachmentsParams{
+			DestID: created.ID, SrcID: src.ID, CreatedBy: creator,
 		})
 	})
 	if err != nil {

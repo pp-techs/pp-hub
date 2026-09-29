@@ -1,0 +1,46 @@
+{
+  "name": "columns-two",
+  "input": "<!-- slash:columns -->\n\nleft\n\n<!-- slash:column -->\n\nright\n\n<!-- /slash:columns -->\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "columns",
+        "content": [
+          {
+            "type": "column",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "left"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "column",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "right"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "<!-- slash:columns -->\n\nleft\n\n<!-- slash:column -->\n\nright\n\n<!-- /slash:columns -->",
+  "yupdate_b64": "AQkBAAcBB2NvbnRlbnQDB2NvbHVtbnMHAAEAAwZjb2x1bW4HAAEBAwlwYXJhZ3JhcGgHAAECBgQAAQMEbGVmdIcBAQMGY29sdW1uBwABCAMJcGFyYWdyYXBoBwABCQYEAAEKBXJpZ2h0AA==",
+  "expect_lossy": false
+}

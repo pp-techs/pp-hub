@@ -1,0 +1,22 @@
+{
+  "name": "escape-entities",
+  "input": "&lt;tag&gt; &amp; &quot;q&quot;\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "<tag> & \"q\""
+          }
+        ]
+      }
+    ]
+  },
+  "output": "&lt;tag&gt; &amp; \"q\"",
+  "yupdate_b64": "AQMBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQs8dGFnPiAmICJxIgA=",
+  "expect_lossy": false
+}

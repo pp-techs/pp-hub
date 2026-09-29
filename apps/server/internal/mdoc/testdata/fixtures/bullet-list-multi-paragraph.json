@@ -1,0 +1,55 @@
+{
+  "name": "bullet-list-multi-paragraph",
+  "input": "- one\n\n  continued\n- two\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "bulletList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "one"
+                  }
+                ]
+              },
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "continued"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "two"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "- one\n\n  continued\n- two",
+  "yupdate_b64": "AQwBAAcBB2NvbnRlbnQDCmJ1bGxldExpc3QHAAEAAwhsaXN0SXRlbQcAAQEDCXBhcmFncmFwaAcAAQIGBAABAwNvbmWHAQIDCXBhcmFncmFwaAcAAQcGBAABCAljb250aW51ZWSHAQEDCGxpc3RJdGVtBwABEgMJcGFyYWdyYXBoBwABEwYEAAEUA3R3bwA=",
+  "expect_lossy": false
+}

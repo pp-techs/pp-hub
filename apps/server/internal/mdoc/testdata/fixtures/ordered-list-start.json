@@ -1,0 +1,49 @@
+{
+  "name": "ordered-list-start",
+  "input": "3. three\n4. four\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "orderedList",
+        "attrs": {
+          "start": 3
+        },
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "three"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "four"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "3. three\n4. four",
+  "yupdate_b64": "AQoBAAcBB2NvbnRlbnQDC29yZGVyZWRMaXN0BwABAAMIbGlzdEl0ZW0HAAEBAwlwYXJhZ3JhcGgHAAECBgQAAQMFdGhyZWWHAQEDCGxpc3RJdGVtBwABCQMJcGFyYWdyYXBoBwABCgYEAAELBGZvdXIoAAEABXN0YXJ0AX0DAA==",
+  "expect_lossy": false
+}

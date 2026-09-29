@@ -1,0 +1,22 @@
+{
+  "name": "paragraph-soft-break",
+  "input": "line one\nline two\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "line one\nline two"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "line one\nline two",
+  "yupdate_b64": "AQMBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABARFsaW5lIG9uZQpsaW5lIHR3bwA=",
+  "expect_lossy": false
+}

@@ -203,6 +203,32 @@ func (q *Queries) ListUserSessions(ctx context.Context, userID pgtype.UUID) ([]S
 	return items, nil
 }
 
+const sessionActive = `-- name: SessionActive :one
+SELECT EXISTS (
+  SELECT 1 FROM sessions s
+  JOIN users u ON u.id = s.user_id
+  WHERE s.id = $1 AND s.expires_at > now()
+    AND s.created_at > $2::timestamptz
+    AND u.suspended_at IS NULL
+)::boolean AS active
+`
+
+type SessionActiveParams struct {
+	ID           pgtype.UUID        `json:"id"`
+	CreatedAfter pgtype.Timestamptz `json:"created_after"`
+}
+
+// Whether a session still authenticates its owner: unexpired, younger than
+// the absolute cap (created_after), not revoked, and the account not
+// suspended — what `authenticated` checks per request, asked again of a
+// connection that outlives its request (a collab socket).
+func (q *Queries) SessionActive(ctx context.Context, arg SessionActiveParams) (bool, error) {
+	row := q.db.QueryRow(ctx, sessionActive, arg.ID, arg.CreatedAfter)
+	var active bool
+	err := row.Scan(&active)
+	return active, err
+}
+
 const touchSession = `-- name: TouchSession :exec
 WITH touched AS (
   UPDATE sessions

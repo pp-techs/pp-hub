@@ -11,6 +11,30 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const acquireLock = `-- name: AcquireLock :execrows
+INSERT INTO file_locks (node_id, lock_token, expires_at)
+VALUES ($1, $2, now() + INTERVAL '30 minutes')
+ON CONFLICT (node_id) DO UPDATE
+SET lock_token = EXCLUDED.lock_token, expires_at = EXCLUDED.expires_at
+WHERE file_locks.lock_token = EXCLUDED.lock_token OR file_locks.expires_at <= now()
+`
+
+type AcquireLockParams struct {
+	NodeID    pgtype.UUID `json:"node_id"`
+	LockToken string      `json:"lock_token"`
+}
+
+// Takes the lock for token, or refreshes it when token already holds it, and
+// reports 0 rows when somebody else holds a live one. Never steals: unlike
+// UpsertLock, a live lock under another token is left alone.
+func (q *Queries) AcquireLock(ctx context.Context, arg AcquireLockParams) (int64, error) {
+	result, err := q.db.Exec(ctx, acquireLock, arg.NodeID, arg.LockToken)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteLock = `-- name: DeleteLock :exec
 DELETE FROM file_locks WHERE node_id = $1 AND lock_token = $2
 `
@@ -23,6 +47,20 @@ type DeleteLockParams struct {
 func (q *Queries) DeleteLock(ctx context.Context, arg DeleteLockParams) error {
 	_, err := q.db.Exec(ctx, deleteLock, arg.NodeID, arg.LockToken)
 	return err
+}
+
+const deleteLocksWithPrefix = `-- name: DeleteLocksWithPrefix :execrows
+DELETE FROM file_locks WHERE starts_with(lock_token, $1::text)
+`
+
+// Releases every lock whose token starts with the prefix — the collab rooms'
+// locks at startup, when no room can be resident yet (one server instance).
+func (q *Queries) DeleteLocksWithPrefix(ctx context.Context, prefix string) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteLocksWithPrefix, prefix)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const getLock = `-- name: GetLock :one

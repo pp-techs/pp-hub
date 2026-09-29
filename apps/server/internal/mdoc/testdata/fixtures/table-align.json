@@ -1,0 +1,158 @@
+{
+  "name": "table-align",
+  "input": "| left | center | right | none |\n| :--- | :---: | ---: | --- |\n| 1 | 2 | 3 | 4 |\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "table",
+        "content": [
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableHeader",
+                "attrs": {
+                  "align": "left"
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "left"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableHeader",
+                "attrs": {
+                  "align": "center"
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "center"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableHeader",
+                "attrs": {
+                  "align": "right"
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "right"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableHeader",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "none"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableCell",
+                "attrs": {
+                  "align": "left"
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "1"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "attrs": {
+                  "align": "center"
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "2"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "attrs": {
+                  "align": "right"
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "3"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "4"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "\n| left | center | right | none |\n| :---- | :------: | -----: | ---- |\n| 1    | 2      | 3     | 4    |\n",
+  "yupdate_b64": "ATkBAAcBB2NvbnRlbnQDBXRhYmxlBwABAAMIdGFibGVSb3cHAAEBAwt0YWJsZUhlYWRlcgcAAQIDCXBhcmFncmFwaAcAAQMGBAABBARsZWZ0KAABAgdjb2xzcGFuAX0BKAABAgdyb3dzcGFuAX0BKAABAgVhbGlnbgF3BGxlZnSHAQIDC3RhYmxlSGVhZGVyBwABDAMJcGFyYWdyYXBoBwABDQYEAAEOBmNlbnRlcigAAQwHY29sc3BhbgF9ASgAAQwHcm93c3BhbgF9ASgAAQwFYWxpZ24BdwZjZW50ZXKHAQwDC3RhYmxlSGVhZGVyBwABGAMJcGFyYWdyYXBoBwABGQYEAAEaBXJpZ2h0KAABGAdjb2xzcGFuAX0BKAABGAdyb3dzcGFuAX0BKAABGAVhbGlnbgF3BXJpZ2h0hwEYAwt0YWJsZUhlYWRlcgcAASMDCXBhcmFncmFwaAcAASQGBAABJQRub25lKAABIwdjb2xzcGFuAX0BKAABIwdyb3dzcGFuAX0BhwEBAwh0YWJsZVJvdwcAASwDCXRhYmxlQ2VsbAcAAS0DCXBhcmFncmFwaAcAAS4GBAABLwExKAABLQdjb2xzcGFuAX0BKAABLQdyb3dzcGFuAX0BKAABLQVhbGlnbgF3BGxlZnSHAS0DCXRhYmxlQ2VsbAcAATQDCXBhcmFncmFwaAcAATUGBAABNgEyKAABNAdjb2xzcGFuAX0BKAABNAdyb3dzcGFuAX0BKAABNAVhbGlnbgF3BmNlbnRlcocBNAMJdGFibGVDZWxsBwABOwMJcGFyYWdyYXBoBwABPAYEAAE9ATMoAAE7B2NvbHNwYW4BfQEoAAE7B3Jvd3NwYW4BfQEoAAE7BWFsaWduAXcFcmlnaHSHATsDCXRhYmxlQ2VsbAcAAUIDCXBhcmFncmFwaAcAAUMGBAABRAE0KAABQgdjb2xzcGFuAX0BKAABQgdyb3dzcGFuAX0BAA==",
+  "expect_lossy": false
+}

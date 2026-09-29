@@ -1,0 +1,22 @@
+{
+  "name": "file",
+  "input": "<!-- slash:file {\"size\":2048,\"mime\":\"application/pdf\"} -->\n[report.pdf](attachment:beef01)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "file",
+        "attrs": {
+          "size": 2048,
+          "mime": "application/pdf",
+          "src": "attachment:beef01",
+          "name": "report.pdf"
+        }
+      }
+    ]
+  },
+  "output": "<!-- slash:file {\"size\":2048,\"mime\":\"application/pdf\"} -->\n[report.pdf](attachment:beef01)",
+  "yupdate_b64": "AQYBAAcBB2NvbnRlbnQDBGZpbGUoAAEAA3NyYwF3EWF0dGFjaG1lbnQ6YmVlZjAxKAABAARuYW1lAXcKcmVwb3J0LnBkZigAAQAEc2l6ZQF9gCAoAAEABG1pbWUBdw9hcHBsaWNhdGlvbi9wZGYoAAEABnN0YXR1cwF3BXJlYWR5AA==",
+  "expect_lossy": false
+}

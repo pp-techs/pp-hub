@@ -1,0 +1,39 @@
+{
+  "name": "nbsp-paragraphs",
+  "input": "a\n\n\n\n&nbsp;\n\nb\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "a"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": []
+      },
+      {
+        "type": "paragraph",
+        "content": []
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "b"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "a\n\n\n\n&nbsp;\n\nb",
+  "yupdate_b64": "AQgBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQFhhwEAAwlwYXJhZ3JhcGiHAQMDCXBhcmFncmFwaIcBBAMJcGFyYWdyYXBoBwABBQYEAAEGAWIA",
+  "expect_lossy": false
+}

@@ -1,0 +1,84 @@
+{
+  "name": "table",
+  "input": "| a | b |\n| --- | --- |\n| c | d |\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "table",
+        "content": [
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableHeader",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "a"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableHeader",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "b"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "c"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "d"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "\n| a   | b   |\n| --- | --- |\n| c   | d   |\n",
+  "yupdate_b64": "ARsBAAcBB2NvbnRlbnQDBXRhYmxlBwABAAMIdGFibGVSb3cHAAEBAwt0YWJsZUhlYWRlcgcAAQIDCXBhcmFncmFwaAcAAQMGBAABBAFhKAABAgdjb2xzcGFuAX0BKAABAgdyb3dzcGFuAX0BhwECAwt0YWJsZUhlYWRlcgcAAQgDCXBhcmFncmFwaAcAAQkGBAABCgFiKAABCAdjb2xzcGFuAX0BKAABCAdyb3dzcGFuAX0BhwEBAwh0YWJsZVJvdwcAAQ4DCXRhYmxlQ2VsbAcAAQ8DCXBhcmFncmFwaAcAARAGBAABEQFjKAABDwdjb2xzcGFuAX0BKAABDwdyb3dzcGFuAX0BhwEPAwl0YWJsZUNlbGwHAAEVAwlwYXJhZ3JhcGgHAAEWBgQAARcBZCgAARUHY29sc3BhbgF9ASgAARUHcm93c3BhbgF9AQA=",
+  "expect_lossy": false
+}

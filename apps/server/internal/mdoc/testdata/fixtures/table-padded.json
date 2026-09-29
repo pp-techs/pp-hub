@@ -1,0 +1,117 @@
+{
+  "name": "table-padded",
+  "input": "| Name   | Value |\n|--------|-------|\n| x      | 1     |\n| longer | 22    |\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "table",
+        "content": [
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableHeader",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Name"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableHeader",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Value"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "x"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "1"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "longer"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "22"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "\n| Name   | Value |\n| ------ | ----- |\n| x      | 1     |\n| longer | 22    |\n",
+  "yupdate_b64": "ASgBAAcBB2NvbnRlbnQDBXRhYmxlBwABAAMIdGFibGVSb3cHAAEBAwt0YWJsZUhlYWRlcgcAAQIDCXBhcmFncmFwaAcAAQMGBAABBAROYW1lKAABAgdjb2xzcGFuAX0BKAABAgdyb3dzcGFuAX0BhwECAwt0YWJsZUhlYWRlcgcAAQsDCXBhcmFncmFwaAcAAQwGBAABDQVWYWx1ZSgAAQsHY29sc3BhbgF9ASgAAQsHcm93c3BhbgF9AYcBAQMIdGFibGVSb3cHAAEVAwl0YWJsZUNlbGwHAAEWAwlwYXJhZ3JhcGgHAAEXBgQAARgBeCgAARYHY29sc3BhbgF9ASgAARYHcm93c3BhbgF9AYcBFgMJdGFibGVDZWxsBwABHAMJcGFyYWdyYXBoBwABHQYEAAEeATEoAAEcB2NvbHNwYW4BfQEoAAEcB3Jvd3NwYW4BfQGHARUDCHRhYmxlUm93BwABIgMJdGFibGVDZWxsBwABIwMJcGFyYWdyYXBoBwABJAYEAAElBmxvbmdlcigAASMHY29sc3BhbgF9ASgAASMHcm93c3BhbgF9AYcBIwMJdGFibGVDZWxsBwABLgMJcGFyYWdyYXBoBwABLwYEAAEwAjIyKAABLgdjb2xzcGFuAX0BKAABLgdyb3dzcGFuAX0BAA==",
+  "expect_lossy": false
+}

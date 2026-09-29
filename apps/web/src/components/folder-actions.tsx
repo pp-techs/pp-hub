@@ -8,6 +8,7 @@ import {
   FolderUp,
   Info,
   LayoutGrid,
+  NotebookPen,
   Presentation,
   RefreshCw,
   SquareDashedMousePointer,
@@ -85,6 +86,15 @@ export function folderActions(write: DriveWrite, listing?: ListingContext): Fold
           } satisfies FolderAction,
         ]
       : []),
+    {
+      key: "new-markdown",
+      label: msg`New markdown document`,
+      icon: NotebookPen,
+      group: "create",
+      disabled: !write.canWrite,
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- document kind
+      run: () => write.newDocument("markdown"),
+    },
     {
       key: "new-document",
       label: msg`New document`,

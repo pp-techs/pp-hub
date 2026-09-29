@@ -1,0 +1,64 @@
+{
+  "name": "bullet-list-marks",
+  "input": "- **bold** item\n- [link](https://x.y)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "bulletList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "bold",
+                    "marks": [
+                      {
+                        "type": "bold"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "text",
+                    "text": " item"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "link",
+                    "marks": [
+                      {
+                        "type": "link",
+                        "attrs": {
+                          "href": "https://x.y",
+                          "title": null
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "- **bold** item\n- [link](https://x.y)",
+  "yupdate_b64": "AQ4BAAcBB2NvbnRlbnQDCmJ1bGxldExpc3QHAAEAAwhsaXN0SXRlbQcAAQEDCXBhcmFncmFwaAcAAQIGBgABAwRib2xkAnt9hAEEBGJvbGSGAQgEYm9sZARudWxshAEJBSBpdGVthwEBAwhsaXN0SXRlbQcAAQ8DCXBhcmFncmFwaAcAARAGBgABEQRsaW5rZ3siaHJlZiI6Imh0dHBzOi8veC55IiwidGFyZ2V0IjoiX2JsYW5rIiwicmVsIjoibm9vcGVuZXIgbm9yZWZlcnJlciBub2ZvbGxvdyIsImNsYXNzIjpudWxsLCJ0aXRsZSI6bnVsbH2EARIEbGlua4YBFgRsaW5rBG51bGwA",
+  "expect_lossy": false
+}

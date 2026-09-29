@@ -1,0 +1,91 @@
+{
+  "name": "task-list-nested",
+  "input": "- [ ] parent\n  - [x] child\n  - [ ] child two\n- [ ] next\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "taskList",
+        "content": [
+          {
+            "type": "taskItem",
+            "attrs": {
+              "checked": false
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "parent"
+                  }
+                ]
+              },
+              {
+                "type": "taskList",
+                "content": [
+                  {
+                    "type": "taskItem",
+                    "attrs": {
+                      "checked": true
+                    },
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "child"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "taskItem",
+                    "attrs": {
+                      "checked": false
+                    },
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "child two"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "taskItem",
+            "attrs": {
+              "checked": false
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "next"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "- [ ] parent\n  - [x] child\n  - [ ] child two\n- [ ] next",
+  "yupdate_b64": "ARYBAAcBB2NvbnRlbnQDCHRhc2tMaXN0BwABAAMIdGFza0l0ZW0HAAEBAwlwYXJhZ3JhcGgHAAECBgQAAQMGcGFyZW50hwECAwh0YXNrTGlzdAcAAQoDCHRhc2tJdGVtBwABCwMJcGFyYWdyYXBoBwABDAYEAAENBWNoaWxkKAABCwdjaGVja2VkAXiHAQsDCHRhc2tJdGVtBwABFAMJcGFyYWdyYXBoBwABFQYEAAEWCWNoaWxkIHR3bygAARQHY2hlY2tlZAF5KAABAQdjaGVja2VkAXmHAQEDCHRhc2tJdGVtBwABIgMJcGFyYWdyYXBoBwABIwYEAAEkBG5leHQoAAEiB2NoZWNrZWQBeQA=",
+  "expect_lossy": false
+}

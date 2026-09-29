@@ -1,0 +1,12 @@
+{
+  "name": "empty",
+  "input": "",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": []
+  },
+  "output": "",
+  "yupdate_b64": "AAA=",
+  "expect_lossy": false
+}

@@ -79,8 +79,9 @@ type ClaimBlobParams struct {
 	Size int64  `json:"size"`
 }
 
-// ref_count is maintained by triggers on node_versions, previews and
-// users.avatar_blob (migration 0011). Nothing here moves it by hand.
+// ref_count is maintained by triggers on node_versions, previews,
+// users.avatar_blob (migration 0011) and node_attachments (0013). Nothing here
+// moves it by hand.
 // Records a hash before its bytes are installed and pins it against GC for
 // long enough to install them and commit the reference. Runs on its own,
 // outside any transaction, so a concurrent sweep sees the pin at once: the
@@ -102,6 +103,7 @@ WHERE b.hash = $1
   AND NOT EXISTS (SELECT 1 FROM node_versions v WHERE v.blob_hash = b.hash)
   AND NOT EXISTS (SELECT 1 FROM previews p WHERE p.blob_hash = b.hash)
   AND NOT EXISTS (SELECT 1 FROM users u WHERE u.avatar_blob = b.hash)
+  AND NOT EXISTS (SELECT 1 FROM node_attachments a WHERE a.blob_hash = b.hash)
 RETURNING b.size
 `
 
@@ -204,6 +206,7 @@ WHERE b.ref_count = 0
   AND NOT EXISTS (SELECT 1 FROM node_versions v WHERE v.blob_hash = b.hash)
   AND NOT EXISTS (SELECT 1 FROM previews p WHERE p.blob_hash = b.hash)
   AND NOT EXISTS (SELECT 1 FROM users u WHERE u.avatar_blob = b.hash)
+  AND NOT EXISTS (SELECT 1 FROM node_attachments a WHERE a.blob_hash = b.hash)
 ORDER BY b.released_at
 LIMIT $1
 `
@@ -271,6 +274,8 @@ WITH refs AS (
     SELECT blob_hash, count(*) FROM previews GROUP BY blob_hash
     UNION ALL
     SELECT avatar_blob, count(*) FROM users WHERE avatar_blob <> '' GROUP BY avatar_blob
+    UNION ALL
+    SELECT blob_hash, count(*) FROM node_attachments GROUP BY blob_hash
 ), actual AS (
     SELECT b2.hash, COALESCE(sum(r.n), 0)::int AS n
     FROM blobs b2 LEFT JOIN refs r ON r.hash = b2.hash

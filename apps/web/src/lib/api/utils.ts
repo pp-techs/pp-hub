@@ -53,7 +53,18 @@ export function isOfficeFile(nameOrMime?: string): boolean {
   return !!ext && OFFICE_EXTS.has(ext);
 }
 
-/** Open the office editor for a node in a new browser tab. */
+/**
+ * A markdown document, which opens in the block editor. By the stored MIME
+ * when the server recorded one — it carries a charset (`text/markdown;
+ * charset=utf-8`), so only the base type is compared — else by extension.
+ */
+export function isMarkdownFile(node: Node): boolean {
+  if (node.kind !== "file") return false;
+  const mime = node.mime?.split(";")[0]?.trim();
+  return mime === "text/markdown" || node.name.toLowerCase().endsWith(".md");
+}
+
+/** Open the editor for a node — OnlyOffice or the block editor, by type — in a new browser tab. */
 export function openEditor(node: Node): void {
   window.open(`/edit/${node.id}`, "_blank");
 }
@@ -182,9 +193,9 @@ export function thumbnailFit(node: Node): "cover" | "contain" {
   return m.startsWith("image/") || m.startsWith("video/") ? "cover" : "contain";
 }
 
-/** File types that open in OnlyOffice on double-click. */
+/** File types that open in an editor on double-click: office files in OnlyOffice, markdown in the block editor. */
 export function opensInEditor(node: Node): boolean {
-  return node.kind === "file" && isOfficeFile(node.name);
+  return node.kind === "file" && (isOfficeFile(node.name) || isMarkdownFile(node));
 }
 
 /**

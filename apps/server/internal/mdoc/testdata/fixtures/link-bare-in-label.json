@@ -1,0 +1,31 @@
+{
+  "name": "link-bare-in-label",
+  "input": "[https://x.example](https://y.example)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "https://x.example",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "https://y.example",
+                  "title": null
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "[https://x.example](https://y.example)",
+  "yupdate_b64": "AQUBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBgABAQRsaW5rbXsiaHJlZiI6Imh0dHBzOi8veS5leGFtcGxlIiwidGFyZ2V0IjoiX2JsYW5rIiwicmVsIjoibm9vcGVuZXIgbm9yZWZlcnJlciBub2ZvbGxvdyIsImNsYXNzIjpudWxsLCJ0aXRsZSI6bnVsbH2EAQIRaHR0cHM6Ly94LmV4YW1wbGWGARMEbGluawRudWxsAA==",
+  "expect_lossy": false
+}

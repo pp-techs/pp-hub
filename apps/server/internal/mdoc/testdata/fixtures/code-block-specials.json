@@ -1,0 +1,25 @@
+{
+  "name": "code-block-specials",
+  "input": "```md\n**not bold** <b> & `x`\n```\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "codeBlock",
+        "attrs": {
+          "language": "md"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "**not bold** <b> & `x`"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "```md\n**not bold** <b> & `x`\n```",
+  "yupdate_b64": "AQQBAAcBB2NvbnRlbnQDCWNvZGVCbG9jawcAAQAGBAABARYqKm5vdCBib2xkKiogPGI+ICYgYHhgKAABAAhsYW5ndWFnZQF3Am1kAA==",
+  "expect_lossy": false
+}

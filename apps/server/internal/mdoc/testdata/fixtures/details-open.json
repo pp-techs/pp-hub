@@ -1,0 +1,73 @@
+{
+  "name": "details-open",
+  "input": "<details open>\n<summary>Open **title**</summary>\n\nBody.\n\n- a\n\n</details>\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "details",
+        "attrs": {
+          "open": true,
+          "level": 0
+        },
+        "content": [
+          {
+            "type": "detailsSummary",
+            "content": [
+              {
+                "type": "text",
+                "text": "Open "
+              },
+              {
+                "type": "text",
+                "text": "title",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "detailsContent",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Body."
+                  }
+                ]
+              },
+              {
+                "type": "bulletList",
+                "content": [
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "a"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "<details open>\n<summary>Open **title**</summary>\n\nBody.\n\n- a\n\n</details>",
+  "yupdate_b64": "ARIBAAcBB2NvbnRlbnQDB2RldGFpbHMHAAEAAw5kZXRhaWxzU3VtbWFyeQcAAQEGBAABAgVPcGVuIIYBBwRib2xkAnt9hAEIBXRpdGxlhgENBGJvbGQEbnVsbIcBAQMOZGV0YWlsc0NvbnRlbnQHAAEPAwlwYXJhZ3JhcGgHAAEQBgQAAREFQm9keS6HARADCmJ1bGxldExpc3QHAAEXAwhsaXN0SXRlbQcAARgDCXBhcmFncmFwaAcAARkGBAABGgFhKAABAARvcGVuAXgoAAEABWxldmVsAX0AAA==",
+  "expect_lossy": false
+}

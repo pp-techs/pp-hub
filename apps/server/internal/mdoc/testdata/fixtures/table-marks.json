@@ -1,0 +1,108 @@
+{
+  "name": "table-marks",
+  "input": "| **h** | `c` |\n| --- | --- |\n| [l](https://x.y) | *i* |\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "table",
+        "content": [
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableHeader",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "h",
+                        "marks": [
+                          {
+                            "type": "bold"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableHeader",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "c",
+                        "marks": [
+                          {
+                            "type": "code"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "l",
+                        "marks": [
+                          {
+                            "type": "link",
+                            "attrs": {
+                              "href": "https://x.y",
+                              "title": null
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "i",
+                        "marks": [
+                          {
+                            "type": "italic"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "\n| **h**            | `c` |\n| ---------------- | --- |\n| [l](https://x.y) | *i* |\n",
+  "yupdate_b64": "ASMBAAcBB2NvbnRlbnQDBXRhYmxlBwABAAMIdGFibGVSb3cHAAEBAwt0YWJsZUhlYWRlcgcAAQIDCXBhcmFncmFwaAcAAQMGBgABBARib2xkAnt9hAEFAWiGAQYEYm9sZARudWxsKAABAgdjb2xzcGFuAX0BKAABAgdyb3dzcGFuAX0BhwECAwt0YWJsZUhlYWRlcgcAAQoDCXBhcmFncmFwaAcAAQsGBgABDARjb2RlAnt9hAENAWOGAQ4EY29kZQRudWxsKAABCgdjb2xzcGFuAX0BKAABCgdyb3dzcGFuAX0BhwEBAwh0YWJsZVJvdwcAARIDCXRhYmxlQ2VsbAcAARMDCXBhcmFncmFwaAcAARQGBgABFQRsaW5rZ3siaHJlZiI6Imh0dHBzOi8veC55IiwidGFyZ2V0IjoiX2JsYW5rIiwicmVsIjoibm9vcGVuZXIgbm9yZWZlcnJlciBub2ZvbGxvdyIsImNsYXNzIjpudWxsLCJ0aXRsZSI6bnVsbH2EARYBbIYBFwRsaW5rBG51bGwoAAETB2NvbHNwYW4BfQEoAAETB3Jvd3NwYW4BfQGHARMDCXRhYmxlQ2VsbAcAARsDCXBhcmFncmFwaAcAARwGBgABHQZpdGFsaWMCe32EAR4BaYYBHwZpdGFsaWMEbnVsbCgAARsHY29sc3BhbgF9ASgAARsHcm93c3BhbgF9AQA=",
+  "expect_lossy": false
+}

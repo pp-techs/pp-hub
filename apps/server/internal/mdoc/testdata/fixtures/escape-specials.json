@@ -1,0 +1,22 @@
+{
+  "name": "escape-specials",
+  "input": "\\*not bold\\* \\_x\\_ \\`y\\` \\[z\\] a\\~b back\\\\slash\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "*not bold* _x_ `y` [z] a~b back\\slash"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "\\*not bold\\* \\_x\\_ \\`y\\` \\[z\\] a\\~b back\\\\slash",
+  "yupdate_b64": "AQMBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABASUqbm90IGJvbGQqIF94XyBgeWAgW3pdIGF+YiBiYWNrXHNsYXNoAA==",
+  "expect_lossy": false
+}

@@ -17,6 +17,7 @@ import (
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/activity"
 	"github.com/nhatbui/pp-hub/apps/server/internal/audit"
+	"github.com/nhatbui/pp-hub/apps/server/internal/collab"
 	"github.com/nhatbui/pp-hub/apps/server/internal/fs"
 	"github.com/nhatbui/pp-hub/apps/server/internal/office"
 	"github.com/nhatbui/pp-hub/apps/server/internal/orgsync"
@@ -583,10 +584,17 @@ func (s *Server) handleCreateDocument(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// A block document (M39) is an empty .md file; the office kinds start
+	// from a template.
+	markdown := body.Kind == "markdown"
 	kind, ok := office.ParseKind(body.Kind)
-	if !ok {
-		writeProblem(w, http.StatusBadRequest, "Bad Request", "kind must be document|spreadsheet|presentation")
+	if !ok && !markdown {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "kind must be document|spreadsheet|presentation|markdown")
 		return
+	}
+	ext := kind.Ext()
+	if markdown {
+		ext = ".md"
 	}
 
 	name := strings.TrimSpace(body.Name)
@@ -599,8 +607,8 @@ func (s *Server) handleCreateDocument(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !strings.EqualFold(path.Ext(name), kind.Ext()) {
-		name += kind.Ext()
+	if !strings.EqualFold(path.Ext(name), ext) {
+		name += ext
 	}
 
 	var parentID pgtype.UUID
@@ -615,37 +623,45 @@ func (s *Server) handleCreateDocument(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tpl, err := office.Template(kind, users.DecodePreferences(u.Settings).Locale)
-	if err != nil {
-		Error(w, r, err)
-		return
+	var content []byte
+	if !markdown {
+		tpl, err := office.Template(kind, users.DecodePreferences(u.Settings).Locale)
+		if err != nil {
+			Error(w, r, err)
+			return
+		}
+		content = tpl
 	}
 
-	node, ver, err := s.fs.PutFile(r.Context(), spaceID, parentID, pgtype.UUID{}, name, bytes.NewReader(tpl), u.ID)
+	node, ver, err := s.fs.PutFile(r.Context(), spaceID, parentID, pgtype.UUID{}, name, bytes.NewReader(content), u.ID)
 	if err != nil {
 		s.nodeError(w, r, err)
 		return
 	}
 
-	s.activity.Node(r.Context(), u.ID, node, activity.KindCreated, map[string]any{"template": string(kind)})
+	s.activity.Node(r.Context(), u.ID, node, activity.KindCreated, map[string]any{"template": body.Kind})
 	writeJSON(w, http.StatusCreated, nodeToDTO(node, &ver).withCaps(share.CapsOwner))
 }
 
-// lockedByEditor answers status when a live WOPI lock exists, and reports
-// whether the caller should stop. Both REST write paths that change which
-// bytes are current have to ask; the WOPI paths already do, with their own
-// header protocol (X-WOPI-Lock), which is why this is not shared with them.
+// lockedByEditor answers status when a live lock exists, and reports whether
+// the caller should stop. Both REST write paths that change which bytes are
+// current have to ask; the WOPI paths already do, with their own header
+// protocol (X-WOPI-Lock), which is why this is not shared with them.
 //
 // The status is the caller's: 409 on a plain REST route, 423 on the upload
 // routes, where tus reserves 409 for "your offset is wrong" and a client that
 // read a lock as that would HEAD and retry forever.
-func (s *Server) lockedByEditor(w http.ResponseWriter, r *http.Request, nodeID pgtype.UUID, status int) bool {
+//
+// allowRoom lets a block-document room's lock through: restoring a version
+// goes through the room, which reseeds itself (collab.Service.Reseed). An
+// upload replacing the file does not, and is refused like any other.
+func (s *Server) lockedByEditor(w http.ResponseWriter, r *http.Request, nodeID pgtype.UUID, status int, allowRoom bool) bool {
 	lockToken, err := s.wopi.CurrentLock(r.Context(), nodeID)
 	if err != nil {
 		Error(w, r, err)
 		return true
 	}
-	if lockToken != "" {
+	if lockToken != "" && !(allowRoom && collab.IsLockToken(lockToken)) {
 		writeProblem(w, status, http.StatusText(status),
 			"this file is open in the editor; close it or wait for the lock to expire")
 		return true
@@ -1096,10 +1112,15 @@ func (s *Server) handleRestoreVersion(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid version id")
 		return
 	}
-	if s.lockedByEditor(w, r, node.ID, http.StatusConflict) {
+	// A block document open in a room is restored through it: the room
+	// writes back what it has not saved, then reseeds from the restored
+	// version, so every peer sees it live. An office editor's lock still
+	// refuses.
+	if s.lockedByEditor(w, r, node.ID, http.StatusConflict, true) {
 		return
 	}
-	if err := s.fs.RestoreVersion(r.Context(), node.ID, versionID); err != nil {
+	restore := func(ctx context.Context) error { return s.fs.RestoreVersion(ctx, node.ID, versionID) }
+	if err := s.collab.Reseed(r.Context(), node.ID, restore); err != nil {
 		s.nodeError(w, r, err)
 		return
 	}

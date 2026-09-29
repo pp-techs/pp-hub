@@ -1,20 +1,15 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
-import { ArrowLeft, Download, History, Link2 } from "lucide-react";
-import { Button } from "@workspace/ui/components/button";
-import { Skeleton } from "@workspace/ui/components/skeleton";
-import { capsOf, createEditSession, type EditSession } from "@/lib/api";
+import { createEditSession, isMarkdownFile, type EditSession, type Node } from "@/lib/api";
 import { nodeOptions, requireAuth, useNode } from "@/lib/queries";
-import { useUiStore } from "@/lib/ui-store";
-import { useFormatters } from "@/lib/format";
 import { pageTitle } from "@/lib/i18n";
 import { useLocale } from "@/components/locale-provider";
 import { useTheme } from "@/components/theme-provider";
 import { NodePanels } from "@/components/node-panels";
-import { NodeIcon } from "@/components/node-icon";
-import { ShareDialog } from "@/components/share-dialog";
+import { EditorHeader } from "@/components/editor-header";
+import { DocEditor } from "@/components/doc-editor/doc-editor";
 
 export const Route = createFileRoute("/edit/$nodeId")({
   head: () => ({ meta: [{ title: pageTitle(msg`Editing`) }] }),
@@ -28,27 +23,50 @@ export const Route = createFileRoute("/edit/$nodeId")({
 });
 
 /**
- * Full-page OnlyOffice editor, opened in a new tab from the drive.
- *
- * The chrome around the iframe is ours; everything inside it — the ribbon,
- * the save indicator, the collaborator carets and presence list — belongs to
- * OnlyOffice and is deliberately not duplicated here. What the app adds is the
- * things OnlyOffice cannot know about: where the file lives, and the pp-hub
- * actions (share, version history, download) that operate on the node.
+ * Full-page editor, opened in a new tab from the drive. Which editor is a
+ * question of type: a markdown document opens in the block editor, anything
+ * else in OnlyOffice. The header around either is ours.
  */
 function EditPage() {
-  const { t } = useLingui();
-  const f = useFormatters();
-  const locale = useLocale();
-  const { resolvedTheme } = useTheme();
   const { nodeId } = Route.useParams();
   const node = useNode(nodeId);
-  const openPanel = useUiStore((s) => s.openPanel);
+
+  return (
+    <div className="bg-background text-foreground flex h-svh flex-col">
+      {!node.data ? (
+        <>
+          <EditorHeader nodeId={nodeId} node={undefined} />
+          {node.error ? (
+            <p className="text-destructive flex flex-1 items-center justify-center text-sm">
+              {node.error.message}
+            </p>
+          ) : (
+            <p className="text-muted-foreground flex flex-1 items-center justify-center text-sm">
+              <Trans>Opening editor…</Trans>
+            </p>
+          )}
+        </>
+      ) : isMarkdownFile(node.data) ? (
+        <DocEditor node={node.data} />
+      ) : (
+        <OfficeEditor node={node.data} />
+      )}
+      <NodePanels />
+    </div>
+  );
+}
+
+/**
+ * OnlyOffice in an iframe. Everything inside it — the ribbon, the save
+ * indicator, the collaborator carets and presence list — belongs to
+ * OnlyOffice and is deliberately not duplicated in the header.
+ */
+function OfficeEditor({ node }: { node: Node }) {
+  const { t } = useLingui();
+  const locale = useLocale();
+  const { resolvedTheme } = useTheme();
   const [session, setSession] = useState<EditSession | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Named so the extracted message reads `version {version}` rather than
-  // `version {0}`: the placeholder name is all a translator gets.
-  const version = node.data?.version;
 
   useEffect(() => {
     let cancelled = false;
@@ -58,7 +76,7 @@ function EditPage() {
     // frame below remounts on the new token so the editor actually comes
     // back in it. resolvedTheme, not theme: "system" means nothing to a
     // process that is not this browser.
-    createEditSession(nodeId, locale, resolvedTheme)
+    createEditSession(node.id, locale, resolvedTheme)
       .then((s) => {
         if (!cancelled) setSession(s);
       })
@@ -68,84 +86,17 @@ function EditPage() {
     return () => {
       cancelled = true;
     };
-  }, [nodeId, locale, resolvedTheme]);
+  }, [node.id, locale, resolvedTheme]);
 
   return (
-    <div className="bg-background text-foreground flex h-svh flex-col">
-      <header className="border-border flex h-12 shrink-0 items-center gap-2 border-b px-3">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label={t`Back to Drive`}
-          render={
-            <Link
-              to={node.data ? ("/drive/$spaceId" as const) : ("/drive" as const)}
-              params={node.data ? { spaceId: node.data.space_id } : undefined}
-              search={node.data ? { dir: node.data.parent_id } : undefined}
-            />
-          }
-        >
-          <ArrowLeft />
-        </Button>
-
-        {node.data ? (
-          <NodeIcon node={node.data} className="size-4 shrink-0" />
-        ) : (
-          <Skeleton className="size-4 shrink-0" />
-        )}
-        {node.data ? (
-          <div className="flex min-w-0 flex-col">
-            <span className="truncate text-sm font-medium">{node.data.name}</span>
-            <span className="text-muted-foreground truncate text-[10px] tabular-nums">
-              {[
-                version ? t`version ${version}` : null,
-                node.data.size != null ? f.size(node.data.size) : null,
-                // A reader gets the document, not the editor, and the
-                // ribbon alone is a subtle thing to read that from.
-                session && !session.can_write ? t`read-only` : t`saved by OnlyOffice`,
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            </span>
-          </div>
-        ) : (
-          <div className="flex min-w-0 flex-col gap-1">
-            <Skeleton className="h-4 w-40" />
-            <Skeleton className="h-2.5 w-28" />
-          </div>
-        )}
-
-        <div className="ml-auto flex shrink-0 items-center gap-1">
-          {node.data && capsOf(node.data).share && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => node.data && void ShareDialog.show({ node: node.data })}
-            >
-              <Link2 data-icon="inline-start" /> <Trans>Share</Trans>
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={!node.data}
-            onClick={() => node.data && openPanel("versions", node.data)}
-          >
-            <History data-icon="inline-start" /> <Trans>Versions</Trans>
-          </Button>
-          {node.data && capsOf(node.data).download && (
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={t`Download`}
-              render={<a href={`/api/v1/nodes/${nodeId}/download`} />}
-            >
-              <Download />
-            </Button>
-          )}
-        </div>
-      </header>
-
+    <>
+      <EditorHeader
+        nodeId={node.id}
+        node={node}
+        // A reader gets the document, not the editor, and the ribbon alone
+        // is a subtle thing to read that from.
+        status={session && !session.can_write ? t`read-only` : t`saved by OnlyOffice`}
+      />
       {error ? (
         <p className="text-destructive flex flex-1 items-center justify-center text-sm">{error}</p>
       ) : !session ? (
@@ -155,9 +106,7 @@ function EditPage() {
       ) : (
         <EditorFrame key={session.token} session={session} />
       )}
-
-      <NodePanels />
-    </div>
+    </>
   );
 }
 

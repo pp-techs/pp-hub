@@ -1,0 +1,39 @@
+{
+  "name": "link",
+  "input": "A [link](https://example.com) here.\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "A "
+          },
+          {
+            "type": "text",
+            "text": "link",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "https://example.com",
+                  "title": null
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " here."
+          }
+        ]
+      }
+    ]
+  },
+  "output": "A [link](https://example.com) here.",
+  "yupdate_b64": "AQcBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQJBIIYBAwRsaW5rb3siaHJlZiI6Imh0dHBzOi8vZXhhbXBsZS5jb20iLCJ0YXJnZXQiOiJfYmxhbmsiLCJyZWwiOiJub29wZW5lciBub3JlZmVycmVyIG5vZm9sbG93IiwiY2xhc3MiOm51bGwsInRpdGxlIjpudWxsfYQBBARsaW5rhgEIBGxpbmsEbnVsbIQBCQYgaGVyZS4A",
+  "expect_lossy": false
+}

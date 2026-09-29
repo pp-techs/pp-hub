@@ -1,0 +1,79 @@
+{
+  "name": "list-item-trailing-spaces",
+  "input": "- a  \n- b  \n  - c  \n  - d  \n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "bulletList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "a  "
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "b  "
+                  }
+                ]
+              },
+              {
+                "type": "bulletList",
+                "content": [
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "c  "
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "d"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "- a  \n- b  \n  - c  \n  - d",
+  "yupdate_b64": "ARIBAAcBB2NvbnRlbnQDCmJ1bGxldExpc3QHAAEAAwhsaXN0SXRlbQcAAQEDCXBhcmFncmFwaAcAAQIGBAABAwNhICCHAQEDCGxpc3RJdGVtBwABBwMJcGFyYWdyYXBoBwABCAYEAAEJA2IgIIcBCAMKYnVsbGV0TGlzdAcAAQ0DCGxpc3RJdGVtBwABDgMJcGFyYWdyYXBoBwABDwYEAAEQA2MgIIcBDgMIbGlzdEl0ZW0HAAEUAwlwYXJhZ3JhcGgHAAEVBgQAARYBZAA=",
+  "expect_lossy": false
+}

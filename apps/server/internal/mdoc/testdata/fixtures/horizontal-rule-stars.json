@@ -1,0 +1,16 @@
+{
+  "name": "horizontal-rule-stars",
+  "input": "***\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "horizontalRule"
+      }
+    ]
+  },
+  "output": "---",
+  "yupdate_b64": "AQEBAAcBB2NvbnRlbnQDDmhvcml6b250YWxSdWxlAA==",
+  "expect_lossy": false
+}

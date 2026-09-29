@@ -1,0 +1,20 @@
+{
+  "name": "image-spaces-url",
+  "input": "![a](<https://example.com/a b.png>)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "image",
+        "attrs": {
+          "src": "https://example.com/a b.png",
+          "alt": "a"
+        }
+      }
+    ]
+  },
+  "output": "![a](<https://example.com/a b.png>)",
+  "yupdate_b64": "AQQBAAcBB2NvbnRlbnQDBWltYWdlKAABAANzcmMBdxtodHRwczovL2V4YW1wbGUuY29tL2EgYi5wbmcoAAEAA2FsdAF3AWEoAAEABnN0YXR1cwF3BXJlYWR5AA==",
+  "expect_lossy": false
+}

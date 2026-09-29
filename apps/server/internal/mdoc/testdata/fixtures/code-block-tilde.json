@@ -1,0 +1,25 @@
+{
+  "name": "code-block-tilde",
+  "input": "~~~python\nprint('hi')\n~~~\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "codeBlock",
+        "attrs": {
+          "language": "python"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "print('hi')"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "```python\nprint('hi')\n```",
+  "yupdate_b64": "AQQBAAcBB2NvbnRlbnQDCWNvZGVCbG9jawcAAQAGBAABAQtwcmludCgnaGknKSgAAQAIbGFuZ3VhZ2UBdwZweXRob24A",
+  "expect_lossy": false
+}

@@ -1,0 +1,41 @@
+{
+  "name": "blockquote-nested",
+  "input": "> outer\n>\n> > inner\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "blockquote",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "outer"
+              }
+            ]
+          },
+          {
+            "type": "blockquote",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "inner"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "> outer\n>\n> > inner",
+  "yupdate_b64": "AQgBAAcBB2NvbnRlbnQDCmJsb2NrcXVvdGUHAAEAAwlwYXJhZ3JhcGgHAAEBBgQAAQIFb3V0ZXKHAQEDCmJsb2NrcXVvdGUHAAEIAwlwYXJhZ3JhcGgHAAEJBgQAAQoFaW5uZXIA",
+  "expect_lossy": false
+}

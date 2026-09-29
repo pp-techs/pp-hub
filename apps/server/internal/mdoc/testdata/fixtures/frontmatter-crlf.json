@@ -1,0 +1,22 @@
+{
+  "name": "frontmatter-crlf",
+  "input": "---\r\na: 1\r\n---\r\nBody.\n",
+  "frontmatter": "---\r\na: 1\r\n---\r\n",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Body."
+          }
+        ]
+      }
+    ]
+  },
+  "output": "Body.",
+  "yupdate_b64": "AQMBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQVCb2R5LgA=",
+  "expect_lossy": false
+}

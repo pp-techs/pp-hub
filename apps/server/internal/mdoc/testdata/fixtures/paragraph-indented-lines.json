@@ -1,0 +1,31 @@
+{
+  "name": "paragraph-indented-lines",
+  "input": "  a\n   b\n\nc\n  d\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "  a\n   b"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "c\n  d"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "  a\n   b\n\nc\n  d",
+  "yupdate_b64": "AQYBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQggIGEKICAgYocBAAMJcGFyYWdyYXBoBwABCgYEAAELBWMKICBkAA==",
+  "expect_lossy": false
+}

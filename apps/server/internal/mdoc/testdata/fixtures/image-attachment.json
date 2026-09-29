@@ -1,0 +1,20 @@
+{
+  "name": "image-attachment",
+  "input": "![diagram](attachment:0123abcd)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "image",
+        "attrs": {
+          "src": "attachment:0123abcd",
+          "alt": "diagram"
+        }
+      }
+    ]
+  },
+  "output": "![diagram](attachment:0123abcd)",
+  "yupdate_b64": "AQQBAAcBB2NvbnRlbnQDBWltYWdlKAABAANzcmMBdxNhdHRhY2htZW50OjAxMjNhYmNkKAABAANhbHQBdwdkaWFncmFtKAABAAZzdGF0dXMBdwVyZWFkeQA=",
+  "expect_lossy": false
+}

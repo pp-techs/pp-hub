@@ -1,0 +1,55 @@
+{
+  "name": "list-then-paragraph",
+  "input": "- a\n- b\n\nafter\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "bulletList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "a"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "b"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "after"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "- a\n- b\n\nafter",
+  "yupdate_b64": "AQwBAAcBB2NvbnRlbnQDCmJ1bGxldExpc3QHAAEAAwhsaXN0SXRlbQcAAQEDCXBhcmFncmFwaAcAAQIGBAABAwFhhwEBAwhsaXN0SXRlbQcAAQUDCXBhcmFncmFwaAcAAQYGBAABBwFihwEAAwlwYXJhZ3JhcGgHAAEJBgQAAQoFYWZ0ZXIA",
+  "expect_lossy": false
+}

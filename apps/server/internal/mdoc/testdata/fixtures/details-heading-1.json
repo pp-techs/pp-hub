@@ -1,0 +1,45 @@
+{
+  "name": "details-heading-1",
+  "input": "<details>\n<summary><h1>Big</h1></summary>\n\nx\n\n</details>\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "details",
+        "attrs": {
+          "open": false,
+          "level": 1
+        },
+        "content": [
+          {
+            "type": "detailsSummary",
+            "content": [
+              {
+                "type": "text",
+                "text": "Big"
+              }
+            ]
+          },
+          {
+            "type": "detailsContent",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "x"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "<details>\n<summary><h1>Big</h1></summary>\n\nx\n\n</details>",
+  "yupdate_b64": "AQoBAAcBB2NvbnRlbnQDB2RldGFpbHMHAAEAAw5kZXRhaWxzU3VtbWFyeQcAAQEGBAABAgNCaWeHAQEDDmRldGFpbHNDb250ZW50BwABBgMJcGFyYWdyYXBoBwABBwYEAAEIAXgoAAEABG9wZW4BeSgAAQAFbGV2ZWwBfQEA",
+  "expect_lossy": false
+}

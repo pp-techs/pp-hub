@@ -1,0 +1,65 @@
+{
+  "name": "table-then-paragraph",
+  "input": "| a |\n| --- |\n| b |\n\nafter\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "table",
+        "content": [
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableHeader",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "a"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "b"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "after"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "\n| a   |\n| --- |\n| b   |\n\n\nafter",
+  "yupdate_b64": "ARIBAAcBB2NvbnRlbnQDBXRhYmxlBwABAAMIdGFibGVSb3cHAAEBAwt0YWJsZUhlYWRlcgcAAQIDCXBhcmFncmFwaAcAAQMGBAABBAFhKAABAgdjb2xzcGFuAX0BKAABAgdyb3dzcGFuAX0BhwEBAwh0YWJsZVJvdwcAAQgDCXRhYmxlQ2VsbAcAAQkDCXBhcmFncmFwaAcAAQoGBAABCwFiKAABCQdjb2xzcGFuAX0BKAABCQdyb3dzcGFuAX0BhwEAAwlwYXJhZ3JhcGgHAAEPBgQAARAFYWZ0ZXIA",
+  "expect_lossy": false
+}

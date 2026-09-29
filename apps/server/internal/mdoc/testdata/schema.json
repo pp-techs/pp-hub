@@ -1,0 +1,119 @@
+{
+  "nodes": {
+    "paragraph": {
+      "id": null
+    },
+    "mermaid": {
+      "id": null
+    },
+    "bulletList": {
+      "id": null
+    },
+    "codeBlock": {
+      "id": null,
+      "language": null
+    },
+    "doc": {},
+    "hardBreak": {},
+    "heading": {
+      "id": null,
+      "level": 1
+    },
+    "horizontalRule": {
+      "id": null
+    },
+    "listItem": {
+      "id": null
+    },
+    "orderedList": {
+      "id": null,
+      "start": 1,
+      "type": null
+    },
+    "text": {},
+    "blockquote": {
+      "id": null
+    },
+    "taskList": {
+      "id": null
+    },
+    "taskItem": {
+      "id": null,
+      "checked": false
+    },
+    "callout": {
+      "id": null,
+      "icon": "💡"
+    },
+    "details": {
+      "id": null,
+      "open": false,
+      "level": 0
+    },
+    "detailsSummary": {},
+    "detailsContent": {
+      "id": null
+    },
+    "image": {
+      "id": null,
+      "src": null,
+      "alt": null,
+      "width": null,
+      "status": "ready",
+      "error": null
+    },
+    "file": {
+      "id": null,
+      "src": null,
+      "name": null,
+      "size": null,
+      "mime": null,
+      "status": "ready",
+      "error": null
+    },
+    "table": {
+      "id": null
+    },
+    "tableCell": {
+      "id": null,
+      "colspan": 1,
+      "rowspan": 1,
+      "colwidth": null,
+      "align": null
+    },
+    "tableHeader": {
+      "id": null,
+      "colspan": 1,
+      "rowspan": 1,
+      "colwidth": null,
+      "align": null
+    },
+    "tableRow": {},
+    "columns": {
+      "id": null
+    },
+    "column": {
+      "id": null
+    }
+  },
+  "marks": {
+    "link": {
+      "href": null,
+      "target": "_blank",
+      "rel": "noopener noreferrer nofollow",
+      "class": null,
+      "title": null
+    },
+    "bold": {},
+    "code": {},
+    "italic": {},
+    "strike": {}
+  },
+  "mark_order": [
+    "link",
+    "bold",
+    "code",
+    "italic",
+    "strike"
+  ]
+}

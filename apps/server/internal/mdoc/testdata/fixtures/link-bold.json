@@ -1,0 +1,54 @@
+{
+  "name": "link-bold",
+  "input": "**[bold link](https://example.com)** and [**inner**](https://x.y)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "bold link",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "https://example.com",
+                  "title": null
+                }
+              },
+              {
+                "type": "bold"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " and "
+          },
+          {
+            "type": "text",
+            "text": "inner",
+            "marks": [
+              {
+                "type": "bold"
+              },
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "https://x.y",
+                  "title": null
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "[**bold link**](https://example.com) and [**inner**](https://x.y)",
+  "yupdate_b64": "AQ0BAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBgABAQRsaW5rb3siaHJlZiI6Imh0dHBzOi8vZXhhbXBsZS5jb20iLCJ0YXJnZXQiOiJfYmxhbmsiLCJyZWwiOiJub29wZW5lciBub3JlZmVycmVyIG5vZm9sbG93IiwiY2xhc3MiOm51bGwsInRpdGxlIjpudWxsfYYBAgRib2xkAnt9hAEDCWJvbGQgbGlua4YBDARsaW5rBG51bGyGAQ0EYm9sZARudWxshAEOBSBhbmQghgETBGxpbmtneyJocmVmIjoiaHR0cHM6Ly94LnkiLCJ0YXJnZXQiOiJfYmxhbmsiLCJyZWwiOiJub29wZW5lciBub3JlZmVycmVyIG5vZm9sbG93IiwiY2xhc3MiOm51bGwsInRpdGxlIjpudWxsfYYBFARib2xkAnt9hAEVBWlubmVyhgEaBGxpbmsEbnVsbIYBGwRib2xkBG51bGwA",
+  "expect_lossy": false
+}

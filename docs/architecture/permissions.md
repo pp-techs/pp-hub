@@ -221,12 +221,12 @@ weaker rule of its own.
 Node-addressed routes go through `requireNodeCaps(w, r, need share.Cap)`, which
 resolves the node and demands one capability:
 
-| Capability    | Routes                                                                                                                                                     |
-| :------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CapView`     | `GET /nodes/{id}`, `/children`, `/tree`, `/preview?kind=thumbnail`, versions, star                                                                         |
-| `CapDownload` | `GET /nodes/{id}/download` (file or streamed zip), `/content`, `/preview?kind=text`, copy source, `POST /nodes/{id}/edit-session`                          |
-| `CapEdit`     | rename, move (plus [the move rules](#moving-changes-who-can-reach-it)), delete, upload-into, version restore, trash restore/purge, WOPI save               |
-| `CapShare`    | list/create/revoke shares, list/upsert/revoke group grants, `GET /nodes/{id}/inherited-access` — each change also bounded by [Monotonicity](#monotonicity) |
+| Capability    | Routes                                                                                                                                                                             |
+| :------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CapView`     | `GET /nodes/{id}`, `/children`, `/tree`, `/preview?kind=thumbnail`, versions, star                                                                                                 |
+| `CapDownload` | `GET /nodes/{id}/download` (file or streamed zip), `/content`, `/preview?kind=text`, copy source, `POST /nodes/{id}/edit-session`, `GET /nodes/{id}/collab`, `/attachments/{hash}` |
+| `CapEdit`     | rename, move (plus [the move rules](#moving-changes-who-can-reach-it)), delete, upload-into, version restore, trash restore/purge, WOPI save, tus upload with `attach_to`          |
+| `CapShare`    | list/create/revoke shares, list/upsert/revoke group grants, `GET /nodes/{id}/inherited-access` — each change also bounded by [Monotonicity](#monotonicity)                         |
 
 Creating into a folder goes through `requireParentWrite`:
 
@@ -320,8 +320,10 @@ at a different `Content-Type`.
 | `GET /s/{token}/content`                                     | the link's `can_download`        | Inline, anonymous — and it is the same bytes as `/node-download`    |
 | `GET /wopi/files/{id}/contents`                              | token rank ≥ 2 (= `CapDownload`) | The Document Server fetching the whole document for the editor      |
 | `POST /nodes/{id}/edit-session`                              | `CapDownload`                    | Minting the token above; there is no "open without fetching"        |
+| `GET /nodes/{id}/collab`, `GET /collab/{room}`               | `CapDownload`                    | A block document's room: sync hands the whole document over         |
+| `GET /nodes/{id}/attachments/{hash}`                         | `CapDownload` on the document    | An image or file dropped into a block document                      |
 
-Two notes on the table:
+Three notes on the table:
 
 - **A machine token is not a person.** `wopi.SystemSubject` — the preview
   worker's conversion fetch — has no subject to resolve a capability for, so
@@ -339,6 +341,18 @@ Two notes on the table:
   rank 1, because rank 1 would mint a session that cannot fetch its own
   document; rank 3 is still what `PutFile` and the lock operations demand. See
   [office-integration.md](office-integration.md).
+- **Block documents (M39).** The collaboration socket is authorized by the
+  room itself, not `requireNodeCaps`: `Authorize` demands `CapDownload` and
+  makes the connection read-only without `CapEdit` — ygo then drops that
+  peer's updates and awareness. The decision is not made once: every 60 s the
+  room re-resolves each peer's session (idle expiry, the 90-day cap,
+  suspension) and capabilities and closes the socket of anyone whose answer
+  changed, so a revoked peer is refused on reconnect and a downgraded one
+  returns read-only. Attachments follow their document, not a grant of their
+  own: uploading one (`attach_to`) takes `CapEdit` on the document, checked at
+  creation and again at commit, and reading one takes `CapDownload` on it; a
+  hash the document does not hold is 404 even if another document holds it.
+  See [block-documents.md](block-documents.md).
 
 ### Every Node Carries Its Own Answer
 

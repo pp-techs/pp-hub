@@ -142,3 +142,186 @@
     cursor: pointer;
   }
 }
+
+/*
+ * Block editor content (slash-editor). The editor core emits no class names:
+ * everything below targets the plain elements and `data-*` attributes it
+ * renders, under the one `.slash-content` ancestor every editor instance
+ * sits in. Colours come from the theme tokens only, so dark mode follows.
+ */
+@layer components {
+  .slash-content {
+    @apply text-foreground text-sm leading-relaxed;
+  }
+  .slash-content .ProseMirror {
+    @apply min-h-full outline-none;
+    word-break: break-word;
+  }
+  .slash-content [data-placeholder]::before {
+    content: attr(data-placeholder);
+    color: var(--color-muted-foreground);
+    pointer-events: none;
+    float: left;
+    height: 0;
+  }
+  .slash-content [data-decoration-id].is-empty::after {
+    content: attr(data-decoration-content);
+    color: var(--color-muted-foreground);
+    pointer-events: none;
+  }
+
+  .slash-content p {
+    @apply my-1 min-h-[1.5em];
+  }
+  .slash-content h1 {
+    @apply mt-6 mb-2 text-2xl font-semibold tracking-tight;
+  }
+  .slash-content h2 {
+    @apply mt-5 mb-2 text-xl font-semibold tracking-tight;
+  }
+  .slash-content h3 {
+    @apply mt-4 mb-1 text-lg font-semibold;
+  }
+  .slash-content a {
+    @apply text-primary underline underline-offset-2;
+  }
+  .slash-content strong {
+    @apply font-semibold;
+  }
+  .slash-content :not(pre) > code {
+    @apply bg-muted rounded px-1 py-0.5 font-mono text-[0.9em];
+  }
+  .slash-content pre {
+    @apply bg-muted my-2 overflow-x-auto rounded-md p-3 font-mono text-xs leading-relaxed;
+  }
+  .slash-content hr {
+    @apply border-border my-4;
+  }
+  .slash-content blockquote {
+    @apply border-border text-muted-foreground my-2 border-l-2 pl-3;
+  }
+
+  .slash-content ul {
+    @apply my-1 list-disc pl-6;
+  }
+  .slash-content ol {
+    @apply my-1 list-decimal pl-6;
+  }
+  .slash-content li > p {
+    @apply my-0.5;
+  }
+  .slash-content ul[data-type="taskList"] {
+    @apply list-none pl-1;
+  }
+  .slash-content ul[data-type="taskList"] li {
+    @apply flex items-start gap-2;
+  }
+  .slash-content ul[data-type="taskList"] li > label {
+    @apply mt-1 flex shrink-0 select-none;
+  }
+  .slash-content ul[data-type="taskList"] li > label input {
+    @apply accent-primary size-3.5;
+  }
+  .slash-content ul[data-type="taskList"] li > div {
+    @apply min-w-0 flex-1;
+  }
+  .slash-content ul[data-type="taskList"] li[data-checked="true"] > div {
+    @apply text-muted-foreground line-through;
+  }
+
+  .slash-content [data-type="callout"] {
+    @apply bg-muted/60 my-2 flex gap-2 rounded-md px-3 py-2;
+  }
+  .slash-content [data-type="callout"]::before {
+    content: attr(data-icon);
+    @apply shrink-0 leading-relaxed;
+  }
+  .slash-content [data-type="callout"] > * {
+    @apply min-w-0 flex-1;
+  }
+
+  .slash-content [data-type="details"] {
+    @apply my-1 flex items-start gap-1;
+  }
+  .slash-content [data-type="details"] > button {
+    @apply text-muted-foreground hover:bg-muted mt-0.5 flex size-5 shrink-0 items-center justify-center rounded;
+  }
+  .slash-content [data-type="details"] > button::before {
+    content: "";
+    @apply size-0 border-y-4 border-l-[6px] border-y-transparent border-l-current transition-transform;
+  }
+  .slash-content [data-type="details"].is-open > button::before {
+    @apply rotate-90;
+  }
+  .slash-content [data-type="details"] > div {
+    @apply min-w-0 flex-1;
+  }
+  .slash-content [data-type="details"] summary {
+    @apply list-none font-medium;
+  }
+  .slash-content [data-type="details"][data-level="1"] summary {
+    @apply text-2xl font-semibold;
+  }
+  .slash-content [data-type="details"][data-level="2"] summary {
+    @apply text-xl font-semibold;
+  }
+  .slash-content [data-type="details"][data-level="3"] summary {
+    @apply text-lg font-semibold;
+  }
+  .slash-content [data-type="details"][data-level="1"] > button {
+    @apply mt-2;
+  }
+  .slash-content [data-type="details"][data-level="2"] > button {
+    @apply mt-1.5;
+  }
+  .slash-content [data-type="detailsContent"] {
+    @apply pl-0.5;
+  }
+
+  .slash-content [data-type="columns"] {
+    @apply my-2 grid auto-cols-fr grid-flow-col gap-4;
+  }
+  .slash-content [data-type="column"] {
+    @apply min-w-0;
+  }
+
+  .slash-content .tableWrapper {
+    @apply my-3 overflow-x-auto;
+  }
+  .slash-content table {
+    @apply w-full table-fixed border-collapse;
+  }
+  .slash-content th,
+  .slash-content td {
+    @apply border-border relative border px-2 py-1 align-top;
+  }
+  .slash-content th {
+    @apply bg-muted/60 text-left font-medium;
+  }
+  .slash-content .selectedCell::after {
+    content: "";
+    @apply bg-primary/10 pointer-events-none absolute inset-0;
+  }
+  .slash-content .column-resize-handle {
+    @apply bg-primary pointer-events-none absolute top-0 -right-px bottom-0 w-0.5;
+  }
+  .slash-content.resize-cursor,
+  .slash-content .resize-cursor {
+    cursor: col-resize;
+  }
+
+  .slash-content .ProseMirror-selectednode {
+    @apply ring-ring/50 rounded-md ring-2;
+  }
+  .slash-content [data-dragging] {
+    @apply opacity-40;
+  }
+
+  .slash-content [data-collab-caret] {
+    @apply pointer-events-none relative -mx-px border-x;
+    word-break: normal;
+  }
+  .slash-content [data-collab-caret-label] {
+    @apply absolute -top-[1.35em] -left-px rounded-sm px-1 py-px text-[0.65rem] leading-tight font-medium whitespace-nowrap text-white select-none;
+  }
+}

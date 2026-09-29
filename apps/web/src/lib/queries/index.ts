@@ -52,6 +52,9 @@ export {
   useShared,
 } from "./nodes";
 
+// Block documents
+export { collabOptions } from "./collab";
+
 // Search
 export { useNodeSearch, MIN_QUERY_LENGTH } from "./search";
 

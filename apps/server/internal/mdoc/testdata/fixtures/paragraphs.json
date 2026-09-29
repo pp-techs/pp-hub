@@ -1,0 +1,31 @@
+{
+  "name": "paragraphs",
+  "input": "First paragraph.\n\nSecond paragraph.\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "First paragraph."
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Second paragraph."
+          }
+        ]
+      }
+    ]
+  },
+  "output": "First paragraph.\n\nSecond paragraph.",
+  "yupdate_b64": "AQYBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABARBGaXJzdCBwYXJhZ3JhcGguhwEAAwlwYXJhZ3JhcGgHAAESBgQAARMRU2Vjb25kIHBhcmFncmFwaC4A",
+  "expect_lossy": false
+}

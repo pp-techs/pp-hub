@@ -1,0 +1,39 @@
+{
+  "name": "link-title",
+  "input": "A [link](https://example.com \"The title\") here.\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "A "
+          },
+          {
+            "type": "text",
+            "text": "link",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "https://example.com",
+                  "title": "The title"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " here."
+          }
+        ]
+      }
+    ]
+  },
+  "output": "A [link](https://example.com \"The title\") here.",
+  "yupdate_b64": "AQcBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQJBIIYBAwRsaW5rdnsiaHJlZiI6Imh0dHBzOi8vZXhhbXBsZS5jb20iLCJ0YXJnZXQiOiJfYmxhbmsiLCJyZWwiOiJub29wZW5lciBub3JlZmVycmVyIG5vZm9sbG93IiwiY2xhc3MiOm51bGwsInRpdGxlIjoiVGhlIHRpdGxlIn2EAQQEbGlua4YBCARsaW5rBG51bGyEAQkGIGhlcmUuAA==",
+  "expect_lossy": false
+}

@@ -1,0 +1,60 @@
+{
+  "name": "ordered-list",
+  "input": "1. one\n2. two\n3. three\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "orderedList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "one"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "two"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "three"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "1. one\n2. two\n3. three",
+  "yupdate_b64": "AQ4BAAcBB2NvbnRlbnQDC29yZGVyZWRMaXN0BwABAAMIbGlzdEl0ZW0HAAEBAwlwYXJhZ3JhcGgHAAECBgQAAQMDb25lhwEBAwhsaXN0SXRlbQcAAQcDCXBhcmFncmFwaAcAAQgGBAABCQN0d2+HAQcDCGxpc3RJdGVtBwABDQMJcGFyYWdyYXBoBwABDgYEAAEPBXRocmVlKAABAAVzdGFydAF9AQA=",
+  "expect_lossy": false
+}

@@ -1,0 +1,54 @@
+{
+  "name": "mixed-task-bullet",
+  "input": "- [ ] task\n- plain\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "taskList",
+        "content": [
+          {
+            "type": "taskItem",
+            "attrs": {
+              "checked": false
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "task"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "bulletList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "plain"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "- [ ] task\n\n- plain",
+  "yupdate_b64": "AQsBAAcBB2NvbnRlbnQDCHRhc2tMaXN0BwABAAMIdGFza0l0ZW0HAAEBAwlwYXJhZ3JhcGgHAAECBgQAAQMEdGFzaygAAQEHY2hlY2tlZAF5hwEAAwpidWxsZXRMaXN0BwABCQMIbGlzdEl0ZW0HAAEKAwlwYXJhZ3JhcGgHAAELBgQAAQwFcGxhaW4A",
+  "expect_lossy": false
+}

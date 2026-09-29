@@ -1,0 +1,46 @@
+{
+  "name": "list-item-continuation",
+  "input": "- a\n   b\n- c\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "bulletList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "a\n b"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "c"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "- a\n b\n- c",
+  "yupdate_b64": "AQkBAAcBB2NvbnRlbnQDCmJ1bGxldExpc3QHAAEAAwhsaXN0SXRlbQcAAQEDCXBhcmFncmFwaAcAAQIGBAABAwRhCiBihwEBAwhsaXN0SXRlbQcAAQgDCXBhcmFncmFwaAcAAQkGBAABCgFjAA==",
+  "expect_lossy": false
+}

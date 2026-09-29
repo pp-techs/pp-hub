@@ -1,0 +1,22 @@
+{
+  "name": "escape-html-chars",
+  "input": "a < b > c & d\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "a < b > c & d"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "a &lt; b &gt; c &amp; d",
+  "yupdate_b64": "AQMBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQ1hIDwgYiA+IGMgJiBkAA==",
+  "expect_lossy": false
+}

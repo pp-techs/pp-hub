@@ -1,0 +1,30 @@
+{
+  "name": "marks-bold-italic",
+  "input": "***both***\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "both",
+            "marks": [
+              {
+                "type": "bold"
+              },
+              {
+                "type": "italic"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "***both***",
+  "yupdate_b64": "AQcBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBgABAQRib2xkAnt9hgECBml0YWxpYwJ7fYQBAwRib3RohgEHBGJvbGQEbnVsbIYBCAZpdGFsaWMEbnVsbAA=",
+  "expect_lossy": false
+}

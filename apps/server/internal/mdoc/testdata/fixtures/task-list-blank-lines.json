@@ -1,0 +1,44 @@
+{
+  "name": "task-list-blank-lines",
+  "input": "- [ ] a\n\n\n\nb\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "taskList",
+        "content": [
+          {
+            "type": "taskItem",
+            "attrs": {
+              "checked": false
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "a"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "b"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "- [ ] a\n\nb",
+  "yupdate_b64": "AQkBAAcBB2NvbnRlbnQDCHRhc2tMaXN0BwABAAMIdGFza0l0ZW0HAAEBAwlwYXJhZ3JhcGgHAAECBgQAAQMBYSgAAQEHY2hlY2tlZAF5hwEAAwlwYXJhZ3JhcGgHAAEGBgQAAQcBYgA=",
+  "expect_lossy": false
+}

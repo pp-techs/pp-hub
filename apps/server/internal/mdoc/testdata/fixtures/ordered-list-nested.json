@@ -1,0 +1,79 @@
+{
+  "name": "ordered-list-nested",
+  "input": "1. one\n   1. nested\n   2. nested two\n2. two\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "orderedList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "one"
+                  }
+                ]
+              },
+              {
+                "type": "orderedList",
+                "content": [
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "nested"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "nested two"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "two"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "1. one\n   1. nested\n   2. nested two\n2. two",
+  "yupdate_b64": "ARQBAAcBB2NvbnRlbnQDC29yZGVyZWRMaXN0BwABAAMIbGlzdEl0ZW0HAAEBAwlwYXJhZ3JhcGgHAAECBgQAAQMDb25lhwECAwtvcmRlcmVkTGlzdAcAAQcDCGxpc3RJdGVtBwABCAMJcGFyYWdyYXBoBwABCQYEAAEKBm5lc3RlZIcBCAMIbGlzdEl0ZW0HAAERAwlwYXJhZ3JhcGgHAAESBgQAARMKbmVzdGVkIHR3bygAAQcFc3RhcnQBfQGHAQEDCGxpc3RJdGVtBwABHwMJcGFyYWdyYXBoBwABIAYEAAEhA3R3bygAAQAFc3RhcnQBfQEA",
+  "expect_lossy": false
+}

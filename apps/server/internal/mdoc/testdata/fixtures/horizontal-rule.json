@@ -1,0 +1,34 @@
+{
+  "name": "horizontal-rule",
+  "input": "above\n\n---\n\nbelow\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "above"
+          }
+        ]
+      },
+      {
+        "type": "horizontalRule"
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "below"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "above\n\n---\n\nbelow",
+  "yupdate_b64": "AQcBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQVhYm92ZYcBAAMOaG9yaXpvbnRhbFJ1bGWHAQcDCXBhcmFncmFwaAcAAQgGBAABCQViZWxvdwA=",
+  "expect_lossy": false
+}

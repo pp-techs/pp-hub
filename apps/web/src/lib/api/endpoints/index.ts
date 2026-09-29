@@ -7,6 +7,7 @@ import type {
   AdminSettingsMap,
   AdminStats,
   AdminUser,
+  CollabSession,
   CreateShareBody,
   DocumentKind,
   EditSession,
@@ -445,6 +446,26 @@ export async function createEditSession(
   const res = await api.post(`api/v1/nodes/${nodeId}/edit-session${suffix}`);
   if (!res.ok) throw new ApiError(res.status, await res.text());
   return res.json() as Promise<EditSession>;
+}
+
+// ─── Block documents ────────────────────────────────────────────────────────
+
+/** The room a markdown document is edited in right now, and what this user may do there. */
+export async function getCollabSession(nodeId: string): Promise<CollabSession> {
+  const res = await api.get(`api/v1/nodes/${nodeId}/collab`, { cache: "no-store" });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<CollabSession>;
+}
+
+/** WebSocket address of a collab room, on this origin (the session cookie authenticates it). */
+export function collabSocketUrl(room: string): string {
+  const scheme = window.location.protocol === "https:" ? "wss" : "ws";
+  return `${scheme}://${window.location.host}/api/v1/collab/${encodeURIComponent(room)}`;
+}
+
+/** Where a document's attachment is served; `hash` is what follows `attachment:` in the markdown. */
+export function attachmentUrl(nodeId: string, hash: string): string {
+  return `/api/v1/nodes/${nodeId}/attachments/${encodeURIComponent(hash)}`;
 }
 
 // ─── Auth Actions ───────────────────────────────────────────────────────────

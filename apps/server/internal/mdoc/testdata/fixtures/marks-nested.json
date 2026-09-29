@@ -1,0 +1,73 @@
+{
+  "name": "marks-nested",
+  "input": "**bold *both* bold** and *italic **both***\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "bold ",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": "both",
+            "marks": [
+              {
+                "type": "italic"
+              },
+              {
+                "type": "bold"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " bold",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " and "
+          },
+          {
+            "type": "text",
+            "text": "italic ",
+            "marks": [
+              {
+                "type": "italic"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": "both",
+            "marks": [
+              {
+                "type": "bold"
+              },
+              {
+                "type": "italic"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "**bold *both* bold** and *italic **both***",
+  "yupdate_b64": "ARYBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBgABAQRib2xkAnt9hAECBWJvbGQghgEHBGJvbGQEbnVsbIYBCARib2xkAnt9hgEJBml0YWxpYwJ7fYQBCgRib3RohgEOBGJvbGQEbnVsbIYBDwZpdGFsaWMEbnVsbIYBEARib2xkAnt9hAERBSBib2xkhgEWBGJvbGQEbnVsbIQBFwUgYW5kIIYBHAZpdGFsaWMCe32EAR0HaXRhbGljIIYBJAZpdGFsaWMEbnVsbIYBJQRib2xkAnt9hgEmBml0YWxpYwJ7fYQBJwRib3RohgErBGJvbGQEbnVsbIYBLAZpdGFsaWMEbnVsbAA=",
+  "expect_lossy": false
+}

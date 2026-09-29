@@ -17,6 +17,7 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/audit"
 	"github.com/nhatbui/pp-hub/apps/server/internal/auth"
 	"github.com/nhatbui/pp-hub/apps/server/internal/bootstrap"
+	"github.com/nhatbui/pp-hub/apps/server/internal/collab"
 	"github.com/nhatbui/pp-hub/apps/server/internal/config"
 	"github.com/nhatbui/pp-hub/apps/server/internal/fs"
 	"github.com/nhatbui/pp-hub/apps/server/internal/gc"
@@ -167,6 +168,13 @@ func run() error {
 	authSvc.SetReconciler(orgSvc)
 	go orgSvc.Run(ctx)
 
+	// The block editor's rooms (M39). Start clears the locks a previous
+	// process's rooms left: this is the one instance that hosts rooms.
+	collabHub := collab.New(fsSvc, shareSvc, queries, metrics.Collab,
+		collab.Config{Origin: httpapi.OriginOf(cfg.ExternalURL)})
+	if err := collabHub.Start(ctx); err != nil {
+		return err
+	}
 	api := httpapi.NewServer(httpapi.Deps{
 		Auth:            authSvc,
 		Spaces:          spacesSvc,
@@ -180,6 +188,7 @@ func run() error {
 		Blobs:           blobs,
 		OrgSync:         orgSvc,
 		Uploads:         uploadsSvc,
+		Collab:          collabHub,
 		LogtoWebhookKey: cfg.Logto.WebhookKey,
 		ExternalURL:     cfg.ExternalURL,
 		OnlyOfficeURL:   cfg.OnlyOfficeURL,
@@ -209,9 +218,19 @@ func run() error {
 	case err := <-errCh:
 		return err
 	case <-ctx.Done():
+		// The rooms close once the listener has: a socket accepted while
+		// they flush could open one nothing waits for. Their sockets are
+		// hijacked connections, which Shutdown does not wait for, so the hub
+		// closes them and writes every room back — alongside the drain of
+		// ordinary requests rather than after it, so a slow download cannot
+		// spend the grace period the rooms' unsaved edits need, and before
+		// the database goes away with this function.
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		return srv.Shutdown(shutdownCtx)
+		roomsClosed := make(chan error, 1)
+		srv.RegisterOnShutdown(func() { roomsClosed <- collabHub.Shutdown(shutdownCtx) })
+		err := srv.Shutdown(shutdownCtx)
+		return errors.Join(err, <-roomsClosed)
 	}
 }
 

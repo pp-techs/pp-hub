@@ -1,0 +1,79 @@
+{
+  "name": "ordered-in-bullet",
+  "input": "- one\n  1. first\n  2. second\n- two\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "bulletList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "one"
+                  }
+                ]
+              },
+              {
+                "type": "orderedList",
+                "content": [
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "first"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "second"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "two"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "- one\n  1. first\n  2. second\n- two",
+  "yupdate_b64": "ARMBAAcBB2NvbnRlbnQDCmJ1bGxldExpc3QHAAEAAwhsaXN0SXRlbQcAAQEDCXBhcmFncmFwaAcAAQIGBAABAwNvbmWHAQIDC29yZGVyZWRMaXN0BwABBwMIbGlzdEl0ZW0HAAEIAwlwYXJhZ3JhcGgHAAEJBgQAAQoFZmlyc3SHAQgDCGxpc3RJdGVtBwABEAMJcGFyYWdyYXBoBwABEQYEAAESBnNlY29uZCgAAQcFc3RhcnQBfQGHAQEDCGxpc3RJdGVtBwABGgMJcGFyYWdyYXBoBwABGwYEAAEcA3R3bwA=",
+  "expect_lossy": false
+}

@@ -1,0 +1,39 @@
+{
+  "name": "link-autolink",
+  "input": "See <https://example.com/a?b=1>.\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "See "
+          },
+          {
+            "type": "text",
+            "text": "https://example.com/a?b=1",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "https://example.com/a?b=1",
+                  "title": null
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": "."
+          }
+        ]
+      }
+    ]
+  },
+  "output": "See [https://example.com/a?b=1](https://example.com/a?b=1).",
+  "yupdate_b64": "AQcBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQRTZWUghgEFBGxpbmt1eyJocmVmIjoiaHR0cHM6Ly9leGFtcGxlLmNvbS9hP2I9MSIsInRhcmdldCI6Il9ibGFuayIsInJlbCI6Im5vb3BlbmVyIG5vcmVmZXJyZXIgbm9mb2xsb3ciLCJjbGFzcyI6bnVsbCwidGl0bGUiOm51bGx9hAEGGWh0dHBzOi8vZXhhbXBsZS5jb20vYT9iPTGGAR8EbGluawRudWxshAEgAS4A",
+  "expect_lossy": false
+}

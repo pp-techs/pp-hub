@@ -263,6 +263,16 @@ type Node struct {
 	TeamRootID       pgtype.UUID        `json:"team_root_id"`
 }
 
+type NodeAttachment struct {
+	NodeID    pgtype.UUID        `json:"node_id"`
+	BlobHash  string             `json:"blob_hash"`
+	Name      string             `json:"name"`
+	Mime      string             `json:"mime"`
+	Size      int64              `json:"size"`
+	CreatedBy pgtype.UUID        `json:"created_by"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
 type NodeStar struct {
 	UserID    pgtype.UUID        `json:"user_id"`
 	NodeID    pgtype.UUID        `json:"node_id"`
@@ -369,19 +379,21 @@ type SystemConfig struct {
 }
 
 type Upload struct {
-	ID          pgtype.UUID        `json:"id"`
-	TenantID    string             `json:"tenant_id"`
-	SpaceID     pgtype.UUID        `json:"space_id"`
-	ParentID    pgtype.UUID        `json:"parent_id"`
-	Name        string             `json:"name"`
-	TotalSize   int64              `json:"total_size"`
-	Uploaded    int64              `json:"uploaded"`
-	TempPath    string             `json:"temp_path"`
-	ExpiresAt   pgtype.Timestamptz `json:"expires_at"`
-	CreatedBy   pgtype.UUID        `json:"created_by"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	NodeID      pgtype.UUID        `json:"node_id"`
-	CompletedAt pgtype.Timestamptz `json:"completed_at"`
+	ID             pgtype.UUID        `json:"id"`
+	TenantID       string             `json:"tenant_id"`
+	SpaceID        pgtype.UUID        `json:"space_id"`
+	ParentID       pgtype.UUID        `json:"parent_id"`
+	Name           string             `json:"name"`
+	TotalSize      int64              `json:"total_size"`
+	Uploaded       int64              `json:"uploaded"`
+	TempPath       string             `json:"temp_path"`
+	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
+	CreatedBy      pgtype.UUID        `json:"created_by"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	NodeID         pgtype.UUID        `json:"node_id"`
+	CompletedAt    pgtype.Timestamptz `json:"completed_at"`
+	AttachTo       pgtype.UUID        `json:"attach_to"`
+	AttachmentHash pgtype.Text        `json:"attachment_hash"`
 }
 
 type User struct {

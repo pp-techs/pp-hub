@@ -1,6 +1,6 @@
 import { createModal } from "@buiducnhat/better-modal";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { FileSpreadsheet, FileText, Presentation } from "lucide-react";
+import { FileSpreadsheet, FileText, NotebookPen, Presentation } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import {
   Dialog,
@@ -26,11 +26,14 @@ const EXT_DOCX = ".docx";
 const EXT_XLSX = ".xlsx";
 // eslint-disable-next-line lingui/no-unlocalized-strings -- file extension
 const EXT_PPTX = ".pptx";
+// eslint-disable-next-line lingui/no-unlocalized-strings -- file extension
+const EXT_MD = ".md";
 
 const EXTENSIONS: Record<DocumentKind, string> = {
   document: EXT_DOCX,
   spreadsheet: EXT_XLSX,
   presentation: EXT_PPTX,
+  markdown: EXT_MD,
 };
 
 export const NewDocumentDialog = createModal<Props, string | null>(
@@ -43,6 +46,8 @@ export const NewDocumentDialog = createModal<Props, string | null>(
       defaultName = t`Untitled spreadsheet`;
     } else if (kind === "presentation") {
       defaultName = t`Untitled presentation`;
+    } else if (kind === "markdown") {
+      defaultName = t`Untitled`;
     }
 
     const [name, setName] = useKeyedState(`${kind}:${modal.visible}`, defaultName);
@@ -57,9 +62,11 @@ export const NewDocumentDialog = createModal<Props, string | null>(
               {kind === "spreadsheet" && <FileSpreadsheet className="size-4 shrink-0" />}
               {kind === "presentation" && <Presentation className="size-4 shrink-0" />}
               {kind === "document" && <FileText className="size-4 shrink-0" />}
+              {kind === "markdown" && <NotebookPen className="size-4 shrink-0" />}
               {kind === "spreadsheet" && <Trans>New spreadsheet</Trans>}
               {kind === "presentation" && <Trans>New presentation</Trans>}
               {kind === "document" && <Trans>New document</Trans>}
+              {kind === "markdown" && <Trans>New markdown document</Trans>}
             </DialogTitle>
             <DialogDescription>
               <Trans>Creates it in {destination} and opens it in the editor.</Trans>

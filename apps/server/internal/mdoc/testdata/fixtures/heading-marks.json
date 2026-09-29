@@ -1,0 +1,51 @@
+{
+  "name": "heading-marks",
+  "input": "## A **bold** and `code` title\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "heading",
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "A "
+          },
+          {
+            "type": "text",
+            "text": "bold",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " and "
+          },
+          {
+            "type": "text",
+            "text": "code",
+            "marks": [
+              {
+                "type": "code"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " title"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "## A **bold** and `code` title",
+  "yupdate_b64": "AQwBAAcBB2NvbnRlbnQDB2hlYWRpbmcHAAEABgQAAQECQSCGAQMEYm9sZAJ7fYQBBARib2xkhgEIBGJvbGQEbnVsbIQBCQUgYW5kIIYBDgRjb2RlAnt9hAEPBGNvZGWGARMEY29kZQRudWxshAEUBiB0aXRsZSgAAQAFbGV2ZWwBfQIA",
+  "expect_lossy": false
+}

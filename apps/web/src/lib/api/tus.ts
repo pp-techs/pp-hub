@@ -91,16 +91,24 @@ export interface TusTransport {
   now(): number;
 }
 
+/**
+ * Where the bytes land. A replacement names its node and nothing else — the
+ * server takes the space and folder from the file it replaces. An attachment
+ * belongs to a document: it never appears in a folder listing, and the
+ * completing response names its blob in `Upload-Attachment`.
+ */
+export type UploadTarget =
+  | {
+      kind: "folder";
+      spaceId: string;
+      /** Absent means the space's top level. */ parentId?: string;
+    }
+  | { kind: "replace"; nodeId: string }
+  | { kind: "attachment"; documentId: string };
+
 export interface ResumableUploadOptions {
   file: File;
-  spaceId: string;
-  /** Folder the new file lands in; absent means the space's top level. */
-  parentId?: string;
-  /**
-   * The existing file this upload replaces: the bytes land as a new version
-   * of that node, so `spaceId` and `parentId` are not sent.
-   */
-  replaceNodeId?: string;
+  target: UploadTarget;
   /**
    * An upload this file already started, from an earlier `onUrl`. The server
    * is asked how far it got and the upload continues from there; if it no
@@ -116,12 +124,14 @@ export interface ResumableUploadOptions {
 
 export interface ResumableUpload {
   /**
-   * Resolves once the server has committed the file. Rejects with an
+   * Resolves once the server has committed the file, with the response that
+   * committed it (a 201 creation-with-upload or the final 204 PATCH), so a
+   * caller can read what the server said about the result. Rejects with an
    * `ApiError`: the server's refusal (its `detail` as the message), the last
    * transient failure once retries run out, or status 0 "Cancelled" after
    * `abort`.
    */
-  promise: Promise<void>;
+  promise: Promise<TusReply>;
   /**
    * Stops without terminating: the server keeps what it received, so passing
    * the same `uploadUrl` later resumes. No callback fires after this.
@@ -185,7 +195,7 @@ async function upload(
   o: ResumableUploadOptions,
   io: TusTransport,
   signal: AbortSignal,
-): Promise<void> {
+): Promise<TusReply> {
   const size = o.file.size;
   const report = (loaded: number) => {
     if (!signal.aborted) o.onProgress(loaded);
@@ -254,7 +264,7 @@ async function upload(
         const next = parseOffset(reply) ?? 0;
         learn(next);
         // With a body, a 201 at full length means the server committed first.
-        if (body && next >= size) return;
+        if (body && next >= size) return reply;
         continue;
       }
       // A body cut short answers 400 alongside the Location; like a transient
@@ -307,7 +317,7 @@ async function upload(
       const next = parseOffset(reply) ?? end;
       learn(next);
       // A 204 at full length means the server committed before answering.
-      if (next >= size) return;
+      if (next >= size) return reply;
       continue;
     }
 
@@ -353,18 +363,21 @@ function parseOffset(reply: TusReply): number | undefined {
   return Number.isSafeInteger(n) && n >= 0 ? n : undefined;
 }
 
-/**
- * `Upload-Metadata`: comma-separated `key base64(value)` pairs. A
- * replacement names its node and nothing else — the server takes the space
- * and folder from the file it replaces.
- */
+/** `Upload-Metadata`: comma-separated `key base64(value)` pairs. */
 function metadata(o: ResumableUploadOptions): string {
   const pairs: [string, string][] = [["filename", o.file.name]];
-  if (o.replaceNodeId) {
-    pairs.push(["node_id", o.replaceNodeId]);
-  } else {
-    pairs.push(["space_id", o.spaceId]);
-    if (o.parentId) pairs.push(["parent_id", o.parentId]);
+  const target = o.target;
+  switch (target.kind) {
+    case "folder":
+      pairs.push(["space_id", target.spaceId]);
+      if (target.parentId) pairs.push(["parent_id", target.parentId]);
+      break;
+    case "replace":
+      pairs.push(["node_id", target.nodeId]);
+      break;
+    case "attachment":
+      pairs.push(["attach_to", target.documentId]);
+      break;
   }
   return pairs.map(([key, value]) => `${key} ${base64(value)}`).join(",");
 }

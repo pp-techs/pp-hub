@@ -1,0 +1,26 @@
+{
+  "name": "trailing-blank-lines",
+  "input": "a\n\n\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "a"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": []
+      }
+    ]
+  },
+  "output": "a\n\n",
+  "yupdate_b64": "AQQBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQFhhwEAAwlwYXJhZ3JhcGgA",
+  "expect_lossy": false
+}

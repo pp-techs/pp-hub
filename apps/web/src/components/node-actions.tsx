@@ -23,9 +23,9 @@ import {
   canOpenInTab,
   canRestructure,
   capsOf,
-  isOfficeFile,
   openEditor,
   openInTab,
+  opensInEditor,
   type Node,
 } from "@/lib/api";
 import type { OpenPanel } from "@/lib/ui-store";
@@ -118,9 +118,10 @@ export function nodeActions(
         run: () => openInTab(node),
       });
     }
-    if (isOfficeFile(node.name)) {
+    if (opensInEditor(node)) {
       // The editor opens read-only for a reader — OnlyOffice is the only
-      // thing here that can render a .docx at all — so the label has to say
+      // thing here that can render a .docx at all, and a markdown document
+      // opens in the block editor either way — so the label has to say
       // which of the two they are getting.
       actions.push({
         key: "edit",

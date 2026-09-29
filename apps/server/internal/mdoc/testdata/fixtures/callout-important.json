@@ -1,0 +1,30 @@
+{
+  "name": "callout-important",
+  "input": "> [!IMPORTANT]\n> Important.\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "callout",
+        "attrs": {
+          "icon": "❗"
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Important."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "> [!IMPORTANT]\n> Important.",
+  "yupdate_b64": "AQUBAAcBB2NvbnRlbnQDB2NhbGxvdXQHAAEAAwlwYXJhZ3JhcGgHAAEBBgQAAQIKSW1wb3J0YW50LigAAQAEaWNvbgF3A+KdlwA=",
+  "expect_lossy": false
+}

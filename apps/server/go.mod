@@ -18,6 +18,14 @@ require (
 )
 
 require (
+	github.com/gorilla/websocket v1.5.3
+	github.com/reearth/ygo v1.50.0
+	github.com/yuin/goldmark v1.8.6
+)
+
+require golang.org/x/time v0.10.0 // indirect
+
+require (
 	cel.dev/expr v0.25.1 // indirect
 	filippo.io/edwards25519 v1.1.1 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
@@ -86,3 +94,5 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/reearth/ygo => ./third_party/ygo

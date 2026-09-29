@@ -1,0 +1,22 @@
+{
+  "name": "mermaid",
+  "input": "```mermaid\ngraph TD\n  A --> B\n```\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "mermaid",
+        "content": [
+          {
+            "type": "text",
+            "text": "graph TD\n  A --> B"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "```mermaid\ngraph TD\n  A --> B\n```",
+  "yupdate_b64": "AQMBAAcBB2NvbnRlbnQDB21lcm1haWQHAAEABgQAAQESZ3JhcGggVEQKICBBIC0tPiBCAA==",
+  "expect_lossy": false
+}

@@ -8,8 +8,8 @@ import { cn } from "@workspace/ui/lib/utils";
 import {
   canPreview,
   capsOf,
-  isOfficeFile,
   openEditor,
+  opensInEditor,
   hasThumbnail,
   previewUrl,
   thumbnailFit,
@@ -311,10 +311,10 @@ function NodeDetails({ node }: { node: Node }) {
       <div className="border-border flex items-stretch gap-1 border-y py-1">
         <PanelAction
           icon={Eye}
-          label={isOfficeFile(node.name) ? t`Open` : t`Preview`}
-          disabled={!isFile || (!canPreview(node) && !isOfficeFile(node.name))}
+          label={opensInEditor(node) ? t`Open` : t`Preview`}
+          disabled={!isFile || (!canPreview(node) && !opensInEditor(node))}
           onClick={() => {
-            if (isOfficeFile(node.name)) openEditor(node);
+            if (opensInEditor(node)) openEditor(node);
             else void PreviewModal.show({ node });
           }}
         />

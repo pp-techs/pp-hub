@@ -31,7 +31,11 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      "/api": "http://localhost:8080",
+      // `ws: true` carries the block editor's collab socket
+      // (`/api/v1/collab/{room}`) through the same entry. The Origin header
+      // passes through untouched — the server compares it to
+      // PP_EXTERNAL_URL, which in dev is this server's address.
+      "/api": { target: "http://localhost:8080", ws: true },
       "/auth": "http://localhost:8080",
       // Logto webhook deliveries. Not under /api on purpose — that group is
       // authenticated and same-origin-checked — so it needs its own entry

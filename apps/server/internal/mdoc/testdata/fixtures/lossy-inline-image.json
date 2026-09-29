@@ -1,0 +1,22 @@
+{
+  "name": "lossy-inline-image",
+  "input": "Text with ![img](https://x.y/a.png) inside.\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Text with img inside."
+          }
+        ]
+      }
+    ]
+  },
+  "output": "Text with img inside.",
+  "yupdate_b64": "AQMBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABARVUZXh0IHdpdGggaW1nIGluc2lkZS4A",
+  "expect_lossy": true
+}

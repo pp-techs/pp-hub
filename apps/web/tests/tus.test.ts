@@ -53,6 +53,8 @@ class FakeServer implements TusTransport {
   sleeps: number[] = [];
   /** Bytes the server accepted, summed over every request. */
   received = 0;
+  /** Extra headers on the response that commits an upload (`Upload-Attachment`). */
+  commitHeaders: Record<string, string> = {};
   private seq = 0;
 
   private readonly rate: number;
@@ -73,7 +75,10 @@ class FakeServer implements TusTransport {
     const headers = { Location: url, "Upload-Offset": String(u.offset) };
     if (fault) return reply(fault.status, { ...headers, ...fault.headers }, fault.body);
     // Creation-with-upload that completes the file commits before answering.
-    if (body && u.offset === u.length) u.commits += 1;
+    if (body && u.offset === u.length) {
+      u.commits += 1;
+      return reply(201, { ...headers, ...this.commitHeaders });
+    }
     return reply(201, headers);
   }
 
@@ -104,7 +109,10 @@ class FakeServer implements TusTransport {
     onSent(keep);
 
     if (fault) return reply(fault.status, fault.headers, fault.body);
-    if (u.offset === u.length) u.commits += 1;
+    if (u.offset === u.length) {
+      u.commits += 1;
+      return reply(204, { "Upload-Offset": String(u.offset), ...this.commitHeaders });
+    }
     return reply(204, { "Upload-Offset": String(u.offset) });
   }
 
@@ -146,7 +154,7 @@ function sized(size: number): File {
 }
 
 function options(file: File, extra: Partial<ResumableUploadOptions> = {}): ResumableUploadOptions {
-  return { file, spaceId: "s1", onProgress: () => {}, ...extra };
+  return { file, target: { kind: "folder", spaceId: "s1" }, onProgress: () => {}, ...extra };
 }
 
 /**
@@ -346,6 +354,36 @@ test("a zero-byte file is created and committed in one request", async () => {
   const [u] = server.uploads.values();
   expect(u.commits).toBe(1);
   expect(server.requests).toEqual(["POST"]);
+});
+
+test("an upload resolves with the reply that committed it, whichever request that was", async () => {
+  for (const file of [patterned(200 * 1024), patterned(10 * MiB)]) {
+    const server = new FakeServer();
+    server.commitHeaders = { "Upload-Attachment": "sha256-abc" };
+
+    const committed = await startResumableUpload(options(file), server).promise;
+
+    expect(committed.header("Upload-Attachment")).toBe("sha256-abc");
+  }
+});
+
+test("an attachment names its document and nothing about a folder", async () => {
+  const server = new FakeServer();
+  let sent = "";
+  const create = server.create.bind(server);
+  server.create = (length, metadata, body) => {
+    sent = metadata;
+    return create(length, metadata, body);
+  };
+
+  await startResumableUpload(
+    options(new File(["x"], "pic.png"), { target: { kind: "attachment", documentId: "doc1" } }),
+    server,
+  ).promise;
+
+  const keys = sent.split(",").map((pair) => pair.split(" ")[0]);
+  expect(keys).toEqual(["filename", "attach_to"]);
+  expect(sent).toContain(`attach_to ${btoa("doc1")}`);
 });
 
 test("a small file goes up in one request", async () => {

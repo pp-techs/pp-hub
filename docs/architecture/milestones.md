@@ -4,7 +4,7 @@ The delivery history and the open roadmap. Each shipped milestone ended in a
 working end-to-end state inside the compose stack; its file keeps the decision
 that shaped it and the artifacts that carry it, not the forensics.
 
-Numbering is dependency order, not chronology — M25–M26 and M30–M38 landed after
+Numbering is dependency order, not chronology — M25–M26 and M30–M39 landed after
 M33–M35. **M12–M14 never existed** (`M12` was only the header of the retired
 `0012_personal_folders.sql`; M13 and M14 appear nowhere). Everything shipped
 through M15 is consolidated into `0001_init.sql`, and migration numbering
@@ -53,6 +53,7 @@ Each shipped milestone has its own file under [`milestones/`](milestones/) with 
 | M36 | Sharing hardening                                      | ✅         | [detail](milestones/M36.md) |
 | M37 | Blob integrity                                         | ✅         | [detail](milestones/M37.md) |
 | M38 | Two-way Logto sync                                     | ✅         | [detail](milestones/M38.md) |
+| M39 | Block documents (Markdown + slash-editor)              | ✅         | [detail](milestones/M39.md) |
 
 ## Upcoming — M27 Onward
 

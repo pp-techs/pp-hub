@@ -60,24 +60,31 @@ ORDER BY n.id, a.created_at DESC;
 -- against. Superseded versions and trashed files occupy the disk exactly as
 -- much as current ones do; counting only current versions let the two numbers
 -- drift apart until the disk filled under a meter that still showed room.
-SELECT COALESCE(SUM(v.size), 0)::bigint AS total
-FROM node_versions v
-JOIN nodes n ON n.id = v.node_id
-WHERE n.space_id = $1;
+-- A document's attachments count too: without them every image dropped into
+-- a document would pass a quota check that never saw the last one.
+SELECT ((SELECT COALESCE(SUM(v.size), 0)
+          FROM node_versions v
+          JOIN nodes n ON n.id = v.node_id
+         WHERE n.space_id = $1)
+      + (SELECT COALESCE(SUM(a.size), 0)
+          FROM node_attachments a
+          JOIN nodes n ON n.id = a.node_id
+         WHERE n.space_id = $1))::bigint AS total;
 
 -- name: SumSpaceUsageByCategory :many
 -- Usage split for the storage breakdown, in the same terms as SumSpaceUsage
 -- so the slices add up to the meter: trash first, then superseded versions,
--- then current versions by broad MIME family. `files` counts versions for
--- the versions slice and files everywhere else. The bucketing lives in SQL so
--- the figures and the total come from one pass over the data.
+-- then current versions — and a live document's attachments — by broad MIME
+-- family. `files` counts versions for the versions slice and files (an
+-- attachment is one) everywhere else. The bucketing lives in SQL so the
+-- figures and the total come from one pass over the data.
 SELECT
   u.category::text AS category,
   COALESCE(SUM(u.size), 0)::bigint AS bytes,
-  (CASE WHEN u.category = 'versions' THEN COUNT(*) ELSE COUNT(DISTINCT u.node_id) END)::bigint AS files
+  (CASE WHEN u.category = 'versions' THEN COUNT(*) ELSE COUNT(DISTINCT u.item) END)::bigint AS files
 FROM (
   SELECT
-    n.id AS node_id,
+    n.id::text AS item,
     v.size,
     CASE
       WHEN n.deleted_at IS NOT NULL THEN 'trash'
@@ -94,6 +101,26 @@ FROM (
     END AS category
   FROM nodes n
   JOIN node_versions v ON v.node_id = n.id
+  JOIN space_members m ON m.space_id = n.space_id AND m.user_id = $1
+  WHERE sqlc.narg('space_id')::uuid IS NULL OR n.space_id = sqlc.narg('space_id')::uuid
+  UNION ALL
+  SELECT
+    n.id::text || '/' || a.blob_hash AS item,
+    a.size,
+    CASE
+      WHEN n.deleted_at IS NOT NULL THEN 'trash'
+      WHEN a.mime LIKE 'video/%' THEN 'video'
+      WHEN a.mime LIKE 'image/%' THEN 'image'
+      WHEN a.mime LIKE 'audio/%' THEN 'audio'
+      WHEN a.mime LIKE 'text/%'
+        OR a.mime LIKE 'application/pdf'
+        OR a.mime LIKE 'application/vnd.openxmlformats%'
+        OR a.mime LIKE 'application/vnd.oasis%'
+        OR a.mime LIKE 'application/ms%' THEN 'document'
+      ELSE 'other'
+    END AS category
+  FROM nodes n
+  JOIN node_attachments a ON a.node_id = n.id
   JOIN space_members m ON m.space_id = n.space_id AND m.user_id = $1
   WHERE sqlc.narg('space_id')::uuid IS NULL OR n.space_id = sqlc.narg('space_id')::uuid
 ) u

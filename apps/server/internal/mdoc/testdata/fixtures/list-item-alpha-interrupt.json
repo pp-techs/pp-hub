@@ -1,0 +1,69 @@
+{
+  "name": "list-item-alpha-interrupt",
+  "input": "- foo\n  on. bar\n- baz\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "bulletList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "foo"
+                  }
+                ]
+              },
+              {
+                "type": "orderedList",
+                "attrs": {
+                  "start": 404,
+                  "type": "a"
+                },
+                "content": [
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "bar"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "baz"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "- foo\n  on. bar\n- baz",
+  "yupdate_b64": "ARABAAcBB2NvbnRlbnQDCmJ1bGxldExpc3QHAAEAAwhsaXN0SXRlbQcAAQEDCXBhcmFncmFwaAcAAQIGBAABAwNmb2+HAQIDC29yZGVyZWRMaXN0BwABBwMIbGlzdEl0ZW0HAAEIAwlwYXJhZ3JhcGgHAAEJBgQAAQoDYmFyKAABBwVzdGFydAF9lAYoAAEHBHR5cGUBdwFhhwEBAwhsaXN0SXRlbQcAARADCXBhcmFncmFwaAcAAREGBAABEgNiYXoA",
+  "expect_lossy": false
+}

@@ -1,0 +1,45 @@
+{
+  "name": "details-heading-2",
+  "input": "<details open>\n<summary><h2>Mid</h2></summary>\n\ny\n\n</details>\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "details",
+        "attrs": {
+          "open": true,
+          "level": 2
+        },
+        "content": [
+          {
+            "type": "detailsSummary",
+            "content": [
+              {
+                "type": "text",
+                "text": "Mid"
+              }
+            ]
+          },
+          {
+            "type": "detailsContent",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "y"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "<details open>\n<summary><h2>Mid</h2></summary>\n\ny\n\n</details>",
+  "yupdate_b64": "AQoBAAcBB2NvbnRlbnQDB2RldGFpbHMHAAEAAw5kZXRhaWxzU3VtbWFyeQcAAQEGBAABAgNNaWSHAQEDDmRldGFpbHNDb250ZW50BwABBgMJcGFyYWdyYXBoBwABBwYEAAEIAXkoAAEABG9wZW4BeCgAAQAFbGV2ZWwBfQIA",
+  "expect_lossy": false
+}

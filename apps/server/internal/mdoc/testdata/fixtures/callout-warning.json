@@ -1,0 +1,30 @@
+{
+  "name": "callout-warning",
+  "input": "> [!WARNING]\n> Careful.\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "callout",
+        "attrs": {
+          "icon": "⚠️"
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Careful."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "> [!WARNING]\n> Careful.",
+  "yupdate_b64": "AQUBAAcBB2NvbnRlbnQDB2NhbGxvdXQHAAEAAwlwYXJhZ3JhcGgHAAEBBgQAAQIIQ2FyZWZ1bC4oAAEABGljb24BdwbimqDvuI8A",
+  "expect_lossy": false
+}

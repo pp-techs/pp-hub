@@ -1,0 +1,40 @@
+{
+  "name": "code-special",
+  "input": "`a*b_c` and `` x`y ``\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "a*b_c",
+            "marks": [
+              {
+                "type": "code"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " and "
+          },
+          {
+            "type": "text",
+            "text": "x`y",
+            "marks": [
+              {
+                "type": "code"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "`a*b_c` and `x`y`",
+  "yupdate_b64": "AQkBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBgABAQRjb2RlAnt9hAECBWEqYl9jhgEHBGNvZGUEbnVsbIQBCAUgYW5kIIYBDQRjb2RlAnt9hAEOA3hgeYYBEQRjb2RlBG51bGwA",
+  "expect_lossy": false
+}

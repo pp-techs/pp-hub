@@ -1,0 +1,20 @@
+{
+  "name": "file-no-attrs",
+  "input": "<!-- slash:file -->\n[notes.txt](attachment:beef02)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "file",
+        "attrs": {
+          "src": "attachment:beef02",
+          "name": "notes.txt"
+        }
+      }
+    ]
+  },
+  "output": "<!-- slash:file -->\n[notes.txt](attachment:beef02)",
+  "yupdate_b64": "AQQBAAcBB2NvbnRlbnQDBGZpbGUoAAEAA3NyYwF3EWF0dGFjaG1lbnQ6YmVlZjAyKAABAARuYW1lAXcJbm90ZXMudHh0KAABAAZzdGF0dXMBdwVyZWFkeQA=",
+  "expect_lossy": false
+}

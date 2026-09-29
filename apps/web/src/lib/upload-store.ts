@@ -387,9 +387,9 @@ async function run(id: string): Promise<void> {
     let first = true;
     const upload = startResumableUpload({
       file,
-      spaceId: transfer.spaceId,
-      parentId,
-      replaceNodeId: transfer.replaceNodeId,
+      target: transfer.replaceNodeId
+        ? { kind: "replace", nodeId: transfer.replaceNodeId }
+        : { kind: "folder", spaceId: transfer.spaceId, parentId },
       uploadUrl: uploadUrls.get(id),
       onUrl: (url) => uploadUrls.set(id, url),
       onProgress: (loaded) => {

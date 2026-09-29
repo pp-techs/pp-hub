@@ -50,6 +50,12 @@ func (s *Server) observe(next http.Handler) http.Handler {
 		status := ww.Status()
 		if status == 0 {
 			status = http.StatusOK
+			if strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
+				// The connection was hijacked: the upgrade wrote its 101
+				// straight to the socket, past this writer, and the line is
+				// logged when the socket closes.
+				status = http.StatusSwitchingProtocols
+			}
 		}
 		elapsed := time.Since(start)
 		route := routePattern(r)

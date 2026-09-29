@@ -1,0 +1,36 @@
+{
+  "name": "blockquote-multi",
+  "input": "> first\n>\n> second\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "blockquote",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "first"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "second"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "> first\n>\n> second",
+  "yupdate_b64": "AQcBAAcBB2NvbnRlbnQDCmJsb2NrcXVvdGUHAAEAAwlwYXJhZ3JhcGgHAAEBBgQAAQIFZmlyc3SHAQEDCXBhcmFncmFwaAcAAQgGBAABCQZzZWNvbmQA",
+  "expect_lossy": false
+}

@@ -1,0 +1,44 @@
+{
+  "name": "task-list-marks",
+  "input": "- [x] **bold** task\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "taskList",
+        "content": [
+          {
+            "type": "taskItem",
+            "attrs": {
+              "checked": true
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "bold",
+                    "marks": [
+                      {
+                        "type": "bold"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "text",
+                    "text": " task"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "- [x] **bold** task",
+  "yupdate_b64": "AQkBAAcBB2NvbnRlbnQDCHRhc2tMaXN0BwABAAMIdGFza0l0ZW0HAAEBAwlwYXJhZ3JhcGgHAAECBgYAAQMEYm9sZAJ7fYQBBARib2xkhgEIBGJvbGQEbnVsbIQBCQUgdGFzaygAAQEHY2hlY2tlZAF4AA==",
+  "expect_lossy": false
+}

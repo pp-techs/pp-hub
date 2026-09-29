@@ -1,0 +1,46 @@
+{
+  "name": "marks-strike-bold",
+  "input": "~~**x**~~ and **~~y~~**\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "x",
+            "marks": [
+              {
+                "type": "bold"
+              },
+              {
+                "type": "strike"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " and "
+          },
+          {
+            "type": "text",
+            "text": "y",
+            "marks": [
+              {
+                "type": "strike"
+              },
+              {
+                "type": "bold"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "**~~x~~** and **~~y~~**",
+  "yupdate_b64": "AQ0BAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBgABAQRib2xkAnt9hgECBnN0cmlrZQJ7fYQBAwF4hgEEBGJvbGQEbnVsbIYBBQZzdHJpa2UEbnVsbIQBBgUgYW5kIIYBCwRib2xkAnt9hgEMBnN0cmlrZQJ7fYQBDQF5hgEOBGJvbGQEbnVsbIYBDwZzdHJpa2UEbnVsbAA=",
+  "expect_lossy": false
+}

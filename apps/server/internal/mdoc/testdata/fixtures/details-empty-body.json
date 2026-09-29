@@ -1,0 +1,40 @@
+{
+  "name": "details-empty-body",
+  "input": "<details>\n<summary>Only title</summary>\n</details>\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "details",
+        "attrs": {
+          "open": false,
+          "level": 0
+        },
+        "content": [
+          {
+            "type": "detailsSummary",
+            "content": [
+              {
+                "type": "text",
+                "text": "Only title"
+              }
+            ]
+          },
+          {
+            "type": "detailsContent",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": []
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "<details>\n<summary>Only title</summary>\n</details>",
+  "yupdate_b64": "AQgBAAcBB2NvbnRlbnQDB2RldGFpbHMHAAEAAw5kZXRhaWxzU3VtbWFyeQcAAQEGBAABAgpPbmx5IHRpdGxlhwEBAw5kZXRhaWxzQ29udGVudAcAAQ0DCXBhcmFncmFwaCgAAQAEb3BlbgF5KAABAAVsZXZlbAF9AAA=",
+  "expect_lossy": false
+}

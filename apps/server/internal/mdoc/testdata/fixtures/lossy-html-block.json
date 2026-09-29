@@ -1,0 +1,22 @@
+{
+  "name": "lossy-html-block",
+  "input": "<div>\nblock html\n</div>\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "<div>\nblock html\n</div>"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "&lt;div&gt;\nblock html\n&lt;/div&gt;",
+  "yupdate_b64": "AQMBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABARc8ZGl2PgpibG9jayBodG1sCjwvZGl2PgA=",
+  "expect_lossy": true
+}

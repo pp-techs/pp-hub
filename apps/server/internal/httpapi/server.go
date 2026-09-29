@@ -11,6 +11,7 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/audit"
 	"github.com/nhatbui/pp-hub/apps/server/internal/auth"
 	"github.com/nhatbui/pp-hub/apps/server/internal/blob"
+	"github.com/nhatbui/pp-hub/apps/server/internal/collab"
 	"github.com/nhatbui/pp-hub/apps/server/internal/fs"
 	"github.com/nhatbui/pp-hub/apps/server/internal/groups"
 	"github.com/nhatbui/pp-hub/apps/server/internal/mail"
@@ -44,6 +45,7 @@ type Server struct {
 	blobs         blob.Store
 	orgs          *orgsync.Service
 	uploads       *uploads.Service
+	collab        collab.Service
 	webhookKey    string
 	externalURL   string
 	onlyOfficeURL string
@@ -76,6 +78,8 @@ type Deps struct {
 	Blobs   blob.Store
 	OrgSync *orgsync.Service
 	Uploads *uploads.Service
+	// Collab hosts the block editor's rooms.
+	Collab collab.Service
 	// LogtoWebhookKey signs /hooks/logto deliveries. Empty disables the
 	// route: an unauthenticated endpoint that mutates membership is worse
 	// than a slower path to the same state.
@@ -109,6 +113,7 @@ func NewServer(d Deps) *Server {
 		blobs:          d.Blobs,
 		orgs:           d.OrgSync,
 		uploads:        d.Uploads,
+		collab:         d.Collab,
 		webhookKey:     d.LogtoWebhookKey,
 		externalURL:    d.ExternalURL,
 		onlyOfficeURL:  d.OnlyOfficeURL,
@@ -269,11 +274,18 @@ func (s *Server) Router() http.Handler {
 			r.Delete("/shares/{shareID}", s.handleRevokeShare)
 			r.Get("/inherited-access", s.handleInheritedAccess)
 			r.Post("/edit-session", s.handleEditSession)
+			r.Get("/collab", s.handleCollabSession)
+			r.Get("/attachments/{hash}", s.handleAttachment)
 			r.Get("/preview", s.handlePreview)
 			r.Get("/grants", s.handleListGrants)
 			r.Put("/grants", s.handleUpsertGrant)
 			r.Delete("/grants/{groupID}", s.handleRevokeGrant)
 		})
+		// The block editor's sockets. A GET, so sameOrigin lets it by, and a
+		// socket is not a read: socketOrigin demands this deployment's
+		// Origin before ygo sees the request (see socketOrigin).
+		// TestCollabSocketRefusesForeignOrigins holds the route to it.
+		r.With(s.socketOrigin).Get("/collab/{room}", s.handleCollabSocket)
 		// Resumable uploads (tus 1.0.0). The only way file content enters
 		// through the API: a chunk at a time, each one short enough to finish
 		// inside whatever request deadline a proxy in front imposes.

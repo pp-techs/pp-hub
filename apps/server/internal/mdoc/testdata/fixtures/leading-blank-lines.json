@@ -1,0 +1,26 @@
+{
+  "name": "leading-blank-lines",
+  "input": "\n\na\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": []
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "a"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "\n\na",
+  "yupdate_b64": "AQQBAAcBB2NvbnRlbnQDCXBhcmFncmFwaIcBAAMJcGFyYWdyYXBoBwABAQYEAAECAWEA",
+  "expect_lossy": false
+}

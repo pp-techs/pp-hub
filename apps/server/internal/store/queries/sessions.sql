@@ -25,6 +25,19 @@ WITH touched AS (
 UPDATE users SET last_seen = now()
 FROM touched WHERE users.id = touched.user_id;
 
+-- Whether a session still authenticates its owner: unexpired, younger than
+-- the absolute cap (created_after), not revoked, and the account not
+-- suspended — what `authenticated` checks per request, asked again of a
+-- connection that outlives its request (a collab socket).
+-- name: SessionActive :one
+SELECT EXISTS (
+  SELECT 1 FROM sessions s
+  JOIN users u ON u.id = s.user_id
+  WHERE s.id = sqlc.arg(id) AND s.expires_at > now()
+    AND s.created_at > sqlc.arg(created_after)::timestamptz
+    AND u.suspended_at IS NULL
+)::boolean AS active;
+
 -- name: ListUserSessions :many
 SELECT * FROM sessions
 WHERE user_id = $1 AND expires_at > now()

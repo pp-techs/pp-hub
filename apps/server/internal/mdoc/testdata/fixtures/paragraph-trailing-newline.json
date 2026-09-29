@@ -1,0 +1,22 @@
+{
+  "name": "paragraph-trailing-newline",
+  "input": "Hello world\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Hello world"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "Hello world",
+  "yupdate_b64": "AQMBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQtIZWxsbyB3b3JsZAA=",
+  "expect_lossy": false
+}

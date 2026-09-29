@@ -1,0 +1,22 @@
+{
+  "name": "escape-hash",
+  "input": "\\# not a heading\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "# not a heading"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "# not a heading",
+  "yupdate_b64": "AQMBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQ8jIG5vdCBhIGhlYWRpbmcA",
+  "expect_lossy": false
+}

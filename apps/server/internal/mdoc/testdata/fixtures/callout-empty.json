@@ -1,0 +1,25 @@
+{
+  "name": "callout-empty",
+  "input": "> [!NOTE]\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "callout",
+        "attrs": {
+          "icon": "ℹ️"
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": []
+          }
+        ]
+      }
+    ]
+  },
+  "output": "> [!NOTE]\n>",
+  "yupdate_b64": "AQMBAAcBB2NvbnRlbnQDB2NhbGxvdXQHAAEAAwlwYXJhZ3JhcGgoAAEABGljb24BdwbihLnvuI8A",
+  "expect_lossy": false
+}

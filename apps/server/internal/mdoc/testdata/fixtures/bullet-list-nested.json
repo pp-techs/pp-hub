@@ -1,0 +1,84 @@
+{
+  "name": "bullet-list-nested",
+  "input": "- one\n  - nested\n    - deeper\n- two\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "bulletList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "one"
+                  }
+                ]
+              },
+              {
+                "type": "bulletList",
+                "content": [
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "nested"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "bulletList",
+                        "content": [
+                          {
+                            "type": "listItem",
+                            "content": [
+                              {
+                                "type": "paragraph",
+                                "content": [
+                                  {
+                                    "type": "text",
+                                    "text": "deeper"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "two"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "- one\n  - nested\n    - deeper\n- two",
+  "yupdate_b64": "ARMBAAcBB2NvbnRlbnQDCmJ1bGxldExpc3QHAAEAAwhsaXN0SXRlbQcAAQEDCXBhcmFncmFwaAcAAQIGBAABAwNvbmWHAQIDCmJ1bGxldExpc3QHAAEHAwhsaXN0SXRlbQcAAQgDCXBhcmFncmFwaAcAAQkGBAABCgZuZXN0ZWSHAQkDCmJ1bGxldExpc3QHAAERAwhsaXN0SXRlbQcAARIDCXBhcmFncmFwaAcAARMGBAABFAZkZWVwZXKHAQEDCGxpc3RJdGVtBwABGwMJcGFyYWdyYXBoBwABHAYEAAEdA3R3bwA=",
+  "expect_lossy": false
+}

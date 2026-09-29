@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"sort"
 	"strings"
@@ -95,6 +96,11 @@ var clientRoutes = []string{
 	"DELETE /api/v1/nodes/{nodeID}/shares/{shareID}",
 	"GET /api/v1/nodes/{nodeID}/inherited-access",
 	"POST /api/v1/nodes/{nodeID}/edit-session",
+
+	// Block documents: the room, its socket, and the document's attachments.
+	"GET /api/v1/nodes/{nodeID}/collab",
+	"GET /api/v1/collab/{room}",
+	"GET /api/v1/nodes/{nodeID}/attachments/{hash}",
 
 	"GET /s/{token}/",
 	"GET /s/{token}/download",
@@ -227,5 +233,72 @@ func TestWopiIsExemptFromOriginChecks(t *testing.T) {
 	)
 	if err != nil {
 		t.Fatalf("walk routes: %v", err)
+	}
+}
+
+// The collab socket is a GET, so sameOrigin lets it through, yet it carries
+// the session cookie into a socket that reads and writes a document. The
+// route must be wrapped in socketOrigin — and that wrapper must refuse a
+// foreign Origin and a missing one before anything behind it (ygo, which
+// authorizes and loads the room before its own origin check) runs.
+func TestCollabSocketRefusesForeignOrigins(t *testing.T) {
+	guard := reflect.ValueOf((&Server{}).socketOrigin).Pointer()
+	srv := &Server{externalURL: "https://hub.example"}
+
+	var chain func(http.Handler) http.Handler
+	err := chi.Walk(
+		srv.Router().(chi.Routes),
+		func(method, route string, _ http.Handler, middlewares ...func(http.Handler) http.Handler) error {
+			if method != http.MethodGet || route != "/api/v1/collab/{room}" {
+				return nil
+			}
+			for _, mw := range middlewares {
+				if reflect.ValueOf(mw).Pointer() == guard {
+					chain = mw
+				}
+			}
+			return nil
+		},
+	)
+	if err != nil {
+		t.Fatalf("walk routes: %v", err)
+	}
+	if chain == nil {
+		t.Fatal("GET /api/v1/collab/{room} is not wrapped in socketOrigin")
+	}
+
+	cases := []struct {
+		name, origin string
+		admitted     bool
+	}{
+		{"missing", "", false},
+		{"foreign", "https://evil.example", false},
+		{"same host, other scheme", "http://hub.example", false},
+		{"this deployment", "https://hub.example", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			reached := false
+			h := chain(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				reached = true
+				w.WriteHeader(http.StatusSwitchingProtocols)
+			}))
+			req := httptest.NewRequest(http.MethodGet, "/api/v1/collab/n.e", nil)
+			req.Header.Set("Connection", "Upgrade")
+			req.Header.Set("Upgrade", "websocket")
+			// A same-origin Referer must not stand in for a missing Origin.
+			req.Header.Set("Referer", "https://hub.example/edit/n")
+			if tc.origin != "" {
+				req.Header.Set("Origin", tc.origin)
+			}
+			rec := httptest.NewRecorder()
+			h.ServeHTTP(rec, req)
+			if reached != tc.admitted {
+				t.Fatalf("upgrade reached: %v, want %v (status %d)", reached, tc.admitted, rec.Code)
+			}
+			if !tc.admitted && rec.Code != http.StatusForbidden {
+				t.Fatalf("refusal status %d, want 403", rec.Code)
+			}
+		})
 	}
 }

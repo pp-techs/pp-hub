@@ -1,0 +1,25 @@
+{
+  "name": "rule-first",
+  "input": "---\n\nNot frontmatter.\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "horizontalRule"
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Not frontmatter."
+          }
+        ]
+      }
+    ]
+  },
+  "output": "---\n\nNot frontmatter.",
+  "yupdate_b64": "AQQBAAcBB2NvbnRlbnQDDmhvcml6b250YWxSdWxlhwEAAwlwYXJhZ3JhcGgHAAEBBgQAAQIQTm90IGZyb250bWF0dGVyLgA=",
+  "expect_lossy": false
+}

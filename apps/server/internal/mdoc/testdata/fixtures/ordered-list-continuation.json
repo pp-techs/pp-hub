@@ -1,0 +1,55 @@
+{
+  "name": "ordered-list-continuation",
+  "input": "1. foo\n   bar\n2. **x**\n    y\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "orderedList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "foo\n bar"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "x",
+                    "marks": [
+                      {
+                        "type": "bold"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "text",
+                    "text": "\n  y"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "1. foo\n bar\n2. **x**\n  y",
+  "yupdate_b64": "AQ0BAAcBB2NvbnRlbnQDC29yZGVyZWRMaXN0BwABAAMIbGlzdEl0ZW0HAAEBAwlwYXJhZ3JhcGgHAAECBgQAAQMIZm9vCiBiYXKHAQEDCGxpc3RJdGVtBwABDAMJcGFyYWdyYXBoBwABDQYGAAEOBGJvbGQCe32EAQ8BeIYBEARib2xkBG51bGyEAREECiAgeSgAAQAFc3RhcnQBfQEA",
+  "expect_lossy": false
+}

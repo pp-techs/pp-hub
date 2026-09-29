@@ -1,6 +1,6 @@
 -- name: CreateUpload :one
-INSERT INTO uploads (space_id, parent_id, node_id, name, total_size, temp_path, expires_at, created_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO uploads (space_id, parent_id, node_id, attach_to, name, total_size, temp_path, expires_at, created_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 RETURNING *;
 
 -- name: GetUpload :one
@@ -18,6 +18,11 @@ WHERE id = $1 AND completed_at IS NULL;
 
 -- name: CompleteUpload :exec
 UPDATE uploads SET uploaded = total_size, completed_at = now()
+WHERE id = $1;
+
+-- name: CompleteAttachmentUpload :exec
+-- An attachment upload also records the hash it became, which HEAD reports.
+UPDATE uploads SET uploaded = total_size, completed_at = now(), attachment_hash = $2
 WHERE id = $1;
 
 -- name: DeleteUpload :exec

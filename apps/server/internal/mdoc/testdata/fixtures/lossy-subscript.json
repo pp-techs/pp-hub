@@ -1,0 +1,35 @@
+{
+  "name": "lossy-subscript",
+  "input": "H~2~O\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "H"
+          },
+          {
+            "type": "text",
+            "text": "2",
+            "marks": [
+              {
+                "type": "strike"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": "O"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "H~~2~~O",
+  "yupdate_b64": "AQcBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQFIhgECBnN0cmlrZQJ7fYQBAwEyhgEEBnN0cmlrZQRudWxshAEFAU8A",
+  "expect_lossy": true
+}

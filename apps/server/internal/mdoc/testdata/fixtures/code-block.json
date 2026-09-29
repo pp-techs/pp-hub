@@ -1,0 +1,25 @@
+{
+  "name": "code-block",
+  "input": "```\nplain code\n```\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "codeBlock",
+        "attrs": {
+          "language": null
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "plain code"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "```\nplain code\n```",
+  "yupdate_b64": "AQMBAAcBB2NvbnRlbnQDCWNvZGVCbG9jawcAAQAGBAABAQpwbGFpbiBjb2RlAA==",
+  "expect_lossy": false
+}

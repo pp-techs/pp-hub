@@ -1,0 +1,22 @@
+{
+  "name": "mark-whitespace",
+  "input": "a ** b** c\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "a ** b** c"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "a \\*\\* b\\*\\* c",
+  "yupdate_b64": "AQMBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQphICoqIGIqKiBjAA==",
+  "expect_lossy": false
+}

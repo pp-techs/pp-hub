@@ -1,0 +1,84 @@
+{
+  "name": "table-wide-unicode",
+  "input": "| Tên | 值 |\n| --- | --- |\n| Việt Nam | 中文字符 |\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "table",
+        "content": [
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableHeader",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Tên"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableHeader",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "值"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Việt Nam"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "中文字符"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "\n| Tên      | 值    |\n| -------- | ---- |\n| Việt Nam | 中文字符 |\n",
+  "yupdate_b64": "ARsBAAcBB2NvbnRlbnQDBXRhYmxlBwABAAMIdGFibGVSb3cHAAEBAwt0YWJsZUhlYWRlcgcAAQIDCXBhcmFncmFwaAcAAQMGBAABBARUw6puKAABAgdjb2xzcGFuAX0BKAABAgdyb3dzcGFuAX0BhwECAwt0YWJsZUhlYWRlcgcAAQoDCXBhcmFncmFwaAcAAQsGBAABDAPlgLwoAAEKB2NvbHNwYW4BfQEoAAEKB3Jvd3NwYW4BfQGHAQEDCHRhYmxlUm93BwABEAMJdGFibGVDZWxsBwABEQMJcGFyYWdyYXBoBwABEgYEAAETClZp4buHdCBOYW0oAAERB2NvbHNwYW4BfQEoAAERB3Jvd3NwYW4BfQGHAREDCXRhYmxlQ2VsbAcAAR4DCXBhcmFncmFwaAcAAR8GBAABIAzkuK3mloflrZfnrKYoAAEeB2NvbHNwYW4BfQEoAAEeB3Jvd3NwYW4BfQEA",
+  "expect_lossy": false
+}

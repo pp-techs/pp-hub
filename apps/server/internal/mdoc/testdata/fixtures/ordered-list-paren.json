@@ -1,0 +1,46 @@
+{
+  "name": "ordered-list-paren",
+  "input": "1) one\n2) two\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "orderedList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "one"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "two"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "1. one\n2. two",
+  "yupdate_b64": "AQoBAAcBB2NvbnRlbnQDC29yZGVyZWRMaXN0BwABAAMIbGlzdEl0ZW0HAAEBAwlwYXJhZ3JhcGgHAAECBgQAAQMDb25lhwEBAwhsaXN0SXRlbQcAAQcDCXBhcmFncmFwaAcAAQgGBAABCQN0d28oAAEABXN0YXJ0AX0BAA==",
+  "expect_lossy": false
+}

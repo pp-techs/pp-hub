@@ -1,0 +1,30 @@
+{
+  "name": "callout-custom-icon",
+  "input": "<!-- slash:callout {\"icon\":\"🔥\"} -->\n> [!NOTE]\n> Hot.\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "callout",
+        "attrs": {
+          "icon": "🔥"
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Hot."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "<!-- slash:callout {\"icon\":\"🔥\"} -->\n> [!NOTE]\n> Hot.",
+  "yupdate_b64": "AQUBAAcBB2NvbnRlbnQDB2NhbGxvdXQHAAEAAwlwYXJhZ3JhcGgHAAEBBgQAAQIESG90LigAAQAEaWNvbgF3BPCflKUA",
+  "expect_lossy": false
+}

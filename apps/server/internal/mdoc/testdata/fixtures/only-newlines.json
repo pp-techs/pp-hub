@@ -1,0 +1,17 @@
+{
+  "name": "only-newlines",
+  "input": "\n\n\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": []
+      }
+    ]
+  },
+  "output": "",
+  "yupdate_b64": "AQEBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAA=",
+  "expect_lossy": false
+}

@@ -51,15 +51,19 @@ const (
 	// A session dies after this long unused. The deadline slides, but lazily
 	// — see sessionRefreshAfter — so an active tab costs one UPDATE an hour
 	// rather than one per request.
-	sessionIdleTTL = 30 * 24 * time.Hour
-	// ...and cannot be kept alive past this no matter how much traffic it
-	// sees. Without an absolute cap, "idle timeout" is not a timeout.
-	sessionAbsoluteTTL  = 90 * 24 * time.Hour
+	sessionIdleTTL      = 30 * 24 * time.Hour
 	sessionRefreshAfter = time.Hour
 
 	// The login handshake is a round trip through the IdP, not a coffee break.
 	txTTL = 10 * time.Minute
+)
 
+// SessionAbsoluteTTL is how long a session may live however active it is.
+// Without an absolute cap, "idle timeout" is not a timeout. Exported for
+// connections that outlive their request and re-check their session (collab).
+const SessionAbsoluteTTL = 90 * 24 * time.Hour
+
+const (
 	// Bounds on what the client controls before it reaches a TEXT column.
 	maxUserAgent = 400
 )
@@ -659,7 +663,7 @@ func (s *Service) Authenticate(w http.ResponseWriter, r *http.Request) *Session 
 	}
 
 	now := time.Now()
-	if now.Sub(row.Session.CreatedAt.Time) > sessionAbsoluteTTL {
+	if now.Sub(row.Session.CreatedAt.Time) > SessionAbsoluteTTL {
 		if err := s.queries.DeleteSessionByHash(r.Context(), sum[:]); err != nil {
 			slog.ErrorContext(r.Context(), "delete aged session", "err", err)
 		}

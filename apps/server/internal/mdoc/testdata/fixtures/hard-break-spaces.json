@@ -1,0 +1,29 @@
+{
+  "name": "hard-break-spaces",
+  "input": "line one  \nline two\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "line one"
+          },
+          {
+            "type": "hardBreak"
+          },
+          {
+            "type": "text",
+            "text": "line two"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "line one  \nline two",
+  "yupdate_b64": "AQYBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQhsaW5lIG9uZYcBAQMJaGFyZEJyZWFrhwEKBgQAAQsIbGluZSB0d28A",
+  "expect_lossy": false
+}

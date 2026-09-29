@@ -29,6 +29,22 @@ func (q *Queries) AdvanceUpload(ctx context.Context, arg AdvanceUploadParams) er
 	return err
 }
 
+const completeAttachmentUpload = `-- name: CompleteAttachmentUpload :exec
+UPDATE uploads SET uploaded = total_size, completed_at = now(), attachment_hash = $2
+WHERE id = $1
+`
+
+type CompleteAttachmentUploadParams struct {
+	ID             pgtype.UUID `json:"id"`
+	AttachmentHash pgtype.Text `json:"attachment_hash"`
+}
+
+// An attachment upload also records the hash it became, which HEAD reports.
+func (q *Queries) CompleteAttachmentUpload(ctx context.Context, arg CompleteAttachmentUploadParams) error {
+	_, err := q.db.Exec(ctx, completeAttachmentUpload, arg.ID, arg.AttachmentHash)
+	return err
+}
+
 const completeUpload = `-- name: CompleteUpload :exec
 UPDATE uploads SET uploaded = total_size, completed_at = now()
 WHERE id = $1
@@ -40,15 +56,16 @@ func (q *Queries) CompleteUpload(ctx context.Context, id pgtype.UUID) error {
 }
 
 const createUpload = `-- name: CreateUpload :one
-INSERT INTO uploads (space_id, parent_id, node_id, name, total_size, temp_path, expires_at, created_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, tenant_id, space_id, parent_id, name, total_size, uploaded, temp_path, expires_at, created_by, created_at, node_id, completed_at
+INSERT INTO uploads (space_id, parent_id, node_id, attach_to, name, total_size, temp_path, expires_at, created_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING id, tenant_id, space_id, parent_id, name, total_size, uploaded, temp_path, expires_at, created_by, created_at, node_id, completed_at, attach_to, attachment_hash
 `
 
 type CreateUploadParams struct {
 	SpaceID   pgtype.UUID        `json:"space_id"`
 	ParentID  pgtype.UUID        `json:"parent_id"`
 	NodeID    pgtype.UUID        `json:"node_id"`
+	AttachTo  pgtype.UUID        `json:"attach_to"`
 	Name      string             `json:"name"`
 	TotalSize int64              `json:"total_size"`
 	TempPath  string             `json:"temp_path"`
@@ -61,6 +78,7 @@ func (q *Queries) CreateUpload(ctx context.Context, arg CreateUploadParams) (Upl
 		arg.SpaceID,
 		arg.ParentID,
 		arg.NodeID,
+		arg.AttachTo,
 		arg.Name,
 		arg.TotalSize,
 		arg.TempPath,
@@ -82,6 +100,8 @@ func (q *Queries) CreateUpload(ctx context.Context, arg CreateUploadParams) (Upl
 		&i.CreatedAt,
 		&i.NodeID,
 		&i.CompletedAt,
+		&i.AttachTo,
+		&i.AttachmentHash,
 	)
 	return i, err
 }
@@ -126,7 +146,7 @@ func (q *Queries) DeleteUpload(ctx context.Context, id pgtype.UUID) error {
 }
 
 const getUpload = `-- name: GetUpload :one
-SELECT id, tenant_id, space_id, parent_id, name, total_size, uploaded, temp_path, expires_at, created_by, created_at, node_id, completed_at FROM uploads
+SELECT id, tenant_id, space_id, parent_id, name, total_size, uploaded, temp_path, expires_at, created_by, created_at, node_id, completed_at, attach_to, attachment_hash FROM uploads
 WHERE id = $1 AND created_by = $2 AND expires_at > now()
 LIMIT 1
 `
@@ -155,6 +175,8 @@ func (q *Queries) GetUpload(ctx context.Context, arg GetUploadParams) (Upload, e
 		&i.CreatedAt,
 		&i.NodeID,
 		&i.CompletedAt,
+		&i.AttachTo,
+		&i.AttachmentHash,
 	)
 	return i, err
 }

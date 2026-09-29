@@ -1,0 +1,68 @@
+{
+  "name": "details-nested",
+  "input": "<details>\n<summary>Outer</summary>\n\n<details>\n<summary>Inner</summary>\n\ndeep\n\n</details>\n\n</details>\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "details",
+        "attrs": {
+          "open": false,
+          "level": 0
+        },
+        "content": [
+          {
+            "type": "detailsSummary",
+            "content": [
+              {
+                "type": "text",
+                "text": "Outer"
+              }
+            ]
+          },
+          {
+            "type": "detailsContent",
+            "content": [
+              {
+                "type": "details",
+                "attrs": {
+                  "open": false,
+                  "level": 0
+                },
+                "content": [
+                  {
+                    "type": "detailsSummary",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Inner"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "detailsContent",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "deep"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "<details>\n<summary>Outer</summary>\n\n<details>\n<summary>Inner</summary>\n\ndeep\n\n</details>\n\n</details>",
+  "yupdate_b64": "AREBAAcBB2NvbnRlbnQDB2RldGFpbHMHAAEAAw5kZXRhaWxzU3VtbWFyeQcAAQEGBAABAgVPdXRlcocBAQMOZGV0YWlsc0NvbnRlbnQHAAEIAwdkZXRhaWxzBwABCQMOZGV0YWlsc1N1bW1hcnkHAAEKBgQAAQsFSW5uZXKHAQoDDmRldGFpbHNDb250ZW50BwABEQMJcGFyYWdyYXBoBwABEgYEAAETBGRlZXAoAAEJBG9wZW4BeSgAAQkFbGV2ZWwBfQAoAAEABG9wZW4BeSgAAQAFbGV2ZWwBfQAA",
+  "expect_lossy": false
+}

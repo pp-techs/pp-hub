@@ -1,0 +1,30 @@
+{
+  "name": "callout-note",
+  "input": "> [!NOTE]\n> A note.\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "callout",
+        "attrs": {
+          "icon": "ℹ️"
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "A note."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "> [!NOTE]\n> A note.",
+  "yupdate_b64": "AQUBAAcBB2NvbnRlbnQDB2NhbGxvdXQHAAEAAwlwYXJhZ3JhcGgHAAEBBgQAAQIHQSBub3RlLigAAQAEaWNvbgF3BuKEue+4jwA=",
+  "expect_lossy": false
+}

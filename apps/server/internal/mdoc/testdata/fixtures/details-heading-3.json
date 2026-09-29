@@ -1,0 +1,45 @@
+{
+  "name": "details-heading-3",
+  "input": "<details>\n<summary><h3>Small</h3></summary>\n\nz\n\n</details>\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "details",
+        "attrs": {
+          "open": false,
+          "level": 3
+        },
+        "content": [
+          {
+            "type": "detailsSummary",
+            "content": [
+              {
+                "type": "text",
+                "text": "Small"
+              }
+            ]
+          },
+          {
+            "type": "detailsContent",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "z"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "<details>\n<summary><h3>Small</h3></summary>\n\nz\n\n</details>",
+  "yupdate_b64": "AQoBAAcBB2NvbnRlbnQDB2RldGFpbHMHAAEAAw5kZXRhaWxzU3VtbWFyeQcAAQEGBAABAgVTbWFsbIcBAQMOZGV0YWlsc0NvbnRlbnQHAAEIAwlwYXJhZ3JhcGgHAAEJBgQAAQoBeigAAQAEb3BlbgF5KAABAAVsZXZlbAF9AwA=",
+  "expect_lossy": false
+}

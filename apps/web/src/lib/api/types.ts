@@ -26,7 +26,8 @@ export interface UserPreferences {
   email_on_share?: boolean;
 }
 
-export type DocumentKind = "document" | "spreadsheet" | "presentation";
+/** `markdown` writes an empty `.md` that opens in the block editor; the rest are office templates. */
+export type DocumentKind = "document" | "spreadsheet" | "presentation" | "markdown";
 
 export interface UserProfile {
   id: string;
@@ -511,6 +512,20 @@ export interface EditSession {
    * the viewer and the WOPI write calls refuse its token.
    */
   can_write: boolean;
+}
+
+/**
+ * `GET /nodes/{id}/collab`: where the block editor connects for a markdown
+ * document. `room` carries the epoch (`<nodeId>.<epoch>`) — a new one is
+ * minted each time the server loads the document, and a client holding a
+ * Y.Doc from an older room must discard it rather than merge it in.
+ */
+export interface CollabSession {
+  room: string;
+  /** Edit capability, re-read on every reconnect. The server drops a reader's writes. */
+  can_write: boolean;
+  /** The markdown holds constructs the block editor cannot write back unchanged. */
+  lossy: boolean;
 }
 
 /**

@@ -1,0 +1,22 @@
+{
+  "name": "lossy-html-inline",
+  "input": "Some <span>inline</span> html.\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Some <span>inline</span> html."
+          }
+        ]
+      }
+    ]
+  },
+  "output": "Some &lt;span&gt;inline&lt;/span&gt; html.",
+  "yupdate_b64": "AQMBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAR5Tb21lIDxzcGFuPmlubGluZTwvc3Bhbj4gaHRtbC4A",
+  "expect_lossy": true
+}

@@ -1,0 +1,78 @@
+{
+  "name": "columns-three",
+  "input": "<!-- slash:columns -->\n\n# A\n\n<!-- slash:column -->\n\n- b\n\n<!-- slash:column -->\n\n> c\n\n<!-- /slash:columns -->\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "columns",
+        "content": [
+          {
+            "type": "column",
+            "content": [
+              {
+                "type": "heading",
+                "attrs": {
+                  "level": 1
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "A"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "column",
+            "content": [
+              {
+                "type": "bulletList",
+                "content": [
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "b"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "column",
+            "content": [
+              {
+                "type": "blockquote",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "c"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "<!-- slash:columns -->\n\n# A\n\n<!-- slash:column -->\n\n- b\n\n<!-- slash:column -->\n\n> c\n\n<!-- /slash:columns -->",
+  "yupdate_b64": "AREBAAcBB2NvbnRlbnQDB2NvbHVtbnMHAAEAAwZjb2x1bW4HAAEBAwdoZWFkaW5nBwABAgYEAAEDAUEoAAECBWxldmVsAX0BhwEBAwZjb2x1bW4HAAEGAwpidWxsZXRMaXN0BwABBwMIbGlzdEl0ZW0HAAEIAwlwYXJhZ3JhcGgHAAEJBgQAAQoBYocBBgMGY29sdW1uBwABDAMKYmxvY2txdW90ZQcAAQ0DCXBhcmFncmFwaAcAAQ4GBAABDwFjAA==",
+  "expect_lossy": false
+}

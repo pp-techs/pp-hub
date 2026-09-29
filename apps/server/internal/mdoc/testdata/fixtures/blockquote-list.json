@@ -1,0 +1,51 @@
+{
+  "name": "blockquote-list",
+  "input": "> - a\n> - b\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "blockquote",
+        "content": [
+          {
+            "type": "bulletList",
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "a"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "b"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "> - a\n> - b",
+  "yupdate_b64": "AQoBAAcBB2NvbnRlbnQDCmJsb2NrcXVvdGUHAAEAAwpidWxsZXRMaXN0BwABAQMIbGlzdEl0ZW0HAAECAwlwYXJhZ3JhcGgHAAEDBgQAAQQBYYcBAgMIbGlzdEl0ZW0HAAEGAwlwYXJhZ3JhcGgHAAEHBgQAAQgBYgA=",
+  "expect_lossy": false
+}

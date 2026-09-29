@@ -1,0 +1,21 @@
+{
+  "name": "image-width",
+  "input": "<!-- slash:image {\"width\":320} -->\n![pic](attachment:0123abcd)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "image",
+        "attrs": {
+          "width": 320,
+          "src": "attachment:0123abcd",
+          "alt": "pic"
+        }
+      }
+    ]
+  },
+  "output": "<!-- slash:image {\"width\":320} -->\n![pic](attachment:0123abcd)",
+  "yupdate_b64": "AQUBAAcBB2NvbnRlbnQDBWltYWdlKAABAANzcmMBdxNhdHRhY2htZW50OjAxMjNhYmNkKAABAANhbHQBdwNwaWMoAAEABXdpZHRoAX2ABSgAAQAGc3RhdHVzAXcFcmVhZHkA",
+  "expect_lossy": false
+}

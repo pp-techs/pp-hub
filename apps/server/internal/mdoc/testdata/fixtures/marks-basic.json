@@ -1,0 +1,74 @@
+{
+  "name": "marks-basic",
+  "input": "Some **bold**, *italic*, ~~strike~~ and `code`.\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Some "
+          },
+          {
+            "type": "text",
+            "text": "bold",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": ", "
+          },
+          {
+            "type": "text",
+            "text": "italic",
+            "marks": [
+              {
+                "type": "italic"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": ", "
+          },
+          {
+            "type": "text",
+            "text": "strike",
+            "marks": [
+              {
+                "type": "strike"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " and "
+          },
+          {
+            "type": "text",
+            "text": "code",
+            "marks": [
+              {
+                "type": "code"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": "."
+          }
+        ]
+      }
+    ]
+  },
+  "output": "Some **bold**, *italic*, ~~strike~~ and `code`.",
+  "yupdate_b64": "ARMBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQVTb21lIIYBBgRib2xkAnt9hAEHBGJvbGSGAQsEYm9sZARudWxshAEMAiwghgEOBml0YWxpYwJ7fYQBDwZpdGFsaWOGARUGaXRhbGljBG51bGyEARYCLCCGARgGc3RyaWtlAnt9hAEZBnN0cmlrZYYBHwZzdHJpa2UEbnVsbIQBIAUgYW5kIIYBJQRjb2RlAnt9hAEmBGNvZGWGASoEY29kZQRudWxshAErAS4A",
+  "expect_lossy": false
+}

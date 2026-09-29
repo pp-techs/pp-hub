@@ -1,0 +1,35 @@
+{
+  "name": "blank-lines-3",
+  "input": "a\n\n\n\nb\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "a"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": []
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "b"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "a\n\n\n\nb",
+  "yupdate_b64": "AQcBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQFhhwEAAwlwYXJhZ3JhcGiHAQMDCXBhcmFncmFwaAcAAQQGBAABBQFiAA==",
+  "expect_lossy": false
+}

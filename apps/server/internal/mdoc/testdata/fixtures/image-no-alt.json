@@ -1,0 +1,20 @@
+{
+  "name": "image-no-alt",
+  "input": "![](https://example.com/a.png)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "image",
+        "attrs": {
+          "src": "https://example.com/a.png",
+          "alt": null
+        }
+      }
+    ]
+  },
+  "output": "![](https://example.com/a.png)",
+  "yupdate_b64": "AQMBAAcBB2NvbnRlbnQDBWltYWdlKAABAANzcmMBdxlodHRwczovL2V4YW1wbGUuY29tL2EucG5nKAABAAZzdGF0dXMBdwVyZWFkeQA=",
+  "expect_lossy": false
+}

@@ -1,0 +1,25 @@
+{
+  "name": "code-block-indented",
+  "input": "    indented code\n    line two\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "codeBlock",
+        "attrs": {
+          "language": null
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "indented code\nline two"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "```\nindented code\nline two\n```",
+  "yupdate_b64": "AQMBAAcBB2NvbnRlbnQDCWNvZGVCbG9jawcAAQAGBAABARZpbmRlbnRlZCBjb2RlCmxpbmUgdHdvAA==",
+  "expect_lossy": false
+}

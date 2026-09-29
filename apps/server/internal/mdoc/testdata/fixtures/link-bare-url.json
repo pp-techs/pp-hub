@@ -1,0 +1,39 @@
+{
+  "name": "link-bare-url",
+  "input": "Visit https://example.com today.\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Visit "
+          },
+          {
+            "type": "text",
+            "text": "https://example.com",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "https://example.com",
+                  "title": null
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " today."
+          }
+        ]
+      }
+    ]
+  },
+  "output": "Visit [https://example.com](https://example.com) today.",
+  "yupdate_b64": "AQcBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQZWaXNpdCCGAQcEbGlua297ImhyZWYiOiJodHRwczovL2V4YW1wbGUuY29tIiwidGFyZ2V0IjoiX2JsYW5rIiwicmVsIjoibm9vcGVuZXIgbm9yZWZlcnJlciBub2ZvbGxvdyIsImNsYXNzIjpudWxsLCJ0aXRsZSI6bnVsbH2EAQgTaHR0cHM6Ly9leGFtcGxlLmNvbYYBGwRsaW5rBG51bGyEARwHIHRvZGF5LgA=",
+  "expect_lossy": false
+}

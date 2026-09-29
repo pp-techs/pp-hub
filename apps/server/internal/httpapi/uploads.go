@@ -51,19 +51,32 @@ func tusHeaders(w http.ResponseWriter, r *http.Request) bool {
 }
 
 // uploadTarget is where an upload's bytes will land: a new file named Name
-// under ParentID in SpaceID, or — NodeID set — a new version of that file.
+// under ParentID in SpaceID, a new version of NodeID when that is set, or an
+// attachment of the block document AttachTo when that is.
 type uploadTarget struct {
 	spaceID  pgtype.UUID
 	parentID pgtype.UUID
 	nodeID   pgtype.UUID
+	attachTo pgtype.UUID
 	name     string
 }
 
 // authorizeUploadTarget checks the caller may put bytes where the upload is
-// headed, filling in the space for a replacement. It runs at creation and
-// again at commit: access can be revoked, and an editor opened, while the
-// bytes are still arriving.
+// headed, filling in the space for a replacement or an attachment. It runs at
+// creation and again at commit: access can be revoked, and an editor opened,
+// while the bytes are still arriving.
 func (s *Server) authorizeUploadTarget(w http.ResponseWriter, r *http.Request, t *uploadTarget) bool {
+	if t.attachTo.Valid {
+		// An image dropped into a document is part of editing it. The room's
+		// lock does not refuse it: an attachment changes no byte of the
+		// markdown, which names it only once the editor inserts it.
+		u, doc, _ := s.requireNodeCapsByID(w, r, t.attachTo, share.CapEdit)
+		if u == nil || !s.isMarkdownFile(w, r, doc) {
+			return false
+		}
+		t.spaceID = doc.SpaceID
+		return true
+	}
 	if t.nodeID.Valid {
 		// A replacement lands as a new version of an existing file: the node
 		// keeps its name and owner, the version is authored by the uploader.
@@ -79,7 +92,9 @@ func (s *Server) authorizeUploadTarget(w http.ResponseWriter, r *http.Request, t
 		// the WOPI save path honours it; new bytes from here would become the
 		// editor's next save's base and its work would be gone. Refused
 		// rather than locked: this path has no unlock to pair with a lock.
-		if s.lockedByEditor(w, r, node.ID, http.StatusLocked) {
+		// A block document's room holds a lock too, and its next write-back
+		// would overwrite the upload the same way.
+		if s.lockedByEditor(w, r, node.ID, http.StatusLocked, false) {
 			return false
 		}
 		t.spaceID, t.parentID, t.name = node.SpaceID, node.ParentID, node.Name
@@ -118,18 +133,29 @@ func (s *Server) handleCreateUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var t uploadTarget
-	if v := meta["node_id"]; v != "" {
-		if err := t.nodeID.Scan(v); err != nil {
+	switch {
+	case meta["node_id"] != "" && meta["attach_to"] != "":
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "node_id and attach_to are exclusive")
+		return
+	case meta["node_id"] != "":
+		if err := t.nodeID.Scan(meta["node_id"]); err != nil {
 			writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid node_id")
 			return
 		}
-	} else {
+	default:
 		name, ok := plainFileName(meta["filename"])
 		if !ok {
 			writeProblem(w, http.StatusBadRequest, "Bad Request", "filename must be a plain file name")
 			return
 		}
 		t.name = name
+		if v := meta["attach_to"]; v != "" {
+			if err := t.attachTo.Scan(v); err != nil {
+				writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid attach_to")
+				return
+			}
+			break
+		}
 		if err := t.spaceID.Scan(meta["space_id"]); err != nil {
 			writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space_id")
 			return
@@ -170,6 +196,7 @@ func (s *Server) handleCreateUpload(w http.ResponseWriter, r *http.Request) {
 		SpaceID:   t.spaceID,
 		ParentID:  t.parentID,
 		NodeID:    t.nodeID,
+		AttachTo:  t.attachTo,
 		Name:      t.name,
 		TotalSize: length,
 		CreatedBy: u.ID,
@@ -213,6 +240,7 @@ func (s *Server) handleUploadOffset(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Upload-Offset", strconv.FormatInt(up.Uploaded, 10))
 	w.Header().Set("Upload-Length", strconv.FormatInt(up.TotalSize, 10))
 	w.Header().Set("Upload-Expires", up.ExpiresAt.Time.UTC().Format(http.TimeFormat))
+	setUploadAttachment(w, up)
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -253,6 +281,7 @@ func (s *Server) handleUploadChunk(w http.ResponseWriter, r *http.Request) {
 	if up.CompletedAt.Valid {
 		if offset == up.TotalSize {
 			w.Header().Set("Upload-Offset", strconv.FormatInt(up.TotalSize, 10))
+			setUploadAttachment(w, up)
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
@@ -331,13 +360,16 @@ func (s *Server) receive(w http.ResponseWriter, r *http.Request, up store.Upload
 func (s *Server) commitUpload(w http.ResponseWriter, r *http.Request, up store.Upload) bool {
 	ctx := r.Context()
 	u := caller(r)
-	t := uploadTarget{spaceID: up.SpaceID, parentID: up.ParentID, nodeID: up.NodeID, name: up.Name}
+	t := uploadTarget{spaceID: up.SpaceID, parentID: up.ParentID, nodeID: up.NodeID, attachTo: up.AttachTo, name: up.Name}
 	rec := &statusRecorder{ResponseWriter: w}
 	if !s.authorizeUploadTarget(rec, r, &t) {
 		if rec.status != http.StatusLocked && rec.status < 500 {
 			s.dropUpload(ctx, up)
 		}
 		return false
+	}
+	if t.attachTo.Valid {
+		return s.commitAttachment(w, r, up, t)
 	}
 	node, ver, err := s.fs.PutStagedFile(ctx, t.spaceID, t.parentID, t.nodeID, t.name, s.uploads.Path(up), u.ID)
 	if err != nil {
@@ -358,6 +390,37 @@ func (s *Server) commitUpload(w http.ResponseWriter, r *http.Request, up store.U
 	}
 	s.activity.Node(ctx, u.ID, node, activity.KindUploaded, detail)
 	return true
+}
+
+// commitAttachment is commitUpload for an attachment: the bytes become a row
+// of the document's, and the answer names their hash (Upload-Attachment), the
+// `attachment:<hash>` the editor writes into the markdown. No activity entry:
+// the document is being edited, not uploaded.
+func (s *Server) commitAttachment(w http.ResponseWriter, r *http.Request, up store.Upload, t uploadTarget) bool {
+	ctx := r.Context()
+	att, err := s.fs.AddStagedAttachment(ctx, t.attachTo, t.name, s.uploads.Path(up), caller(r).ID)
+	if err != nil {
+		if errors.Is(err, fs.ErrQuotaExceeded) || errors.Is(err, fs.ErrNotFound) || errors.Is(err, fs.ErrNotFile) {
+			s.dropUpload(ctx, up)
+		}
+		s.nodeError(w, r, err)
+		return false
+	}
+	if err := s.uploads.CompleteAttachment(ctx, up.ID, att.BlobHash); err != nil {
+		// The attachment is committed; only a client that lost this answer
+		// and asks HEAD misses the hash.
+		slog.WarnContext(ctx, "upload completed but not marked", "upload", up.ID, "err", err)
+	}
+	w.Header().Set("Upload-Attachment", att.BlobHash)
+	return true
+}
+
+// setUploadAttachment names the attachment a committed attachment upload
+// became, for a client asking again after losing the final answer.
+func setUploadAttachment(w http.ResponseWriter, up store.Upload) {
+	if up.AttachmentHash.Valid {
+		w.Header().Set("Upload-Attachment", up.AttachmentHash.String)
+	}
 }
 
 // handleTerminateUpload abandons an upload and frees its staged bytes (tus

@@ -12,6 +12,9 @@
 FROM golang:1.26-alpine AS deps
 WORKDIR /src
 COPY go.mod go.sum ./
+# go.mod replaces reearth/ygo with the patched copy in third_party/ygo (see its
+# PATCHES.md): the replacement must be on disk before the download resolves.
+COPY third_party/ ./third_party/
 # A cache mount instead of a layer: the module cache survives a go.sum change
 # and is not baked into the image.
 RUN --mount=type=cache,target=/go/pkg/mod \

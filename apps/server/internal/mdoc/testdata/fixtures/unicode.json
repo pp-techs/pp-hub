@@ -1,0 +1,22 @@
+{
+  "name": "unicode",
+  "input": "Tiếng Việt, 日本語, emoji 🎉 and é\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Tiếng Việt, 日本語, emoji 🎉 and é"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "Tiếng Việt, 日本語, emoji 🎉 and é",
+  "yupdate_b64": "AQMBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABASxUaeG6v25nIFZp4buHdCwg5pel5pys6KqeLCBlbW9qaSDwn46JIGFuZCDDqQA=",
+  "expect_lossy": false
+}

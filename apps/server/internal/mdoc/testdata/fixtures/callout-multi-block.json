@@ -1,0 +1,63 @@
+{
+  "name": "callout-multi-block",
+  "input": "> [!TIP]\n> First.\n>\n> - a\n> - b\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "callout",
+        "attrs": {
+          "icon": "💡"
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "First."
+              }
+            ]
+          },
+          {
+            "type": "bulletList",
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "a"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "b"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "> [!TIP]\n> First.\n>\n> - a\n> - b",
+  "yupdate_b64": "AQ4BAAcBB2NvbnRlbnQDB2NhbGxvdXQHAAEAAwlwYXJhZ3JhcGgHAAEBBgQAAQIGRmlyc3QuhwEBAwpidWxsZXRMaXN0BwABCQMIbGlzdEl0ZW0HAAEKAwlwYXJhZ3JhcGgHAAELBgQAAQwBYYcBCgMIbGlzdEl0ZW0HAAEOAwlwYXJhZ3JhcGgHAAEPBgQAARABYigAAQAEaWNvbgF3BPCfkqEA",
+  "expect_lossy": false
+}

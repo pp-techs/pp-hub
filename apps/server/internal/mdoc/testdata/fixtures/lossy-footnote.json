@@ -1,0 +1,31 @@
+{
+  "name": "lossy-footnote",
+  "input": "Text[^1].\n\n[^1]: The footnote.\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Text[^1]."
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "[^1]: The footnote."
+          }
+        ]
+      }
+    ]
+  },
+  "output": "Text\\[^1\\].\n\n\\[^1\\]: The footnote.",
+  "yupdate_b64": "AQYBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQlUZXh0W14xXS6HAQADCXBhcmFncmFwaAcAAQsGBAABDBNbXjFdOiBUaGUgZm9vdG5vdGUuAA==",
+  "expect_lossy": true
+}

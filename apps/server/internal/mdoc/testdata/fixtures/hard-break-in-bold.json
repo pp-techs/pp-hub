@@ -1,0 +1,39 @@
+{
+  "name": "hard-break-in-bold",
+  "input": "**a  \nb**\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "a",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ]
+          },
+          {
+            "type": "hardBreak"
+          },
+          {
+            "type": "text",
+            "text": "b",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "**a**  \n**b**",
+  "yupdate_b64": "AQoBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBgABAQRib2xkAnt9hAECAWGGAQMEYm9sZARudWxshwEBAwloYXJkQnJlYWuHAQUGBgABBgRib2xkAnt9hAEHAWKGAQgEYm9sZARudWxsAA==",
+  "expect_lossy": false
+}

@@ -1,0 +1,44 @@
+{
+  "name": "link-adjacent",
+  "input": "[a](https://a.example)[b](https://b.example)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "a",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "https://a.example",
+                  "title": null
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": "b",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "https://b.example",
+                  "title": null
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "[a](https://a.example)[b](https://b.example)",
+  "yupdate_b64": "AQgBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBgABAQRsaW5rbXsiaHJlZiI6Imh0dHBzOi8vYS5leGFtcGxlIiwidGFyZ2V0IjoiX2JsYW5rIiwicmVsIjoibm9vcGVuZXIgbm9yZWZlcnJlciBub2ZvbGxvdyIsImNsYXNzIjpudWxsLCJ0aXRsZSI6bnVsbH2EAQIBYYYBAwRsaW5rBG51bGyGAQQEbGlua217ImhyZWYiOiJodHRwczovL2IuZXhhbXBsZSIsInRhcmdldCI6Il9ibGFuayIsInJlbCI6Im5vb3BlbmVyIG5vcmVmZXJyZXIgbm9mb2xsb3ciLCJjbGFzcyI6bnVsbCwidGl0bGUiOm51bGx9hAEFAWKGAQYEbGluawRudWxsAA==",
+  "expect_lossy": false
+}

@@ -1,0 +1,387 @@
+{
+  "name": "kitchen-sink",
+  "input": "# Runbook\n\nIntro with **bold**, *italic*, ~~gone~~, `code` and a [link](https://example.com \"t\").\n\n> [!WARNING]\n> Read this first.\n\n## Steps\n\n1. Prepare\n   - check disk\n   - check network\n2. Deploy\n\n- [x] staged\n- [ ] prod\n\n```bash\nmake deploy\n```\n\n| Env | Status |\n| :-- | --: |\n| staging | ok |\n\n<details>\n<summary>Rollback</summary>\n\nRun `make rollback`.\n\n</details>\n\n---\n\n![arch](attachment:abc123)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "heading",
+        "attrs": {
+          "level": 1
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Runbook"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Intro with "
+          },
+          {
+            "type": "text",
+            "text": "bold",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": ", "
+          },
+          {
+            "type": "text",
+            "text": "italic",
+            "marks": [
+              {
+                "type": "italic"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": ", "
+          },
+          {
+            "type": "text",
+            "text": "gone",
+            "marks": [
+              {
+                "type": "strike"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": ", "
+          },
+          {
+            "type": "text",
+            "text": "code",
+            "marks": [
+              {
+                "type": "code"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " and a "
+          },
+          {
+            "type": "text",
+            "text": "link",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "https://example.com",
+                  "title": "t"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": "."
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "attrs": {
+          "icon": "⚠️"
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Read this first."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "heading",
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Steps"
+          }
+        ]
+      },
+      {
+        "type": "orderedList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Prepare"
+                  }
+                ]
+              },
+              {
+                "type": "bulletList",
+                "content": [
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "check disk"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "check network"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Deploy"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "taskList",
+        "content": [
+          {
+            "type": "taskItem",
+            "attrs": {
+              "checked": true
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "staged"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "taskItem",
+            "attrs": {
+              "checked": false
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "prod"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "codeBlock",
+        "attrs": {
+          "language": "bash"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "make deploy"
+          }
+        ]
+      },
+      {
+        "type": "table",
+        "content": [
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableHeader",
+                "attrs": {
+                  "align": "left"
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Env"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableHeader",
+                "attrs": {
+                  "align": "right"
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Status"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableCell",
+                "attrs": {
+                  "align": "left"
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "staging"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "attrs": {
+                  "align": "right"
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "ok"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "details",
+        "attrs": {
+          "open": false,
+          "level": 0
+        },
+        "content": [
+          {
+            "type": "detailsSummary",
+            "content": [
+              {
+                "type": "text",
+                "text": "Rollback"
+              }
+            ]
+          },
+          {
+            "type": "detailsContent",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Run "
+                  },
+                  {
+                    "type": "text",
+                    "text": "make rollback",
+                    "marks": [
+                      {
+                        "type": "code"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "text",
+                    "text": "."
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "horizontalRule"
+      },
+      {
+        "type": "image",
+        "attrs": {
+          "src": "attachment:abc123",
+          "alt": "arch"
+        }
+      }
+    ]
+  },
+  "output": "# Runbook\n\nIntro with **bold**, *italic*, ~~gone~~, `code` and a [link](https://example.com \"t\").\n\n> [!WARNING]\n> Read this first.\n\n## Steps\n\n1. Prepare\n   - check disk\n   - check network\n2. Deploy\n\n- [x] staged\n- [ ] prod\n\n```bash\nmake deploy\n```\n\n\n| Env     | Status |\n| :------- | ------: |\n| staging | ok     |\n\n\n<details>\n<summary>Rollback</summary>\n\nRun `make rollback`.\n\n</details>\n\n---\n\n![arch](attachment:abc123)",
+  "yupdate_b64": "AXgBAAcBB2NvbnRlbnQDB2hlYWRpbmcHAAEABgQAAQEHUnVuYm9vaygAAQAFbGV2ZWwBfQGHAQADCXBhcmFncmFwaAcAAQoGBAABCwtJbnRybyB3aXRoIIYBFgRib2xkAnt9hAEXBGJvbGSGARsEYm9sZARudWxshAEcAiwghgEeBml0YWxpYwJ7fYQBHwZpdGFsaWOGASUGaXRhbGljBG51bGyEASYCLCCGASgGc3RyaWtlAnt9hAEpBGdvbmWGAS0Gc3RyaWtlBG51bGyEAS4CLCCGATAEY29kZQJ7fYQBMQRjb2RlhgE1BGNvZGUEbnVsbIQBNgcgYW5kIGEghgE9BGxpbmtueyJocmVmIjoiaHR0cHM6Ly9leGFtcGxlLmNvbSIsInRhcmdldCI6Il9ibGFuayIsInJlbCI6Im5vb3BlbmVyIG5vcmVmZXJyZXIgbm9mb2xsb3ciLCJjbGFzcyI6bnVsbCwidGl0bGUiOiJ0In2EAT4EbGlua4YBQgRsaW5rBG51bGyEAUMBLocBCgMHY2FsbG91dAcAAUUDCXBhcmFncmFwaAcAAUYGBAABRxBSZWFkIHRoaXMgZmlyc3QuKAABRQRpY29uAXcG4pqg77iPhwFFAwdoZWFkaW5nBwABWQYEAAFaBVN0ZXBzKAABWQVsZXZlbAF9AocBWQMLb3JkZXJlZExpc3QHAAFhAwhsaXN0SXRlbQcAAWIDCXBhcmFncmFwaAcAAWMGBAABZAdQcmVwYXJlhwFjAwpidWxsZXRMaXN0BwABbAMIbGlzdEl0ZW0HAAFtAwlwYXJhZ3JhcGgHAAFuBgQAAW8KY2hlY2sgZGlza4cBbQMIbGlzdEl0ZW0HAAF6AwlwYXJhZ3JhcGgHAAF7BgQAAXwNY2hlY2sgbmV0d29ya4cBYgMIbGlzdEl0ZW0HAAGKAQMJcGFyYWdyYXBoBwABiwEGBAABjAEGRGVwbG95KAABYQVzdGFydAF9AYcBYQMIdGFza0xpc3QHAAGUAQMIdGFza0l0ZW0HAAGVAQMJcGFyYWdyYXBoBwABlgEGBAABlwEGc3RhZ2VkKAABlQEHY2hlY2tlZAF4hwGVAQMIdGFza0l0ZW0HAAGfAQMJcGFyYWdyYXBoBwABoAEGBAABoQEEcHJvZCgAAZ8BB2NoZWNrZWQBeYcBlAEDCWNvZGVCbG9jawcAAacBBgQAAagBC21ha2UgZGVwbG95KAABpwEIbGFuZ3VhZ2UBdwRiYXNohwGnAQMFdGFibGUHAAG1AQMIdGFibGVSb3cHAAG2AQMLdGFibGVIZWFkZXIHAAG3AQMJcGFyYWdyYXBoBwABuAEGBAABuQEDRW52KAABtwEHY29sc3BhbgF9ASgAAbcBB3Jvd3NwYW4BfQEoAAG3AQVhbGlnbgF3BGxlZnSHAbcBAwt0YWJsZUhlYWRlcgcAAcABAwlwYXJhZ3JhcGgHAAHBAQYEAAHCAQZTdGF0dXMoAAHAAQdjb2xzcGFuAX0BKAABwAEHcm93c3BhbgF9ASgAAcABBWFsaWduAXcFcmlnaHSHAbYBAwh0YWJsZVJvdwcAAcwBAwl0YWJsZUNlbGwHAAHNAQMJcGFyYWdyYXBoBwABzgEGBAABzwEHc3RhZ2luZygAAc0BB2NvbHNwYW4BfQEoAAHNAQdyb3dzcGFuAX0BKAABzQEFYWxpZ24BdwRsZWZ0hwHNAQMJdGFibGVDZWxsBwAB2gEDCXBhcmFncmFwaAcAAdsBBgQAAdwBAm9rKAAB2gEHY29sc3BhbgF9ASgAAdoBB3Jvd3NwYW4BfQEoAAHaAQVhbGlnbgF3BXJpZ2h0hwG1AQMHZGV0YWlscwcAAeIBAw5kZXRhaWxzU3VtbWFyeQcAAeMBBgQAAeQBCFJvbGxiYWNrhwHjAQMOZGV0YWlsc0NvbnRlbnQHAAHtAQMJcGFyYWdyYXBoBwAB7gEGBAAB7wEEUnVuIIYB8wEEY29kZQJ7fYQB9AENbWFrZSByb2xsYmFja4YBgQIEY29kZQRudWxshAGCAgEuKAAB4gEEb3BlbgF5KAAB4gEFbGV2ZWwBfQCHAeIBAw5ob3Jpem9udGFsUnVsZYcBhgIDBWltYWdlKAABhwIDc3JjAXcRYXR0YWNobWVudDphYmMxMjMoAAGHAgNhbHQBdwRhcmNoKAABhwIGc3RhdHVzAXcFcmVhZHkA",
+  "expect_lossy": false
+}

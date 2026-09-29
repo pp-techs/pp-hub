@@ -303,10 +303,21 @@ node_versions(id, node_id, blob_hash, size, mime,
 blobs(hash, size, ref_count, created_at,       -- blake3 hash = PK
       released_at, pinned_until,               -- GC: when ref_count last hit 0; a write's claim (0011)
       verified_at, damaged_at)                 -- scrub bookkeeping (0011)
-  -- ref_count is maintained by triggers on node_versions, previews and
-  -- users.avatar_blob, cascades included; no application code moves it.
+  -- ref_count is maintained by triggers on node_versions, previews,
+  -- users.avatar_blob and node_attachments, cascades included; no application
+  -- code moves it.
 
-file_locks(node_id, lock_token, expires_at)     -- WOPI locks
+file_locks(node_id, lock_token, expires_at)     -- WOPI locks, and block-document rooms'
+  -- A room's token is `collab:<nodeId>.<epoch>` (M39): taken when the room loads,
+  -- refreshed every 60 s, released when it unloads; every `collab:` row is
+  -- cleared at startup, since only this process's rooms can hold one.
+
+node_attachments(node_id, blob_hash, name, mime,  -- images/files dropped into a block
+                 size, created_by, created_at)    -- document (0013); not nodes, never listed
+  PRIMARY KEY (node_id, blob_hash)               -- the markdown says `attachment:<hash>`
+  -- node_id ON DELETE CASCADE; blob_hash REFERENCES blobs. Owned by the
+  -- document, not a version: older versions may still name it. A copy of the
+  -- document copies its rows, so no markdown needs rewriting.
 
 shares(id, tenant_id, node_id,                  -- file or folder; inherits down
        kind,                                    -- link | direct | group
@@ -328,10 +339,14 @@ shares(id, tenant_id, node_id,                  -- file or folder; inherits down
 
 previews(node_version_id, kind, blob_hash)      -- kind: thumbnail | text (the artifact)
 
-uploads(id, tenant_id, space_id, parent_id, node_id, name,  -- tus resumable state (0010)
-        total_size, uploaded, temp_path, expires_at, completed_at, created_by, created_at)
+uploads(id, tenant_id, space_id, parent_id, node_id, attach_to,  -- tus resumable state (0010)
+        name, total_size, uploaded, temp_path, expires_at, completed_at,
+        attachment_hash, created_by, created_at)
   CHECK (0 <= uploaded <= total_size)
+  CHECK uploads_one_target (node_id IS NULL OR attach_to IS NULL)   -- 0013
   -- node_id set = the bytes become a new version of that file (ON DELETE CASCADE);
+  -- attach_to set = an attachment of that block document (ON DELETE CASCADE), and
+  -- attachment_hash records what it became, for a HEAD after a lost response;
   -- otherwise a new file `name` under parent_id. total_size is NOT NULL: the cap and
   -- the quota are checked against it at creation. temp_path is relative to
   -- <PP_BLOB_ROOT>/.uploads. expires_at slides 24h forward on every chunk;
@@ -344,7 +359,9 @@ jobs(id, kind, payload, status, run_at, attempts)        -- kind routes to a wor
 ## Invariants
 
 - `node_versions` are immutable; restore = flip `nodes.current_version_id`.
-- Every `blob_hash` referenced by a version exists in `blobs` (the store claims the row before installing the bytes, and the version trigger creates it if somehow absent). `ref_count` equals the number of version, preview and avatar rows naming the hash — kept by trigger in the same statement as the reference; the daily storage audit recounts and logs any correction as a bug. See [storage.md](storage.md#garbage-collection).
+- Every `blob_hash` referenced by a version exists in `blobs` (the store claims the row before installing the bytes, and the version trigger creates it if somehow absent). `ref_count` equals the number of version, preview, avatar and attachment rows naming the hash — kept by trigger in the same statement as the reference, including the `node_attachments` rows a purge removes by cascade; the daily storage audit recounts and logs any correction as a bug. See [storage.md](storage.md#garbage-collection).
+- An attachment lives exactly as long as its document: one row per (document, blob), attaching the same bytes twice is the row already there, and the reference is released only when the document is purged (a copy holds its own row).
+- A `file_locks` row whose token starts `collab:` belongs to a block-document room. REST replacement is refused through it (423) like an OnlyOffice lock; restoring a version is let through, because the room reseeds itself.
 - A file node always has at least one version.
 - Uploading into a folder never overwrites: `PutFile` with a zero `fileID` always creates a node, suffixing the name (`report (2).txt`) when it is taken. A new version of an existing file is an explicit act — `POST /nodes/{id}/versions` until M30, a tus upload naming `node_id` since. Ownership must not depend on whether a filename happened to collide.
 - `uploads.uploaded` never claims a byte the staging file does not durably hold: `uploads.Service.Append` fsyncs before advancing the row, and a staging file found shorter than the row (a database restored without `.uploads`) discards the upload rather than resuming into zeros.
@@ -399,10 +416,10 @@ Recording is best-effort: an event describes work that already succeeded, so a f
 
 `fs.EnsureRoom` rejects adding bytes that would push a space past `quota_bytes`, answering **413** with `fs.ErrQuotaExceeded`. Since M30 it compares `used + incoming` with no discount: a new version costs its full size, because the version it supersedes is still on disk. (Before M30, `fs.checkQuota` measured only the delta a new version introduced, so replacing a 10 MB file with an 11 MB one cost 1 MB — and every superseded version was invisible to the meter.) It runs twice for a tus upload: at creation against the declared length plus `PendingUploadBytes` — what other uploads still in flight have promised to the space, so parallel uploads cannot each pass a check they would fail together — and again in `fs.putFile` against the measured size once the bytes have landed, which is the enforcement; the declared figure only refuses early. The second check runs before the node is created, so a refused upload leaves no empty file behind. A space with `quota_bytes = 0` is unmetered.
 
-`spaces.used_bytes` is recomputed by `fs.RecountUsage` — one `SUM` (`SumSpaceUsage`) over **every stored version of every file in the space, trash included** — after any mutation that can change the total. Until M30 it summed only the current versions of live files, which let the meter and the disk drift apart; migration `0010` recomputed every space under the new definition. `fs.PutFile` and `fs.PutStagedFile` recount themselves, so WOPI saves move the meter too. It sums version sizes, not distinct blobs, so a copy sharing its blob is counted for each version that references it. A recount is cheap at this scale and cannot drift, unlike an incremental counter.
+`spaces.used_bytes` is recomputed by `fs.RecountUsage` — one `SUM` (`SumSpaceUsage`) over **every stored version of every file in the space, trash included**, plus every block-document attachment (M39) — after any mutation that can change the total. Until M30 it summed only the current versions of live files, which let the meter and the disk drift apart; migration `0010` recomputed every space under the new definition. `fs.PutFile` and `fs.PutStagedFile` recount themselves, so WOPI saves move the meter too. It sums version sizes, not distinct blobs, so a copy sharing its blob is counted for each version that references it. A recount is cheap at this scale and cannot drift, unlike an incremental counter.
 
 **Version retention** keeps history bounded. `version_retention_count` (`system_config`, default 100, `0` keeps every version, at most 10000) is read on every save; after each new version `fs.pruneVersions` runs `PruneVersions`, deleting every version beyond the newest N — the current version is never a candidate and counts as one of the N. Previews cascade, and the triggers release both kinds of blob so GC reclaims them. It applies on each file's next save, not in a retroactive sweep.
 
-`GET /api/v1/usage` (`SumSpaceUsageByCategory`) splits the same total: `trash` (every version of trashed files; `files` counts files), `versions` (superseded versions of live files; `files` counts versions), then current versions by MIME family — so the slices sum to `used_bytes`.
+`GET /api/v1/usage` (`SumSpaceUsageByCategory`) splits the same total: `trash` (every version of trashed files; `files` counts files), `versions` (superseded versions of live files; `files` counts versions), then current versions and a live document's attachments by MIME family — so the slices sum to `used_bytes`. An attachment is checked against the quota like a version: at upload creation against the declared length, and in `fs.AddStagedAttachment` against the measured size.
 
 Both fields are returned by `GET /api/v1/spaces`, and the rail's storage meter renders the ratio between them; `quota_bytes = 0` shows the used figure with no bar.

@@ -1,0 +1,30 @@
+{
+  "name": "callout-lowercase",
+  "input": "> [!note]\n> lower\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "callout",
+        "attrs": {
+          "icon": "ℹ️"
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "lower"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "> [!NOTE]\n> lower",
+  "yupdate_b64": "AQUBAAcBB2NvbnRlbnQDB2NhbGxvdXQHAAEAAwlwYXJhZ3JhcGgHAAEBBgQAAQIFbG93ZXIoAAEABGljb24BdwbihLnvuI8A",
+  "expect_lossy": false
+}

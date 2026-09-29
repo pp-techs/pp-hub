@@ -1,0 +1,45 @@
+{
+  "name": "details-closed",
+  "input": "<details>\n<summary>Title</summary>\n\nBody text.\n\n</details>\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "details",
+        "attrs": {
+          "open": false,
+          "level": 0
+        },
+        "content": [
+          {
+            "type": "detailsSummary",
+            "content": [
+              {
+                "type": "text",
+                "text": "Title"
+              }
+            ]
+          },
+          {
+            "type": "detailsContent",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Body text."
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "<details>\n<summary>Title</summary>\n\nBody text.\n\n</details>",
+  "yupdate_b64": "AQoBAAcBB2NvbnRlbnQDB2RldGFpbHMHAAEAAw5kZXRhaWxzU3VtbWFyeQcAAQEGBAABAgVUaXRsZYcBAQMOZGV0YWlsc0NvbnRlbnQHAAEIAwlwYXJhZ3JhcGgHAAEJBgQAAQoKQm9keSB0ZXh0LigAAQAEb3BlbgF5KAABAAVsZXZlbAF9AAA=",
+  "expect_lossy": false
+}
