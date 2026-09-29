@@ -1,4 +1,4 @@
-import type { AnyExtension } from "@tiptap/core";
+import { Extension, type AnyExtension } from "@tiptap/core";
 import { createBlockKit, type BlockKitOptions, type MentionOptions } from "@slash-editor/core";
 
 /**
@@ -17,6 +17,25 @@ export type MdocKitOptions = Omit<BlockKitOptions, "mention"> & {
 };
 
 const noMentions: MentionOptions["items"] = () => [];
+
+/**
+ * ⌘K opens the link popover — the keyboard half of the bubble toolbar's Link
+ * button, which runs the same `openLinkEditor` command. The mark keys (⌘B,
+ * ⌘I, ⌘E, ⌘⇧S) travel with the Tiptap marks themselves; the link editor is
+ * slash-editor state and shipped without a keymap, so the tooltip's ⌘K hint
+ * used to have nothing behind it. `openLinkEditor` reports failure where no
+ * link can be started (empty selection, cursor outside a link), and the key
+ * then falls through untouched.
+ */
+const linkShortcut = Extension.create({
+  name: "linkShortcut",
+  addKeyboardShortcuts() {
+    return {
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- Tiptap keymap id
+      "Mod-k": ({ editor }) => editor.commands.openLinkEditor(),
+    };
+  },
+});
 
 /**
  * StarterKit ships `underline` (serialized as `++x++`) and `BlockKitOptions`
@@ -39,6 +58,9 @@ export function createMdocKit(options: MdocKitOptions = {}): AnyExtension[] {
   return withoutUnderline(
     createBlockKit({
       ...rest,
+      // The caller's `extend` wins nothing and loses nothing: the shortcut is
+      // appended behind it.
+      extend: [...(rest.extend ?? []), linkShortcut],
       mention: mention === false ? false : { items: noMentions, ...mention },
     }),
   );
