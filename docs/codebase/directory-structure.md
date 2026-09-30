@@ -259,11 +259,12 @@ pp-hub/
   whether there are rows to sort. Deliberately not `ui-store`: that store is
   for ephemeral UI _state_, and a ReactNode is not state.
 - **Two rhythms, on purpose.** Every surface except the folder listing renders
-  inside `surface.tsx` — `@container/main` plus `px-4 lg:px-6` and
-  `py-4 md:py-6`. Put the rhythm there, not in the route: ten surfaces retyping
-  the class string is how it drifts. The listing keeps its own full-bleed
-  container (`rounded-b-xl overflow-hidden`, so rows clip to the inset's
-  corner) because a file manager's rows have to reach the edges.
+  inside `surface.tsx` — `@container/main` plus `p-4` at every breakpoint.
+  Put the rhythm there, not in the route: ten surfaces retyping
+  the class string is how it drifts. The listing keeps its own scroller
+  (`rounded-b-xl overflow-hidden`, so rows clip to the inset's corner, and a
+  sticky header), but its grid and list import `LISTING_PADDING` from
+  `surface.tsx` so their edges match Home, Recent, Starred, Shared and Trash.
 - **Folder navigation never shows another folder's rows.** `childrenOptions`
   has no `placeholderData`. A cached folder renders its own rows at once and
   refetches behind a `FetchingBar`; an uncached one shows `NodeGridSkeleton`

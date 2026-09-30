@@ -26,6 +26,7 @@ import {
 } from "@/components/node-actions";
 import { NodeIcon } from "@/components/node-icon";
 import { LoadingStatus } from "@/components/loading";
+import { LISTING_PADDING } from "@/components/surface";
 import { useUiStore } from "@/lib/ui-store";
 import { DRAG_DATA_TYPE, isValidMoveTarget, setDragGhost } from "@/lib/drag-drop";
 
@@ -66,7 +67,7 @@ export function NodeList({
   // Rows sit inside ContextMenuTrigger's `display: contents` wrapper, so
   // `divide-y` on the tbody never reaches them; each row draws its own border.
   return (
-    <div className="px-4 pb-4">
+    <div className={LISTING_PADDING}>
       <table className="w-full border-collapse text-left text-xs">
         <NodeListHead />
         <tbody>
@@ -96,7 +97,7 @@ function NodeListHead() {
   return (
     <thead className="bg-background border-border text-muted-foreground sticky top-0 z-10 border-b text-[11px] tracking-wider uppercase">
       <tr className="h-9">
-        <th scope="col" className="min-w-60 px-3 font-medium">
+        <th scope="col" className="min-w-60 px-2 font-medium">
           <Trans>Name</Trans>
         </th>
         <th scope="col" className="w-36 px-2 text-right font-medium">
@@ -108,7 +109,7 @@ function NodeListHead() {
         <th scope="col" className="w-32 px-2 font-medium">
           <Trans>Owner</Trans>
         </th>
-        <th scope="col" className="w-20 px-3 text-right font-medium">
+        <th scope="col" className="w-20 px-2 text-right font-medium">
           <Trans>Actions</Trans>
         </th>
       </tr>
@@ -122,13 +123,13 @@ function NodeListHead() {
  */
 export function NodeListSkeleton({ rows = 8 }: { rows?: number }) {
   return (
-    <LoadingStatus className="px-4 pb-4">
+    <LoadingStatus className={LISTING_PADDING}>
       <table className="w-full border-collapse text-left text-xs">
         <NodeListHead />
         <tbody>
           {Array.from({ length: rows }, (_, i) => (
             <tr key={i} className="border-border h-9 border-b">
-              <td className="px-3">
+              <td className="px-2">
                 <div className="flex items-center gap-2">
                   <Skeleton className="size-4 rounded" />
                   <Skeleton className="h-3" style={{ width: `${40 + ((i * 17) % 35)}%` }} />
@@ -143,7 +144,7 @@ export function NodeListSkeleton({ rows = 8 }: { rows?: number }) {
               <td className="px-2">
                 <Skeleton className="h-3 w-20" />
               </td>
-              <td className="px-3" />
+              <td className="px-2" />
             </tr>
           ))}
         </tbody>
@@ -284,7 +285,7 @@ const NodeListRow = memo(function NodeListRow({
           onClick={(e) => onClick(node, e)}
           onDoubleClick={() => onDoubleClick(node)}
         >
-          <td className="px-3 align-middle">
+          <td className="px-2 align-middle">
             <div className="flex min-w-0 items-center gap-2">
               <NodeIcon node={node} isShared={shared} />
               <span
@@ -308,7 +309,7 @@ const NodeListRow = memo(function NodeListRow({
           <td className="text-muted-foreground truncate px-2 align-middle">
             {node.in_team ? t`Team` : (node.owner ?? "—")}
           </td>
-          <td className="px-3 text-right align-middle">
+          <td className="px-2 text-right align-middle">
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={

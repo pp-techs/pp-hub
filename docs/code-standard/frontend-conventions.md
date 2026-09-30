@@ -68,8 +68,9 @@ Three layers, one direction only — components never call `api` directly:
 - **Page rhythm lives in `surface.tsx`.** Every surface except the folder
   listing renders inside `<Surface>`; size sections with container queries
   (`@xl/main`, `@4xl/main`), not viewport breakpoints, because the details
-  panel narrows the column without the route knowing. The listing stays
-  full-bleed on purpose.
+  panel narrows the column without the route knowing. The listing keeps its
+  own scroller (sticky header) but pads its grid and list with the same
+  `LISTING_PADDING` from `surface.tsx`, so My Drive lines up with every other page.
 - **Where a write lands is derived from the URL, once, by `DriveWriteProvider`**
   (`components/drive-write.tsx`), mounted in `routes/drive.tsx` above the
   sidebar and the inset alike. The rail's New menu and the listing's

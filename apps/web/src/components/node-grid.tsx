@@ -23,6 +23,7 @@ import { useFormatters } from "@/lib/format";
 import { useNodeActions, type NodeActionHandlers } from "@/components/node-actions";
 import { NodeIcon } from "@/components/node-icon";
 import { LoadingStatus } from "@/components/loading";
+import { LISTING_PADDING } from "@/components/surface";
 import { useUiStore } from "@/lib/ui-store";
 import { DRAG_DATA_TYPE, isValidMoveTarget, setDragGhost } from "@/lib/drag-drop";
 
@@ -113,7 +114,7 @@ export function NodeGrid({
   );
 
   return (
-    <div className="@container flex flex-col gap-6 p-4">
+    <div className={cn("@container flex flex-col gap-6", LISTING_PADDING)}>
       {dirs.length > 0 && (
         <section>
           <GroupLabel label={t`Folders`} count={dirs.length} selected={countSelected(dirs)} />
@@ -144,7 +145,7 @@ export function NodeGridSkeleton({
 }) {
   const label = <Skeleton className="mb-2 h-3 w-16" />;
   return (
-    <LoadingStatus className="@container flex flex-col gap-6 p-4">
+    <LoadingStatus className={cn("@container flex flex-col gap-6", LISTING_PADDING)}>
       <section>
         {label}
         <div className={GRID}>
