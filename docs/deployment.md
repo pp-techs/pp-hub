@@ -134,9 +134,10 @@ missing variable rather than booting a half-configured stack.
 `up -d`, not `up -d --build`. The three application images are published by
 `.github/workflows/release.yml` to
 `ghcr.io/pp-techs/pp-hub/{web,server,worker}`, and `PP_IMAGE_TAG` names the
-one this stack runs. Pushing the git tag `v0.1.0` publishes `:0.1.0`, `:0.1`
-and `:sha-<short>` — the image tag drops the `v`; a push to `main` publishes
-`:edge` and `:sha-<short>`.
+one this stack runs. Pushing the git tag `v0.1.0` publishes `:0.1.0`, `:0.1`,
+`:latest` and `:sha-<short>` — the image tag drops the `v`; a push to `main`
+publishes `:edge` and `:sha-<short>`. Prerelease tags (`v2.0.0-beta.1`) get
+their own tag but do not move `:latest`.
 
 | Action        | What you do                                      |
 | ------------- | ------------------------------------------------ |
@@ -144,12 +145,12 @@ and `:sha-<short>` — the image tag drops the `v`; a push to `main` publishes
 | Roll back     | set it back to `0.1.0`, re-run `up -d`           |
 | Build locally | add `-f compose.build.yml`, then `up -d --build` |
 
-`PP_IMAGE_TAG` has no default, and no `:latest` is published — `flavor:
-latest=false` in the workflow, because `docker/metadata-action` ships one on
-every semver tag otherwise. `latest` is not a version: it cannot be rolled
-back to, two hosts pulling it can run different code, and nothing on the box
-can then say what is deployed. The variable being required is what makes
-"which commit is in production" a question with an answer.
+`PP_IMAGE_TAG` has no default: pin a released version. `:latest` is published
+on every release for consumers who want the moving target, but `latest` is
+not a version — it cannot be rolled back to, two hosts pulling it can run
+different code, and nothing on the box can then say what is deployed. The
+variable being required, and pinned to a version, is what makes "which commit
+is in production" a question with an answer.
 
 Building on the deployment host is the thing this replaces. It puts a bun
 install, a Vite build and two Go builds on a box sized for serving, makes

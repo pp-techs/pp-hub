@@ -65,10 +65,11 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.name }}
-          # latest=auto is the default, and it publishes :latest on every
-          # semver tag. PP_IMAGE_TAG exists precisely so no deployment can
-          # name a moving target; shipping one anyway hands it back.
-          flavor: latest=false
+          # latest=auto publishes :latest on every release tag (and only
+          # there: main pushes and prerelease tags do not move it). Pinned
+          # tags stay the recommended PP_IMAGE_TAG value; :latest is for
+          # consumers who explicitly want the moving target.
+          flavor: latest=auto
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
