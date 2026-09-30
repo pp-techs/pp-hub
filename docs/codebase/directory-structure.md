@@ -33,7 +33,7 @@ pp-hub/
 │   │       │   └── use-keyed-state.ts # state that resets when its subject changes
 │   │       ├── components/         # app-level UI panels
 │   │       │   ├── share-dialog.tsx      # the one access surface: groups, people, link (better-modal)
-│   │       │   ├── people-table.tsx      # space membership: admin switch, groups, pending handover
+│   │       │   ├── people-table.tsx      # space membership: fixed-height rows, per-row ⋯ menu (admin, groups, remove), pending handover
 │   │       │   ├── group-list.tsx        # Groups pane: the space's groups and who is in them
 │   │       │   ├── invite-modal.tsx      # the one way into a space: an email + the admin toggle (better-modal)
 │   │       │   ├── no-admin-banner.tsx   # "this space has no administrator", above the space Outlet
@@ -326,15 +326,19 @@ pp-hub/
   itself (2→5 columns), so opening the details panel drops 5 columns to 4
   without the route passing anything down.
 - **Members is one table, and the only membership surface.** `people-table.tsx`
-  owns members, the Admin switch, the group chips and a **Pending handover**
-  section fed by `GET /spaces/{id}/departures`; `group-list.tsx` owns the
+  owns members, an Admin badge, the group chips and a **Pending handover**
+  section fed by `GET /spaces/{id}/departures`. Rows stay one line high: at
+  most two group chips, the rest folded into `+N` (full list in the tooltip).
+  Every membership write — make/remove admin, add to/remove from a group,
+  remove from space — lives in the row's trailing ⋯ menu, and removal goes
+  through `confirm-dialog.tsx`; `group-list.tsx` owns the
   groups, now a pane of its own beside Members rather than a 20rem drawer
   glued to it — filtering the table by group and administering the groups are
   different questions. `invite-modal.tsx` is the only way into a space —
   now an email address and the admin toggle, since `POST /spaces/{id}/members`
   takes `{email, as_admin}` and membership itself is decided in Logto. Admin
   _is_ membership of the automatic `Admin`
-  group, so the switch and the chip are one fact — which is why all three
+  group, so the menu item and the chip are one fact — which is why all three
   membership mutations invalidate `["spaces", id]` rather than just the member
   list, and why that group is read-only in the drawer. What a group _opens_ is
   still set on the folder, in its access dialog: this table answers who is in

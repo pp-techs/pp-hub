@@ -30,7 +30,7 @@ msgid "(included with edit)"
 msgstr "(included with edit)"
 
 #. placeholder {0}: groups.length
-#: src/components/people-table.tsx:161
+#: src/components/people-table.tsx:176
 msgid "{0, plural, one {# group} other {# groups}}"
 msgstr "{0, plural, one {# group} other {# groups}}"
 
@@ -228,7 +228,7 @@ msgstr "{nodeName} — version {versionNo}"
 msgid "{nodeName} was deleted by someone else"
 msgstr "{nodeName} was deleted by someone else"
 
-#: src/components/people-table.tsx:349
+#: src/components/people-table.tsx:373
 msgid "{owned, plural, one {This revokes every grant they gave other people, moves anything they created inside someone else’s folder to that folder’s owner, and files the # file they owned at the top level of this space into its Archive.} other {This revokes every grant they gave other people, moves anything they created inside someone else’s folder to that folder’s owner, and files the # files they owned at the top level of this space into its Archive.}}"
 msgstr "{owned, plural, one {This revokes every grant they gave other people, moves anything they created inside someone else’s folder to that folder’s owner, and files the # file they owned at the top level of this space into its Archive.} other {This revokes every grant they gave other people, moves anything they created inside someone else’s folder to that folder’s owner, and files the # files they owned at the top level of this space into its Archive.}}"
 
@@ -324,7 +324,7 @@ msgstr "{spaceName} · updated {when}"
 msgid "{spaceName} · uploaded {when}"
 msgstr "{spaceName} · uploaded {when}"
 
-#: src/components/people-table.tsx:159
+#: src/components/people-table.tsx:174
 msgid "{total, plural, one {# member} other {# members}}"
 msgstr "{total, plural, one {# member} other {# members}}"
 
@@ -503,12 +503,16 @@ msgstr "Accounts are provisioned by an administrator."
 msgid "Action"
 msgstr "Action"
 
-#: src/components/node-list.tsx:108
+#: src/components/node-list.tsx:112
 msgid "Actions"
 msgstr "Actions"
 
+#: src/components/people-table.tsx:537
+msgid "Actions for {memberEmail}"
+msgstr "Actions for {memberEmail}"
+
 #: src/components/node-grid.tsx:338
-#: src/components/node-list.tsx:314
+#: src/components/node-list.tsx:318
 msgid "Actions for {nodeName}"
 msgstr "Actions for {nodeName}"
 
@@ -525,8 +529,8 @@ msgid "Add"
 msgstr "Add"
 
 #: src/components/people-table.tsx:516
-msgid "Add {name} to a group"
-msgstr "Add {name} to a group"
+#~ msgid "Add {name} to a group"
+#~ msgstr "Add {name} to a group"
 
 #: src/components/comments/comment-composer.tsx:91
 msgid "Add a comment… (@ to mention)"
@@ -560,6 +564,10 @@ msgstr "Add someone to this group…"
 msgid "Add star"
 msgstr "Add star"
 
+#: src/components/people-table.tsx:560
+msgid "Add to group"
+msgstr "Add to group"
+
 #: src/components/nodes/embed-link-modal.tsx:124
 msgid "Add without preview"
 msgstr "Add without preview"
@@ -568,12 +576,12 @@ msgstr "Add without preview"
 msgid "Added by {ownerName}"
 msgstr "Added by {ownerName}"
 
-#: src/components/people-table.tsx:256
+#: src/components/people-table.tsx:268
 msgid "Added to {groupName}"
 msgstr "Added to {groupName}"
 
 #: src/components/command-palette.tsx:191
-#: src/components/people-table.tsx:217
+#: src/components/people-table.tsx:485
 #: src/components/preview-panel.tsx:254
 #: src/components/settings/panes/account-profile.tsx:234
 #: src/components/space-switcher.tsx:85
@@ -591,8 +599,8 @@ msgid "admin granted"
 msgstr "admin granted"
 
 #: src/components/people-table.tsx:468
-msgid "Admin of this space: {name}"
-msgstr "Admin of this space: {name}"
+#~ msgid "Admin of this space: {name}"
+#~ msgstr "Admin of this space: {name}"
 
 #: src/routes/admin.security.tsx:79
 msgid "admin revoked"
@@ -957,12 +965,12 @@ msgstr "Comment thread"
 msgid "Comments"
 msgstr "Comments"
 
-#: src/components/people-table.tsx:357
-#: src/components/people-table.tsx:606
+#: src/components/people-table.tsx:381
+#: src/components/people-table.tsx:642
 msgid "Complete handover"
 msgstr "Complete handover"
 
-#: src/components/people-table.tsx:346
+#: src/components/people-table.tsx:370
 msgid "Complete handover for {leaverName}?"
 msgstr "Complete handover for {leaverName}?"
 
@@ -1228,7 +1236,7 @@ msgstr "Creates it in {destination} and opens it in the editor."
 msgid "Creating…"
 msgstr "Creating…"
 
-#: src/components/version-list.tsx:102
+#: src/components/version-list.tsx:110
 msgid "Current"
 msgstr "Current"
 
@@ -1443,7 +1451,7 @@ msgstr "download"
 #: src/components/preview-modal.tsx:124
 #: src/components/preview-panel.tsx:345
 #: src/components/selection-bar.tsx:64
-#: src/components/version-list.tsx:122
+#: src/components/version-list.tsx:130
 #: src/routes/s/$token.tsx:216
 msgid "Download"
 msgstr "Download"
@@ -1600,7 +1608,7 @@ msgstr "Event"
 msgid "Events"
 msgstr "Events"
 
-#: src/components/versions-panel.tsx:26
+#: src/components/versions-panel.tsx:28
 msgid "Every saved revision of this file."
 msgstr "Every saved revision of this file."
 
@@ -1653,7 +1661,7 @@ msgstr "Expand transfers"
 msgid "Expiration"
 msgstr "Expiration"
 
-#: src/components/people-table.tsx:184
+#: src/components/people-table.tsx:199
 #: src/routes/admin.security.tsx:260
 msgid "Export CSV"
 msgstr "Export CSV"
@@ -1663,7 +1671,7 @@ msgstr "Export CSV"
 msgid "Export with images (.zip)"
 msgstr "Export with images (.zip)"
 
-#: src/components/people-table.tsx:622
+#: src/components/people-table.tsx:658
 msgid "External"
 msgstr "External"
 
@@ -1733,7 +1741,7 @@ msgstr "Files"
 msgid "Files and folders"
 msgstr "Files and folders"
 
-#: src/components/people-table.tsx:229
+#: src/components/people-table.tsx:241
 #: src/components/people-table.tsx:323
 msgid "Files owned"
 msgstr "Files owned"
@@ -1747,11 +1755,11 @@ msgstr "Files you upload or edit in this space show up here."
 msgid "Filter by event kind"
 msgstr "Filter by event kind"
 
-#: src/components/people-table.tsx:201
+#: src/components/people-table.tsx:216
 msgid "Filter by group"
 msgstr "Filter by group"
 
-#: src/components/people-table.tsx:193
+#: src/components/people-table.tsx:208
 #: src/routes/admin.users.tsx:150
 msgid "Filter by name or email"
 msgstr "Filter by name or email"
@@ -1761,7 +1769,7 @@ msgstr "Filter by name or email"
 msgid "Filter deleted items"
 msgstr "Filter deleted items"
 
-#: src/components/people-table.tsx:194
+#: src/components/people-table.tsx:209
 msgid "Filter people by name or email"
 msgstr "Filter people by name or email"
 
@@ -1812,7 +1820,7 @@ msgstr "Folders this group opens"
 msgid "Forever"
 msgstr "Forever"
 
-#: src/components/people-table.tsx:68
+#: src/components/people-table.tsx:81
 msgid "Found by the hourly check"
 msgstr "Found by the hourly check"
 
@@ -1908,16 +1916,16 @@ msgstr "group member removed"
 msgid "group updated"
 msgstr "group updated"
 
-#: src/components/people-table.tsx:124
+#: src/components/people-table.tsx:138
 msgid "Group: {groupName}"
 msgstr "Group: {groupName}"
 
-#: src/components/people-table.tsx:121
+#: src/components/people-table.tsx:135
 msgid "Group: All"
 msgstr "Group: All"
 
 #: src/components/grantee-picker.tsx:96
-#: src/components/people-table.tsx:220
+#: src/components/people-table.tsx:232
 #: src/components/settings/panes.ts:98
 msgid "Groups"
 msgstr "Groups"
@@ -1934,7 +1942,7 @@ msgstr "Groups decide what people can open. Give a group a file or folder from t
 msgid "Guest"
 msgstr "Guest"
 
-#: src/components/people-table.tsx:363
+#: src/components/people-table.tsx:387
 msgid "Handover for {who} is complete"
 msgstr "Handover for {who} is complete"
 
@@ -2052,7 +2060,7 @@ msgid "Invitation sent to {address}"
 msgstr "Invitation sent to {address}"
 
 #: src/components/invite-modal.tsx:100
-#: src/components/people-table.tsx:176
+#: src/components/people-table.tsx:191
 msgid "Invite people"
 msgstr "Invite people"
 
@@ -2060,7 +2068,7 @@ msgstr "Invite people"
 msgid "IP"
 msgstr "IP"
 
-#: src/components/version-list.tsx:66
+#: src/components/version-list.tsx:67
 msgid "It is now the current version."
 msgstr "It is now the current version."
 
@@ -2100,7 +2108,7 @@ msgstr "Its original folder is also in the trash, so it went to the top level."
 msgid "Join as admin"
 msgstr "Join as admin"
 
-#: src/components/people-table.tsx:223
+#: src/components/people-table.tsx:235
 msgid "Joined"
 msgstr "Joined"
 
@@ -2144,7 +2152,7 @@ msgstr "Language changed here, but could not be saved to your account."
 msgid "Large section title"
 msgstr "Large section title"
 
-#: src/components/people-table.tsx:226
+#: src/components/people-table.tsx:238
 msgid "Last active"
 msgstr "Last active"
 
@@ -2274,7 +2282,7 @@ msgstr "Mail"
 msgid "Make a copy"
 msgstr "Make a copy"
 
-#: src/components/people-table.tsx:474
+#: src/components/people-table.tsx:553
 #: src/routes/admin.users.tsx:239
 msgid "Make admin"
 msgstr "Make admin"
@@ -2338,7 +2346,7 @@ msgid "Medium section title"
 msgstr "Medium section title"
 
 #: src/components/command-palette.tsx:191
-#: src/components/people-table.tsx:214
+#: src/components/people-table.tsx:229
 #: src/components/preview-panel.tsx:254
 #: src/components/settings/panes/account-profile.tsx:234
 msgid "Member"
@@ -2379,7 +2387,7 @@ msgid "minutes"
 msgstr "minutes"
 
 #: src/components/listing-controls.tsx:24
-#: src/components/node-list.tsx:99
+#: src/components/node-list.tsx:103
 #: src/components/node-table.tsx:70
 #: src/components/preview-modal.tsx:158
 #: src/components/preview-panel.tsx:396
@@ -2436,7 +2444,7 @@ msgstr "My Drive"
 #: src/components/group-list.tsx:369
 #: src/components/listing-controls.tsx:23
 #: src/components/new-document-dialog.tsx:121
-#: src/components/node-list.tsx:96
+#: src/components/node-list.tsx:100
 #: src/components/node-table.tsx:67
 #: src/components/settings/panes/account-general.tsx:44
 #: src/components/space-node-table.tsx:84
@@ -2467,7 +2475,7 @@ msgstr "Name it after the people, not the folder — one group usually opens sev
 msgid "navigate"
 msgstr "navigate"
 
-#: src/components/people-table.tsx:537
+#: src/components/people-table.tsx:526
 #: src/routes/admin.users.tsx:210
 msgid "never"
 msgstr "never"
@@ -2689,7 +2697,7 @@ msgstr "Nothing starred"
 msgid "Nothing stored yet."
 msgstr "Nothing stored yet."
 
-#: src/components/people-table.tsx:66
+#: src/components/people-table.tsx:79
 msgid "Noticed when they last signed in"
 msgstr "Noticed when they last signed in"
 
@@ -2800,7 +2808,7 @@ msgstr "Outline"
 msgid "Overview"
 msgstr "Overview"
 
-#: src/components/node-list.tsx:105
+#: src/components/node-list.tsx:109
 #: src/components/node-table.tsx:76
 #: src/components/preview-modal.tsx:157
 #: src/components/preview-panel.tsx:393
@@ -2849,7 +2857,7 @@ msgid "Pending handover"
 msgstr "Pending handover"
 
 #: src/components/grantee-picker.tsx:120
-#: src/components/people-table.tsx:156
+#: src/components/people-table.tsx:171
 #: src/components/preview-panel.tsx:206
 msgid "People"
 msgstr "People"
@@ -2989,12 +2997,12 @@ msgid "Reinstate"
 msgstr "Reinstate"
 
 #: src/components/people-table.tsx:501
-msgid "Remove {memberEmail} from {groupName}"
-msgstr "Remove {memberEmail} from {groupName}"
+#~ msgid "Remove {memberEmail} from {groupName}"
+#~ msgstr "Remove {memberEmail} from {groupName}"
 
 #: src/components/people-table.tsx:550
-msgid "Remove {memberEmail} from the space"
-msgstr "Remove {memberEmail} from the space"
+#~ msgid "Remove {memberEmail} from the space"
+#~ msgstr "Remove {memberEmail} from the space"
 
 #: src/components/share-dialog.tsx:419
 msgid "Remove {name}"
@@ -3008,16 +3016,25 @@ msgstr "Remove {name} from {groupName}"
 msgid "Remove {name}'s access"
 msgstr "Remove {name}'s access"
 
+#: src/components/people-table.tsx:346
+msgid "Remove {removingName} from this space?"
+msgstr "Remove {removingName} from this space?"
+
 #: src/components/share-dialog.tsx:856
 #: src/components/share-dialog.tsx:879
 msgid "Remove access"
 msgstr "Remove access"
 
-#: src/components/people-table.tsx:473
+#: src/components/people-table.tsx:549
 msgid "Remove admin rights"
 msgstr "Remove admin rights"
 
-#: src/components/people-table.tsx:551
+#: src/components/people-table.tsx:574
+msgid "Remove from group"
+msgstr "Remove from group"
+
+#: src/components/people-table.tsx:348
+#: src/components/people-table.tsx:587
 msgid "Remove from space"
 msgstr "Remove from space"
 
@@ -3037,15 +3054,15 @@ msgstr "Remove space avatar"
 msgid "Remove star"
 msgstr "Remove star"
 
-#: src/components/people-table.tsx:278
+#: src/components/people-table.tsx:357
 msgid "Removed {memberEmail}"
 msgstr "Removed {memberEmail}"
 
-#: src/components/people-table.tsx:266
+#: src/components/people-table.tsx:278
 msgid "Removed from {groupName}"
 msgstr "Removed from {groupName}"
 
-#: src/components/people-table.tsx:69
+#: src/components/people-table.tsx:82
 msgid "Removed from this space here"
 msgstr "Removed from this space here"
 
@@ -3089,7 +3106,7 @@ msgstr "Reply"
 msgid "Reply… (@ to mention)"
 msgstr "Reply… (@ to mention)"
 
-#: src/components/people-table.tsx:67
+#: src/components/people-table.tsx:80
 msgid "Reported by the identity provider"
 msgstr "Reported by the identity provider"
 
@@ -3119,7 +3136,7 @@ msgid "Resolved ({resolvedCount})"
 msgstr "Resolved ({resolvedCount})"
 
 #: src/components/trash-panel.tsx:389
-#: src/components/version-list.tsx:132
+#: src/components/version-list.tsx:140
 msgid "Restore"
 msgstr "Restore"
 
@@ -3135,7 +3152,7 @@ msgstr "Restore this version"
 msgid "Restored “{restored}”"
 msgstr "Restored “{restored}”"
 
-#: src/components/version-list.tsx:65
+#: src/components/version-list.tsx:66
 msgid "Restored version {versionNo}"
 msgstr "Restored version {versionNo}"
 
@@ -3431,7 +3448,7 @@ msgstr "Show in document"
 msgid "Show older"
 msgstr "Show older"
 
-#: src/components/people-table.tsx:204
+#: src/components/people-table.tsx:219
 msgid "Showing {shown} of {total}"
 msgstr "Showing {shown} of {total}"
 
@@ -3506,7 +3523,7 @@ msgid "Signed-in devices"
 msgstr "Signed-in devices"
 
 #: src/components/listing-controls.tsx:25
-#: src/components/node-list.tsx:102
+#: src/components/node-list.tsx:106
 #: src/components/node-table.tsx:73
 #: src/components/preview-modal.tsx:156
 #: src/components/preview-panel.tsx:375
@@ -3674,7 +3691,7 @@ msgstr "System"
 msgid "Table"
 msgstr "Table"
 
-#: src/components/node-list.tsx:305
+#: src/components/node-list.tsx:309
 msgid "Team"
 msgstr "Team"
 
@@ -3755,9 +3772,13 @@ msgstr "The rest of the thread stays."
 msgid "The server did not answer."
 msgstr "The server did not answer."
 
-#: src/components/people-table.tsx:279
+#: src/components/people-table.tsx:358
 msgid "Their access ended now. What they left behind waits under Pending handover."
 msgstr "Their access ended now. What they left behind waits under Pending handover."
+
+#: src/components/people-table.tsx:347
+msgid "Their access ends immediately. Files they own stay here and wait under Pending handover."
+msgstr "Their access ends immediately. Files they own stay here and wait under Pending handover."
 
 #: src/components/link-space-modal.tsx:114
 msgid "Their files stay in place and wait for a handover on the People pane."
@@ -3791,7 +3812,7 @@ msgstr "They have no account yet, so the identity provider emailed them a sign-i
 #~ msgid "They have no account yet, so the identity provider emailed them one. They join this space as soon as they accept."
 #~ msgstr "They have no account yet, so the identity provider emailed them one. They join this space as soon as they accept."
 
-#: src/components/people-table.tsx:354
+#: src/components/people-table.tsx:378
 msgid "They owned nothing here, so nothing moves into the Archive. This revokes the grants they gave other people and closes the handover. It cannot be undone."
 msgstr "They owned nothing here, so nothing moves into the Archive. This revokes the grants they gave other people and closes the handover. It cannot be undone."
 
@@ -3803,7 +3824,7 @@ msgstr "They will be added to {destination}"
 msgid "This account is suspended. Contact an administrator."
 msgstr "This account is suspended. Contact an administrator."
 
-#: src/components/people-table.tsx:620
+#: src/components/people-table.tsx:656
 msgid "This address is on a different mail domain from yours"
 msgstr "This address is on a different mail domain from yours"
 
@@ -3811,7 +3832,7 @@ msgstr "This address is on a different mail domain from yours"
 msgid "This browser can't display PDFs inline."
 msgstr "This browser can't display PDFs inline."
 
-#: src/components/people-table.tsx:356
+#: src/components/people-table.tsx:380
 msgid "This cannot be undone."
 msgstr "This cannot be undone."
 
@@ -4149,7 +4170,7 @@ msgstr "version {version}"
 msgid "version {versionNo}"
 msgstr "version {versionNo}"
 
-#: src/components/version-list.tsx:98
+#: src/components/version-list.tsx:106
 msgid "Version {versionNo}"
 msgstr "Version {versionNo}"
 
@@ -4165,7 +4186,7 @@ msgstr "Version history"
 msgid "Versions"
 msgstr "Versions"
 
-#: src/components/version-list.tsx:141
+#: src/components/version-list.tsx:149
 msgid "Versions are immutable. Restoring makes the selected version current; it does not delete anything."
 msgstr "Versions are immutable. Restoring makes the selected version current; it does not delete anything."
 
@@ -4177,7 +4198,7 @@ msgstr "Versions kept per file (0 = keep all)"
 msgid "Versions kept per file must be between 0 and 10000"
 msgstr "Versions kept per file must be between 0 and 10000"
 
-#: src/components/versions-panel.tsx:23
+#: src/components/versions-panel.tsx:25
 msgid "Versions of “{nodeName}”"
 msgstr "Versions of “{nodeName}”"
 
@@ -4193,7 +4214,7 @@ msgstr "view"
 
 #: src/components/folder-actions.tsx:203
 #: src/components/settings/panes/account-general.tsx:182
-#: src/components/version-list.tsx:112
+#: src/components/version-list.tsx:120
 msgid "View"
 msgstr "View"
 
@@ -4259,7 +4280,7 @@ msgstr "Who belongs in here, and why"
 msgid "Window (minutes)"
 msgstr "Window (minutes)"
 
-#: src/components/people-table.tsx:450
+#: src/components/people-table.tsx:480
 #: src/routes/admin.users.tsx:196
 msgid "You"
 msgstr "You"
@@ -4277,12 +4298,12 @@ msgid "You are viewing a shared link"
 msgstr "You are viewing a shared link"
 
 #: src/components/people-table.tsx:471
-msgid "You cannot change your own admin rights"
-msgstr "You cannot change your own admin rights"
+#~ msgid "You cannot change your own admin rights"
+#~ msgstr "You cannot change your own admin rights"
 
 #: src/components/people-table.tsx:551
-msgid "You cannot remove yourself"
-msgstr "You cannot remove yourself"
+#~ msgid "You cannot remove yourself"
+#~ msgstr "You cannot remove yourself"
 
 #: src/routes/drive/$spaceId/home.tsx:36
 #: src/routes/drive/$spaceId/recent.tsx:27

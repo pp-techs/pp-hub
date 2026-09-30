@@ -63,27 +63,31 @@ export function NodeList({
     return map;
   }, [nodes, selectedIds]);
 
+  // Rows sit inside ContextMenuTrigger's `display: contents` wrapper, so
+  // `divide-y` on the tbody never reaches them; each row draws its own border.
   return (
-    <table className="w-full border-collapse text-left text-xs">
-      <NodeListHead />
-      <tbody className="divide-border divide-y">
-        {nodes.map((n) => (
-          <NodeListRow
-            key={n.id}
-            node={n}
-            selected={selectedIds.has(n.id)}
-            starred={starredIds.has(n.id)}
-            shared={n.shared ?? false}
-            canWriteHere={canWriteHere}
-            onClick={onClick}
-            onDoubleClick={onDoubleClick}
-            onMoveNodes={onMoveNodes}
-            selectedNodes={selectedNodes}
-            {...handlers}
-          />
-        ))}
-      </tbody>
-    </table>
+    <div className="px-4 pb-4">
+      <table className="w-full border-collapse text-left text-xs">
+        <NodeListHead />
+        <tbody>
+          {nodes.map((n) => (
+            <NodeListRow
+              key={n.id}
+              node={n}
+              selected={selectedIds.has(n.id)}
+              starred={starredIds.has(n.id)}
+              shared={n.shared ?? false}
+              canWriteHere={canWriteHere}
+              onClick={onClick}
+              onDoubleClick={onDoubleClick}
+              onMoveNodes={onMoveNodes}
+              selectedNodes={selectedNodes}
+              {...handlers}
+            />
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -118,12 +122,12 @@ function NodeListHead() {
  */
 export function NodeListSkeleton({ rows = 8 }: { rows?: number }) {
   return (
-    <LoadingStatus>
+    <LoadingStatus className="px-4 pb-4">
       <table className="w-full border-collapse text-left text-xs">
         <NodeListHead />
-        <tbody className="divide-border divide-y">
+        <tbody>
           {Array.from({ length: rows }, (_, i) => (
-            <tr key={i} className="h-9">
+            <tr key={i} className="border-border h-9 border-b">
               <td className="px-3">
                 <div className="flex items-center gap-2">
                   <Skeleton className="size-4 rounded" />
@@ -272,7 +276,7 @@ const NodeListRow = memo(function NodeListRow({
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           className={cn(
-            "group hover:bg-muted/40 h-9 cursor-pointer transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_36px] align-middle",
+            "group border-border hover:bg-muted/40 h-9 cursor-pointer border-b transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_36px] align-middle",
             // Soft wash rather than a border, to match the grid's cards.
             selected && "bg-primary/10 hover:bg-primary/15",
             isDropTarget && "bg-primary/15 ring-2 ring-primary ring-inset",

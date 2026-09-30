@@ -3,15 +3,28 @@ import { toast } from "sonner";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { msg, plural } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
-import { Download, Lock, Plus, Trash2, UserPlus, UserRoundX, X } from "lucide-react";
+import {
+  Download,
+  Lock,
+  MoreHorizontal,
+  ShieldCheck,
+  ShieldOff,
+  UserMinus,
+  UserPlus,
+  UserRoundX,
+  Users,
+} from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import { Badge } from "@workspace/ui/components/badge";
-import { Switch } from "@workspace/ui/components/switch";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
 import {
@@ -113,6 +126,7 @@ export function PeopleTable({ space, groupFilter, onGroupFilterChange }: PeopleT
 
   const [query, setQuery] = useState("");
   const [handover, setHandover] = useState<SpaceDeparture | null>(null);
+  const [removing, setRemoving] = useState<SpaceMember | null>(null);
 
   // Not memoised: the labels are translated per render so they follow a
   // language switch, and a three- or ten-item map costs nothing next to the
@@ -145,6 +159,7 @@ export function PeopleTable({ space, groupFilter, onGroupFilterChange }: PeopleT
   const leaver = handover;
   const leaverName = leaver ? leaver.display_name || leaver.name || leaver.email : "";
   const owned = leaver?.files_owned ?? 0;
+  const removingName = removing ? removing.display_name || removing.name || removing.email : "";
 
   return (
     <div className="flex flex-col gap-6">
@@ -213,9 +228,6 @@ export function PeopleTable({ space, groupFilter, onGroupFilterChange }: PeopleT
               <TableHead>
                 <Trans>Member</Trans>
               </TableHead>
-              <TableHead className="w-16">
-                <Trans>Admin</Trans>
-              </TableHead>
               <TableHead className="w-64">
                 <Trans>Groups</Trans>
               </TableHead>
@@ -232,7 +244,7 @@ export function PeopleTable({ space, groupFilter, onGroupFilterChange }: PeopleT
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading && <SkeletonTableRows columns={isAdmin ? 7 : 6} />}
+            {isLoading && <SkeletonTableRows columns={isAdmin ? 6 : 5} />}
             {visibleMembers.map((member) => (
               <MemberRow
                 key={member.user_id}
@@ -269,25 +281,13 @@ export function PeopleTable({ space, groupFilter, onGroupFilterChange }: PeopleT
                   );
                 }}
                 onOpenGroup={(group) => onGroupFilterChange(group.id)}
-                onRemove={() => {
-                  const memberEmail = member.email;
-                  removeMember.mutate(
-                    { spaceId, userId: member.user_id },
-                    {
-                      onSuccess: () =>
-                        toast.success(t`Removed ${memberEmail}`, {
-                          description: t`Their access ended now. What they left behind waits under Pending handover.`,
-                        }),
-                      onError: (e) => toast.error(e.message),
-                    },
-                  );
-                }}
+                onRemove={() => setRemoving(member)}
               />
             ))}
 
             {!isLoading && shown === 0 && (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 7 : 6} className="text-muted-foreground py-6 text-xs">
+                <TableCell colSpan={isAdmin ? 6 : 5} className="text-muted-foreground py-6 text-xs">
                   <Trans>No one matches these filters.</Trans>
                 </TableCell>
               </TableRow>
@@ -339,6 +339,30 @@ export function PeopleTable({ space, groupFilter, onGroupFilterChange }: PeopleT
           </Table>
         </section>
       )}
+
+      <ConfirmDialog
+        open={!!removing}
+        onOpenChange={(open) => !open && setRemoving(null)}
+        title={t`Remove ${removingName} from this space?`}
+        description={t`Their access ends immediately. Files they own stay here and wait under Pending handover.`}
+        confirmLabel={t`Remove from space`}
+        confirmVariant="destructive"
+        onConfirm={() => {
+          if (!removing) return;
+          const memberEmail = removing.email;
+          removeMember.mutate(
+            { spaceId, userId: removing.user_id },
+            {
+              onSuccess: () =>
+                toast.success(t`Removed ${memberEmail}`, {
+                  description: t`Their access ended now. What they left behind waits under Pending handover.`,
+                }),
+              onError: (e) => toast.error(e.message),
+            },
+          );
+          setRemoving(null);
+        }}
+      />
 
       <ConfirmDialog
         open={!!leaver}
@@ -397,6 +421,9 @@ function FilterSelect({
   );
 }
 
+/** Group chips a row shows before folding the rest into "+N". */
+const MAX_GROUP_CHIPS = 2;
+
 interface MemberRowProps {
   member: SpaceMember;
   /** Every group in the space, for the add menu. */
@@ -433,6 +460,9 @@ function MemberRow({
   const joinable = groups.filter(
     (g) => !g.is_everyone && !g.is_admin && !held.some((h) => h.id === g.id),
   );
+  const leavable = held.filter((g) => !g.is_everyone && !g.is_admin);
+  const shownGroups = held.slice(0, MAX_GROUP_CHIPS);
+  const hiddenGroups = held.length - shownGroups.length;
 
   return (
     <TableRow>
@@ -450,6 +480,11 @@ function MemberRow({
                   <Trans>You</Trans>
                 </Badge>
               )}
+              {member.is_admin && (
+                <Badge variant="outline">
+                  <Trans>Admin</Trans>
+                </Badge>
+              )}
               {external && <ExternalChip />}
             </span>
             <span className="text-muted-foreground truncate text-[10px]">{member.email}</span>
@@ -458,74 +493,28 @@ function MemberRow({
       </TableCell>
 
       <TableCell>
-        {/* Admin is membership of the automatic Admin group, so this switch and
-            that group are the same fact — which is why the group itself is
-            read-only in the drawer. */}
-        <Switch
-          size="sm"
-          checked={member.is_admin}
-          disabled={!canManage || isSelf}
-          aria-label={t`Admin of this space: ${name}`}
-          title={
-            isSelf
-              ? t`You cannot change your own admin rights`
-              : member.is_admin
-                ? t`Remove admin rights`
-                : t`Make admin`
-          }
-          onCheckedChange={onAdminToggle}
-        />
-      </TableCell>
-
-      <TableCell>
-        <div className="flex flex-wrap items-center gap-1">
-          {held.map((g) => {
-            const automatic = g.is_everyone || g.is_admin;
-            const groupName = g.name;
-            return (
-              <span
-                key={g.id}
-                className="border-border text-muted-foreground inline-flex items-center gap-1 rounded-sm border px-1.5 text-[10px]"
-              >
-                {automatic && <Lock className="size-2.5 shrink-0" />}
-                <button
-                  type="button"
-                  className="hover:text-foreground max-w-24 truncate"
-                  onClick={() => onOpenGroup(g)}
-                >
-                  {g.name}
-                </button>
-                {canManage && !automatic && (
-                  <button
-                    type="button"
-                    aria-label={t`Remove ${memberEmail} from ${groupName}`}
-                    className="hover:text-destructive shrink-0"
-                    onClick={() => onRemoveFromGroup(g)}
-                  >
-                    <X className="size-2.5" />
-                  </button>
-                )}
-              </span>
-            );
-          })}
-
-          {canManage && joinable.length > 0 && (
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button variant="ghost" size="icon-xs" aria-label={t`Add ${name} to a group`} />
-                }
-              >
-                <Plus />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                {joinable.map((g) => (
-                  <DropdownMenuItem key={g.id} onClick={() => onAddToGroup(g)}>
-                    {g.name}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+        {/* One line, whatever the count: the first two groups as chips and the
+            rest folded into "+N", so every row keeps the same height. The full
+            list is in the tooltip and in the row's menu. */}
+        <div
+          className="flex min-w-0 flex-nowrap items-center gap-1 overflow-hidden"
+          title={held.map((g) => g.name).join(", ")}
+        >
+          {shownGroups.map((g) => (
+            <button
+              key={g.id}
+              type="button"
+              className="border-border text-muted-foreground hover:text-foreground inline-flex max-w-28 shrink-0 items-center gap-1 rounded-sm border px-1.5 text-[10px]"
+              onClick={() => onOpenGroup(g)}
+            >
+              {(g.is_everyone || g.is_admin) && <Lock className="size-2.5 shrink-0" />}
+              <span className="truncate">{g.name}</span>
+            </button>
+          ))}
+          {hiddenGroups > 0 && (
+            <span className="text-muted-foreground shrink-0 text-[10px] tabular-nums">
+              +{hiddenGroups}
+            </span>
           )}
         </div>
       </TableCell>
@@ -541,17 +530,64 @@ function MemberRow({
       </TableCell>
 
       {canManage && (
-        <TableCell>
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            disabled={isSelf}
-            onClick={onRemove}
-            aria-label={t`Remove ${memberEmail} from the space`}
-            title={isSelf ? t`You cannot remove yourself` : t`Remove from space`}
-          >
-            <Trash2 />
-          </Button>
+        <TableCell className="text-right">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button variant="ghost" size="icon-xs" aria-label={t`Actions for ${memberEmail}`} />
+              }
+            >
+              <MoreHorizontal />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              {/* Admin is membership of the automatic Admin group, so this item
+                  and that group are the same fact — which is why the group
+                  itself is read-only in the drawer. */}
+              <DropdownMenuItem disabled={isSelf} onClick={() => onAdminToggle(!member.is_admin)}>
+                {member.is_admin ? (
+                  <>
+                    <ShieldOff /> <Trans>Remove admin rights</Trans>
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck /> <Trans>Make admin</Trans>
+                  </>
+                )}
+              </DropdownMenuItem>
+              {joinable.length > 0 && (
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <UserPlus /> <Trans>Add to group</Trans>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    {joinable.map((g) => (
+                      <DropdownMenuItem key={g.id} onClick={() => onAddToGroup(g)}>
+                        {g.name}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              )}
+              {leavable.length > 0 && (
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <Users /> <Trans>Remove from group</Trans>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    {leavable.map((g) => (
+                      <DropdownMenuItem key={g.id} onClick={() => onRemoveFromGroup(g)}>
+                        {g.name}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" disabled={isSelf} onClick={onRemove}>
+                <UserMinus /> <Trans>Remove from space</Trans>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </TableCell>
       )}
     </TableRow>

@@ -2,6 +2,7 @@ import { toast } from "sonner";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Download, Eye, RotateCcw } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
+import { cn } from "@workspace/ui/lib/utils";
 import { Badge } from "@workspace/ui/components/badge";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { LoadingStatus } from "@/components/loading";
@@ -89,11 +90,18 @@ export function VersionList({ node, onRestored }: { node: Node; onRestored?: () 
           const versionNo = v.version_no;
           return (
             <li key={v.id} className="relative flex flex-col gap-1">
+              {/* Centred on the list's 1px rule: the rule's centre is 12.5px
+                  (pl-3 + half the border) left of the item, so the 6px dot's
+                  left edge is at -15.5px. Vertically it centres on the 20px
+                  title row (top 7px). */}
               <span
                 aria-hidden
-                className="bg-border absolute top-1.5 -left-[17px] size-1.5 rounded-full"
+                className={cn(
+                  "absolute top-[7px] -left-[15.5px] size-1.5 rounded-full",
+                  v.id === current ? "bg-primary" : "bg-muted-foreground/40",
+                )}
               />
-              <div className="flex items-center gap-2">
+              <div className="flex min-h-5 items-center gap-2">
                 <span className="text-xs font-medium">
                   <Trans>Version {versionNo}</Trans>
                 </span>

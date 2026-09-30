@@ -17,7 +17,9 @@ export function VersionsPanel({ node }: { node: Node }) {
 
   return (
     <Dialog open onOpenChange={(v) => !v && close()}>
-      <DialogContent className="sm:max-w-md">
+      {/* Capped to the viewport: the header stays put and only the history
+          scrolls, however many versions the file has. */}
+      <DialogContent className="max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)] sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
             <Trans>Versions of “{nodeName}”</Trans>
@@ -26,7 +28,11 @@ export function VersionsPanel({ node }: { node: Node }) {
             <Trans>Every saved revision of this file.</Trans>
           </DialogDescription>
         </DialogHeader>
-        <VersionList node={node} onRestored={close} />
+        {/* pl-1: the timeline dots overhang the list's rule by 2.5px, and a
+            scroller clips on both axes. */}
+        <div className="min-h-0 overflow-y-auto pl-1">
+          <VersionList node={node} onRestored={close} />
+        </div>
       </DialogContent>
     </Dialog>
   );
