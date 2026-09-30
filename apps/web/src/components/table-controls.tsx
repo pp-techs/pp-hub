@@ -145,9 +145,11 @@ export function TableControls({ editor }: { editor: Editor }) {
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
-        <Separator orientation="vertical" className="mx-0.5 h-4" />
+        <Separator orientation="vertical" className="mx-0.5 h-4 data-vertical:self-center" />
         <ControlTooltip label={t`Header row`}>
           <Toggle
+            size="sm"
+            className="size-6 px-0"
             aria-label={t`Header row`}
             pressed={!!table?.header}
             onMouseDown={keepFocus}

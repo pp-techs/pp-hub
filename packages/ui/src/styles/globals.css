@@ -214,30 +214,66 @@
     @apply list-none pl-1;
   }
   .slash-content ul[data-type="taskList"] li {
-    @apply flex items-start gap-2;
+    @apply flex items-start gap-2 py-0.5;
   }
+  /* The label spans the first text line (`1lh`), so the box centres on it. */
   .slash-content ul[data-type="taskList"] li > label {
-    @apply mt-1 flex shrink-0 select-none;
-  }
-  .slash-content ul[data-type="taskList"] li > label input {
-    @apply accent-primary size-3.5;
+    @apply flex h-[1lh] shrink-0 items-center select-none;
   }
   .slash-content ul[data-type="taskList"] li > div {
     @apply min-w-0 flex-1;
+  }
+  .slash-content ul[data-type="taskList"] li > div > p {
+    @apply my-0;
   }
   .slash-content ul[data-type="taskList"] li[data-checked="true"] > div {
     @apply text-muted-foreground line-through;
   }
 
+  /*
+   * The checkbox is the node view's own <input>, restyled to shadcn's
+   * Checkbox. The tick is a mask so it takes `primary-foreground` in both
+   * modes (a data URL cannot read a theme token).
+   */
+  .slash-content ul[data-type="taskList"] li > label input[type="checkbox"] {
+    @apply border-input bg-background m-0 size-4 shrink-0 cursor-pointer appearance-none rounded-[4px] border shadow-xs transition-[background-color,border-color];
+  }
+  .slash-content ul[data-type="taskList"] li > label input[type="checkbox"]:checked {
+    @apply bg-primary border-primary;
+  }
+  .slash-content ul[data-type="taskList"] li > label input[type="checkbox"]:checked::before {
+    content: "";
+    @apply block size-full;
+    background-color: var(--color-primary-foreground);
+    mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><path d='M20 6 9 17l-5-5'/></svg>");
+    mask-repeat: no-repeat;
+    mask-position: center;
+    mask-size: 0.7rem;
+  }
+  .slash-content ul[data-type="taskList"] li > label input[type="checkbox"]:focus-visible {
+    @apply ring-ring/50 ring-[3px] outline-none;
+  }
+
+  /*
+   * A callout's children are its content, so the icon and the body are grid
+   * columns (several blocks stack in the second one). The first block loses
+   * its top margin so its line shares the icon's line box.
+   */
   .slash-content [data-type="callout"] {
-    @apply bg-muted/60 my-2 flex gap-2 rounded-md px-3 py-2;
+    @apply bg-muted/60 my-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-2 rounded-md px-3 py-2;
   }
   .slash-content [data-type="callout"]::before {
     content: attr(data-icon);
-    @apply shrink-0 leading-relaxed;
+    @apply col-start-1 row-start-1 leading-relaxed;
   }
   .slash-content [data-type="callout"] > * {
-    @apply min-w-0 flex-1;
+    @apply col-start-2 min-w-0;
+  }
+  .slash-content [data-type="callout"] > :first-child {
+    @apply mt-0;
+  }
+  .slash-content [data-type="callout"] > :last-child {
+    @apply mb-0;
   }
 
   .slash-content [data-type="details"] {

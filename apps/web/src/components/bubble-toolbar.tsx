@@ -106,7 +106,7 @@ export function BubbleToolbar({ editor }: { editor: Editor }) {
         className="w-auto flex-row items-center gap-0.5 p-1"
       >
         <BlockTypeDropdown editor={editor} />
-        <Separator orientation="vertical" className="mx-0.5 h-4" />
+        <Separator orientation="vertical" className="mx-0.5 h-4 data-vertical:self-center" />
         {toolbar.items.map((item) => (
           <ToolbarButton key={item.id} editor={editor} item={item} />
         ))}
@@ -128,7 +128,7 @@ export function BubbleToolbar({ editor }: { editor: Editor }) {
         </Tooltip>
         {editor.storage.comment?.store ? (
           <>
-            <Separator orientation="vertical" className="mx-0.5 h-4" />
+            <Separator orientation="vertical" className="mx-0.5 h-4 data-vertical:self-center" />
             <Tooltip>
               <TooltipTrigger
                 render={
