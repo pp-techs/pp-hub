@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -17,6 +18,7 @@ import {
 } from "@workspace/ui/components/sidebar";
 import { useDriveWrite } from "@/components/drive-write";
 import { folderActions } from "@/components/folder-actions";
+import { groupActions } from "@/lib/group-actions";
 
 /**
  * The rail's primary action. Styled as the accented row the dashboard blocks
@@ -52,14 +54,22 @@ export function NavCreate() {
                 }
               />
               <DropdownMenuContent align="start" className="w-48">
-                {actions.map((action, i) => (
-                  <Fragment key={action.key}>
-                    {/* Same grouping the background menu draws: the office and
-                        markdown block sits apart from folders and uploads. */}
-                    {i > 0 && actions[i - 1]!.group !== action.group && <DropdownMenuSeparator />}
-                    <DropdownMenuItem disabled={action.disabled} onClick={action.run}>
-                      <action.icon /> {i18n._(action.label)}
-                    </DropdownMenuItem>
+                {/* Same grouping the background menu draws: the office and
+                    markdown block sits apart from folders and uploads. */}
+                {groupActions(actions).map((group, i) => (
+                  <Fragment key={group[0]!.key}>
+                    {i > 0 && <DropdownMenuSeparator />}
+                    <DropdownMenuGroup>
+                      {group.map((action) => (
+                        <DropdownMenuItem
+                          key={action.key}
+                          disabled={action.disabled}
+                          onClick={action.run}
+                        >
+                          <action.icon /> {i18n._(action.label)}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuGroup>
                   </Fragment>
                 ))}
               </DropdownMenuContent>

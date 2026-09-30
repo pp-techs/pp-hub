@@ -82,6 +82,10 @@ Three layers, one direction only — components never call `api` directly:
   paste item never gets a second definition in a second menu. An item that
   names the file it creates wears that file's iconify `vscode-icons` glyph
   (`extIcon` in `components/node-icon.tsx`), never a Lucide stand-in.
+- **Menu grouping comes from the action's `group`.** Both `nodeActions` and
+  `folderActions` tag every item; menus split the list with `groupActions`
+  (`lib/group-actions.ts`) and render one `*MenuGroup` per run with a
+  `*MenuSeparator` between runs. No menu decides its own separators.
 - **A `shortcut` badge is a contract.** `nodeActions` names the key, the
   listing binds it — the folder route's key handler dispatches by action key
   through `nodeActions` itself, so the badge and the capability gates cannot

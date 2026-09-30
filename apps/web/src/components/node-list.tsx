@@ -1,29 +1,31 @@
-import { memo, useMemo, useRef, useState, type MouseEvent } from "react";
+import { Fragment, memo, useMemo, useRef, useState, type MouseEvent } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { MoreHorizontal } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import {
   ContextMenu,
   ContextMenuContent,
+  ContextMenuGroup,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuShortcut,
   ContextMenuTrigger,
 } from "@workspace/ui/components/context-menu";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { cn } from "@workspace/ui/lib/utils";
 import { canRestructure, type Node } from "@/lib/api";
 import { useFormatters } from "@/lib/format";
-import {
-  useNodeActions,
-  type NodeAction,
-  type NodeActionHandlers,
-} from "@/components/node-actions";
+import { groupActions } from "@/lib/group-actions";
+import { useNodeActions, type NodeActionHandlers } from "@/components/node-actions";
 import { NodeIcon } from "@/components/node-icon";
 import { LoadingStatus } from "@/components/loading";
 import { LISTING_PADDING } from "@/components/surface";
@@ -328,22 +330,27 @@ const NodeListRow = memo(function NodeListRow({
                 <MoreHorizontal />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                {actions.map((action) => (
-                  <DropdownMenuItem
-                    key={action.key}
-                    variant={action.destructive ? "destructive" : undefined}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      action.run();
-                    }}
-                  >
-                    <action.icon /> {i18n._(action.label)}
-                    {action.shortcut && (
-                      <span className="text-muted-foreground ml-auto pl-4 text-[10px]">
-                        {action.shortcut}
-                      </span>
-                    )}
-                  </DropdownMenuItem>
+                {groupActions(actions).map((group, i) => (
+                  <Fragment key={group[0]!.key}>
+                    {i > 0 && <DropdownMenuSeparator />}
+                    <DropdownMenuGroup>
+                      {group.map((action) => (
+                        <DropdownMenuItem
+                          key={action.key}
+                          variant={action.destructive ? "destructive" : undefined}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            action.run();
+                          }}
+                        >
+                          <action.icon /> {i18n._(action.label)}
+                          {action.shortcut && (
+                            <DropdownMenuShortcut>{action.shortcut}</DropdownMenuShortcut>
+                          )}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuGroup>
+                  </Fragment>
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
@@ -352,28 +359,24 @@ const NodeListRow = memo(function NodeListRow({
       </ContextMenuTrigger>
 
       <ContextMenuContent className="w-56">
-        {actions.map((action) => (
-          <ContextMenuItemWithSeparator key={action.key} action={action} />
+        {groupActions(actions).map((group, i) => (
+          <Fragment key={group[0]!.key}>
+            {i > 0 && <ContextMenuSeparator />}
+            <ContextMenuGroup>
+              {group.map((action) => (
+                <ContextMenuItem
+                  key={action.key}
+                  variant={action.destructive ? "destructive" : undefined}
+                  onClick={action.run}
+                >
+                  <action.icon data-icon="inline-start" /> {i18n._(action.label)}
+                  {action.shortcut && <ContextMenuShortcut>{action.shortcut}</ContextMenuShortcut>}
+                </ContextMenuItem>
+              ))}
+            </ContextMenuGroup>
+          </Fragment>
         ))}
       </ContextMenuContent>
     </ContextMenu>
   );
 });
-
-function ContextMenuItemWithSeparator({ action }: { action: NodeAction }) {
-  const { i18n } = useLingui();
-  return (
-    <>
-      {action.startsGroup && <ContextMenuSeparator />}
-      <ContextMenuItem
-        variant={action.destructive ? "destructive" : undefined}
-        onClick={action.run}
-      >
-        <action.icon data-icon="inline-start" /> {i18n._(action.label)}
-        {action.shortcut && (
-          <span className="text-muted-foreground ml-auto pl-4 text-[10px]">{action.shortcut}</span>
-        )}
-      </ContextMenuItem>
-    </>
-  );
-}

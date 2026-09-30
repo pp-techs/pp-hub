@@ -27,7 +27,10 @@ export function AppSidebar({
   spaceId: string | undefined;
 }) {
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
+    // The inset container pads by p-2 and every header/group/footer pads by
+    // p-2 again, doubling the gutter. The vertical half stays so the rail
+    // lines up with the inset card's m-2; the horizontal half goes.
+    <Sidebar collapsible="offcanvas" className="px-0" {...props}>
       <SidebarHeader>
         <SpaceSwitcher spaceId={spaceId} />
       </SidebarHeader>

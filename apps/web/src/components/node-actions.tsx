@@ -34,6 +34,12 @@ import {
 import type { OpenPanel } from "@/lib/ui-store";
 import { ShareDialog } from "@/components/share-dialog";
 
+/**
+ * Menu blocks, in the order they appear: opening the item, facts about it and
+ * who reaches it, reshaping it, the clipboard, and throwing it away.
+ */
+export type NodeActionGroup = "open" | "about" | "organize" | "clipboard" | "trash";
+
 export interface NodeAction {
   key: string;
   /**
@@ -53,8 +59,8 @@ export interface NodeAction {
    */
   shortcut?: string;
   destructive?: boolean;
-  /** Separator is drawn before this item when rendering a menu. */
-  startsGroup?: boolean;
+  /** Menus draw one group per run of equal values, separated from the next. */
+  group: NodeActionGroup;
   run: () => void;
 }
 
@@ -108,6 +114,7 @@ export function nodeActions(
       key: "preview",
       label: msg`Preview`,
       icon: Eye,
+      group: "open",
       // eslint-disable-next-line lingui/no-unlocalized-strings -- keyboard key name
       shortcut: "Space",
       run: () => handlers.onPreview(node),
@@ -118,6 +125,7 @@ export function nodeActions(
         key: "open-tab",
         label: msg`Open in new tab`,
         icon: ExternalLink,
+        group: "open",
         shortcut: "⌘↵",
         run: () => openInTab(node),
       });
@@ -131,6 +139,7 @@ export function nodeActions(
         key: "edit",
         label: caps.edit ? msg`Edit` : msg`Open`,
         icon: SquarePen,
+        group: "open",
         run: () => openEditor(node),
       });
     }
@@ -139,6 +148,7 @@ export function nodeActions(
         key: "download",
         label: msg`Download`,
         icon: Download,
+        group: "open",
         // No ⌘D badge: that key is the browser's own (bookmark), and the
         // listing refuses to take it away. Download stays a menu act.
         // eslint-disable-next-line lingui/no-unlocalized-strings -- window.open target
@@ -152,6 +162,7 @@ export function nodeActions(
         key: "export",
         label: msg`Export with images (.zip)`,
         icon: FileArchive,
+        group: "open",
         // eslint-disable-next-line lingui/no-unlocalized-strings -- window.open target
         run: () => window.open(exportDocumentUrl(node.id), "_blank"),
       });
@@ -160,6 +171,7 @@ export function nodeActions(
       key: "versions",
       label: msg`Versions`,
       icon: History,
+      group: "open",
       // eslint-disable-next-line lingui/no-unlocalized-strings -- panel id
       run: () => openPanel("versions", node),
     });
@@ -169,13 +181,14 @@ export function nodeActions(
     key: "details",
     label: msg`Information`,
     icon: Info,
-    startsGroup: node.kind === "file",
+    group: "about",
     run: () => handlers.onShowDetails(node),
   });
   actions.push({
     key: "star",
     label: starred ? msg`Remove star` : msg`Add star`,
     icon: starred ? StarOff : Star,
+    group: "about",
     run: () => handlers.onToggleStar(node, !starred),
   });
   // One entry, because there is one answer: groups, people and the public
@@ -185,6 +198,7 @@ export function nodeActions(
       key: "share",
       label: msg`Share`,
       icon: Link2,
+      group: "about",
       // eslint-disable-next-line lingui/no-unlocalized-strings -- keyboard key name
       shortcut: "⌘⇧S",
       run: () => void ShareDialog.show({ node }),
@@ -195,6 +209,7 @@ export function nodeActions(
       key: "rename",
       label: msg`Rename`,
       icon: Pencil,
+      group: "organize",
       // eslint-disable-next-line lingui/no-unlocalized-strings -- keyboard key name
       shortcut: "F2",
       run: () => handlers.onRename(node),
@@ -205,6 +220,7 @@ export function nodeActions(
       key: "move",
       label: msg`Move to…`,
       icon: FolderInput,
+      group: "organize",
       run: () => handlers.onMove(node),
     });
   }
@@ -222,6 +238,7 @@ export function nodeActions(
       key: "cut",
       label: msg`Cut`,
       icon: Scissors,
+      group: "clipboard",
       // eslint-disable-next-line lingui/no-unlocalized-strings -- clipboard mode
       run: () => handlers.onClipboard(node, "cut"),
     });
@@ -231,6 +248,7 @@ export function nodeActions(
       key: "clipboard-copy",
       label: msg`Copy`,
       icon: ClipboardCopy,
+      group: "clipboard",
       // eslint-disable-next-line lingui/no-unlocalized-strings -- clipboard mode
       run: () => handlers.onClipboard(node, "copy"),
     });
@@ -239,6 +257,7 @@ export function nodeActions(
         key: "copy",
         label: msg`Make a copy`,
         icon: Copy,
+        group: "clipboard",
         run: () => handlers.onCopy(node),
       });
     }
@@ -250,7 +269,7 @@ export function nodeActions(
       icon: Trash2,
       shortcut: "⌫",
       destructive: true,
-      startsGroup: true,
+      group: "trash",
       run: () => handlers.onDeleteRequest(node),
     });
   }

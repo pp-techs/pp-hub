@@ -1,6 +1,6 @@
 import { useQueries } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, MouseEvent } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { msg, plural } from "@lingui/core/macro";
@@ -11,6 +11,7 @@ import { Input } from "@workspace/ui/components/input";
 import {
   ContextMenu,
   ContextMenuContent,
+  ContextMenuGroup,
   ContextMenuItem,
   ContextMenuRadioGroup,
   ContextMenuRadioItem,
@@ -62,6 +63,7 @@ import { useMarqueeSelection } from "@/lib/use-marquee-selection";
 import { useKeyedState } from "@/lib/use-keyed-state";
 import { useUiStore } from "@/lib/ui-store";
 import { useFormatters } from "@/lib/format";
+import { groupActions } from "@/lib/group-actions";
 import { pageTitle } from "@/lib/i18n";
 import { NodePanels } from "@/components/node-panels";
 import { PreviewModal } from "@/components/preview-modal";
@@ -646,12 +648,15 @@ function FolderView() {
             </ContextMenuTrigger>
 
             <ContextMenuContent className="w-56">
-              {backgroundActions.map((action, i) => (
-                <BackgroundMenuItem
-                  key={action.key}
-                  action={action}
-                  startsGroup={i > 0 && backgroundActions[i - 1]!.group !== action.group}
-                />
+              {groupActions(backgroundActions).map((group, i) => (
+                <Fragment key={group[0]!.key}>
+                  {i > 0 && <ContextMenuSeparator />}
+                  <ContextMenuGroup>
+                    {group.map((action) => (
+                      <BackgroundMenuItem key={action.key} action={action} />
+                    ))}
+                  </ContextMenuGroup>
+                </Fragment>
               ))}
             </ContextMenuContent>
           </ContextMenu>
@@ -752,41 +757,30 @@ function foreignOwnedWarning(count: number, folders: number): string | undefined
 }
 
 /**
- * One background action, with the separator that opens its group. Submenus are
- * radio groups because sort and view are one-of-many, not toggles.
+ * One background action. Submenus are radio groups because sort and view are
+ * one-of-many, not toggles.
  */
-function BackgroundMenuItem({
-  action,
-  startsGroup,
-}: {
-  action: FolderAction;
-  startsGroup: boolean;
-}) {
+function BackgroundMenuItem({ action }: { action: FolderAction }) {
   const { i18n } = useLingui();
   const choices = action.choices;
-  return (
-    <>
-      {startsGroup && <ContextMenuSeparator />}
-      {choices ? (
-        <ContextMenuSub>
-          <ContextMenuSubTrigger>
-            <action.icon /> {i18n._(action.label)}
-          </ContextMenuSubTrigger>
-          <ContextMenuSubContent className="w-48">
-            <ContextMenuRadioGroup value={choices.value} onValueChange={choices.onSelect}>
-              {choices.items.map((item) => (
-                <ContextMenuRadioItem key={item.value} value={item.value}>
-                  {i18n._(item.label)}
-                </ContextMenuRadioItem>
-              ))}
-            </ContextMenuRadioGroup>
-          </ContextMenuSubContent>
-        </ContextMenuSub>
-      ) : (
-        <ContextMenuItem disabled={action.disabled} onClick={action.run}>
-          <action.icon /> {i18n._(action.label)}
-        </ContextMenuItem>
-      )}
-    </>
+  return choices ? (
+    <ContextMenuSub>
+      <ContextMenuSubTrigger>
+        <action.icon /> {i18n._(action.label)}
+      </ContextMenuSubTrigger>
+      <ContextMenuSubContent className="w-48">
+        <ContextMenuRadioGroup value={choices.value} onValueChange={choices.onSelect}>
+          {choices.items.map((item) => (
+            <ContextMenuRadioItem key={item.value} value={item.value}>
+              {i18n._(item.label)}
+            </ContextMenuRadioItem>
+          ))}
+        </ContextMenuRadioGroup>
+      </ContextMenuSubContent>
+    </ContextMenuSub>
+  ) : (
+    <ContextMenuItem disabled={action.disabled} onClick={action.run}>
+      <action.icon /> {i18n._(action.label)}
+    </ContextMenuItem>
   );
 }

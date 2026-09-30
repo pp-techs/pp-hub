@@ -13,11 +13,11 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: src/routes/drive/$spaceId/index.tsx:378
+#: src/routes/drive/$spaceId/index.tsx:380
 msgid "“{nodeName}” copied — paste it in another folder"
 msgstr "“{nodeName}” copied — paste it in another folder"
 
-#: src/routes/drive/$spaceId/index.tsx:377
+#: src/routes/drive/$spaceId/index.tsx:379
 msgid "“{nodeName}” cut — paste it in another folder"
 msgstr "“{nodeName}” cut — paste it in another folder"
 
@@ -26,8 +26,8 @@ msgid "(edited)"
 msgstr "(edited)"
 
 #: src/components/share-dialog.tsx:468
-msgid "(included with edit)"
-msgstr "(included with edit)"
+#~ msgid "(included with edit)"
+#~ msgstr "(included with edit)"
 
 #. placeholder {0}: groups.length
 #: src/components/people-table.tsx:176
@@ -93,7 +93,7 @@ msgstr "{address} is now a member"
 msgid "{buried, plural, one {# item of yours inside} other {# items of yours inside}}"
 msgstr "{buried, plural, one {# item of yours inside} other {# items of yours inside}}"
 
-#: src/routes/drive/$spaceId/index.tsx:714
+#: src/routes/drive/$spaceId/index.tsx:719
 msgid "{count, plural, one {Are you sure you want to move # item to trash?} other {Are you sure you want to move # items to trash?}}"
 msgstr "{count, plural, one {Are you sure you want to move # item to trash?} other {Are you sure you want to move # items to trash?}}"
 
@@ -101,11 +101,11 @@ msgstr "{count, plural, one {Are you sure you want to move # item to trash?} oth
 msgid "{count, plural, one {The other signed-in device will have to sign in again.} other {All # other signed-in devices will have to sign in again.}}"
 msgstr "{count, plural, one {The other signed-in device will have to sign in again.} other {All # other signed-in devices will have to sign in again.}}"
 
-#: src/routes/drive/$spaceId/index.tsx:747
+#: src/routes/drive/$spaceId/index.tsx:752
 msgid "{count, plural, one {These folders hold # item other people created. They lose access until you restore them.} other {These folders hold # items other people created. They lose access until you restore them.}}"
 msgstr "{count, plural, one {These folders hold # item other people created. They lose access until you restore them.} other {These folders hold # items other people created. They lose access until you restore them.}}"
 
-#: src/routes/drive/$spaceId/index.tsx:742
+#: src/routes/drive/$spaceId/index.tsx:747
 msgid "{count, plural, one {This folder holds # item other people created. They lose access until you restore it.} other {This folder holds # items other people created. They lose access until you restore it.}}"
 msgstr "{count, plural, one {This folder holds # item other people created. They lose access until you restore it.} other {This folder holds # items other people created. They lose access until you restore it.}}"
 
@@ -216,7 +216,7 @@ msgstr "{n, plural, one {# suspended} other {# suspended}}"
 msgid "{n, plural, one {Paste # item} other {Paste # items}}"
 msgstr "{n, plural, one {Paste # item} other {Paste # items}}"
 
-#: src/components/share-dialog.tsx:602
+#: src/components/share-dialog.tsx:615
 msgid "{name} no longer has access"
 msgstr "{name} no longer has access"
 
@@ -252,11 +252,11 @@ msgstr "{purged, plural, one {Permanently deleted # item} other {Permanently del
 msgid "{rescued, plural, one {# item created by other people moved to their owner’s top level instead.} other {# items created by other people moved to their owner’s top level instead.}}"
 msgstr "{rescued, plural, one {# item created by other people moved to their owner’s top level instead.} other {# items created by other people moved to their owner’s top level instead.}}"
 
-#: src/components/share-dialog.tsx:859
+#: src/components/share-dialog.tsx:875
 msgid "{revokeWho} loses access to this {nodeKind, select, dir {folder} other {file}}, but keeps the {revokeOwned, plural, one {# item} other {# items}} they created inside it — ownership is theirs, so those appear at their own top level."
 msgstr "{revokeWho} loses access to this {nodeKind, select, dir {folder} other {file}}, but keeps the {revokeOwned, plural, one {# item} other {# items}} they created inside it — ownership is theirs, so those appear at their own top level."
 
-#: src/components/node-grid.tsx:68
+#: src/components/node-grid.tsx:75
 msgid "{selected, plural, one {# selected} other {# selected}}"
 msgstr "{selected, plural, one {# selected} other {# selected}}"
 
@@ -454,15 +454,15 @@ msgstr "A file with this name is already in this folder."
 msgid "A top-level folder in {spaceName} that nobody owns personally: access to everything inside it is managed through Share, so removing someone really removes them, even from files they uploaded. It stays with the team when whoever created it leaves."
 msgstr "A top-level folder in {spaceName} that nobody owns personally: access to everything inside it is managed through Share, so removing someone really removes them, even from files they uploaded. It stays with the team when whoever created it leaves."
 
-#: src/components/share-dialog.tsx:767
+#: src/components/share-dialog.tsx:782
 msgid "Access"
 msgstr "Access"
 
-#: src/components/share-dialog.tsx:715
+#: src/components/share-dialog.tsx:729
 msgid "Access from the folders above. Change these on the folder they come from."
 msgstr "Access from the folders above. Change these on the folder they come from."
 
-#: src/components/share-dialog.tsx:373
+#: src/components/share-dialog.tsx:375
 msgid "Access given here also opens everything inside this folder."
 msgstr "Access given here also opens everything inside this folder."
 
@@ -470,7 +470,7 @@ msgstr "Access given here also opens everything inside this folder."
 msgid "Access is given group → folder. Membership of the space opens nothing on its own."
 msgstr "Access is given group → folder. Membership of the space opens nothing on its own."
 
-#: src/components/share-dialog.tsx:437
+#: src/components/share-dialog.tsx:441
 msgid "Access level"
 msgstr "Access level"
 
@@ -503,7 +503,7 @@ msgstr "Accounts are provisioned by an administrator."
 msgid "Action"
 msgstr "Action"
 
-#: src/components/node-list.tsx:112
+#: src/components/node-list.tsx:115
 msgid "Actions"
 msgstr "Actions"
 
@@ -511,8 +511,8 @@ msgstr "Actions"
 msgid "Actions for {memberEmail}"
 msgstr "Actions for {memberEmail}"
 
-#: src/components/node-grid.tsx:338
-#: src/components/node-list.tsx:318
+#: src/components/node-grid.tsx:345
+#: src/components/node-list.tsx:321
 msgid "Actions for {nodeName}"
 msgstr "Actions for {nodeName}"
 
@@ -560,7 +560,7 @@ msgstr "Add people or groups…"
 msgid "Add someone to this group…"
 msgstr "Add someone to this group…"
 
-#: src/components/node-actions.tsx:177
+#: src/components/node-actions.tsx:189
 msgid "Add star"
 msgstr "Add star"
 
@@ -610,7 +610,7 @@ msgstr "admin revoked"
 msgid "Admin sections"
 msgstr "Admin sections"
 
-#: src/components/share-dialog.tsx:561
+#: src/components/share-dialog.tsx:573
 msgid "Admins"
 msgstr "Admins"
 
@@ -650,13 +650,13 @@ msgstr "All events"
 msgid "All transfers complete"
 msgstr "All transfers complete"
 
-#: src/components/share-dialog.tsx:465
-#: src/components/share-dialog.tsx:776
+#: src/components/share-dialog.tsx:488
+#: src/components/share-dialog.tsx:791
 msgid "Allow download"
 msgstr "Allow download"
 
-#: src/components/share-dialog.tsx:482
-#: src/components/share-dialog.tsx:973
+#: src/components/share-dialog.tsx:493
+#: src/components/share-dialog.tsx:989
 msgid "Allow re-sharing"
 msgstr "Allow re-sharing"
 
@@ -680,13 +680,13 @@ msgstr "An address that already has an account joins immediately. Any other addr
 msgid "Anonymous"
 msgstr "Anonymous"
 
-#: src/components/share-dialog.tsx:755
+#: src/components/share-dialog.tsx:769
 msgid "Anyone holding the link can view this item without signing in. A link never carries editing, and nobody can re-share it onward — download is the one choice it offers."
 msgstr "Anyone holding the link can view this item without signing in. A link never carries editing, and nobody can re-share it onward — download is the one choice it offers."
 
 #: src/components/preview-panel.tsx:288
-#: src/components/share-dialog.tsx:642
-#: src/components/share-dialog.tsx:1006
+#: src/components/share-dialog.tsx:655
+#: src/components/share-dialog.tsx:1022
 msgid "Anyone with the link"
 msgstr "Anyone with the link"
 
@@ -707,7 +707,7 @@ msgstr "Appearance"
 msgid "Archive"
 msgstr "Archive"
 
-#: src/routes/drive/$spaceId/index.tsx:713
+#: src/routes/drive/$spaceId/index.tsx:718
 msgid "Are you sure you want to move \"{nodeName}\" to trash?"
 msgstr "Are you sure you want to move \"{nodeName}\" to trash?"
 
@@ -781,8 +781,8 @@ msgstr "Callout"
 msgid "Can download"
 msgstr "Can download"
 
-#: src/components/share-dialog.tsx:450
-#: src/components/share-dialog.tsx:958
+#: src/components/share-dialog.tsx:454
+#: src/components/share-dialog.tsx:974
 msgid "Can edit"
 msgstr "Can edit"
 
@@ -790,12 +790,12 @@ msgstr "Can edit"
 msgid "Can share"
 msgstr "Can share"
 
-#: src/components/share-dialog.tsx:447
-#: src/components/share-dialog.tsx:949
+#: src/components/share-dialog.tsx:451
+#: src/components/share-dialog.tsx:965
 msgid "Can view"
 msgstr "Can view"
 
-#: src/components/share-dialog.tsx:953
+#: src/components/share-dialog.tsx:969
 msgid "Can view + download"
 msgstr "Can view + download"
 
@@ -810,7 +810,7 @@ msgstr "Can view + download"
 #: src/components/new-document-dialog.tsx:169
 #: src/components/nodes/embed-link-modal.tsx:116
 #: src/components/settings/panes/account-security.tsx:46
-#: src/components/share-dialog.tsx:869
+#: src/components/share-dialog.tsx:885
 #: src/components/team-folder-dialog.tsx:87
 #: src/components/upload-conflict-dialog.tsx:120
 msgid "Cancel"
@@ -828,8 +828,8 @@ msgstr "Cancelled"
 msgid "Capture a quotation"
 msgstr "Capture a quotation"
 
-#: src/components/share-dialog.tsx:577
-#: src/components/share-dialog.tsx:669
+#: src/components/share-dialog.tsx:589
+#: src/components/share-dialog.tsx:682
 msgid "Change access for {name}"
 msgstr "Change access for {name}"
 
@@ -837,8 +837,8 @@ msgstr "Change access for {name}"
 msgid "Change space avatar"
 msgstr "Change space avatar"
 
-#: src/components/share-dialog.tsx:584
-#: src/components/share-dialog.tsx:680
+#: src/components/share-dialog.tsx:596
+#: src/components/share-dialog.tsx:693
 msgid "Changed access for {name}"
 msgstr "Changed access for {name}"
 
@@ -1003,13 +1003,13 @@ msgstr "Continue with the identity provider your administrator configured."
 msgid "Copied {done, plural, one {# item} other {# items}} to {destination}"
 msgstr "Copied {done, plural, one {# item} other {# items}} to {destination}"
 
-#: src/routes/drive/$spaceId/index.tsx:365
+#: src/routes/drive/$spaceId/index.tsx:367
 msgid "Copied as “{copyName}”"
 msgstr "Copied as “{copyName}”"
 
 #: src/components/block-handle.tsx:219
-#: src/components/node-actions.tsx:232
-#: src/components/share-dialog.tsx:833
+#: src/components/node-actions.tsx:249
+#: src/components/share-dialog.tsx:848
 msgid "Copy"
 msgstr "Copy"
 
@@ -1025,16 +1025,16 @@ msgstr "Could not add the comment"
 msgid "Could not add them to the group"
 msgstr "Could not add them to the group"
 
-#: src/components/share-dialog.tsx:585
-#: src/components/share-dialog.tsx:681
+#: src/components/share-dialog.tsx:598
+#: src/components/share-dialog.tsx:695
 msgid "Could not change access"
 msgstr "Could not change access"
 
-#: src/routes/drive/$spaceId/index.tsx:368
+#: src/routes/drive/$spaceId/index.tsx:370
 msgid "Could not copy “{nodeName}”"
 msgstr "Could not copy “{nodeName}”"
 
-#: src/components/share-dialog.tsx:828
+#: src/components/share-dialog.tsx:843
 msgid "Could not copy the link"
 msgstr "Could not copy the link"
 
@@ -1083,7 +1083,7 @@ msgstr "Could not empty the trash"
 msgid "Could not link {spaceName}"
 msgstr "Could not link {spaceName}"
 
-#: src/components/share-dialog.tsx:739
+#: src/components/share-dialog.tsx:753
 msgid "Could not load the access that comes from folders above this."
 msgstr "Could not load the access that comes from folders above this."
 
@@ -1120,7 +1120,7 @@ msgid "Could not restore “{name}”"
 msgstr "Could not restore “{name}”"
 
 #: src/components/share-dialog.tsx:326
-#: src/components/share-dialog.tsx:603
+#: src/components/share-dialog.tsx:616
 msgid "Could not revoke"
 msgstr "Could not revoke"
 
@@ -1192,7 +1192,7 @@ msgstr "Create group"
 msgid "Create new space"
 msgstr "Create new space"
 
-#: src/components/share-dialog.tsx:810
+#: src/components/share-dialog.tsx:825
 msgid "Create public link"
 msgstr "Create public link"
 
@@ -1216,7 +1216,7 @@ msgstr "Created “{createdName}” in {destination}"
 msgid "Created “{createdName}” in {label}"
 msgstr "Created “{createdName}” in {label}"
 
-#: src/components/share-dialog.tsx:657
+#: src/components/share-dialog.tsx:670
 msgid "Created {owned, plural, one {# item} other {# items}} in here — those stay theirs."
 msgstr "Created {owned, plural, one {# item} other {# items}} in here — those stay theirs."
 
@@ -1240,11 +1240,11 @@ msgstr "Creating…"
 msgid "Current"
 msgstr "Current"
 
-#: src/components/share-dialog.tsx:503
+#: src/components/share-dialog.tsx:515
 msgid "Current access"
 msgstr "Current access"
 
-#: src/components/node-actions.tsx:223
+#: src/components/node-actions.tsx:239
 msgid "Cut"
 msgstr "Cut"
 
@@ -1396,8 +1396,8 @@ msgstr "Device"
 msgid "Device signed out"
 msgstr "Device signed out"
 
-#: src/components/share-dialog.tsx:652
-#: src/components/share-dialog.tsx:1016
+#: src/components/share-dialog.tsx:665
+#: src/components/share-dialog.tsx:1032
 msgid "Direct share"
 msgstr "Direct share"
 
@@ -1447,7 +1447,7 @@ msgstr "download"
 
 #: src/components/editor-header.tsx:108
 #: src/components/editor-header.tsx:133
-#: src/components/node-actions.tsx:140
+#: src/components/node-actions.tsx:149
 #: src/components/preview-modal.tsx:124
 #: src/components/preview-panel.tsx:345
 #: src/components/selection-bar.tsx:64
@@ -1477,7 +1477,7 @@ msgid "Drag to reorder, click to open the block menu"
 msgstr "Drag to reorder, click to open the block menu"
 
 #: src/routes/drive.tsx:33
-#: src/routes/drive/$spaceId/index.tsx:85
+#: src/routes/drive/$spaceId/index.tsx:87
 #: src/routes/login.tsx:127
 msgid "Drive"
 msgstr "Drive"
@@ -1505,7 +1505,7 @@ msgstr "edit"
 
 #: src/components/comments/comments-panel.tsx:536
 #: src/components/doc-editor/doc-editor.tsx:144
-#: src/components/node-actions.tsx:132
+#: src/components/node-actions.tsx:140
 msgid "Edit"
 msgstr "Edit"
 
@@ -1580,7 +1580,7 @@ msgstr "Empty trash"
 msgid "Enable"
 msgstr "Enable"
 
-#: src/routes/drive/$spaceId/index.tsx:674
+#: src/routes/drive/$spaceId/index.tsx:679
 msgid "Enter a new name for this item."
 msgstr "Enter a new name for this item."
 
@@ -1616,7 +1616,7 @@ msgstr "Every saved revision of this file."
 msgid "Every user and space on this install"
 msgstr "Every user and space on this install"
 
-#: src/components/share-dialog.tsx:555
+#: src/components/share-dialog.tsx:567
 msgid "Everyone"
 msgstr "Everyone"
 
@@ -1628,7 +1628,7 @@ msgstr "Everyone here already has access."
 msgid "Everyone in this space belongs to this group, and it updates itself as people join and leave. Give it the folders the whole company should see."
 msgstr "Everyone in this space belongs to this group, and it updates itself as people join and leave. Give it the folders the whole company should see."
 
-#: src/components/share-dialog.tsx:368
+#: src/components/share-dialog.tsx:370
 msgid "Everyone listed here reaches this team folder and everything inside it. Nobody reaches it otherwise, including space admins."
 msgstr "Everyone listed here reaches this team folder and everything inside it. Nobody reaches it otherwise, including space admins."
 
@@ -1657,7 +1657,7 @@ msgstr "Expand toggle"
 msgid "Expand transfers"
 msgstr "Expand transfers"
 
-#: src/components/share-dialog.tsx:783
+#: src/components/share-dialog.tsx:798
 msgid "Expiration"
 msgstr "Expiration"
 
@@ -1667,7 +1667,7 @@ msgid "Export CSV"
 msgstr "Export CSV"
 
 #: src/components/editor-header.tsx:125
-#: src/components/node-actions.tsx:153
+#: src/components/node-actions.tsx:163
 msgid "Export with images (.zip)"
 msgstr "Export with images (.zip)"
 
@@ -1732,7 +1732,7 @@ msgid "File: {nodeName}"
 msgstr "File: {nodeName}"
 
 #: src/components/command-palette.tsx:42
-#: src/components/node-grid.tsx:126
+#: src/components/node-grid.tsx:133
 #: src/routes/admin.users.tsx:118
 msgid "Files"
 msgstr "Files"
@@ -1786,7 +1786,7 @@ msgstr "Finance"
 msgid "Flowcharts, sequences, and more"
 msgstr "Flowcharts, sequences, and more"
 
-#: src/components/node-grid.tsx:323
+#: src/components/node-grid.tsx:330
 #: src/components/preview-panel.tsx:373
 msgid "Folder"
 msgstr "Folder"
@@ -1804,7 +1804,7 @@ msgid "Folder name"
 msgstr "Folder name"
 
 #: src/components/command-palette.tsx:43
-#: src/components/node-grid.tsx:119
+#: src/components/node-grid.tsx:126
 msgid "Folders"
 msgstr "Folders"
 
@@ -1824,7 +1824,7 @@ msgstr "Forever"
 msgid "Found by the hourly check"
 msgstr "Found by the hourly check"
 
-#: src/components/share-dialog.tsx:725
+#: src/components/share-dialog.tsx:739
 msgid "From {viaName}"
 msgstr "From {viaName}"
 
@@ -1862,11 +1862,11 @@ msgstr "General"
 msgid "General & Branding"
 msgstr "General & Branding"
 
-#: src/components/share-dialog.tsx:375
+#: src/components/share-dialog.tsx:377
 msgid "Give a group or a colleague access to this file."
 msgstr "Give a group or a colleague access to this file."
 
-#: src/components/share-dialog.tsx:383
+#: src/components/share-dialog.tsx:386
 msgid "Give access"
 msgstr "Give access"
 
@@ -1891,8 +1891,8 @@ msgstr "Grid"
 msgid "Grid view"
 msgstr "Grid view"
 
-#: src/components/share-dialog.tsx:566
-#: src/components/share-dialog.tsx:1012
+#: src/components/share-dialog.tsx:578
+#: src/components/share-dialog.tsx:1028
 msgid "Group"
 msgstr "Group"
 
@@ -1930,7 +1930,7 @@ msgstr "Group: All"
 msgid "Groups"
 msgstr "Groups"
 
-#: src/components/share-dialog.tsx:386
+#: src/components/share-dialog.tsx:389
 msgid "Groups and people come from this space. The access below applies to everyone picked."
 msgstr "Groups and people come from this space. The access below applies to everyone picked."
 
@@ -2012,7 +2012,11 @@ msgstr "Images"
 msgid "Implicit TLS / SMTPS (port 465)"
 msgstr "Implicit TLS / SMTPS (port 465)"
 
-#: src/components/node-actions.tsx:170
+#: src/components/share-dialog.tsx:486
+msgid "Included with edit"
+msgstr "Included with edit"
+
+#: src/components/node-actions.tsx:182
 msgid "Information"
 msgstr "Information"
 
@@ -2194,7 +2198,7 @@ msgstr "Link address"
 msgid "Link card"
 msgstr "Link card"
 
-#: src/components/share-dialog.tsx:827
+#: src/components/share-dialog.tsx:842
 msgid "Link copied"
 msgstr "Link copied"
 
@@ -2278,7 +2282,7 @@ msgstr "Lowercase letters, numbers and dashes. Optional."
 msgid "Mail"
 msgstr "Mail"
 
-#: src/components/node-actions.tsx:240
+#: src/components/node-actions.tsx:258
 msgid "Make a copy"
 msgstr "Make a copy"
 
@@ -2387,7 +2391,7 @@ msgid "minutes"
 msgstr "minutes"
 
 #: src/components/listing-controls.tsx:24
-#: src/components/node-list.tsx:103
+#: src/components/node-list.tsx:106
 #: src/components/node-table.tsx:70
 #: src/components/preview-modal.tsx:158
 #: src/components/preview-panel.tsx:396
@@ -2422,13 +2426,13 @@ msgstr "Move"
 msgid "Move “{name}”"
 msgstr "Move “{name}”"
 
-#: src/components/node-actions.tsx:249
-#: src/routes/drive/$spaceId/index.tsx:710
-#: src/routes/drive/$spaceId/index.tsx:719
+#: src/components/node-actions.tsx:268
+#: src/routes/drive/$spaceId/index.tsx:715
+#: src/routes/drive/$spaceId/index.tsx:724
 msgid "Move to trash"
 msgstr "Move to trash"
 
-#: src/components/node-actions.tsx:206
+#: src/components/node-actions.tsx:221
 msgid "Move to…"
 msgstr "Move to…"
 
@@ -2444,7 +2448,7 @@ msgstr "My Drive"
 #: src/components/group-list.tsx:369
 #: src/components/listing-controls.tsx:23
 #: src/components/new-document-dialog.tsx:121
-#: src/components/node-list.tsx:100
+#: src/components/node-list.tsx:103
 #: src/components/node-table.tsx:67
 #: src/components/settings/panes/account-general.tsx:44
 #: src/components/space-node-table.tsx:84
@@ -2484,7 +2488,7 @@ msgstr "never"
 msgid "Never"
 msgstr "Never"
 
-#: src/components/nav-create.tsx:49
+#: src/components/nav-create.tsx:51
 msgid "New"
 msgstr "New"
 
@@ -2518,7 +2522,7 @@ msgstr "New members are admins by default"
 msgid "New presentation"
 msgstr "New presentation"
 
-#: src/components/share-dialog.tsx:818
+#: src/components/share-dialog.tsx:833
 msgid "New public link"
 msgstr "New public link"
 
@@ -2580,7 +2584,7 @@ msgstr "No groups yet."
 msgid "No matches for “{queryText}”"
 msgstr "No matches for “{queryText}”"
 
-#: src/routes/drive/$spaceId/index.tsx:589
+#: src/routes/drive/$spaceId/index.tsx:591
 msgid "No matching files or folders"
 msgstr "No matching files or folders"
 
@@ -2629,7 +2633,7 @@ msgstr "Nobody can see it yet — access to a team folder is given through Share
 #~ msgid "Nobody else reaches this — not even a space admin — unless a line here says so."
 #~ msgstr "Nobody else reaches this — not even a space admin — unless a line here says so."
 
-#: src/components/share-dialog.tsx:529
+#: src/components/share-dialog.tsx:541
 msgid "Nobody has access to this yet."
 msgstr "Nobody has access to this yet."
 
@@ -2641,7 +2645,7 @@ msgstr "Nobody in this group yet — it opens nothing for anyone."
 msgid "Nobody or nothing matches."
 msgstr "Nobody or nothing matches."
 
-#: src/components/share-dialog.tsx:506
+#: src/components/share-dialog.tsx:518
 msgid "Nobody reaches this — not even a space admin — unless a line here says so."
 msgstr "Nobody reaches this — not even a space admin — unless a line here says so."
 
@@ -2748,15 +2752,15 @@ msgid "open"
 msgstr "open"
 
 #: src/components/drive-write.tsx:214
-#: src/components/node-actions.tsx:132
+#: src/components/node-actions.tsx:140
 #: src/components/preview-content.tsx:281
 #: src/components/preview-modal.tsx:115
 #: src/components/preview-panel.tsx:335
-#: src/components/share-dialog.tsx:696
+#: src/components/share-dialog.tsx:710
 msgid "Open"
 msgstr "Open"
 
-#: src/components/node-actions.tsx:119
+#: src/components/node-actions.tsx:126
 #: src/components/preview-content.tsx:151
 msgid "Open in new tab"
 msgstr "Open in new tab"
@@ -2808,11 +2812,11 @@ msgstr "Outline"
 msgid "Overview"
 msgstr "Overview"
 
-#: src/components/node-list.tsx:109
+#: src/components/node-list.tsx:112
 #: src/components/node-table.tsx:76
 #: src/components/preview-modal.tsx:157
 #: src/components/preview-panel.tsx:393
-#: src/components/share-dialog.tsx:1010
+#: src/components/share-dialog.tsx:1026
 msgid "Owner"
 msgstr "Owner"
 
@@ -2879,6 +2883,10 @@ msgstr "Permanently delete “{name}”? This cannot be undone."
 msgid "Permanently delete \"{spaceName}\" and all of its contents? This cannot be undone."
 msgstr "Permanently delete \"{spaceName}\" and all of its contents? This cannot be undone."
 
+#: src/components/share-dialog.tsx:462
+msgid "Permissions"
+msgstr "Permissions"
+
 #: src/components/people-table.tsx:317
 msgid "Person"
 msgstr "Person"
@@ -2909,7 +2917,7 @@ msgstr "Port must be between 1 and 65535."
 msgid "Press D anywhere outside a text field to flip between light and dark."
 msgstr "Press D anywhere outside a text field to flip between light and dark."
 
-#: src/components/node-actions.tsx:109
+#: src/components/node-actions.tsx:115
 #: src/components/preview-panel.tsx:335
 msgid "Preview"
 msgstr "Preview"
@@ -2950,9 +2958,9 @@ msgstr "Profile not found."
 msgid "Profile saved"
 msgstr "Profile saved"
 
-#: src/components/share-dialog.tsx:646
-#: src/components/share-dialog.tsx:752
-#: src/components/share-dialog.tsx:1014
+#: src/components/share-dialog.tsx:659
+#: src/components/share-dialog.tsx:766
+#: src/components/share-dialog.tsx:1030
 msgid "Public link"
 msgstr "Public link"
 
@@ -3004,7 +3012,7 @@ msgstr "Reinstate"
 #~ msgid "Remove {memberEmail} from the space"
 #~ msgstr "Remove {memberEmail} from the space"
 
-#: src/components/share-dialog.tsx:419
+#: src/components/share-dialog.tsx:423
 msgid "Remove {name}"
 msgstr "Remove {name}"
 
@@ -3012,7 +3020,7 @@ msgstr "Remove {name}"
 msgid "Remove {name} from {groupName}"
 msgstr "Remove {name} from {groupName}"
 
-#: src/components/share-dialog.tsx:598
+#: src/components/share-dialog.tsx:611
 msgid "Remove {name}'s access"
 msgstr "Remove {name}'s access"
 
@@ -3020,8 +3028,8 @@ msgstr "Remove {name}'s access"
 msgid "Remove {removingName} from this space?"
 msgstr "Remove {removingName} from this space?"
 
-#: src/components/share-dialog.tsx:856
-#: src/components/share-dialog.tsx:879
+#: src/components/share-dialog.tsx:872
+#: src/components/share-dialog.tsx:895
 msgid "Remove access"
 msgstr "Remove access"
 
@@ -3050,7 +3058,7 @@ msgstr "Remove password"
 msgid "Remove space avatar"
 msgstr "Remove space avatar"
 
-#: src/components/node-actions.tsx:177
+#: src/components/node-actions.tsx:189
 msgid "Remove star"
 msgstr "Remove star"
 
@@ -3074,9 +3082,9 @@ msgstr "Removed from this space here"
 msgid "Removes “{spaceName}” and everything in it — every file, version, share and member. The blobs are released and cannot be recovered. Its Logto organization is kept; delete it in Logto too if the company is gone."
 msgstr "Removes “{spaceName}” and everything in it — every file, version, share and member. The blobs are released and cannot be recovered. Its Logto organization is kept; delete it in Logto too if the company is gone."
 
-#: src/components/node-actions.tsx:196
+#: src/components/node-actions.tsx:210
 #: src/components/selection-bar.tsx:74
-#: src/routes/drive/$spaceId/index.tsx:671
+#: src/routes/drive/$spaceId/index.tsx:676
 msgid "Rename"
 msgstr "Rename"
 
@@ -3182,7 +3190,7 @@ msgstr "Retry upload"
 msgid "Revoke"
 msgstr "Revoke"
 
-#: src/components/share-dialog.tsx:704
+#: src/components/share-dialog.tsx:718
 msgid "Revoke access for {grantee}"
 msgstr "Revoke access for {grantee}"
 
@@ -3190,11 +3198,11 @@ msgstr "Revoke access for {grantee}"
 msgid "Revoke admin"
 msgstr "Revoke admin"
 
-#: src/components/share-dialog.tsx:538
+#: src/components/share-dialog.tsx:550
 msgid "Revoking a group’s access leaves anything its members created in here — those items stay with whoever made them."
 msgstr "Revoking a group’s access leaves anything its members created in here — those items stay with whoever made them."
 
-#: src/routes/drive/$spaceId/index.tsx:598
+#: src/routes/drive/$spaceId/index.tsx:600
 msgid "Right-click here, or use New, to add something."
 msgstr "Right-click here, or use New, to add something."
 
@@ -3207,7 +3215,7 @@ msgid "Rows and columns of cells"
 msgstr "Rows and columns of cells"
 
 #: src/components/comments/comments-panel.tsx:564
-#: src/routes/drive/$spaceId/index.tsx:698
+#: src/routes/drive/$spaceId/index.tsx:703
 msgid "Save"
 msgstr "Save"
 
@@ -3394,14 +3402,14 @@ msgid "Settings sections"
 msgstr "Settings sections"
 
 #: src/components/editor-header.tsx:91
-#: src/components/node-actions.tsx:186
+#: src/components/node-actions.tsx:199
 #: src/components/preview-panel.tsx:354
 #: src/components/selection-bar.tsx:69
-#: src/components/share-dialog.tsx:493
+#: src/components/share-dialog.tsx:505
 msgid "Share"
 msgstr "Share"
 
-#: src/components/share-dialog.tsx:364
+#: src/components/share-dialog.tsx:366
 msgid "Share “{nodeName}”"
 msgstr "Share “{nodeName}”"
 
@@ -3523,7 +3531,7 @@ msgid "Signed-in devices"
 msgstr "Signed-in devices"
 
 #: src/components/listing-controls.tsx:25
-#: src/components/node-list.tsx:106
+#: src/components/node-list.tsx:109
 #: src/components/node-table.tsx:73
 #: src/components/preview-modal.tsx:156
 #: src/components/preview-panel.tsx:375
@@ -3691,7 +3699,7 @@ msgstr "System"
 msgid "Table"
 msgstr "Table"
 
-#: src/components/node-list.tsx:309
+#: src/components/node-list.tsx:312
 msgid "Team"
 msgstr "Team"
 
@@ -3759,7 +3767,7 @@ msgid "The organization exists; its members are being added now. The space shows
 msgstr "The organization exists; its members are being added now. The space shows as linked in a moment."
 
 #: src/components/move-dialog.tsx:183
-#: src/components/share-dialog.tsx:620
+#: src/components/share-dialog.tsx:633
 msgid "the public link"
 msgstr "the public link"
 
@@ -3868,7 +3876,7 @@ msgstr "This file was shared with you"
 msgid "this folder"
 msgstr "this folder"
 
-#: src/routes/drive/$spaceId/index.tsx:591
+#: src/routes/drive/$spaceId/index.tsx:593
 #: src/routes/s/$token.tsx:545
 msgid "This folder is empty"
 msgstr "This folder is empty"
@@ -3901,7 +3909,7 @@ msgstr "This kind of file cannot be shown here. Download it to open it."
 msgid "This link is not available"
 msgstr "This link is not available"
 
-#: src/components/share-dialog.tsx:837
+#: src/components/share-dialog.tsx:852
 msgid "This link is shown only once. Copy it now — it cannot be shown again after this dialog closes."
 msgstr "This link is shown only once. Copy it now — it cannot be shown again after this dialog closes."
 
@@ -3917,7 +3925,7 @@ msgstr "This person"
 #: src/components/drive-write.tsx:91
 #: src/components/drive-write.tsx:173
 #: src/routes/drive/$spaceId/home.tsx:64
-#: src/routes/drive/$spaceId/index.tsx:309
+#: src/routes/drive/$spaceId/index.tsx:311
 msgid "this space"
 msgstr "this space"
 
@@ -3997,7 +4005,7 @@ msgid "Trash retention (days)"
 msgstr "Trash retention (days)"
 
 #: src/components/trash-panel.tsx:257
-#: src/routes/drive/$spaceId/index.tsx:596
+#: src/routes/drive/$spaceId/index.tsx:598
 msgid "Try a different search."
 msgstr "Try a different search."
 
@@ -4179,7 +4187,7 @@ msgid "Version history"
 msgstr "Version history"
 
 #: src/components/editor-header.tsx:100
-#: src/components/node-actions.tsx:161
+#: src/components/node-actions.tsx:172
 #: src/components/preview-modal.tsx:149
 #: src/components/preview-panel.tsx:360
 #: src/components/preview-panel.tsx:400

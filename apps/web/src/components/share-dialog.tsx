@@ -358,8 +358,10 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
 
   return (
     <Dialog open={live} onOpenChange={(open) => !open && modal.resolve(null)}>
-      <DialogContent className="max-h-[85svh] overflow-y-auto sm:max-w-xl">
-        <DialogHeader>
+      {/* The popup itself does not scroll, only the body below the header, so
+          the title and the close button stay put however long the list gets. */}
+      <DialogContent className="flex max-h-[85svh] flex-col gap-0 p-0 sm:max-w-xl">
+        <DialogHeader className="border-b p-4 pr-10">
           <DialogTitle>
             <Trans>Share “{nodeName}”</Trans>
           </DialogTitle>
@@ -377,471 +379,485 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
           </DialogDescription>
         </DialogHeader>
 
-        <section className="flex flex-col gap-3 rounded-lg border bg-muted/20 p-4">
-          <div>
-            <h3 className="text-sm font-semibold">
-              <Trans>Give access</Trans>
-            </h3>
-            <p className="text-muted-foreground mt-1 text-xs">
-              <Trans>
-                Groups and people come from this space. The access below applies to everyone picked.
-              </Trans>
-            </p>
-          </div>
-
-          {quickGroups.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {quickGroups.map((g) => (
-                <Button
-                  key={g.id}
-                  variant="outline"
-                  size="sm"
-                  className="h-7 gap-1.5 font-normal"
-                  onClick={() => setPicked([...picked, g])}
-                >
-                  <Users className="h-3.5 w-3.5" />
-                  {g.label}
-                  {g.isEveryone && <Lock className="h-3 w-3 opacity-60" />}
-                  {g.isAdmin && <ShieldCheck className="h-3 w-3 opacity-60" />}
-                </Button>
-              ))}
-            </div>
-          )}
-
-          {picked.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {picked.map((g) => (
-                <Badge key={g.id} variant="secondary" className="gap-1 py-1 font-normal">
-                  {g.kind === "group" ? <Users className="h-3 w-3" /> : null}
-                  {g.label}
-                  <button
-                    type="button"
-                    aria-label={t`Remove ${{ name: g.label }}`}
-                    onClick={() => setPicked(picked.filter((p) => p.id !== g.id))}
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
-          )}
-
-          <GranteePicker options={options} onPick={(g) => setPicked([...picked, g])} />
-
-          <div className="flex flex-wrap items-end gap-4">
-            {/* Only an editor may make editors, so without edit there is no
-                level to choose: whatever is given is view. */}
-            {held.edit && (
-              <div className="grid gap-1.5">
-                <Label id="share-level-label" className="text-xs">
-                  <Trans>Access level</Trans>
-                </Label>
-                <ToggleGroup
-                  aria-labelledby="share-level-label"
-                  size="sm"
-                  variant="outline"
-                  value={[level]}
-                  onValueChange={(val) => val.length > 0 && setLevel(val[0] as "view" | "edit")}
-                >
-                  <ToggleGroupItem value="view">
-                    <Trans>Can view</Trans>
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="edit">
-                    <Trans>Can edit</Trans>
-                  </ToggleGroupItem>
-                </ToggleGroup>
-              </div>
-            )}
-            <div className="flex flex-col gap-2 pb-1">
-              {held.download && (
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="share-download"
-                    checked={chosenLevel === "edit" ? true : canDownload}
-                    disabled={chosenLevel === "edit"}
-                    onCheckedChange={(v) => setCanDownload(Boolean(v))}
-                  />
-                  <Label htmlFor="share-download" className="text-xs font-normal">
-                    <Trans>Allow download</Trans>
-                    {chosenLevel === "edit" && (
-                      <span className="text-muted-foreground ml-1">
-                        <Trans>(included with edit)</Trans>
-                      </span>
-                    )}
-                  </Label>
-                </div>
-              )}
-              {held.share && (
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="share-reshare"
-                    checked={canShare}
-                    onCheckedChange={(v) => setCanShare(Boolean(v))}
-                  />
-                  <Label htmlFor="share-reshare" className="text-xs font-normal">
-                    <Trans>Allow re-sharing</Trans>
-                  </Label>
-                </div>
-              )}
-            </div>
-            <Button
-              className="ml-auto"
-              size="sm"
-              disabled={picked.length === 0 || busy}
-              onClick={() => void submit()}
-            >
-              <Trans>Share</Trans>
-            </Button>
-          </div>
-        </section>
-
-        <Separator />
-
-        <section className="grid gap-2">
-          <div>
-            <h3 className="text-sm font-semibold">
-              <Trans>Current access</Trans>
-            </h3>
-            <p className="text-muted-foreground mt-1 text-xs">
-              <Trans>
-                Nobody reaches this — not even a space admin — unless a line here says so.
-              </Trans>
-            </p>
-          </div>
-
-          <div className="bg-background rounded-md border">
-            {loading ? (
-              <LoadingStatus>
-                <ul className="divide-y">
-                  {[45, 60, 35].map((w) => (
-                    <li key={w} className="flex items-center gap-3 p-3">
-                      <Skeleton className="size-6 shrink-0 rounded-full" />
-                      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                        <Skeleton className="h-3.5" style={{ width: `${w}%` }} />
-                        <Skeleton className="h-2.5 w-16" />
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </LoadingStatus>
-            ) : rowCount === 0 && !inherited.isError ? (
-              <p className="text-muted-foreground p-3 text-sm">
-                <Trans>Nobody has access to this yet.</Trans>
-              </p>
-            ) : (
-              <ul className="divide-y">
-                {owners.map((r) => (
-                  <InheritedRow key={`${r.kind}:${r.principal_id}`} row={r} summary={null} />
-                ))}
-                {grantRows.length > 0 && !inTeam && (
-                  <li className="text-muted-foreground bg-muted/20 px-3 py-2 text-xs">
-                    <Trans>
-                      Revoking a group’s access leaves anything its members created in here — those
-                      items stay with whoever made them.
-                    </Trans>
-                  </li>
-                )}
-                {grantRows.map((g) => {
-                  const changeable = covers(held, g);
-                  return (
-                    <li key={g.id} className="flex items-center gap-3 p-3 text-sm">
-                      <Users className="text-muted-foreground size-4 shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <p className="flex items-center gap-2 truncate font-medium">
-                          {g.group_name}
-                          {g.is_everyone && (
-                            <Badge variant="secondary" className="gap-1 font-normal">
-                              <Lock className="h-3 w-3" />
-                              <Trans>Everyone</Trans>
-                            </Badge>
-                          )}
-                          {g.is_admin && (
-                            <Badge variant="secondary" className="gap-1 font-normal">
-                              <ShieldCheck className="h-3 w-3" />
-                              <Trans>Admins</Trans>
-                            </Badge>
-                          )}
-                        </p>
-                        <p className="text-muted-foreground text-[10px] uppercase">
-                          <Trans>Group</Trans>
-                        </p>
-                      </div>
-                      {/* Changing a grant in place is the same upsert that
-                          created it: the group is PUT again and the server
-                          updates its row. */}
-                      {changeable ? (
-                        <CapsControl
-                          value={g}
-                          held={held}
-                          summary={capsLabel(g)}
-                          label={t`Change access for ${{ name: g.group_name }}`}
-                          disabled={busy}
-                          onChange={(next) =>
-                            upsertGrant.mutate(
-                              { groupId: g.group_id, caps: next },
-                              {
-                                onSuccess: () =>
-                                  toast.success(t`Changed access for ${{ name: g.group_name }}`),
-                                onError: (e) => toast.error(message(e, t`Could not change access`)),
-                              },
-                            )
-                          }
-                        />
-                      ) : (
-                        <CapsSummary text={capsLabel(g)} />
-                      )}
-                      {changeable && (
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
-                          className="shrink-0"
-                          aria-label={t`Remove ${{ name: g.group_name }}'s access`}
-                          onClick={() =>
-                            revokeGrant.mutate(g.group_id, {
-                              onSuccess: () =>
-                                toast.success(t`${{ name: g.group_name }} no longer has access`),
-                              onError: (e) => toast.error(message(e, t`Could not revoke`)),
-                            })
-                          }
-                        >
-                          <X />
-                        </Button>
-                      )}
-                    </li>
-                  );
-                })}
-                {[...directShares, ...linkShares].map((s) => {
-                  // Only a direct share carries a count: the server cannot say
-                  // which member of a group authored what. Zero inside a team
-                  // folder, which also routes the revoke button straight past
-                  // the confirmation — there is nothing left behind to warn
-                  // about.
-                  const owned = !inTeam && s.kind === "direct" ? (s.grantee_owned ?? 0) : 0;
-                  const grantee = s.kind === "direct" ? personName(s) : t`the public link`;
-                  const changeable = covers(held, s);
-                  // A person's grant is changed by posting it again under
-                  // their id; a link has no such update, only revoke.
-                  const userId = s.kind === "direct" ? s.grantee_user_id : undefined;
-                  const email =
-                    s.kind === "direct" && s.grantee_name && s.grantee_email !== s.grantee_name
-                      ? s.grantee_email
-                      : undefined;
-                  return (
-                    <li key={s.id} className="flex items-center gap-3 p-3 text-sm">
-                      <Avatar size="sm">
-                        {s.kind === "direct" ? (
-                          <AvatarFallback>{grantee.charAt(0).toUpperCase()}</AvatarFallback>
-                        ) : (
-                          <AvatarFallback>
-                            <Link2 className="size-3.5" />
-                          </AvatarFallback>
-                        )}
-                      </Avatar>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-medium">
-                          {s.kind === "link" ? <Trans>Anyone with the link</Trans> : grantee}
-                        </p>
-                        {s.kind === "link" ? (
-                          <p className="text-muted-foreground text-[10px] uppercase">
-                            <Trans>Public link</Trans>
-                          </p>
-                        ) : email ? (
-                          <p className="text-muted-foreground truncate text-xs">{email}</p>
-                        ) : (
-                          <p className="text-muted-foreground text-[10px] uppercase">
-                            <Trans>Direct share</Trans>
-                          </p>
-                        )}
-                        {owned > 0 && (
-                          <p className="text-muted-foreground mt-0.5 text-xs">
-                            <Trans>
-                              Created <Plural value={owned} one="# item" other="# items" /> in here
-                              — those stay theirs.
-                            </Trans>
-                          </p>
-                        )}
-                      </div>
-                      {changeable && userId ? (
-                        <CapsControl
-                          value={s}
-                          held={held}
-                          summary={capsLabel(s)}
-                          label={t`Change access for ${{ name: grantee }}`}
-                          disabled={busy}
-                          onChange={(next) =>
-                            createShare.mutate(
-                              {
-                                nodeId: node.id,
-                                // eslint-disable-next-line lingui/no-unlocalized-strings -- share kind discriminator
-                                body: { kind: "direct", user_id: userId, ...next },
-                              },
-                              {
-                                onSuccess: () =>
-                                  toast.success(t`Changed access for ${{ name: grantee }}`),
-                                onError: (e) => toast.error(message(e, t`Could not change access`)),
-                              },
-                            )
-                          }
-                        />
-                      ) : (
-                        <CapsSummary text={capsLabel(s)} />
-                      )}
-                      {s.url && (
-                        <a
-                          href={s.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-primary inline-flex shrink-0 items-center gap-1 text-xs underline"
-                        >
-                          <Copy className="size-3.5" /> <Trans>Open</Trans>
-                        </a>
-                      )}
-                      {changeable && (
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
-                          className="shrink-0"
-                          aria-label={t`Revoke access for ${grantee}`}
-                          onClick={() => (owned > 0 ? setPendingRevoke(s) : revoke(s))}
-                        >
-                          <X />
-                        </Button>
-                      )}
-                    </li>
-                  );
-                })}
-                {above.size > 0 && (
-                  <li className="text-muted-foreground bg-muted/20 px-3 py-2 text-xs">
-                    <Trans>
-                      Access from the folders above. Change these on the folder they come from.
-                    </Trans>
-                  </li>
-                )}
-                {[...above].map(([viaId, { viaName, rows }]) => (
-                  <Fragment key={viaId}>
-                    <li className="text-muted-foreground flex items-center gap-1.5 px-3 pt-2.5 pb-1.5 text-xs font-medium">
-                      <Folder className="size-3.5 shrink-0" />
-                      <span className="truncate">
-                        <Trans>From {viaName}</Trans>
-                      </span>
-                    </li>
-                    {rows.map((r) => (
-                      <InheritedRow
-                        key={`${r.kind}:${r.principal_id}`}
-                        row={r}
-                        summary={r.kind === "owner" ? null : capsLabel(r)}
-                      />
-                    ))}
-                  </Fragment>
-                ))}
-                {inherited.isError && (
-                  <li className="text-destructive px-3 py-2 text-xs">
-                    <Trans>Could not load the access that comes from folders above this.</Trans>
-                  </li>
-                )}
-              </ul>
-            )}
-          </div>
-        </section>
-
-        <Separator />
-
-        <section className="flex flex-col gap-3 rounded-lg border bg-muted/20 p-4">
-          <div>
-            <h3 className="text-sm font-semibold">
-              <Trans>Public link</Trans>
-            </h3>
-            <p className="text-muted-foreground mt-1 text-xs">
-              <Trans>
-                Anyone holding the link can view this item without signing in. A link never carries
-                editing, and nobody can re-share it onward — download is the one choice it offers.
-              </Trans>
-            </p>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {/* A link can only pass on what its creator holds: without
-                download there is no choice left to offer. */}
-            {held.download && (
-              <div className="grid gap-1.5">
-                <Label htmlFor="link-download-toggle" className="text-xs">
-                  <Trans>Access</Trans>
-                </Label>
-                <div className="flex items-center gap-2 pt-1.5">
-                  <Checkbox
-                    id="link-download-toggle"
-                    checked={linkCanDownload}
-                    onCheckedChange={(v) => setLinkCanDownload(Boolean(v))}
-                  />
-                  <Label htmlFor="link-download-toggle" className="text-xs font-normal">
-                    <Trans>Allow download</Trans>
-                  </Label>
-                </div>
-              </div>
-            )}
-            <div className="grid gap-1.5">
-              <Label htmlFor="link-expiry" className="text-xs">
-                <Trans>Expiration</Trans>
-              </Label>
-              <SelectRoot
-                value={expires}
-                items={expiryItems}
-                onValueChange={(v) => setExpires((v as string) ?? DEFAULT_EXPIRY)}
-              >
-                <SelectTrigger id="link-expiry" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {expiryItems.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </SelectRoot>
-            </div>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="self-start"
-            disabled={createShare.isPending}
-            onClick={createLink}
-          >
-            <Trans>Create public link</Trans>
-          </Button>
-          {linkUrl && (
-            <div className="grid gap-1.5">
-              <div className="flex items-center gap-2">
-                <Input
-                  readOnly
-                  value={linkUrl}
-                  aria-label={t`New public link`}
-                  aria-describedby="link-once-help"
-                  onFocus={(e) => e.currentTarget.select()}
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    void navigator.clipboard.writeText(linkUrl).then(
-                      () => toast.success(t`Link copied`),
-                      () => toast.error(t`Could not copy the link`),
-                    )
-                  }
-                >
-                  <Copy />
-                  <Trans>Copy</Trans>
-                </Button>
-              </div>
-              <p id="link-once-help" className="text-muted-foreground text-xs">
+        <div className="flex min-h-0 flex-col gap-4 overflow-y-auto p-4">
+          <section className="flex flex-col gap-3 rounded-lg border bg-muted/20 p-4">
+            <div>
+              <h3 className="text-sm font-semibold">
+                <Trans>Give access</Trans>
+              </h3>
+              <p className="text-muted-foreground mt-1 text-xs">
                 <Trans>
-                  This link is shown only once. Copy it now — it cannot be shown again after this
-                  dialog closes.
+                  Groups and people come from this space. The access below applies to everyone
+                  picked.
                 </Trans>
               </p>
             </div>
-          )}
-        </section>
+
+            {quickGroups.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {quickGroups.map((g) => (
+                  <Button
+                    key={g.id}
+                    variant="outline"
+                    size="sm"
+                    className="h-7 gap-1.5 font-normal"
+                    onClick={() => setPicked([...picked, g])}
+                  >
+                    <Users className="h-3.5 w-3.5" />
+                    {g.label}
+                    {g.isEveryone && <Lock className="h-3 w-3 opacity-60" />}
+                    {g.isAdmin && <ShieldCheck className="h-3 w-3 opacity-60" />}
+                  </Button>
+                ))}
+              </div>
+            )}
+
+            {picked.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {picked.map((g) => (
+                  <Badge key={g.id} variant="secondary" className="gap-1 py-1 font-normal">
+                    {g.kind === "group" ? <Users className="h-3 w-3" /> : null}
+                    {g.label}
+                    <button
+                      type="button"
+                      aria-label={t`Remove ${{ name: g.label }}`}
+                      onClick={() => setPicked(picked.filter((p) => p.id !== g.id))}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+
+            <GranteePicker options={options} onPick={(g) => setPicked([...picked, g])} />
+
+            <div className="flex flex-wrap items-end gap-4">
+              {/* Only an editor may make editors, so without edit there is no
+                level to choose: whatever is given is view. */}
+              {held.edit && (
+                <div className="grid gap-1.5">
+                  <Label id="share-level-label" className="text-xs">
+                    <Trans>Access level</Trans>
+                  </Label>
+                  <ToggleGroup
+                    aria-labelledby="share-level-label"
+                    size="sm"
+                    variant="outline"
+                    value={[level]}
+                    onValueChange={(val) => val.length > 0 && setLevel(val[0] as "view" | "edit")}
+                  >
+                    <ToggleGroupItem value="view">
+                      <Trans>Can view</Trans>
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="edit">
+                      <Trans>Can edit</Trans>
+                    </ToggleGroupItem>
+                  </ToggleGroup>
+                </div>
+              )}
+              {(held.download || held.share) && (
+                <div className="grid gap-1.5">
+                  <Label id="share-perms-label" className="text-xs">
+                    <Trans>Permissions</Trans>
+                  </Label>
+                  <ToggleGroup
+                    multiple
+                    aria-labelledby="share-perms-label"
+                    size="sm"
+                    variant="outline"
+                    value={[
+                      ...(chosenLevel === "edit" || canDownload ? ["download"] : []),
+                      ...(canShare ? ["reshare"] : []),
+                    ]}
+                    onValueChange={(val) => {
+                      // Edit implies download, so that item is pinned on and
+                      // disabled; its state is never read back from here.
+                      // eslint-disable-next-line lingui/no-unlocalized-strings -- toggle item id
+                      if (chosenLevel !== "edit") setCanDownload(val.includes("download"));
+                      // eslint-disable-next-line lingui/no-unlocalized-strings -- toggle item id
+                      setCanShare(val.includes("reshare"));
+                    }}
+                  >
+                    {held.download && (
+                      <ToggleGroupItem
+                        value="download"
+                        disabled={chosenLevel === "edit"}
+                        title={chosenLevel === "edit" ? t`Included with edit` : undefined}
+                      >
+                        <Trans>Allow download</Trans>
+                      </ToggleGroupItem>
+                    )}
+                    {held.share && (
+                      <ToggleGroupItem value="reshare">
+                        <Trans>Allow re-sharing</Trans>
+                      </ToggleGroupItem>
+                    )}
+                  </ToggleGroup>
+                </div>
+              )}
+              <Button
+                className="ml-auto"
+                size="sm"
+                disabled={picked.length === 0 || busy}
+                onClick={() => void submit()}
+              >
+                <Trans>Share</Trans>
+              </Button>
+            </div>
+          </section>
+
+          <Separator />
+
+          <section className="grid gap-2">
+            <div>
+              <h3 className="text-sm font-semibold">
+                <Trans>Current access</Trans>
+              </h3>
+              <p className="text-muted-foreground mt-1 text-xs">
+                <Trans>
+                  Nobody reaches this — not even a space admin — unless a line here says so.
+                </Trans>
+              </p>
+            </div>
+
+            <div className="bg-background rounded-md border">
+              {loading ? (
+                <LoadingStatus>
+                  <ul className="divide-y">
+                    {[45, 60, 35].map((w) => (
+                      <li key={w} className="flex items-center gap-3 p-3">
+                        <Skeleton className="size-6 shrink-0 rounded-full" />
+                        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                          <Skeleton className="h-3.5" style={{ width: `${w}%` }} />
+                          <Skeleton className="h-2.5 w-16" />
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </LoadingStatus>
+              ) : rowCount === 0 && !inherited.isError ? (
+                <p className="text-muted-foreground p-3 text-sm">
+                  <Trans>Nobody has access to this yet.</Trans>
+                </p>
+              ) : (
+                <ul className="divide-y">
+                  {owners.map((r) => (
+                    <InheritedRow key={`${r.kind}:${r.principal_id}`} row={r} summary={null} />
+                  ))}
+                  {grantRows.length > 0 && !inTeam && (
+                    <li className="text-muted-foreground bg-muted/20 px-3 py-2 text-xs">
+                      <Trans>
+                        Revoking a group’s access leaves anything its members created in here —
+                        those items stay with whoever made them.
+                      </Trans>
+                    </li>
+                  )}
+                  {grantRows.map((g) => {
+                    const changeable = covers(held, g);
+                    return (
+                      <li key={g.id} className="flex items-center gap-3 p-3 text-sm">
+                        <Users className="text-muted-foreground size-4 shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <p className="flex items-center gap-2 truncate font-medium">
+                            {g.group_name}
+                            {g.is_everyone && (
+                              <Badge variant="secondary" className="gap-1 font-normal">
+                                <Lock className="h-3 w-3" />
+                                <Trans>Everyone</Trans>
+                              </Badge>
+                            )}
+                            {g.is_admin && (
+                              <Badge variant="secondary" className="gap-1 font-normal">
+                                <ShieldCheck className="h-3 w-3" />
+                                <Trans>Admins</Trans>
+                              </Badge>
+                            )}
+                          </p>
+                          <p className="text-muted-foreground text-[10px] uppercase">
+                            <Trans>Group</Trans>
+                          </p>
+                        </div>
+                        {/* Changing a grant in place is the same upsert that
+                          created it: the group is PUT again and the server
+                          updates its row. */}
+                        {changeable ? (
+                          <CapsControl
+                            value={g}
+                            held={held}
+                            summary={capsLabel(g)}
+                            label={t`Change access for ${{ name: g.group_name }}`}
+                            disabled={busy}
+                            onChange={(next) =>
+                              upsertGrant.mutate(
+                                { groupId: g.group_id, caps: next },
+                                {
+                                  onSuccess: () =>
+                                    toast.success(t`Changed access for ${{ name: g.group_name }}`),
+                                  onError: (e) =>
+                                    toast.error(message(e, t`Could not change access`)),
+                                },
+                              )
+                            }
+                          />
+                        ) : (
+                          <CapsSummary text={capsLabel(g)} />
+                        )}
+                        {changeable && (
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            className="shrink-0"
+                            aria-label={t`Remove ${{ name: g.group_name }}'s access`}
+                            onClick={() =>
+                              revokeGrant.mutate(g.group_id, {
+                                onSuccess: () =>
+                                  toast.success(t`${{ name: g.group_name }} no longer has access`),
+                                onError: (e) => toast.error(message(e, t`Could not revoke`)),
+                              })
+                            }
+                          >
+                            <X />
+                          </Button>
+                        )}
+                      </li>
+                    );
+                  })}
+                  {[...directShares, ...linkShares].map((s) => {
+                    // Only a direct share carries a count: the server cannot say
+                    // which member of a group authored what. Zero inside a team
+                    // folder, which also routes the revoke button straight past
+                    // the confirmation — there is nothing left behind to warn
+                    // about.
+                    const owned = !inTeam && s.kind === "direct" ? (s.grantee_owned ?? 0) : 0;
+                    const grantee = s.kind === "direct" ? personName(s) : t`the public link`;
+                    const changeable = covers(held, s);
+                    // A person's grant is changed by posting it again under
+                    // their id; a link has no such update, only revoke.
+                    const userId = s.kind === "direct" ? s.grantee_user_id : undefined;
+                    const email =
+                      s.kind === "direct" && s.grantee_name && s.grantee_email !== s.grantee_name
+                        ? s.grantee_email
+                        : undefined;
+                    return (
+                      <li key={s.id} className="flex items-center gap-3 p-3 text-sm">
+                        <Avatar size="sm">
+                          {s.kind === "direct" ? (
+                            <AvatarFallback>{grantee.charAt(0).toUpperCase()}</AvatarFallback>
+                          ) : (
+                            <AvatarFallback>
+                              <Link2 className="size-3.5" />
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-medium">
+                            {s.kind === "link" ? <Trans>Anyone with the link</Trans> : grantee}
+                          </p>
+                          {s.kind === "link" ? (
+                            <p className="text-muted-foreground text-[10px] uppercase">
+                              <Trans>Public link</Trans>
+                            </p>
+                          ) : email ? (
+                            <p className="text-muted-foreground truncate text-xs">{email}</p>
+                          ) : (
+                            <p className="text-muted-foreground text-[10px] uppercase">
+                              <Trans>Direct share</Trans>
+                            </p>
+                          )}
+                          {owned > 0 && (
+                            <p className="text-muted-foreground mt-0.5 text-xs">
+                              <Trans>
+                                Created <Plural value={owned} one="# item" other="# items" /> in
+                                here — those stay theirs.
+                              </Trans>
+                            </p>
+                          )}
+                        </div>
+                        {changeable && userId ? (
+                          <CapsControl
+                            value={s}
+                            held={held}
+                            summary={capsLabel(s)}
+                            label={t`Change access for ${{ name: grantee }}`}
+                            disabled={busy}
+                            onChange={(next) =>
+                              createShare.mutate(
+                                {
+                                  nodeId: node.id,
+                                  // eslint-disable-next-line lingui/no-unlocalized-strings -- share kind discriminator
+                                  body: { kind: "direct", user_id: userId, ...next },
+                                },
+                                {
+                                  onSuccess: () =>
+                                    toast.success(t`Changed access for ${{ name: grantee }}`),
+                                  onError: (e) =>
+                                    toast.error(message(e, t`Could not change access`)),
+                                },
+                              )
+                            }
+                          />
+                        ) : (
+                          <CapsSummary text={capsLabel(s)} />
+                        )}
+                        {s.url && (
+                          <a
+                            href={s.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-primary inline-flex shrink-0 items-center gap-1 text-xs underline"
+                          >
+                            <Copy className="size-3.5" /> <Trans>Open</Trans>
+                          </a>
+                        )}
+                        {changeable && (
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            className="shrink-0"
+                            aria-label={t`Revoke access for ${grantee}`}
+                            onClick={() => (owned > 0 ? setPendingRevoke(s) : revoke(s))}
+                          >
+                            <X />
+                          </Button>
+                        )}
+                      </li>
+                    );
+                  })}
+                  {above.size > 0 && (
+                    <li className="text-muted-foreground bg-muted/20 px-3 py-2 text-xs">
+                      <Trans>
+                        Access from the folders above. Change these on the folder they come from.
+                      </Trans>
+                    </li>
+                  )}
+                  {[...above].map(([viaId, { viaName, rows }]) => (
+                    <Fragment key={viaId}>
+                      <li className="text-muted-foreground flex items-center gap-1.5 px-3 pt-2.5 pb-1.5 text-xs font-medium">
+                        <Folder className="size-3.5 shrink-0" />
+                        <span className="truncate">
+                          <Trans>From {viaName}</Trans>
+                        </span>
+                      </li>
+                      {rows.map((r) => (
+                        <InheritedRow
+                          key={`${r.kind}:${r.principal_id}`}
+                          row={r}
+                          summary={r.kind === "owner" ? null : capsLabel(r)}
+                        />
+                      ))}
+                    </Fragment>
+                  ))}
+                  {inherited.isError && (
+                    <li className="text-destructive px-3 py-2 text-xs">
+                      <Trans>Could not load the access that comes from folders above this.</Trans>
+                    </li>
+                  )}
+                </ul>
+              )}
+            </div>
+          </section>
+
+          <Separator />
+
+          <section className="flex flex-col gap-3 rounded-lg border bg-muted/20 p-4">
+            <div>
+              <h3 className="text-sm font-semibold">
+                <Trans>Public link</Trans>
+              </h3>
+              <p className="text-muted-foreground mt-1 text-xs">
+                <Trans>
+                  Anyone holding the link can view this item without signing in. A link never
+                  carries editing, and nobody can re-share it onward — download is the one choice it
+                  offers.
+                </Trans>
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {/* A link can only pass on what its creator holds: without
+                download there is no choice left to offer. */}
+              {held.download && (
+                <div className="grid gap-1.5">
+                  <Label htmlFor="link-download-toggle" className="text-xs">
+                    <Trans>Access</Trans>
+                  </Label>
+                  <div className="flex items-center gap-2 pt-1.5">
+                    <Checkbox
+                      id="link-download-toggle"
+                      checked={linkCanDownload}
+                      onCheckedChange={(v) => setLinkCanDownload(Boolean(v))}
+                    />
+                    <Label htmlFor="link-download-toggle" className="text-xs font-normal">
+                      <Trans>Allow download</Trans>
+                    </Label>
+                  </div>
+                </div>
+              )}
+              <div className="grid gap-1.5">
+                <Label htmlFor="link-expiry" className="text-xs">
+                  <Trans>Expiration</Trans>
+                </Label>
+                <SelectRoot
+                  value={expires}
+                  items={expiryItems}
+                  onValueChange={(v) => setExpires((v as string) ?? DEFAULT_EXPIRY)}
+                >
+                  <SelectTrigger id="link-expiry" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {expiryItems.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </SelectRoot>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="self-start"
+              disabled={createShare.isPending}
+              onClick={createLink}
+            >
+              <Trans>Create public link</Trans>
+            </Button>
+            {linkUrl && (
+              <div className="grid gap-1.5">
+                <div className="flex items-center gap-2">
+                  <Input
+                    readOnly
+                    value={linkUrl}
+                    aria-label={t`New public link`}
+                    aria-describedby="link-once-help"
+                    onFocus={(e) => e.currentTarget.select()}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      void navigator.clipboard.writeText(linkUrl).then(
+                        () => toast.success(t`Link copied`),
+                        () => toast.error(t`Could not copy the link`),
+                      )
+                    }
+                  >
+                    <Copy />
+                    <Trans>Copy</Trans>
+                  </Button>
+                </div>
+                <p id="link-once-help" className="text-muted-foreground text-xs">
+                  <Trans>
+                    This link is shown only once. Copy it now — it cannot be shown again after this
+                    dialog closes.
+                  </Trans>
+                </p>
+              </div>
+            )}
+          </section>
+        </div>
 
         {/* Inline rather than a nested better-modal: this confirmation belongs
             to one row of a list that is already open, and a second modal in
