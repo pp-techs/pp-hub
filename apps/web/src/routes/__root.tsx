@@ -1,4 +1,4 @@
-import { Outlet, createRootRouteWithContext, Link } from "@tanstack/react-router";
+import { HeadContent, Outlet, createRootRouteWithContext, Link } from "@tanstack/react-router";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Trans } from "@lingui/react/macro";
 import type { QueryClient } from "@tanstack/react-query";
@@ -21,6 +21,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <LocaleProvider>
+        <HeadContent />
         <Outlet />
         <ModalContainer />
       </LocaleProvider>

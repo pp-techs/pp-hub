@@ -96,7 +96,12 @@ export const PRODUCT_NAME = "PP Hub";
  * text at module scope, where the catalog does not exist yet.
  */
 export function pageTitle(...parts: MessageDescriptor[]): string {
-  return [...parts.map((p) => i18n._(p)), PRODUCT_NAME].join(" · ");
+  return titleWithProduct(...parts.map((p) => i18n._(p)));
+}
+
+/** `<part> - PP Hub` — for titles made of text that is already a string, like a file name. */
+export function titleWithProduct(...parts: string[]): string {
+  return [...parts, PRODUCT_NAME].join(" - ");
 }
 
 /** Load a catalog and make it current. Idempotent. */

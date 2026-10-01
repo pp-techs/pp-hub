@@ -6,6 +6,8 @@ import { msg } from "@lingui/core/macro";
 import { createEditSession, isMarkdownFile, type EditSession, type Node } from "@/lib/api";
 import { nodeOptions, requireAuth } from "@/lib/queries";
 import { pageTitle } from "@/lib/i18n";
+import { faviconFor } from "@/components/node-icon";
+import { useDocumentTitle, useFavicon } from "@/lib/use-page-head";
 import { useLocale } from "@/components/locale-provider";
 import { useTheme } from "@/components/theme-provider";
 import { NodePanels } from "@/components/node-panels";
@@ -44,6 +46,8 @@ function EditPage() {
     refetchInterval: (query) =>
       query.state.data && isMarkdownFile(query.state.data) ? 30_000 : false,
   });
+  useDocumentTitle(node.data?.name);
+  useFavicon(node.data && faviconFor(node.data.name));
 
   return (
     <div className="bg-background text-foreground flex h-svh flex-col">

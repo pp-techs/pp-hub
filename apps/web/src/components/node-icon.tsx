@@ -207,6 +207,26 @@ const BY_EXT: Record<string, string> = {
   sql: "file-type-sql",
 };
 
+/** Glyph → static favicon file in `public/favicons/`. Only the kinds a tab can be editing. */
+const FAVICONS: Record<string, string> = {
+  "file-type-word": "/favicons/word.svg",
+  "file-type-excel": "/favicons/excel.svg",
+  "file-type-powerpoint": "/favicons/powerpoint.svg",
+  "file-type-markdown": "/favicons/markdown.svg",
+};
+
+/**
+ * The tab icon for a file being edited: the same glyph the listing shows,
+ * for Word, Excel, PowerPoint and Markdown. `undefined` for anything else,
+ * which keeps the product favicon.
+ */
+export function faviconFor(name: string): string | undefined {
+  const dot = name.lastIndexOf(".");
+  if (dot <= 0) return undefined;
+  const glyph = BY_EXT[name.slice(dot + 1).toLowerCase()];
+  return glyph ? FAVICONS[glyph] : undefined;
+}
+
 /**
  * The glyph a file called `name` would wear — used where an action names the
  * file it is about to create and no node exists yet (the "New …" items in the

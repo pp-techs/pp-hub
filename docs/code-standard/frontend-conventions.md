@@ -194,7 +194,8 @@ bind day-to-day code.
   `` `${n} item${n === 1 ? "" : "s"}` ``. Vietnamese has only the `other`
   category; do not "fix" a `vi` plural by adding `one`.
 - **Route `head` titles use `pageTitle(msg\`…\`)`** from `@/lib/i18n`. `head`runs outside React, so it reaches the singleton rather than a hook, and
-titles follow the language on the next navigation rather than instantly.`pageTitle`appends`· pp-hub` itself.
+titles follow the language on the next navigation rather than instantly. `pageTitle`appends`- PP Hub`itself, and`<HeadContent />`in`__root.tsx` is what applies it.
+- **Titles that depend on loaded data** (a folder, a space, the file being edited) call `useDocumentTitle(name)` from `@/lib/use-page-head` in the component; the route's static `head` title is the fallback until the name is known. `useFavicon(href)` swaps the tab icon while mounted; `faviconFor(name)` (`node-icon.tsx`) picks the Word/Excel/PowerPoint/Markdown icon from `public/favicons/`.
 - **Formatting goes through `useFormatters()`** (`@/lib/format`), which binds
   the active locale and re-renders on a switch. `lib/api/` takes an optional
   trailing `locale` argument and never imports the i18n runtime — the
