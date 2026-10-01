@@ -789,6 +789,47 @@ deleted, because it owns files and history — and each organization it was in
 is reconciled at once so its memberships become departures. Only an account
 issued by some other provider keeps a local-only suspension.
 
+## Agents (MCP)
+
+An AI agent connected over MCP (M41, [agent-access.md](agent-access.md)) acts
+**as its person, with exactly that person's capabilities** — nothing new is
+granted and nothing is resolved differently. Each tool is a few calls to the
+REST API dispatched in process with the person's session, so every capability
+check, audit row and notification is the web client's own.
+
+Four switches and suspension are checked by `mcpBearer` **on every request**,
+not when the connector is added, so turning one off takes effect at once:
+
+- **`mcp_enabled`** (instance, Admin › Settings, default off) — off, `/mcp/`
+  and its discovery metadata answer 404.
+- **`users.settings.agents_enabled`** (per person, Settings › Security; unset
+  means allowed) — off, 403.
+- **`users.suspended_at`** — 403, as on `/api/v1`.
+- **`mcp_public_links`** (instance, default off) — creating a public link
+  through an agent needs this _and_ the space's `allow_public_links`; one
+  person's agent should not be able to publish a document to the internet
+  unless the instance has decided it may.
+- **`mcp_tokens`** (instance, default on) — off, personal access tokens can be
+  neither minted nor presented (403).
+
+A personal access token is a credential the person manages, never their
+agent: its routes, like the session routes, are mounted only on the network's
+`/api/v1` and not on the agent router, so no tool can mint one. It carries no
+capability of its own — it is its creator, as an OAuth token is.
+
+A token whose identity has no pp-hub account answers 403 ("sign in to pp-hub
+once…"); the MCP path never creates an account.
+
+Two routes exist only on the in-process agent router: `GET /nodes/{id}/text`
+takes `CapView` (reading is view) and `PUT /nodes/{id}/text` takes `CapEdit`.
+`add_comment` with a quote anchors the thread by writing the document, so it
+needs edit; without a quote it opens a thread like a reviewer, on view.
+
+Every `security_events` row recorded under an agent request carries
+`detail.via = "mcp"` and `detail.client_id`, and read dedup keys an agent's
+read apart from its person's (`actor|agent:<client_id>`), so the log can tell
+what a person did from what their agent did.
+
 ## Organization Sync
 
 A space mirrors one Logto organization (`spaces.idp_org_id`, unique where

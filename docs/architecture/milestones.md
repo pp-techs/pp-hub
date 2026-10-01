@@ -55,6 +55,7 @@ Each shipped milestone has its own file under [`milestones/`](milestones/) with 
 | M38 | Two-way Logto sync                                     | ✅         | [detail](milestones/M38.md) |
 | M39 | Block documents (Markdown + slash-editor)              | ✅         | [detail](milestones/M39.md) |
 | M40 | Block documents, completed                             | ✅         | [detail](milestones/M40.md) |
+| M41 | Agent access over MCP                                  | ✅         | [detail](milestones/M41.md) |
 
 ## Upcoming — M27 Onward
 
@@ -109,6 +110,15 @@ M29 shipped (comments on block documents with in-app notifications and a
 live stream — [detail](milestones/M29.md)). What it deliberately did not
 build: comment or mention **email**, and comments on anything but a block
 document.
+
+### Phase D — Agent access
+
+M41 shipped (chat-app agents act as the signed-in person over MCP —
+[detail](milestones/M41.md), design in [agent-access.md](agent-access.md)).
+What it deliberately did not build, and so what comes next on this line: an
+**agent embedded in pp-hub**, over the same `internal/agenttools` registry;
+binary upload, which a tool call's JSON cannot carry; and file management
+(folders, rename, move, trash) as tools.
 
 ### Named but Unscheduled
 

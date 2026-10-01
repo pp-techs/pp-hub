@@ -19,6 +19,7 @@ import { useFormatters } from "@/lib/format";
 import { describeAgent } from "@/lib/user-agent";
 import { SectionLabel } from "@/components/section-label";
 import { LoadingStatus } from "@/components/loading";
+import { AgentAccessSection } from "./agent-access-section";
 
 /** Form factor -> icon. These are icon components, not labels: nothing to translate. */
 const FORM_ICONS = { desktop: Monitor, phone: Smartphone, tablet: Tablet } as const;
@@ -79,68 +80,71 @@ export function AccountSecurityPane() {
   }
 
   return (
-    <section className="flex max-w-2xl flex-col gap-3">
-      <SectionLabel>
-        <Trans>Signed-in devices</Trans>
-      </SectionLabel>
-      <div className="flex items-start justify-between gap-4">
-        <p className="text-muted-foreground text-[10px]">
-          <Trans>
-            Each row is a live session. Signing one out takes effect immediately — the device is
-            asked to sign in again the next time it reaches the server.
-          </Trans>
-        </p>
-        <Button
-          variant="outline"
-          size="sm"
-          className="shrink-0"
-          disabled={others.length === 0 || revokeOthers.isPending}
-          onClick={() => void signOutEverywhereElse()}
-        >
-          <Trans>Sign out everywhere else</Trans>
-        </Button>
-      </div>
+    <div className="flex max-w-2xl flex-col gap-6">
+      <section className="flex flex-col gap-3">
+        <SectionLabel>
+          <Trans>Signed-in devices</Trans>
+        </SectionLabel>
+        <div className="flex items-start justify-between gap-4">
+          <p className="text-muted-foreground text-[10px]">
+            <Trans>
+              Each row is a live session. Signing one out takes effect immediately — the device is
+              asked to sign in again the next time it reaches the server.
+            </Trans>
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0"
+            disabled={others.length === 0 || revokeOthers.isPending}
+            onClick={() => void signOutEverywhereElse()}
+          >
+            <Trans>Sign out everywhere else</Trans>
+          </Button>
+        </div>
 
-      {isLoading && (
-        <LoadingStatus>
+        {isLoading && (
+          <LoadingStatus>
+            <ul className="border-border divide-border divide-y rounded-md border">
+              {[40, 55, 48].map((width) => (
+                <li key={width} className="flex items-center gap-3 px-3 py-2.5">
+                  <Skeleton className="size-4 shrink-0" />
+                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                    <Skeleton className="h-3.5" style={{ width: `${width}%` }} />
+                    <Skeleton className="h-2.5" style={{ width: `${width + 20}%` }} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </LoadingStatus>
+        )}
+        {isError && (
+          <p className="text-destructive text-xs">
+            <Trans>Could not load your sessions.</Trans>
+          </p>
+        )}
+
+        {sessions && (
           <ul className="border-border divide-border divide-y rounded-md border">
-            {[40, 55, 48].map((width) => (
-              <li key={width} className="flex items-center gap-3 px-3 py-2.5">
-                <Skeleton className="size-4 shrink-0" />
-                <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                  <Skeleton className="h-3.5" style={{ width: `${width}%` }} />
-                  <Skeleton className="h-2.5" style={{ width: `${width + 20}%` }} />
-                </div>
-              </li>
+            {sessions.map((session) => (
+              <SessionRow
+                key={session.id}
+                session={session}
+                busy={revoke.isPending && revoke.variables === session.id}
+                onRevoke={() =>
+                  revoke.mutate(session.id, {
+                    onSuccess: () => toast.success(t`Device signed out`),
+                    onError: (e) =>
+                      toast.error(t`Could not sign out that device`, { description: e.message }),
+                  })
+                }
+              />
             ))}
           </ul>
-        </LoadingStatus>
-      )}
-      {isError && (
-        <p className="text-destructive text-xs">
-          <Trans>Could not load your sessions.</Trans>
-        </p>
-      )}
-
-      {sessions && (
-        <ul className="border-border divide-border divide-y rounded-md border">
-          {sessions.map((session) => (
-            <SessionRow
-              key={session.id}
-              session={session}
-              busy={revoke.isPending && revoke.variables === session.id}
-              onRevoke={() =>
-                revoke.mutate(session.id, {
-                  onSuccess: () => toast.success(t`Device signed out`),
-                  onError: (e) =>
-                    toast.error(t`Could not sign out that device`, { description: e.message }),
-                })
-              }
-            />
-          ))}
-        </ul>
-      )}
-    </section>
+        )}
+      </section>
+      <AgentAccessSection />
+    </div>
   );
 }
 

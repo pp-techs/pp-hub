@@ -34,6 +34,12 @@ type userProfileDTO struct {
 	CreatedAt       string            `json:"created_at"`
 	LastSeen        string            `json:"last_seen,omitempty"`
 	Preferences     users.Preferences `json:"preferences"`
+	// MCPURL is the connector URL for AI agents (M41), present only while the
+	// instance allows them, so the client can tell "off here" from "off for
+	// me".
+	MCPURL string `json:"mcp_url,omitempty"`
+	// MCPTokens says personal access tokens may be created (mcp_tokens).
+	MCPTokens bool `json:"mcp_tokens,omitempty"`
 }
 
 type updateProfileRequest struct {
@@ -95,7 +101,10 @@ func (s *Server) handleGetMyProfile(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusNotFound, "Error", "user not found")
 		return
 	}
-	writeJSON(w, http.StatusOK, profileToDTO(profile, s.canCreateSpaces(u)))
+	dto := profileToDTO(profile, s.canCreateSpaces(u))
+	dto.MCPURL = s.mcpConnectorURL()
+	dto.MCPTokens = s.mcpTokensAllowed()
+	writeJSON(w, http.StatusOK, dto)
 }
 
 // handleUpdateMyProfile updates the current user's profile.
@@ -111,7 +120,10 @@ func (s *Server) handleUpdateMyProfile(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusInternalServerError, "Error", "update failed")
 		return
 	}
-	writeJSON(w, http.StatusOK, profileToDTO(profile, s.canCreateSpaces(u)))
+	dto := profileToDTO(profile, s.canCreateSpaces(u))
+	dto.MCPURL = s.mcpConnectorURL()
+	dto.MCPTokens = s.mcpTokensAllowed()
+	writeJSON(w, http.StatusOK, dto)
 }
 
 // handleUploadAvatar stores an avatar's bytes in the CAS and points the

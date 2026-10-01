@@ -1,7 +1,7 @@
 #!/bin/sh
 # pp-logto-setup.sh — configure a Logto tenant so pp-hub works against it.
 #
-# pp-hub needs seven things from Logto, and each one fails in its own quiet
+# pp-hub needs nine things from Logto, and each one fails in its own quiet
 # way when it is missing (docs/deployment.md, "Logto: identity and
 # membership"). Clicked together in a console, none of them is reviewable and
 # none survives a rebuild. So they live here:
@@ -16,7 +16,11 @@
 #   5. email sign-up with verification, email + password sign-in (if SMTP_HOST)
 #   6. a webhook on the six events pp-hub reconciles from
 #                                    → PP_LOGTO_WEBHOOK_KEY
-#   7. the values above, printed — and written into PP_ENV_FILE when given
+#   7. an API resource "pp-hub MCP" whose indicator is $PP_EXTERNAL_URL/mcp/,
+#      the audience of the tokens agents present to the MCP server
+#   8. Client ID Metadata Documents (CIMD) switched on, so Claude and ChatGPT
+#      can sign in without being registered here first
+#   9. the values above, printed — and written into PP_ENV_FILE when given
 #
 # Idempotent: every object is looked up by name first. Existing apps keep
 # their secrets; redirect URIs, connector config, sign-in settings and the
@@ -65,6 +69,10 @@ M2M_NAME="pp-hub server"
 M2M_ROLE="pp-hub server: Management API"
 WEB_NAME="pp-hub"
 HOOK_NAME="pp-hub"
+MCP_NAME="pp-hub MCP"
+# Trailing slash kept: it must match, byte for byte, the resource the MCP
+# server advertises in its RFC 9728 metadata.
+MCP_INDICATOR="$APP_URL/mcp/"
 # Everything pp-hub converges from: membership and organization name/deletion,
 # and account suspension, deletion, address and name.
 HOOK_EVENTS='["Organization.Membership.Updated","Organization.Data.Updated","Organization.Deleted","User.Data.Updated","User.SuspensionStatus.Updated","User.Deleted"]'
@@ -86,16 +94,22 @@ if [ -z "$TOKEN" ]; then
 	exit 1
 fi
 
+# api_status METHOD PATH [JSON] — prints the HTTP status; the body is left in
+# $TMP/body. For the calls whose failure is not fatal.
+api_status() {
+	if [ $# -ge 3 ]; then
+		curl -sS -o "$TMP/body" -w '%{http_code}' -X "$1" \
+			-H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+			--data "$3" "$ENDPOINT/api$2"
+	else
+		curl -sS -o "$TMP/body" -w '%{http_code}' -X "$1" \
+			-H "Authorization: Bearer $TOKEN" "$ENDPOINT/api$2"
+	fi
+}
+
 # api METHOD PATH [JSON] — prints the body; exits naming the call on non-2xx.
 api() {
-	if [ $# -ge 3 ]; then
-		status=$(curl -sS -o "$TMP/body" -w '%{http_code}' -X "$1" \
-			-H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
-			--data "$3" "$ENDPOINT/api$2")
-	else
-		status=$(curl -sS -o "$TMP/body" -w '%{http_code}' -X "$1" \
-			-H "Authorization: Bearer $TOKEN" "$ENDPOINT/api$2")
-	fi
+	status=$(api_status "$@")
 	case $status in
 	2*) cat "$TMP/body" ;;
 	*)
@@ -266,7 +280,39 @@ else
 fi
 hook_key=$(api GET "/hooks/$hook_id" | jq -r .signingKey)
 
-# --- 7. output --------------------------------------------------------------------
+# --- 7. MCP API resource ------------------------------------------------------------
+
+# Looked up by indicator, not name: the indicator is what tokens are bound to
+# and Logto will not change it, so a renamed resource is renamed back.
+mcp_id=$(api GET "/resources?page_size=100" | jq -r --arg i "$MCP_INDICATOR" '.[] | select(.indicator == $i) | .id')
+if [ -z "$mcp_id" ]; then
+	echo "API resource '$MCP_NAME' → $MCP_INDICATOR: creating"
+	api POST /resources "$(jq -n --arg n "$MCP_NAME" --arg i "$MCP_INDICATOR" '{name: $n, indicator: $i}')" >/dev/null
+else
+	echo "API resource '$MCP_NAME' → $MCP_INDICATOR: updating"
+	api PATCH "/resources/$mcp_id" "$(jq -n --arg n "$MCP_NAME" '{name: $n}')" >/dev/null
+fi
+
+# --- 8. Client ID Metadata Documents ------------------------------------------------
+
+# Logto fetches each agent's metadata document from a URL the agent names, so
+# it refuses (422) while its SSRF protection is off or loosened. Not fatal:
+# everything else works, agent access just stays unavailable.
+cimd_status=$(api_status PATCH /configs/cimd '{"enabled": true}')
+case $cimd_status in
+2*) echo "client ID metadata documents: enabled" ;;
+422)
+	echo "warning: Logto refused to enable client ID metadata documents (422): $(cat "$TMP/body")" >&2
+	echo "warning: remove SSRF_PROTECTION_DISABLED, OIDC_PROVIDER_SSRF_PROTECTION_DISABLED and SSRF_ALLOWED_ADDRESSES from Logto's environment, restart it and re-run;" >&2
+	echo "warning: until then agents (Claude, ChatGPT) cannot sign in to pp-hub over MCP." >&2
+	;;
+*)
+	echo "PATCH /configs/cimd → $cimd_status: $(cat "$TMP/body")" >&2
+	exit 1
+	;;
+esac
+
+# --- 9. output --------------------------------------------------------------------
 
 cat >"$TMP/env" <<EOF
 PP_OIDC_ISSUER=$ENDPOINT/oidc

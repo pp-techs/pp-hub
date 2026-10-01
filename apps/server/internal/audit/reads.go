@@ -75,6 +75,11 @@ func (s *Service) RecordRead(r *http.Request, rd Read) {
 	var actor string
 	if rd.User != nil {
 		actor = rd.User.ID.String()
+		// An agent's read is its own row, not folded into the person's:
+		// "read by them" and "read by their agent" are different answers.
+		if client, ok := Agent(r.Context()); ok {
+			actor += "|agent:" + client
+		}
 	} else {
 		actor = "link:" + rd.ShareID.String() + "@" + ClientIP(r)
 	}

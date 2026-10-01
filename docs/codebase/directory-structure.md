@@ -131,6 +131,10 @@ pp-hub/
 │           │   ├── users.go        # user profile CRUD
 │           │   ├── groups.go       # groups API + the folder-grant endpoints
 │           │   ├── webhooks.go     # POST /hooks/logto — HMAC over the raw body, then enqueue an org or user reconcile
+│           │   ├── mcp.go          # M41: /mcp/ (bearer-only, mcpBearer) + /.well-known/oauth-protected-resource
+│           │   ├── agent.go        # M41: agentAPI — tool calls dispatched in process through apiRoutes
+│           │   ├── agent_text.go   # M41: GET/PUT /nodes/{id}/text, mounted only on the agent router
+│           │   ├── agent_tokens.go # M41: personal access tokens (/users/me/agent-tokens), never on the agent router
 │           │   └── spaces_members.go # space members API (list/add/remove, set-admin) + the departure queue
 │           ├── store/              # ✅ sqlc queries, embedded migrations runner
 │           │   └── migrations/     # 0001_init.sql baseline, then one file per change:
@@ -141,7 +145,8 @@ pp-hub/
 │           │                       #    0010_resumable_uploads.sql, 0011_blob_integrity.sql,
 │           │                       #    0012_detached_orgs.sql, 0013_block_documents.sql,
 │           │                       #    0014_markdown_mime.sql, 0015_comments_notifications.sql,
-│           │                       #    0016_content_search.sql, 0017_space_avatars.sql
+│           │                       #    0016_content_search.sql, 0017_space_avatars.sql,
+│           │                       #    0018_agent_tokens.sql
 │           ├── users/              # user service layer (profile)
 │           ├── orgsync/            # ✅ Logto sync: client.go (Management API), orgsync.go (membership reconciler, jobs, sweep),
 │           │                       #    accounts.go (accounts), spacesync.go (create, rename, Link to Logto)
@@ -161,6 +166,7 @@ pp-hub/
 │           ├── comments/           # ✅ M29 threads on block documents: who may do what, who is told
 │           ├── notifications/      # ✅ M29 rows, the per-process SSE broker, notify:mentions job
 │           ├── textsearch/         # ✅ M27 folding, query building, snippets (pure)
+│           ├── agenttools/         # ✅ M41 the MCP tool registry (REST calls via agenttools.API); anchor.go = comment anchors
 │           ├── uploads/            # ✅ resumable upload rows + staging files in <PP_BLOB_ROOT>/.uploads; 24h idle sweep
 │           ├── blob/               # CAS Store interface + local and S3 impls; Ingest takes over a staged upload
 │           ├── share/              # grants — user, group, link — and the caps they resolve to

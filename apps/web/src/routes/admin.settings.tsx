@@ -10,6 +10,7 @@ import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 import { Badge } from "@workspace/ui/components/badge";
 import { Skeleton } from "@workspace/ui/components/skeleton";
+import { Switch } from "@workspace/ui/components/switch";
 import {
   Card,
   CardAction,
@@ -166,6 +167,79 @@ const INT_SETTINGS = [
 type IntSettingKey = (typeof INT_SETTINGS)[number]["key"];
 type IntSettingValues = Record<IntSettingKey, string>;
 
+/** The on/off settings this form edits; absent from the server means its default. */
+// eslint-disable-next-line lingui/no-unlocalized-strings -- setting keys
+const BOOL_SETTINGS = ["mcp_enabled", "mcp_public_links", "mcp_tokens"] as const;
+
+type BoolSettingKey = (typeof BOOL_SETTINGS)[number];
+type BoolSettingValues = Record<BoolSettingKey, boolean>;
+
+/** What the server assumes when a boolean key has never been stored. */
+const BOOL_DEFAULTS: BoolSettingValues = {
+  mcp_enabled: false,
+  mcp_public_links: false,
+  mcp_tokens: true,
+};
+
+/**
+ * One switch row of a boolean setting: its source, a Reset when it is a
+ * database override, and the switch itself.
+ */
+function BoolSettingRow({
+  settingKey,
+  settings,
+  values,
+  label,
+  disabled,
+  onChange,
+  onReset,
+  resetDisabled,
+}: {
+  settingKey: BoolSettingKey;
+  settings: AdminSettingsMap;
+  values: BoolSettingValues;
+  label: React.ReactNode;
+  disabled?: boolean;
+  onChange: (key: BoolSettingKey, value: boolean) => void;
+  onReset: (key: BoolSettingKey) => void;
+  resetDisabled: boolean;
+}) {
+  const setting = settings[settingKey];
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div className="flex min-w-0 flex-col gap-1">
+        <div className="flex items-center gap-2">
+          <Label htmlFor={settingKey}>{label}</Label>
+          {setting && <SourceBadge source={setting.source} />}
+        </div>
+        {setting?.description && (
+          <p className="text-muted-foreground text-xs">{setting.description}</p>
+        )}
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        {setting?.source === "database" && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => onReset(settingKey)}
+            disabled={resetDisabled}
+          >
+            <RotateCcw className="size-3.5" />
+            <Trans>Reset</Trans>
+          </Button>
+        )}
+        <Switch
+          id={settingKey}
+          checked={values[settingKey]}
+          disabled={disabled}
+          onCheckedChange={(v) => onChange(settingKey, v)}
+        />
+      </div>
+    </div>
+  );
+}
+
 /**
  * One integer setting: where its value comes from, a Reset back to the
  * deployment default when it is a database override, and the input itself.
@@ -251,6 +325,12 @@ function SettingsForm({ settings }: { settings: AdminSettingsMap }) {
   const currentInts = Object.fromEntries(
     INT_SETTINGS.map((s) => [s.key, String((settings[s.key]?.value as number) ?? s.fallback)]),
   ) as IntSettingValues;
+  const currentBools = Object.fromEntries(
+    BOOL_SETTINGS.map((k) => [k, (settings[k]?.value as boolean | undefined) ?? BOOL_DEFAULTS[k]]),
+  ) as BoolSettingValues;
+  const [bools, setBools] = useState(currentBools);
+  const setBool = (key: BoolSettingKey, value: boolean) =>
+    setBools((prev) => ({ ...prev, [key]: value }));
   const [instanceName, setInstanceName] = useState(currentInstanceName);
   const [maxUploadGb, setMaxUploadGb] = useState(
     currentMaxUpload > 0 ? String(Math.round(currentMaxUpload / 1024 ** 3)) : "0",
@@ -270,6 +350,7 @@ function SettingsForm({ settings }: { settings: AdminSettingsMap }) {
     instanceName !== currentInstanceName ||
     maxUploadGb !== initialMaxUploadGb ||
     INT_SETTINGS.some((s) => ints[s.key] !== currentInts[s.key]) ||
+    BOOL_SETTINGS.some((k) => bools[k] !== currentBools[k]) ||
     defaultSpaceQuotaGb !== initialQuotaGb;
 
   const intErrors: Record<IntSettingKey, string> = {
@@ -318,6 +399,10 @@ function SettingsForm({ settings }: { settings: AdminSettingsMap }) {
       patch[s.key] = parsed;
     }
 
+    for (const k of BOOL_SETTINGS) {
+      if (bools[k] !== currentBools[k]) patch[k] = bools[k];
+    }
+
     if (defaultSpaceQuotaGb !== initialQuotaGb) {
       const parsedQuota = Number.parseFloat(defaultSpaceQuotaGb);
       if (Number.isNaN(parsedQuota) || parsedQuota < 0) {
@@ -352,6 +437,11 @@ function SettingsForm({ settings }: { settings: AdminSettingsMap }) {
   const resetInt = async (key: IntSettingKey) => {
     const next = await handleReset(key);
     if (next?.[key]) setInt(key, String(next[key].value));
+  };
+
+  const resetBool = async (key: BoolSettingKey) => {
+    const next = await handleReset(key);
+    if (next) setBool(key, (next[key]?.value as boolean | undefined) ?? BOOL_DEFAULTS[key]);
   };
 
   return (
@@ -583,6 +673,60 @@ function SettingsForm({ settings }: { settings: AdminSettingsMap }) {
         />
       </section>
 
+      <section className="flex flex-col gap-3">
+        <SectionLabel>
+          <Trans>AI agents</Trans>
+        </SectionLabel>
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              <Trans>Agent access (MCP)</Trans>
+            </CardTitle>
+            <CardDescription>
+              <Trans>
+                Lets people connect Claude, ChatGPT and other AI agents to their account. Public
+                links let an agent publish files that anyone with the link can open without signing
+                in.
+              </Trans>
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <BoolSettingRow
+              // eslint-disable-next-line lingui/no-unlocalized-strings -- setting key
+              settingKey="mcp_enabled"
+              settings={settings}
+              values={bools}
+              label={<Trans>Let people connect AI agents to their account</Trans>}
+              onChange={setBool}
+              onReset={resetBool}
+              resetDisabled={remove.isPending}
+            />
+            <BoolSettingRow
+              // eslint-disable-next-line lingui/no-unlocalized-strings -- setting key
+              settingKey="mcp_public_links"
+              settings={settings}
+              values={bools}
+              label={<Trans>Let agents create public links</Trans>}
+              disabled={!bools.mcp_enabled}
+              onChange={setBool}
+              onReset={resetBool}
+              resetDisabled={remove.isPending}
+            />
+            <BoolSettingRow
+              // eslint-disable-next-line lingui/no-unlocalized-strings -- setting key
+              settingKey="mcp_tokens"
+              settings={settings}
+              values={bools}
+              label={<Trans>Let people create personal access tokens for agents</Trans>}
+              disabled={!bools.mcp_enabled}
+              onChange={setBool}
+              onReset={resetBool}
+              resetDisabled={remove.isPending}
+            />
+          </CardContent>
+        </Card>
+      </section>
+
       <div className="flex items-center justify-end gap-3 border-t pt-4">
         <Button
           type="button"
@@ -592,6 +736,7 @@ function SettingsForm({ settings }: { settings: AdminSettingsMap }) {
             setInstanceName(currentInstanceName);
             setMaxUploadGb(initialMaxUploadGb);
             setInts(currentInts);
+            setBools(currentBools);
             setDefaultSpaceQuotaGb(initialQuotaGb);
           }}
         >

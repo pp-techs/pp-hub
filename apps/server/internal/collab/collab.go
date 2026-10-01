@@ -50,6 +50,10 @@ type Service interface {
 	// Reseed runs change, which replaces the document's file, and makes a
 	// resident room hold the result, keeping its epoch and its peers.
 	Reseed(ctx context.Context, nodeID pgtype.UUID, change func(context.Context) error) error
+	// Flush writes a resident room's unsaved edits as a version now, so a
+	// reader of the file sees what its editors see. Without a room it does
+	// nothing.
+	Flush(ctx context.Context, nodeID pgtype.UUID) error
 }
 
 // Session is what a client needs to join a document's room.

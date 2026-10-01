@@ -69,6 +69,10 @@ type Server struct {
 	// unfurl fetches link bookmarks; nil fetches public addresses only
 	// (publicUnfurl). Tests give it one that may reach an httptest server.
 	unfurl *unfurl.Fetcher
+	// agentRouter answers agent tool calls in process (agent.go); mcpLimit
+	// is the MCP endpoint's per-person rate limit (mcp.go).
+	agentRouter http.Handler
+	mcpLimit    *limiter
 }
 
 // Deps is what the HTTP edge needs. A struct rather than a parameter list
@@ -204,143 +208,19 @@ func (s *Server) Router() http.Handler {
 		// be told the actual reason rather than a 401 that sends them
 		// looking for an expired login.
 		r.Use(apiLimit.middleware, s.sameOrigin, s.authenticated)
-
-		r.Get("/users/me", s.handleGetMyProfile)
-		r.Put("/users/me", s.handleUpdateMyProfile)
-		r.Post("/users/me/avatar", s.handleUploadAvatar)
-		r.Patch("/users/me/preferences", s.handleUpdateMyPreferences)
-		r.Route("/users/me/sessions", func(r chi.Router) {
-			r.Get("/", s.handleListSessions)
-			r.Delete("/", s.handleRevokeOtherSessions)
-			r.Delete("/{sessionID}", s.handleRevokeSession)
-		})
-		r.Get("/search", s.handleSearch)
-		r.Get("/activity", s.handleListActivity)
-		r.Get("/recent", s.handleListRecent)
-		r.Get("/starred", s.handleListStarred)
-		r.Get("/usage", s.handleUsage)
-		r.Get("/shared", s.handleListShared)
-		r.Get("/admin/stats", s.handleAdminStats)
-		r.Get("/admin/security-events", s.handleAdminSecurityEvents)
-		r.Get("/admin/security-events/export", s.handleAdminSecurityEventsExport)
-		r.Patch("/admin/users/{userID}", s.handleAdminUpdateUser)
-		r.Get("/admin/settings", s.handleGetAdminSettings)
-		r.Patch("/admin/settings", s.handleUpdateAdminSettings)
-		r.Delete("/admin/settings/{key}", s.handleDeleteAdminSetting)
-		r.Post("/admin/settings/smtp/test", s.handleTestSMTP)
-		r.Get("/users", s.handleListUsers)
-		r.Get("/users/{userID}/avatar", s.handleGetAvatar)
-
-		r.Route("/spaces", func(r chi.Router) {
-			r.Post("/", s.handleCreateSpace)
-			r.Get("/", s.handleListSpaces)
-			r.Route("/{spaceID}", func(r chi.Router) {
-				r.Patch("/", s.handleUpdateSpace)
-				r.Delete("/", s.handleDeleteSpace)
-				r.Get("/departures", s.handleListDepartures)
-				r.Post("/departures/{userID}/complete", s.handleCompleteDeparture)
-				r.Get("/link-preview", s.handleLinkPreview)
-				r.Post("/link", s.handleLinkSpace)
-				r.Get("/avatar", s.handleGetSpaceAvatar)
-				r.Post("/avatar", s.handleUploadSpaceAvatar)
-				r.Delete("/avatar", s.handleClearSpaceAvatar)
-				r.Get("/children", s.handleListChildren)
-				r.Get("/tree", s.handleListTree)
-				r.Get("/trash", s.handleListDeleted)
-				r.Post("/trash/empty", s.handleEmptyTrash)
-				r.Post("/dirs", s.handleMkdir)
-				r.Post("/team-folders", s.handleCreateTeamFolder)
-				r.Post("/documents", s.handleCreateDocument)
-				r.Route("/groups", func(r chi.Router) {
-					r.Get("/", s.handleListGroups)
-					r.Post("/", s.handleCreateGroup)
-					r.Route("/{groupID}", func(r chi.Router) {
-						r.Patch("/", s.handleUpdateGroup)
-						r.Delete("/", s.handleDeleteGroup)
-						r.Get("/members", s.handleListGroupMembers)
-						r.Post("/members", s.handleAddGroupMember)
-						r.Delete("/members/{userID}", s.handleRemoveGroupMember)
-					})
-				})
-				r.Route("/members", func(r chi.Router) {
-					r.Get("/", s.handleListMembers)
-					r.Post("/", s.handleAddMember)
-					r.Route("/{userID}", func(r chi.Router) {
-						r.Post("/set-admin", s.handleSetMemberAdmin)
-						r.Delete("/", s.handleRemoveMember)
-					})
-				})
-			})
-		})
-		r.Route("/nodes/{nodeID}", func(r chi.Router) {
-			r.Get("/", s.handleGetNode)
-			r.Get("/download", s.handleDownload)
-			r.Get("/content", s.handleContent)
-			r.Patch("/rename", s.handleRenameNode)
-			r.Patch("/move", s.handleMoveNode)
-			r.Get("/move-impact", s.handleMoveImpact)
-			r.Post("/copy", s.handleCopyNode)
-			r.Delete("/", s.handleDeleteNode)
-			r.Get("/versions", s.handleListVersions)
-			r.Post("/versions/{versionID}/restore", s.handleRestoreVersion)
-			r.Post("/star", s.handleStarNode)
-			r.Delete("/star", s.handleUnstarNode)
-			r.Post("/restore", s.handleRestoreNode)
-			r.Delete("/purge", s.handlePurgeNode)
-			r.Post("/shares", s.handleCreateShare)
-			r.Get("/shares", s.handleListShares)
-			r.Delete("/shares/{shareID}", s.handleRevokeShare)
-			r.Get("/inherited-access", s.handleInheritedAccess)
-			r.Post("/edit-session", s.handleEditSession)
-			r.Get("/collab", s.handleCollabSession)
-			r.Get("/attachments/{hash}", s.handleAttachment)
-			r.Get("/document", s.handleDocument)
-			r.Get("/export", s.handleExport)
-			r.Post("/unfurl", s.handleUnfurl)
-			r.Get("/comments", s.handleListComments)
-			r.Post("/comment-threads", s.handleCreateCommentThread)
-			r.Get("/preview", s.handlePreview)
-			r.Get("/grants", s.handleListGrants)
-			r.Put("/grants", s.handleUpsertGrant)
-			r.Delete("/grants/{groupID}", s.handleRevokeGrant)
-		})
-		// The block editor's sockets. A GET, so sameOrigin lets it by, and a
-		// socket is not a read: socketOrigin demands this deployment's
-		// Origin before ygo sees the request (see socketOrigin).
-		// TestCollabSocketRefusesForeignOrigins holds the route to it.
-		r.With(s.socketOrigin).Get("/collab/{room}", s.handleCollabSocket)
-		// The templates a new block document can start from.
-		r.Get("/templates/markdown", s.handleListMarkdownTemplates)
-		// Comments (M29): a thread's and a comment's routes resolve the
-		// document behind them and take download on it, like the node's.
-		r.Post("/comment-threads/{threadID}/comments", s.handleReplyComment)
-		r.Post("/comment-threads/{threadID}/resolve", s.handleResolveThread)
-		r.Post("/comment-threads/{threadID}/reopen", s.handleReopenThread)
-		r.Patch("/comments/{commentID}", s.handleEditComment)
-		r.Delete("/comments/{commentID}", s.handleDeleteComment)
-		// In-app notifications. The stream is Server-Sent Events, which
-		// nginx must not buffer (its own location in nginx.conf).
-		r.Get("/notifications", s.handleListNotifications)
-		r.Get("/notifications/unread-count", s.handleUnreadNotifications)
-		r.Post("/notifications/read", s.handleMarkNotificationsRead)
-		r.Get("/notifications/stream", s.handleNotificationStream)
-		// Resumable uploads (tus 1.0.0). The only way file content enters
-		// through the API: a chunk at a time, each one short enough to finish
-		// inside whatever request deadline a proxy in front imposes.
-		r.Route("/uploads", func(r chi.Router) {
-			r.Post("/", s.handleCreateUpload)
-			r.Route("/{uploadID}", func(r chi.Router) {
-				r.Head("/", s.handleUploadOffset)
-				r.Patch("/", s.handleUploadChunk)
-				r.Delete("/", s.handleTerminateUpload)
-			})
-		})
+		s.apiRoutes(r, false)
 	})
 
 	// Outside /api/v1 deliberately: that group is authenticated and
 	// same-origin by construction, and this caller is neither. Its
 	// credential is the HMAC over the body. See handleLogtoWebhook.
 	r.With(apiLimit.middleware).Post("/hooks/logto", s.handleLogtoWebhook)
+
+	// Agents over MCP (M41). Outside /api/v1 for the reason /wopi/ is: the
+	// credential is a bearer token, never the session cookie, so neither
+	// the same-origin check nor the cookie lookup applies. mcpBearer
+	// authenticates it on every request. See mcp.go.
+	s.mcpRoutes(r)
 
 	r.Route("/wopi/files/{nodeID}", func(r chi.Router) {
 		r.Get("/", s.handleWopiCheckFileInfo)
@@ -370,6 +250,161 @@ func (s *Server) Router() http.Handler {
 	return r
 }
 
+// apiRoutes is the /api/v1 table. The network mounts it behind the rate
+// limit, the same-origin check and the session cookie; the agent dispatcher
+// (agent.go) mounts the same table in process, so a tool reaches exactly the
+// handlers — authorization, audit, notifications — the web client does.
+//
+// agent adds the routes only that dispatcher mounts: a document's text, read
+// and written whole (agent_text.go). The web client edits documents through
+// the collaboration room and never needs them, so the network does not carry
+// a second way to write file content. The reverse holds for credentials:
+// sessions and personal tokens are managed by the person, never by an agent
+// acting for them, so the dispatcher does not mount those routes at all.
+func (s *Server) apiRoutes(r chi.Router, agent bool) {
+	r.Get("/users/me", s.handleGetMyProfile)
+	r.Put("/users/me", s.handleUpdateMyProfile)
+	r.Post("/users/me/avatar", s.handleUploadAvatar)
+	r.Patch("/users/me/preferences", s.handleUpdateMyPreferences)
+	if !agent {
+		r.Route("/users/me/sessions", func(r chi.Router) {
+			r.Get("/", s.handleListSessions)
+			r.Delete("/", s.handleRevokeOtherSessions)
+			r.Delete("/{sessionID}", s.handleRevokeSession)
+		})
+		r.Route("/users/me/agent-tokens", func(r chi.Router) {
+			r.Get("/", s.handleListAgentTokens)
+			r.Post("/", s.handleCreateAgentToken)
+			r.Delete("/{tokenID}", s.handleRevokeAgentToken)
+		})
+	}
+	r.Get("/search", s.handleSearch)
+	r.Get("/activity", s.handleListActivity)
+	r.Get("/recent", s.handleListRecent)
+	r.Get("/starred", s.handleListStarred)
+	r.Get("/usage", s.handleUsage)
+	r.Get("/shared", s.handleListShared)
+	r.Get("/admin/stats", s.handleAdminStats)
+	r.Get("/admin/security-events", s.handleAdminSecurityEvents)
+	r.Get("/admin/security-events/export", s.handleAdminSecurityEventsExport)
+	r.Patch("/admin/users/{userID}", s.handleAdminUpdateUser)
+	r.Get("/admin/settings", s.handleGetAdminSettings)
+	r.Patch("/admin/settings", s.handleUpdateAdminSettings)
+	r.Delete("/admin/settings/{key}", s.handleDeleteAdminSetting)
+	r.Post("/admin/settings/smtp/test", s.handleTestSMTP)
+	r.Get("/users", s.handleListUsers)
+	r.Get("/users/{userID}/avatar", s.handleGetAvatar)
+
+	r.Route("/spaces", func(r chi.Router) {
+		r.Post("/", s.handleCreateSpace)
+		r.Get("/", s.handleListSpaces)
+		r.Route("/{spaceID}", func(r chi.Router) {
+			r.Patch("/", s.handleUpdateSpace)
+			r.Delete("/", s.handleDeleteSpace)
+			r.Get("/departures", s.handleListDepartures)
+			r.Post("/departures/{userID}/complete", s.handleCompleteDeparture)
+			r.Get("/link-preview", s.handleLinkPreview)
+			r.Post("/link", s.handleLinkSpace)
+			r.Get("/avatar", s.handleGetSpaceAvatar)
+			r.Post("/avatar", s.handleUploadSpaceAvatar)
+			r.Delete("/avatar", s.handleClearSpaceAvatar)
+			r.Get("/children", s.handleListChildren)
+			r.Get("/tree", s.handleListTree)
+			r.Get("/trash", s.handleListDeleted)
+			r.Post("/trash/empty", s.handleEmptyTrash)
+			r.Post("/dirs", s.handleMkdir)
+			r.Post("/team-folders", s.handleCreateTeamFolder)
+			r.Post("/documents", s.handleCreateDocument)
+			r.Route("/groups", func(r chi.Router) {
+				r.Get("/", s.handleListGroups)
+				r.Post("/", s.handleCreateGroup)
+				r.Route("/{groupID}", func(r chi.Router) {
+					r.Patch("/", s.handleUpdateGroup)
+					r.Delete("/", s.handleDeleteGroup)
+					r.Get("/members", s.handleListGroupMembers)
+					r.Post("/members", s.handleAddGroupMember)
+					r.Delete("/members/{userID}", s.handleRemoveGroupMember)
+				})
+			})
+			r.Route("/members", func(r chi.Router) {
+				r.Get("/", s.handleListMembers)
+				r.Post("/", s.handleAddMember)
+				r.Route("/{userID}", func(r chi.Router) {
+					r.Post("/set-admin", s.handleSetMemberAdmin)
+					r.Delete("/", s.handleRemoveMember)
+				})
+			})
+		})
+	})
+	r.Route("/nodes/{nodeID}", func(r chi.Router) {
+		r.Get("/", s.handleGetNode)
+		r.Get("/download", s.handleDownload)
+		r.Get("/content", s.handleContent)
+		r.Patch("/rename", s.handleRenameNode)
+		r.Patch("/move", s.handleMoveNode)
+		r.Get("/move-impact", s.handleMoveImpact)
+		r.Post("/copy", s.handleCopyNode)
+		r.Delete("/", s.handleDeleteNode)
+		r.Get("/versions", s.handleListVersions)
+		r.Post("/versions/{versionID}/restore", s.handleRestoreVersion)
+		r.Post("/star", s.handleStarNode)
+		r.Delete("/star", s.handleUnstarNode)
+		r.Post("/restore", s.handleRestoreNode)
+		r.Delete("/purge", s.handlePurgeNode)
+		r.Post("/shares", s.handleCreateShare)
+		r.Get("/shares", s.handleListShares)
+		r.Delete("/shares/{shareID}", s.handleRevokeShare)
+		r.Get("/inherited-access", s.handleInheritedAccess)
+		r.Post("/edit-session", s.handleEditSession)
+		r.Get("/collab", s.handleCollabSession)
+		r.Get("/attachments/{hash}", s.handleAttachment)
+		r.Get("/document", s.handleDocument)
+		r.Get("/export", s.handleExport)
+		r.Post("/unfurl", s.handleUnfurl)
+		r.Get("/comments", s.handleListComments)
+		r.Post("/comment-threads", s.handleCreateCommentThread)
+		r.Get("/preview", s.handlePreview)
+		r.Get("/grants", s.handleListGrants)
+		r.Put("/grants", s.handleUpsertGrant)
+		r.Delete("/grants/{groupID}", s.handleRevokeGrant)
+		if agent {
+			r.Get("/text", s.handleReadText)
+			r.Put("/text", s.handleWriteMarkdown)
+		}
+	})
+	// The block editor's sockets. A GET, so sameOrigin lets it by, and a
+	// socket is not a read: socketOrigin demands this deployment's
+	// Origin before ygo sees the request (see socketOrigin).
+	// TestCollabSocketRefusesForeignOrigins holds the route to it.
+	r.With(s.socketOrigin).Get("/collab/{room}", s.handleCollabSocket)
+	// The templates a new block document can start from.
+	r.Get("/templates/markdown", s.handleListMarkdownTemplates)
+	// Comments (M29): a thread's and a comment's routes resolve the
+	// document behind them and take download on it, like the node's.
+	r.Post("/comment-threads/{threadID}/comments", s.handleReplyComment)
+	r.Post("/comment-threads/{threadID}/resolve", s.handleResolveThread)
+	r.Post("/comment-threads/{threadID}/reopen", s.handleReopenThread)
+	r.Patch("/comments/{commentID}", s.handleEditComment)
+	r.Delete("/comments/{commentID}", s.handleDeleteComment)
+	// In-app notifications. The stream is Server-Sent Events, which
+	// nginx must not buffer (its own location in nginx.conf).
+	r.Get("/notifications", s.handleListNotifications)
+	r.Get("/notifications/unread-count", s.handleUnreadNotifications)
+	r.Post("/notifications/read", s.handleMarkNotificationsRead)
+	r.Get("/notifications/stream", s.handleNotificationStream)
+	// Resumable uploads (tus 1.0.0). The only way file content enters
+	// through the API: a chunk at a time, each one short enough to finish
+	// inside whatever request deadline a proxy in front imposes.
+	r.Route("/uploads", func(r chi.Router) {
+		r.Post("/", s.handleCreateUpload)
+		r.Route("/{uploadID}", func(r chi.Router) {
+			r.Head("/", s.handleUploadOffset)
+			r.Patch("/", s.handleUploadChunk)
+			r.Delete("/", s.handleTerminateUpload)
+		})
+	})
+}
+
 // ctxKey is this package's private context-key type; a named type keeps it
 // from colliding with a key any other package stores.
 type ctxKey int
@@ -377,6 +412,9 @@ type ctxKey int
 const (
 	sessionCtxKey ctxKey = iota
 	logCtxKey
+	// mcpSessionCtxKey carries the person an MCP request acts for, from
+	// mcpBearer to the server built for the request (mcp.go).
+	mcpSessionCtxKey
 )
 
 // authenticated resolves the session cookie once, for every route it wraps,

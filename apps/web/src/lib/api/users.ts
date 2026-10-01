@@ -2,6 +2,8 @@
 import { api, ApiError } from "./client";
 import type {
   AddMemberResult,
+  AgentToken,
+  CreatedAgentToken,
   AdminUser,
   SecurityEventFilters,
   SecurityEventPage,
@@ -65,6 +67,33 @@ export async function revokeSession(id: string): Promise<void> {
 export async function revokeOtherSessions(): Promise<void> {
   const res = await api.delete("api/v1/users/me/sessions");
   if (!res.ok) throw new ApiError(res.status, "Failed to revoke sessions");
+}
+
+// ─── Agent Tokens ────────────────────────────────────────────────────────────
+
+/** The caller's live personal access tokens, newest first. Never the secret. */
+export async function listAgentTokens(): Promise<AgentToken[]> {
+  const res = await api.get("api/v1/users/me/agent-tokens");
+  if (!res.ok) throw new ApiError(res.status, "Failed to list tokens");
+  return res.json();
+}
+
+/** Mints a token; the response's `token` is the only copy the caller gets. */
+export async function createAgentToken(body: {
+  name: string;
+  expires_in_days: number;
+}): Promise<CreatedAgentToken> {
+  const res = await api.post("api/v1/users/me/agent-tokens", { json: body });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new ApiError(res.status, text || "Failed to create token");
+  }
+  return res.json();
+}
+
+export async function revokeAgentToken(id: string): Promise<void> {
+  const res = await api.delete(`api/v1/users/me/agent-tokens/${id}`);
+  if (!res.ok) throw new ApiError(res.status, "Failed to revoke token");
 }
 
 // ─── Admin: List Users ───────────────────────────────────────────────────────

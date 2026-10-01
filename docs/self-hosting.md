@@ -135,7 +135,10 @@ It creates, or brings back in line if they already exist:
 - **email sign-up with verification** — invited people create their own
   account with the address they were invited on;
 - a **webhook** to `https://drive.example.com/hooks/logto`, so changes made in
-  Logto reach pp-hub within seconds.
+  Logto reach pp-hub within seconds;
+- a **pp-hub MCP** API resource for `https://drive.example.com/mcp/`, and
+  **client ID metadata documents** switched on, so AI agents can sign in
+  (see the optional step after first sign-in).
 
 and writes the resulting IDs, secrets and webhook key into `pphub.env`. It is
 safe to run again — after changing the SMTP password, say. You can delete the
@@ -175,6 +178,20 @@ its log, so a typo shows up here rather than later.
 Access to files comes from groups, not from membership: add people to a group
 and share folders with it (**Settings → Groups**, then **Share** on a folder).
 
+**Optional: let people connect AI agents.** pp-hub can be added to Claude or
+ChatGPT as a custom connector (MCP), and the agent then works with exactly
+the person's own access. If Logto was configured before this feature (M41),
+re-run `pp-logto-setup.sh` once — it is idempotent — so it registers the
+`pp-hub MCP` API resource and turns on client ID metadata documents. Then
+switch on **Admin → Settings → Agent access (MCP)**. Each person copies the
+connector URL from **Settings → Security → AI agents** into Claude or
+ChatGPT. Both services and Logto must be reachable from the internet; see
+[deployment.md](deployment.md#agent-access-mcp). For a client configured from
+a file — Claude Code or Cursor through `.mcp.json`, a CI job — a person can
+instead create a **personal token** in the same place (at most 90 days) and
+put it in an `Authorization: Bearer` header; administrators can turn personal
+tokens off on the same settings card.
+
 ## Day two
 
 **Upgrading pp-hub.** Change `PP_IMAGE_TAG` in `pphub.env` and run the same
@@ -206,6 +223,9 @@ service, on the same schedule.
 | Changes in the Logto console take up to an hour to show           | The webhook is not delivered. Logto refuses private or special-use addresses, so `drive.example.com` must resolve to a public IP from the Logto container. Delivery logs: Logto console → **Webhooks → pp-hub** |
 | Image pull fails with `denied`                                    | Not logged in to `ghcr.io`, or the platform has no registry credential for it                                                                                                                                   |
 | Uploads fail on a proxy other than Caddy                          | Its request-body limit is below 64 MiB, the largest upload chunk; see [deployment.md](deployment.md#a-reverse-proxy-on-the-same-host)                                                                           |
+| Claude or ChatGPT says it couldn't reach the MCP server           | **Agent access** is off in Admin → Settings (both `/mcp/` and `/.well-known/oauth-protected-resource` then answer 404), or the proxy in front does not pass those two paths to pp-hub                           |
+| Connecting an agent fails at the Logto sign-in                    | CIMD is not enabled — re-run the setup script and read its warnings (a 422 means one of the `SSRF_*` variables is set on Logto) — or Logto is not reachable from the internet, or cannot fetch outbound HTTPS   |
+| The agent gets 403 `sign in to pp-hub once…`                      | That person has a Logto account but has never signed in to pp-hub; one sign-in in the browser creates their account                                                                                             |
 
 ## Using Logto Cloud instead
 

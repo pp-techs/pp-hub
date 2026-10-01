@@ -10,6 +10,9 @@ import {
   listSessions,
   revokeSession,
   revokeOtherSessions,
+  listAgentTokens,
+  createAgentToken,
+  revokeAgentToken,
   getSpaceMembers,
   addSpaceMember,
   setMemberAdmin,
@@ -61,6 +64,31 @@ export function useRevokeOtherSessions() {
   return useMutation({
     mutationFn: revokeOtherSessions,
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.sessions }),
+  });
+}
+
+// ─── Agent Tokens ────────────────────────────────────────────────────────────
+
+export function useAgentTokens() {
+  return useQuery({
+    queryKey: keys.agentTokens,
+    queryFn: listAgentTokens,
+  });
+}
+
+/**
+ * No invalidation on success: the dialog that shows the new secret refreshes
+ * the list when it closes, so the row does not appear behind it mid-copy.
+ */
+export function useCreateAgentToken() {
+  return useMutation({ mutationFn: createAgentToken });
+}
+
+export function useRevokeAgentToken() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: revokeAgentToken,
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.agentTokens }),
   });
 }
 

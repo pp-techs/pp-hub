@@ -16,6 +16,24 @@ export interface Session {
 }
 
 /**
+ * A personal access token an agent sends as `Authorization: Bearer …` in
+ * place of a browser sign-in. The secret itself is never listed; it comes
+ * back once, as `token`, from the create call.
+ */
+export interface AgentToken {
+  id: string;
+  name: string;
+  created_at: string;
+  last_used_at?: string;
+  expires_at: string;
+}
+
+/** The create response: the only time the server hands out the secret. */
+export interface CreatedAgentToken extends AgentToken {
+  token: string;
+}
+
+/**
  * Account-level settings, stored in the `users.settings` JSONB column and
  * carried on the identity response so the language is known before the first
  * paint. Every field is optional; absent means "never chosen", which is what
@@ -24,6 +42,8 @@ export interface Session {
 export interface UserPreferences {
   locale?: string;
   email_on_share?: boolean;
+  /** Whether AI agents (MCP) may act as this account. Absent means yes. */
+  agents_enabled?: boolean;
 }
 
 /** `markdown` writes an empty `.md` that opens in the block editor; the rest are office templates. */
@@ -54,6 +74,13 @@ export interface UserProfile {
   created_at: string;
   last_seen?: string;
   preferences: UserPreferences;
+  /**
+   * The MCP connector URL to paste into Claude or ChatGPT. Present only when
+   * the administrator has turned agent access on.
+   */
+  mcp_url?: string;
+  /** Whether this account may create personal access tokens. Absent means no. */
+  mcp_tokens?: boolean;
 }
 
 export interface SpaceMember {

@@ -194,6 +194,16 @@ type ActivityEvent struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
+type AgentToken struct {
+	ID         pgtype.UUID        `json:"id"`
+	UserID     pgtype.UUID        `json:"user_id"`
+	Name       string             `json:"name"`
+	TokenHash  []byte             `json:"token_hash"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	LastUsedAt pgtype.Timestamptz `json:"last_used_at"`
+	ExpiresAt  pgtype.Timestamptz `json:"expires_at"`
+}
+
 type Blob struct {
 	Hash        string             `json:"hash"`
 	Size        int64              `json:"size"`

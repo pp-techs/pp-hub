@@ -177,6 +177,11 @@ func run() error {
 				} else if n > 0 {
 					slog.InfoContext(ctx, "expired sessions purged", "count", n)
 				}
+				if n, err := authSvc.PurgeExpiredAgentTokens(ctx); err != nil {
+					slog.WarnContext(ctx, "agent token sweep", "err", err)
+				} else if n > 0 {
+					slog.InfoContext(ctx, "expired agent tokens purged", "count", n)
+				}
 				_ = syscfg.Reload(ctx, "default")
 				cutoff := pgtype.Timestamptz{Time: time.Now().Add(-syscfg.AuditRetention("default")), Valid: true}
 				readCutoff := pgtype.Timestamptz{Time: time.Now().Add(-syscfg.ReadAuditRetention("default")), Valid: true}

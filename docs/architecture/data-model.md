@@ -39,6 +39,11 @@ alongside the OIDC-sourced ones in the baseline. The `is_admin` flag gates admin
 session's deadline, so it moves with actual use. It used to be stamped only by the sign-in path,
 which made the People table's "last active" column a login timestamp wearing another name.
 
+`settings` holds the person's own preferences, written through `PATCH /api/v1/users/me/preferences`.
+Since M41 it carries `agents_enabled`, the per-person switch for AI agents over MCP: absent
+(`nil`) means allowed, so only someone who turned it off has the key at all, and the instance
+switch `mcp_enabled` still has to be on. See [agent-access.md](agent-access.md).
+
 An avatar's bytes live in the CAS like everything else uploaded (M22–M24 pass): `avatar_blob`
 is the blake3 hash `users.Service.UploadAvatar` resolved through `blobs.Put`, `avatar_mime` is
 the type sniffed from the bytes (never the filename — it is served back with this value), and
@@ -121,6 +126,26 @@ sessions(id, user_id,                           -- ON DELETE CASCADE from users
 - **Revocation is scoped by owner.** `DeleteUserSession` takes `(id, user_id)` and
   `DeleteOtherUserSessions` takes `(user_id, id_to_keep)`, so guessing another person's session
   id achieves nothing and "sign out everywhere else" keeps exactly the session that asked.
+
+## Agent Tokens
+
+`migrations/0018_agent_tokens.sql` (M41). Personal access tokens for agents that cannot sign in
+through a browser — a `.mcp.json`, CI, a script — presented as `Authorization: Bearer pph_…` to
+`/mcp/` only. See [agent-access.md](agent-access.md#personal-access-tokens).
+
+```sql
+agent_tokens(id, user_id,                       -- ON DELETE CASCADE from users
+             name,                              -- what the person called it
+             token_hash,                        -- sha256 of pph_<256 random bits>; UNIQUE
+             created_at, last_used_at,          -- last_used_at written at most every 5 minutes
+             expires_at)                        -- fixed at creation, at most 90 days out; never slid
+  INDEX (user_id, created_at DESC)              -- agent_tokens_user_id: the person's list
+  INDEX (expires_at)                            -- agent_tokens_expires_at: the purge sweep
+```
+
+Like `sessions`: only the hash is stored, lookup is one indexed read that filters
+`expires_at > now()` in SQL, revocation takes `(id, user_id)`, and `DeleteExpiredAgentTokens`
+runs on the same five-minute ticker.
 
 ## Security Events
 
@@ -205,7 +230,7 @@ about the feed's schema, scoping or readers wanted to become an audit log.
 
 ## System Configuration
 
-`migrations/0006_system_config.sql`. Key-value JSONB store for dynamic operational and policy knobs (e.g. `instance_name`, `max_upload_bytes`, `audit_retention_days`, `default_space_quota_bytes`, and since M30 `version_retention_count`).
+`migrations/0006_system_config.sql`. Key-value JSONB store for dynamic operational and policy knobs (e.g. `instance_name`, `max_upload_bytes`, `audit_retention_days`, `default_space_quota_bytes`, since M30 `version_retention_count`, and since M41 the agent-access switches `mcp_enabled` and `mcp_public_links`, boolean, default `false`, and `mcp_tokens`, boolean, default `true`).
 
 ```sql
 system_config(key, tenant_id, value, updated_at, updated_by)

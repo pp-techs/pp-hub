@@ -25,6 +25,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"maps"
 	"net"
 	"net/http"
 
@@ -46,6 +47,9 @@ const (
 	KindSessionRevoked Kind = "session_revoked"
 	// "Sign out everywhere else."
 	KindSessionsRevoked Kind = "sessions_revoked"
+	// A personal access token for agents was minted or revoked (M41).
+	KindAgentTokenCreated Kind = "agent_token_created"
+	KindAgentTokenRevoked Kind = "agent_token_revoked"
 	// An identity whose (issuer, subject) changed and was matched back to an
 	// existing account by verified email. Rare and worth seeing.
 	KindIdentityAdopted Kind = "identity_adopted"
@@ -126,6 +130,23 @@ type Event struct {
 	Detail map[string]any
 }
 
+// agentKey carries the agent a request acts through (WithAgent).
+type agentKey struct{}
+
+// WithAgent marks ctx as a request an AI agent made on its user's behalf
+// (M41), clientID being the OAuth client that holds the token — for a CIMD
+// client, the URL of its metadata document. Every event recorded under it
+// says so, so "who did this" can tell a person from their agent.
+func WithAgent(ctx context.Context, clientID string) context.Context {
+	return context.WithValue(ctx, agentKey{}, clientID)
+}
+
+// Agent is the agent client ctx was marked with, and whether there is one.
+func Agent(ctx context.Context) (string, bool) {
+	id, ok := ctx.Value(agentKey{}).(string)
+	return id, ok
+}
+
 // Record writes the event with the request's context attached.
 func (s *Service) Record(r *http.Request, e Event) {
 	if s == nil || s.q == nil {
@@ -135,6 +156,15 @@ func (s *Service) Record(r *http.Request, e Event) {
 	// disconnecting is exactly when one matters — so the write does not
 	// inherit the request's cancellation.
 	ctx := context.WithoutCancel(r.Context())
+	detail := e.Detail
+	if client, ok := Agent(ctx); ok {
+		detail = maps.Clone(detail)
+		if detail == nil {
+			detail = map[string]any{}
+		}
+		detail["via"] = "mcp"
+		detail["client_id"] = client
+	}
 	err := s.q.RecordSecurityEvent(ctx, store.RecordSecurityEventParams{
 		Kind:      string(e.Kind),
 		UserID:    e.UserID,
@@ -142,7 +172,7 @@ func (s *Service) Record(r *http.Request, e Event) {
 		Ip:        ClientIP(r),
 		UserAgent: truncate(r.UserAgent(), maxUserAgent),
 		RequestID: middleware.GetReqID(r.Context()),
-		Detail:    encodeDetail(e.Detail),
+		Detail:    encodeDetail(detail),
 		NodeID:    e.NodeID,
 	})
 	if err != nil {

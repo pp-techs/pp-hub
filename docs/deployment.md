@@ -365,9 +365,10 @@ without it. Five things must exist in the Logto tenant before any of it works,
 and each one fails in its own way if it is missing. See
 [logto-org-sync.md](architecture/logto-org-sync.md) for the design; this is
 the checklist. **`deploy/logto/pp-logto-setup.sh` creates all five** (plus
-the sign-in application, the SMTP connector and email sign-up) through the
-Management API from one bootstrap machine-to-machine app, idempotently, and
-writes the resulting values into an env file — see
+the sign-in application, the SMTP connector and email sign-up, and — for
+[agent access](#agent-access-mcp) — the `pp-hub MCP` API resource and CIMD)
+through the Management API from one bootstrap machine-to-machine app,
+idempotently, and writes the resulting values into an env file — see
 [self-hosting.md](self-hosting.md#3-configure-logto-for-pp-hub).
 
 1. **A machine-to-machine application**, granted the **Logto Management API**
@@ -593,6 +594,48 @@ cuts idle responses costs only a reconnect.
 Like the rooms, the streams belong to one process
 (`notifications.Broker`), and so does the `notify:mentions` job that feeds
 them: it runs in `server`, never in `worker`. One `server` instance.
+
+### Agent access (MCP)
+
+AI agents (M41, [agent-access.md](architecture/agent-access.md)) connect to
+`${PP_EXTERNAL_URL}/mcp/` — Streamable HTTP, stateless, JSON responses — and
+find their authorization server through RFC 9728 metadata at
+`/.well-known/oauth-protected-resource` (and `…/mcp`), which names the
+resource and Logto's external issuer. An unauthenticated call gets 401 with
+`WWW-Authenticate: Bearer resource_metadata=…` pointing there. Everything is
+off until an administrator turns on **Admin › Settings › Agent access (MCP)**
+(`mcp_enabled`); until then both paths answer 404.
+
+**nginx.** `location /mcp/` turns `proxy_buffering` and `proxy_cache` off and
+sets 300 s read/send timeouts — a tool call is one request whose answer must
+not sit in a buffer — and sets no `proxy_set_header`, so it inherits the
+server-level headers. `location = /mcp` covers the URL without the slash, and
+`location /.well-known/oauth-protected-resource` sends discovery to the API
+instead of the SPA. The Vite dev proxy forwards the same paths to `:8080`. A
+proxy in front of nginx must pass all three.
+
+**Logto.** Agents identify themselves with Client ID Metadata Documents
+(CIMD, Logto ≥ 1.43) instead of a pre-registered app, and present Logto JWT
+access tokens whose `aud` is `${PP_EXTERNAL_URL}/mcp/`; no scopes or roles are
+involved. `pp-logto-setup.sh` converges both prerequisites: step 7 creates the
+API resource `pp-hub MCP` with indicator `$PP_EXTERNAL_URL/mcp/` (found again
+by indicator), step 8 sends `PATCH /api/configs/cimd {"enabled":true}`. Logto
+refuses CIMD with **422** unless its SSRF protection is on with no allowlist —
+`SSRF_PROTECTION_DISABLED`, `OIDC_PROVIDER_SSRF_PROTECTION_DISABLED` and
+`SSRF_ALLOWED_ADDRESSES` must all be unset, as `compose.logto.yml` leaves
+them. The script warns on that 422 and continues, so the rest of Logto still
+converges; agents then fail at sign-in. An install configured before M41 needs
+the script run once more.
+
+**Reachability.** The agent's servers, not the person's browser, make the
+calls: Claude's and ChatGPT's servers must reach `/mcp/` and
+`/.well-known/oauth-protected-resource*` on pp-hub **and** Logto's issuer
+(discovery, authorize, token) from the internet, and Logto must be able to
+make outbound HTTPS requests to fetch each client's CIMD document. An instance
+behind an allowlist must admit Anthropic's egress range, `160.79.104.0/21`.
+The per-person rate limit on `/mcp/` (1200/min, burst 200) is keyed on the
+user rather than the address for the same reason: every Claude user arrives
+from those few addresses.
 
 ### Outbound HTTP for link previews
 

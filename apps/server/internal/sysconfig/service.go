@@ -25,6 +25,18 @@ const (
 	KeyDefaultSpaceQuotaBytes        = "default_space_quota_bytes"
 	KeyVersionRetentionCount         = "version_retention_count"
 	KeySMTP                          = "smtp"
+	// KeyMCPEnabled lets people connect AI agents to their account through
+	// the MCP endpoint (M41). Off by default: an instance turns it on once
+	// pp-logto-setup.sh has registered the resource and enabled CIMD.
+	KeyMCPEnabled = "mcp_enabled"
+	// KeyMCPPublicLinks lets an agent mint public links — the one grant that
+	// reaches people outside the space, and so the one a prompt-injected
+	// document would aim for. Off by default even when MCP is on.
+	KeyMCPPublicLinks = "mcp_public_links"
+	// KeyMCPTokens lets people mint personal access tokens for agents that
+	// cannot sign in through a browser (a .mcp.json, CI). On by default:
+	// agent access as a whole is already the instance's opt-in.
+	KeyMCPTokens = "mcp_tokens"
 
 	DefaultTenantID = "default"
 )
@@ -32,7 +44,7 @@ const (
 // SettingDef describes a known system configuration knob.
 type SettingDef struct {
 	Key         string                       `json:"key"`
-	Type        string                       `json:"type"` // "string" | "number"
+	Type        string                       `json:"type"` // "string" | "number" | "boolean" | "smtp"
 	Description string                       `json:"description"`
 	Default     any                          `json:"default"`
 	EnvFallback func(cfg *config.Config) any `json:"-"`
@@ -262,6 +274,24 @@ func defaultDefs() map[string]SettingDef {
 			},
 			Validate: nil,
 		},
+		KeyMCPEnabled: {
+			Key:         KeyMCPEnabled,
+			Type:        "boolean",
+			Description: "Let people connect AI agents (MCP) to their account",
+			Default:     false,
+		},
+		KeyMCPPublicLinks: {
+			Key:         KeyMCPPublicLinks,
+			Type:        "boolean",
+			Description: "Let connected agents create public links",
+			Default:     false,
+		},
+		KeyMCPTokens: {
+			Key:         KeyMCPTokens,
+			Type:        "boolean",
+			Description: "Let people create personal access tokens for agents",
+			Default:     true,
+		},
 	}
 }
 
@@ -359,6 +389,12 @@ func (s *Service) coerceAndValidate(def SettingDef, raw json.RawMessage) (any, [
 		val = num
 	case KeySMTP:
 		return s.coerceSMTP(raw)
+	case KeyMCPEnabled, KeyMCPPublicLinks, KeyMCPTokens:
+		var b bool
+		if err := json.Unmarshal(raw, &b); err != nil {
+			return nil, nil, fmt.Errorf("%s must be true or false: %w", def.Key, err)
+		}
+		val = b
 	default:
 		if def.Type == "string" {
 			var str string
@@ -602,6 +638,28 @@ func (s *Service) DefaultSpaceQuotaBytes(tenantID string) int64 {
 		}
 	}
 	return 0
+}
+
+// MCPEnabled reports whether agents may connect through the MCP endpoint.
+func (s *Service) MCPEnabled() bool { return s.cachedBool(KeyMCPEnabled, false) }
+
+// MCPPublicLinks reports whether connected agents may create public links.
+func (s *Service) MCPPublicLinks() bool { return s.cachedBool(KeyMCPPublicLinks, false) }
+
+// MCPTokens reports whether personal access tokens may be minted and used.
+func (s *Service) MCPTokens() bool { return s.cachedBool(KeyMCPTokens, true) }
+
+// cachedBool is the cached boolean value of key, or def when none is stored
+// or it does not decode.
+func (s *Service) cachedBool(key string, def bool) bool {
+	s.mu.RLock()
+	raw, ok := s.cache[key]
+	s.mu.RUnlock()
+	var b bool
+	if !ok || json.Unmarshal(raw, &b) != nil {
+		return def
+	}
+	return b
 }
 
 func (s *Service) resolveLocked(key string, def SettingDef) SettingDTO {

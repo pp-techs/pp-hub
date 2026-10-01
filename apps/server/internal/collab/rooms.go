@@ -447,6 +447,17 @@ func (h *Hub) loadedRoom(nodeID pgtype.UUID) *room {
 	return nil
 }
 
+// Flush writes a resident room's edits now rather than at its next quiet
+// period: a version, authored like any write-back, and nothing when the
+// markdown is unchanged. A failure is returned; the edits stay in the room.
+func (h *Hub) Flush(ctx context.Context, nodeID pgtype.UUID) error {
+	rm := h.loadedRoom(nodeID)
+	if rm == nil {
+		return nil
+	}
+	return h.writeBack(ctx, rm)
+}
+
 // Reseed runs change — anything that replaces the file under a room, such as
 // restoring an older version — and makes a resident room hold the result.
 // Without a room, it is just change: the next load parses the current

@@ -41,6 +41,11 @@ export default defineConfig({
       // authenticated and same-origin-checked — so it needs its own entry
       // here and its own `location` in nginx.conf.
       "/hooks": "http://localhost:8080",
+      // Agents over MCP (M41) and the metadata they read before signing in.
+      // Outside /api for the same reason as /hooks: bearer-only, no cookie,
+      // no same-origin check. Mirrored by locations in nginx.conf.
+      "^/mcp(/|$)": "http://localhost:8080",
+      "/.well-known/oauth-protected-resource": "http://localhost:8080",
       // Share links. NOTE: a bare "/s" prefix entry breaks this core's
       // module middleware; the "^/s/" context form works.
       // Top-level browser navigations to /s/<token> (Accept: text/html)

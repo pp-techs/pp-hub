@@ -33,17 +33,27 @@ type Preferences struct {
 	// EmailOnShare controls transactional emails on share events.
 	// Nil means never chosen, which defaults to true (opt-out).
 	EmailOnShare *bool `json:"email_on_share,omitempty"`
+	// AgentsEnabled lets AI agents connected over MCP act for this person
+	// (M41). Nil means never chosen, which allows them: the instance switch
+	// is the opt-in, this is each person's way out of it.
+	AgentsEnabled *bool `json:"agents_enabled,omitempty"`
 }
 
 func (p Preferences) WantsShareEmail() bool {
 	return p.EmailOnShare == nil || *p.EmailOnShare
 }
 
+// AllowsAgents reports whether connected agents may act for this person.
+func (p Preferences) AllowsAgents() bool {
+	return p.AgentsEnabled == nil || *p.AgentsEnabled
+}
+
 // PreferencesPatch is a partial update: a nil field is untouched. This mirrors
 // handleUpdateSpace, the same shape every other PATCH in the API uses.
 type PreferencesPatch struct {
-	Locale       *string `json:"locale"`
-	EmailOnShare *bool   `json:"email_on_share"`
+	Locale        *string `json:"locale"`
+	EmailOnShare  *bool   `json:"email_on_share"`
+	AgentsEnabled *bool   `json:"agents_enabled"`
 }
 
 // localePattern accepts a language subtag with an optional script or region,
@@ -107,6 +117,11 @@ func mergePreferences(raw []byte, patch PreferencesPatch) ([]byte, error) {
 	}
 	if patch.EmailOnShare != nil {
 		if err := set("email_on_share", *patch.EmailOnShare); err != nil {
+			return nil, err
+		}
+	}
+	if patch.AgentsEnabled != nil {
+		if err := set("agents_enabled", *patch.AgentsEnabled); err != nil {
 			return nil, err
 		}
 	}

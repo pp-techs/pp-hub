@@ -6,6 +6,7 @@ export const keys = {
   // the share dialog and the route guards alike.
   me: ["me"] as const,
   sessions: ["sessions"] as const,
+  agentTokens: ["agent-tokens"] as const,
   spaces: ["spaces"] as const,
   children: (spaceId: string, parentId?: string) =>
     ["children", spaceId, parentId ?? null] as const,
