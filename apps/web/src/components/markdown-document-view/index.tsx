@@ -1,5 +1,5 @@
-import { lazy, Suspense } from "react";
-import type { RefObject } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import type { ReactNode, RefObject } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { FileWarning } from "lucide-react";
@@ -100,6 +100,62 @@ export function SharedMarkdownView({
       className={className}
       outlineScrollRef={outlineScrollRef}
     />
+  );
+}
+
+/**
+ * A markdown file's first screen at half scale, for a card or the details
+ * panel: a page's opening lines at a glance, which says more than an icon.
+ *
+ * It is the real renderer, not an artifact — a thumbnail PNG would need a font
+ * covering every script the drive holds (the Go ones lack Vietnamese), and
+ * the browser already has them. The price is a document fetch and an editor
+ * per card, so neither starts until the card scrolls near the viewport.
+ * `fallback` stands in when the document cannot be had.
+ *
+ * Fills its parent; the parent draws the frame. `inert` keeps links and
+ * toggles out of the tab order of a card whose actions are elsewhere.
+ */
+export function MarkdownThumbnail({ node, fallback }: { node: Node; fallback: ReactNode }) {
+  const frame = useRef<HTMLDivElement>(null);
+  const [near, setNear] = useState(false);
+  useEffect(() => {
+    const el = frame.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setNear(true);
+          observer.disconnect();
+        }
+      },
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- CSS length
+      { rootMargin: "200px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const document = useNodeDocument(near ? node.id : null);
+  if (document.isError) return <>{fallback}</>;
+
+  return (
+    <div ref={frame} className="relative size-full overflow-hidden">
+      <div inert className="pointer-events-none w-[200%] origin-top-left scale-50 select-none">
+        {document.data ? (
+          <MarkdownDocumentView
+            key={node.id}
+            doc={document.data.doc}
+            lossy={document.data.lossy}
+            attachmentUrl={(hash) => attachmentUrl(node.id, hash)}
+            className="p-6"
+          />
+        ) : (
+          <MarkdownDocumentSkeleton className="p-6" />
+        )}
+      </div>
+      <div className="from-background pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t" />
+    </div>
   );
 }
 

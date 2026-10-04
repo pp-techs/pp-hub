@@ -9,6 +9,15 @@ cards and the details panel show — both fall back to the file-type icon
 (`NodeIcon`) when there is none, since a blank frame reads as broken whether
 the file simply has no thumbnail (text, archives) or the job has not run yet.
 
+Markdown files are the exception to both: no artifact is stored for them. The
+grid card and the details panel render the document's first screen at half
+scale with the real read-only renderer (`MarkdownThumbnail`,
+`components/markdown-document-view`), fetched from `/nodes/{id}/document`
+rather than `/preview`. A PNG would need a font covering every script in the
+drive (the bundled Go fonts lack Vietnamese); the browser already has them. The
+document fetch and editor start only once the card is within 200px of the
+viewport, and the file-type icon stands in when the document cannot be read.
+
 How a thumbnail fills its frame is decided by `thumbnailFit`: pictures
 (`image/*`, `video/*`) crop to fill, pages (PDF, office) letterbox. PDFs sit
 with the pages even though they render through the same rasterizer as images —

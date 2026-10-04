@@ -23,7 +23,7 @@ import { useSettingsNavigation } from "@/lib/use-settings-hash";
 import { useUiStore } from "@/lib/ui-store";
 import { LoadingStatus } from "@/components/loading";
 import { NodeIcon } from "@/components/node-icon";
-import { NodeMarkdownView } from "@/components/markdown-document-view";
+import { MarkdownThumbnail } from "@/components/markdown-document-view";
 import { PreviewModal } from "@/components/preview-modal";
 import { ShareDialog } from "@/components/share-dialog";
 import { storagePct } from "@/components/storage-meter";
@@ -300,14 +300,8 @@ function NodeDetails({ node }: { node: Node }) {
     <div className="flex flex-col gap-4 p-3">
       {/* Thumbnail */}
       {showsDocument ? (
-        <div className="bg-background border-border relative aspect-[4/3] overflow-hidden rounded-md border">
-          {/* Half scale: a page's opening lines at a glance. `inert` keeps
-              its links and toggles out of the tab order of a sheet whose
-              actions are below. */}
-          <div inert className="pointer-events-none w-[200%] origin-top-left scale-50 select-none">
-            <NodeMarkdownView node={node} className="p-6" />
-          </div>
-          <div className="from-background pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t" />
+        <div className="bg-background border-border flex aspect-[4/3] items-center justify-center overflow-hidden rounded-md border">
+          <MarkdownThumbnail node={node} fallback={<NodeIcon node={node} className="size-10" />} />
         </div>
       ) : (
         <div className="bg-muted/50 flex aspect-[4/3] items-center justify-center overflow-hidden rounded-md">

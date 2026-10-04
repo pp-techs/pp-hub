@@ -23,7 +23,16 @@ import {
 } from "@workspace/ui/components/dropdown-menu";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { cn } from "@workspace/ui/lib/utils";
-import { canRestructure, hasThumbnail, previewUrl, thumbnailFit, type Node } from "@/lib/api";
+import {
+  canRestructure,
+  capsOf,
+  hasThumbnail,
+  isMarkdownFile,
+  previewUrl,
+  thumbnailFit,
+  type Node,
+} from "@/lib/api";
+import { MarkdownThumbnail } from "@/components/markdown-document-view";
 import { useFormatters } from "@/lib/format";
 import { groupActions } from "@/lib/group-actions";
 import { useNodeActions, type NodeActionHandlers } from "@/components/node-actions";
@@ -194,10 +203,13 @@ export function NodeGridSkeleton({
 function Thumb({ node }: { node: Node }) {
   const [failed, setFailed] = useState(false);
   const hasThumb = hasThumbnail(node) && !failed;
+  const icon = <NodeIcon node={node} className="pointer-events-none size-12 select-none" />;
 
   return (
     <div className="bg-background flex h-36 w-full items-center justify-center overflow-hidden rounded-xl">
-      {hasThumb ? (
+      {capsOf(node).view && isMarkdownFile(node) ? (
+        <MarkdownThumbnail node={node} fallback={icon} />
+      ) : hasThumb ? (
         <img
           src={previewUrl(node)}
           alt=""
@@ -213,7 +225,7 @@ function Thumb({ node }: { node: Node }) {
           onError={() => setFailed(true)}
         />
       ) : (
-        <NodeIcon node={node} className="pointer-events-none size-12 select-none" />
+        icon
       )}
     </div>
   );
