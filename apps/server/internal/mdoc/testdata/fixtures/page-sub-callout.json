@@ -1,0 +1,27 @@
+{
+  "name": "page-sub-callout",
+  "input": "> [!NOTE]\n> <!-- slash:subPage {\"pageId\":\"0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b\"} -->\n> [a](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "callout",
+        "attrs": {
+          "icon": "ℹ️"
+        },
+        "content": [
+          {
+            "type": "subPage",
+            "attrs": {
+              "pageId": "0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "output": "> [!NOTE]\n> <!-- slash:subPage {\"pageId\":\"0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b\"} -->\n> [Roadmap](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)",
+  "yupdate_b64": "AQQBAAcBB2NvbnRlbnQDB2NhbGxvdXQHAAEAAwdzdWJQYWdlKAABAQZwYWdlSWQBdyQwYjhlMWYyYS02YzNkLTRlNWYtOWExYi03YzJkM2U0ZjVhNmIoAAEABGljb24BdwbihLnvuI8A",
+  "expect_lossy": false
+}

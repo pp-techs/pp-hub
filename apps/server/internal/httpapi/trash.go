@@ -77,18 +77,36 @@ func (s *Server) requireTrashedNode(w http.ResponseWriter, r *http.Request, need
 }
 
 // handleRestoreNode takes a trashed node out of the trash. Requires CapEdit.
+// It answers what the client reports: the node as restored, and whether it
+// had to land elsewhere (relocated) or under another name (renamed_from).
 func (s *Server) handleRestoreNode(w http.ResponseWriter, r *http.Request) {
 	u, node := s.requireTrashedNode(w, r, share.CapEdit)
 	if u == nil {
 		return
 	}
-	_, _, err := s.fs.Restore(r.Context(), node.ID)
+	restored, outcome, err := s.fs.Restore(r.Context(), node.ID)
 	if err != nil {
 		s.nodeError(w, r, err)
 		return
 	}
 	s.activity.Node(r.Context(), u.ID, node, activity.KindRestored, nil)
-	w.WriteHeader(http.StatusNoContent)
+	var ver *store.NodeVersion
+	if restored.Kind == store.NodeKindFile {
+		if v, err := s.store.GetCurrentVersion(r.Context(), restored.ID); err == nil {
+			ver = &v
+		}
+	}
+	writeJSON(w, http.StatusOK, restoreResultDTO{
+		Node:        nodeToDTO(restored, ver),
+		Relocated:   outcome.Relocated,
+		RenamedFrom: outcome.RenamedFrom,
+	})
+}
+
+type restoreResultDTO struct {
+	Node        nodeDTO `json:"node"`
+	Relocated   bool    `json:"relocated"`
+	RenamedFrom string  `json:"renamed_from,omitempty"`
 }
 
 // handlePurgeNode permanently deletes a trashed node. Requires CapEdit.

@@ -682,7 +682,10 @@ func mentionDoc(t *testing.T, text string, mentioned ...string) string {
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	if got := mdoc.Mentions(parsed.Doc); !slices.Equal(got, mentioned) {
+	// A `doc:` mention reads back as a page link (M43), so only the people
+	// remain mentions.
+	people := slices.DeleteFunc(slices.Clone(mentioned), func(id string) bool { return !strings.HasPrefix(id, "user:") })
+	if got := mdoc.Mentions(parsed.Doc); !slices.Equal(got, people) {
 		t.Fatalf("markdown %q does not parse to its mentions: %q", md, got)
 	}
 	return md
@@ -698,7 +701,7 @@ func TestDocumentMentionsNotifyAddedReaders(t *testing.T) {
 	user := func(u store.User) string { return "user:" + uuidString(u.ID) }
 
 	// v2 by the owner names the editor, the viewer (view only), the
-	// stranger, the owner and another document.
+	// stranger, the owner and another document (a page link, telling nobody).
 	v2 := rig.putVersion(t, f.doc, f.owner, mentionDoc(t, "Hi", user(f.editor), user(f.viewer), user(f.stranger), user(f.owner), "doc:"+uuidString(f.doc.ID)))
 	if err := rig.notes.NotifyVersionMentions(ctx, v2.ID); err != nil {
 		t.Fatalf("v2: %v", err)

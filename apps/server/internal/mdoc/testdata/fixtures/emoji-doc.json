@@ -1,0 +1,32 @@
+{
+  "name": "emoji-doc",
+  "input": "x:smile: y",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "x"
+          },
+          {
+            "type": "emoji",
+            "attrs": {
+              "name": "smile"
+            }
+          },
+          {
+            "type": "text",
+            "text": " y"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "x:smile: y",
+  "yupdate_b64": "AQcBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQF4hwEBAwVlbW9qaSgAAQMEbmFtZQF3BXNtaWxlhwEDBgQAAQUCIHkA",
+  "expect_lossy": false
+}

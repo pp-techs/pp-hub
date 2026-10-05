@@ -106,6 +106,10 @@ type nodeDTO struct {
 	// would need one subtree walk per row — and it exists so a destructive
 	// action can warn before it runs.
 	ForeignOwned int64 `json:"foreign_owned,omitempty"`
+	// ChildPageCount is how many live sub-pages a block document holds
+	// (M43). The listing shows top-level documents only, with this count;
+	// the page tree itself lives in the editor.
+	ChildPageCount int64 `json:"child_page_count,omitempty"`
 	// TeamFolder marks a folder the team owns: `created_by` there is a byline,
 	// access comes only from grants on it, and it outlives its creator.
 	// InTeam marks anything inside one — the client uses it to stop offering
@@ -347,15 +351,16 @@ func (s *Server) handleListSpaces(w http.ResponseWriter, r *http.Request) {
 
 // --- Node permission helpers ---
 
-// requireParentWrite authorises creating something inside parentID.
+// requireParentWrite authorises creating child inside parentID.
 //
 // A parent in another space answers 404, not 403 — confirming that a node
 // exists is already more than the caller should learn, the same rule anonymous
-// share browsing follows.
+// share browsing follows. A parent that cannot hold child (fs.CanContain: a
+// folder, or a document for a document) answers 400.
 //
 // A nil parent means the space root, where any member may create: root items
 // are private to their creator until shared (M15).
-func (s *Server) requireParentWrite(w http.ResponseWriter, r *http.Request, spaceID, parentID pgtype.UUID, u *store.User) bool {
+func (s *Server) requireParentWrite(w http.ResponseWriter, r *http.Request, spaceID, parentID pgtype.UUID, u *store.User, child fs.Child) bool {
 	if !parentID.Valid {
 		if err := s.spaces.RequireMember(r.Context(), spaceID, u.ID); err != nil {
 			s.spaceError(w, r, err)
@@ -372,8 +377,8 @@ func (s *Server) requireParentWrite(w http.ResponseWriter, r *http.Request, spac
 		writeProblem(w, http.StatusNotFound, "Not Found", "no such folder")
 		return false
 	}
-	if parent.Kind != store.NodeKindDir {
-		writeProblem(w, http.StatusBadRequest, "Bad Request", "parent_id is not a folder")
+	if err := s.fs.CanContain(r.Context(), parent, child); err != nil {
+		s.nodeError(w, r, err)
 		return false
 	}
 	caps, err := s.share.EffectiveCapsForNode(r.Context(), parent, u.ID)
@@ -386,6 +391,17 @@ func (s *Server) requireParentWrite(w http.ResponseWriter, r *http.Request, spac
 		return false
 	}
 	return true
+}
+
+// requireDestWrite is requireParentWrite for an existing node arriving under
+// destID by a move or a copy.
+func (s *Server) requireDestWrite(w http.ResponseWriter, r *http.Request, node store.Node, destID pgtype.UUID, u *store.User) bool {
+	child, err := s.fs.ChildOf(r.Context(), node)
+	if err != nil {
+		Error(w, r, err)
+		return false
+	}
+	return s.requireParentWrite(w, r, node.SpaceID, destID, u, child)
 }
 
 // requireNodeCaps resolves the node and enforces that the caller holds the
@@ -494,6 +510,7 @@ func (s *Server) handleListChildren(w http.ResponseWriter, r *http.Request) {
 		out = append(out, nodeToDTOMeta(n))
 	}
 	s.attachCaps(r.Context(), u.ID, out)
+	s.attachChildPageCounts(r.Context(), out)
 	writeJSON(w, http.StatusOK, out)
 }
 
@@ -545,7 +562,7 @@ func (s *Server) handleMkdir(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if !s.requireParentWrite(w, r, spaceID, parentID, u) {
+	if !s.requireParentWrite(w, r, spaceID, parentID, u, fs.Child{Kind: store.NodeKindDir}) {
 		return
 	}
 	n, err := s.fs.Mkdir(r.Context(), spaceID, parentID, body.Name, u.ID)
@@ -632,7 +649,12 @@ func (s *Server) handleCreateDocument(w http.ResponseWriter, r *http.Request) {
 		ext = ".md"
 	}
 
+	// A block document may come without a name — a new page is "Untitled" —
+	// and PutFile suffixes a name already taken, as for any new file.
 	name := strings.TrimSpace(body.Name)
+	if name == "" && markdown {
+		name = "Untitled"
+	}
 	if name == "" {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "name is required")
 		return
@@ -646,6 +668,8 @@ func (s *Server) handleCreateDocument(w http.ResponseWriter, r *http.Request) {
 		name += ext
 	}
 
+	// parent_id is a folder, or for a block document another one: the new
+	// document is its sub-page (M43).
 	var parentID pgtype.UUID
 	if body.ParentID != "" {
 		if err := parentID.Scan(body.ParentID); err != nil {
@@ -654,7 +678,7 @@ func (s *Server) handleCreateDocument(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if !s.requireParentWrite(w, r, spaceID, parentID, u) {
+	if !s.requireParentWrite(w, r, spaceID, parentID, u, fs.NewChild(store.NodeKindFile, name)) {
 		return
 	}
 
@@ -844,7 +868,7 @@ func (s *Server) handleMoveImpact(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if !s.requireParentWrite(w, r, node.SpaceID, destID, u) {
+	if !s.requireDestWrite(w, r, node, destID, u) {
 		return
 	}
 	if !s.authorizeMove(w, r, u, node, caps, destID) {
@@ -928,7 +952,7 @@ func (s *Server) handleMoveNode(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if !s.requireParentWrite(w, r, node.SpaceID, parentID, u) {
+	if !s.requireDestWrite(w, r, node, parentID, u) {
 		return
 	}
 	if !s.authorizeMove(w, r, u, node, caps, parentID) {
@@ -1070,7 +1094,7 @@ func (s *Server) handleCopyNode(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if !s.requireParentWrite(w, r, node.SpaceID, dest, u) {
+	if !s.requireDestWrite(w, r, node, dest, u) {
 		return
 	}
 	copied, err := s.fs.Copy(r.Context(), node.ID, dest, u.ID)
@@ -1118,6 +1142,9 @@ func (s *Server) handleGetNode(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	dto.Caps = &caps
+	one := []nodeDTO{dto}
+	s.attachChildPageCounts(r.Context(), one)
+	dto = one[0]
 	// Inside a team folder "items other people created" is not a category:
 	// the container owns everything, so a manager trashing a folder is not
 	// reaching into anybody's personal work and the warning would be noise.
@@ -1333,6 +1360,7 @@ func (s *Server) handleListShared(w http.ResponseWriter, r *http.Request) {
 		out = append(out, nodeToDTOMeta(n))
 	}
 	s.attachCaps(r.Context(), u.ID, out)
+	s.attachChildPageCounts(r.Context(), out)
 	writeJSON(w, http.StatusOK, out)
 }
 
@@ -1352,7 +1380,7 @@ func (s *Server) nodeError(w http.ResponseWriter, r *http.Request, err error) {
 		writeProblem(w, http.StatusConflict, "Conflict", err.Error())
 	case errors.Is(err, fs.ErrQuotaExceeded):
 		writeProblem(w, http.StatusRequestEntityTooLarge, "Quota Exceeded", err.Error())
-	case errors.Is(err, fs.ErrNotFile), errors.Is(err, fs.ErrNotDir):
+	case errors.Is(err, fs.ErrNotFile), errors.Is(err, fs.ErrNotContainer):
 		writeProblem(w, http.StatusBadRequest, "Bad Request", err.Error())
 	default:
 		Error(w, r, err)

@@ -102,6 +102,14 @@
 2. `@name` in a comment, or a mention written into the document itself, notifies that person — only if they can open the document.
 3. The document's owner hears about new threads, participants about replies. The bell in the header shows the unread count, updated live; clicking an item opens the document on the thread. There is no email for comments.
 
+### UC-16: Organise a document into pages
+
+1. In a document, `/page` creates a sub-page — a document nested under it — and opens it; its title is its name, and renaming it updates the block in the parent. A page can carry an emoji icon and a cover image, set from the page header.
+2. The editor shows the page tree beside the document and a breadcrumb above it; the Drive listing shows only the top-level document, with a badge counting its sub-pages.
+3. `@` or `/link to page` inserts a link to any page in the space, showing its current title; under each page, "Linked from" lists the pages that link to it, limited to those the reader can open.
+4. Sharing a document shares its sub-pages; a share link can navigate into them. Deleting a sub-page block moves the page to the trash, and undo brings it back.
+5. Export, download and copy take the sub-pages along: the zip holds `Doc.md` beside a `Doc/` folder of sub-pages, with links between them made relative.
+
 ## Search
 
 ### UC-13: Find a file by what it says

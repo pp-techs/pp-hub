@@ -1,0 +1,19 @@
+{
+  "name": "page-sub-empty-title",
+  "input": "<!-- slash:subPage {\"pageId\":\"p4\"} -->\n[x](/edit/p4)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "subPage",
+        "attrs": {
+          "pageId": "p4"
+        }
+      }
+    ]
+  },
+  "output": "<!-- slash:subPage {\"pageId\":\"p4\"} -->\n[Untitled](/edit/p4)",
+  "yupdate_b64": "AQIBAAcBB2NvbnRlbnQDB3N1YlBhZ2UoAAEABnBhZ2VJZAF3AnA0AA==",
+  "expect_lossy": false
+}

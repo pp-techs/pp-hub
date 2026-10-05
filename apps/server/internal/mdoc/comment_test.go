@@ -87,7 +87,7 @@ func TestCommentFixtures(t *testing.T) {
 	for _, fx := range loadCommentFixtures(t) {
 		t.Run(fx.Name, func(t *testing.T) {
 			want := normalize(t, fx.JSON)
-			md := string(Render(withTrailingParagraph(fx.JSON), nil))
+			md := string(renderFixture(withTrailingParagraph(fx.JSON), nil))
 
 			golden, err := os.ReadFile(filepath.Join("testdata", "go-updates", "comment-"+fx.Name+".md"))
 			if err != nil {
@@ -114,7 +114,7 @@ func TestCommentFixtures(t *testing.T) {
 			if got := normalize(t, withoutTrailingParagraph(t, parsed.Doc)); got != want {
 				t.Errorf("Parse(Render):\n got %s\nwant %s", got, want)
 			}
-			if got := string(Render(parsed.Doc, nil)); got != md {
+			if got := string(renderFixture(parsed.Doc, nil)); got != md {
 				t.Errorf("Render(Parse(Render)):\n got %q\nwant %q", got, md)
 			}
 

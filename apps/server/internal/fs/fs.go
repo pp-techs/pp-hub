@@ -21,9 +21,11 @@ import (
 )
 
 var (
-	ErrNotFound      = errors.New("node not found")
-	ErrNotFile       = errors.New("node is not a file")
-	ErrNotDir        = errors.New("node is not a directory")
+	ErrNotFound = errors.New("node not found")
+	ErrNotFile  = errors.New("node is not a file")
+	// ErrNotContainer refuses a parent that cannot hold the node: see
+	// CanContain.
+	ErrNotContainer  = errors.New("only a folder can hold this; a document holds only other documents")
 	ErrCycle         = errors.New("cannot move a folder into its own descendant")
 	ErrNameConflict  = errors.New("a node with this name already exists in the target folder")
 	ErrQuotaExceeded = errors.New("this upload would exceed the space's storage limit")
@@ -88,15 +90,77 @@ func (s *Service) inTx(ctx context.Context, fn func(*Service) error) error {
 	})
 }
 
-func (s *Service) Mkdir(ctx context.Context, spaceID, parentID pgtype.UUID, name string, creator pgtype.UUID) (store.Node, error) {
-	if parentID.Valid {
-		parent, err := s.get(ctx, parentID)
+// Child is what is about to hang under a parent, as CanContain sees it.
+type Child struct {
+	Kind store.NodeKind
+	// Markdown marks a block document: a file whose type is text/markdown.
+	Markdown bool
+}
+
+// NewChild describes a node about to be created as name: a new file's type
+// comes from its name, as putFile stores it.
+func NewChild(kind store.NodeKind, name string) Child {
+	return Child{
+		Kind:     kind,
+		Markdown: kind == store.NodeKindFile && IsMarkdown(mime.TypeByExtension(filepath.Ext(name))),
+	}
+}
+
+// ChildOf describes an existing node by its current version's type.
+func (s *Service) ChildOf(ctx context.Context, n store.Node) (Child, error) {
+	page, err := s.isPage(ctx, n)
+	return Child{Kind: n.Kind, Markdown: page}, err
+}
+
+// isPage reports whether n is a block document: a file whose current version
+// is markdown — the test the editor, the room and blockdoc apply.
+func (s *Service) isPage(ctx context.Context, n store.Node) (bool, error) {
+	if n.Kind != store.NodeKindFile || !n.CurrentVersionID.Valid {
+		return false, nil
+	}
+	ver, err := s.q.GetVersion(ctx, n.CurrentVersionID)
+	if err != nil {
+		return false, err
+	}
+	return IsMarkdown(ver.Mime), nil
+}
+
+// CanContain is the one rule of the tree (M43): a folder holds anything, and a
+// block document holds other block documents — its sub-pages. Anything else
+// under a file is ErrNotContainer. Create, Move, Copy and Restore apply it
+// here, and httpapi's parent check before them.
+func (s *Service) CanContain(ctx context.Context, parent store.Node, child Child) error {
+	if parent.Kind == store.NodeKindDir {
+		return nil
+	}
+	if child.Kind == store.NodeKindFile && child.Markdown {
+		page, err := s.isPage(ctx, parent)
 		if err != nil {
-			return store.Node{}, err
+			return err
 		}
-		if parent.Kind != store.NodeKindDir {
-			return store.Node{}, ErrNotDir
+		if page {
+			return nil
 		}
+	}
+	return ErrNotContainer
+}
+
+// liveParent resolves parentID and applies CanContain; a zero id is the
+// space's top level, which holds anything.
+func (s *Service) liveParent(ctx context.Context, parentID pgtype.UUID, child Child) (store.Node, error) {
+	if !parentID.Valid {
+		return store.Node{}, nil
+	}
+	parent, err := s.get(ctx, parentID)
+	if err != nil {
+		return store.Node{}, err
+	}
+	return parent, s.CanContain(ctx, parent, child)
+}
+
+func (s *Service) Mkdir(ctx context.Context, spaceID, parentID pgtype.UUID, name string, creator pgtype.UUID) (store.Node, error) {
+	if _, err := s.liveParent(ctx, parentID, Child{Kind: store.NodeKindDir}); err != nil {
+		return store.Node{}, err
 	}
 	n, err := s.q.CreateNode(ctx, store.CreateNodeParams{
 		SpaceID:   spaceID,
@@ -152,6 +216,8 @@ func (s *Service) putFile(
 		if node.Kind != store.NodeKindFile {
 			return store.Node{}, store.NodeVersion{}, ErrNotFile
 		}
+	} else if _, err := s.liveParent(ctx, parentID, NewChild(store.NodeKindFile, name)); err != nil {
+		return store.Node{}, store.NodeVersion{}, err
 	}
 
 	// The store claims the hash before installing the bytes, so from here
@@ -434,12 +500,13 @@ func (s *Service) move(ctx context.Context, nodeID, newParentID, actorID pgtype.
 	}
 	var destTeam pgtype.UUID
 	if newParentID.Valid {
-		parent, err := s.get(ctx, newParentID)
+		child, err := s.ChildOf(ctx, node)
 		if err != nil {
 			return err
 		}
-		if parent.Kind != store.NodeKindDir {
-			return ErrNotDir
+		parent, err := s.liveParent(ctx, newParentID, child)
+		if err != nil {
+			return err
 		}
 		// Cycle check: newParent must not be a descendant of node.
 		isDesc, err := s.isDescendant(ctx, newParentID, nodeID)
@@ -530,39 +597,68 @@ func (s *Service) TeamManagerCount(ctx context.Context, teamRootID pgtype.UUID) 
 //
 // Only the current version is carried over. History belongs to the file it
 // happened to, and a copy is a new file that has not been edited yet.
+//
+// A block document brings its sub-pages, and the page ids inside every copied
+// document are mapped onto the copies (see writeCopiedPages).
 func (s *Service) Copy(ctx context.Context, nodeID, destParent pgtype.UUID, creator pgtype.UUID) (store.Node, error) {
 	node, err := s.get(ctx, nodeID)
 	if err != nil {
 		return store.Node{}, err
 	}
 	if destParent.Valid {
-		parent, err := s.get(ctx, destParent)
+		child, err := s.ChildOf(ctx, node)
 		if err != nil {
 			return store.Node{}, err
 		}
-		if parent.Kind != store.NodeKindDir {
-			return store.Node{}, ErrNotDir
+		if _, err := s.liveParent(ctx, destParent, child); err != nil {
+			return store.Node{}, err
 		}
-		// Copying a folder into its own subtree would recurse forever.
-		if node.Kind == store.NodeKindDir {
-			inside, err := s.isDescendant(ctx, destParent, nodeID)
-			if err != nil {
-				return store.Node{}, err
-			}
-			if inside || destParent == nodeID {
-				return store.Node{}, ErrCycle
-			}
+		// Copying a folder — or a document, which holds its sub-pages — into
+		// its own subtree would recurse forever.
+		inside, err := s.isDescendant(ctx, destParent, nodeID)
+		if err != nil {
+			return store.Node{}, err
+		}
+		if inside {
+			return store.Node{}, ErrCycle
 		}
 	}
-	return s.copyInto(ctx, node, destParent, node.Name, creator, 0)
+	// One transaction for the whole tree: a document's page ids can only be
+	// mapped once every copy exists, and a failure part way must not leave a
+	// half-copied tree whose pages still point into the original.
+	op := &copyOp{space: node.SpaceID, creator: creator, ids: map[[16]byte]pgtype.UUID{}}
+	var created store.Node
+	err = s.inTx(ctx, func(s *Service) error {
+		var err error
+		if created, err = s.copyInto(ctx, op, node, destParent, node.Name, 0); err != nil {
+			return err
+		}
+		return s.writeCopiedPages(ctx, op)
+	})
+	if err != nil {
+		return store.Node{}, err
+	}
+	// After the commit: the hook enqueues preview and text jobs another
+	// process may pick up at once, and it must find the version there.
+	for _, v := range op.versions {
+		if v.ver.NodeID == created.ID {
+			created.CurrentVersionID = v.ver.ID
+		}
+		if s.onVersion != nil {
+			s.onVersion(ctx, v.ver, v.name)
+		}
+	}
+	return created, nil
 }
 
+// copyInto copies src under destParent as part of op, inside Copy's
+// transaction.
 func (s *Service) copyInto(
 	ctx context.Context,
+	op *copyOp,
 	src store.Node,
 	destParent pgtype.UUID,
 	name string,
-	creator pgtype.UUID,
 	depth int,
 ) (store.Node, error) {
 	if depth >= maxTreeDepth {
@@ -575,7 +671,7 @@ func (s *Service) copyInto(
 		ParentID:  destParent,
 		Kind:      src.Kind,
 		Name:      name,
-		CreatedBy: creator,
+		CreatedBy: op.creator,
 	}
 
 	if src.Kind == store.NodeKindDir {
@@ -590,62 +686,68 @@ func (s *Service) copyInto(
 			return store.Node{}, err
 		}
 		for _, child := range children {
-			if _, err := s.copyInto(ctx, child, created.ID, child.Name, creator, depth+1); err != nil {
+			if _, err := s.copyInto(ctx, op, child, created.ID, child.Name, depth+1); err != nil {
 				return store.Node{}, err
 			}
 		}
 		return created, nil
 	}
 
-	// File: a new node whose version points at the same blob, created as one
-	// unit so a failure never leaves a copy without content. The version row
-	// is the new reference; a trigger counts it. A block document's
+	// File: a new node whose version points at the same blob. The version
+	// row is the new reference; a trigger counts it. A block document's
 	// attachments come along the same way, so its `attachment:` references
 	// resolve in the copy without rewriting the markdown.
-	var created store.Node
-	var ver store.NodeVersion
-	err := s.inTx(ctx, func(s *Service) error {
-		var err error
-		created, err = s.createWithFreeName(ctx, params)
-		if err != nil || !src.CurrentVersionID.Valid {
-			return err
-		}
-		current, err := s.q.GetVersion(ctx, src.CurrentVersionID)
-		if err != nil {
-			return err
-		}
-		ver, err = s.q.AddVersion(ctx, store.AddVersionParams{
-			NodeID:    created.ID,
-			BlobHash:  current.BlobHash,
-			Size:      current.Size,
-			Mime:      current.Mime,
-			CreatedBy: creator,
-		})
-		if err != nil {
-			return err
-		}
-		if err := s.q.SetCurrentVersion(ctx, store.SetCurrentVersionParams{
-			ID: created.ID, CurrentVersionID: ver.ID,
-		}); err != nil {
-			return err
-		}
-		return s.q.CopyAttachments(ctx, store.CopyAttachmentsParams{
-			DestID: created.ID, SrcID: src.ID, CreatedBy: creator,
-		})
-	})
+	created, err := s.createWithFreeName(ctx, params)
 	if err != nil {
 		return store.Node{}, err
 	}
-	if !ver.ID.Valid {
+	if !src.CurrentVersionID.Valid {
 		return created, nil
 	}
-	created.CurrentVersionID = ver.ID
-	// After the commit: the hook enqueues a preview job another process may
-	// pick up at once, and it must find the version there.
-	if s.onVersion != nil {
-		s.onVersion(ctx, ver, created.Name)
+	current, err := s.q.GetVersion(ctx, src.CurrentVersionID)
+	if err != nil {
+		return store.Node{}, err
+	}
+	if err := s.q.CopyAttachments(ctx, store.CopyAttachmentsParams{
+		DestID: created.ID, SrcID: src.ID, CreatedBy: op.creator,
+	}); err != nil {
+		return store.Node{}, err
+	}
+	if IsMarkdown(current.Mime) {
+		// A block document: its version waits for writeCopiedPages, once
+		// every page of the copy has the id its markdown may point at.
+		op.ids[src.ID.Bytes] = created.ID
+		op.pages = append(op.pages, copiedPage{node: created, src: current})
+		if err := s.copySubPages(ctx, op, src, created, depth); err != nil {
+			return store.Node{}, err
+		}
+		return created, nil
+	}
+	if err := s.addCopyVersion(ctx, op, created, current.BlobHash, current.Size, current.Mime); err != nil {
+		return store.Node{}, err
 	}
 	return created, nil
+}
+
+// addCopyVersion makes hash the copy node's one and current version.
+func (s *Service) addCopyVersion(ctx context.Context, op *copyOp, node store.Node, hash string, size int64, mimeType string) error {
+	ver, err := s.q.AddVersion(ctx, store.AddVersionParams{
+		NodeID:    node.ID,
+		BlobHash:  hash,
+		Size:      size,
+		Mime:      mimeType,
+		CreatedBy: op.creator,
+	})
+	if err != nil {
+		return err
+	}
+	if err := s.q.SetCurrentVersion(ctx, store.SetCurrentVersionParams{
+		ID: node.ID, CurrentVersionID: ver.ID,
+	}); err != nil {
+		return err
+	}
+	op.versions = append(op.versions, copiedVersion{ver: ver, name: node.Name})
+	return nil
 }
 
 func (s *Service) Delete(ctx context.Context, nodeID, actorID pgtype.UUID) error {
@@ -686,59 +788,6 @@ func (s *Service) RestoreVersion(ctx context.Context, nodeID, versionID pgtype.U
 // ListDeleted returns soft-deleted nodes in a space.
 func (s *Service) ListDeleted(ctx context.Context, spaceID pgtype.UUID) ([]store.Node, error) {
 	return s.q.ListDeleted(ctx, spaceID)
-}
-
-// WalkFiles visits every file in the subtree rooted at dirID, depth-first,
-// passing the folder path relative to the root ("" at the top).
-//
-// Used by the zip streamer, which needs one file open at a time rather than a
-// materialised tree, so the walk hands back nodes as it finds them instead of
-// building a slice.
-func (s *Service) WalkFiles(
-	ctx context.Context,
-	dirID pgtype.UUID,
-	visit func(dir string, node store.Node) error,
-) error {
-	root, err := s.get(ctx, dirID)
-	if err != nil {
-		return err
-	}
-	return s.walkFiles(ctx, root, "", 0, visit)
-}
-
-func (s *Service) walkFiles(
-	ctx context.Context,
-	dir store.Node,
-	prefix string,
-	depth int,
-	visit func(dir string, node store.Node) error,
-) error {
-	if depth >= maxTreeDepth {
-		return fmt.Errorf("folder nesting exceeds %d levels", maxTreeDepth)
-	}
-	children, err := s.q.ListChildren(ctx, store.ListChildrenParams{
-		SpaceID:  dir.SpaceID,
-		ParentID: dir.ID,
-	})
-	if err != nil {
-		return err
-	}
-	for _, child := range children {
-		if child.Kind == store.NodeKindDir {
-			next := child.Name
-			if prefix != "" {
-				next = prefix + "/" + child.Name
-			}
-			if err := s.walkFiles(ctx, child, next, depth+1, visit); err != nil {
-				return err
-			}
-			continue
-		}
-		if err := visit(prefix, child); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // --- Stars ---
@@ -924,10 +973,12 @@ func (s *Service) GetAny(ctx context.Context, nodeID pgtype.UUID) (store.Node, e
 //
 // Two things can be in the way. The original parent may itself be trashed, in
 // which case there is no folder to return to and the node goes to the space
-// root. And a live sibling may have taken the name in the meantime, which the
-// partial unique index on (space_id, parent_id, name) WHERE deleted_at IS NULL
-// rejects — so the name gets a numeric suffix. Restoring a folder implicitly
-// restores its subtree, because Delete only tombstones the node it was given.
+// root — as it does when the parent can no longer hold it (CanContain: a
+// document whose current version stopped being markdown). And a live sibling
+// may have taken the name in the meantime, which the partial unique index on
+// (space_id, parent_id, name) WHERE deleted_at IS NULL rejects — so the name
+// gets a numeric suffix. Restoring a folder or a document implicitly restores
+// its subtree, because Delete only tombstones the node it was given.
 func (s *Service) Restore(ctx context.Context, nodeID pgtype.UUID) (store.Node, RestoreOutcome, error) {
 	node, err := s.GetAny(ctx, nodeID)
 	if err != nil {
@@ -942,6 +993,19 @@ func (s *Service) Restore(ctx context.Context, nodeID pgtype.UUID) (store.Node, 
 	buried, err := s.hasDeletedAncestor(ctx, node)
 	if err != nil {
 		return store.Node{}, RestoreOutcome{}, err
+	}
+	if !buried && parentID.Valid {
+		child, err := s.ChildOf(ctx, node)
+		if err != nil {
+			return store.Node{}, RestoreOutcome{}, err
+		}
+		_, err = s.liveParent(ctx, parentID, child)
+		switch {
+		case errors.Is(err, ErrNotContainer):
+			buried = true
+		case err != nil:
+			return store.Node{}, RestoreOutcome{}, err
+		}
 	}
 	if buried {
 		parentID = pgtype.UUID{} // space root

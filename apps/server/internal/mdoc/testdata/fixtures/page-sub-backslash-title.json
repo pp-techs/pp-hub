@@ -1,0 +1,19 @@
+{
+  "name": "page-sub-backslash-title",
+  "input": "<!-- slash:subPage {\"pageId\":\"p5\"} -->\n[x](/edit/p5)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "subPage",
+        "attrs": {
+          "pageId": "p5"
+        }
+      }
+    ]
+  },
+  "output": "<!-- slash:subPage {\"pageId\":\"p5\"} -->\n[C:\\\\path\\\\\\[1\\]](/edit/p5)",
+  "yupdate_b64": "AQIBAAcBB2NvbnRlbnQDB3N1YlBhZ2UoAAEABnBhZ2VJZAF3AnA1AA==",
+  "expect_lossy": false
+}

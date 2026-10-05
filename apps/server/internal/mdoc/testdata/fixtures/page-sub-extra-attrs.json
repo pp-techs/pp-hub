@@ -1,0 +1,19 @@
+{
+  "name": "page-sub-extra-attrs",
+  "input": "<!-- slash:subPage {\"pageId\":\"0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b\",\"title\":\"x\"} -->\n[a](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "subPage",
+        "attrs": {
+          "pageId": "0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b"
+        }
+      }
+    ]
+  },
+  "output": "<!-- slash:subPage {\"pageId\":\"0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b\"} -->\n[Roadmap](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)",
+  "yupdate_b64": "AQIBAAcBB2NvbnRlbnQDB3N1YlBhZ2UoAAEABnBhZ2VJZAF3JDBiOGUxZjJhLTZjM2QtNGU1Zi05YTFiLTdjMmQzZTRmNWE2YgA=",
+  "expect_lossy": false
+}

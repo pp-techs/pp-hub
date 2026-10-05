@@ -65,7 +65,7 @@ export function isMarkdownFile(node: Node): boolean {
 }
 
 /** Open the editor for a node — OnlyOffice or the block editor, by type — in a new browser tab. */
-export function openEditor(node: Node): void {
+export function openEditor(node: Pick<Node, "id">): void {
   window.open(`/edit/${node.id}`, "_blank");
 }
 

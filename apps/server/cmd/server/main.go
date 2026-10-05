@@ -93,8 +93,9 @@ func run() error {
 	previewWorker := preview.NewWorker(queries, blobs,
 		preview.ImageRenderer{}, preview.SVGRenderer{}, preview.TextRenderer{}).
 		WithExtractors(preview.TextExtractor{})
-	// Content search (M27) indexes a node's current version: a restored
-	// older version commits nothing, so it is re-extracted here instead.
+	// Content search (M27) and the page index (M43) follow a node's current
+	// version: a restored older version commits nothing, so it is
+	// re-extracted here instead.
 	fsSvc.SetRestoreHook(func(ctx context.Context, ver store.NodeVersion) {
 		if err := previewWorker.Reindex(ctx, ver); err != nil {
 			slog.WarnContext(ctx, "enqueue text extraction", "err", err)
@@ -102,11 +103,19 @@ func run() error {
 	})
 	// Files stored before content search existed get indexed without an
 	// operator step; the scan skips everything already indexed or queued.
+	// Documents stored before pages (M43) get their page index the same way,
+	// after the text scan so a version it just queued is not queued twice.
 	go func() {
 		if n, err := preview.BackfillText(ctx, queries); err != nil {
 			slog.WarnContext(ctx, "text extraction backfill", "enqueued", n, "err", err)
+			return
 		} else if n > 0 {
 			slog.InfoContext(ctx, "text extraction backfill", "enqueued", n)
+		}
+		if n, err := preview.BackfillPages(ctx, queries); err != nil {
+			slog.WarnContext(ctx, "page index backfill", "enqueued", n, "err", err)
+		} else if n > 0 {
+			slog.InfoContext(ctx, "page index backfill", "enqueued", n)
 		}
 	}()
 	// In-app notifications (M29). One service per process: its broker holds

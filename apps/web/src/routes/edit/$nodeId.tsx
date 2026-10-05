@@ -65,7 +65,9 @@ function EditPage() {
           )}
         </>
       ) : isMarkdownFile(node.data) ? (
-        <DocEditor node={node.data} thread={thread} />
+        // One editor per page: the kit latches the page it shows, and moving
+        // to a sub-page or a link opens a new room.
+        <DocEditor key={node.data.id} node={node.data} thread={thread} />
       ) : (
         <OfficeEditor node={node.data} />
       )}

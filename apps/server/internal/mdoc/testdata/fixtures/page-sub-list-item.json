@@ -1,0 +1,52 @@
+{
+  "name": "page-sub-list-item",
+  "input": "- item\n\n  <!-- slash:subPage {\"pageId\":\"0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b\"} -->\n  [a](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)\n- next\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "bulletList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "item"
+                  }
+                ]
+              },
+              {
+                "type": "subPage",
+                "attrs": {
+                  "pageId": "0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b"
+                }
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "next"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "- item\n  <!-- slash:subPage {\"pageId\":\"0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b\"} -->\n  [Roadmap](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)\n- next",
+  "yupdate_b64": "AQsBAAcBB2NvbnRlbnQDCmJ1bGxldExpc3QHAAEAAwhsaXN0SXRlbQcAAQEDCXBhcmFncmFwaAcAAQIGBAABAwRpdGVthwECAwdzdWJQYWdlKAABCAZwYWdlSWQBdyQwYjhlMWYyYS02YzNkLTRlNWYtOWExYi03YzJkM2U0ZjVhNmKHAQEDCGxpc3RJdGVtBwABCgMJcGFyYWdyYXBoBwABCwYEAAEMBG5leHQA",
+  "expect_lossy": false
+}

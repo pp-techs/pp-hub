@@ -1,0 +1,126 @@
+{
+  "name": "page-mixed",
+  "input": "# Plan\n\n<!-- slash:subPage {\"pageId\":\"0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b\"} -->\n[a](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)\n\nSee <!-- slash:pageLink {\"pageId\":\"0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b\"} -->[a](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)<!-- /slash:pageLink --> and <!-- slash:mention {\"id\":\"doc:1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c\",\"label\":\"Old\"} -->@Old<!-- /slash:mention -->.\n\n<!-- slash:subPage {\"pageId\":\"1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c\"} -->\n[b](/edit/1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "heading",
+        "attrs": {
+          "level": 1
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Plan"
+          }
+        ]
+      },
+      {
+        "type": "subPage",
+        "attrs": {
+          "pageId": "0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b"
+        }
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "See "
+          },
+          {
+            "type": "pageLink",
+            "attrs": {
+              "pageId": "0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b"
+            }
+          },
+          {
+            "type": "text",
+            "text": " and "
+          },
+          {
+            "type": "mention",
+            "attrs": {
+              "id": "doc:1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c",
+              "label": "Old"
+            }
+          },
+          {
+            "type": "text",
+            "text": "."
+          }
+        ]
+      },
+      {
+        "type": "subPage",
+        "attrs": {
+          "pageId": "1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c"
+        }
+      }
+    ]
+  },
+  "output": "# Plan\n\n<!-- slash:subPage {\"pageId\":\"0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b\"} -->\n[Roadmap](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)\n\nSee <!-- slash:pageLink {\"pageId\":\"0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b\"} -->[Roadmap](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)<!-- /slash:pageLink --> and <!-- slash:mention {\"id\":\"doc:1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c\",\"label\":\"Old\"} -->@Old<!-- /slash:mention -->.\n\n<!-- slash:subPage {\"pageId\":\"1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c\"} -->\n[a*b_\\[c\\] <x> & `y`](/edit/1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c)",
+  "go_json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "heading",
+        "attrs": {
+          "level": 1
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Plan"
+          }
+        ]
+      },
+      {
+        "type": "subPage",
+        "attrs": {
+          "pageId": "0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b"
+        }
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "See "
+          },
+          {
+            "type": "pageLink",
+            "attrs": {
+              "pageId": "0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b"
+            }
+          },
+          {
+            "type": "text",
+            "text": " and "
+          },
+          {
+            "type": "pageLink",
+            "attrs": {
+              "pageId": "1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c"
+            }
+          },
+          {
+            "type": "text",
+            "text": "."
+          }
+        ]
+      },
+      {
+        "type": "subPage",
+        "attrs": {
+          "pageId": "1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c"
+        }
+      }
+    ]
+  },
+  "go_output": "# Plan\n\n<!-- slash:subPage {\"pageId\":\"0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b\"} -->\n[Roadmap](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)\n\nSee <!-- slash:pageLink {\"pageId\":\"0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b\"} -->[Roadmap](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)<!-- /slash:pageLink --> and <!-- slash:pageLink {\"pageId\":\"1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c\"} -->[a*b_\\[c\\] <x> & `y`](/edit/1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c)<!-- /slash:pageLink -->.\n\n<!-- slash:subPage {\"pageId\":\"1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c\"} -->\n[a*b_\\[c\\] <x> & `y`](/edit/1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c)",
+  "yupdate_b64": "ARQBAAcBB2NvbnRlbnQDB2hlYWRpbmcHAAEABgQAAQEEUGxhbigAAQAFbGV2ZWwBfQGHAQADB3N1YlBhZ2UoAAEHBnBhZ2VJZAF3JDBiOGUxZjJhLTZjM2QtNGU1Zi05YTFiLTdjMmQzZTRmNWE2YocBBwMJcGFyYWdyYXBoBwABCQYEAAEKBFNlZSCHAQoDCHBhZ2VMaW5rKAABDwZwYWdlSWQBdyQwYjhlMWYyYS02YzNkLTRlNWYtOWExYi03YzJkM2U0ZjVhNmKHAQ8GBAABEQUgYW5kIIcBEQMHbWVudGlvbigAARcCaWQBdyhkb2M6MWM5ZjJhM2ItN2Q0ZS00ZjYwLThiMmMtOGQzZTRmNWE2YjdjKAABFwVsYWJlbAF3A09sZIcBFwYEAAEaAS6HAQkDB3N1YlBhZ2UoAAEcBnBhZ2VJZAF3JDFjOWYyYTNiLTdkNGUtNGY2MC04YjJjLThkM2U0ZjVhNmI3YwA=",
+  "expect_lossy": false
+}

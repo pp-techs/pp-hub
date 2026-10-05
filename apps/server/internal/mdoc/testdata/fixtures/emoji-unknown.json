@@ -1,0 +1,22 @@
+{
+  "name": "emoji-unknown",
+  "input": "Meet at 12:30:45 or :not_an_emoji_xyz: then\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Meet at 12:30:45 or :not_an_emoji_xyz: then"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "Meet at 12:30:45 or :not\\_an\\_emoji\\_xyz: then",
+  "yupdate_b64": "AQMBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAStNZWV0IGF0IDEyOjMwOjQ1IG9yIDpub3RfYW5fZW1vamlfeHl6OiB0aGVuAA==",
+  "expect_lossy": false
+}

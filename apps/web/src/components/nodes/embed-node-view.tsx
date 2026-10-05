@@ -1,11 +1,11 @@
-import { findNodeById } from "@slash-editor/core";
+import { findNodeById, type EmbedOptions } from "@slash-editor/core";
+import { useResolvedSrc } from "@slash-editor/react";
 import type { Editor } from "@tiptap/core";
 import { NodeViewWrapper, useEditorState, type NodeViewProps } from "@tiptap/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { GlobeIcon, LinkIcon } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { EmbedLinkModal } from "@/components/nodes/embed-link-modal";
-import { resolveAttachment, type AttachmentUrl } from "@/lib/collab/attachments";
 
 interface EmbedAttrs {
   id: string;
@@ -59,21 +59,27 @@ export function pickEmbedLink(
 /**
  * A link as a bookmark card: the page's title, description, host and
  * thumbnail (an attachment of this document — pp-hub never hotlinks another
- * site's image). An `iframe` embed from imported markdown renders as the same
- * card: pp-hub does not frame other sites. An empty block offers the link
- * dialog to a writer (`documentId` given) and says nothing to a reader.
+ * site's image — resolved through the node's `resolveSrc`). An `iframe` embed
+ * from imported markdown renders as the same card: pp-hub does not frame
+ * other sites. An empty block offers the link dialog to a writer
+ * (`documentId` given) and says nothing to a reader.
  */
 export function EmbedNodeView({
   editor,
   node,
   selected,
-  attachmentUrl,
+  extension,
   documentId,
-}: NodeViewProps & { attachmentUrl: AttachmentUrl; documentId?: string }) {
+}: NodeViewProps & { documentId?: string }) {
   const { t } = useLingui();
   const attrs = node.attrs as EmbedAttrs;
   const editable =
     useEditorState({ editor, selector: ({ editor: e }) => e.isEditable }) && !!documentId;
+  const thumbnail = useResolvedSrc(
+    attrs.thumbnail,
+    node,
+    (extension.options as EmbedOptions).resolveSrc,
+  );
 
   if (!attrs.url) {
     return (
@@ -106,7 +112,6 @@ export function EmbedNodeView({
   } catch {
     // Not a URL the browser can parse: show it as written.
   }
-  const thumbnail = resolveAttachment(attrs.thumbnail, attachmentUrl);
 
   return (
     <NodeViewWrapper contentEditable={false} className="my-2" data-selected={selected || undefined}>

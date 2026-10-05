@@ -28,15 +28,12 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@workspace/ui/component
 import { blockTitle } from "@/components/doc-editor/labels";
 import { resolveIcon } from "@/lib/icons";
 
-const GUTTER_OFFSET = 72;
-
 /**
- * How far left of the text the pointer still counts as over a block — the
- * `drag.gutterWidth` the editor is built with. Core defaults to 48 px, which
- * ends short of the handle's first button (72 px out), so moving onto the +
- * cleared the hover and the handle vanished under the pointer.
+ * How far left of the text the handle sits. Core's hover zone
+ * (`BLOCK_GUTTER_WIDTH`, 80 px since 0.7) reaches past it, so the pointer
+ * keeps the block hovered on its way to the handle's first button.
  */
-export const BLOCK_GUTTER_WIDTH = GUTTER_OFFSET + 8;
+const GUTTER_OFFSET = 72;
 
 export function BlockHandle({ editor }: { editor: Editor }) {
   const { t, i18n } = useLingui();

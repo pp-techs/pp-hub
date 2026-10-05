@@ -10,7 +10,14 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@workspace/ui/components/empty";
-import { attachmentUrl, shareAttachmentUrl, type MarkdownDocument, type Node } from "@/lib/api";
+import {
+  attachmentUrl,
+  openEditor,
+  shareAttachmentUrl,
+  type MarkdownDocument,
+  type Node,
+} from "@/lib/api";
+import { usePageStore } from "@/lib/collab/page-store";
 import { useNodeDocument, useShareDocument } from "@/lib/queries";
 import type { ReadOnlyEditorProps } from "./read-only-editor";
 import { MarkdownDocumentSkeleton } from "./skeleton";
@@ -50,7 +57,8 @@ export function MarkdownDocumentView(props: ReadOnlyEditorProps) {
 /**
  * A signed-in reader's view of a markdown file: the current version, or
  * `versionId`. The server gates `/document` on the view capability, as it does
- * the file's bytes.
+ * the file's bytes. A sub-page or page link opens in the editor, in a new
+ * tab, as a document opened from the drive does.
  */
 export function NodeMarkdownView({
   node,
@@ -64,6 +72,8 @@ export function NodeMarkdownView({
   outlineScrollRef?: RefObject<HTMLElement | null>;
 }) {
   const document = useNodeDocument(node.id, versionId);
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- source discriminant
+  const pageStore = usePageStore({ kind: "node", spaceId: node.space_id });
   if (!document.data) return <DocumentPending query={document} className={className} />;
   return (
     <MarkdownDocumentView
@@ -73,23 +83,31 @@ export function NodeMarkdownView({
       attachmentUrl={(hash) => attachmentUrl(node.id, hash)}
       className={className}
       outlineScrollRef={outlineScrollRef}
+      pages={{ store: pageStore, pageId: node.id, onNavigate: (id) => openEditor({ id }) }}
     />
   );
 }
 
-/** A markdown file inside a share link, rendered for an anonymous visitor. */
+/**
+ * A markdown file inside a share link, rendered for an anonymous visitor. A
+ * sub-page or page link inside the link's reach calls `onNavigatePage`.
+ */
 export function SharedMarkdownView({
   token,
   nodeId,
   className,
   outlineScrollRef,
+  onNavigatePage,
 }: {
   token: string;
   nodeId: string;
   className?: string;
   outlineScrollRef?: RefObject<HTMLElement | null>;
+  onNavigatePage: (pageId: string) => void;
 }) {
   const document = useShareDocument(token, nodeId);
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- source discriminant
+  const pageStore = usePageStore({ kind: "share", token });
   if (!document.data) return <DocumentPending query={document} className={className} />;
   return (
     <MarkdownDocumentView
@@ -99,6 +117,7 @@ export function SharedMarkdownView({
       attachmentUrl={(hash) => shareAttachmentUrl(token, nodeId, hash)}
       className={className}
       outlineScrollRef={outlineScrollRef}
+      pages={{ store: pageStore, pageId: nodeId, onNavigate: onNavigatePage }}
     />
   );
 }
@@ -117,6 +136,8 @@ export function SharedMarkdownView({
  * toggles out of the tab order of a card whose actions are elsewhere.
  */
 export function MarkdownThumbnail({ node, fallback }: { node: Node; fallback: ReactNode }) {
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- source discriminant
+  const pageStore = usePageStore({ kind: "node", spaceId: node.space_id });
   const frame = useRef<HTMLDivElement>(null);
   const [near, setNear] = useState(false);
   useEffect(() => {
@@ -149,6 +170,8 @@ export function MarkdownThumbnail({ node, fallback }: { node: Node; fallback: Re
             lossy={document.data.lossy}
             attachmentUrl={(hash) => attachmentUrl(node.id, hash)}
             className="p-6"
+            // Inert: nothing opens from a thumbnail, but sub-pages read by name.
+            pages={{ store: pageStore, pageId: node.id, onNavigate: () => {} }}
           />
         ) : (
           <MarkdownDocumentSkeleton className="p-6" />

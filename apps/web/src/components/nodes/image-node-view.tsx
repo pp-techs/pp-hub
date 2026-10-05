@@ -1,18 +1,21 @@
-import type { UploadAdapter } from "@slash-editor/core";
+import type { ImageOptions, UploadAdapter } from "@slash-editor/core";
+import { useResolvedSrc } from "@slash-editor/react";
 import { useEditorState, type NodeViewProps } from "@tiptap/react";
 import { useLingui } from "@lingui/react/macro";
 import { ImageIcon } from "lucide-react";
 import { useRef, useState, type PointerEvent } from "react";
 import { UploadableNodeView } from "@/components/nodes/uploadable-node-view";
-import { resolveAttachment, type AttachmentUrl } from "@/lib/collab/attachments";
 
 /** Narrowest an image can be dragged to, in CSS pixels. */
 const MIN_WIDTH = 80;
 
-export function ImageNodeView(
-  props: NodeViewProps & { adapter?: UploadAdapter; attachmentUrl: AttachmentUrl },
-) {
+export function ImageNodeView(props: NodeViewProps & { adapter?: UploadAdapter }) {
   const { t } = useLingui();
+  const src = useResolvedSrc(
+    props.node.attrs.src as string | null,
+    props.node,
+    (props.extension.options as ImageOptions).resolveSrc,
+  );
   return (
     <UploadableNodeView
       {...props}
@@ -20,10 +23,10 @@ export function ImageNodeView(
       icon={ImageIcon}
       emptyLabel={t`Add an image`}
       retry={(id, override) => props.editor.commands.retryImage(id, override)}
-      renderReady={(attrs) => (
+      renderReady={() => (
         <ResizableImage
           {...props}
-          src={resolveAttachment(attrs.src, props.attachmentUrl)}
+          src={src ?? undefined}
           alt={(props.node.attrs.alt as string | null) ?? ""}
         />
       )}

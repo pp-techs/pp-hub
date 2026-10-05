@@ -1,0 +1,102 @@
+{
+  "name": "emoji-toggle-columns",
+  "input": "<details>\n<summary>Sum :smile:</summary>\n\nBody :fire:\n\n</details>\n\n<!-- slash:columns -->\n\nLeft :one:\n\n<!-- slash:column -->\n\nRight :two:\n\n<!-- /slash:columns -->\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "details",
+        "attrs": {
+          "open": false,
+          "level": 0
+        },
+        "content": [
+          {
+            "type": "detailsSummary",
+            "content": [
+              {
+                "type": "text",
+                "text": "Sum "
+              },
+              {
+                "type": "emoji",
+                "attrs": {
+                  "name": "smile"
+                }
+              }
+            ]
+          },
+          {
+            "type": "detailsContent",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Body "
+                  },
+                  {
+                    "type": "emoji",
+                    "attrs": {
+                      "name": "fire"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "columns",
+        "content": [
+          {
+            "type": "column",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Left "
+                  },
+                  {
+                    "type": "emoji",
+                    "attrs": {
+                      "name": "one"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "column",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Right "
+                  },
+                  {
+                    "type": "emoji",
+                    "attrs": {
+                      "name": "two"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "<details>\n<summary>Sum :smile:</summary>\n\nBody :fire:\n\n</details>\n\n<!-- slash:columns -->\n\nLeft :one:\n\n<!-- slash:column -->\n\nRight :two:\n\n<!-- /slash:columns -->",
+  "yupdate_b64": "ARsBAAcBB2NvbnRlbnQDB2RldGFpbHMHAAEAAw5kZXRhaWxzU3VtbWFyeQcAAQEGBAABAgRTdW0ghwECAwVlbW9qaSgAAQcEbmFtZQF3BXNtaWxlhwEBAw5kZXRhaWxzQ29udGVudAcAAQkDCXBhcmFncmFwaAcAAQoGBAABCwVCb2R5IIcBCwMFZW1vamkoAAERBG5hbWUBdwRmaXJlKAABAARvcGVuAXkoAAEABWxldmVsAX0AhwEAAwdjb2x1bW5zBwABFQMGY29sdW1uBwABFgMJcGFyYWdyYXBoBwABFwYEAAEYBUxlZnQghwEYAwVlbW9qaSgAAR4EbmFtZQF3A29uZYcBFgMGY29sdW1uBwABIAMJcGFyYWdyYXBoBwABIQYEAAEiBlJpZ2h0IIcBIgMFZW1vamkoAAEpBG5hbWUBdwN0d28A",
+  "expect_lossy": false
+}

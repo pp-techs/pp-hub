@@ -1,0 +1,31 @@
+{
+  "name": "page-sub-empty-page-id",
+  "input": "<!-- slash:subPage {\"pageId\":\"\"} -->\n[a](/edit/)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "a",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "/edit/",
+                  "title": null
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "[a](/edit/)",
+  "yupdate_b64": "AQUBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBgABAQRsaW5rYnsiaHJlZiI6Ii9lZGl0LyIsInRhcmdldCI6Il9ibGFuayIsInJlbCI6Im5vb3BlbmVyIG5vcmVmZXJyZXIgbm9mb2xsb3ciLCJjbGFzcyI6bnVsbCwidGl0bGUiOm51bGx9hAECAWGGAQMEbGluawRudWxsAA==",
+  "expect_lossy": true
+}

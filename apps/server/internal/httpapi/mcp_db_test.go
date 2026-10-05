@@ -437,3 +437,59 @@ func TestMcpPublicLinksAreOptIn(t *testing.T) {
 		t.Fatal("create_public_link missing once allowed")
 	}
 }
+
+// M43: a document is a folder for its sub-pages to an agent too —
+// create_document makes one under it, list_folder lists them and marks the
+// document in its own listing — and read_document shows the frontmatter
+// that holds the page's icon.
+func TestMcpSubPages(t *testing.T) {
+	rig := newMCPRig(t)
+	f := rig.collabRig.fixture(t, "mcppages", "---\nicon: 🚀\nstatus: draft\n---\n# Plan\n")
+	editor := rig.agent(t, f.editor)
+	owner := rig.agent(t, f.owner)
+	space, doc := uuidString(f.space.ID), uuidString(f.doc.ID)
+
+	var read struct {
+		Text string `json:"text"`
+	}
+	mustTool(t, editor, "read_document", map[string]any{"node_id": doc}, &read)
+	if !strings.HasPrefix(read.Text, "---\n") || !strings.Contains(read.Text, "icon: 🚀") || !strings.Contains(read.Text, "status: draft") {
+		t.Fatalf("frontmatter missing from read_document:\n%s", read.Text)
+	}
+
+	var made struct {
+		ID       string `json:"id"`
+		ParentID string `json:"parent_id"`
+	}
+	mustTool(t, editor, "create_document", map[string]any{
+		"space_id": space, "name": "Budget", "folder_id": doc,
+	}, &made)
+	if made.ID == "" || made.ParentID != doc {
+		t.Fatalf("create_document under the document = %+v, want a sub-page of %s", made, doc)
+	}
+	var listed []struct {
+		ID             string `json:"id"`
+		Name           string `json:"name"`
+		Kind           string `json:"kind"`
+		ParentID       string `json:"parent_id"`
+		ChildPageCount int64  `json:"child_page_count"`
+	}
+	mustTool(t, editor, "list_folder", map[string]any{"space_id": space, "folder_id": doc}, &listed)
+	if len(listed) != 1 || listed[0].ID != made.ID || listed[0].Name != "Budget.md" || listed[0].Kind != "file" {
+		t.Fatalf("list_folder on the document = %+v, want the one sub-page", listed)
+	}
+
+	mustTool(t, owner, "list_folder", map[string]any{"space_id": space}, &listed)
+	found := false
+	for _, n := range listed {
+		if n.ID == doc {
+			found = true
+			if n.ChildPageCount != 1 {
+				t.Fatalf("document listed with child_page_count %d, want 1", n.ChildPageCount)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("document missing from the top of the space: %+v", listed)
+	}
+}

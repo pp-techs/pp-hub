@@ -2,8 +2,8 @@ package mdoc
 
 import (
 	"bytes"
-	"maps"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/yuin/goldmark"
@@ -188,30 +188,55 @@ func (p *mdParser) entries(src string) []entry {
 		if len(children) == 0 {
 			break
 		}
-		restart := -1
-		for i := 0; i < len(children); {
-			c := children[i]
-			if _, isFootnotes := c.(*east.FootnoteList); isFootnotes {
-				out = append(out, entry{start: len(src), nodes: p.convertBlock(c, sub, "", doc)})
-				i++
-				continue
+		// goldmark appends the footnote list after every other block, but
+		// it holds definitions from anywhere in the source, so its position
+		// bounds nothing: blocks are measured against the next of the
+		// first `placed` children, and the last of those runs to the end.
+		// Each definition is emitted where it stands in the source, as
+		// slash-editor reads it (a paragraph in place), by the pass whose
+		// span holds it.
+		placed := len(children)
+		if _, isFootnotes := children[placed-1].(*east.FootnoteList); isFootnotes {
+			placed--
+		}
+		footnotes := func(from, to int) {
+			if placed == len(children) {
+				return
 			}
+			for f := children[placed].FirstChild(); f != nil; f = f.NextSibling() {
+				fn, ok := f.(*east.Footnote)
+				if !ok {
+					continue
+				}
+				if at := pos + lineStart(sub, nodeStart(fn, []byte(sub))); at >= from && at < to {
+					out = append(out, entry{start: at, nodes: p.footnote(fn, sub, doc)})
+				}
+			}
+		}
+		restart := -1
+		// A pass that stops early at a block hands that block to a parse of
+		// its own, which emits the definitions inside it; this pass emits
+		// those before it.
+		footTo := len(src)
+		for i := 0; i < placed; {
+			c := children[i]
 			start := pos + lineStart(sub, nodeStart(c, []byte(sub)))
 			if e, n, ok := p.custom(src, start); ok {
 				out = append(out, e...)
 				next := start + n
 				j := i + 1
-				for j < len(children) && pos+nodeStart(children[j], []byte(sub)) < next {
+				for j < placed && pos+nodeStart(children[j], []byte(sub)) < next {
 					j++
 				}
-				if j < len(children) && strings.TrimSpace(src[next:pos+lineStart(sub, nodeStart(children[j], []byte(sub)))]) == "" {
+				if j < placed && strings.TrimSpace(src[next:pos+lineStart(sub, nodeStart(children[j], []byte(sub)))]) == "" {
 					i = j
 					continue
 				}
-				if j >= len(children) && strings.TrimSpace(src[min(next, len(src)):]) == "" {
-					return out
+				if j >= placed && strings.TrimSpace(src[min(next, len(src)):]) == "" {
+					i = j // nothing but footnote definitions is left
+					continue
 				}
-				restart = next
+				restart, footTo = next, start
 				break
 			}
 			if cut := p.paragraphCut(c, src, pos); cut > 0 {
@@ -219,11 +244,11 @@ func (p *mdParser) entries(src string) []entry {
 					e.start += start
 					out = append(out, e)
 				}
-				restart = cut
+				restart, footTo = cut, start
 				break
 			}
 			var end int
-			if i+1 < len(children) {
+			if i+1 < placed {
 				end = pos + lineStart(sub, nodeStart(children[i+1], []byte(sub)))
 			} else {
 				end = len(src)
@@ -231,11 +256,13 @@ func (p *mdParser) entries(src string) []entry {
 			out = append(out, entry{start: start, nodes: p.convertBlock(c, sub, src[start:end], doc)})
 			i++
 		}
+		footnotes(pos, footTo)
 		if restart < 0 {
 			break
 		}
 		pos = restart
 	}
+	slices.SortStableFunc(out, func(a, b entry) int { return a.start - b.start })
 	return out
 }
 
@@ -295,6 +322,9 @@ func (p *mdParser) custom(src string, start int) (entries []entry, n int, ok boo
 	r := src[start:]
 	one := func(node Node, raw int, full bool) ([]entry, int, bool) {
 		return []entry{{start: start, fullLine: full, nodes: []Node{node}}}, raw, true
+	}
+	if node, raw, ok := p.subPage(r); ok {
+		return one(node, raw, true)
 	}
 	if node, raw, ok := p.columns(r); ok {
 		return one(node, raw, true)
@@ -637,25 +667,10 @@ func (p *mdParser) convertBlock(n ast.Node, sub, raw string, doc ast.Node) []Nod
 	case *ast.LinkReferenceDefinition:
 		return nil
 	case *east.FootnoteList:
-		p.lossy = true
 		var out []Node
 		for f := b.FirstChild(); f != nil; f = f.NextSibling() {
-			fn, ok := f.(*east.Footnote)
-			if !ok {
-				continue
-			}
-			prefix := Node{Type: "text", Text: "[^" + string(fn.Ref) + "]: "}
-			first := true
-			for c := fn.FirstChild(); c != nil; c = c.NextSibling() {
-				nodes := p.convertBlock(c, sub, "", doc)
-				if first && len(nodes) > 0 && nodes[0].Type == "paragraph" {
-					nodes[0].Content = mergeText(append([]Node{prefix}, nodes[0].Content...))
-					first = false
-				}
-				out = append(out, nodes...)
-			}
-			if first {
-				out = append(out, Node{Type: "paragraph", Content: []Node{prefix}})
+			if fn, ok := f.(*east.Footnote); ok {
+				out = append(out, p.footnote(fn, sub, doc)...)
 			}
 		}
 		return out
@@ -665,6 +680,28 @@ func (p *mdParser) convertBlock(n ast.Node, sub, raw string, doc ast.Node) []Nod
 		return []Node{{Type: "paragraph", Content: []Node{{Type: "text", Text: t}}}}
 	}
 	return nil
+}
+
+// footnote is a footnote definition as slash-editor reads it: its text as
+// paragraphs, the first led by `[^ref]: `. Footnotes are outside the block
+// set, so the document is lossy.
+func (p *mdParser) footnote(fn *east.Footnote, sub string, doc ast.Node) []Node {
+	p.lossy = true
+	prefix := Node{Type: "text", Text: "[^" + string(fn.Ref) + "]: "}
+	var out []Node
+	first := true
+	for c := fn.FirstChild(); c != nil; c = c.NextSibling() {
+		nodes := p.convertBlock(c, sub, "", doc)
+		if first && len(nodes) > 0 && nodes[0].Type == "paragraph" {
+			nodes[0].Content = mergeText(append([]Node{prefix}, nodes[0].Content...))
+			first = false
+		}
+		out = append(out, nodes...)
+	}
+	if first {
+		out = append(out, Node{Type: "paragraph", Content: []Node{prefix}})
+	}
+	return out
 }
 
 // trimBlank drops the blank lines that separate a block from the next one.
@@ -924,7 +961,7 @@ func (p *mdParser) inlines(parent ast.Node, src []byte) []Node {
 		out = append(out, p.inline(c, src)...)
 	}
 	if p.inLink {
-		return mergeText(out)
+		return mergeText(resolveShortcodes(out))
 	}
 	return mergeText(linkify(mergeText(out)))
 }
@@ -1020,7 +1057,11 @@ func (p *mdParser) inline(n ast.Node, src []byte) []Node {
 		}
 		return nil
 	case *mentionNode:
-		return []Node{{Type: "mention", Attrs: maps.Clone(x.attrs)}}
+		return []Node{mentionToNode(x.attrs)}
+	case *pageLinkNode:
+		return []Node{{Type: "pageLink", Attrs: map[string]any{"pageId": x.pageID}}}
+	case *shortcodeNode:
+		return []Node{{Type: shortcodeType, Text: x.raw, Attrs: map[string]any{"name": x.name}}}
 	case *east.TaskCheckBox:
 		return nil
 	case *east.FootnoteLink:

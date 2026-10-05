@@ -1,0 +1,39 @@
+{
+  "name": "page-link-no-page-id",
+  "input": "See <!-- slash:pageLink {} -->[a](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)<!-- /slash:pageLink --> now\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "See "
+          },
+          {
+            "type": "text",
+            "text": "a",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b",
+                  "title": null
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " now"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "See [a](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b) now",
+  "yupdate_b64": "AQcBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQRTZWUghgEFBGxpbmuGAXsiaHJlZiI6Ii9lZGl0LzBiOGUxZjJhLTZjM2QtNGU1Zi05YTFiLTdjMmQzZTRmNWE2YiIsInRhcmdldCI6Il9ibGFuayIsInJlbCI6Im5vb3BlbmVyIG5vcmVmZXJyZXIgbm9mb2xsb3ciLCJjbGFzcyI6bnVsbCwidGl0bGUiOm51bGx9hAEGAWGGAQcEbGluawRudWxshAEIBCBub3cA",
+  "expect_lossy": false
+}

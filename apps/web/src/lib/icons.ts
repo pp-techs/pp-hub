@@ -3,6 +3,8 @@ import {
   ChevronRightIcon,
   CodeIcon,
   ColumnsIcon,
+  FilePlusIcon,
+  FileSymlinkIcon,
   FileTextIcon,
   Heading1Icon,
   Heading2Icon,
@@ -18,6 +20,7 @@ import {
   PaperclipIcon,
   QuoteIcon,
   SquareDashedIcon,
+  SmilePlusIcon,
   StrikethroughIcon,
   TableIcon,
   TypeIcon,
@@ -29,13 +32,16 @@ import type { LucideIcon } from "lucide-react";
 
 /**
  * slash-editor's core names its icons by key and ships no components; these
- * are the keys the v1 block set, the bubble toolbar and the mention menu use.
+ * are the keys the v1 block set, the page items, the bubble toolbar and the
+ * mention menu use.
  */
 const ICONS: Record<string, LucideIcon> = {
   bold: BoldIcon,
   "chevron-right": ChevronRightIcon,
   code: CodeIcon,
   columns: ColumnsIcon,
+  "file-plus": FilePlusIcon,
+  "file-symlink": FileSymlinkIcon,
   "file-text": FileTextIcon,
   "heading-1": Heading1Icon,
   "heading-2": Heading2Icon,
@@ -50,6 +56,7 @@ const ICONS: Record<string, LucideIcon> = {
   minus: MinusIcon,
   paperclip: PaperclipIcon,
   quote: QuoteIcon,
+  "face-slightly-smiling-plus": SmilePlusIcon,
   strikethrough: StrikethroughIcon,
   table: TableIcon,
   text: TypeIcon,

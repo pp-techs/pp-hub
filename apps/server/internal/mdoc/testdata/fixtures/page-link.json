@@ -1,0 +1,32 @@
+{
+  "name": "page-link",
+  "input": "See <!-- slash:pageLink {\"pageId\":\"0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b\"} -->[Roadmap](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)<!-- /slash:pageLink --> now\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "See "
+          },
+          {
+            "type": "pageLink",
+            "attrs": {
+              "pageId": "0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b"
+            }
+          },
+          {
+            "type": "text",
+            "text": " now"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "See <!-- slash:pageLink {\"pageId\":\"0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b\"} -->[Roadmap](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)<!-- /slash:pageLink --> now",
+  "yupdate_b64": "AQcBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQRTZWUghwEBAwhwYWdlTGluaygAAQYGcGFnZUlkAXckMGI4ZTFmMmEtNmMzZC00ZTVmLTlhMWItN2MyZDNlNGY1YTZihwEGBgQAAQgEIG5vdwA=",
+  "expect_lossy": false
+}

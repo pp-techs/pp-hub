@@ -1,0 +1,22 @@
+{
+  "name": "emoji-glyph",
+  "input": "Glyph 🎉 stays text\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Glyph 🎉 stays text"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "Glyph 🎉 stays text",
+  "yupdate_b64": "AQMBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABARVHbHlwaCDwn46JIHN0YXlzIHRleHQA",
+  "expect_lossy": false
+}

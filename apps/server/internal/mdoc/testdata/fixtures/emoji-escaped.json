@@ -1,0 +1,22 @@
+{
+  "name": "emoji-escaped",
+  "input": "Not \\:smile: and :smile\\: here\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Not :smile: and :smile: here"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "Not :smile: and :smile: here",
+  "yupdate_b64": "AQMBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABARxOb3QgOnNtaWxlOiBhbmQgOnNtaWxlOiBoZXJlAA==",
+  "expect_lossy": false
+}

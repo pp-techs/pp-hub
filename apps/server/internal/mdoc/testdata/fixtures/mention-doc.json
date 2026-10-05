@@ -24,6 +24,27 @@
     ]
   },
   "output": "See <!-- slash:mention {\"id\":\"doc:0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b\",\"label\":\"Runbook\"} -->@Runbook<!-- /slash:mention -->",
+  "go_json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "See "
+          },
+          {
+            "type": "pageLink",
+            "attrs": {
+              "pageId": "0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "go_output": "See <!-- slash:pageLink {\"pageId\":\"0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b\"} -->[Roadmap](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)<!-- /slash:pageLink -->",
   "yupdate_b64": "AQYBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQRTZWUghwEBAwdtZW50aW9uKAABBgJpZAF3KGRvYzowYjhlMWYyYS02YzNkLTRlNWYtOWExYi03YzJkM2U0ZjVhNmIoAAEGBWxhYmVsAXcHUnVuYm9vawA=",
   "expect_lossy": false
 }

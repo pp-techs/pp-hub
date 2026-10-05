@@ -27,6 +27,7 @@ import { useFormatters } from "@/lib/format";
 import { groupActions } from "@/lib/group-actions";
 import { useNodeActions, type NodeActionHandlers } from "@/components/node-actions";
 import { NodeIcon } from "@/components/node-icon";
+import { SubPageCount } from "@/components/sub-page-count";
 import { LoadingStatus } from "@/components/loading";
 import { LISTING_PADDING } from "@/components/surface";
 import { useUiStore } from "@/lib/ui-store";
@@ -295,6 +296,7 @@ const NodeListRow = memo(function NodeListRow({
                 title={node.name}
               >
                 <span className="truncate">{node.name}</span>
+                <SubPageCount node={node} />
               </span>
             </div>
           </td>

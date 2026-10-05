@@ -38,22 +38,26 @@ type room struct {
 	conns      map[*conn]struct{}
 	emptySince time.Time
 
-	// mu serialises write-back and reseed, and guards doc, frontmatter and
-	// replacing (set while Reseed swaps the file under the room).
+	// mu serialises write-back and reseed, and guards doc, frontmatter,
+	// replacing (set while Reseed swaps the file under the room) and
+	// persisted, the edit count the stored file already holds.
 	mu          sync.Mutex
 	doc         *crdt.Doc
 	frontmatter []byte
 	replacing   bool
+	persisted   uint64
 	// failing is set while write-back keeps failing, so the room must not be
 	// closed out from under the edits it still holds in memory.
 	failing atomic.Bool
 
 	// wmu guards writer, the user behind the latest change to the document,
-	// and deleted, every deletion the room has seen (see observe). Separate
-	// from mu: the update observer runs on whatever goroutine committed,
-	// which may hold mu.
+	// edits, how many attributed changes the room has taken, and deleted,
+	// every deletion the room has seen (see observe). Separate from mu: the
+	// update observer runs on whatever goroutine committed, which may hold
+	// mu.
 	wmu     sync.Mutex
 	writer  pgtype.UUID
+	edits   uint64
 	deleted *crdt.IDSet
 }
 
@@ -164,6 +168,51 @@ func (p persistence) StoreUpdateContext(ctx context.Context, name string, update
 	return h.writeBack(ctx, rm)
 }
 
+// metaName is the Y.Map a room keeps the page's icon and cover in (M43): the
+// frontmatter keys the editor shows outside the fragment, as strings, a
+// missing or empty key being none. Write-back merges it into the frontmatter.
+const metaName = "meta"
+
+// seedState is the initial state of a room over parsed: its blocks and its
+// meta. It is loaded, not applied, so nobody is the author of any of it.
+func seedState(parsed mdoc.Parsed) []byte {
+	d := crdt.New()
+	frag := d.GetXmlFragment(mdoc.FragmentName)
+	meta := d.GetMap(metaName)
+	icon, cover := mdoc.FrontmatterMeta(parsed.Frontmatter)
+	d.Transact(func(txn *crdt.Transaction) {
+		mdoc.Fill(txn, frag, parsed.Doc)
+		setMeta(txn, meta, nil, icon, cover)
+	})
+	return crdt.EncodeStateAsUpdateV1(d, nil)
+}
+
+// setMeta makes meta hold icon and cover, given have, its entries before txn
+// (YMap.Get cannot run inside a transaction). Unchanged keys are left alone
+// so a reseed to the same values adds no structs.
+func setMeta(txn *crdt.Transaction, meta *crdt.YMap, have map[string]any, icon, cover string) {
+	for _, kv := range [...][2]string{{"icon", icon}, {"cover", cover}} {
+		cur, ok := have[kv[0]]
+		switch {
+		case kv[1] == "":
+			if ok {
+				meta.Delete(txn, kv[0])
+			}
+		case cur != kv[1]:
+			meta.Set(txn, kv[0], kv[1])
+		}
+	}
+}
+
+// readMeta is the icon and cover a room's meta holds; anything but a string
+// is none. Entries, not Get: Get skips the JSON content a JS peer may send.
+func readMeta(meta *crdt.YMap) (icon, cover string) {
+	e := meta.Entries()
+	icon, _ = e["icon"].(string)
+	cover, _ = e["cover"].(string)
+	return icon, cover
+}
+
 func (h *Hub) load(ctx context.Context, name string) ([]byte, error) {
 	h.mu.Lock()
 	rm := h.byName[name]
@@ -207,7 +256,7 @@ func (h *Hub) seed(ctx context.Context, rm *room) ([]byte, string, mdoc.Parsed, 
 	parsed, err := h.parseCurrent(ctx, rm.nodeID)
 	var seed []byte
 	if err == nil {
-		seed, err = mdoc.Seed(parsed.Doc)
+		seed = seedState(parsed)
 	}
 	if err != nil {
 		_ = h.store.DeleteLock(ctx, store.DeleteLockParams{NodeID: rm.nodeID, LockToken: token})
@@ -272,6 +321,7 @@ func (rm *room) observe(update []byte, origin any) {
 	}
 	if user, ok := v.(pgtype.UUID); ok {
 		rm.writer = user
+		rm.edits++
 	}
 }
 
@@ -309,6 +359,10 @@ func (h *Hub) releaseLock(ctx context.Context, rm *room) {
 // when the markdown differs from the current version's bytes, so a session
 // that changed nothing, or changed it back, adds no history. The version goes
 // through fs like any other: claimed blob, quota, retention, preview.
+//
+// The markdown is the fragment behind the room's frontmatter with its meta
+// map (icon, cover) merged in, every linked page titled by its node's current
+// name — so a change to meta alone is an edit like any other.
 //
 // It is authored by the user behind the latest change. A change with no user
 // behind it is a reseed, whose content is the current version by
@@ -348,10 +402,42 @@ func (h *Hub) persistTimed(ctx context.Context, rm *room) error {
 }
 
 // persist is writeBack's body. Caller holds rm.mu.
+//
+// Only an attributed edit the file does not hold yet is written. Rendering
+// can differ from the file without one — a linked page renamed since, a
+// serializer that normalizes — and that difference waits for the next real
+// edit instead of becoming a version nobody made.
 func (h *Hub) persist(ctx context.Context, rm *room) error {
+	rm.wmu.Lock()
+	edits, writer := rm.edits, rm.writer
+	rm.wmu.Unlock()
+	if edits == rm.persisted || !writer.Valid {
+		return nil
+	}
 	frag := rm.doc.GetXmlFragment(mdoc.FragmentName)
 	doc := mdoc.Read(frag)
-	out := mdoc.Render(doc, rm.frontmatter)
+	icon, cover := readMeta(rm.doc.GetMap(metaName))
+	fm := mdoc.SetFrontmatterMeta(rm.frontmatter, icon, cover)
+	// Page titles are looked up in the node's space; the node is fetched
+	// first only when the document links to a page at all.
+	var node store.Node
+	var titles map[string]string
+	subPages, links := mdoc.PageRefs(doc)
+	if ids := append(subPages, links...); len(ids) > 0 {
+		var err error
+		node, err = h.files.Get(ctx, rm.nodeID)
+		if errors.Is(err, fs.ErrNotFound) || errors.Is(err, fs.ErrNotFile) {
+			h.log.WarnContext(ctx, "room's document is gone; edits dropped", "room", rm.name)
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if titles, err = h.files.PageTitles(ctx, node.SpaceID, ids); err != nil {
+			return err
+		}
+	}
+	out := mdoc.RenderWith(doc, fm, mdoc.RenderOptions{PageTitle: func(id string) string { return titles[id] }})
 
 	ver, err := h.store.GetCurrentVersion(ctx, rm.nodeID)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -366,15 +452,12 @@ func (h *Hub) persist(ctx context.Context, rm *room) error {
 		return nil
 	}
 	if blob.Hash(out) == ver.BlobHash {
+		rm.persisted = edits
 		return nil
 	}
-	rm.wmu.Lock()
-	writer := rm.writer
-	rm.wmu.Unlock()
-	if !writer.Valid {
-		return nil
+	if !node.ID.Valid {
+		node, err = h.files.Get(ctx, rm.nodeID)
 	}
-	node, err := h.files.Get(ctx, rm.nodeID)
 	if err == nil {
 		h.adopt(ctx, node, doc, writer)
 		_, _, err = h.files.PutFile(ctx, node.SpaceID, node.ParentID, node.ID, node.Name, bytes.NewReader(out), writer)
@@ -382,6 +465,11 @@ func (h *Hub) persist(ctx context.Context, rm *room) error {
 	if errors.Is(err, fs.ErrNotFound) || errors.Is(err, fs.ErrNotFile) {
 		h.log.WarnContext(ctx, "room's document is gone; edits dropped", "room", rm.name)
 		return nil
+	}
+	if err == nil {
+		// What was written is the room's frontmatter from now on.
+		rm.frontmatter = fm
+		rm.persisted = edits
 	}
 	return err
 }
@@ -512,13 +600,18 @@ func (h *Hub) Reseed(ctx context.Context, nodeID pgtype.UUID, change func(contex
 		h.closed(ctx, rm, h.srv.CloseRoom(rm.name, true))
 		return nil
 	}
+	icon, cover := mdoc.FrontmatterMeta(parsed.Frontmatter)
 	err = h.srv.Apply(ctx, rm.name, func(doc *crdt.Doc, transact func(func(*crdt.Transaction))) {
-		frag := doc.GetXmlFragment(mdoc.FragmentName) // outside transact: it takes the doc lock
+		// Outside transact: these take the doc lock.
+		frag := doc.GetXmlFragment(mdoc.FragmentName)
+		meta := doc.GetMap(metaName)
+		have := meta.Entries()
 		transact(func(txn *crdt.Transaction) {
 			if n := frag.Len(); n > 0 {
 				frag.Delete(txn, 0, n)
 			}
 			mdoc.Fill(txn, frag, parsed.Doc)
+			setMeta(txn, meta, have, icon, cover)
 		})
 	})
 	switch {

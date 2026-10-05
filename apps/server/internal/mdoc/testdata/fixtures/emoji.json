@@ -1,0 +1,38 @@
+{
+  "name": "emoji",
+  "input": "Ship it :rocket: today :tada:\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Ship it "
+          },
+          {
+            "type": "emoji",
+            "attrs": {
+              "name": "rocket"
+            }
+          },
+          {
+            "type": "text",
+            "text": " today "
+          },
+          {
+            "type": "emoji",
+            "attrs": {
+              "name": "tada"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "output": "Ship it :rocket: today :tada:",
+  "yupdate_b64": "AQkBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQhTaGlwIGl0IIcBAQMFZW1vamkoAAEKBG5hbWUBdwZyb2NrZXSHAQoGBAABDAcgdG9kYXkghwEMAwVlbW9qaSgAARQEbmFtZQF3BHRhZGEA",
+  "expect_lossy": false
+}

@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/reearth/ygo/crdt"
@@ -23,17 +24,60 @@ import (
 // attribute present with its default filled in (ProseMirror's
 // Node.fromJSON, so an absent attribute, an explicit null and y-tiptap's
 // omitted null all compare equal), numbers as float64.
+//
+// Pages render with the titles of the generator's page store
+// (testdata/page_titles.json). Where slash-editor's parse holds a
+// `doc:<id>` mention, Parse deliberately reads a pageLink instead: the
+// fixture then carries go_json/go_output, which the Parse-side checks use;
+// TestFixtures holds them to exactly that one rewrite of json.
 
 var update = flag.Bool("update", false, "rewrite testdata/go-updates")
 
 type fixture struct {
-	Name        string `json:"name"`
-	Input       string `json:"input"`
-	Frontmatter string `json:"frontmatter"`
-	JSON        Node   `json:"json"`
-	Output      string `json:"output"`
-	YUpdateB64  string `json:"yupdate_b64"`
-	ExpectLossy bool   `json:"expect_lossy"`
+	Name        string  `json:"name"`
+	Input       string  `json:"input"`
+	Frontmatter string  `json:"frontmatter"`
+	JSON        Node    `json:"json"`
+	Output      string  `json:"output"`
+	GoJSON      *Node   `json:"go_json"`
+	GoOutput    *string `json:"go_output"`
+	YUpdateB64  string  `json:"yupdate_b64"`
+	ExpectLossy bool    `json:"expect_lossy"`
+}
+
+// pageTitles is testdata/page_titles.json.
+var pageTitles = sync.OnceValue(func() map[string]string {
+	raw, err := os.ReadFile("testdata/page_titles.json")
+	if err != nil {
+		panic(err)
+	}
+	var titles map[string]string
+	if err := json.Unmarshal(raw, &titles); err != nil {
+		panic(err)
+	}
+	return titles
+})
+
+// renderFixture is RenderWith with the fixture page store's titles.
+func renderFixture(doc Node, frontmatter []byte) []byte {
+	titles := pageTitles()
+	return RenderWith(doc, frontmatter, RenderOptions{PageTitle: func(id string) string { return titles[id] }})
+}
+
+// docMentionsAsPageLinks is the one place Parse departs from slash-editor's
+// parse: every `doc:<id>` mention becomes pageLink{pageId:<id>}.
+func docMentionsAsPageLinks(n Node) Node {
+	if id, _ := n.Attrs["id"].(string); n.Type == "mention" && strings.HasPrefix(id, "doc:") && len(id) > len("doc:") {
+		return Node{Type: "pageLink", Attrs: map[string]any{"pageId": id[len("doc:"):]}}
+	}
+	if n.Content != nil {
+		content := make([]Node, len(n.Content))
+		for i, c := range n.Content {
+			content[i] = docMentionsAsPageLinks(c)
+		}
+		n.Content = content
+	}
+	return n
 }
 
 func loadFixtures(t *testing.T) []fixture {
@@ -191,6 +235,21 @@ func TestFixtures(t *testing.T) {
 		t.Run(fx.Name, func(t *testing.T) {
 			want := normalize(t, fx.JSON)
 			wantMD := fx.Frontmatter + fx.Output
+			// What Parse must read and Render write back from it.
+			wantParse, wantParseMD := want, wantMD
+			if goWant := normalize(t, docMentionsAsPageLinks(fx.JSON)); fx.GoJSON == nil {
+				if goWant != want {
+					t.Fatal("json holds a doc: mention but the fixture has no go_json")
+				}
+			} else {
+				if fx.GoOutput == nil {
+					t.Fatal("go_json without go_output")
+				}
+				wantParse, wantParseMD = normalize(t, *fx.GoJSON), fx.Frontmatter+*fx.GoOutput
+				if wantParse != goWant {
+					t.Fatalf("go_json is not json with doc: mentions as page links:\n got %s\nwant %s", wantParse, goWant)
+				}
+			}
 
 			parsed, err := Parse([]byte(fx.Input))
 			if err != nil {
@@ -203,15 +262,15 @@ func TestFixtures(t *testing.T) {
 				t.Errorf("Frontmatter = %q, want %q", got, fx.Frontmatter)
 			}
 			checkIDs(t, parsed.Doc, map[string]bool{})
-			if got := normalize(t, withoutTrailingParagraph(t, parsed.Doc)); got != want {
-				t.Errorf("Parse:\n got %s\nwant %s", got, want)
+			if got := normalize(t, withoutTrailingParagraph(t, parsed.Doc)); got != wantParse {
+				t.Errorf("Parse:\n got %s\nwant %s", got, wantParse)
 			}
 
-			if got := string(Render(withTrailingParagraph(fx.JSON), []byte(fx.Frontmatter))); got != wantMD {
+			if got := string(renderFixture(withTrailingParagraph(fx.JSON), []byte(fx.Frontmatter))); got != wantMD {
 				t.Errorf("Render(json):\n got %q\nwant %q", got, wantMD)
 			}
-			if got := string(Render(parsed.Doc, parsed.Frontmatter)); got != wantMD {
-				t.Errorf("Render(Parse):\n got %q\nwant %q", got, wantMD)
+			if got := string(renderFixture(parsed.Doc, parsed.Frontmatter)); got != wantParseMD {
+				t.Errorf("Render(Parse):\n got %q\nwant %q", got, wantParseMD)
 			}
 
 			yupdate, err := base64.StdEncoding.DecodeString(fx.YUpdateB64)
@@ -227,8 +286,8 @@ func TestFixtures(t *testing.T) {
 			if got, want := normalize(t, read), normalize(t, parsed.Doc); got != want {
 				t.Errorf("Read(Fill):\n got %s\nwant %s", got, want)
 			}
-			if got := string(Render(read, parsed.Frontmatter)); got != wantMD {
-				t.Errorf("Render(Read(Fill(Parse))):\n got %q\nwant %q", got, wantMD)
+			if got := string(renderFixture(read, parsed.Frontmatter)); got != wantParseMD {
+				t.Errorf("Render(Read(Fill(Parse))):\n got %q\nwant %q", got, wantParseMD)
 			}
 
 			seed, err := Seed(parsed.Doc)
@@ -267,7 +326,7 @@ func TestFillAppends(t *testing.T) {
 // TestGoUpdates keeps testdata/go-updates/<name>.b64 = base64 of
 // Seed(Parse(input)) for every fixture, and for every comment fixture
 // comment-<name>.b64 = base64 of Seed(json) plus comment-<name>.md =
-// Render(json); apps/web/tests/mdoc-go-updates.test.ts decodes them with
+// renderFixture(json); apps/web/tests/mdoc-go-updates.test.ts decodes them with
 // yjs + y-tiptap (base64 because Vite can import text, not bytes, and the web
 // tests have no Node fs). -update rewrites an update only when its document
 // changed (ids and Y client ids are random).
@@ -315,7 +374,7 @@ func TestGoUpdates(t *testing.T) {
 		keep("comment-"+fx.Name+".b64", doc)
 		name := "comment-" + fx.Name + ".md"
 		names[name] = true
-		md := Render(doc, nil)
+		md := renderFixture(doc, nil)
 		file := filepath.Join(dir, name)
 		if existing, err := os.ReadFile(file); err == nil && string(existing) == string(md) {
 			continue

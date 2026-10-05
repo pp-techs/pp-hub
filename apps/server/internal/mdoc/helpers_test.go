@@ -29,7 +29,7 @@ Second line.
 | c1 | <!-- slash:mention {"label":"guest"} -->@guest<!-- /slash:mention --> |
 
 > [!NOTE]
-> Callout text.
+> Callout :tada: text at 12:30:45.
 
 <details>
 <summary>Toggle title</summary>
@@ -71,9 +71,13 @@ func TestAttachments(t *testing.T) {
 
 func TestMentions(t *testing.T) {
 	got := Mentions(helpersDoc(t))
-	want := []string{"user:a", "doc:d", "user:b"}
+	// doc:d is a pageLink after Parse.
+	want := []string{"user:a", "user:b"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("Mentions = %v, want %v", got, want)
+	}
+	if _, links := PageRefs(helpersDoc(t)); !reflect.DeepEqual(links, []string{"d"}) {
+		t.Errorf("page links = %v, want [d]", links)
 	}
 }
 
@@ -81,7 +85,7 @@ func TestPlainText(t *testing.T) {
 	got := PlainText(helpersDoc(t))
 	want := strings.Join([]string{
 		"Plan @Ann",
-		"Intro bold and code, see @Spec.\nSecond line.",
+		"Intro bold and code, see .\nSecond line.", // a page link has no text
 		"diagram",
 		"remote",
 		"Example",
@@ -92,7 +96,7 @@ func TestPlainText(t *testing.T) {
 		"h2",
 		"c1",
 		"@guest",
-		"Callout text.",
+		"Callout 🎉 text at 12:30:45.",
 		"Toggle title",
 		"Hidden body.",
 		"fmt.Println(1)",

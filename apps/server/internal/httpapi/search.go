@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/url"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/nhatbui/pp-hub/apps/server/internal/fs"
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 	"github.com/nhatbui/pp-hub/apps/server/internal/textsearch"
@@ -31,7 +33,10 @@ const (
 // list spans spaces, so "Q1 forecast.xlsx" alone does not identify a file.
 type searchResultDTO struct {
 	nodeDTO
-	SpaceName  string `json:"space_name"`
+	SpaceName string `json:"space_name"`
+	// ParentName is the folder holding the node; in search, for a sub-page,
+	// the path through its parent pages ("Projects / Plan", see
+	// pageLocations).
 	ParentName string `json:"parent_name"`
 }
 
@@ -215,6 +220,10 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 		Error(w, r, err)
 		return
 	}
+	if err := pageLocations(r.Context(), s, rc, rows); err != nil {
+		Error(w, r, err)
+		return
+	}
 
 	// Snippets are cut only for the page actually returned, after the
 	// access filter: nothing is read from a document the caller cannot open.
@@ -263,6 +272,71 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 
 func writeShortQueryResult(w http.ResponseWriter) {
 	writeJSON(w, http.StatusOK, []searchHitDTO{})
+}
+
+// pageLocations rewrites ParentName on the hits that sit inside a page (M43
+// sub-pages) to the path through the pages above them: a sub-page of
+// Plan.md in folder Projects reads "Projects / Plan". Pages appear by title
+// (name without .md), the folder holding the topmost page by its name, joined
+// with " / " as the web joins space and parent. The walk climbs from the
+// parent and stops at the first node the caller cannot view — access
+// inherits downward, so everything above that point is closed to them too,
+// and hideParents' rule (never name what you cannot open) holds for every
+// segment. A hit whose parent is a folder keeps its plain parent name. One
+// query for the chains plus one AccessCaps batch for the ancestors not yet
+// resolved.
+func pageLocations(ctx context.Context, s *Server, rc *reachability, rows []store.SearchNodesRow) error {
+	var parents []pgtype.UUID
+	for _, n := range rows {
+		// A blank name is a parent hideParents closed, or the space root.
+		if n.ParentID.Valid && n.ParentName != "" {
+			parents = append(parents, n.ParentID)
+		}
+	}
+	if len(parents) == 0 {
+		return nil
+	}
+	chain, err := s.store.ListPageLocations(ctx, dedupe(parents))
+	if err != nil {
+		return err
+	}
+	byOrigin := make(map[pgtype.UUID][]store.ListPageLocationsRow)
+	var unknown []pgtype.UUID
+	for _, c := range chain {
+		byOrigin[c.Origin] = append(byOrigin[c.Origin], c)
+		if _, known := rc.resolved[c.ID]; !known {
+			unknown = append(unknown, c.ID)
+		}
+	}
+	if len(unknown) > 0 {
+		more, err := s.share.AccessCaps(ctx, dedupe(unknown), rc.userID)
+		if err != nil {
+			return err
+		}
+		for id, r := range more {
+			rc.resolved[id] = r
+		}
+	}
+	for i := range rows {
+		up := byOrigin[rows[i].ParentID]
+		if len(up) == 0 || !up[0].IsPage {
+			continue
+		}
+		var parts []string
+		for _, c := range up {
+			if !rc.caps(c.ID).View {
+				break
+			}
+			if c.IsPage {
+				parts = append(parts, fs.PageTitle(c.Name))
+			} else {
+				parts = append(parts, c.Name)
+			}
+		}
+		slices.Reverse(parts)
+		rows[i].ParentName = strings.Join(parts, " / ")
+	}
+	return nil
 }
 
 func searchRowToDTO(n store.SearchNodesRow) searchResultDTO {

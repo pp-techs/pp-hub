@@ -102,9 +102,11 @@ func (s *Server) authorizeUploadTarget(w http.ResponseWriter, r *http.Request, t
 	}
 	// requireParentWrite gates the space's top level on membership and a
 	// folder on edit, which is how somebody outside the space holding an
-	// external edit grant on a folder can add to it.
+	// external edit grant on a folder can add to it. An upload lands in a
+	// folder only: a sub-page is made through POST /documents, never by
+	// uploading a .md under a document, so it is described as no page.
 	u := caller(r)
-	return s.requireParentWrite(w, r, t.spaceID, t.parentID, u)
+	return s.requireParentWrite(w, r, t.spaceID, t.parentID, u, fs.Child{Kind: store.NodeKindFile})
 }
 
 // handleCreateUpload opens an upload (tus creation). The declared length is

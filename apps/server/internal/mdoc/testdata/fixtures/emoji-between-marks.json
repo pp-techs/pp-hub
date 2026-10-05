@@ -1,0 +1,76 @@
+{
+  "name": "emoji-between-marks",
+  "input": "**a**:fire:**b** [go](https://x.y):fire:[on](https://x.y)",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "a",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ]
+          },
+          {
+            "type": "emoji",
+            "attrs": {
+              "name": "fire"
+            }
+          },
+          {
+            "type": "text",
+            "text": "b",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " "
+          },
+          {
+            "type": "text",
+            "text": "go",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "https://x.y"
+                }
+              }
+            ]
+          },
+          {
+            "type": "emoji",
+            "attrs": {
+              "name": "fire"
+            }
+          },
+          {
+            "type": "text",
+            "text": "on",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "https://x.y"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "**a**:fire:**b** [go](https://x.y):fire:[on](https://x.y)",
+  "yupdate_b64": "ARUBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBgABAQRib2xkAnt9hAECAWGGAQMEYm9sZARudWxshwEBAwVlbW9qaSgAAQUEbmFtZQF3BGZpcmWHAQUGBgABBwRib2xkAnt9hAEIAWKGAQkEYm9sZARudWxshAEKASCGAQsEbGlua2d7ImhyZWYiOiJodHRwczovL3gueSIsInRhcmdldCI6Il9ibGFuayIsInJlbCI6Im5vb3BlbmVyIG5vcmVmZXJyZXIgbm9mb2xsb3ciLCJjbGFzcyI6bnVsbCwidGl0bGUiOm51bGx9hAEMAmdvhgEOBGxpbmsEbnVsbIcBBwMFZW1vamkoAAEQBG5hbWUBdwRmaXJlhwEQBgYAARIEbGlua2d7ImhyZWYiOiJodHRwczovL3gueSIsInRhcmdldCI6Il9ibGFuayIsInJlbCI6Im5vb3BlbmVyIG5vcmVmZXJyZXIgbm9mb2xsb3ciLCJjbGFzcyI6bnVsbCwidGl0bGUiOm51bGx9hAETAm9uhgEVBGxpbmsEbnVsbAA=",
+  "expect_lossy": false
+}

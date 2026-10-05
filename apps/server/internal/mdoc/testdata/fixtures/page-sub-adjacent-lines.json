@@ -1,0 +1,37 @@
+{
+  "name": "page-sub-adjacent-lines",
+  "input": "<!-- slash:subPage {\"pageId\":\"0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b\"} -->\n[a](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)\n<!-- slash:subPage {\"pageId\":\"1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c\"} -->\n[b](/edit/1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "a",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b",
+                  "title": null
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "subPage",
+        "attrs": {
+          "pageId": "1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c"
+        }
+      }
+    ]
+  },
+  "output": "[a](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)\n\n<!-- slash:subPage {\"pageId\":\"1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c\"} -->\n[a*b_\\[c\\] <x> & `y`](/edit/1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c)",
+  "yupdate_b64": "AQcBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBgABAQRsaW5rhgF7ImhyZWYiOiIvZWRpdC8wYjhlMWYyYS02YzNkLTRlNWYtOWExYi03YzJkM2U0ZjVhNmIiLCJ0YXJnZXQiOiJfYmxhbmsiLCJyZWwiOiJub29wZW5lciBub3JlZmVycmVyIG5vZm9sbG93IiwiY2xhc3MiOm51bGwsInRpdGxlIjpudWxsfYQBAgFhhgEDBGxpbmsEbnVsbIcBAAMHc3ViUGFnZSgAAQUGcGFnZUlkAXckMWM5ZjJhM2ItN2Q0ZS00ZjYwLThiMmMtOGQzZTRmNWE2YjdjAA==",
+  "expect_lossy": true
+}

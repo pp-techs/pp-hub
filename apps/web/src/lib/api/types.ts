@@ -340,6 +340,12 @@ export interface Node {
   team_folder?: boolean;
   /** Anything inside a team folder, including the folder itself. */
   in_team?: boolean;
+  /**
+   * Markdown rows only: live sub-pages directly under this document (M43).
+   * Omitted or 0 for anything else; the listing shows only top-level
+   * documents, the tree lives in the editor.
+   */
+  child_page_count?: number;
 }
 
 /**
@@ -411,7 +417,11 @@ export interface RestoreResult {
  */
 export interface SearchResult extends Node {
   space_name: string;
-  /** Immediate parent folder; empty at the top level of a space. */
+  /**
+   * Where the hit lives: its parent folder, or for a sub-page the path
+   * through its parent pages (`Folder / Plan / Roadmap`); empty at the top
+   * level of a space.
+   */
   parent_name: string;
   /**
    * Why this hit matched: its name, or text inside the file (markdown and
@@ -565,6 +575,29 @@ export type PendingShareCreated = PendingShare & { mail_sent: boolean };
 export interface PathEntry {
   id: string;
   name: string;
+}
+
+/**
+ * One page (a markdown document) as `GET /nodes/{id}/page`, `/pages` and
+ * `/backlinks` describe it. `title` is the name without `.md`; `icon` is an
+ * emoji and `cover` an `attachment:<hash>` of that same page, both from its
+ * frontmatter. `parent_id` is `null` when the parent is not a markdown
+ * document the caller can view — the server never leaks the id.
+ */
+export interface PageSummary {
+  id: string;
+  parent_id: string | null;
+  title: string;
+  icon: string | null;
+  cover: string | null;
+  has_children: boolean;
+  trashed: boolean;
+}
+
+/** `GET /nodes/{id}/page`: the page and its document ancestors, root first. */
+export interface PageLineage {
+  page: PageSummary;
+  ancestors: PageSummary[];
 }
 
 /** A mention candidate from `GET /nodes/{id}/people`. */

@@ -1,0 +1,44 @@
+{
+  "name": "emoji-adjacent",
+  "input": ":smile::smile: :smile: :smile\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "emoji",
+            "attrs": {
+              "name": "smile"
+            }
+          },
+          {
+            "type": "emoji",
+            "attrs": {
+              "name": "smile"
+            }
+          },
+          {
+            "type": "text",
+            "text": " "
+          },
+          {
+            "type": "emoji",
+            "attrs": {
+              "name": "smile"
+            }
+          },
+          {
+            "type": "text",
+            "text": " :smile"
+          }
+        ]
+      }
+    ]
+  },
+  "output": ":smile::smile: :smile: :smile",
+  "yupdate_b64": "AQsBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQADBWVtb2ppKAABAQRuYW1lAXcFc21pbGWHAQEDBWVtb2ppKAABAwRuYW1lAXcFc21pbGWHAQMGBAABBQEghwEFAwVlbW9qaSgAAQcEbmFtZQF3BXNtaWxlhwEHBgQAAQkHIDpzbWlsZQA=",
+  "expect_lossy": false
+}

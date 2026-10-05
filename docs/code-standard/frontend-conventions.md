@@ -91,7 +91,7 @@ Three layers, one direction only — components never call `api` directly:
   through `nodeActions` itself, so the badge and the capability gates cannot
   drift apart. No badge ships without a binding: ⌘D is the browser's bookmark
   key and deliberately has none. In the block editor, ⌘K opens the link
-  popover (`linkShortcut` in `lib/collab/mdoc-kit.ts`); the mark keys come
+  popover (slash-editor's own `Mod-k` binding since 0.7); the mark keys come
   with the Tiptap marks.
 - **`packages/ui` is shadcn's base-ui variant** (style `base-mira`,
   `@base-ui/react`). Composition uses `render={<El/>}`, never `asChild`.

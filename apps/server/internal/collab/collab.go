@@ -79,6 +79,9 @@ type Files interface {
 	ListAttachments(ctx context.Context, docID pgtype.UUID) ([]store.NodeAttachment, error)
 	AttachmentHolders(ctx context.Context, hash string, exclude pgtype.UUID) ([]store.ListAttachmentHoldersRow, error)
 	AdoptAttachment(ctx context.Context, docID pgtype.UUID, from store.NodeAttachment, creator pgtype.UUID) (store.NodeAttachment, error)
+	// PageTitles is the live titles of the pages a write-back links to, so a
+	// renamed page reads under its new name (M43).
+	PageTitles(ctx context.Context, space pgtype.UUID, ids []string) (map[string]string, error)
 }
 
 // Access resolves what a user may do with a node (share.Service).

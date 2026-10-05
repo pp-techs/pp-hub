@@ -1,0 +1,31 @@
+{
+  "name": "page-sub-bad-payload",
+  "input": "<!-- slash:subPage {\"pageId\":} -->\n[a](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "a",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b",
+                  "title": null
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "[a](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)",
+  "yupdate_b64": "AQUBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBgABAQRsaW5rhgF7ImhyZWYiOiIvZWRpdC8wYjhlMWYyYS02YzNkLTRlNWYtOWExYi03YzJkM2U0ZjVhNmIiLCJ0YXJnZXQiOiJfYmxhbmsiLCJyZWwiOiJub29wZW5lciBub3JlZmVycmVyIG5vZm9sbG93IiwiY2xhc3MiOm51bGwsInRpdGxlIjpudWxsfYQBAgFhhgEDBGxpbmsEbnVsbAA=",
+  "expect_lossy": true
+}

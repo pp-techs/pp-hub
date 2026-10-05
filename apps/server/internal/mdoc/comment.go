@@ -267,13 +267,13 @@ type commentEdge struct {
 // open an HTML block there and print the line as raw HTML) nor inside a code
 // span; it moves right to the next boundary that is neither, and `back`
 // records how many UTF-16 units of text it moved past.
-func renderCommented(nodes []Node, parent *Node) string {
+func (r *renderer) renderCommented(nodes []Node, parent *Node) string {
 	stripped := make([]Node, len(nodes))
 	for i := range nodes {
 		stripped[i] = nodes[i]
 		stripped[i].Marks = withoutComments(nodes[i].Marks)
 	}
-	pieces, _ := renderPieces(stripped, parent)
+	pieces, _ := r.renderPieces(stripped, parent)
 	n := len(nodes)
 	offs := make([]int, n+1)
 	for k := range n {

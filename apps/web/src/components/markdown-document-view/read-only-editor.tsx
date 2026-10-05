@@ -5,12 +5,25 @@ import { EditorContent, useSlashEditor } from "@slash-editor/react";
 import { Info } from "lucide-react";
 import { TooltipProvider } from "@workspace/ui/components/tooltip";
 import { cn } from "@workspace/ui/lib/utils";
+import type { PageStore } from "@slash-editor/core";
 import type { DocumentNodeJSON } from "@/lib/api";
-import { createMdocKit } from "@/lib/collab/mdoc-kit";
+import { createMdocKit, emptyPageStore } from "@/lib/collab/mdoc-kit";
 import { labelToggleButton } from "@/components/doc-editor/labels";
 import { OutlinePanel } from "@/components/doc-editor/outline-panel";
-import { MDOC_NODE_VIEW_KIT_OPTIONS, mdocNodeViews } from "@/components/nodes/mdoc-node-views";
+import {
+  MDOC_NODE_VIEW_KIT_OPTIONS,
+  PAGE_NODE_VIEWS,
+  mdocNodeViews,
+} from "@/components/nodes/mdoc-node-views";
 import { DOCUMENT_COLUMN, MarkdownDocumentSkeleton } from "./skeleton";
+
+/** The pages a rendering's sub-page blocks and links name, and where opening one goes. */
+export interface ReadOnlyPages {
+  store: PageStore;
+  /** The document being shown. */
+  pageId: string;
+  onNavigate: (pageId: string) => void;
+}
 
 export interface ReadOnlyEditorProps {
   doc: DocumentNodeJSON;
@@ -24,6 +37,11 @@ export interface ReadOnlyEditorProps {
    * gets the document alone.
    */
   outlineScrollRef?: RefObject<HTMLElement | null>;
+  /**
+   * Titles and icons for the document's sub-pages and page links. Without
+   * it they render, but as untitled pages that open nothing.
+   */
+  pages?: ReadOnlyPages;
 }
 
 /**
@@ -37,9 +55,12 @@ export default function ReadOnlyEditor({
   lossy = false,
   className,
   outlineScrollRef,
+  pages,
 }: ReadOnlyEditorProps) {
   const { i18n } = useLingui();
   const shown = useRef(doc);
+  const store = pages?.store;
+  const pageId = pages?.pageId;
 
   const editor = useSlashEditor({
     editable: false,
@@ -57,8 +78,23 @@ export default function ReadOnlyEditor({
         renderToggleButton: ({ element, isOpen }) => labelToggleButton(i18n, element, isOpen),
       },
       extend: mdocNodeViews({ attachmentUrl }),
+      // Nothing here edits, so no sub-page is ever reported detached: a
+      // refetch replacing the content would otherwise read as deleting
+      // every block.
+      pages: {
+        store: store ?? emptyPageStore,
+        currentPageId: pageId ?? null,
+        onNavigate: pages?.onNavigate ?? (() => {}),
+        nodeViews: PAGE_NODE_VIEWS,
+      },
     }),
   });
+
+  // One listing names every sub-page block's page, before each block asks
+  // for its own.
+  useEffect(() => {
+    if (store && pageId) Promise.resolve(store.listChildren(pageId)).catch(() => undefined);
+  }, [store, pageId]);
 
   // A refetch (the document was edited, a version restored) hands in a new
   // tree for the same document: replace it without rebuilding the editor.
@@ -73,14 +109,6 @@ export default function ReadOnlyEditor({
   return (
     <TooltipProvider>
       <div className="flex gap-6">
-        {outlineScrollRef ? (
-          <OutlinePanel
-            editor={editor}
-            scrollRef={outlineScrollRef}
-            hideWhenEmpty
-            className="sticky top-4 hidden max-h-[calc(100svh-8rem)] self-start lg:flex"
-          />
-        ) : null}
         <div className={cn("slash-content min-w-0 flex-1", DOCUMENT_COLUMN, className)}>
           {lossy ? (
             <p className="text-muted-foreground mb-4 flex items-center gap-1.5 text-xs">
@@ -92,6 +120,16 @@ export default function ReadOnlyEditor({
           ) : null}
           <EditorContent editor={editor} />
         </div>
+        {/* In the right margin, as in the editor: sized to its headings and
+            held in view while the text scrolls. */}
+        {outlineScrollRef ? (
+          <OutlinePanel
+            editor={editor}
+            scrollRef={outlineScrollRef}
+            hideWhenEmpty
+            className="sticky top-4 hidden h-auto max-h-[calc(100svh-8rem)] w-64 self-start rounded-md border lg:flex"
+          />
+        ) : null}
       </div>
     </TooltipProvider>
   );

@@ -31,6 +31,8 @@ import {
   type Node,
 } from "@/lib/api";
 import { shareInfoOptions, useShareChildren, useShareInfo } from "@/lib/queries";
+import { usePageStore } from "@/lib/collab/page-store";
+import { PageTrail } from "@/components/page-trail";
 import { useLocale } from "@/components/locale-provider";
 import { useTheme } from "@/components/theme-provider";
 import { useFormatters } from "@/lib/format";
@@ -79,6 +81,10 @@ function ShareLanding() {
   const contentRef = useRef<HTMLDivElement>(null);
   // A markdown file opened from the folder listing, shown in place of it.
   const [openDoc, setOpenDoc] = useState<Node | null>(null);
+  // A sub-page opened from the document shown (`base`), shown in its place.
+  const [page, setPage] = useState<{ base: string; id: string } | null>(null);
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- source discriminant
+  const pageStore = usePageStore({ kind: "share", token });
 
   const root = info.data?.node;
   const isFolder = root?.kind === "dir";
@@ -145,6 +151,16 @@ function ShareLanding() {
   const isOffice = isOfficeFile(root.name);
   const rendersRoot = root.kind === "file" && isDoc;
   const rendersOfficeRoot = root.kind === "file" && isOffice;
+  // The markdown document this view shows, and which of its pages is open.
+  const baseDoc = openDoc && isMarkdownFile(openDoc) ? openDoc.id : rendersRoot ? root.id : null;
+  const shownPage = baseDoc && page?.base === baseDoc ? page.id : baseDoc;
+  const openPage = (pageId: string) => {
+    if (baseDoc) setPage({ base: baseDoc, id: pageId });
+  };
+  const pageTrail =
+    shownPage && shownPage !== baseDoc ? (
+      <PageTrail store={pageStore} pageId={shownPage} onNavigate={openPage} current />
+    ) : null;
   const sharedBy = info.data.shared_by;
   const expiresOn = info.data.expires_at ? f.date(info.data.expires_at) : null;
   const itemCount = children.data?.length ?? 0;
@@ -204,10 +220,10 @@ function ShareLanding() {
                 <a
                   href={
                     openDoc
-                      ? shareNodeDownloadUrl(token, openDoc.id)
+                      ? shareNodeDownloadUrl(token, shownPage ?? openDoc.id)
                       : isFolder
                         ? shareDownloadAllUrl(token, currentDir)
-                        : shareNodeDownloadUrl(token, root.id)
+                        : shareNodeDownloadUrl(token, shownPage ?? root.id)
                   }
                 />
               }
@@ -246,12 +262,16 @@ function ShareLanding() {
 
             {openDoc ? (
               isMarkdownFile(openDoc) ? (
-                <SharedMarkdownView
-                  token={token}
-                  nodeId={openDoc.id}
-                  className="py-2"
-                  outlineScrollRef={contentRef}
-                />
+                <>
+                  {pageTrail}
+                  <SharedMarkdownView
+                    token={token}
+                    nodeId={shownPage ?? openDoc.id}
+                    className="py-2"
+                    outlineScrollRef={contentRef}
+                    onNavigatePage={openPage}
+                  />
+                </>
               ) : isOfficeFile(openDoc.name) ? (
                 <SharedOfficeView token={token} node={openDoc} />
               ) : (
@@ -273,12 +293,16 @@ function ShareLanding() {
         )}
 
         {rendersRoot && (
-          <SharedMarkdownView
-            token={token}
-            nodeId={root.id}
-            className="py-2"
-            outlineScrollRef={contentRef}
-          />
+          <>
+            {pageTrail}
+            <SharedMarkdownView
+              token={token}
+              nodeId={shownPage ?? root.id}
+              className="py-2"
+              outlineScrollRef={contentRef}
+              onNavigatePage={openPage}
+            />
+          </>
         )}
         {rendersOfficeRoot && <SharedOfficeView token={token} node={root} />}
 

@@ -16,11 +16,20 @@
  *                   holds `json`, written by `@tiptap/y-tiptap`'s
  *                   `prosemirrorJSONToYXmlFragment`
  *   - `expect_lossy` whether `mdoc.Parse` must flag the input
+ *   - `go_json`, `go_output` only where `json` holds a `doc:<id>` mention:
+ *                   the document `mdoc.Parse` must read instead (each such
+ *                   mention a `pageLink` to `<id>`, pp-hub's migration of
+ *                   document mentions to page links) and its markdown;
+ *                   `json` and `output` stay slash-editor's own
  *
  * A case given as a document (`doc`) instead of markdown has `json` = the
  * document and `input` = `output`: markdown slash-editor writes but its own
  * parser reads wrongly (a paragraph starting with a mention), which the Go
  * side must read back as written.
+ *
+ * The kit's page store knows the titles in `PAGE_TITLES` (written to
+ * `testdata/page_titles.json`, which the Go tests render with), every other
+ * page reads "Untitled"; hrefs are `/edit/<id>`.
  *
  * Comment marks are persisted by the Go side only (slash-editor's serializer
  * drops them), so their cases go to `testdata/comments/<name>.json` with
@@ -29,7 +38,10 @@
  * y-tiptap's `comment--<hash>` text attributes).
  *
  * Plus `schema.json` (node/mark attribute defaults, mark rank order) which
- * the Go schema table is checked against.
+ * the Go schema table is checked against, and `internal/mdoc/emoji.json`
+ * (every shortcode the kit's emoji node knows → its glyph, first entry
+ * wins as in Tiptap's `shortcodeToEmoji`), which `mdoc` embeds to decide
+ * whether `:name:` is an emoji or text exactly as slash-editor does.
  *
  * The kit is `createMdocKit()` from `src/lib/collab/mdoc-kit.ts`, the same
  * v1 schema the editor mounts. Output is deterministic: rerunning it on the
@@ -43,6 +55,8 @@ import { parseMarkdown, serializeMarkdown } from "@slash-editor/core/markdown";
 import { prosemirrorJSONToYXmlFragment } from "@tiptap/y-tiptap";
 import * as Y from "yjs";
 import { createMdocKit } from "../src/lib/collab/mdoc-kit.ts";
+import type { PageStore } from "@slash-editor/core";
+import type { EmojiOptions } from "@slash-editor/core/emoji";
 
 type Case = { name: string; lossy?: boolean } & (
   | { input: string; frontmatter?: string }
@@ -60,6 +74,8 @@ const mention = (id: string | null, label: string): JSONContent => ({
   attrs: { id, label },
 });
 const hardBreak: JSONContent = { type: "hardBreak" };
+const subPage = (pageId: string): JSONContent => ({ type: "subPage", attrs: { pageId } });
+const pageLink = (pageId: string): JSONContent => ({ type: "pageLink", attrs: { pageId } });
 const bold: Mark = { type: "bold" };
 const italic: Mark = { type: "italic" };
 const code: Mark = { type: "code" };
@@ -73,6 +89,30 @@ const table = (...rows: JSONContent[][]): JSONContent => ({
   type: "table",
   content: rows.map((content) => ({ type: "tableRow", content })),
 });
+
+// Page ids and the titles the fixture PageStore knows (written to
+// testdata/page_titles.json for the Go side). P9 is unknown: "Untitled".
+const P1 = "0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b";
+const P2 = "1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c";
+const P3 = "p3";
+const P4 = "p4";
+const P5 = "p5";
+const P6 = "p 6";
+const P9 = "9e9e9e9e-0000-4000-8000-000000000009";
+const PAGE_TITLES: Record<string, string> = {
+  [P1]: "Roadmap",
+  [P2]: "a*b_[c] <x> & `y`",
+  [P3]: "  Spaced out  ",
+  [P4]: "   ",
+  [P5]: "C:\\path\\[1]",
+  [P6]: "Q3 (draft)",
+};
+/** A subPage block as slash-editor writes it, with `title` in its link line. */
+const sp = (id: string, title: string) =>
+  `<!-- slash:subPage {"pageId":"${id}"} -->\n[${title}](/edit/${id})`;
+/** A pageLink as slash-editor writes it, with `title` in its link. */
+const pl = (id: string, title: string) =>
+  `<!-- slash:pageLink {"pageId":"${id}"} -->[${title}](/edit/${id})<!-- /slash:pageLink -->`;
 
 const cases: Case[] = [
   // Empty and whitespace
@@ -357,6 +397,62 @@ const cases: Case[] = [
     name: "mention-bad-payload",
     input: 'Hi <!-- slash:mention {"id":} -->@A<!-- /slash:mention --> x\n',
   },
+  // Emoji: `:shortcode:` (GitHub's form). A shortcode the dataset does not
+  // know stays text, but the tokenizer still consumes it — `x:https://…` is
+  // no longer a bare URL because `:https:` is read first.
+  { name: "emoji", input: "Ship it :rocket: today :tada:\n" },
+  { name: "emoji-alias", input: "Nice :+1: and :thumbsup: and :smile:\n" },
+  { name: "emoji-unknown", input: "Meet at 12:30:45 or :not_an_emoji_xyz: then\n" },
+  { name: "emoji-uppercase", input: "Loud :SMILE: and :Smile:\n" },
+  { name: "emoji-intraword", input: "a:smile:b and x:smile:\n" },
+  { name: "emoji-adjacent", input: ":smile::smile: :smile: :smile\n" },
+  { name: "emoji-marks", input: "**bold :fire:** and *it :fire:* and ~~:fire:~~\n" },
+  { name: "emoji-code", input: "Code `:smile:` stays\n\n```\n:smile:\n```\n" },
+  { name: "emoji-escaped", input: "Not \\:smile: and :smile\\: here\n" },
+  { name: "emoji-link", input: "[go :rocket: now](https://x.y) and https://a.example/:smile:\n" },
+  { name: "emoji-bare-url", input: "See x:https://e.x/y and :smile:https://e.x/z\n" },
+  { name: "emoji-email", input: "Mail x:a@b.io or :smile:a@b.io\n" },
+  { name: "emoji-heading", input: "## Launch :rocket:\n" },
+  {
+    name: "emoji-blocks",
+    input:
+      "- item :one:\n- [ ] task :two:\n\n> quote :three:\n\n| a | b |\n| --- | --- |\n| :four: | x |\n\n> [!NOTE]\n> callout :five:\n",
+  },
+  { name: "emoji-glyph", input: "Glyph 🎉 stays text\n" },
+  { name: "emoji-hard-break", input: "One :smile:  \nnext\n" },
+  { name: "emoji-line-start", input: ":wave: hello\n" },
+  {
+    name: "emoji-mention",
+    input:
+      'Hi <!-- slash:mention {"id":"user:1","label":"A"} -->@A<!-- /slash:mention -->:smile:\n',
+  },
+  {
+    name: "emoji-doc",
+    doc: doc(p(text("x"), { type: "emoji", attrs: { name: "smile" } }, text(" y"))),
+  },
+  { name: "emoji-unknown-bold", input: "**at 12:30:45 :nope_zz: ok** and *:smile:*\n" },
+  { name: "emoji-url-before", input: "www.a.example:smile: and https://a.example/x:fire:y z\n" },
+  {
+    name: "emoji-toggle-columns",
+    input:
+      "<details>\n<summary>Sum :smile:</summary>\n\nBody :fire:\n\n</details>\n\n<!-- slash:columns -->\n\nLeft :one:\n\n<!-- slash:column -->\n\nRight :two:\n\n<!-- /slash:columns -->\n",
+  },
+  // Marks never reach an emoji (the parser makes it an atom, and the
+  // serializer closes marks around it), so its neighbours keep theirs.
+  {
+    name: "emoji-between-marks",
+    doc: doc(
+      p(
+        text("a", bold),
+        { type: "emoji", attrs: { name: "fire" } },
+        text("b", bold),
+        text(" "),
+        text("go", link("https://x.y")),
+        { type: "emoji", attrs: { name: "fire" } },
+        text("on", link("https://x.y")),
+      ),
+    ),
+  },
   // Videos: marker (poster) + one link line
   {
     name: "video",
@@ -476,6 +572,13 @@ const cases: Case[] = [
   { name: "lossy-html-inline", input: "Some <span>inline</span> html.\n", lossy: true },
   { name: "lossy-html-block", input: "<div>\nblock html\n</div>\n", lossy: true },
   { name: "lossy-footnote", input: "Text[^1].\n\n[^1]: The footnote.\n", lossy: true },
+  // A definition in the middle of the source: goldmark still lists it last,
+  // after blocks that start later (once a slice-bounds panic in Parse).
+  {
+    name: "lossy-footnote-before-list",
+    input: "#### Heading [^6]\n[^6]: Website (mwg.vn) - history\n- A list item\n\nAfter.\n",
+    lossy: true,
+  },
   { name: "lossy-subscript", input: "H~2~O\n", lossy: true },
   {
     name: "lossy-inline-image",
@@ -568,6 +671,254 @@ const cases: Case[] = [
         { type: "detailsContent", content: [p(mention("user:1", "Ann"))] },
       ],
     }),
+  },
+  // Pages. Titles come from PAGE_TITLES (the markdown's own title is not
+  // read back); P9 is a page the store does not know.
+  { name: "page-sub", input: `${sp(P1, "Roadmap")}\n` },
+  { name: "page-sub-stale-title", input: `${sp(P1, "Old name")}\n` },
+  { name: "page-sub-escaped-title", input: `${sp(P2, "x")}\n` },
+  { name: "page-sub-trimmed-title", input: `${sp(P3, "x")}\n` },
+  { name: "page-sub-empty-title", input: `${sp(P4, "x")}\n` },
+  { name: "page-sub-unknown", input: `${sp(P9, "Gone")}\n` },
+  { name: "page-sub-backslash-title", input: `${sp(P5, "x")}\n` },
+  {
+    name: "page-sub-href-space",
+    input: `${sp(P6, "x").replace(`(/edit/${P6})`, `(</edit/${P6}>)`)}\n`,
+  },
+  { name: "page-sub-consecutive", input: `${sp(P1, "a")}\n\n${sp(P2, "b")}\n\n${sp(P9, "c")}\n` },
+  // A subPage needs a blank line (or the end) after its link line;
+  // otherwise the marker is a stray marker (lossy) and the link plain text.
+  { name: "page-sub-adjacent-lines", input: `${sp(P1, "a")}\n${sp(P2, "b")}\n`, lossy: true },
+  { name: "page-sub-between", input: `before\n${sp(P1, "a")}\nafter\n`, lossy: true },
+  { name: "page-sub-blank-lines", input: `one\n\n\n${sp(P1, "a")}\n\n\n\ntwo\n` },
+  {
+    name: "page-sub-indented",
+    input: `   <!-- slash:subPage {"pageId":"${P1}"} -->\n   [a](/edit/${P1})  \n`,
+  },
+  { name: "page-sub-heading-after", input: `${sp(P1, "a")}\n# Next\n`, lossy: true },
+  {
+    name: "page-sub-toggle",
+    input: `<details open>\n<summary>Pages</summary>\n\n${sp(P1, "a")}\n\n${sp(P2, "b")}\n\n</details>\n`,
+  },
+  {
+    name: "page-sub-columns",
+    input: `<!-- slash:columns -->\n\n${sp(P1, "a")}\n\n<!-- slash:column -->\n\ntext\n\n${sp(P2, "b")}\n\n<!-- /slash:columns -->\n`,
+  },
+  {
+    name: "page-sub-callout",
+    input: `> [!NOTE]\n> ${sp(P1, "a").replace("\n", "\n> ")}\n`,
+  },
+  {
+    name: "page-sub-quote",
+    input: `> quoted\n>\n> ${sp(P1, "a").replace("\n", "\n> ")}\n`,
+  },
+  {
+    name: "page-sub-list-item",
+    input: `- item\n\n  ${sp(P1, "a").replace("\n", "\n  ")}\n- next\n`,
+  },
+  {
+    name: "page-sub-tight-list-item",
+    input: `- item\n  ${sp(P1, "a").replace("\n", "\n  ")}\n`,
+  },
+  {
+    name: "page-sub-ordered-item",
+    input: `1. item\n\n   ${sp(P1, "a").replace("\n", "\n   ")}\n`,
+  },
+  {
+    name: "page-sub-task-item",
+    input: `- [ ] task\n  ${sp(P1, "a").replace("\n", "\n  ")}\n`,
+  },
+  {
+    name: "page-sub-doc-nested",
+    doc: doc(
+      {
+        type: "bulletList",
+        content: [{ type: "listItem", content: [p(text("item")), subPage(P1)] }],
+      },
+      { type: "blockquote", content: [subPage(P2)] },
+      { type: "callout", attrs: { icon: "⚠️" }, content: [subPage(P1)] },
+      {
+        type: "details",
+        attrs: { open: false },
+        content: [
+          { type: "detailsSummary", content: [text("t")] },
+          { type: "detailsContent", content: [subPage(P9)] },
+        ],
+      },
+      {
+        type: "columns",
+        content: [
+          { type: "column", content: [subPage(P1)] },
+          { type: "column", content: [subPage(P2)] },
+        ],
+      },
+      subPage(P3),
+    ),
+  },
+  // Malformed sub-pages: the marker alone is a stray marker (lossy), the
+  // link line after it plain text.
+  {
+    name: "page-sub-no-link",
+    input: `<!-- slash:subPage {"pageId":"${P1}"} -->\ntext\n`,
+    lossy: true,
+  },
+  {
+    name: "page-sub-no-link-eof",
+    input: `<!-- slash:subPage {"pageId":"${P1}"} -->\n`,
+    lossy: true,
+  },
+  {
+    name: "page-sub-no-page-id",
+    input: `<!-- slash:subPage {} -->\n[a](/edit/${P1})\n`,
+    lossy: true,
+  },
+  {
+    name: "page-sub-empty-page-id",
+    input: `<!-- slash:subPage {"pageId":""} -->\n[a](/edit/)\n`,
+    lossy: true,
+  },
+  {
+    name: "page-sub-numeric-page-id",
+    input: `<!-- slash:subPage {"pageId":7} -->\n[a](/edit/7)\n`,
+    lossy: true,
+  },
+  { name: "page-sub-no-payload", input: `<!-- slash:subPage -->\n[a](/edit/${P1})\n`, lossy: true },
+  {
+    name: "page-sub-bad-payload",
+    input: `<!-- slash:subPage {"pageId":} -->\n[a](/edit/${P1})\n`,
+    lossy: true,
+  },
+  {
+    name: "page-sub-image-line",
+    input: `<!-- slash:subPage {"pageId":"${P1}"} -->\n![a](/edit/${P1})\n`,
+    lossy: true,
+  },
+  {
+    name: "page-sub-trailing-text",
+    input: `<!-- slash:subPage {"pageId":"${P1}"} -->\n[a](/edit/${P1}) more\n`,
+    lossy: true,
+  },
+  {
+    name: "page-sub-extra-attrs",
+    input: `<!-- slash:subPage {"pageId":"${P1}","title":"x"} -->\n[a](/edit/${P1})\n`,
+  },
+
+  { name: "page-link", input: `See ${pl(P1, "Roadmap")} now\n` },
+  { name: "page-link-stale-title", input: `See ${pl(P1, "Old")}\n` },
+  { name: "page-link-escaped-title", input: `See ${pl(P2, "x")} and ${pl(P5, "y")}\n` },
+  { name: "page-link-unknown", input: `See ${pl(P9, "Gone")} and ${pl(P4, "x")}.\n` },
+  { name: "page-link-adjacent", input: `Both ${pl(P1, "a")}${pl(P2, "b")} here\n` },
+  { name: "page-link-start", input: `${pl(P1, "a")} first\n` },
+  { name: "page-link-only", input: `${pl(P1, "a")}\n\nnext\n` },
+  { name: "page-link-start-doc", doc: doc(p(pageLink(P1), text(" first")), p(text("x"))) },
+  { name: "page-link-only-doc", doc: doc(p(pageLink(P1)), p(text("next"))) },
+  { name: "page-link-bold", input: `Hey **bold ${pl(P1, "a")} bold** and *it ${pl(P2, "b")}*\n` },
+  // slash-editor's parser drops the space between a mark and a page link
+  // (its marker regex allows leading spaces); Parse keeps what Render wrote.
+  {
+    name: "page-link-after-mark-doc",
+    doc: doc(p(text("b", bold), text(" "), pageLink(P1), text(" c"))),
+  },
+  { name: "page-link-in-link", input: `Go [to ${pl(P1, "a")} now](https://x.y) ok\n` },
+  {
+    name: "page-link-marks-doc",
+    doc: doc(
+      p(
+        text("a", bold),
+        pageLink(P1),
+        text("b", bold),
+        text(" "),
+        text("go", link("https://x.y")),
+        pageLink(P2),
+        text("on", link("https://x.y")),
+      ),
+    ),
+  },
+  {
+    name: "page-link-emoji-mention",
+    input: `x :tada:${pl(P1, "a")}<!-- slash:mention {"id":"user:1","label":"A"} -->@A<!-- /slash:mention -->${pl(P2, "b")}:fire: y\n`,
+  },
+  { name: "page-link-heading", input: `# Title ${pl(P1, "a")}\n` },
+  { name: "page-link-hard-break", input: `one  \n${pl(P1, "a")} two\n` },
+  { name: "page-link-soft-break", input: `one\n${pl(P1, "a")} two\n` },
+  { name: "page-link-blockquote", input: `> cc ${pl(P1, "a")}\n` },
+  {
+    name: "page-link-list",
+    input: `- see ${pl(P1, "a")}\n- [ ] and ${pl(P2, "b")} too\n\n1. then ${pl(P9, "c")}\n`,
+  },
+  {
+    name: "page-link-list-start-doc",
+    doc: doc(
+      {
+        type: "bulletList",
+        content: [
+          { type: "listItem", content: [p(pageLink(P1))] },
+          { type: "listItem", content: [p(pageLink(P2), text(" owns it"))] },
+        ],
+      },
+      {
+        type: "taskList",
+        content: [{ type: "taskItem", attrs: { checked: true }, content: [p(pageLink(P1))] }],
+      },
+    ),
+  },
+  {
+    name: "page-link-table",
+    input: `| who | what |\n| --- | --- |\n| ${pl(P1, "a")} | see ${pl(P2, "b")} |\n`,
+  },
+  {
+    name: "page-link-table-start-doc",
+    doc: doc(
+      table(
+        [cell("tableHeader", text("page")), cell("tableHeader", text("note"))],
+        [cell("tableCell", pageLink(P1)), cell("tableCell", pageLink(P2), text(" v2"))],
+      ),
+    ),
+  },
+  { name: "page-link-callout", input: `> [!TIP]\n> Read ${pl(P1, "a")} first.\n` },
+  {
+    name: "page-link-toggle-summary",
+    input: `<details>\n<summary>See ${pl(P1, "a")}</summary>\n\nbody\n\n</details>\n`,
+  },
+  // Malformed page links: the markers are swallowed, the link between them
+  // is ordinary text.
+  {
+    name: "page-link-unclosed",
+    input: `See <!-- slash:pageLink {"pageId":"${P1}"} -->[a](/edit/${P1}) now\n`,
+  },
+  {
+    name: "page-link-no-page-id",
+    input: `See <!-- slash:pageLink {} -->[a](/edit/${P1})<!-- /slash:pageLink --> now\n`,
+  },
+  {
+    name: "page-link-no-payload",
+    input: `See <!-- slash:pageLink -->[a](/edit/${P1})<!-- /slash:pageLink --> now\n`,
+  },
+  {
+    name: "page-link-bad-payload",
+    input: `See <!-- slash:pageLink {"pageId":} -->[a](/edit/${P1})<!-- /slash:pageLink --> now\n`,
+  },
+  {
+    name: "page-link-numeric-page-id",
+    input: `See <!-- slash:pageLink {"pageId":7} -->[a](/edit/7)<!-- /slash:pageLink --> now\n`,
+  },
+  { name: "page-link-close-only", input: `See [a](/edit/${P1})<!-- /slash:pageLink --> now\n` },
+  {
+    name: "page-link-extra-attrs",
+    input: `See <!-- slash:pageLink {"pageId":"${P1}","x":1} -->[a](/edit/${P1})<!-- /slash:pageLink -->\n`,
+  },
+  {
+    name: "page-link-any-content",
+    input: `See <!-- slash:pageLink {"pageId":"${P1}"} -->whatever *here*<!-- /slash:pageLink --> ok\n`,
+  },
+  {
+    name: "page-mixed",
+    input: `# Plan\n\n${sp(P1, "a")}\n\nSee ${pl(P1, "a")} and <!-- slash:mention {"id":"doc:${P2}","label":"Old"} -->@Old<!-- /slash:mention -->.\n\n${sp(P2, "b")}\n`,
+  },
+  { name: "mention-doc-start-doc", doc: doc(p(mention(`doc:${P1}`, "Roadmap"), text(" is next"))) },
+  {
+    name: "mention-doc-empty-id",
+    input: `See <!-- slash:mention {"id":"doc:","label":"X"} -->@X<!-- /slash:mention -->\n`,
   },
 ];
 
@@ -685,6 +1036,18 @@ const commentCases: { name: string; doc: JSONContent }[] = [
     ),
   },
   {
+    name: "emoji",
+    doc: doc(
+      p({ type: "emoji", attrs: { name: "tada" } }, text(" shipped", comment("t1")), text(" ok")),
+      p(
+        text("we ", comment("t2")),
+        { type: "emoji", attrs: { name: "fire" } },
+        text(" did", comment("t2")),
+        { type: "emoji", attrs: { name: "rocket" } },
+      ),
+    ),
+  },
+  {
     name: "blocks",
     doc: doc(
       { type: "heading", attrs: { level: 2 }, content: [text("Title", comment("h1"))] },
@@ -761,15 +1124,74 @@ const commentCases: { name: string; doc: JSONContent }[] = [
     name: "escaped-text",
     doc: doc(p(text("*not* "), text("<b> & [x]", comment("t1")), text(" _y_"))),
   },
+  {
+    name: "page-link",
+    doc: doc(
+      p(
+        text("see "),
+        text("this", comment("t1")),
+        pageLink(P1),
+        text(" and", comment("t1")),
+        text(" more"),
+      ),
+      p(pageLink(P2), text(" first", comment("t2"))),
+      p(text("x "), pageLink(P9), text(" y", comment("t3"))),
+    ),
+  },
+  {
+    name: "sub-page",
+    doc: doc(p(text("above", comment("t1"))), subPage(P1), p(text("below", comment("t1")))),
+  },
 ];
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const outDir = path.resolve(here, "../../server/internal/mdoc/testdata/fixtures");
 const commentDir = path.resolve(here, "../../server/internal/mdoc/testdata/comments");
 const schemaFile = path.resolve(here, "../../server/internal/mdoc/testdata/schema.json");
+const titlesFile = path.resolve(here, "../../server/internal/mdoc/testdata/page_titles.json");
+const emojiFile = path.resolve(here, "../../server/internal/mdoc/emoji.json");
 
-const kit = createMdocKit();
+/** Knows PAGE_TITLES' pages; nothing else is called while serializing. */
+const pageStore: PageStore = {
+  create: () => Promise.reject(new Error("fixture page store")),
+  update: () => {},
+  peek: (id) =>
+    Object.hasOwn(PAGE_TITLES, id) ? { id, parentId: null, title: PAGE_TITLES[id] } : undefined,
+  load: async () => undefined,
+  listChildren: () => [],
+  search: () => [],
+  subscribe: () => () => {},
+};
+
+// resolveHref stays createMdocKit's default, `/edit/<id>`.
+const kit = createMdocKit({
+  pages: { store: pageStore, currentPageId: null, onNavigate: () => {} },
+});
 const schema = getSchema(kit);
+
+/**
+ * The document `mdoc.Parse` reads where slash-editor's parser reads a
+ * `doc:<id>` mention: a pageLink to `<id>` (pp-hub's pre-pages document
+ * mentions; the editor writes the pageLink form back on the next edit).
+ */
+function docMentionsToPageLinks(node: JSONContent): JSONContent {
+  const id: unknown = node.attrs?.id;
+  if (node.type === "mention" && typeof id === "string" && id.startsWith("doc:") && id.length > 4) {
+    return { type: "pageLink", attrs: { pageId: id.slice(4) } };
+  }
+  return node.content ? { ...node, content: node.content.map(docMentionsToPageLinks) } : node;
+}
+
+/**
+ * `go_json`/`go_output`, only for a document with `doc:` mentions: what the
+ * Go side must parse from `input` and write back, where it deliberately
+ * departs from slash-editor's parse (`json`/`output` stay slash-editor's).
+ */
+function goExpectation(json: JSONContent): { go_json?: JSONContent; go_output?: string } {
+  const goJson = docMentionsToPageLinks(json);
+  if (JSON.stringify(goJson) === JSON.stringify(json)) return {};
+  return { go_json: goJson, go_output: serializeMarkdown(goJson, kit) };
+}
 
 function encodeUpdate(json: unknown): string {
   const doc = new Y.Doc();
@@ -807,6 +1229,7 @@ for (const fixtureCase of cases) {
       frontmatter: "",
       json,
       output,
+      ...goExpectation(json),
       yupdate_b64: encodeUpdate(json),
       expect_lossy: lossy,
     });
@@ -820,6 +1243,7 @@ for (const fixtureCase of cases) {
     frontmatter,
     json,
     output: serializeMarkdown(json, kit),
+    ...goExpectation(json),
     yupdate_b64: encodeUpdate(json),
     expect_lossy: lossy,
   });
@@ -838,6 +1262,8 @@ for (const { name, doc: json } of commentCases) {
     yupdate_b64: encodeUpdate(json),
   });
 }
+
+writeFileSync(titlesFile, `${JSON.stringify(PAGE_TITLES, null, 2)}\n`);
 
 writeFileSync(
   schemaFile,
@@ -866,3 +1292,15 @@ console.log(
   `wrote ${readdirSync(outDir).length} fixtures to ${path.relative(process.cwd(), outDir)}, ` +
     `${readdirSync(commentDir).length} to ${path.relative(process.cwd(), commentDir)}`,
 );
+
+const emojiNode = kit.find((extension) => extension.name === "emoji");
+if (!emojiNode) throw new Error("createMdocKit() has no emoji node");
+const glyphs = new Map<string, string>();
+for (const item of (emojiNode.options as EmojiOptions).emojis) {
+  if (!item.emoji) continue;
+  for (const code of [item.name, ...item.shortcodes]) {
+    if (!glyphs.has(code)) glyphs.set(code, item.emoji);
+  }
+}
+writeFileSync(emojiFile, `${JSON.stringify(Object.fromEntries(glyphs), null, 0)}\n`);
+console.log(`wrote ${glyphs.size} emoji shortcodes to ${path.relative(process.cwd(), emojiFile)}`);

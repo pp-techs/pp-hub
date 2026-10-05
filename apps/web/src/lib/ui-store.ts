@@ -14,6 +14,12 @@ interface DirEntry {
   parent?: string;
 }
 
+export interface DocPanels {
+  /** The page tree. */
+  pages: boolean;
+  outline: boolean;
+}
+
 interface UiState {
   /** Which dialog panel is open and on which node. */
   panel: { kind: PanelKind; node: Node } | null;
@@ -68,6 +74,14 @@ interface UiState {
   /** Active drag operation within drive. Ephemeral and not persisted. */
   draggingNodes: DraggingNodes | null;
   setDraggingNodes: (val: DraggingNodes | null) => void;
+  /**
+   * Which of the block editor's side panels are open on a wide screen. Kept
+   * here, and persisted, so moving from page to page (each page remounts its
+   * editor) or reloading keeps the layout the reader chose. The page tree
+   * starts open; the outline starts closed.
+   */
+  docPanels: DocPanels;
+  setDocPanel: (panel: keyof DocPanels, open: boolean) => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -107,6 +121,8 @@ export const useUiStore = create<UiState>()(
       toggleDetails: () => set((s) => ({ detailsOpen: !s.detailsOpen })),
       draggingNodes: null,
       setDraggingNodes: (val) => set({ draggingNodes: val }),
+      docPanels: { pages: true, outline: false },
+      setDocPanel: (panel, open) => set((s) => ({ docPanels: { ...s.docPanels, [panel]: open } })),
     }),
     {
       name: "pp-hub-ui",
@@ -114,6 +130,7 @@ export const useUiStore = create<UiState>()(
         dirs: s.dirs,
         lastSpaceId: s.lastSpaceId,
         listingPrefs: s.listingPrefs,
+        docPanels: s.docPanels,
       }),
     },
   ),

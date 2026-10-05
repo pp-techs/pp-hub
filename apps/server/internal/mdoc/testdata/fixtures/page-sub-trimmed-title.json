@@ -1,0 +1,19 @@
+{
+  "name": "page-sub-trimmed-title",
+  "input": "<!-- slash:subPage {\"pageId\":\"p3\"} -->\n[x](/edit/p3)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "subPage",
+        "attrs": {
+          "pageId": "p3"
+        }
+      }
+    ]
+  },
+  "output": "<!-- slash:subPage {\"pageId\":\"p3\"} -->\n[Spaced out](/edit/p3)",
+  "yupdate_b64": "AQIBAAcBB2NvbnRlbnQDB3N1YlBhZ2UoAAEABnBhZ2VJZAF3AnAzAA==",
+  "expect_lossy": false
+}

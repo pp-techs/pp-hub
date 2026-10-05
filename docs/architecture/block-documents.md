@@ -19,23 +19,24 @@ previewed as a text snippet, and that was all.
 
 ## Decisions
 
-| Question                                           | Decision                                                                                         |
-| -------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Editor                                             | [slash-editor](https://slasheditor.dev) (Tiptap/ProseMirror, shadcn UI we own)                   |
-| What is stored                                     | A plain `.md` file node — CAS blob, `node_versions`, shares, trash, previews unchanged           |
-| Collaboration                                      | Realtime Yjs from v1: remote carets and presence avatars                                         |
-| Sync server                                        | [reearth/ygo](https://github.com/reearth/ygo), a patched copy embedded in `apps/server`          |
-| Markdown ↔ document                                | Go (`internal/mdoc`), held to slash-editor's JS serializer by golden fixtures                    |
-| Embedded images and files                          | Attachments owned by the document (`node_attachments`), not files in the folder listing          |
-| Version cadence                                    | Coalesced: after 30 s quiet, at most every 5 min under continuous typing, and on server shutdown |
-| Structure                                          | Drive folders; no sub-pages, no page tree                                                        |
-| Imported `.md` that would not survive a round trip | Opens read-only; **Edit** warns first                                                            |
-| Crash window                                       | Up to ~5 min of unflushed edits may be lost on a crash; graceful shutdown flushes                |
+| Question                                           | Decision                                                                                                |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Editor                                             | [slash-editor](https://slasheditor.dev) (Tiptap/ProseMirror, shadcn UI we own)                          |
+| What is stored                                     | A plain `.md` file node — CAS blob, `node_versions`, shares, trash, previews unchanged                  |
+| Collaboration                                      | Realtime Yjs from v1: remote carets and presence avatars                                                |
+| Sync server                                        | [reearth/ygo](https://github.com/reearth/ygo), a patched copy embedded in `apps/server`                 |
+| Markdown ↔ document                                | Go (`internal/mdoc`), held to slash-editor's JS serializer by golden fixtures                           |
+| Embedded images and files                          | Attachments owned by the document (`node_attachments`), not files in the folder listing                 |
+| Version cadence                                    | Coalesced: after 30 s quiet, at most every 5 min under continuous typing, and on server shutdown        |
+| Structure                                          | Sub-pages in the node tree: a `.md` whose parent is a `.md` ([M43](milestones/M43.md), [Pages](#pages)) |
+| Imported `.md` that would not survive a round trip | Opens read-only; **Edit** warns first                                                                   |
+| Crash window                                       | Up to ~5 min of unflushed edits may be lost on a crash; graceful shutdown flushes                       |
 
-**Not built:** the AI block, sub-pages and databases, editing through a share
-link (a link renders the document read-only), offline editing, more than one
-collaboration instance, and email for comments or mentions (notifications are
-in-app only).
+**Not built:** the AI block, databases or collection views, non-markdown
+sub-pages, drag-and-drop re-parenting in the page tree, realtime push of page
+titles, editing through a share link (a link renders the document read-only),
+offline editing, more than one collaboration instance, and email for comments
+or mentions (notifications are in-app only).
 
 ## Architecture
 
@@ -73,19 +74,23 @@ flowchart LR
 
 ### API surface
 
-| Route                                         | What it does                                                                                                                                            |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/v1/nodes/{id}/collab`               | `{room, can_write, lossy}`. Needs `CapDownload` and a markdown file; 413 for a document over 16 MiB                                                     |
-| `GET /api/v1/collab/{room}`                   | The room's WebSocket (Hocuspocus protocol). Wrapped in `socketOrigin`; the room authorizes node, epoch and mode                                         |
-| `GET /api/v1/nodes/{id}/attachments/{hash}`   | An attachment's bytes, needing `CapView` on the document; images and video inline (with `Range`), anything else as a download                           |
-| `POST /api/v1/uploads` with `attach_to=<id>`  | The tus upload, addressed to a document; needs `CapEdit` on it. The commit answers the hash in `Upload-Attachment`                                      |
-| `POST /api/v1/spaces/{id}/documents`          | `kind=markdown` creates an `.md`, empty or from `"template": "<id>"` (M40)                                                                              |
-| `GET /api/v1/templates/markdown`              | `[{id, name, description}]` in `?locale=` or the caller's saved language (en, vi)                                                                       |
-| `GET /api/v1/nodes/{id}/document`             | `{doc, lossy, version}`: the current version, or `?version=<id>`, as a ProseMirror tree. `CapView`; 400 if not markdown; 404 for another node's version |
-| `GET /api/v1/nodes/{id}/export`               | `application/zip`: the markdown with attachments rewritten to `assets/…`, and those files. `CapDownload`; audited as a download                         |
-| `POST /api/v1/nodes/{id}/unfurl`              | `{url}` → `{url, title, description, thumbnail?}` for a link bookmark. `CapEdit` on the document                                                        |
-| `GET /s/{token}/document?node=<id>`           | The same tree through a public link, which always grants view and must cover the node                                                                   |
-| `GET /s/{token}/attachments/{hash}?node=<id>` | An attachment through a link, on the same terms                                                                                                         |
+| Route                                         | What it does                                                                                                                                                 |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET /api/v1/nodes/{id}/collab`               | `{room, can_write, lossy}`. Needs `CapDownload` and a markdown file; 413 for a document over 16 MiB                                                          |
+| `GET /api/v1/collab/{room}`                   | The room's WebSocket (Hocuspocus protocol). Wrapped in `socketOrigin`; the room authorizes node, epoch and mode                                              |
+| `GET /api/v1/nodes/{id}/attachments/{hash}`   | An attachment's bytes, needing `CapView` on the document; images and video inline (with `Range`), anything else as a download                                |
+| `POST /api/v1/uploads` with `attach_to=<id>`  | The tus upload, addressed to a document; needs `CapEdit` on it. The commit answers the hash in `Upload-Attachment`                                           |
+| `POST /api/v1/spaces/{id}/documents`          | `kind=markdown` creates an `.md`, empty or from `"template": "<id>"` (M40); `parent_id` may be a document (a sub-page), and `name` defaults to `Untitled.md` |
+| `GET /api/v1/templates/markdown`              | `[{id, name, description}]` in `?locale=` or the caller's saved language (en, vi)                                                                            |
+| `GET /api/v1/nodes/{id}/document`             | `{doc, lossy, version}`: the current version, or `?version=<id>`, as a ProseMirror tree. `CapView`; 400 if not markdown; 404 for another node's version      |
+| `GET /api/v1/nodes/{id}/export`               | `application/zip`: the markdown with attachments rewritten to `assets/…`, and those files. `CapDownload`; audited as a download                              |
+| `POST /api/v1/nodes/{id}/unfurl`              | `{url}` → `{url, title, description, thumbnail?}` for a link bookmark. `CapEdit` on the document                                                             |
+| `GET /s/{token}/document?node=<id>`           | The same tree through a public link, which always grants view and must cover the node                                                                        |
+| `GET /s/{token}/attachments/{hash}?node=<id>` | An attachment through a link, on the same terms                                                                                                              |
+| `GET /api/v1/nodes/{id}/page`                 | M43: `{page, ancestors}` — the page's `PageMeta` and its viewable document ancestors, root first. 404 unless viewable markdown                               |
+| `GET /api/v1/nodes/{id}/pages`                | M43: direct live sub-pages as `PageMeta[]`, by `created_at` then name. View on the parent; 404 otherwise                                                     |
+| `GET /api/v1/nodes/{id}/backlinks`            | M43: live pages that link to or hold this one, filtered by what the caller can view; 404 unless viewable                                                     |
+| `GET /s/{token}/page?node=`, `/pages?node=`   | M43: the same through a public link, chain cut at the link root                                                                                              |
 
 Comments and notifications have routes of their own, listed under
 [Comments](#comments).
@@ -164,7 +169,8 @@ the way `@tiptap/y-tiptap` does:
   Yjs, so every mark run is closed explicitly (`{"bold": nil}`).
 
 `Read` walks the fragment back into that tree and `Render` writes it as
-markdown, frontmatter in front.
+markdown, frontmatter in front (`RenderWith` when page titles are known —
+[Pages](#pages)).
 
 The block set, in slash-editor's schema names:
 
@@ -174,16 +180,18 @@ The block set, in slash-editor's schema names:
   `details`/`detailsSummary`/`detailsContent` (toggle), `columns`/`column`,
   `mermaid`, `image`, `file`, `video`, `embed` (a link bookmark: `url`,
   `title`, `description`, `thumbnail`), `mention` (inline, `{id, label}`),
-  `hardBreak`. `video`, `embed` and `mention` joined in M40.
+  `emoji` (inline, `{name}`), `subPage` (block, `{id, pageId}`), `pageLink`
+  (inline, `{pageId}`), `hardBreak`. `video`, `embed` and `mention` joined in
+  M40, `emoji`, `subPage` and `pageLink` in M43 ([Pages](#pages)).
 - **Marks:** `bold`, `italic`, `strike`, `code`, `link`, and `comment`
   (`{threadId}`, M40), which only Go persists — [below](#comment-anchors).
 
 The web editor turns off only StarterKit's `underline` (it serializes as
-`++text++`). Those options live once, in `apps/web/src/lib/collab/mdoc-kit.ts`
-(`createMdocKit`), used by the editor, the read-only renderer and the fixture
-script alike, so the schema a browser can write is exactly the schema `mdoc`
-can store; `mention: {items}` and `comment: {store}` pass through to
-slash-editor.
+`++text++`), through `createBlockKit`'s `starterKit` option. Those options live
+once, in `apps/web/src/lib/collab/mdoc-kit.ts` (`createMdocKit`), used by the
+editor, the read-only renderer and the fixture script alike, so the schema a
+browser can write is exactly the schema `mdoc` can store; `mention: {items}`
+and `comment: {store}` pass through to slash-editor.
 
 **Block ids are written by `Parse`.** Every block carries an `id` attr
 (`data-block-id`); `parseMarkdown` emits none, and an editor mounting an
@@ -198,17 +206,40 @@ write its own paragraph into the room ahead of the content.
 `mdoc` also exposes the pure helpers the rest of the server needs from a
 document: `Attachments` (hashes referenced by image, file, video and embed
 thumbnail), `Mentions` (mention ids in document order, deduplicated),
-`PlainText` (the searchable text, for [M27](preview-pipeline.md)) and
-`MapAttachments` (rewrite every `attachment:<hash>` src, for export).
+`PlainText` (the searchable text, for [M27](preview-pipeline.md); page nodes
+are skipped), `MapAttachments` (rewrite every `attachment:<hash>` src, for
+export), and since M43 `PageRefs`, `MapPageIDs`, `FrontmatterMeta` and
+`SetFrontmatterMeta` ([Pages](#pages)).
 
 ### Mentions
 
 A mention is slash-editor's own inline marker pair,
 `<!-- slash:mention {"id":"user:<uuid>","label":"Ann"} -->@Ann<!-- /slash:mention -->`,
-written byte for byte as its serializer does. Ids are `user:<uuid>` (a space
-member; the chip is the person) or `doc:<uuid>` (a markdown document in the
-space; the chip links to `/edit/<id>`). `Parse` reads a line that starts with a
-mention as paragraph text, where slash-editor's own parser misreads it.
+written byte for byte as its serializer does. Ids are `user:<uuid>`: a space
+member, and the chip is the person. A `doc:<uuid>` mention — the pre-M43 way
+to name a document — is read by `Parse` as a `pageLink` and written in that
+form by the next real edit ([Pages](#pages)); an empty `doc:` id stays a
+mention. `Parse` reads a line that starts with a mention as paragraph text,
+where slash-editor's own parser misreads it.
+
+### Emoji
+
+An emoji is `:shortcode:`, GitHub's form, and the `:` menu (`EmojiMenu`) or a
+typed `:name:` inserts one. Whether `:name:` is an emoji depends on the
+dataset, so the fixture script also writes `internal/mdoc/emoji.json` (every
+shortcode the kit knows → its glyph), which `mdoc` embeds. slash-editor's
+tokenizer consumes every `:[a-zA-Z0-9_+-]+:` and only then turns an unknown
+one back into text; `mdoc` does the same, inside `linkify`, because the
+consuming decides autolinks both ways — `x:https://e.x` is not a link
+(`:https:` was read first), and `www.a.example:smile:` links through the
+shortcode (the URL started first). An emoji is an atom: marks around it do
+not reach it. `PlainText` writes the glyph.
+
+Tiptap's glyph-to-node conversion is removed from the kit's emoji node: it
+rewrites glyphs in every changed range, including the ranges a Yjs sync or a
+reseed changes, so every peer joining a room would convert the same glyphs
+at once and a document's `🎉` would become `:tada:` under whoever opened it. A
+typed or pasted glyph stays text, as the markdown wrote it.
 
 ### Comment anchors
 
@@ -239,12 +270,18 @@ the file.
 ### Golden fixtures
 
 `bun apps/web/scripts/mdoc-fixtures.ts`, run against the same
-`@slash-editor/core` as `apps/web` and the same `createMdocKit()`, writes 169
+`@slash-editor/core` as `apps/web` and the same `createMdocKit()`, writes 260
 fixtures to `internal/mdoc/testdata/fixtures/` — the input, its frontmatter,
 slash-editor's `parseMarkdown` JSON, its `serializeMarkdown` output, a Y
 update built by `@tiptap/y-tiptap`, and whether `Parse` must flag it lossy —
 plus `schema.json` (attribute defaults, id-bearing types, mark order), which
-the Go schema table is checked against. Go tests assert `Parse` yields that
+the Go schema table is checked against, and `page_titles.json`, the page
+titles both sides render with. A fixture whose slash-editor parse holds a
+`doc:` mention also carries `go_json` (that JSON with the mention turned into
+a `pageLink`) and `go_output` (slash-editor's serialization of it): the checks
+that start from Go's `Parse` compare against those, the rest against
+`json`/`output`, and `TestFixtures` checks `go_json` is exactly the rewrite.
+Go tests assert `Parse` yields that
 JSON and `Render` that markdown. The other direction is checked too:
 `go test ./internal/mdoc -run TestGoUpdates -update` writes the Go-built seed
 for each fixture to `testdata/go-updates/`, and
@@ -360,7 +397,10 @@ session behind it.
   `Server.Shutdown`, which `cmd/server` runs through `srv.RegisterOnShutdown`
   once the HTTP server stops accepting. `StoreUpdate`'s batch is not stored;
   the handler renders the whole room, skips the empty two-byte updates a join
-  and an unload produce, and writes a version only when the markdown differs.
+  and an unload produce, and writes a version only when the room has taken an
+  attributed edit since the last write **and** the markdown differs (M43:
+  `room.edits` against `room.persisted` — a linked page renamed or a
+  normalizing render does not become a version by itself).
   Deltas are never replayed against a regenerated seed — the spike reproduced
   that losing content. A failed write-back is returned to ygo, which keeps the
   batch and the room, so the edits stay in memory for the next attempt.
@@ -408,13 +448,17 @@ node_attachments(node_id, blob_hash, name, mime, size, created_by, created_at,
   Images and videos render inline (not SVG); anything else downloads. `Range`
   is served — a `<video>` needs it to seek — even from an S3 body that cannot
   seek backwards (`forwardSeeker`).
-- The markdown stores `attachment:<hash>`. slash-editor has no `src` resolver
-  hook, so the image and file node views (`components/nodes/`, ours) resolve
-  it against the current document; the editor passes `image: false` and
-  `file: false` to `createMdocKit` and installs ours through `extend`. Copying a
-  document copies its rows (`CopyAttachments`), and no markdown needs
-  rewriting. The image view resizes by dragging and stores `width` in the
-  slash marker.
+- The markdown stores `attachment:<hash>`. The image, file, video and embed
+  nodes get a `resolveSrc` (`attachmentResolver` in `lib/collab/attachments.ts`)
+  that maps it to the current rendering's route — the document's, a share
+  link's — and our node views (`components/nodes/`) read it through
+  `useResolvedSrc`, video posters and bookmark thumbnails included; the stored
+  value never changes. An upload's `toAttrs` records an image's alt text from
+  its file name and a file's name, size and type. The editor passes
+  `image: false` and the rest to `createMdocKit` and installs ours through
+  `extend`. Copying a document copies its rows (`CopyAttachments`), and no
+  markdown needs rewriting. The image view resizes by dragging and stores
+  `width` in the slash marker.
 - Paths that bypass the node views — `getHTML()`, clipboard and drag HTML —
   carry the raw scheme. **Write-back adopts** what arrives that way (M40):
   each write-back compares `mdoc.Attachments` with the document's rows and
@@ -456,8 +500,8 @@ document looks the same read as edited. Its callers are the preview panel for
 markdown, the version preview modal (`version-preview-modal.tsx`, with a
 **Restore** action), and the share page. The read-only kit enables
 `tableOfContents`; a caller that hands it a scroll container — the share page
-does, for a link's rendered document — also gets `OutlinePanel` beside the
-text, following that scroll and hidden below `lg` where there is no room.
+does, for a link's rendered document — also gets `OutlinePanel` in the text's
+right margin, following that scroll and hidden below `lg` where there is no room.
 
 **Through a link**, `/s/{token}/document?node=<id>` and
 `/s/{token}/attachments/{hash}?node=<id>` answer the same tree and bytes on the
@@ -471,11 +515,105 @@ through a link is not built.
 `<base>.zip`: `<name>.md` with every `attachment:<hash>` the document holds
 rewritten (`mdoc.MapAttachments`) to `assets/<unique filename>`, and those
 files under `assets/` — a document that still renders once it leaves pp-hub.
+Since M43 the document's sub-pages come with it, and the folder zip uses the
+same planner ([Pages](#pages)).
 A reference to an attachment the document does not hold is left as it is: it
 resolves nowhere, in pp-hub or out of it. Everything that can fail with a
 status fails before the response is committed. It takes `CapDownload` and is
 audited as a download. The web offers it as **Export with images (.zip)** in
 node actions and the editor header's download menu.
+
+## Pages
+
+M43 ([detail](milestones/M43.md)) gave documents slash-editor's pages: a
+`subPage` block that holds a child page, an inline `pageLink` chip, `/page`,
+`/link to page`, page results in the `@` menu, backlinks, a page tree, a
+breadcrumb, an icon and a cover.
+
+**A sub-page is a node, not a document fragment.** It is a `.md` whose
+`parent_id` is its parent document, so the page tree is the node tree and
+sharing, trash and purge already follow it
+([permissions](permissions.md#sub-pages)). `fs.CanContain` is the one rule —
+a folder holds anything, a document holds only documents — and every path that
+sets a parent applies it ([data model](data-model.md#invariants)). The Drive
+listing shows only top-level documents, with a `child_page_count` badge; the
+tree lives in the editor. A page's title is the node's name without `.md`;
+editing it renames the node.
+
+**Markers.** Both nodes are slash-editor's own markers, written byte for byte:
+
+```md
+<!-- slash:subPage {"pageId":"<uuid>"} -->
+
+[Title](/edit/<uuid>)
+
+See <!-- slash:pageLink {"pageId":"<uuid>"} -->[Title](/edit/<uuid>)<!-- /slash:pageLink -->.
+```
+
+Import keeps only `pageId`: the title in the file is whatever it was when last
+written, and changes nothing on load. A `subPage` needs a blank line or the end
+of the file after its link line, or it is a stray marker (lossy). The places Go
+deliberately differs from slash-editor's parser are listed in
+[M43](milestones/M43.md#markdown).
+
+**Titles are the caller's.** `mdoc.RenderWith(doc, frontmatter,
+RenderOptions{PageTitle, PageHref})` writes each page's title and href from
+callbacks: blank or unknown is `Untitled`, the default href `/edit/<id>`.
+`Render` is `RenderWith` with neither. The room looks titles up with one
+`fs.PageTitles` query per write-back, only when `mdoc.PageRefs` finds any; the
+export uses archive names and relative paths. `PageRefs(doc)` returns the
+sub-page and link ids; `MapPageIDs` deep-copies a tree with ids remapped.
+
+**`doc:` mentions become page links.** `Parse` reads a `doc:<uuid>` mention as
+`pageLink{pageId}`, so old chips show live titles at once and the next real
+edit writes the new form; there is no bulk rewrite of stored markdown.
+
+**Icon and cover are frontmatter.** The top-level keys `icon` (an emoji) and
+`cover` (`attachment:<hash>`) — versioned, and present in a download.
+`mdoc.FrontmatterMeta` and `SetFrontmatterMeta` are a line editor, not a YAML
+parser: only those two lines are read or written, everything else stays byte
+for byte, and a value it cannot read as one string (block scalar, flow
+collection, alias, tag) counts as unset. In the room they are a `Y.Map` named
+**`meta`**, seeded with the fragment in the same unattributed transaction and
+re-set on reseed; write-back merges it into the frontmatter. Changing the icon
+or cover is an attributed edit like any other.
+
+**Write-back writes only after an edit.** Rendering a room can differ from
+its file with nobody having typed — a linked page renamed since, a serializer
+that normalizes. `persist` writes only when the room has taken an attributed
+edit the file does not hold yet (`room.edits` ≠ `room.persisted`), so a new
+title reaches the markdown with the next real edit and never as a version
+nobody made.
+
+**Projections.** The `extract:text` job also writes `page_meta` (icon, cover)
+and `page_refs` (sub and link edges) from the same parse, under the same
+current-version guard, and `preview.BackfillPages` fills them at startup
+([data model](data-model.md#pages)). They back the page routes in the
+[API table](#api-surface) and `child_page_count` on listings.
+
+**Delete and undo.** Deleting a `subPage` block trashes the page
+(`onSubPagesDetached`); undo or paste restores it (`onSubPagesAttached`), and
+the page store restores only a page it saw trashed itself. Restoring under a
+parent that can no longer hold it relocates the page to the space root. A
+co-editor who cannot trash the page gets a 403 toast and the page stays.
+Pasting a `subPage` into another document gives a `pageLink`: a page has one
+parent.
+
+**Export and copy.** The export zip and the folder zip share one planner:
+`<Doc>.md`, sub-pages under `<Doc>/<Sub>.md` recursively, one `assets/` per
+directory shared by its pages, links into the archive rewritten to relative
+paths and any other page to `${PP_EXTERNAL_URL}/edit/<id>`, the cover exported
+and rewritten; a lossy document keeps its bytes with targets byte-replaced.
+Copying a document or a folder copies sub-pages recursively in one
+transaction and re-renders only the documents whose page ids point into the
+copied set; the rest share their blob.
+
+**Web.** `lib/collab/page-store.ts` is the host `PageStore` over TanStack
+Query (keys `['pages', scope, kind, id]`, `scope` `node` or `share:<token>`);
+`nodes/page-node-views.tsx`, `doc-editor/page-header.tsx`,
+`doc-editor/page-tree-panel.tsx`, `doc-editor/page-backlinks.tsx`,
+`components/page-trail.tsx` and `components/sub-page-count.tsx` draw it.
+Titles and the tree refetch on focus and staleness; nothing pushes them.
 
 ## Link bookmarks (unfurl)
 
@@ -573,10 +711,19 @@ in [M29](milestones/M29.md) and [data-model.md](data-model.md#comments-and-notif
   outline panel of the top-level `h1`–`h3` headings from slash-editor's
   `tableOfContents` extension (`useTableOfContents`, `maxLevel: 3`), whose
   active row follows the caret while typing and the scroll position otherwise,
-  click to jump, toggled from the editor header (`doc-editor/outline-panel.tsx`);
-  `@` mentions of space members and
-  of markdown documents in the space (`lib/collab/mentions.ts`,
-  `nodes/mention-node-view.tsx`); a video node view and an embed node view
+  click to jump, toggled from the editor header (`doc-editor/outline-panel.tsx`).
+  It takes turns with the comments panel in the right-hand slot, in the same
+  frame (width, header, rule), so switching swaps the content without moving
+  the document; showing the outline closes the comments and opening the
+  comments puts the outline away. Below `md` either lies over the document's
+  edge. Whether the page tree (open by
+  default) and the outline are open is a per-browser preference in
+  `ui-store` (`docPanels`, persisted), so moving between pages — each remounts
+  the editor — and reloading keep the layout; below `md` both start closed
+  per page because they would cover the text;
+  `@` mentions of space members (`lib/collab/mentions.ts`,
+  `nodes/mention-node-view.tsx`; pages join the `@` menu as page links since
+  M43); a video node view and an embed node view
   whose slash item asks for a URL and unfurls it (`nodes/embed-link-modal.tsx`);
   an uploaded image's alt text taken from its file name (`q3-roadmap.png`
   reads "q3 roadmap", `altFromFileName`); and a narrow-screen layout where
@@ -617,7 +764,7 @@ See [deployment.md](../deployment.md#block-document-collaboration).
 
 ## Testing
 
-- **Unit:** `mdoc` against the 169 golden fixtures and `schema.json`, including
+- **Unit:** `mdoc` against the 260 golden fixtures and `schema.json`, including
   block ids and the trailing paragraph, frontmatter, and the lossy flag; the
   comment-marker cases in `testdata/comments/` and the helpers
   (`comment_test.go`, `helpers_test.go`); the Go-built seeds, comment cases

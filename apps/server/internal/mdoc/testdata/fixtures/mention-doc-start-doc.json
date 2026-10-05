@@ -1,0 +1,50 @@
+{
+  "name": "mention-doc-start-doc",
+  "input": "<!-- slash:mention {\"id\":\"doc:0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b\",\"label\":\"Roadmap\"} -->@Roadmap<!-- /slash:mention --> is next",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "mention",
+            "attrs": {
+              "id": "doc:0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b",
+              "label": "Roadmap"
+            }
+          },
+          {
+            "type": "text",
+            "text": " is next"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "<!-- slash:mention {\"id\":\"doc:0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b\",\"label\":\"Roadmap\"} -->@Roadmap<!-- /slash:mention --> is next",
+  "go_json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "pageLink",
+            "attrs": {
+              "pageId": "0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b"
+            }
+          },
+          {
+            "type": "text",
+            "text": " is next"
+          }
+        ]
+      }
+    ]
+  },
+  "go_output": "<!-- slash:pageLink {\"pageId\":\"0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b\"} -->[Roadmap](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)<!-- /slash:pageLink --> is next",
+  "yupdate_b64": "AQYBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQADB21lbnRpb24oAAEBAmlkAXcoZG9jOjBiOGUxZjJhLTZjM2QtNGU1Zi05YTFiLTdjMmQzZTRmNWE2YigAAQEFbGFiZWwBdwdSb2FkbWFwhwEBBgQAAQQIIGlzIG5leHQA",
+  "expect_lossy": false
+}

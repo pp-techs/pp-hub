@@ -1,14 +1,15 @@
 import {
   Embed,
   File as FileNode,
-  findNodeById,
   Image,
   Mention,
   Mermaid,
-  retryUpload,
   Video,
+  withPageMentions,
   type MentionOptions,
+  type PagesOptions,
   type UploadAdapter,
+  type UploadResult,
 } from "@slash-editor/core";
 import type { AnyExtension } from "@tiptap/core";
 import { ReactNodeViewRenderer } from "@tiptap/react";
@@ -16,10 +17,12 @@ import { EmbedNodeView } from "@/components/nodes/embed-node-view";
 import { FileNodeView } from "@/components/nodes/file-node-view";
 import { ImageNodeView } from "@/components/nodes/image-node-view";
 import { MentionNodeView } from "@/components/nodes/mention-node-view";
+import { PageLinkNodeView, SubPageNodeView } from "@/components/nodes/page-node-views";
 import { MermaidNodeView } from "@/components/nodes/mermaid-node-view";
 import { VideoNodeView } from "@/components/nodes/video-node-view";
 import {
   altFromFileName,
+  attachmentResolver,
   type AttachmentResult,
   type AttachmentUrl,
 } from "@/lib/collab/attachments";
@@ -50,128 +53,81 @@ export interface MdocNodeViewsOptions {
   editing?: { documentId: string; adapter: UploadAdapter<AttachmentResult> };
   /** Editing only: the `@` suggestions. A rendering without them still shows mentions. */
   mentionItems?: MentionOptions["items"];
+  /**
+   * Editing only: the kit's `pages`, whose store's pages the `@` menu offers
+   * after `mentionItems`. The kit merges them only into its own `mention`,
+   * which `MDOC_NODE_VIEW_KIT_OPTIONS` turns off for this one.
+   */
+  pages?: PagesOptions;
 }
+
+/**
+ * The page nodes' views, for `createMdocKit({ pages: { nodeViews } })`: the
+ * kit registers `subPage` and `pageLink` itself, so they cannot be extended
+ * here like the others.
+ */
+export const PAGE_NODE_VIEWS: NonNullable<PagesOptions["nodeViews"]> = {
+  subPage: ReactNodeViewRenderer(SubPageNodeView),
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- element name
+  pageLink: ReactNodeViewRenderer(PageLinkNodeView, { as: "span" }),
+};
 
 /**
  * pp-hub's node views for the v1 block set — image, file, video, embed,
  * mermaid and mention — as the kit's own nodes extended with React views, so
- * the schema stays exactly `createMdocKit`'s. Attachments resolve through
- * `attachmentUrl`, since slash-editor has no `src` resolver hook.
+ * the schema stays exactly `createMdocKit`'s. Each media node's `resolveSrc`
+ * maps `attachment:<hash>` through `attachmentUrl`; the views read it from
+ * their extension's options. The page nodes' views travel separately, as
+ * `PAGE_NODE_VIEWS`.
+ *
+ * An upload records what it was: an image takes its file name as alt text
+ * (the markdown's `![…]`, and what a screen reader says), a file its name,
+ * size and type, so the block shows them before anyone opens it.
  */
 export function mdocNodeViews({
   attachmentUrl,
   editing,
   mentionItems,
+  pages,
 }: MdocNodeViewsOptions): AnyExtension[] {
   const adapter = editing?.adapter;
+  const resolveSrc = attachmentResolver(attachmentUrl);
+  const items = mentionItems ?? (() => []);
   return [
-    (adapter ? attachmentImage(adapter) : Image).extend({
+    Image.extend({
       addNodeView: () =>
-        ReactNodeViewRenderer((props) => (
-          <ImageNodeView {...props} adapter={adapter} attachmentUrl={attachmentUrl} />
-        )),
+        ReactNodeViewRenderer((props) => <ImageNodeView {...props} adapter={adapter} />),
+    }).configure({
+      resolveSrc,
+      toAttrs: (result: UploadResult) => ({
+        src: result.url,
+        alt: altFromFileName((result as AttachmentResult).name),
+      }),
     }),
-    (adapter ? attachmentFile(adapter) : FileNode).extend({
+    FileNode.extend({
       addNodeView: () =>
-        ReactNodeViewRenderer((props) => (
-          <FileNodeView {...props} adapter={adapter} attachmentUrl={attachmentUrl} />
-        )),
+        ReactNodeViewRenderer((props) => <FileNodeView {...props} adapter={adapter} />),
+    }).configure({
+      resolveSrc,
+      toAttrs: (result: UploadResult) => {
+        const { url, name, size, mime } = result as AttachmentResult;
+        return { src: url, name, size, mime };
+      },
     }),
     Video.extend({
       addNodeView: () =>
-        ReactNodeViewRenderer((props) => (
-          <VideoNodeView {...props} adapter={adapter} attachmentUrl={attachmentUrl} />
-        )),
-    }),
+        ReactNodeViewRenderer((props) => <VideoNodeView {...props} adapter={adapter} />),
+    }).configure({ resolveSrc }),
     Embed.extend({
       addNodeView: () =>
         ReactNodeViewRenderer((props) => (
-          <EmbedNodeView
-            {...props}
-            attachmentUrl={attachmentUrl}
-            documentId={editing?.documentId}
-          />
+          <EmbedNodeView {...props} documentId={editing?.documentId} />
         )),
-    }),
+    }).configure({ resolveSrc }),
     Mermaid.extend({ addNodeView: () => ReactNodeViewRenderer(MermaidNodeView) }),
     Mention.extend({
       // eslint-disable-next-line lingui/no-unlocalized-strings -- element name
       addNodeView: () => ReactNodeViewRenderer(MentionNodeView, { as: "span" }),
-    }).configure({ items: mentionItems ?? (() => []) }),
+    }).configure({ items: pages ? withPageMentions({ items }, pages).items : items }),
   ];
-}
-
-/**
- * The image node, naming what it shows: an upload with no alt text yet takes
- * its file name, so the markdown's `![…]` and a screen reader say something.
- * Otherwise core's `retryImage`, with the adapter pinned to ours.
- */
-function attachmentImage(adapter: UploadAdapter<AttachmentResult>) {
-  return Image.extend({
-    addCommands() {
-      return {
-        ...this.parent?.(),
-        retryImage:
-          (id, override) =>
-          ({ dispatch }) => {
-            const hasEntry = override !== undefined || this.storage.pending.get(id) !== undefined;
-            if (!dispatch || !hasEntry) return hasEntry;
-            queueMicrotask(() => {
-              retryUpload<AttachmentResult>({
-                editor: this.editor,
-                typeName: this.name,
-                id,
-                pending: this.storage.pending,
-                toAttrs: (result) => {
-                  const alt = findNodeById(this.editor.state.doc, id)?.node.attrs.alt as
-                    | string
-                    | null
-                    | undefined;
-                  return { src: result.url, alt: alt || altFromFileName(result.name) };
-                },
-                override: override ? { file: override.file, adapter } : undefined,
-              });
-            });
-            return true;
-          },
-      };
-    },
-  });
-}
-
-/**
- * The file node, with a retry that records what the upload was. Core's own
- * `retryFile` keeps only `src`, which leaves a file attached to an empty
- * placeholder nameless and sizeless; the adapter already knows all three.
- */
-function attachmentFile(adapter: UploadAdapter<AttachmentResult>) {
-  return FileNode.extend({
-    addCommands() {
-      return {
-        ...this.parent?.(),
-        retryFile:
-          (id, override) =>
-          ({ dispatch }) => {
-            const hasEntry = override !== undefined || this.storage.pending.get(id) !== undefined;
-            if (!dispatch || !hasEntry) return hasEntry;
-            queueMicrotask(() => {
-              retryUpload<AttachmentResult>({
-                editor: this.editor,
-                typeName: this.name,
-                id,
-                pending: this.storage.pending,
-                toAttrs: (result) => ({
-                  src: result.url,
-                  name: result.name,
-                  size: result.size,
-                  mime: result.mime,
-                }),
-                override: override ? { file: override.file, adapter } : undefined,
-              });
-            });
-            return true;
-          },
-      };
-    },
-  });
 }

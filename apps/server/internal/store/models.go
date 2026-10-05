@@ -349,6 +349,20 @@ type Notification struct {
 	ReadAt    pgtype.Timestamptz `json:"read_at"`
 }
 
+type PageMetum struct {
+	NodeID        pgtype.UUID `json:"node_id"`
+	NodeVersionID pgtype.UUID `json:"node_version_id"`
+	Icon          pgtype.Text `json:"icon"`
+	Cover         pgtype.Text `json:"cover"`
+}
+
+type PageRef struct {
+	SourceID      pgtype.UUID `json:"source_id"`
+	TargetID      pgtype.UUID `json:"target_id"`
+	Kind          string      `json:"kind"`
+	NodeVersionID pgtype.UUID `json:"node_version_id"`
+}
+
 type PendingShare struct {
 	ID          pgtype.UUID        `json:"id"`
 	TenantID    string             `json:"tenant_id"`

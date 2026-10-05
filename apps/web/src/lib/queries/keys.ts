@@ -18,6 +18,17 @@ export const keys = {
   document: (nodeId: string, versionId?: string) =>
     ["document", nodeId, versionId ?? null] as const,
   shareDocument: (token: string, nodeId: string) => ["share-document", token, nodeId] as const,
+  // Pages (M43), one root per source scope — "node" for a signed-in reader,
+  // "share:<token>" for a share link, whose answers stop at the link's root
+  // and must never mix with the signed-in ones. `page` entries are what the
+  // page store's `peek` reads; they are seeded by the other three, never
+  // fetched themselves.
+  pages: ["pages"] as const,
+  pageScope: (scope: string) => ["pages", scope] as const,
+  page: (scope: string, pageId: string) => ["pages", scope, "page", pageId] as const,
+  pageLineage: (scope: string, pageId: string) => ["pages", scope, "lineage", pageId] as const,
+  pageChildren: (scope: string, pageId: string) => ["pages", scope, "children", pageId] as const,
+  pageBacklinks: (scope: string, pageId: string) => ["pages", scope, "backlinks", pageId] as const,
   // Named in the UI's language, so the locale is part of the key.
   markdownTemplates: (locale: string) => ["templates", "markdown", locale] as const,
   tree: (spaceId: string, parentId?: string) => ["tree", spaceId, parentId ?? null] as const,

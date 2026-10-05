@@ -57,6 +57,7 @@ Each shipped milestone has its own file under [`milestones/`](milestones/) with 
 | M40 | Block documents, completed                             | ✅         | [detail](milestones/M40.md) |
 | M41 | Agent access over MCP                                  | ✅         | [detail](milestones/M41.md) |
 | M42 | Personal spaces and external sharing                   | ✅         | [detail](milestones/M42.md) |
+| M43 | Pages: page links and sub-pages                        | ✅         | [detail](milestones/M43.md) |
 
 ## Upcoming — M27 Onward
 
@@ -128,6 +129,19 @@ across spaces including addresses with no account — [detail](milestones/M42.md
 design in [personal-spaces.md](personal-spaces.md)). What it deliberately did
 not build: billing and plans, cross-space move/copy, external grants to
 groups, and re-sharing by an outsider.
+
+### Phase F — Pages
+
+M43 shipped (Notion-style pages on block documents, from slash-editor's pages
+feature — [detail](milestones/M43.md), design in
+[block-documents.md](block-documents.md#pages)): sub-pages held in the node
+tree (a `.md` whose parent is a `.md`, one `fs.CanContain` rule), `pageLink`
+chips with live titles and backlinks, a page tree, breadcrumb, icon and cover
+(frontmatter, live in the room), sub-pages through share links, recursive
+export, zip and copy, MCP and search. What it deliberately did not build:
+databases or collection views, drag-and-drop re-parenting in the page tree
+(Move takes a document as destination instead), realtime push of titles and
+tree changes (they refetch), and sub-pages that are not markdown.
 
 ### Named but Unscheduled
 

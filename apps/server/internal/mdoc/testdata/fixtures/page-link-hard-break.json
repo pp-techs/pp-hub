@@ -1,0 +1,35 @@
+{
+  "name": "page-link-hard-break",
+  "input": "one  \n<!-- slash:pageLink {\"pageId\":\"0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b\"} -->[a](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)<!-- /slash:pageLink --> two\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "one"
+          },
+          {
+            "type": "hardBreak"
+          },
+          {
+            "type": "pageLink",
+            "attrs": {
+              "pageId": "0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b"
+            }
+          },
+          {
+            "type": "text",
+            "text": " two"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "one  \n<!-- slash:pageLink {\"pageId\":\"0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b\"} -->[Roadmap](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)<!-- /slash:pageLink --> two",
+  "yupdate_b64": "AQgBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQNvbmWHAQEDCWhhcmRCcmVha4cBBQMIcGFnZUxpbmsoAAEGBnBhZ2VJZAF3JDBiOGUxZjJhLTZjM2QtNGU1Zi05YTFiLTdjMmQzZTRmNWE2YocBBgYEAAEIBCB0d28A",
+  "expect_lossy": false
+}

@@ -1,0 +1,38 @@
+{
+  "name": "page-link-escaped-title",
+  "input": "See <!-- slash:pageLink {\"pageId\":\"1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c\"} -->[x](/edit/1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c)<!-- /slash:pageLink --> and <!-- slash:pageLink {\"pageId\":\"p5\"} -->[y](/edit/p5)<!-- /slash:pageLink -->\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "See "
+          },
+          {
+            "type": "pageLink",
+            "attrs": {
+              "pageId": "1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c"
+            }
+          },
+          {
+            "type": "text",
+            "text": " and "
+          },
+          {
+            "type": "pageLink",
+            "attrs": {
+              "pageId": "p5"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "output": "See <!-- slash:pageLink {\"pageId\":\"1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c\"} -->[a*b_\\[c\\] <x> & `y`](/edit/1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c)<!-- /slash:pageLink --> and <!-- slash:pageLink {\"pageId\":\"p5\"} -->[C:\\\\path\\\\\\[1\\]](/edit/p5)<!-- /slash:pageLink -->",
+  "yupdate_b64": "AQkBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQRTZWUghwEBAwhwYWdlTGluaygAAQYGcGFnZUlkAXckMWM5ZjJhM2ItN2Q0ZS00ZjYwLThiMmMtOGQzZTRmNWE2YjdjhwEGBgQAAQgFIGFuZCCHAQgDCHBhZ2VMaW5rKAABDgZwYWdlSWQBdwJwNQA=",
+  "expect_lossy": false
+}

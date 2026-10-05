@@ -1,0 +1,29 @@
+{
+  "name": "mention-doc-empty-id",
+  "input": "See <!-- slash:mention {\"id\":\"doc:\",\"label\":\"X\"} -->@X<!-- /slash:mention -->\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "See "
+          },
+          {
+            "type": "mention",
+            "attrs": {
+              "id": "doc:",
+              "label": "X"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "output": "See <!-- slash:mention {\"id\":\"doc:\",\"label\":\"X\"} -->@X<!-- /slash:mention -->",
+  "yupdate_b64": "AQYBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQRTZWUghwEBAwdtZW50aW9uKAABBgJpZAF3BGRvYzooAAEGBWxhYmVsAXcBWAA=",
+  "expect_lossy": false
+}

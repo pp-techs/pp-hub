@@ -1,0 +1,52 @@
+{
+  "name": "emoji-url-before",
+  "input": "www.a.example:smile: and https://a.example/x:fire:y z\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "www.a.example:smile",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "http://www.a.example:smile",
+                  "title": null
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": ": and "
+          },
+          {
+            "type": "text",
+            "text": "https://a.example/x:fire:y",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "https://a.example/x:fire:y",
+                  "title": null
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " z"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "[www.a.example:smile](http://www.a.example:smile): and [https://a.example/x:fire:y](https://a.example/x:fire:y) z",
+  "yupdate_b64": "AQoBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBgABAQRsaW5rdnsiaHJlZiI6Imh0dHA6Ly93d3cuYS5leGFtcGxlOnNtaWxlIiwidGFyZ2V0IjoiX2JsYW5rIiwicmVsIjoibm9vcGVuZXIgbm9yZWZlcnJlciBub2ZvbGxvdyIsImNsYXNzIjpudWxsLCJ0aXRsZSI6bnVsbH2EAQITd3d3LmEuZXhhbXBsZTpzbWlsZYYBFQRsaW5rBG51bGyEARYGOiBhbmQghgEcBGxpbmt2eyJocmVmIjoiaHR0cHM6Ly9hLmV4YW1wbGUveDpmaXJlOnkiLCJ0YXJnZXQiOiJfYmxhbmsiLCJyZWwiOiJub29wZW5lciBub3JlZmVycmVyIG5vZm9sbG93IiwiY2xhc3MiOm51bGwsInRpdGxlIjpudWxsfYQBHRpodHRwczovL2EuZXhhbXBsZS94OmZpcmU6eYYBNwRsaW5rBG51bGyEATgCIHoA",
+  "expect_lossy": false
+}

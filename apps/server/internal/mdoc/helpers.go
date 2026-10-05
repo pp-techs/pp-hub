@@ -75,8 +75,9 @@ func MapAttachments(doc Node, fn func(hash string) string) Node {
 	return out
 }
 
-// Mentions returns the ids of doc's mention nodes (`user:<uuid>`,
-// `doc:<uuid>`) in document order without duplicates.
+// Mentions returns the ids of doc's mention nodes (`user:<uuid>`; a parsed
+// `doc:<uuid>` mention is a pageLink, see PageRefs) in document order
+// without duplicates.
 func Mentions(doc Node) []string {
 	var out []string
 	seen := map[string]bool{}
@@ -95,8 +96,9 @@ func Mentions(doc Node) []string {
 // PlainText returns doc's searchable text: every textblock (paragraph,
 // heading, code block, diagram source, toggle title, table cell paragraph,
 // ...) on its own line, hard breaks as newlines, mentions as `@label`, plus
-// image alt texts, file names and bookmark titles and descriptions. Empty
-// blocks are skipped; there is no trailing newline.
+// image alt texts, file names and bookmark titles and descriptions. Page
+// links and sub-pages add nothing (their titles are not in the document).
+// Empty blocks are skipped; there is no trailing newline.
 func PlainText(doc Node) string {
 	var lines []string
 	add := func(s string) {
@@ -139,5 +141,7 @@ func writeInlineText(b *strings.Builder, n *Node) {
 	case "mention":
 		b.WriteByte('@')
 		b.WriteString(attrString(n.Attrs["label"]))
+	case "emoji":
+		b.WriteString(emojiText(attrString(n.Attrs["name"])))
 	}
 }

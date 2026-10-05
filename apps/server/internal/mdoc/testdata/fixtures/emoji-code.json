@@ -1,0 +1,47 @@
+{
+  "name": "emoji-code",
+  "input": "Code `:smile:` stays\n\n```\n:smile:\n```\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Code "
+          },
+          {
+            "type": "text",
+            "text": ":smile:",
+            "marks": [
+              {
+                "type": "code"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " stays"
+          }
+        ]
+      },
+      {
+        "type": "codeBlock",
+        "attrs": {
+          "language": null
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": ":smile:"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "Code `:smile:` stays\n\n```\n:smile:\n```",
+  "yupdate_b64": "AQoBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQVDb2RlIIYBBgRjb2RlAnt9hAEHBzpzbWlsZTqGAQ4EY29kZQRudWxshAEPBiBzdGF5c4cBAAMJY29kZUJsb2NrBwABFgYEAAEXBzpzbWlsZToA",
+  "expect_lossy": false
+}

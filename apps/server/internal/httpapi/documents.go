@@ -107,15 +107,15 @@ func (s *Server) documentError(w http.ResponseWriter, r *http.Request, err error
 }
 
 // handleExport downloads a block document as a zip: its markdown, with every
-// attachment it references pointing into assets/, and those attachments — a
-// document that still renders once it leaves pp-hub. A download, audited as
-// one.
+// attachment it references pointing into assets/, and those attachments, its
+// sub-pages beneath it the same way, linked by relative paths — a document
+// that still renders once it leaves pp-hub. A download, audited as one.
 func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
 	u, node, _ := s.requireNodeCaps(w, r, share.CapDownload)
 	if u == nil {
 		return
 	}
-	exp, err := blockdoc.New(s.fs).PrepareExport(r.Context(), node)
+	exp, err := blockdoc.New(s.fs).PrepareExport(r.Context(), node, s.externalURL)
 	if err != nil {
 		s.documentError(w, r, err)
 		return

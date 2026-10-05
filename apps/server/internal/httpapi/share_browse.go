@@ -1,14 +1,12 @@
 package httpapi
 
 import (
-	"archive/zip"
 	"errors"
 	"fmt"
 	"io"
 	"mime"
 	"net/http"
 	"net/url"
-	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -16,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/audit"
+	"github.com/nhatbui/pp-hub/apps/server/internal/blockdoc"
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 	"github.com/nhatbui/pp-hub/apps/server/internal/users"
@@ -129,6 +128,7 @@ func (s *Server) handleShareChildren(w http.ResponseWriter, r *http.Request) {
 		dto.OwnerID = ""
 		out = append(out, dto)
 	}
+	s.attachChildPageCounts(r.Context(), out)
 	writeJSON(w, http.StatusOK, out)
 }
 
@@ -210,38 +210,30 @@ func linkAllowsDownload(w http.ResponseWriter, sh store.Share) bool {
 	return true
 }
 
-// streamZip writes a folder's subtree as a zip, entry by entry.
+// streamZip writes a folder's subtree as a zip, entry by entry, the block
+// documents in it exported with their sub-pages and attachments as
+// handleExport has them (blockdoc.PrepareZip).
 //
-// Nothing is buffered: each blob is copied straight from the store into the
-// zip writer and into the response, so a 4 GB folder costs one file handle at
-// a time rather than 4 GB of memory. The trade is that an error partway
-// through cannot become an HTTP status — the 200 and the first bytes are
-// already sent — so a failed entry is skipped and the archive completes
-// without it rather than delivering a truncated file that looks whole.
+// Nothing is buffered but one document's markdown: each blob is copied
+// straight from the store into the zip writer and into the response, so a
+// 4 GB folder costs one file handle at a time rather than 4 GB of memory.
+// Only the layout is read first, nodes without content, since a link between
+// two pages in the archive is written as a path between their entries. The
+// trade is that an error partway through cannot become an HTTP status — the
+// 200 and the first bytes are already sent — so the archive is left
+// unfinished rather than delivered as a truncated file that looks whole.
 func (s *Server) streamZip(w http.ResponseWriter, r *http.Request, root store.Node) {
+	exp, err := blockdoc.New(s.fs).PrepareZip(r.Context(), root, s.externalURL)
+	if err != nil {
+		s.nodeError(w, r, err)
+		return
+	}
 	w.Header().Set("Content-Type", "application/zip")
 	w.Header().Set("Content-Disposition", contentDisposition("attachment", root.Name+".zip"))
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 
-	zw := zip.NewWriter(w)
-	defer zw.Close()
-
-	err := s.fs.WalkFiles(r.Context(), root.ID, func(dir string, node store.Node) error {
-		_, _, rc, err := s.fs.OpenFile(r.Context(), node.ID)
-		if err != nil {
-			return err
-		}
-		defer rc.Close()
-
-		entry, err := zw.Create(path.Join(dir, node.Name))
-		if err != nil {
-			return err
-		}
-		_, err = io.Copy(entry, rc)
-		return err
-	})
-	if err != nil {
-		// The response is already committed; the archive is closed as-is.
+	if err := exp.WriteZip(r.Context(), w); err != nil {
+		// The response is already committed; the archive ends here.
 		fmt.Fprintf(w, "\n[pp-hub] archive incomplete: %v\n", err)
 	}
 }

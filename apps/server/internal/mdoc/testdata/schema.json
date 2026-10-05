@@ -110,9 +110,19 @@
     "column": {
       "id": null
     },
+    "subPage": {
+      "id": null,
+      "pageId": null
+    },
+    "pageLink": {
+      "pageId": null
+    },
     "mention": {
       "id": null,
       "label": null
+    },
+    "emoji": {
+      "name": null
     }
   },
   "marks": {

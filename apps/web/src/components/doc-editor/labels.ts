@@ -1,6 +1,7 @@
 import type { I18n, MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import {
+  createPagesSlashItems,
   defaultSlashItems,
   placeholderKeyFor,
   type PlaceholderContext,
@@ -42,6 +43,9 @@ const BLOCKS: Record<string, ItemCopy> = {
   embed: { title: msg`Link card`, description: msg`Bookmark a web page` },
   table: { title: msg`Table`, description: msg`Rows and columns of cells` },
   columns: { title: msg`Columns`, description: msg`Side-by-side layout` },
+  emoji: { title: msg`Emoji`, description: msg`Search and insert an emoji` },
+  page: { title: msg`Page`, description: msg`Create a sub-page inside this page` },
+  "link-to-page": { title: msg`Link to page`, description: msg`Link an existing page` },
 };
 
 /** Slash menu sections, keyed by the English group name slash-editor uses as the id. */
@@ -50,6 +54,8 @@ const GROUPS: Record<string, MessageDescriptor> = {
   "Advanced blocks": msg`Advanced blocks`,
   Media: msg`Media`,
   Structure: msg`Structure`,
+  Inline: msg`Inline`,
+  Pages: msg`Pages`,
 };
 
 /** Bubble toolbar marks, keyed by item id. */
@@ -76,8 +82,14 @@ const PLACEHOLDERS: Record<PlaceholderKey, MessageDescriptor> = {
   toggleHeading3: msg`Toggle heading 3`,
 };
 
-/** Slash items the v1 block set can store — every one this file has copy for. */
-const V1_SLASH_ITEMS = defaultSlashItems.filter((item) => item.id in BLOCKS);
+/**
+ * Slash items the v1 block set can store — every one this file has copy
+ * for. `/page` and `/link to page` hide themselves in an editor without the
+ * kit's `pages`.
+ */
+const V1_SLASH_ITEMS = [...defaultSlashItems, ...createPagesSlashItems()].filter(
+  (item) => item.id in BLOCKS,
+);
 
 export function blockTitle(i18n: I18n, id: string, fallback: string): string {
   const copy = BLOCKS[id];

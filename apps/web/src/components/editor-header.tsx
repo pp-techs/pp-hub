@@ -23,17 +23,25 @@ import { ShareDialog } from "@/components/share-dialog";
  * What it carries is what the editor itself cannot know: where the file
  * lives, and the pp-hub actions (share, version history, download) that
  * operate on the node. `status` ends the subtitle line; `children` sit
- * before the actions (presence, save state, badges).
+ * before the actions (presence, save state, badges). `trail` (a sub-page's
+ * parent documents) sits before the file's name, and `driveDir` is the
+ * folder "Back to Drive" opens when it is not the node's parent — a
+ * sub-page's parent is a document, which the listing cannot open.
  */
 export function EditorHeader({
   nodeId,
   node,
   status,
+  trail,
+  driveDir,
   children,
 }: {
   nodeId: string;
   node: Node | undefined;
   status?: string | null;
+  trail?: ReactNode;
+  /** `null`: the space's top level. Omitted: the node's parent. */
+  driveDir?: string | null;
   children?: ReactNode;
 }) {
   const { t } = useLingui();
@@ -47,6 +55,7 @@ export function EditorHeader({
   const spaces = useSpaces();
   const outsider =
     node !== undefined && spaces.isSuccess && !spaces.data.some((s) => s.id === node.space_id);
+  const dir = driveDir === undefined ? node?.parent_id : (driveDir ?? undefined);
 
   return (
     <header className="border-border flex h-12 shrink-0 items-center gap-2 border-b px-3">
@@ -58,19 +67,16 @@ export function EditorHeader({
           !node ? (
             <Link to="/drive" />
           ) : outsider ? (
-            <Link to="/drive/shared" search={{ dir: node.parent_id }} />
+            <Link to="/drive/shared" search={{ dir }} />
           ) : (
-            <Link
-              to="/drive/$spaceId"
-              params={{ spaceId: node.space_id }}
-              search={{ dir: node.parent_id }}
-            />
+            <Link to="/drive/$spaceId" params={{ spaceId: node.space_id }} search={{ dir }} />
           )
         }
       >
         <ArrowLeft />
       </Button>
 
+      {trail}
       {node ? (
         <NodeIcon node={node} className="size-4 shrink-0" />
       ) : (

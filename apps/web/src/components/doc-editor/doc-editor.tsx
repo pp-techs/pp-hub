@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
 import type { HocuspocusProvider } from "@hocuspocus/provider";
-import { slashCommand, type SlashItem } from "@slash-editor/core";
+import { slashCommand, type PagesOptions, type SlashItem } from "@slash-editor/core";
 import { EditorContent, useSlashEditor } from "@slash-editor/react";
 import { useQueryClient } from "@tanstack/react-query";
 import type * as Y from "yjs";
@@ -10,6 +12,7 @@ import type { Awareness } from "y-protocols/awareness";
 import {
   Check,
   CloudOff,
+  ListTree,
   Loader2,
   Lock,
   MessageSquareText,
@@ -40,23 +43,30 @@ import { attachmentUrl, type Node } from "@/lib/api";
 import { attachmentAdapter } from "@/lib/collab/attachments";
 import { createMdocKit } from "@/lib/collab/mdoc-kit";
 import { mentionItems } from "@/lib/collab/mentions";
+import { ROOM_META, usePageStore, type PpPageStore } from "@/lib/collab/page-store";
 import { presenceColor } from "@/lib/collab/presence";
 import { useCollabRoom, useSyncState } from "@/lib/collab/use-collab-room";
 import { useCommentStore, type PpCommentStore } from "@/lib/comments";
-import { useMe } from "@/lib/queries";
+import { useMe, useNode, usePageLineage } from "@/lib/queries";
 import { LoadingStatus } from "@/components/loading";
 import { EditorHeader } from "@/components/editor-header";
-import { BLOCK_GUTTER_WIDTH, BlockHandle } from "@/components/block-handle";
+import { PageTrail } from "@/components/page-trail";
+import { BlockHandle } from "@/components/block-handle";
 import { BubbleToolbar } from "@/components/bubble-toolbar";
 import { LinkEditorPopover } from "@/components/link-editor-popover";
 import { MentionMenu } from "@/components/mention-menu";
+import { EmojiMenu } from "@/components/emoji-menu";
 import { PresenceAvatars } from "@/components/presence-avatars";
 import { SlashMenu } from "@/components/slash-menu";
 import { TableControls } from "@/components/table-controls";
 import { CommentComposer } from "@/components/comments/comment-composer";
 import { CommentsPanel } from "@/components/comments/comments-panel";
 import { pickEmbedLink } from "@/components/nodes/embed-node-view";
-import { MDOC_NODE_VIEW_KIT_OPTIONS, mdocNodeViews } from "@/components/nodes/mdoc-node-views";
+import {
+  MDOC_NODE_VIEW_KIT_OPTIONS,
+  PAGE_NODE_VIEWS,
+  mdocNodeViews,
+} from "@/components/nodes/mdoc-node-views";
 import {
   labelToggleButton,
   localizedPlaceholder,
@@ -64,16 +74,29 @@ import {
 } from "@/components/doc-editor/labels";
 import { LossyEditModal } from "@/components/doc-editor/lossy-edit-modal";
 import { OutlinePanel } from "@/components/doc-editor/outline-panel";
+import { PageBacklinks } from "@/components/doc-editor/page-backlinks";
+import { PageHeader } from "@/components/doc-editor/page-header";
+import { PageTreePanel } from "@/components/doc-editor/page-tree-panel";
+import { useUiStore, type DocPanels } from "@/lib/ui-store";
 
 const SLASH_HINT = msg`Type to search`;
+const TRASH_FAILED = msg`Could not move the sub-page to the trash`;
+const RESTORE_FAILED = msg`Could not restore the sub-page`;
+const CREATE_FAILED = msg`Could not create the page`;
 
-/** The side panels beside the document; both may be open at once. */
-interface Panels {
-  outline: boolean;
+function errorMessage(error: unknown): string | undefined {
+  return error instanceof Error ? error.message : undefined;
+}
+
+/** The side panels beside the document; any of them may be open at once. */
+interface Panels extends DocPanels {
   comments: boolean;
   /** The thread the comments panel scrolls to and selects. */
   focusThreadId: string | null;
 }
+
+/** A narrow screen lays a side panel over the document, so it opens on demand only. */
+const CLOSED_PANELS: DocPanels = { pages: false, outline: false };
 
 /**
  * The block editor for a markdown document: the shared header, and a
@@ -91,14 +114,48 @@ interface Panels {
  */
 export function DocEditor({ node, thread }: { node: Node; thread?: string }) {
   const { t } = useLingui();
+  const navigate = useNavigate();
   const { room, retry } = useCollabRoom(node.id);
   const commentStore = useCommentStore(node.id);
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- source discriminant
+  const pageSource = { kind: "node", spaceId: node.space_id } as const;
+  const pageStore = usePageStore(pageSource);
+  const lineage = usePageLineage(pageSource, node.id);
+  const ancestors = lineage.data?.ancestors ?? [];
+  const rootPage = useNode(ancestors[0]?.id);
   const [lossyAccepted, setLossyAccepted] = useState(false);
-  const [panels, setPanels] = useState<Panels>({
-    outline: false,
+  // The page tree and the outline follow the reader across pages (each page
+  // remounts this editor) and reloads; on a narrow screen they would cover
+  // the document, so there they start closed and are this page's alone.
+  const isMobile = useIsMobile();
+  const docPanels = useUiStore((s) => s.docPanels);
+  const setDocPanel = useUiStore((s) => s.setDocPanel);
+  const [mobilePanels, setMobilePanels] = useState<DocPanels>(CLOSED_PANELS);
+  const [threadPanel, setThreadPanel] = useState({
     comments: !!thread,
     focusThreadId: thread ?? null,
   });
+  const panels: Panels = { ...(isMobile ? mobilePanels : docPanels), ...threadPanel };
+  const setPanels = (update: (panels: Panels) => Panels) => {
+    const next = update(panels);
+    // eslint-disable-next-line lingui/no-unlocalized-strings -- DocPanels keys
+    for (const key of ["pages", "outline"] as const) {
+      if (next[key] === panels[key]) continue;
+      if (isMobile) setMobilePanels((p) => ({ ...p, [key]: next[key] }));
+      else setDocPanel(key, next[key]);
+    }
+    setThreadPanel({ comments: next.comments, focusThreadId: next.focusThreadId });
+  };
+  // The editor latches its page options once, so this must not change.
+  const openPage = useCallback(
+    (pageId: string) => void navigate({ to: "/edit/$nodeId", params: { nodeId: pageId } }),
+    [navigate],
+  );
+  // One listing names every sub-page block's page, before each block asks
+  // for its own.
+  useEffect(() => {
+    Promise.resolve(pageStore.listChildren(node.id)).catch(() => undefined);
+  }, [pageStore, node.id]);
   // A notification followed while the document is already open changes only
   // the search: open the panel on the new thread, during render rather than
   // in an effect so the first paint already shows it.
@@ -125,7 +182,22 @@ export function DocEditor({ node, thread }: { node: Node; thread?: string }) {
 
   return (
     <>
-      <EditorHeader nodeId={node.id} node={node}>
+      <EditorHeader
+        nodeId={node.id}
+        node={node}
+        trail={
+          // No room beside the name on a narrow screen; the page tree still has it.
+          <PageTrail
+            store={pageStore}
+            pageId={node.id}
+            onNavigate={openPage}
+            className="hidden md:block"
+          />
+        }
+        // A sub-page's way back to the Drive is its top-level page's folder
+        // (`null`: the space's top level).
+        driveDir={ancestors.length > 0 ? (rootPage.data?.parent_id ?? null) : undefined}
+      >
         {room.phase === "open" ? (
           <>
             <PresenceAvatars provider={room} />
@@ -147,9 +219,24 @@ export function DocEditor({ node, thread }: { node: Node; thread?: string }) {
         {ready ? (
           <>
             <PanelToggle
+              label={t`Pages`}
+              pressed={panels.pages}
+              onPressedChange={(pages) => setPanels((p) => ({ ...p, pages }))}
+            >
+              <ListTree />
+            </PanelToggle>
+            <PanelToggle
               label={t`Outline`}
-              pressed={panels.outline}
-              onPressedChange={(outline) => setPanels((p) => ({ ...p, outline }))}
+              // The outline and the comments share the right-hand side:
+              // showing the outline puts the comments away.
+              pressed={panels.outline && !panels.comments}
+              onPressedChange={(outline) =>
+                setPanels((p) =>
+                  outline
+                    ? { ...p, outline, comments: false, focusThreadId: null }
+                    : { ...p, outline },
+                )
+              }
             >
               <TableOfContents />
             </PanelToggle>
@@ -179,6 +266,12 @@ export function DocEditor({ node, thread }: { node: Node; thread?: string }) {
               commentStore={commentStore}
               panels={panels}
               onPanelsChange={setPanels}
+              pageStore={pageStore}
+              onNavigate={openPage}
+              // The tree hangs from the top-most page this reader can view.
+              treeRootId={ancestors[0]?.id ?? node.id}
+              treeExpanded={ancestors.map((page) => page.id)}
+              treeReady={!lineage.isPending}
             />
           </TooltipProvider>
         ) : (
@@ -240,6 +333,11 @@ function DocSurface({
   commentStore,
   panels,
   onPanelsChange,
+  pageStore,
+  onNavigate,
+  treeRootId,
+  treeExpanded,
+  treeReady,
 }: {
   node: Node;
   doc: Y.Doc;
@@ -249,6 +347,14 @@ function DocSurface({
   commentStore: PpCommentStore;
   panels: Panels;
   onPanelsChange: (update: (panels: Panels) => Panels) => void;
+  pageStore: PpPageStore;
+  /** Opens a page; stable, since the kit latches it. */
+  onNavigate: (pageId: string) => void;
+  /** The page the tree hangs from, and the pages it starts with open. */
+  treeRootId: string;
+  treeExpanded: string[];
+  /** The open page's ancestors are known, so the tree can open on it. */
+  treeReady: boolean;
 }) {
   const { t, i18n } = useLingui();
   const me = useMe();
@@ -259,6 +365,40 @@ function DocSurface({
   const name = me.data?.display_name || me.data?.name || me.data?.email || t`Anonymous`;
   const color = presenceColor(me.data?.id ?? "");
   const adapter = useMemo(() => attachmentAdapter(documentId), [documentId]);
+
+  // The room's `meta` map is the open page's live icon and cover.
+  useEffect(
+    () => pageStore.bindMeta(documentId, doc.getMap(ROOM_META)),
+    [pageStore, documentId, doc],
+  );
+
+  // Latched with the rest of the kit's options on the first render. A
+  // deleted sub-page block trashes its page, an undo or paste brings it
+  // back; a refusal (a co-editor without the right to delete it, say) leaves
+  // the page in the tree and says so.
+  const pages: PagesOptions = {
+    store: pageStore,
+    currentPageId: documentId,
+    onNavigate,
+    onSubPagesDetached: (pageIds) => {
+      for (const pageId of pageIds) {
+        pageStore.trash(pageId).catch((error: unknown) => {
+          toast.error(i18n._(TRASH_FAILED), { description: errorMessage(error) });
+        });
+      }
+    },
+    onSubPagesAttached: (pageIds) => {
+      for (const pageId of pageIds) {
+        pageStore.restore(pageId).catch((error: unknown) => {
+          toast.error(i18n._(RESTORE_FAILED), { description: errorMessage(error) });
+        });
+      }
+    },
+    onError: (error) => {
+      toast.error(i18n._(CREATE_FAILED), { description: errorMessage(error) });
+    },
+    nodeViews: PAGE_NODE_VIEWS,
+  };
 
   // Resolved once per editor instance (ProseMirror cannot swap a schema on a
   // live document). Copy is looked up through `i18n` when it is shown, so
@@ -271,7 +411,6 @@ function DocSurface({
       collaboration: { document: doc, provider, user: { name, color } },
       comment: { store: commentStore },
       slash: false,
-      drag: { gutterWidth: BLOCK_GUTTER_WIDTH },
       tableOfContents: { maxLevel: 3 },
       placeholder: { resolve: (context) => localizedPlaceholder(i18n, context) },
       toggle: {
@@ -285,9 +424,11 @@ function DocSurface({
         ...mdocNodeViews({
           attachmentUrl: (hash) => attachmentUrl(documentId, hash),
           editing: { documentId, adapter },
-          mentionItems: mentionItems(queryClient, node.id, node.space_id),
+          mentionItems: mentionItems(queryClient, node.id),
+          pages,
         }),
       ],
+      pages,
     }),
   });
 
@@ -305,22 +446,43 @@ function DocSurface({
 
   return (
     <>
-      {panels.outline ? (
+      {panels.pages ? (
         <SidePanel side="left">
-          <OutlinePanel
-            editor={editor}
-            scrollRef={scrollRef}
-            onClose={() => onPanelsChange((p) => ({ ...p, outline: false }))}
+          <PageTreePanel
+            // The tree opens on the page once its ancestors are known.
+            key={treeReady ? treeRootId : null}
+            store={pageStore}
+            rootId={treeRootId}
+            activeId={documentId}
+            expanded={treeExpanded}
+            onNavigate={onNavigate}
+            onCreate={
+              editable
+                ? // eslint-disable-next-line lingui/no-unlocalized-strings -- focus position
+                  () => editor.chain().focus("end").createSubPage().run()
+                : undefined
+            }
+            onClose={() => onPanelsChange((p) => ({ ...p, pages: false }))}
           />
         </SidePanel>
       ) : null}
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
-        <div className="slash-content mx-auto w-full max-w-5xl px-4 py-10 md:px-20">
+        <div className="mx-auto w-full max-w-5xl px-4 pt-10 md:px-20">
+          <PageHeader
+            store={pageStore}
+            pageId={documentId}
+            editor={editor}
+            editable={editable}
+            adapter={adapter}
+          />
+        </div>
+        <div className="slash-content mx-auto w-full max-w-5xl px-4 pt-4 pb-10 md:px-20">
           <EditorContent editor={editor} />
           {editable ? (
             <>
               <SlashMenu editor={editor} />
               <MentionMenu editor={editor} />
+              <EmojiMenu editor={editor} />
               <BubbleToolbar editor={editor} />
               <LinkEditorPopover editor={editor} />
               <TableControls editor={editor} />
@@ -337,7 +499,22 @@ function DocSurface({
             }
           />
         </div>
+        <div className="mx-auto w-full max-w-5xl px-4 pb-10 md:px-20">
+          <PageBacklinks store={pageStore} pageId={documentId} onNavigate={onNavigate} />
+        </div>
       </div>
+      {/* The outline and the comments share the right-hand slot — same
+          panel, same width — so switching between them swaps the content
+          without moving the document. */}
+      {panels.outline && !panels.comments ? (
+        <SidePanel side="right">
+          <OutlinePanel
+            editor={editor}
+            scrollRef={scrollRef}
+            onClose={() => onPanelsChange((p) => ({ ...p, outline: false }))}
+          />
+        </SidePanel>
+      ) : null}
       {panels.comments ? (
         <SidePanel side="right">
           <CommentsPanel

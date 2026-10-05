@@ -16,10 +16,12 @@ pp-hub/
 │   │       │   ├── collab/         # block documents: use-collab-room.ts (room, epochs, recheck, pagehide),
 │   │       │   │                   #   mdoc-kit.ts (the block set, shared with the renderer and the fixture script),
 │   │       │   │                   #   attachments.ts (tus upload with attach_to, altFromFileName),
-│   │       │   │                   #   presence.ts (colour + initials per user), mentions.ts (@ items)
+│   │       │   │                   #   presence.ts (colour + initials per user), mentions.ts (@ people),
+│   │       │   │                   #   page-store.ts (M43: the host PageStore over the query cache, room `meta`)
 │   │       │   ├── comments.ts     # comment thread store over REST: 10 s poll while a document is open (M29)
 │   │       │   ├── event-stream.ts # SSE subscription with capped exponential reconnect (notifications)
-│   │       │   ├── queries/        # TanStack Query hooks (per-resource)
+│   │       │   ├── queries/        # TanStack Query hooks (per-resource); pages.ts = page/lineage/children/backlinks
+│   │       │   │                   #   options under ['pages', scope, …] (M43)
 │   │       │   ├── query-client.ts # shared QueryClient
 │   │       │   ├── ui-store.ts     # zustand ephemeral UI state
 │   │       │   ├── safe-path.ts    # the SPA half of auth.safeNext: a same-origin path, or nothing
@@ -52,9 +54,13 @@ pp-hub/
 │   │       │   ├── transfer-tray.tsx     # upload queue tray, mounted by the shell
 │   │       │   ├── continue-cards.tsx    # Home: the few files you were last in
 │   │       │   ├── command-palette.tsx   # ⌘K search across every space; content matches show a highlighted snippet
-│   │       │   ├── doc-editor/           # the block editor: doc-editor.tsx, outline-panel.tsx, lossy-edit-modal.tsx, labels.ts
+│   │       │   ├── doc-editor/           # the block editor: doc-editor.tsx, outline-panel.tsx, lossy-edit-modal.tsx, labels.ts;
+│   │       │   │                         #   M43 page-header.tsx (title, icon, cover), page-tree-panel.tsx, page-backlinks.tsx
 │   │       │   ├── nodes/                # slash-editor node views we own: image, file, video, embed (+ embed-link-modal),
-│   │       │   │                         #   mention, mermaid (attachment: src)
+│   │       │   │                         #   mention, mermaid (attachment: src); page-node-views.tsx (subPage, pageLink — M43)
+│   │       │   ├── emoji-menu.tsx        # the `:` emoji picker (M43)
+│   │       │   ├── page-trail.tsx        # a page's breadcrumb through its parent documents (M43)
+│   │       │   ├── sub-page-count.tsx    # listing badge: how many sub-pages a document holds (M43)
 │   │       │   ├── markdown-document-view/ # read-only renderer of GET …/document: preview, version preview, share page
 │   │       │   ├── table-controls.tsx    # block editor: add/delete rows and columns, header toggle, delete table
 │   │       │   ├── new-document-dialog.tsx # New → Document/Spreadsheet/…; the markdown template picker
@@ -119,9 +125,10 @@ pp-hub/
 │           │   ├── collab.go       # GET /nodes/{id}/collab, the /collab/{room} socket, /nodes/{id}/attachments/{hash}
 │           │   ├── documents.go    # block documents outside the editor: /document, /export, /unfurl, /templates/markdown,
 │           │   │                   #    /s/{token}/document and /attachments/{hash}; Range for attachments
+│           │   ├── pages.go        # M43: /nodes/{id}/page, /pages, /backlinks, /s/{token}/page and /pages, child_page_count
 │           │   ├── comments.go     # comment threads and comments (M29)
 │           │   ├── notifications.go # notification list, unread count, mark read, the SSE /stream
-│           │   ├── search.go       # GET /search: name + content matches, snippets
+│           │   ├── search.go       # GET /search: name + content matches, snippets; parent_name as a path through parent pages
 │           │   ├── ratelimit.go    # per-IP token buckets on the anonymous surfaces
 │           │   ├── limits.go       # body ceilings outside tus: limitBody (WOPI PutFile), parseUpload (avatar)
 │           │   ├── uploads.go      # tus 1.0.0 /api/v1/uploads — every browser upload; WOPI PutFile is the other writer
@@ -146,7 +153,8 @@ pp-hub/
 │           │                       #    0012_detached_orgs.sql, 0013_block_documents.sql,
 │           │                       #    0014_markdown_mime.sql, 0015_comments_notifications.sql,
 │           │                       #    0016_content_search.sql, 0017_space_avatars.sql,
-│           │                       #    0018_agent_tokens.sql
+│           │                       #    0018_agent_tokens.sql, 0019_personal_spaces.sql,
+│           │                       #    0020_invite_hardening.sql, 0021_pages.sql
 │           ├── users/              # user service layer (profile)
 │           ├── orgsync/            # ✅ Logto sync: client.go (Management API), orgsync.go (membership reconciler, jobs, sweep),
 │           │                       #    accounts.go (accounts), spacesync.go (create, rename, Link to Logto)
@@ -156,12 +164,17 @@ pp-hub/
 │           │   └── permissions_db_test.go # DB-backed; skipped unless PP_TEST_DATABASE_URL is set
 │           ├── groups/             # groups + the grants that open folders
 │           ├── fs/                 # file tree, versioning, move/copy/rename; quota (EnsureRoom), version retention;
-│           │                       #    markdown.go (.md → text/markdown), attachments.go (node_attachments)
+│           │                       #    markdown.go (.md → text/markdown), attachments.go (node_attachments);
+│           │                       #    CanContain (fs.go, M43), pages.go (PageTitle, PageTitles), tree.go (Tree, for
+│           │                       #    export), copy_pages.go (sub-pages copied with page ids remapped)
 │           ├── collab/             # ✅ block-document rooms over ygo: epochs, locks, write-back, reseed, 60 s recheck
 │           ├── mdoc/               # ✅ markdown ↔ ProseMirror ↔ Y.XmlFragment; mentions, Go-only comment markers
 │           │                       #    (format in mdoc.go); Attachments/Mentions/PlainText/MapAttachments;
+│           │                       #    pages.go (subPage/pageLink, doc: → pageLink, PageRefs, MapPageIDs),
+│           │                       #    frontmatter.go (icon/cover line editor), emoji.go + emoji.json (dataset);
 │           │                       #    testdata/ = golden fixtures
-│           ├── blockdoc/           # ✅ a version as a read-only tree, the export zip, templates/<lang>/*.md
+│           ├── blockdoc/           # ✅ a version as a read-only tree, templates/<lang>/*.md; export.go = the export
+│           │                       #    and folder zip planner (pages recursive, assets/ per directory)
 │           ├── unfurl/             # ✅ SSRF-safe link-preview fetch for the embed block
 │           ├── comments/           # ✅ M29 threads on block documents: who may do what, who is told
 │           ├── notifications/      # ✅ M29 rows, the per-process SSE broker, notify:mentions job

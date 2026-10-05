@@ -1,0 +1,92 @@
+{
+  "name": "page-link-table",
+  "input": "| who | what |\n| --- | --- |\n| <!-- slash:pageLink {\"pageId\":\"0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b\"} -->[a](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)<!-- /slash:pageLink --> | see <!-- slash:pageLink {\"pageId\":\"1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c\"} -->[b](/edit/1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c)<!-- /slash:pageLink --> |\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "table",
+        "content": [
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableHeader",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "who"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableHeader",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "what"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "pageLink",
+                        "attrs": {
+                          "pageId": "0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "see "
+                      },
+                      {
+                        "type": "pageLink",
+                        "attrs": {
+                          "pageId": "1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "\n| who                                                                                                                                                    | what                                                                                                                                                                   |\n| ------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |\n| <!-- slash:pageLink {\"pageId\":\"0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b\"} -->[Roadmap](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)<!-- /slash:pageLink --> | see <!-- slash:pageLink {\"pageId\":\"1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c\"} -->[a*b_\\[c\\] <x> & `y`](/edit/1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c)<!-- /slash:pageLink --> |\n",
+  "yupdate_b64": "AR0BAAcBB2NvbnRlbnQDBXRhYmxlBwABAAMIdGFibGVSb3cHAAEBAwt0YWJsZUhlYWRlcgcAAQIDCXBhcmFncmFwaAcAAQMGBAABBAN3aG8oAAECB2NvbHNwYW4BfQEoAAECB3Jvd3NwYW4BfQGHAQIDC3RhYmxlSGVhZGVyBwABCgMJcGFyYWdyYXBoBwABCwYEAAEMBHdoYXQoAAEKB2NvbHNwYW4BfQEoAAEKB3Jvd3NwYW4BfQGHAQEDCHRhYmxlUm93BwABEwMJdGFibGVDZWxsBwABFAMJcGFyYWdyYXBoBwABFQMIcGFnZUxpbmsoAAEWBnBhZ2VJZAF3JDBiOGUxZjJhLTZjM2QtNGU1Zi05YTFiLTdjMmQzZTRmNWE2YigAARQHY29sc3BhbgF9ASgAARQHcm93c3BhbgF9AYcBFAMJdGFibGVDZWxsBwABGgMJcGFyYWdyYXBoBwABGwYEAAEcBHNlZSCHARwDCHBhZ2VMaW5rKAABIQZwYWdlSWQBdyQxYzlmMmEzYi03ZDRlLTRmNjAtOGIyYy04ZDNlNGY1YTZiN2MoAAEaB2NvbHNwYW4BfQEoAAEaB3Jvd3NwYW4BfQEA",
+  "expect_lossy": false
+}

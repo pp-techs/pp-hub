@@ -1,5 +1,5 @@
 import { msg } from "@lingui/core/macro";
-import type { UploadAdapter, UploadResult } from "@slash-editor/core";
+import type { ResolveSrc, UploadAdapter, UploadResult } from "@slash-editor/core";
 import { ApiError, startResumableUpload } from "@/lib/api";
 import { i18n } from "@/lib/i18n";
 
@@ -9,7 +9,7 @@ import { i18n } from "@/lib/i18n";
  * survives copying the document and needs no rewriting when it moves.
  */
 // eslint-disable-next-line lingui/no-unlocalized-strings -- URL scheme stored in the markdown
-const SCHEME = "attachment:";
+export const ATTACHMENT_SCHEME = "attachment:";
 
 /** A file node also records what it holds, so the block can show it before anyone opens it. */
 export interface AttachmentResult extends UploadResult {
@@ -45,7 +45,7 @@ export function attachmentAdapter(documentId: string): UploadAdapter<AttachmentR
         const hash = committed.header("Upload-Attachment");
         if (!hash) throw new Error(i18n._(UPLOAD_FAILED));
         return {
-          url: `${SCHEME}${hash}`,
+          url: `${ATTACHMENT_SCHEME}${hash}`,
           name: file.name,
           size: file.size,
           mime: file.type || null,
@@ -63,17 +63,15 @@ export function attachmentAdapter(documentId: string): UploadAdapter<AttachmentR
 export type AttachmentUrl = (hash: string) => string;
 
 /**
- * The URL a node view renders for `src`. An `attachment:` reference resolves
- * through `attachmentUrl` — the editor's document, or the share link or
- * version a read-only view renders — and anything else (a link someone
- * typed into the markdown) is used as written.
+ * The `resolveSrc` of a rendering's media nodes: an `attachment:` reference
+ * resolves through `attachmentUrl` — the editor's document, or the share link
+ * or version a read-only view renders — and anything else (a link someone
+ * typed into the markdown) is used as written. Display only: the stored
+ * `src` stays `attachment:<hash>`.
  */
-export function resolveAttachment(
-  src: string | null,
-  attachmentUrl: AttachmentUrl,
-): string | undefined {
-  if (!src) return undefined;
-  return src.startsWith(SCHEME) ? attachmentUrl(src.slice(SCHEME.length)) : src;
+export function attachmentResolver(attachmentUrl: AttachmentUrl): ResolveSrc {
+  return (src) =>
+    src.startsWith(ATTACHMENT_SCHEME) ? attachmentUrl(src.slice(ATTACHMENT_SCHEME.length)) : src;
 }
 
 /**

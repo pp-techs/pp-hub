@@ -1,0 +1,39 @@
+{
+  "name": "page-link-numeric-page-id",
+  "input": "See <!-- slash:pageLink {\"pageId\":7} -->[a](/edit/7)<!-- /slash:pageLink --> now\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "See "
+          },
+          {
+            "type": "text",
+            "text": "a",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "/edit/7",
+                  "title": null
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " now"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "See [a](/edit/7) now",
+  "yupdate_b64": "AQcBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQRTZWUghgEFBGxpbmtjeyJocmVmIjoiL2VkaXQvNyIsInRhcmdldCI6Il9ibGFuayIsInJlbCI6Im5vb3BlbmVyIG5vcmVmZXJyZXIgbm9mb2xsb3ciLCJjbGFzcyI6bnVsbCwidGl0bGUiOm51bGx9hAEGAWGGAQcEbGluawRudWxshAEIBCBub3cA",
+  "expect_lossy": false
+}

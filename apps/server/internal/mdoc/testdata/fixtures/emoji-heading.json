@@ -1,0 +1,31 @@
+{
+  "name": "emoji-heading",
+  "input": "## Launch :rocket:\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "heading",
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Launch "
+          },
+          {
+            "type": "emoji",
+            "attrs": {
+              "name": "rocket"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "output": "## Launch :rocket:",
+  "yupdate_b64": "AQYBAAcBB2NvbnRlbnQDB2hlYWRpbmcHAAEABgQAAQEHTGF1bmNoIIcBAQMFZW1vamkoAAEJBG5hbWUBdwZyb2NrZXQoAAEABWxldmVsAX0CAA==",
+  "expect_lossy": false
+}

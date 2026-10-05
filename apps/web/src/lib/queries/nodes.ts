@@ -96,10 +96,18 @@ export function useMoveImpact(nodeIds: string[], parentId: string | undefined, e
   });
 }
 
-/** Invalidates the file listing for a space (root + every open folder). */
+/**
+ * Invalidates the file listing for a space (root + every open folder), and
+ * the page caches: every write that reshapes a listing — create, rename,
+ * move, trash, restore — may retitle a page or reshape a page tree too.
+ */
 export function useInvalidateChildren(spaceId: string) {
   const qc = useQueryClient();
-  return () => qc.invalidateQueries({ queryKey: ["children", spaceId] });
+  return () =>
+    Promise.all([
+      qc.invalidateQueries({ queryKey: ["children", spaceId] }),
+      qc.invalidateQueries({ queryKey: keys.pages }),
+    ]);
 }
 
 export function useCreateFolder(spaceId: string, parentId?: string) {

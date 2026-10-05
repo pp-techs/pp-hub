@@ -1,0 +1,62 @@
+{
+  "name": "lossy-footnote-before-list",
+  "input": "#### Heading [^6]\n[^6]: Website (mwg.vn) - history\n- A list item\n\nAfter.\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "heading",
+        "attrs": {
+          "level": 4
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Heading [^6]"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "[^6]: Website (mwg.vn) - history"
+          }
+        ]
+      },
+      {
+        "type": "bulletList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "A list item"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "After."
+          }
+        ]
+      }
+    ]
+  },
+  "output": "#### Heading \\[^6\\]\n\n\\[^6\\]: Website (mwg.vn) - history\n\n- A list item\n\nAfter.",
+  "yupdate_b64": "AQ8BAAcBB2NvbnRlbnQDB2hlYWRpbmcHAAEABgQAAQEMSGVhZGluZyBbXjZdKAABAAVsZXZlbAF9BIcBAAMJcGFyYWdyYXBoBwABDwYEAAEQIFteNl06IFdlYnNpdGUgKG13Zy52bikgLSBoaXN0b3J5hwEPAwpidWxsZXRMaXN0BwABMQMIbGlzdEl0ZW0HAAEyAwlwYXJhZ3JhcGgHAAEzBgQAATQLQSBsaXN0IGl0ZW2HATEDCXBhcmFncmFwaAcAAUAGBAABQQZBZnRlci4A",
+  "expect_lossy": true
+}

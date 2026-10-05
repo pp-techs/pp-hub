@@ -86,17 +86,20 @@ func (mentionParser) Parse(_ ast.Node, block text.Reader, _ parser.Context) ast.
 }
 
 // startsInlineRun reports whether line (up to three spaces of indentation,
-// then) opens with inline content led by a marker: a mention, or a comment
-// marker followed by more on the same line. Such a line is paragraph text,
-// neither an HTML block nor a block marker line. slash-editor's own parser
-// gets this wrong (a paragraph that starts with a mention becomes literal
-// HTML, one that is only a mention vanishes), so Parse deviates from it here
-// to read back what Render writes.
+// then) opens with inline content led by a marker: a mention, a page link,
+// or a comment marker followed by more on the same line. Such a line is
+// paragraph text, neither an HTML block nor a block marker line.
+// slash-editor's own parser gets this wrong (a paragraph that starts with a
+// mention becomes literal HTML, one that is only a mention vanishes), so
+// Parse deviates from it here to read back what Render writes.
 func startsInlineRun(line []byte) bool {
 	for i := 0; i < 3 && len(line) > 0 && line[0] == ' '; i++ {
 		line = line[1:]
 	}
 	if _, _, ok := readMention(line); ok {
+		return true
+	}
+	if _, _, ok := readPageLink(line); ok {
 		return true
 	}
 	if m := commentMarkerPrefix.FindIndex(line); m != nil {
@@ -119,7 +122,8 @@ func (b htmlBlockParser) Open(parent ast.Node, reader text.Reader, pc parser.Con
 }
 
 // newParser is goldmark's default parser with htmlBlockParser in place of
-// the HTML block parser and mentionParser ahead of the inline parsers.
+// the HTML block parser, and the mention, page link and emoji shortcode
+// tokenizers ahead of the inline parsers.
 func newParser() parser.Parser {
 	blocks := parser.DefaultBlockParsers()
 	html := parser.NewHTMLBlockParser()
@@ -130,7 +134,10 @@ func newParser() parser.Parser {
 	}
 	return parser.NewParser(
 		parser.WithBlockParsers(blocks...),
-		parser.WithInlineParsers(append(parser.DefaultInlineParsers(), util.Prioritized(mentionParser{}, 90))...),
+		parser.WithInlineParsers(append(parser.DefaultInlineParsers(),
+			util.Prioritized(mentionParser{}, 90),
+			util.Prioritized(pageLinkParser{}, 90),
+			util.Prioritized(shortcodeParser{}, 90))...),
 		parser.WithParagraphTransformers(parser.DefaultParagraphTransformers()...),
 	)
 }

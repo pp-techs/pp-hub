@@ -60,9 +60,11 @@ func listSpaces() Tool {
 func listFolder() Tool {
 	return Tool{
 		Name: "list_folder", Title: "List a folder",
-		Description: "Files and folders directly inside a folder, or at the top of a space when folder_id is omitted. Only what this person can open is listed.",
-		Schema:      json.RawMessage(`{"type":"object","properties":{"space_id":{"type":"string"},"folder_id":{"type":"string","description":"Omit for the top of the space."}},"required":["space_id"],"additionalProperties":false}`),
-		ReadOnly:    true,
+		Description: "Files and folders directly inside a folder, or at the top of a space when folder_id is omitted. Only what this person can open is listed. " +
+			"A markdown document can hold sub-pages (documents nested under it): pass a document's id as folder_id to list its sub-pages; " +
+			"a document with sub-pages carries child_page_count in a listing.",
+		Schema:   json.RawMessage(`{"type":"object","properties":{"space_id":{"type":"string"},"folder_id":{"type":"string","description":"A folder id, or a markdown document id to list its sub-pages. Omit for the top of the space."}},"required":["space_id"],"additionalProperties":false}`),
+		ReadOnly: true,
 		Run: func(ctx context.Context, api API, args json.RawMessage) (any, error) {
 			var a struct {
 				SpaceID  string `json:"space_id"`
@@ -231,7 +233,9 @@ func readDocument() Tool {
 	return Tool{
 		Name: "read_document", Title: "Read a document",
 		Description: "The text of a markdown document or plain-text file, with its etag (pass it to update_document). " +
-			"Markdown may contain comment anchors like <!-- slash:comment {...} -->; they mark commented text. " +
+			"Markdown is the whole file, YAML frontmatter included: a document's page icon (`icon`, an emoji) and cover (`cover`, attachment:<hash>) live there — keep it when you update the document. " +
+			"Markdown may contain comment anchors like <!-- slash:comment {...} -->; they mark commented text, and " +
+			"<!-- slash:subPage {\"pageId\":...} --> blocks mark the document's sub-pages. " +
 			"Office documents and PDFs cannot be read as text — use get_web_link to send the person to them.",
 		Schema: json.RawMessage(nodeArg), ReadOnly: true,
 		Run: func(ctx context.Context, api API, args json.RawMessage) (any, error) {
@@ -313,8 +317,9 @@ func createDocument() Tool {
 	return Tool{
 		Name: "create_document", Title: "Create a document",
 		Description: "Create a markdown document (it opens in pp-hub's block editor), empty, from a template, or with the given markdown. " +
-			"It lands in folder_id, or at the top of the space, private to this person until shared.",
-		Schema: json.RawMessage(`{"type":"object","properties":{"space_id":{"type":"string"},"name":{"type":"string","description":".md is added when missing."},"folder_id":{"type":"string","description":"Omit for the top of the space."},"template":{"type":"string","description":"A template id from list_document_templates."},"markdown":{"type":"string","description":"Initial content; not combined with template."}},"required":["space_id","name"],"additionalProperties":false}`),
+			"It lands in folder_id, or at the top of the space, private to this person until shared. " +
+			"folder_id may also be a markdown document's id: the new document is then a sub-page of it.",
+		Schema: json.RawMessage(`{"type":"object","properties":{"space_id":{"type":"string"},"name":{"type":"string","description":".md is added when missing."},"folder_id":{"type":"string","description":"A folder id, or a markdown document id to create a sub-page of it. Omit for the top of the space."},"template":{"type":"string","description":"A template id from list_document_templates."},"markdown":{"type":"string","description":"Initial content; not combined with template."}},"required":["space_id","name"],"additionalProperties":false}`),
 		Run: func(ctx context.Context, api API, args json.RawMessage) (any, error) {
 			var a struct {
 				SpaceID  string  `json:"space_id"`

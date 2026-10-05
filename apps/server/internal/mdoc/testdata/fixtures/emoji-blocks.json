@@ -1,0 +1,182 @@
+{
+  "name": "emoji-blocks",
+  "input": "- item :one:\n- [ ] task :two:\n\n> quote :three:\n\n| a | b |\n| --- | --- |\n| :four: | x |\n\n> [!NOTE]\n> callout :five:\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "bulletList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "item "
+                  },
+                  {
+                    "type": "emoji",
+                    "attrs": {
+                      "name": "one"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "taskList",
+        "content": [
+          {
+            "type": "taskItem",
+            "attrs": {
+              "checked": false
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "task "
+                  },
+                  {
+                    "type": "emoji",
+                    "attrs": {
+                      "name": "two"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "blockquote",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "quote "
+              },
+              {
+                "type": "emoji",
+                "attrs": {
+                  "name": "three"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "table",
+        "content": [
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableHeader",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "a"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableHeader",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "b"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "tableRow",
+            "content": [
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "emoji",
+                        "attrs": {
+                          "name": "four"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "x"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "attrs": {
+          "icon": "ℹ️"
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "callout "
+              },
+              {
+                "type": "emoji",
+                "attrs": {
+                  "name": "five"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "- item :one:\n\n- [ ] task :two:\n\n> quote :three:\n\n\n| a      | b   |\n| ------ | --- |\n| :four: | x   |\n\n\n> [!NOTE]\n> callout :five:",
+  "yupdate_b64": "ATcBAAcBB2NvbnRlbnQDCmJ1bGxldExpc3QHAAEAAwhsaXN0SXRlbQcAAQEDCXBhcmFncmFwaAcAAQIGBAABAwVpdGVtIIcBAwMFZW1vamkoAAEJBG5hbWUBdwNvbmWHAQADCHRhc2tMaXN0BwABCwMIdGFza0l0ZW0HAAEMAwlwYXJhZ3JhcGgHAAENBgQAAQ4FdGFzayCHAQ4DBWVtb2ppKAABFARuYW1lAXcDdHdvKAABDAdjaGVja2VkAXmHAQsDCmJsb2NrcXVvdGUHAAEXAwlwYXJhZ3JhcGgHAAEYBgQAARkGcXVvdGUghwEZAwVlbW9qaSgAASAEbmFtZQF3BXRocmVlhwEXAwV0YWJsZQcAASIDCHRhYmxlUm93BwABIwMLdGFibGVIZWFkZXIHAAEkAwlwYXJhZ3JhcGgHAAElBgQAASYBYSgAASQHY29sc3BhbgF9ASgAASQHcm93c3BhbgF9AYcBJAMLdGFibGVIZWFkZXIHAAEqAwlwYXJhZ3JhcGgHAAErBgQAASwBYigAASoHY29sc3BhbgF9ASgAASoHcm93c3BhbgF9AYcBIwMIdGFibGVSb3cHAAEwAwl0YWJsZUNlbGwHAAExAwlwYXJhZ3JhcGgHAAEyAwVlbW9qaSgAATMEbmFtZQF3BGZvdXIoAAExB2NvbHNwYW4BfQEoAAExB3Jvd3NwYW4BfQGHATEDCXRhYmxlQ2VsbAcAATcDCXBhcmFncmFwaAcAATgGBAABOQF4KAABNwdjb2xzcGFuAX0BKAABNwdyb3dzcGFuAX0BhwEiAwdjYWxsb3V0BwABPQMJcGFyYWdyYXBoBwABPgYEAAE/CGNhbGxvdXQghwE/AwVlbW9qaSgAAUgEbmFtZQF3BGZpdmUoAAE9BGljb24BdwbihLnvuI8A",
+  "expect_lossy": false
+}

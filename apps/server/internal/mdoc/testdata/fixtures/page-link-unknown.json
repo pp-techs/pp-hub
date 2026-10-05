@@ -1,0 +1,42 @@
+{
+  "name": "page-link-unknown",
+  "input": "See <!-- slash:pageLink {\"pageId\":\"9e9e9e9e-0000-4000-8000-000000000009\"} -->[Gone](/edit/9e9e9e9e-0000-4000-8000-000000000009)<!-- /slash:pageLink --> and <!-- slash:pageLink {\"pageId\":\"p4\"} -->[x](/edit/p4)<!-- /slash:pageLink -->.\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "See "
+          },
+          {
+            "type": "pageLink",
+            "attrs": {
+              "pageId": "9e9e9e9e-0000-4000-8000-000000000009"
+            }
+          },
+          {
+            "type": "text",
+            "text": " and "
+          },
+          {
+            "type": "pageLink",
+            "attrs": {
+              "pageId": "p4"
+            }
+          },
+          {
+            "type": "text",
+            "text": "."
+          }
+        ]
+      }
+    ]
+  },
+  "output": "See <!-- slash:pageLink {\"pageId\":\"9e9e9e9e-0000-4000-8000-000000000009\"} -->[Untitled](/edit/9e9e9e9e-0000-4000-8000-000000000009)<!-- /slash:pageLink --> and <!-- slash:pageLink {\"pageId\":\"p4\"} -->[Untitled](/edit/p4)<!-- /slash:pageLink -->.",
+  "yupdate_b64": "AQsBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQRTZWUghwEBAwhwYWdlTGluaygAAQYGcGFnZUlkAXckOWU5ZTllOWUtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDA5hwEGBgQAAQgFIGFuZCCHAQgDCHBhZ2VMaW5rKAABDgZwYWdlSWQBdwJwNIcBDgYEAAEQAS4A",
+  "expect_lossy": false
+}

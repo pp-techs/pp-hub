@@ -10,6 +10,7 @@ export default defineConfig({
     // exact form mdoc.Render writes (blockdoc's tests hold them to it).
     ignorePatterns: [
       "apps/server/internal/mdoc/testdata/**",
+      "apps/server/internal/mdoc/emoji.json",
       "apps/server/internal/blockdoc/templates/**",
     ],
   },

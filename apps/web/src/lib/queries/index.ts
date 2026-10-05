@@ -63,6 +63,17 @@ export { collabOptions } from "./collab";
 export { nodeDocumentOptions, useNodeDocument, useShareDocument } from "./documents";
 export { useMarkdownTemplates } from "./templates";
 
+// Pages (M43)
+export {
+  pageLineageOptions,
+  pageChildrenOptions,
+  pageBacklinksOptions,
+  usePageLineage,
+  pageScope,
+  type PageSource,
+  type PpPageMeta,
+} from "./pages";
+
 // Search
 export { useNodeSearch, MIN_QUERY_LENGTH } from "./search";
 

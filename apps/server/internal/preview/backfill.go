@@ -44,6 +44,11 @@ func Backfill(ctx context.Context, q *store.Queries) (int, error) {
 	if err != nil {
 		return total, err
 	}
+	n, err = BackfillPages(ctx, q)
+	total += n
+	if err != nil {
+		return total, err
+	}
 	slog.InfoContext(ctx, "backfill complete", "enqueued", total)
 	return total, nil
 }
@@ -90,6 +95,55 @@ func BackfillText(ctx context.Context, q *store.Queries) (int, error) {
 			enqueued++
 		}
 		slog.InfoContext(ctx, "backfill progress", "kind", "extract", "enqueued", enqueued)
+
+		select {
+		case <-ctx.Done():
+			return enqueued, ctx.Err()
+		case <-time.After(backfillPause):
+		}
+	}
+}
+
+// BackfillPages enqueues extraction for block documents whose current version
+// has no page index yet (M43) — documents whose text was extracted before
+// extract:text also wrote page_meta and page_refs. The API server runs it at
+// startup after BackfillText: a version that scan just queued has a job in
+// flight and is skipped here, and re-running the extraction of an indexed
+// text only upserts the same node_texts row again.
+func BackfillPages(ctx context.Context, q *store.Queries) (int, error) {
+	var after pgtype.UUID
+	if err := after.Scan("00000000-0000-0000-0000-000000000000"); err != nil {
+		return 0, err
+	}
+
+	enqueued := 0
+	for {
+		rows, err := q.ListMarkdownWithoutPageMeta(ctx, store.ListMarkdownWithoutPageMetaParams{
+			After: after,
+			Kinds: []string{KindExtractText},
+			Lim:   backfillBatch,
+		})
+		if err != nil {
+			return enqueued, fmt.Errorf("scan for unindexed pages: %w", err)
+		}
+		if len(rows) == 0 {
+			return enqueued, nil
+		}
+		for _, row := range rows {
+			after = row.ID
+			payload, _ := json.Marshal(Payload{
+				NodeVersionID: uuidStr(row.ID),
+				NodeID:        uuidStr(row.NodeID),
+				BlobHash:      row.BlobHash,
+				Mime:          row.Mime,
+				Name:          row.Name,
+			})
+			if _, err := q.EnqueueJob(ctx, store.EnqueueJobParams{Kind: KindExtractText, Payload: payload}); err != nil {
+				return enqueued, fmt.Errorf("enqueue %s: %w", row.Name, err)
+			}
+			enqueued++
+		}
+		slog.InfoContext(ctx, "backfill progress", "kind", "pages", "enqueued", enqueued)
 
 		select {
 		case <-ctx.Done():

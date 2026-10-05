@@ -46,6 +46,49 @@
     ]
   },
   "output": "<!-- slash:mention {\"id\":\"doc:7\",\"label\":\"Spec\"} -->@Spec<!-- /slash:mention --> is **final**.\n\nnext",
+  "go_json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "pageLink",
+            "attrs": {
+              "pageId": "7"
+            }
+          },
+          {
+            "type": "text",
+            "text": " is "
+          },
+          {
+            "type": "text",
+            "text": "final",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": "."
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "next"
+          }
+        ]
+      }
+    ]
+  },
+  "go_output": "<!-- slash:pageLink {\"pageId\":\"7\"} -->[Untitled](/edit/7)<!-- /slash:pageLink --> is **final**.\n\nnext",
   "yupdate_b64": "AQ0BAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQADB21lbnRpb24oAAEBAmlkAXcFZG9jOjcoAAEBBWxhYmVsAXcEU3BlY4cBAQYEAAEEBCBpcyCGAQgEYm9sZAJ7fYQBCQVmaW5hbIYBDgRib2xkBG51bGyEAQ8BLocBAAMJcGFyYWdyYXBoBwABEQYEAAESBG5leHQA",
   "expect_lossy": false
 }

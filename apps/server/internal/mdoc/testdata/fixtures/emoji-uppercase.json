@@ -1,0 +1,22 @@
+{
+  "name": "emoji-uppercase",
+  "input": "Loud :SMILE: and :Smile:\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Loud :SMILE: and :Smile:"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "Loud :SMILE: and :Smile:",
+  "yupdate_b64": "AQMBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABARhMb3VkIDpTTUlMRTogYW5kIDpTbWlsZToA",
+  "expect_lossy": false
+}

@@ -1,0 +1,124 @@
+{
+  "name": "page-sub-doc-nested",
+  "input": "- item\n  <!-- slash:subPage {\"pageId\":\"0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b\"} -->\n  [Roadmap](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)\n\n> <!-- slash:subPage {\"pageId\":\"1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c\"} -->\n> [a*b_\\[c\\] <x> & `y`](/edit/1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c)\n\n> [!WARNING]\n> <!-- slash:subPage {\"pageId\":\"0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b\"} -->\n> [Roadmap](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)\n\n<details>\n<summary>t</summary>\n\n<!-- slash:subPage {\"pageId\":\"9e9e9e9e-0000-4000-8000-000000000009\"} -->\n[Untitled](/edit/9e9e9e9e-0000-4000-8000-000000000009)\n\n</details>\n\n<!-- slash:columns -->\n\n<!-- slash:subPage {\"pageId\":\"0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b\"} -->\n[Roadmap](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)\n\n<!-- slash:column -->\n\n<!-- slash:subPage {\"pageId\":\"1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c\"} -->\n[a*b_\\[c\\] <x> & `y`](/edit/1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c)\n\n<!-- /slash:columns -->\n\n<!-- slash:subPage {\"pageId\":\"p3\"} -->\n[Spaced out](/edit/p3)",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "bulletList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "item"
+                  }
+                ]
+              },
+              {
+                "type": "subPage",
+                "attrs": {
+                  "pageId": "0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "blockquote",
+        "content": [
+          {
+            "type": "subPage",
+            "attrs": {
+              "pageId": "1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c"
+            }
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "attrs": {
+          "icon": "⚠️"
+        },
+        "content": [
+          {
+            "type": "subPage",
+            "attrs": {
+              "pageId": "0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b"
+            }
+          }
+        ]
+      },
+      {
+        "type": "details",
+        "attrs": {
+          "open": false
+        },
+        "content": [
+          {
+            "type": "detailsSummary",
+            "content": [
+              {
+                "type": "text",
+                "text": "t"
+              }
+            ]
+          },
+          {
+            "type": "detailsContent",
+            "content": [
+              {
+                "type": "subPage",
+                "attrs": {
+                  "pageId": "9e9e9e9e-0000-4000-8000-000000000009"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "columns",
+        "content": [
+          {
+            "type": "column",
+            "content": [
+              {
+                "type": "subPage",
+                "attrs": {
+                  "pageId": "0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b"
+                }
+              }
+            ]
+          },
+          {
+            "type": "column",
+            "content": [
+              {
+                "type": "subPage",
+                "attrs": {
+                  "pageId": "1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "subPage",
+        "attrs": {
+          "pageId": "p3"
+        }
+      }
+    ]
+  },
+  "output": "- item\n  <!-- slash:subPage {\"pageId\":\"0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b\"} -->\n  [Roadmap](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)\n\n> <!-- slash:subPage {\"pageId\":\"1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c\"} -->\n> [a*b_\\[c\\] <x> & `y`](/edit/1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c)\n\n> [!WARNING]\n> <!-- slash:subPage {\"pageId\":\"0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b\"} -->\n> [Roadmap](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)\n\n<details>\n<summary>t</summary>\n\n<!-- slash:subPage {\"pageId\":\"9e9e9e9e-0000-4000-8000-000000000009\"} -->\n[Untitled](/edit/9e9e9e9e-0000-4000-8000-000000000009)\n\n</details>\n\n<!-- slash:columns -->\n\n<!-- slash:subPage {\"pageId\":\"0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b\"} -->\n[Roadmap](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)\n\n<!-- slash:column -->\n\n<!-- slash:subPage {\"pageId\":\"1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c\"} -->\n[a*b_\\[c\\] <x> & `y`](/edit/1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c)\n\n<!-- /slash:columns -->\n\n<!-- slash:subPage {\"pageId\":\"p3\"} -->\n[Spaced out](/edit/p3)",
+  "yupdate_b64": "ASABAAcBB2NvbnRlbnQDCmJ1bGxldExpc3QHAAEAAwhsaXN0SXRlbQcAAQEDCXBhcmFncmFwaAcAAQIGBAABAwRpdGVthwECAwdzdWJQYWdlKAABCAZwYWdlSWQBdyQwYjhlMWYyYS02YzNkLTRlNWYtOWExYi03YzJkM2U0ZjVhNmKHAQADCmJsb2NrcXVvdGUHAAEKAwdzdWJQYWdlKAABCwZwYWdlSWQBdyQxYzlmMmEzYi03ZDRlLTRmNjAtOGIyYy04ZDNlNGY1YTZiN2OHAQoDB2NhbGxvdXQHAAENAwdzdWJQYWdlKAABDgZwYWdlSWQBdyQwYjhlMWYyYS02YzNkLTRlNWYtOWExYi03YzJkM2U0ZjVhNmIoAAENBGljb24BdwbimqDvuI+HAQ0DB2RldGFpbHMHAAERAw5kZXRhaWxzU3VtbWFyeQcAARIGBAABEwF0hwESAw5kZXRhaWxzQ29udGVudAcAARUDB3N1YlBhZ2UoAAEWBnBhZ2VJZAF3JDllOWU5ZTllLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwOSgAAREEb3BlbgF5KAABEQVsZXZlbAF9AIcBEQMHY29sdW1ucwcAARoDBmNvbHVtbgcAARsDB3N1YlBhZ2UoAAEcBnBhZ2VJZAF3JDBiOGUxZjJhLTZjM2QtNGU1Zi05YTFiLTdjMmQzZTRmNWE2YocBGwMGY29sdW1uBwABHgMHc3ViUGFnZSgAAR8GcGFnZUlkAXckMWM5ZjJhM2ItN2Q0ZS00ZjYwLThiMmMtOGQzZTRmNWE2YjdjhwEaAwdzdWJQYWdlKAABIQZwYWdlSWQBdwJwMwA=",
+  "expect_lossy": false
+}

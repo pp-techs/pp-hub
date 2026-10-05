@@ -463,6 +463,36 @@ notifications(id, user_id, kind, actor_id, node_id, thread_id, comment_id,
   the unread count (partial on `read_at IS NULL`) and the purge (partial on
   `read_at IS NOT NULL`).
 
+## Pages
+
+Migration `0021_pages.sql` (M43, [block-documents.md](block-documents.md#pages)).
+A sub-page needs no column: it is a `.md` node whose `parent_id` is its parent
+document. The two tables are projections of a document's current version for
+batch reads:
+
+```sql
+page_meta(node_id PK, node_version_id, icon, cover)
+  -- node_id → nodes ON DELETE CASCADE. The frontmatter's icon and cover; NULL is none.
+
+page_refs(source_id, target_id, kind, node_version_id,
+          PRIMARY KEY (source_id, target_id, kind))
+  -- kind IN ('sub', 'link'): a subPage block or an inline pageLink.
+  -- source_id → nodes ON DELETE CASCADE; target_id has no FK — a link may name
+  -- a page that is gone or never existed, and must not block its purge.
+CREATE INDEX page_refs_target ON page_refs (target_id);  -- backlinks
+```
+
+- Written by the `extract:text` job, from the same parse as `node_texts`:
+  `UpsertPageMeta`, `DeletePageRefsForSource` and the batched `InsertPageRefs`
+  each write only while `node_version_id` is the node's current version (0
+  rows = superseded, stop), the refs pair in one transaction. Neither
+  `node_version_id` is a foreign key. `ListMarkdownWithoutPageMeta` drives the
+  startup backfill.
+- Reads (`ListPageChain`, `ListChildPages`, `CountChildPages`,
+  `ListBacklinks`) do **not** join on the current version, unlike
+  `node_texts`: a page shows its last indexed icon until the indexer catches
+  up rather than none.
+
 ## Invariants
 
 - `node_versions` are immutable; restore = flip `nodes.current_version_id`.
@@ -479,6 +509,12 @@ notifications(id, user_id, kind, actor_id, node_id, thread_id, comment_id,
 - A pending `space_departures` row (`resolved_at IS NULL`) implies there is no `space_members` row for that pair: access is revoked first, and the row is the record that the teardown has not happened yet. The reverse does not hold — re-adding the person upstream re-creates the membership while the departure stays pending, because the only thing that resolves one is an admin's confirmation (`POST /spaces/{id}/departures/{userID}/complete`).
 - No node is its own parent (`nodes_no_self_parent_ck`), and every recursive ancestor/descendant walk stops at depth 100. `NodeAccessCaps` recurses with `UNION ALL`, so one cycle would hang capability resolution for everything beneath it rather than return a wrong answer.
 - A team folder is top level (`nodes_team_root_top_level_ck`) and is its own container: `team_root_id = id`. Everything inside carries that id, inherited by `CreateNode` and rewritten across the subtree by `fs.Move` — the only two operations that can change containment. Inside one, `created_by` grants nothing; see the Team Folders section of [permissions.md](permissions.md).
+- **A parent can hold its child** (`fs.CanContain`, M43): a folder holds
+  anything; a markdown document holds only markdown documents (its sub-pages);
+  any other parent is `fs.ErrNotContainer` (400). `Mkdir`, `PutFile` for a new
+  node, `Move`, `Copy` and `Restore` apply it, and `httpapi` checks it before
+  writing. A tus upload is a file child, so nothing uploads under a document.
+  `Copy`'s cycle check covers every kind, since a document has descendants.
 
 ## Query Patterns
 
@@ -499,7 +535,7 @@ notifications(id, user_id, kind, actor_id, node_id, thread_id, comment_id,
 
 Two things can block a restore, and both are resolved rather than surfaced as errors:
 
-- **The original parent is itself in the trash.** There is no folder to return to, so the node is re-parented to the top level of its space and the response sets `relocated: true`.
+- **The original parent is itself in the trash, or can no longer hold the node** (`fs.CanContain`: say a page whose parent document was replaced by a non-markdown version). There is nowhere to return to, so the node is re-parented to the top level of its space and the response — 200 `{node, relocated, renamed_from?}` — sets `relocated: true`.
 - **A live sibling has taken the name.** `nodes_name_uniq` is partial on `deleted_at IS NULL`, so the tombstoned row never conflicted while it sat in the trash — the collision only appears at the moment of restore. `fs.Restore` retries with `name (2)`, `name (3)`, … up to 50 and reports the original in `renamed_from`.
 
 `RestoreNode` sets `deleted_at`, `parent_id` and `name` in one statement so neither adjustment needs a second write.

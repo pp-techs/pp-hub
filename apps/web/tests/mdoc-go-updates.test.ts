@@ -1,5 +1,6 @@
 import { getSchema, type JSONContent } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+import type { PageStore } from "@slash-editor/core";
 import { serializeMarkdown } from "@slash-editor/core/markdown";
 import { yXmlFragmentToProsemirrorJSON } from "@tiptap/y-tiptap";
 import { expect, test } from "vite-plus/test";
@@ -19,9 +20,20 @@ import { createMdocKit } from "../src/lib/collab/mdoc-kit.ts";
  * document and `comment-<name>.md` Go's markdown for it. The editor must read
  * the marks back with y-tiptap's own Y attribute keys, and the markdown must
  * be slash-editor's with the comment markers inserted.
+ *
+ * Pages render with the fixture generator's titles (`page_titles.json`).
+ * Where slash-editor's parse holds a `doc:<id>` mention, the Go parser reads
+ * a pageLink instead, and the fixture's `go_json`/`go_output` say what the
+ * Go update must hold and write.
  */
 
-type Fixture = { name: string; json: unknown; output: string };
+type Fixture = {
+  name: string;
+  json: unknown;
+  output: string;
+  go_json?: unknown;
+  go_output?: string;
+};
 type CommentFixture = { name: string; json: unknown; js_output: string; yupdate_b64: string };
 type PMNode = {
   type: string;
@@ -51,6 +63,12 @@ const GO_MARKDOWN = import.meta.glob("../../server/internal/mdoc/testdata/go-upd
   import: "default",
   eager: true,
 }) as Record<string, string>;
+const PAGE_TITLES = Object.values(
+  import.meta.glob("../../server/internal/mdoc/testdata/page_titles.json", {
+    import: "default",
+    eager: true,
+  }),
+)[0] as Record<string, string>;
 
 const fixtures = Object.values(FIXTURES).sort((a, b) => a.name.localeCompare(b.name));
 const commentFixtures = Object.values(COMMENT_FIXTURES).sort((a, b) =>
@@ -66,7 +84,21 @@ const goMarkdown = Object.fromEntries(
   Object.entries(GO_MARKDOWN).map(([file, markdown]) => [baseName(file, ".md"), markdown]),
 );
 
-const kit = createMdocKit();
+/** Knows the fixture pages' titles, as the generator's store does. */
+const pageStore: PageStore = {
+  create: () => Promise.reject(new Error("fixture page store")),
+  update: () => {},
+  peek: (id) =>
+    Object.hasOwn(PAGE_TITLES, id) ? { id, parentId: null, title: PAGE_TITLES[id] } : undefined,
+  load: async () => undefined,
+  listChildren: () => [],
+  search: () => [],
+  subscribe: () => () => {},
+};
+
+const kit = createMdocKit({
+  pages: { store: pageStore, currentPageId: null, onNavigate: () => {} },
+});
 const schema = getSchema(kit);
 
 /** Drops block ids; a mention's `id` is the mentioned entity and stays. */
@@ -156,7 +188,7 @@ test("fixtures and Go updates exist", () => {
 
 test.each(fixtures)("Go update $name reads as slash-editor's document", (fixture) => {
   const { node, body } = readGoUpdate(goUpdates[fixture.name]);
-  const expectedNode = schema.nodeFromJSON(fixture.json);
+  const expectedNode = schema.nodeFromJSON(fixture.go_json ?? fixture.json);
   // The Go document must be schema-valid unless slash-editor's own parse of
   // the same markdown is invalid in the same way: parseMarkdown yields link +
   // code for `[`code`](url)` although code excludes every other mark, and
@@ -166,7 +198,7 @@ test.each(fixtures)("Go update $name reads as slash-editor's document", (fixture
   expect([null, checkError(expectedNode)]).toContain(checkError(node));
 
   expect(stripIds(body)).toEqual(stripIds(expectedNode.toJSON() as PMNode));
-  expect(serializeMarkdown(body, kit)).toBe(fixture.output);
+  expect(serializeMarkdown(body, kit)).toBe(fixture.go_output ?? fixture.output);
 });
 
 test.each(commentFixtures)("Go update comment-$name keeps its comment marks", (fixture) => {

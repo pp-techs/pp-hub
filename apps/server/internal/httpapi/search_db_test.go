@@ -45,11 +45,11 @@ func putIndexed(t *testing.T, srv *Server, q *store.Queries, sp store.Space, par
 	t.Helper()
 	ctx := context.Background()
 	node, ver := putVersion(t, srv, sp, parent, fileID, name, body, by)
-	text, err := preview.TextExtractor{}.Extract(ctx, strings.NewReader(body), preview.Payload{Mime: ver.Mime})
+	ex, err := preview.TextExtractor{}.Extract(ctx, strings.NewReader(body), preview.Payload{Mime: ver.Mime})
 	if err != nil {
 		t.Fatalf("extract %s: %v", name, err)
 	}
-	content, folded := textsearch.Prepare(text)
+	content, folded := textsearch.Prepare(ex.Text)
 	if n, err := q.UpsertNodeText(ctx, store.UpsertNodeTextParams{
 		NodeID: node.ID, NodeVersionID: ver.ID, Content: content, Folded: folded,
 	}); err != nil || n != 1 {
@@ -72,6 +72,7 @@ type searchHit struct {
 	ID                string    `json:"id"`
 	Name              string    `json:"name"`
 	Match             string    `json:"match"`
+	ParentName        string    `json:"parent_name"`
 	Snippet           *string   `json:"snippet"`
 	SnippetHighlights *[][2]int `json:"snippet_highlights"`
 }
@@ -305,5 +306,60 @@ func TestSearchContentTrashAndPurgeMatchNameSearch(t *testing.T) {
 	// preview.TestExtractionFollowsTheCurrentVersion.
 	if present("notes", f.notes.ID) || present("friday", f.notes.ID) {
 		t.Error("a purged file is still found")
+	}
+}
+
+// M43: a sub-page's location runs through the pages above it, by title, up to
+// the folder holding the topmost one — and only as far up as the caller can
+// see.
+func TestSearchSubPageLocation(t *testing.T) {
+	srv, q := searchEnv(t)
+	f := newContentFixture(t, srv, q, "pageloc")
+
+	projects := mkNode(t, q, f.space, pgtype.UUID{}, store.NodeKindDir, "Projects", f.owner)
+	plan := putIndexed(t, srv, q, f.space, projects.ID, pgtype.UUID{}, "Plan.md", "# Plan\n", f.owner)
+	sub := putIndexed(t, srv, q, f.space, plan.ID, pgtype.UUID{}, "Zebra roadmap.md", "# Roadmap\n", f.owner)
+	leaf := putIndexed(t, srv, q, f.space, sub.ID, pgtype.UUID{}, "Zebra leaf.md", "# Leaf\n", f.owner)
+	inFolder := putIndexed(t, srv, q, f.space, projects.ID, pgtype.UUID{}, "Zebra notes.md", "# Notes\n", f.owner)
+
+	location := func(u store.User, id pgtype.UUID) string {
+		t.Helper()
+		h, i := findHit(searchAs(t, srv, u, "zebra"), id)
+		if i < 0 {
+			t.Fatalf("%s: hit %v missing", u.Email, id)
+		}
+		return h.ParentName
+	}
+	for _, c := range []struct {
+		id   pgtype.UUID
+		want string
+	}{
+		{sub.ID, "Projects / Plan"},
+		{leaf.ID, "Projects / Plan / Zebra roadmap"},
+		{inFolder.ID, "Projects"},
+	} {
+		if got := location(f.owner, c.id); got != c.want {
+			t.Errorf("owner: location of %v = %q, want %q", c.id, got, c.want)
+		}
+	}
+
+	// The member holds a grant on Plan.md only: Projects is not theirs to
+	// name, the pages from Plan down are.
+	grantDirect(t, srv, plan, f.member, f.owner, share.GrantCaps{Level: share.LevelView})
+	if got := location(f.member, sub.ID); got != "Plan" {
+		t.Errorf("member: location of the sub-page = %q, want %q", got, "Plan")
+	}
+	if got := location(f.member, leaf.ID); got != "Plan / Zebra roadmap" {
+		t.Errorf("member: location of the leaf = %q, want %q", got, "Plan / Zebra roadmap")
+	}
+
+	// A grant on the leaf alone names nothing above it.
+	other := feedUser(t, q, "pageloc-other")
+	if err := srv.spaces.AddMember(context.Background(), f.space.ID, other.ID, false); err != nil {
+		t.Fatalf("member: %v", err)
+	}
+	grantDirect(t, srv, leaf, other, f.owner, share.GrantCaps{Level: share.LevelView})
+	if got := location(other, leaf.ID); got != "" {
+		t.Errorf("leaf-only grantee: location = %q, want none", got)
 	}
 }

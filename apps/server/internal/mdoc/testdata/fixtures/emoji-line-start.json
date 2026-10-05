@@ -1,0 +1,28 @@
+{
+  "name": "emoji-line-start",
+  "input": ":wave: hello\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "emoji",
+            "attrs": {
+              "name": "wave"
+            }
+          },
+          {
+            "type": "text",
+            "text": " hello"
+          }
+        ]
+      }
+    ]
+  },
+  "output": ":wave: hello",
+  "yupdate_b64": "AQUBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQADBWVtb2ppKAABAQRuYW1lAXcEd2F2ZYcBAQYEAAEDBiBoZWxsbwA=",
+  "expect_lossy": false
+}

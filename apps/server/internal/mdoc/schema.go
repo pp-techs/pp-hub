@@ -30,6 +30,9 @@ var nodeAttrDefaults = map[string]map[string]any{
 	"video":          {"id": nil, "src": nil, "poster": nil, "status": "ready", "error": nil},
 	"embed":          {"id": nil, "url": nil, "mode": "bookmark", "title": nil, "description": nil, "thumbnail": nil},
 	"mention":        {"id": nil, "label": nil},
+	"emoji":          {"name": nil},
+	"subPage":        {"id": nil, "pageId": nil},
+	"pageLink":       {"pageId": nil},
 	"table":          {"id": nil},
 	"tableRow":       {},
 	"tableHeader":    {"id": nil, "colspan": 1.0, "rowspan": 1.0, "colwidth": nil, "align": nil},
@@ -69,7 +72,8 @@ func isCodeType(name string) bool {
 }
 
 // hasIDAttr reports whether nodeType carries a BlockId block id. A mention's
-// "id" is the mentioned entity (`user:<uuid>`), not a block id.
+// "id" is the mentioned entity (`user:<uuid>`), not a block id; a subPage
+// has one (it is a block), a pageLink (inline) has none.
 func hasIDAttr(nodeType string) bool {
 	if nodeType == "mention" {
 		return false

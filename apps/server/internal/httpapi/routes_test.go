@@ -116,6 +116,14 @@ var clientRoutes = []string{
 	"GET /s/{token}/document",
 	"GET /s/{token}/attachments/{hash}",
 
+	// Pages (M43): the page tree, breadcrumb and backlinks, signed in and
+	// through a link.
+	"GET /api/v1/nodes/{nodeID}/page",
+	"GET /api/v1/nodes/{nodeID}/pages",
+	"GET /api/v1/nodes/{nodeID}/backlinks",
+	"GET /s/{token}/page",
+	"GET /s/{token}/pages",
+
 	// Comments on block documents, and in-app notifications (M29).
 	"GET /api/v1/nodes/{nodeID}/comments",
 	"POST /api/v1/nodes/{nodeID}/comment-threads",
@@ -337,7 +345,10 @@ func TestCollabSocketRefusesForeignOrigins(t *testing.T) {
 // the node's place in the link authorize them instead (shareScope).
 func TestShareDocumentRoutesArePublic(t *testing.T) {
 	guard := reflect.ValueOf((&Server{}).authenticated).Pointer()
-	want := map[string]bool{"GET /s/{token}/document": false, "GET /s/{token}/attachments/{hash}": false}
+	want := map[string]bool{
+		"GET /s/{token}/document": false, "GET /s/{token}/attachments/{hash}": false,
+		"GET /s/{token}/page": false, "GET /s/{token}/pages": false,
+	}
 	err := chi.Walk(
 		(&Server{}).Router().(chi.Routes),
 		func(method, route string, _ http.Handler, middlewares ...func(http.Handler) http.Handler) error {

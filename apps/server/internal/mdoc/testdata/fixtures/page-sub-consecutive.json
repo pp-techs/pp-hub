@@ -1,0 +1,31 @@
+{
+  "name": "page-sub-consecutive",
+  "input": "<!-- slash:subPage {\"pageId\":\"0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b\"} -->\n[a](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)\n\n<!-- slash:subPage {\"pageId\":\"1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c\"} -->\n[b](/edit/1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c)\n\n<!-- slash:subPage {\"pageId\":\"9e9e9e9e-0000-4000-8000-000000000009\"} -->\n[c](/edit/9e9e9e9e-0000-4000-8000-000000000009)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "subPage",
+        "attrs": {
+          "pageId": "0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b"
+        }
+      },
+      {
+        "type": "subPage",
+        "attrs": {
+          "pageId": "1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c"
+        }
+      },
+      {
+        "type": "subPage",
+        "attrs": {
+          "pageId": "9e9e9e9e-0000-4000-8000-000000000009"
+        }
+      }
+    ]
+  },
+  "output": "<!-- slash:subPage {\"pageId\":\"0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b\"} -->\n[Roadmap](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)\n\n<!-- slash:subPage {\"pageId\":\"1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c\"} -->\n[a*b_\\[c\\] <x> & `y`](/edit/1c9f2a3b-7d4e-4f60-8b2c-8d3e4f5a6b7c)\n\n<!-- slash:subPage {\"pageId\":\"9e9e9e9e-0000-4000-8000-000000000009\"} -->\n[Untitled](/edit/9e9e9e9e-0000-4000-8000-000000000009)",
+  "yupdate_b64": "AQYBAAcBB2NvbnRlbnQDB3N1YlBhZ2UoAAEABnBhZ2VJZAF3JDBiOGUxZjJhLTZjM2QtNGU1Zi05YTFiLTdjMmQzZTRmNWE2YocBAAMHc3ViUGFnZSgAAQIGcGFnZUlkAXckMWM5ZjJhM2ItN2Q0ZS00ZjYwLThiMmMtOGQzZTRmNWE2YjdjhwECAwdzdWJQYWdlKAABBAZwYWdlSWQBdyQ5ZTllOWU5ZS0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDkA",
+  "expect_lossy": false
+}

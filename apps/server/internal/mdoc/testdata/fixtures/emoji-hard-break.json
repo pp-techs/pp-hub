@@ -1,0 +1,35 @@
+{
+  "name": "emoji-hard-break",
+  "input": "One :smile:  \nnext\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "One "
+          },
+          {
+            "type": "emoji",
+            "attrs": {
+              "name": "smile"
+            }
+          },
+          {
+            "type": "hardBreak"
+          },
+          {
+            "type": "text",
+            "text": "next"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "One :smile:  \nnext",
+  "yupdate_b64": "AQgBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQRPbmUghwEBAwVlbW9qaSgAAQYEbmFtZQF3BXNtaWxlhwEGAwloYXJkQnJlYWuHAQgGBAABCQRuZXh0AA==",
+  "expect_lossy": false
+}

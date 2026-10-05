@@ -1,0 +1,62 @@
+{
+  "name": "emoji-marks",
+  "input": "**bold :fire:** and *it :fire:* and ~~:fire:~~\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "bold ",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ]
+          },
+          {
+            "type": "emoji",
+            "attrs": {
+              "name": "fire"
+            }
+          },
+          {
+            "type": "text",
+            "text": " and "
+          },
+          {
+            "type": "text",
+            "text": "it ",
+            "marks": [
+              {
+                "type": "italic"
+              }
+            ]
+          },
+          {
+            "type": "emoji",
+            "attrs": {
+              "name": "fire"
+            }
+          },
+          {
+            "type": "text",
+            "text": " and "
+          },
+          {
+            "type": "emoji",
+            "attrs": {
+              "name": "fire"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "output": "**bold** :fire: and *it* :fire: and :fire:",
+  "yupdate_b64": "ARIBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBgABAQRib2xkAnt9hAECBWJvbGQghgEHBGJvbGQEbnVsbIcBAQMFZW1vamkoAAEJBG5hbWUBdwRmaXJlhwEJBgQAAQsFIGFuZCCGARAGaXRhbGljAnt9hAERA2l0IIYBFAZpdGFsaWMEbnVsbIcBCwMFZW1vamkoAAEWBG5hbWUBdwRmaXJlhwEWBgQAARgFIGFuZCCHARgDBWVtb2ppKAABHgRuYW1lAXcEZmlyZQA=",
+  "expect_lossy": false
+}

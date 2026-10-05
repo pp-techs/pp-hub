@@ -1,0 +1,35 @@
+{
+  "name": "emoji-mention",
+  "input": "Hi <!-- slash:mention {\"id\":\"user:1\",\"label\":\"A\"} -->@A<!-- /slash:mention -->:smile:\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Hi "
+          },
+          {
+            "type": "mention",
+            "attrs": {
+              "id": "user:1",
+              "label": "A"
+            }
+          },
+          {
+            "type": "emoji",
+            "attrs": {
+              "name": "smile"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "output": "Hi <!-- slash:mention {\"id\":\"user:1\",\"label\":\"A\"} -->@A<!-- /slash:mention -->:smile:",
+  "yupdate_b64": "AQgBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQNIaSCHAQEDB21lbnRpb24oAAEFAmlkAXcGdXNlcjoxKAABBQVsYWJlbAF3AUGHAQUDBWVtb2ppKAABCARuYW1lAXcFc21pbGUA",
+  "expect_lossy": false
+}

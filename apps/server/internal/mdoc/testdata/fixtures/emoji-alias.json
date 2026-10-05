@@ -1,0 +1,48 @@
+{
+  "name": "emoji-alias",
+  "input": "Nice :+1: and :thumbsup: and :smile:\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Nice "
+          },
+          {
+            "type": "emoji",
+            "attrs": {
+              "name": "+1"
+            }
+          },
+          {
+            "type": "text",
+            "text": " and "
+          },
+          {
+            "type": "emoji",
+            "attrs": {
+              "name": "thumbsup"
+            }
+          },
+          {
+            "type": "text",
+            "text": " and "
+          },
+          {
+            "type": "emoji",
+            "attrs": {
+              "name": "smile"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "output": "Nice :+1: and :thumbsup: and :smile:",
+  "yupdate_b64": "AQ0BAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQVOaWNlIIcBAQMFZW1vamkoAAEHBG5hbWUBdwIrMYcBBwYEAAEJBSBhbmQghwEJAwVlbW9qaSgAAQ8EbmFtZQF3CHRodW1ic3VwhwEPBgQAAREFIGFuZCCHAREDBWVtb2ppKAABFwRuYW1lAXcFc21pbGUA",
+  "expect_lossy": false
+}

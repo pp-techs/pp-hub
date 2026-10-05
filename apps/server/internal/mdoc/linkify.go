@@ -19,18 +19,32 @@ var (
 	emailFull = regexp.MustCompile(`^[A-Za-z0-9._+-]+@[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]*[a-zA-Z0-9])+$`)
 )
 
-// linkify splits unlinked, non-code text nodes around the autolinks marked
-// would find in them.
+// linkify splits unlinked, non-code text runs around the autolinks marked
+// would find in them, and settles the emoji shortcode tokens inside each run:
+// marked tries the emoji tokenizer at every `:` the text reaches, but an
+// autolink that started earlier runs straight through one
+// (`www.a.example:smile:` is a link to `www.a.example:smile`).
 func linkify(nodes []Node) []Node {
 	var out []Node
-	for _, n := range nodes {
-		if n.Type != "text" || hasMark(n.Marks, "link") || hasMark(n.Marks, "code") {
-			out = append(out, n)
+	for i := 0; i < len(nodes); {
+		if !linkifiable(nodes[i]) {
+			out = append(out, nodes[i])
+			i++
 			continue
 		}
-		out = append(out, linkifyText(n)...)
+		j := i + 1
+		for j < len(nodes) && linkifiable(nodes[j]) && marksEqual(nodes[j].Marks, nodes[i].Marks) {
+			j++
+		}
+		out = append(out, linkifyRun(nodes[i:j])...)
+		i = j
 	}
 	return out
+}
+
+func linkifiable(n Node) bool {
+	return n.Type == shortcodeType ||
+		n.Type == "text" && !hasMark(n.Marks, "link") && !hasMark(n.Marks, "code")
 }
 
 func hasMark(marks []Mark, typ string) bool {
@@ -42,15 +56,53 @@ func hasMark(marks []Mark, typ string) bool {
 	return false
 }
 
-func linkifyText(n Node) []Node {
-	s := n.Text
-	if !strings.ContainsAny(s, "@:.") {
-		return []Node{n}
+// shortcodeSpan is a shortcode token's byte range in a run's text.
+type shortcodeSpan struct {
+	start, end int
+	node       Node
+}
+
+// linkifyRun scans one run of text and shortcode tokens sharing a mark set,
+// as marked's inline lexer walks the same source: a shortcode token is read
+// where the scan reaches it, an autolink wherever one starts, and a token an
+// autolink covers is just part of the link's text.
+func linkifyRun(run []Node) []Node {
+	var b strings.Builder
+	var tokens []shortcodeSpan
+	for _, n := range run {
+		start := b.Len()
+		b.WriteString(n.Text)
+		if n.Type == shortcodeType {
+			tokens = append(tokens, shortcodeSpan{start, b.Len(), n})
+		}
+	}
+	s, marks := b.String(), run[0].Marks
+	if len(tokens) == 0 && !strings.ContainsAny(s, "@:.") {
+		return run
 	}
 	var out []Node
 	plain := 0   // start of the text not yet emitted
 	runEnd := -1 // end of the email-local run holding i
+	next := 0    // the first token not yet passed
+	emitPlain := func(to int) {
+		if plain < to {
+			out = append(out, Node{Type: "text", Text: s[plain:to], Marks: marks})
+		}
+	}
 	for i := 0; i < len(s); {
+		for next < len(tokens) && tokens[next].start < i {
+			next++ // swallowed by an autolink
+		}
+		if next < len(tokens) && tokens[next].start == i {
+			emitPlain(i)
+			token := tokens[next].node
+			token.Marks = marks
+			out = append(out, resolveShortcode(token))
+			i = tokens[next].end
+			plain, runEnd = i, -1
+			next++
+			continue
+		}
 		if i >= runEnd {
 			runEnd = i
 			for runEnd < len(s) && isEmailLocal(s[runEnd]) {
@@ -65,21 +117,13 @@ func linkifyText(n Node) []Node {
 			i++
 			continue
 		}
-		if plain < i {
-			out = append(out, Node{Type: "text", Text: s[plain:i], Marks: n.Marks})
-		}
-		marks := append([]Mark{{Type: "link", Attrs: map[string]any{"href": href, "title": nil}}}, n.Marks...)
-		out = append(out, Node{Type: "text", Text: text, Marks: marks})
+		emitPlain(i)
+		linkMarks := append([]Mark{{Type: "link", Attrs: map[string]any{"href": href, "title": nil}}}, marks...)
+		out = append(out, Node{Type: "text", Text: text, Marks: linkMarks})
 		i += len(text)
-		plain = i
-		runEnd = -1
+		plain, runEnd = i, -1
 	}
-	if plain == 0 {
-		return []Node{n}
-	}
-	if plain < len(s) {
-		out = append(out, Node{Type: "text", Text: s[plain:], Marks: n.Marks})
-	}
+	emitPlain(len(s))
 	return out
 }
 

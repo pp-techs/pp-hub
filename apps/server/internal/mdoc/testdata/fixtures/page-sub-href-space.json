@@ -1,0 +1,19 @@
+{
+  "name": "page-sub-href-space",
+  "input": "<!-- slash:subPage {\"pageId\":\"p 6\"} -->\n[x](</edit/p 6>)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "subPage",
+        "attrs": {
+          "pageId": "p 6"
+        }
+      }
+    ]
+  },
+  "output": "<!-- slash:subPage {\"pageId\":\"p 6\"} -->\n[Q3 (draft)](</edit/p 6>)",
+  "yupdate_b64": "AQIBAAcBB2NvbnRlbnQDB3N1YlBhZ2UoAAEABnBhZ2VJZAF3A3AgNgA=",
+  "expect_lossy": false
+}

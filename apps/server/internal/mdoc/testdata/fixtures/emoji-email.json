@@ -1,0 +1,58 @@
+{
+  "name": "emoji-email",
+  "input": "Mail x:a@b.io or :smile:a@b.io\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Mail x:"
+          },
+          {
+            "type": "text",
+            "text": "a@b.io",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "mailto:a@b.io",
+                  "title": null
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " or "
+          },
+          {
+            "type": "emoji",
+            "attrs": {
+              "name": "smile"
+            }
+          },
+          {
+            "type": "text",
+            "text": "a@b.io",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "mailto:a@b.io",
+                  "title": null
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "Mail x:[a@b.io](mailto:a@b.io) or :smile:[a@b.io](mailto:a@b.io)",
+  "yupdate_b64": "AQ0BAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQdNYWlsIHg6hgEIBGxpbmtpeyJocmVmIjoibWFpbHRvOmFAYi5pbyIsInRhcmdldCI6Il9ibGFuayIsInJlbCI6Im5vb3BlbmVyIG5vcmVmZXJyZXIgbm9mb2xsb3ciLCJjbGFzcyI6bnVsbCwidGl0bGUiOm51bGx9hAEJBmFAYi5pb4YBDwRsaW5rBG51bGyEARAEIG9yIIcBAQMFZW1vamkoAAEVBG5hbWUBdwVzbWlsZYcBFQYGAAEXBGxpbmtpeyJocmVmIjoibWFpbHRvOmFAYi5pbyIsInRhcmdldCI6Il9ibGFuayIsInJlbCI6Im5vb3BlbmVyIG5vcmVmZXJyZXIgbm9mb2xsb3ciLCJjbGFzcyI6bnVsbCwidGl0bGUiOm51bGx9hAEYBmFAYi5pb4YBHgRsaW5rBG51bGwA",
+  "expect_lossy": false
+}

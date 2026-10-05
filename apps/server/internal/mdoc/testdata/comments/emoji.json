@@ -1,0 +1,78 @@
+{
+  "name": "emoji",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "emoji",
+            "attrs": {
+              "name": "tada"
+            }
+          },
+          {
+            "type": "text",
+            "text": " shipped",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t1"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " ok"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "we ",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t2"
+                }
+              }
+            ]
+          },
+          {
+            "type": "emoji",
+            "attrs": {
+              "name": "fire"
+            }
+          },
+          {
+            "type": "text",
+            "text": " did",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t2"
+                }
+              }
+            ]
+          },
+          {
+            "type": "emoji",
+            "attrs": {
+              "name": "rocket"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "js_output": ":tada: shipped ok\n\nwe :fire: did:rocket:",
+  "yupdate_b64": "ARUBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQADBWVtb2ppKAABAQRuYW1lAXcEdGFkYYcBAQYGAAEDEWNvbW1lbnQtLW9jQzR5ZFpREXsidGhyZWFkSWQiOiJ0MSJ9hAEECCBzaGlwcGVkhgEMEWNvbW1lbnQtLW9jQzR5ZFpRBG51bGyEAQ0DIG9rhwEAAwlwYXJhZ3JhcGgHAAERBgYAARIRY29tbWVudC0tMWVoTTBVYjcReyJ0aHJlYWRJZCI6InQyIn2EARMDd2UghgEWEWNvbW1lbnQtLTFlaE0wVWI3BG51bGyHARIDBWVtb2ppKAABGARuYW1lAXcEZmlyZYcBGAYGAAEaEWNvbW1lbnQtLTFlaE0wVWI3EXsidGhyZWFkSWQiOiJ0MiJ9hAEbBCBkaWSGAR8RY29tbWVudC0tMWVoTTBVYjcEbnVsbIcBGgMFZW1vamkoAAEhBG5hbWUBdwZyb2NrZXQA"
+}

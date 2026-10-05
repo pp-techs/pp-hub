@@ -23,6 +23,13 @@ import (
 // their own kind (their extractor has to live in cmd/worker, beside the
 // converter), added to extractKindForMime with its Extractor registered there;
 // storage, backfill and search need no change.
+//
+// The same job indexes a block document's page projections (M43): its
+// page_meta (frontmatter icon and cover) and page_refs (sub-page blocks and
+// page links). Both read the one parse the text needs, both are keyed to the
+// current version under the same guard, and both have to follow the same
+// events — a commit, a restore, a backfill — so a separate job kind would
+// only parse the document twice.
 const KindExtractText = "extract:text"
 
 // Extractor turns a file's bytes into searchable plain text.
@@ -31,7 +38,21 @@ type Extractor interface {
 	Kind() string
 	// Extract reads the original file and returns its text. Normalising,
 	// capping and folding are the caller's job (textsearch.Prepare).
-	Extract(ctx context.Context, src io.Reader, p Payload) (string, error)
+	Extract(ctx context.Context, src io.Reader, p Payload) (Extraction, error)
+}
+
+// Extraction is what an Extractor read from one version.
+type Extraction struct {
+	Text string
+	// Page is set for a block document: what its page projections hold.
+	Page *PageIndex
+}
+
+// PageIndex is a block document's page metadata and references, as stored
+// in page_meta and page_refs.
+type PageIndex struct {
+	Icon, Cover     string
+	SubPages, Links []string
 }
 
 // extractableMimes maps each base MIME type that has searchable text to the
@@ -64,9 +85,10 @@ func (w *Worker) WithExtractors(es ...Extractor) *Worker {
 	return w
 }
 
-// Reindex schedules text extraction for a version that became current
-// without being committed — a restored older version (fs.RestoreHook).
-// Previews need nothing: the old version kept its own.
+// Reindex schedules text extraction (and a block document's page index) for
+// a version that became current without being committed — a restored older
+// version (fs.RestoreHook). Previews need nothing: the old version kept its
+// own.
 func (w *Worker) Reindex(ctx context.Context, ver store.NodeVersion) error {
 	return w.enqueue(ctx, extractKindForMime(ver.Mime), ver, "")
 }
@@ -86,9 +108,10 @@ func (w *Worker) enqueue(ctx context.Context, kind string, ver store.NodeVersion
 	return err
 }
 
-// extract runs an extraction job and stores its text against the version —
-// which UpsertNodeText does only while the version is still current, so a
-// job that lost the race to a newer version is a no-op, not an error.
+// extract runs an extraction job and stores its text (and a block document's
+// page index) against the version — which the upserts do only while the
+// version is still current, so a job that lost the race to a newer version is
+// a no-op, not an error.
 func (w *Worker) extract(ctx context.Context, e Extractor, p Payload, versionID pgtype.UUID) error {
 	var nodeID pgtype.UUID
 	if err := nodeID.Scan(p.NodeID); err != nil {
@@ -100,18 +123,67 @@ func (w *Worker) extract(ctx context.Context, e Extractor, p Payload, versionID 
 	}
 	defer rc.Close()
 
-	text, err := e.Extract(ctx, rc, p)
+	ex, err := e.Extract(ctx, rc, p)
 	if err != nil {
 		return err
 	}
-	content, folded := textsearch.Prepare(text)
-	_, err = w.q.UpsertNodeText(ctx, store.UpsertNodeTextParams{
+	content, folded := textsearch.Prepare(ex.Text)
+	if _, err := w.q.UpsertNodeText(ctx, store.UpsertNodeTextParams{
 		NodeID:        nodeID,
 		NodeVersionID: versionID,
 		Content:       content,
 		Folded:        folded,
+	}); err != nil {
+		return err
+	}
+	if ex.Page == nil {
+		return nil
+	}
+	return indexPage(ctx, w.q, nodeID, versionID, *ex.Page)
+}
+
+// indexPage stores a block document's page_meta and page_refs for one
+// version, in one transaction and only while that version is current: a
+// stale version writes nothing. Reference ids that are not UUIDs (a
+// hand-written pageId) are not pages and are skipped.
+func indexPage(ctx context.Context, q *store.Queries, nodeID, versionID pgtype.UUID, page PageIndex) error {
+	return q.InTx(ctx, func(q *store.Queries) error {
+		n, err := q.UpsertPageMeta(ctx, store.UpsertPageMetaParams{
+			NodeID:        nodeID,
+			NodeVersionID: versionID,
+			Icon:          pgtype.Text{String: page.Icon, Valid: page.Icon != ""},
+			Cover:         pgtype.Text{String: page.Cover, Valid: page.Cover != ""},
+		})
+		if err != nil || n == 0 {
+			return err
+		}
+		if _, err := q.DeletePageRefsForSource(ctx, store.DeletePageRefsForSourceParams{
+			SourceID:      nodeID,
+			NodeVersionID: versionID,
+		}); err != nil {
+			return err
+		}
+		_, err = q.InsertPageRefs(ctx, store.InsertPageRefsParams{
+			SourceID:      nodeID,
+			NodeVersionID: versionID,
+			SubIds:        pageUUIDs(page.SubPages),
+			LinkIds:       pageUUIDs(page.Links),
+		})
+		return err
 	})
-	return err
+}
+
+// pageUUIDs keeps the ids that are UUIDs — never nil, which pgx would send
+// as a NULL array.
+func pageUUIDs(ids []string) []pgtype.UUID {
+	out := make([]pgtype.UUID, 0, len(ids))
+	for _, id := range ids {
+		var u pgtype.UUID
+		if u.Scan(id) == nil {
+			out = append(out, u)
+		}
+	}
+	return out
 }
 
 // maxMarkdownSource bounds how much of a markdown file is parsed. The
@@ -120,25 +192,28 @@ func (w *Worker) extract(ctx context.Context, e Extractor, p Payload, versionID 
 const maxMarkdownSource = 8 << 20
 
 // TextExtractor extracts markdown (through the block-document parser, so
-// syntax, attachment references and comment markers stay out of the index)
-// and plain text (verbatim).
+// syntax, attachment references and comment markers stay out of the index,
+// and with the document's page index) and plain text (verbatim).
 type TextExtractor struct{}
 
 func (TextExtractor) Kind() string { return KindExtractText }
 
-func (TextExtractor) Extract(_ context.Context, src io.Reader, p Payload) (string, error) {
+func (TextExtractor) Extract(_ context.Context, src io.Reader, p Payload) (Extraction, error) {
 	if baseMime(p.Mime) != "text/markdown" {
 		// Prepare drops a rune the cap splits in half.
 		b, err := io.ReadAll(io.LimitReader(src, textsearch.MaxIndexedBytes))
-		return string(b), err
+		return Extraction{Text: string(b)}, err
 	}
 	b, err := io.ReadAll(io.LimitReader(src, maxMarkdownSource))
 	if err != nil {
-		return "", err
+		return Extraction{}, err
 	}
 	parsed, err := mdoc.Parse(b)
 	if err != nil {
-		return "", fmt.Errorf("parse markdown: %w", err)
+		return Extraction{}, fmt.Errorf("parse markdown: %w", err)
 	}
-	return mdoc.PlainText(parsed.Doc), nil
+	page := PageIndex{}
+	page.Icon, page.Cover = mdoc.FrontmatterMeta(parsed.Frontmatter)
+	page.SubPages, page.Links = mdoc.PageRefs(parsed.Doc)
+	return Extraction{Text: mdoc.PlainText(parsed.Doc), Page: &page}, nil
 }

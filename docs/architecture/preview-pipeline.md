@@ -92,7 +92,11 @@ only the kinds it registered an `Extractor` for.
 - **`extract:text`** covers `text/markdown` — parsed and flattened by
   `mdoc.PlainText`, so the index and its snippets carry the words and not the
   markdown syntax — and `text/plain`. Both are pure Go and run in
-  `cmd/server`; the worker is not needed.
+  `cmd/server`; the worker is not needed. Since M43 the same parse of a
+  markdown version also yields its frontmatter `icon`/`cover` and its
+  `subPage`/`pageLink` ids (`Extraction{Text, Page}`), written to `page_meta`
+  and `page_refs` under the same current-version guard — no second job kind
+  ([data model](data-model.md#pages)).
 - The version hook enqueues it next to the preview job, and a restored older
   version (which commits nothing new) is re-enqueued by `fs.SetRestoreHook`
   (`Worker.Reindex`).
@@ -341,6 +345,8 @@ Text extraction has its own sweep, `preview.BackfillText`, which `--backfill`
 also runs — and which `cmd/server` runs by itself at every startup, because its
 extractors live there: a drive upgraded to content search becomes searchable
 without an operator step. It skips files already indexed or queued.
+`preview.BackfillPages` follows it in the same goroutine for markdown versions
+with no `page_meta` row, skipping those `extract:text` already has queued.
 
 Known gap: there is no priority lane, so on a large install fresh uploads queue
 behind the backlog. The fix is a `run_at` offset on backfilled jobs.

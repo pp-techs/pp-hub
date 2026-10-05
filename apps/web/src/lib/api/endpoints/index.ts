@@ -20,6 +20,8 @@ import type {
   MoveImpact,
   Node,
   NotificationPage,
+  PageLineage,
+  PageSummary,
   RecentNode,
   RestoreResult,
   SearchKind,
@@ -264,12 +266,12 @@ export async function createDocument(
   return res.json() as Promise<Node>;
 }
 
-export async function renameNode(nodeId: string, name: string): Promise<Node> {
+/** Renames a node; the server answers no node, only success. */
+export async function renameNode(nodeId: string, name: string): Promise<void> {
   const res = await api.patch(`api/v1/nodes/${nodeId}/rename`, {
     json: { name },
   });
   if (!res.ok) throw new ApiError(res.status, await res.text());
-  return res.json() as Promise<Node>;
 }
 
 export async function deleteNode(nodeId: string): Promise<void> {
@@ -628,6 +630,46 @@ export function shareAttachmentUrl(token: string, docId: string, hash: string): 
 /** The document as a zip: the `.md` with its attachments under `assets/`. */
 export function exportDocumentUrl(nodeId: string): string {
   return `/api/v1/nodes/${nodeId}/export`;
+}
+
+// ─── Pages (M43) ────────────────────────────────────────────────────────────
+// A page is a markdown document; a sub-page is one whose parent is another
+// document. Creating one is `createDocument` with the parent document as
+// `parentId`, retitling is `renameNode`, removing is `deleteNode`/`restoreNode`.
+
+/** A page and its document ancestors (root first), as far up as the caller can view. */
+export async function getNodePage(nodeId: string): Promise<PageLineage> {
+  const res = await api.get(`api/v1/nodes/${nodeId}/page`);
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<PageLineage>;
+}
+
+/** A document's direct, live sub-pages the caller can view, oldest first. */
+export async function getNodePages(nodeId: string): Promise<PageSummary[]> {
+  const res = await api.get(`api/v1/nodes/${nodeId}/pages`);
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<PageSummary[]>;
+}
+
+/** Live documents that link to, or hold as a sub-page, `nodeId` — those the caller can view. */
+export async function getNodeBacklinks(nodeId: string): Promise<PageSummary[]> {
+  const res = await api.get(`api/v1/nodes/${nodeId}/backlinks`);
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<PageSummary[]>;
+}
+
+/** `getNodePage` through a share link: ancestors stop at the link's root. */
+export async function getSharePage(token: string, nodeId: string): Promise<PageLineage> {
+  const res = await api.get(`s/${token}/page`, { searchParams: { node: nodeId } });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<PageLineage>;
+}
+
+/** `getNodePages` through a share link. */
+export async function getSharePages(token: string, nodeId: string): Promise<PageSummary[]> {
+  const res = await api.get(`s/${token}/pages`, { searchParams: { node: nodeId } });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<PageSummary[]>;
 }
 
 // ─── Auth Actions ───────────────────────────────────────────────────────────

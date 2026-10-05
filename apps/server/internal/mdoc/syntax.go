@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"regexp"
 	"strings"
+	"sync"
 )
 
 // Ports of slash-editor's own markdown tokenizers (block-kit's markers,
@@ -14,7 +15,8 @@ import (
 
 const lineEnd = `[ \t]*(?:\n|$)`
 
-var markerRegexes = map[string]*regexp.Regexp{}
+// markerRegexes caches markerRegex per type; Parse runs concurrently.
+var markerRegexes sync.Map
 
 func markerPattern(typ string, closing bool) string {
 	if closing {
@@ -24,12 +26,11 @@ func markerPattern(typ string, closing bool) string {
 }
 
 func markerRegex(typ string) *regexp.Regexp {
-	re, ok := markerRegexes[typ]
-	if !ok {
-		re = regexp.MustCompile(`^` + markerPattern(typ, false) + lineEnd)
-		markerRegexes[typ] = re
+	if re, ok := markerRegexes.Load(typ); ok {
+		return re.(*regexp.Regexp)
 	}
-	return re
+	re, _ := markerRegexes.LoadOrStore(typ, regexp.MustCompile(`^`+markerPattern(typ, false)+lineEnd))
+	return re.(*regexp.Regexp)
 }
 
 type marker struct {

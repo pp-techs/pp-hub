@@ -399,14 +399,43 @@ func (p *wsPeer) edit(t *testing.T, md string) bool {
 	if err != nil {
 		t.Fatalf("parse %q: %v", md, err)
 	}
-	sv := p.doc.StateVector()
 	frag := p.doc.GetXmlFragment(mdoc.FragmentName)
-	p.doc.Transact(func(txn *crdt.Transaction) {
+	return p.change(t, func(txn *crdt.Transaction) {
 		if n := frag.Len(); n > 0 {
 			frag.Delete(txn, 0, n)
 		}
 		mdoc.Fill(txn, frag, parsed.Doc)
 	})
+}
+
+// setMeta sets the page's icon and cover in the room's meta map, as the page
+// header does, an empty value deleting the key.
+func (p *wsPeer) setMeta(t *testing.T, icon, cover string) bool {
+	t.Helper()
+	meta := p.doc.GetMap("meta")
+	return p.change(t, func(txn *crdt.Transaction) {
+		for k, v := range map[string]string{"icon": icon, "cover": cover} {
+			if v == "" {
+				meta.Delete(txn, k)
+			} else {
+				meta.Set(txn, k, v)
+			}
+		}
+	})
+}
+
+// meta is the icon and cover the peer's copy of the meta map holds.
+func (p *wsPeer) meta() (icon, cover any) {
+	e := p.doc.GetMap("meta").Entries()
+	return e["icon"], e["cover"]
+}
+
+// change sends what fn does to the peer's document and reports whether the
+// server applied it.
+func (p *wsPeer) change(t *testing.T, fn func(*crdt.Transaction)) bool {
+	t.Helper()
+	sv := p.doc.StateVector()
+	p.doc.Transact(fn)
 	idx := p.send(ygsync.EncodeUpdate(crdt.EncodeStateAsUpdateV1(p.doc, sv)))
 	var applied bool
 	waitUntil(t, "the server's acknowledgement", func() bool {
@@ -419,7 +448,7 @@ func (p *wsPeer) edit(t *testing.T, md string) bool {
 		return p.closed
 	})
 	if p.isClosed() && !applied {
-		t.Fatalf("socket to %s closed before the edit was acknowledged", p.room)
+		t.Fatalf("socket to %s closed before the change was acknowledged", p.room)
 	}
 	return applied
 }
@@ -940,5 +969,146 @@ func TestCollabStartReleasesStaleRoomLocks(t *testing.T) {
 	rig.mustDial(t, f.owner, room)
 	if lock, err := rig.srv.wopi.CurrentLock(ctx, f.doc.ID); err != nil || !collab.IsLockToken(lock) {
 		t.Fatalf("lock once the room loads: %q, %v; want the room's", lock, err)
+	}
+}
+
+// The page's icon and cover are the room's meta map, seeded from the
+// frontmatter: opening the room writes nothing, a change to meta alone is its
+// author's edit, and write-back merges meta into the frontmatter, keeping
+// every other key.
+func TestCollabMetaIsFrontmatter(t *testing.T) {
+	rig := newCollabRig(t, collab.Config{CoalesceWindow: time.Hour, CoalesceMaxWait: time.Hour})
+	ctx := context.Background()
+	f := rig.fixture(t, "meta", canonical(t, "---\ntitle: x\nicon: 🐱\n---\n# Cat\n\nPurrs.\n"))
+	editor := rig.mustDial(t, f.editor, rig.mustSession(t, f.editor, f.doc).Room)
+	waitUntil(t, "the seeded meta", func() bool {
+		icon, cover := editor.meta()
+		return icon == "🐱" && cover == nil
+	})
+
+	if err := rig.hub.Flush(ctx, f.doc.ID); err != nil {
+		t.Fatalf("flush: %v", err)
+	}
+	if n := len(rig.versions(t, f.doc)); n != 1 {
+		t.Fatalf("%d versions after opening the room, want 1", n)
+	}
+
+	cover := "attachment:" + strings.Repeat("ab", 32)
+	if !editor.setMeta(t, "🐶", cover) {
+		t.Fatal("the editor's meta change was refused")
+	}
+	if err := rig.hub.Flush(ctx, f.doc.ID); err != nil {
+		t.Fatalf("flush: %v", err)
+	}
+	vs := rig.versions(t, f.doc)
+	if len(vs) != 2 || vs[0].CreatedBy != f.editor.ID {
+		t.Fatalf("after a meta change: %d versions, newest by %s; want 2, the editor's", len(vs), uuidString(vs[0].CreatedBy))
+	}
+	got := rig.content(t, vs[0])
+	parsed, err := mdoc.Parse([]byte(got))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if icon, c := mdoc.FrontmatterMeta(parsed.Frontmatter); icon != "🐶" || c != cover {
+		t.Fatalf("stored meta %q, %q; want 🐶, %q in\n%s", icon, c, cover, got)
+	}
+	if !strings.Contains(string(parsed.Frontmatter), "title: x") || !strings.Contains(got, "Purrs.") {
+		t.Fatalf("write-back lost the other frontmatter or the body:\n%s", got)
+	}
+
+	// The written frontmatter is the room's: removing the cover later
+	// removes only it.
+	if !editor.setMeta(t, "🐶", "") {
+		t.Fatal("the editor's meta change was refused")
+	}
+	if err := rig.hub.Flush(ctx, f.doc.ID); err != nil {
+		t.Fatalf("flush: %v", err)
+	}
+	vs = rig.versions(t, f.doc)
+	parsed, err = mdoc.Parse([]byte(rig.content(t, vs[0])))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if icon, c := mdoc.FrontmatterMeta(parsed.Frontmatter); len(vs) != 3 || icon != "🐶" || c != "" ||
+		!strings.Contains(string(parsed.Frontmatter), "title: x") {
+		t.Fatalf("after removing the cover: %d versions, frontmatter %q", len(vs), parsed.Frontmatter)
+	}
+}
+
+// Write-back titles every page a document links to by its node's current
+// name; a page that is not a live file in the space is Untitled.
+func TestCollabWriteBackRendersLiveTitles(t *testing.T) {
+	rig := newCollabRig(t, collab.Config{CoalesceWindow: time.Hour, CoalesceMaxWait: time.Hour})
+	ctx := context.Background()
+	f := rig.fixture(t, "titles", canonical(t, "# Index\n"))
+	target := rig.putMarkdown(t, f.space, f.owner, "Target.md", "# Target\n")
+	id, unknown := uuidString(target.ID), "00000000-0000-4000-8000-0000000000aa"
+	editor := rig.mustDial(t, f.editor, rig.mustSession(t, f.editor, f.doc).Room)
+
+	if err := rig.srv.fs.Rename(ctx, target.ID, "New Title.md"); err != nil {
+		t.Fatalf("rename: %v", err)
+	}
+	md := "# Index\n\n<!-- slash:subPage {\"pageId\":\"" + id + "\"} -->\n[Target](/edit/" + id + ")\n\n" +
+		"See <!-- slash:pageLink {\"pageId\":\"" + unknown + "\"} -->[Gone](/edit/" + unknown + ")<!-- /slash:pageLink -->.\n"
+	if !editor.edit(t, md) {
+		t.Fatal("the editor's edit was refused")
+	}
+	if err := rig.hub.Flush(ctx, f.doc.ID); err != nil {
+		t.Fatalf("flush: %v", err)
+	}
+	vs := rig.versions(t, f.doc)
+	if len(vs) != 2 {
+		t.Fatalf("%d versions after the edit, want 2", len(vs))
+	}
+	got := rig.content(t, vs[0])
+	if !strings.Contains(got, "[New Title](/edit/"+id+")") || !strings.Contains(got, "[Untitled](/edit/"+unknown+")") {
+		t.Fatalf("write-back does not carry the live titles:\n%s", got)
+	}
+
+	// A rename alone is nobody's edit: another peer opening the document
+	// and a flush leave the file as it is, though it would render the new
+	// title; the title lands with the next real edit.
+	if err := rig.srv.fs.Rename(ctx, target.ID, "Renamed Again.md"); err != nil {
+		t.Fatalf("rename: %v", err)
+	}
+	rig.mustDial(t, f.owner, rig.mustSession(t, f.owner, f.doc).Room)
+	if err := rig.hub.Flush(ctx, f.doc.ID); err != nil {
+		t.Fatalf("flush: %v", err)
+	}
+	if n := len(rig.versions(t, f.doc)); n != 2 {
+		t.Fatalf("%d versions after a rename and a peer joining, want 2", n)
+	}
+}
+
+// A reseed resets meta to the replacement's frontmatter, as nobody's edit.
+func TestCollabRestoreReseedsMeta(t *testing.T) {
+	rig := newCollabRig(t, collab.Config{CoalesceWindow: time.Hour, CoalesceMaxWait: time.Hour})
+	ctx := context.Background()
+	cover := "attachment:" + strings.Repeat("cd", 32)
+	f := rig.fixture(t, "metarestore", canonical(t, "---\nicon: 🐱\n---\n# Pet\n"))
+	first := rig.versions(t, f.doc)[0]
+	rig.putVersion(t, f.doc, f.owner, canonical(t, "---\nicon: 🐶\ncover: "+cover+"\n---\n# Pet\n"))
+
+	editor := rig.mustDial(t, f.editor, rig.mustSession(t, f.editor, f.doc).Room)
+	waitUntil(t, "the seeded meta", func() bool {
+		icon, c := editor.meta()
+		return icon == "🐶" && c == cover
+	})
+
+	res := rig.do(t, f.owner, http.MethodPost,
+		"/api/v1/nodes/"+uuidString(f.doc.ID)+"/versions/"+uuidString(first.ID)+"/restore", nil)
+	if res.code != http.StatusOK {
+		t.Fatalf("restore under an open room: %d %s", res.code, res.body)
+	}
+	waitUntil(t, "the peer to see the restored meta", func() bool {
+		icon, c := editor.meta()
+		return icon == "🐱" && c == nil
+	})
+	if err := rig.hub.Flush(ctx, f.doc.ID); err != nil {
+		t.Fatalf("flush: %v", err)
+	}
+	rig.shutdown(t)
+	if n := len(rig.versions(t, f.doc)); n != 2 {
+		t.Fatalf("%d versions after the reseeded room was written back, want 2", n)
 	}
 }

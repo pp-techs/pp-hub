@@ -1,0 +1,19 @@
+{
+  "name": "page-sub-unknown",
+  "input": "<!-- slash:subPage {\"pageId\":\"9e9e9e9e-0000-4000-8000-000000000009\"} -->\n[Gone](/edit/9e9e9e9e-0000-4000-8000-000000000009)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "subPage",
+        "attrs": {
+          "pageId": "9e9e9e9e-0000-4000-8000-000000000009"
+        }
+      }
+    ]
+  },
+  "output": "<!-- slash:subPage {\"pageId\":\"9e9e9e9e-0000-4000-8000-000000000009\"} -->\n[Untitled](/edit/9e9e9e9e-0000-4000-8000-000000000009)",
+  "yupdate_b64": "AQIBAAcBB2NvbnRlbnQDB3N1YlBhZ2UoAAEABnBhZ2VJZAF3JDllOWU5ZTllLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwOQA=",
+  "expect_lossy": false
+}

@@ -327,6 +327,8 @@ render to make them unsaveable is a different design and is not this one.
 | `GET /nodes/{id}/attachments/{hash}`                                          | `CapView` on the document    | An image, video or file dropped into a block document               |
 | `GET /nodes/{id}/document`                                                    | `CapView`                    | A block document's whole tree, for the read-only view               |
 | `GET /nodes/{id}/export`                                                      | `CapDownload`                | The markdown and every attachment as a zip; audited as a download   |
+| `GET /nodes/{id}/page`, `/pages`, `/backlinks`                                | `CapView`, else 404          | Page metadata for the tree, breadcrumb and "Linked from" (M43)      |
+| `GET /s/{token}/page`, `/pages`                                               | the link (always view)       | The same through a link, anonymous; chain cut at the link root      |
 
 Four notes on the table:
 
@@ -615,6 +617,36 @@ cannot be used to probe a tree the caller cannot write to.
 `fs.Move` writes the reparent, the subtree's `team_root_id` and (leaving a
 team) the new author in **one transaction**, so no reader ever sees personal
 content still marked as a team's.
+
+## Sub-pages
+
+A sub-page (M43, [block-documents.md](block-documents.md#pages)) is a `.md`
+node whose `parent_id` is its parent document, so it inherits through that
+document exactly as a file inherits through its folder: ownership and grants
+up the chain, trash with the parent, a foreign-owned sub-page lifted to its
+owner's top level when the parent is purged. Sharing a document shares its
+sub-pages; nothing about pages needed a new rule in the resolver.
+
+- **The page routes answer 404, not 403.** `GET /nodes/{id}/page`, `/pages`
+  and `/backlinks` need view on the node and answer 404 alike when it is
+  missing, not markdown, or not viewable, so they do not confirm that a page
+  exists. `/pages` filters nothing per row: view on the parent inherits to
+  every child. `/backlinks` filters its sources with one batched
+  `AccessCaps`.
+- **`parent_id: null` stops a leak.** The ancestor chain in `/page` stops at
+  the first ancestor the caller cannot view (or that is not a page), and the
+  topmost page shown then has `parent_id: null`; a sub-page shared without its
+  parent has no ancestors at all, and its tree and breadcrumb start at it. A
+  backlink carries `parent_id` only when the parent is a page the caller can
+  view. Search's `parent_name` path through parent pages stops the same way.
+- **Through a link** `GET /s/{token}/page?node=` and `/pages?node=` are public,
+  like `/s/{token}/document`; the chain is cut at the link's root, so the root
+  has `parent_id: null`, and a node outside the link is 404. The share page
+  navigates into sub-pages the link covers.
+- **Writing.** Creating a sub-page is `POST /spaces/{id}/documents` with a
+  document as `parent_id`, which needs edit on that document like a folder.
+  Deleting a sub-page block trashes the page with the deleter's own rights; a
+  co-editor who cannot trash it gets a 403 and the page stays.
 
 ## Anonymous Link Browsing
 

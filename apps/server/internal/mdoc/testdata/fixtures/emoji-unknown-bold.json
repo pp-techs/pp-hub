@@ -1,0 +1,37 @@
+{
+  "name": "emoji-unknown-bold",
+  "input": "**at 12:30:45 :nope_zz: ok** and *:smile:*\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "at 12:30:45 :nope_zz: ok",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " and "
+          },
+          {
+            "type": "emoji",
+            "attrs": {
+              "name": "smile"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "output": "**at 12:30:45 :nope\\_zz: ok** and :smile:",
+  "yupdate_b64": "AQgBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBgABAQRib2xkAnt9hAECGGF0IDEyOjMwOjQ1IDpub3BlX3p6OiBva4YBGgRib2xkBG51bGyEARsFIGFuZCCHAQEDBWVtb2ppKAABIQRuYW1lAXcFc21pbGUA",
+  "expect_lossy": false
+}

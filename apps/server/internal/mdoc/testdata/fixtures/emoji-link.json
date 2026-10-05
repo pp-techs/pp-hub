@@ -1,0 +1,71 @@
+{
+  "name": "emoji-link",
+  "input": "[go :rocket: now](https://x.y) and https://a.example/:smile:\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "go ",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "https://x.y",
+                  "title": null
+                }
+              }
+            ]
+          },
+          {
+            "type": "emoji",
+            "attrs": {
+              "name": "rocket"
+            }
+          },
+          {
+            "type": "text",
+            "text": " now",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "https://x.y",
+                  "title": null
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " and "
+          },
+          {
+            "type": "text",
+            "text": "https://a.example/:smile",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "https://a.example/:smile",
+                  "title": null
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": ":"
+          }
+        ]
+      }
+    ]
+  },
+  "output": "[go](https://x.y) :rocket: [now](https://x.y) and [https://a.example/:smile](https://a.example/:smile):",
+  "yupdate_b64": "ARABAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBgABAQRsaW5rZ3siaHJlZiI6Imh0dHBzOi8veC55IiwidGFyZ2V0IjoiX2JsYW5rIiwicmVsIjoibm9vcGVuZXIgbm9yZWZlcnJlciBub2ZvbGxvdyIsImNsYXNzIjpudWxsLCJ0aXRsZSI6bnVsbH2EAQIDZ28ghgEFBGxpbmsEbnVsbIcBAQMFZW1vamkoAAEHBG5hbWUBdwZyb2NrZXSHAQcGBgABCQRsaW5rZ3siaHJlZiI6Imh0dHBzOi8veC55IiwidGFyZ2V0IjoiX2JsYW5rIiwicmVsIjoibm9vcGVuZXIgbm9yZWZlcnJlciBub2ZvbGxvdyIsImNsYXNzIjpudWxsLCJ0aXRsZSI6bnVsbH2EAQoEIG5vd4YBDgRsaW5rBG51bGyEAQ8FIGFuZCCGARQEbGlua3R7ImhyZWYiOiJodHRwczovL2EuZXhhbXBsZS86c21pbGUiLCJ0YXJnZXQiOiJfYmxhbmsiLCJyZWwiOiJub29wZW5lciBub3JlZmVycmVyIG5vZm9sbG93IiwiY2xhc3MiOm51bGwsInRpdGxlIjpudWxsfYQBFRhodHRwczovL2EuZXhhbXBsZS86c21pbGWGAS0EbGluawRudWxshAEuAToA",
+  "expect_lossy": false
+}

@@ -1,0 +1,38 @@
+{
+  "name": "emoji-intraword",
+  "input": "a:smile:b and x:smile:\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "a"
+          },
+          {
+            "type": "emoji",
+            "attrs": {
+              "name": "smile"
+            }
+          },
+          {
+            "type": "text",
+            "text": "b and x"
+          },
+          {
+            "type": "emoji",
+            "attrs": {
+              "name": "smile"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "output": "a:smile:b and x:smile:",
+  "yupdate_b64": "AQkBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQFhhwEBAwVlbW9qaSgAAQMEbmFtZQF3BXNtaWxlhwEDBgQAAQUHYiBhbmQgeIcBBQMFZW1vamkoAAENBG5hbWUBdwVzbWlsZQA=",
+  "expect_lossy": false
+}

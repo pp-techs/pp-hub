@@ -1,18 +1,21 @@
-import type { UploadAdapter } from "@slash-editor/core";
+import type { FileOptions, UploadAdapter } from "@slash-editor/core";
+import { useResolvedSrc } from "@slash-editor/react";
 import type { NodeViewProps } from "@tiptap/react";
 import { useLingui } from "@lingui/react/macro";
 import { PaperclipIcon } from "lucide-react";
 import { UploadableNodeView } from "@/components/nodes/uploadable-node-view";
-import { resolveAttachment, type AttachmentUrl } from "@/lib/collab/attachments";
 import { useFormatters } from "@/lib/format";
 
-export function FileNodeView(
-  props: NodeViewProps & { adapter?: UploadAdapter; attachmentUrl: AttachmentUrl },
-) {
+export function FileNodeView(props: NodeViewProps & { adapter?: UploadAdapter }) {
   const { t } = useLingui();
   const f = useFormatters();
   const name = (props.node.attrs.name as string | null) ?? t`Untitled file`;
   const size = props.node.attrs.size as number | null;
+  const href = useResolvedSrc(
+    props.node.attrs.src as string | null,
+    props.node,
+    (props.extension.options as FileOptions).resolveSrc,
+  );
 
   return (
     <UploadableNodeView
@@ -21,9 +24,9 @@ export function FileNodeView(
       icon={PaperclipIcon}
       emptyLabel={t`Add a file`}
       retry={(id, override) => props.editor.commands.retryFile(id, override)}
-      renderReady={(attrs) => (
+      renderReady={() => (
         <a
-          href={resolveAttachment(attrs.src, props.attachmentUrl)}
+          href={href ?? undefined}
           download={name}
           target="_blank"
           rel="noopener noreferrer"

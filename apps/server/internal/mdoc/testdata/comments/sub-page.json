@@ -1,0 +1,50 @@
+{
+  "name": "sub-page",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "above",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t1"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "subPage",
+        "attrs": {
+          "pageId": "0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b"
+        }
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "below",
+            "marks": [
+              {
+                "type": "comment",
+                "attrs": {
+                  "threadId": "t1"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "js_output": "above\n\n<!-- slash:subPage {\"pageId\":\"0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b\"} -->\n[Roadmap](/edit/0b8e1f2a-6c3d-4e5f-9a1b-7c2d3e4f5a6b)\n\nbelow",
+  "yupdate_b64": "AQwBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBgABARFjb21tZW50LS1vY0M0eWRaURF7InRocmVhZElkIjoidDEifYQBAgVhYm92ZYYBBxFjb21tZW50LS1vY0M0eWRaUQRudWxshwEAAwdzdWJQYWdlKAABCQZwYWdlSWQBdyQwYjhlMWYyYS02YzNkLTRlNWYtOWExYi03YzJkM2U0ZjVhNmKHAQkDCXBhcmFncmFwaAcAAQsGBgABDBFjb21tZW50LS1vY0M0eWRaURF7InRocmVhZElkIjoidDEifYQBDQViZWxvd4YBEhFjb21tZW50LS1vY0M0eWRaUQRudWxsAA=="
+}

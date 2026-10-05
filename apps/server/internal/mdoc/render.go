@@ -6,27 +6,68 @@ import (
 	"strings"
 )
 
+// RenderOptions supplies what a document does not hold: the title and the
+// href written for each sub-page and page link (slash-editor's PageStore
+// title and resolveHref).
+type RenderOptions struct {
+	// PageTitle is a page's current title; nil, or a blank result, writes
+	// "Untitled" as slash-editor does for a page its store does not know.
+	PageTitle func(id string) string
+	// PageHref is a page's link target; nil writes "/edit/<id>".
+	PageHref func(id string) string
+}
+
+// UntitledPage is the title written for a page without one.
+const UntitledPage = "Untitled"
+
 // Render serializes doc to markdown byte-identical to slash-editor's
 // serializeMarkdown for the v1 block set. It omits ids and a trailing empty
-// paragraph and prepends frontmatter.
+// paragraph and prepends frontmatter. Every page reads "Untitled" and links
+// to /edit/<id>; RenderWith supplies real titles.
 //
 // It is a port of @tiptap/markdown's MarkdownManager.serialize (mark
 // boundary tracking included) and of the renderMarkdown hooks of every node
 // and mark in the v1 kit; the golden fixtures pin it to the JS original.
 func Render(doc Node, frontmatter []byte) []byte {
+	return RenderWith(doc, frontmatter, RenderOptions{})
+}
+
+// RenderWith is Render with page titles and hrefs from o.
+func RenderWith(doc Node, frontmatter []byte, o RenderOptions) []byte {
 	if n := len(doc.Content); n > 0 && isEmptyParagraph(doc.Content[n-1]) {
 		trimmed := doc
 		trimmed.Content = doc.Content[:n-1]
 		doc = trimmed
 	}
 	doc = pruneExcluded(doc)
-	out := renderNode(&doc, &doc, 0)
+	r := &renderer{o}
+	out := r.renderNode(&doc, &doc, 0)
 	if isEmptyOutput(out) {
 		out = ""
 	}
 	res := make([]byte, 0, len(frontmatter)+len(out))
 	res = append(res, frontmatter...)
 	return append(res, out...)
+}
+
+// renderer carries RenderOptions through the node handlers.
+type renderer struct{ o RenderOptions }
+
+// pageTitle is pageTitle(store.peek(id)): the trimmed title, or "Untitled".
+func (r *renderer) pageTitle(id string) string {
+	if r.o.PageTitle != nil {
+		if t := jsTrim(r.o.PageTitle(id)); t != "" {
+			return t
+		}
+	}
+	return UntitledPage
+}
+
+func (r *renderer) pageHref(id string) string {
+	if r.o.PageHref != nil {
+		return r.o.PageHref(id)
+	}
+	return "/edit/" + id
 }
 
 func isEmptyParagraph(n Node) bool { return n.Type == "paragraph" && len(n.Content) == 0 }
@@ -40,8 +81,9 @@ func isEmptyOutput(md string) bool {
 	return jsTrim(md) == ""
 }
 
-// excludedFromMarkdown mirrors the media nodes' excludeFromMarkdown: a
-// placeholder or an upload that has not landed has no URL to write.
+// excludedFromMarkdown mirrors the media nodes' excludeFromMarkdown (a
+// placeholder or an upload that has not landed has no URL to write) and the
+// page nodes' (no pageId, nothing to point at).
 func excludedFromMarkdown(n *Node) bool {
 	var href string
 	switch n.Type {
@@ -49,6 +91,8 @@ func excludedFromMarkdown(n *Node) bool {
 		href = "src"
 	case "embed":
 		href = "url"
+	case "subPage", "pageLink":
+		return !truthy(n.Attrs["pageId"])
 	default:
 		return false
 	}
@@ -117,7 +161,7 @@ func truthy(v any) bool {
 // renderNode is renderNodeToMarkdown: parent is the node whose handler is
 // rendering node, index node's position in parent.Content (used to find the
 // previous sibling).
-func renderNode(n, parent *Node, index int) string {
+func (r *renderer) renderNode(n, parent *Node, index int) string {
 	if n.Type == "text" {
 		return encodeText(n.Text, n, parent)
 	}
@@ -125,7 +169,7 @@ func renderNode(n, parent *Node, index int) string {
 	if parent != nil && index > 0 && index-1 < len(parent.Content) {
 		prev = &parent.Content[index-1]
 	}
-	h := helpers{node: n}
+	h := helpers{r: r, node: n}
 	switch n.Type {
 	case "doc":
 		if n.Content == nil {
@@ -205,7 +249,7 @@ func renderNode(n, parent *Node, index int) string {
 	case "hardBreak":
 		return "  \n"
 	case "table":
-		return renderTable(n, h)
+		return h.r.renderTable(n, h)
 	case "callout":
 		icon := "💡"
 		if v, ok := n.Attrs["icon"]; ok && v != nil {
@@ -282,6 +326,19 @@ func renderNode(n, parent *Node, index int) string {
 		label := attrString(n.Attrs["label"])
 		return renderMarker("mention", orderedAttrs{{"id", n.Attrs["id"]}, {"label", n.Attrs["label"]}}) +
 			"@" + label + mentionClose
+	case "emoji":
+		if name := attrString(n.Attrs["name"]); name != "" {
+			return ":" + name + ":"
+		}
+		return ""
+	case "subPage":
+		id := attrString(n.Attrs["pageId"])
+		return renderMarker("subPage", orderedAttrs{{"pageId", n.Attrs["pageId"]}}) + "\n" +
+			renderLinkLine(r.pageTitle(id), r.pageHref(id), false)
+	case "pageLink":
+		id := attrString(n.Attrs["pageId"])
+		return renderMarker("pageLink", orderedAttrs{{"pageId", n.Attrs["pageId"]}}) +
+			renderLinkLine(r.pageTitle(id), r.pageHref(id), false) + pageLinkClose
 	}
 	return ""
 }
@@ -294,15 +351,18 @@ func nonNil(c []Node) []Node {
 }
 
 // helpers is the `h` a renderMarkdown hook receives.
-type helpers struct{ node *Node }
+type helpers struct {
+	r    *renderer
+	node *Node
+}
 
 // children is h.renderChildren(nodes, separator).
 func (h helpers) children(nodes []Node, sep string) string {
-	return renderInline(nodes, h.node, sep)
+	return h.r.renderInline(nodes, h.node, sep)
 }
 
 // child is h.renderChild(node, index).
-func (h helpers) child(n *Node, index int) string { return renderNode(n, h.node, index) }
+func (h helpers) child(n *Node, index int) string { return h.r.renderNode(n, h.node, index) }
 
 // nested is renderNestedMarkdownContent.
 func (h helpers) nested(prefix string, alignToPrefix bool) string {
@@ -516,7 +576,7 @@ func renderLinkLine(label, href string, image bool) string {
 }
 
 // renderTable is @tiptap/extension-table's renderTableToMarkdown.
-func renderTable(n *Node, h helpers) string {
+func (r *renderer) renderTable(n *Node, h helpers) string {
 	const cellSep = "\x1f"
 	if len(n.Content) == 0 {
 		return ""
@@ -538,9 +598,9 @@ func renderTable(n *Node, h helpers) string {
 				for k := range c.Content {
 					child := &c.Content[k]
 					if child.Content != nil {
-						parts[k] = renderInline(child.Content, h.node, "")
+						parts[k] = r.renderInline(child.Content, h.node, "")
 					} else {
-						parts[k] = renderNode(child, h.node, k)
+						parts[k] = r.renderNode(child, h.node, k)
 					}
 				}
 				raw = strings.Join(parts, cellSep)
@@ -950,11 +1010,11 @@ func markClosing(typ string, m *Mark, mode string) string {
 
 // renderInline is renderNodesWithMarkBoundaries, plus the comment markers
 // when inline content carries comment marks.
-func renderInline(nodes []Node, parent *Node, sep string) string {
+func (r *renderer) renderInline(nodes []Node, parent *Node, sep string) string {
 	if sep == "" && hasCommentMarks(nodes) {
-		return renderCommented(nodes, parent)
+		return r.renderCommented(nodes, parent)
 	}
-	pieces, kept := renderPieces(nodes, parent)
+	pieces, kept := r.renderPieces(nodes, parent)
 	out := make([]string, 0, len(pieces))
 	for i, s := range pieces {
 		if kept[i] {
@@ -967,7 +1027,7 @@ func renderInline(nodes []Node, parent *Node, sep string) string {
 // renderPieces is renderNodesWithMarkBoundaries up to the join: each node's
 // output (mark delimiters included), and whether it produced any (a node
 // without a type is skipped, it adds no separator).
-func renderPieces(nodes []Node, parent *Node) (pieces []string, kept []bool) {
+func (r *renderer) renderPieces(nodes []Node, parent *Node) (pieces []string, kept []bool) {
 	pieces = make([]string, len(nodes))
 	kept = make([]bool, len(nodes))
 	active := newMarkMap()
@@ -1009,7 +1069,7 @@ func renderPieces(nodes []Node, parent *Node) (pieces []string, kept []bool) {
 			}
 			active.clear()
 			clear(modes)
-			content := renderNode(node, parent, i)
+			content := r.renderNode(node, parent, i)
 			after := ""
 			if node.Type != "hardBreak" {
 				for _, k := range reopen.keys {
