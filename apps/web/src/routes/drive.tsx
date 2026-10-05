@@ -1,11 +1,18 @@
-import { Outlet, createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
-import { FolderPlus, Plus } from "lucide-react";
+import {
+  Link,
+  Outlet,
+  createFileRoute,
+  redirect,
+  useLocation,
+  useNavigate,
+} from "@tanstack/react-router";
+import { FolderPlus, Plus, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { CSSProperties, FormEvent } from "react";
 import { toast } from "sonner";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
-import { Button } from "@workspace/ui/components/button";
+import { Button, buttonVariants } from "@workspace/ui/components/button";
 import { Label } from "@workspace/ui/components/label";
 import { Textarea } from "@workspace/ui/components/textarea";
 import { Input } from "@workspace/ui/components/input";
@@ -17,7 +24,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@workspace/ui/components/dialog";
-import { fetchSpaces, requireAuth, useCreateSpace, useMe, useSpaces } from "@/lib/queries";
+import {
+  fetchSpaces,
+  requireAuth,
+  useCreateSpace,
+  useExternalShared,
+  useMe,
+  useSpaces,
+} from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
 import { useActiveSpaceId } from "@/lib/use-active-space";
 import { DriveWriteProvider } from "@/components/drive-write";
@@ -39,13 +53,17 @@ export const Route = createFileRoute("/drive")({
     // from surfacing as unhandled when auth redirects to /login first.
     const spacesPromise = fetchSpaces(queryClient);
     spacesPromise.catch(() => {});
-    await requireAuth(queryClient, location.href);
+    const me = await requireAuth(queryClient, location.href);
     if (/^\/drive\/?$/.test(location.pathname)) {
       const spaces = await spacesPromise;
       if (spaces.length > 0) {
         const last = useUiStore.getState().lastSpaceId;
-        // The remembered space may have been deleted since it was recorded.
-        const target = spaces.find((s) => s.id === last)?.id ?? spaces[0].id;
+        // The remembered space may have been deleted since it was recorded;
+        // failing that, the person's own drive comes before any organization.
+        const target =
+          spaces.find((s) => s.id === last)?.id ??
+          spaces.find((s) => s.id === me.personal_space_id)?.id ??
+          spaces[0].id;
         throw redirect({
           to: "/drive/$spaceId",
           params: { spaceId: target },
@@ -59,7 +77,10 @@ export const Route = createFileRoute("/drive")({
 
 function DriveLayout() {
   const spaces = useSpaces();
-  const showLanding = spaces.data?.length === 0;
+  // The external-shares browser lives outside any space, so it shows even
+  // for somebody who belongs to none.
+  const onExternal = useLocation({ select: (l) => /^\/drive\/shared\/?$/.test(l.pathname) });
+  const showLanding = spaces.data?.length === 0 && !onExternal;
   const spaceId = useActiveSpaceId();
   const setPaletteOpen = useUiStore((s) => s.setPaletteOpen);
 
@@ -127,6 +148,7 @@ function DriveLayout() {
 function LandingPage() {
   const setNewSpaceOpen = useUiStore((s) => s.setNewSpaceOpen);
   const canCreateSpaces = useMe().data?.can_create_spaces ?? false;
+  const hasExternal = (useExternalShared().data?.length ?? 0) > 0;
 
   // Belonging to no space means two very different things depending on who
   // creates spaces here. Offering "create your first space" to somebody who
@@ -138,12 +160,23 @@ function LandingPage() {
         <h1 className="text-xl font-semibold">
           <Trans>You are not in any space yet</Trans>
         </h1>
-        <p className="text-muted-foreground max-w-sm text-center">
-          <Trans>
-            Spaces follow the organizations you belong to at your identity provider. Ask an
-            administrator to add you to one — it appears here the next time you sign in.
-          </Trans>
-        </p>
+        {hasExternal ? (
+          <>
+            <p className="text-muted-foreground max-w-sm text-center">
+              <Trans>People outside your organization have shared files with you.</Trans>
+            </p>
+            <Link to="/drive/shared" search={{ dir: undefined }} className={buttonVariants()}>
+              <Users data-icon="inline-start" /> <Trans>Open Shared from outside</Trans>
+            </Link>
+          </>
+        ) : (
+          <p className="text-muted-foreground max-w-sm text-center">
+            <Trans>
+              Spaces follow the organizations you belong to at your identity provider. Ask an
+              administrator to add you to one — it appears here the next time you sign in.
+            </Trans>
+          </p>
+        )}
       </div>
     );
   }

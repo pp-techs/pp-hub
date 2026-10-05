@@ -2,6 +2,7 @@ package notify
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
@@ -57,7 +58,11 @@ func renderEN(d msgData) (subject, body string) {
 		itemType = "folder"
 	}
 
-	body = fmt.Sprintf(`%s (%s) shared the %s "%s" with %s in %s on %s.
+	where := ""
+	if d.SpaceName != "" {
+		where = " in " + d.SpaceName
+	}
+	body = fmt.Sprintf(`%s (%s) shared the %s "%s" with %s%s on %s.
 
 Access: %s
 
@@ -66,7 +71,7 @@ Open it: %s
 --
 You received this because something was shared with you on %s.
 To stop these emails, turn off "Email me when something is shared with me" in Settings → General.`,
-		d.GranterName, d.GranterEmail, itemType, d.NodeName, target, d.SpaceName, d.Instance,
+		d.GranterName, d.GranterEmail, itemType, d.NodeName, target, where, d.Instance,
 		access,
 		d.Link,
 		d.Instance,
@@ -97,7 +102,11 @@ func renderVI(d msgData) (subject, body string) {
 		itemType = "thư mục"
 	}
 
-	body = fmt.Sprintf(`%s (%s) đã chia sẻ %s "%s" với %s trong %s trên %s.
+	where := ""
+	if d.SpaceName != "" {
+		where = " trong " + d.SpaceName
+	}
+	body = fmt.Sprintf(`%s (%s) đã chia sẻ %s "%s" với %s%s trên %s.
 
 Quyền: %s
 
@@ -106,10 +115,103 @@ Mở: %s
 --
 Bạn nhận được email này vì có nội dung được chia sẻ với bạn trên %s.
 Để tắt các email này, hãy tắt "Gửi email khi có nội dung được chia sẻ với tôi" trong Cài đặt → Chung.`,
-		d.GranterName, d.GranterEmail, itemType, d.NodeName, target, d.SpaceName, d.Instance,
+		d.GranterName, d.GranterEmail, itemType, d.NodeName, target, where, d.Instance,
 		access,
 		d.Link,
 		d.Instance,
+	)
+	return subject, body
+}
+
+// renderInvite is the mail to an address with no account: somebody shared
+// something with it, and signing up with this very address is how to open
+// it. There is no opt-out line — there is no account to carry a preference.
+//
+// The recipient never asked for it and the sender chose every word of their
+// name and the file's, so the subject carries none of them, and in the body
+// both are clipped and stripped of links (untrusted): an invitation must not
+// be a phishing mail signed with this instance's name.
+func renderInvite(locale string, d msgData) (subject, body string) {
+	d.GranterName = untrusted(d.GranterName)
+	d.NodeName = untrusted(d.NodeName)
+	if locale == "vi" {
+		return renderInviteVI(d)
+	}
+	return renderInviteEN(d)
+}
+
+var linkish = regexp.MustCompile(`(?i)\b(?:[a-z][a-z0-9+.-]*://|www\.)\S*`)
+
+// untrusted clips sender-chosen text and replaces anything that reads as a
+// link, so a mail client has nothing of theirs to make clickable.
+func untrusted(s string) string {
+	s = linkish.ReplaceAllString(s, "[link removed]")
+	if r := []rune(s); len(r) > 80 {
+		s = string(r[:80]) + "…"
+	}
+	return s
+}
+
+func renderInviteEN(d msgData) (subject, body string) {
+	access := "Can view"
+	if d.Level == store.ShareLevelEdit {
+		access = "Can edit"
+	} else if d.CanDownload {
+		access = "Can view and download"
+	}
+	itemType := "file"
+	if d.IsDir {
+		itemType = "folder"
+	}
+	where := ""
+	if d.SpaceName != "" {
+		where = " in " + d.SpaceName
+	}
+	subject = fmt.Sprintf(`A %s was shared with you on %s`, itemType, d.Instance)
+	body = fmt.Sprintf(`%s (%s) shared the %s "%s"%s on %s with this address.
+
+Access: %s
+
+To open it, create an account with this email address and verify it: %s
+
+--
+You received this because %s typed this address into %s. If you do not know them, ignore this email.`,
+		d.GranterName, d.GranterEmail, itemType, d.NodeName, where, d.Instance,
+		access,
+		d.Link,
+		d.GranterEmail, d.Instance,
+	)
+	return subject, body
+}
+
+func renderInviteVI(d msgData) (subject, body string) {
+	access := "Chỉ xem"
+	if d.Level == store.ShareLevelEdit {
+		access = "Có thể chỉnh sửa"
+	} else if d.CanDownload {
+		access = "Có thể xem và tải xuống"
+	}
+	itemType := "tệp"
+	if d.IsDir {
+		itemType = "thư mục"
+	}
+	where := ""
+	if d.SpaceName != "" {
+		where = " trong " + d.SpaceName
+	}
+	subject = fmt.Sprintf(`Có %s được chia sẻ với bạn trên %s`, itemType, d.Instance)
+	body = fmt.Sprintf(`%s (%s) đã chia sẻ %s "%s"%s trên %s với địa chỉ email này.
+
+Quyền: %s
+
+Để mở, hãy tạo tài khoản bằng chính địa chỉ email này và xác minh nó: %s
+
+--
+Bạn nhận được email này vì %s đã nhập địa chỉ này trên %s. Nếu bạn không biết người này, hãy bỏ qua email.`,
+		d.GranterName, d.GranterEmail, itemType, d.NodeName, where, d.Instance,
+		access,
+		d.Link,
+		d.GranterEmail, d.Instance,
 	)
 	return subject, body
 }

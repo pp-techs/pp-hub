@@ -69,3 +69,28 @@ func TestMessagesRender(t *testing.T) {
 		t.Errorf("expected body to contain setting opt-out string, got %q", bodyEN)
 	}
 }
+
+// An invitation goes to an address that never asked for it, so nothing the
+// sender chose may reach the subject, and nothing of theirs in the body may
+// be a link.
+func TestInviteCarriesNoSenderLinks(t *testing.T) {
+	for _, locale := range []string{"en", "vi"} {
+		subject, body := renderInvite(locale, msgData{
+			GranterName:  "IT Security https://evil.example/login",
+			GranterEmail: "x@example.com",
+			NodeName:     "Mailbox closing - verify at www.evil.example now",
+			Instance:     "pp-hub",
+			Level:        store.ShareLevelView,
+			Link:         "https://drive.example.com/open/1",
+		})
+		if strings.Contains(subject, "IT Security") || strings.Contains(subject, "Mailbox") {
+			t.Errorf("%s: subject carries sender text: %q", locale, subject)
+		}
+		if strings.Contains(body, "evil.example") {
+			t.Errorf("%s: body carries a sender link: %q", locale, body)
+		}
+		if !strings.Contains(body, "https://drive.example.com/open/1") {
+			t.Errorf("%s: body lost the instance link", locale)
+		}
+	}
+}

@@ -832,6 +832,24 @@ func (s *Service) EntryPointsWithMeta(ctx context.Context, userID, spaceID pgtyp
 	return childRowsToMeta(plain), nil
 }
 
+// ExternalEntryPointsWithMeta returns the topmost nodes the caller reaches
+// through an external grant, in spaces they do not belong to — "shared from
+// outside". externalEnabled is the instance switch, which the query applies
+// like the resolver does.
+func (s *Service) ExternalEntryPointsWithMeta(ctx context.Context, userID pgtype.UUID, externalEnabled bool) ([]store.NodeWithMeta, error) {
+	rows, err := s.q.ListExternalEntryPoints(ctx, store.ListExternalEntryPointsParams{
+		UserID: userID, ExternalEnabled: externalEnabled,
+	})
+	if err != nil {
+		return nil, err
+	}
+	plain := make([]store.ListChildrenWithMetaRow, len(rows))
+	for i, r := range rows {
+		plain[i] = store.ListChildrenWithMetaRow(r)
+	}
+	return childRowsToMeta(plain), nil
+}
+
 // HasChildren reports whether a node has any child nodes.
 func (s *Service) HasChildren(ctx context.Context, nodeID pgtype.UUID) (int64, error) {
 	return s.q.HasChildren(ctx, nodeID)

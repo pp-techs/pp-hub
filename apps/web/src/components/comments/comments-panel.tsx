@@ -26,11 +26,11 @@ import { Label } from "@workspace/ui/components/label";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { Switch } from "@workspace/ui/components/switch";
 import { cn } from "@workspace/ui/lib/utils";
-import { capsOf, type DocComment, type DocCommentThread, type SpaceMember } from "@/lib/api";
+import { capsOf, type DocComment, type DocCommentThread, type NodePerson } from "@/lib/api";
 import type { PpCommentStore } from "@/lib/comments";
 import { mentionedIds, type PickedMention } from "@/lib/comment-mentions";
 import { useFormatters } from "@/lib/format";
-import { commentsOptions, useMe, useNode, useSpaceMembers } from "@/lib/queries";
+import { commentsOptions, useMe, useNode, useNodePeople } from "@/lib/queries";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { LoadingStatus } from "@/components/loading";
 import { CommentInput } from "@/components/comments/comment-input";
@@ -97,13 +97,11 @@ function useThreadAnchors(editor: Editor): Map<string, ThreadAnchor> {
 export function CommentsPanel({
   editor,
   store,
-  spaceId,
   focusThreadId,
   onClose,
 }: {
   editor: Editor;
   store: PpCommentStore;
-  spaceId: string;
   focusThreadId?: string | null;
   onClose: () => void;
 }) {
@@ -111,7 +109,7 @@ export function CommentsPanel({
   const threads = useQuery(commentsOptions(store.nodeId));
   const node = useNode(store.nodeId);
   const me = useMe();
-  const members = useSpaceMembers(spaceId);
+  const members = useNodePeople(store.nodeId);
   const anchors = useThreadAnchors(editor);
   const activeIds = useSyncExternalStore(
     (listener) => editor.storage.comment.subscribe(listener),
@@ -293,7 +291,7 @@ function ThreadCard({
   meId: string | undefined;
   canModerate: boolean;
   store: PpCommentStore;
-  members: SpaceMember[] | undefined;
+  members: NodePerson[] | undefined;
   onThreadDeleted: () => void;
 }) {
   const { t } = useLingui();

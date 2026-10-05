@@ -110,6 +110,14 @@ SELECT COUNT(*)::int FROM shares WHERE kind = 'group' AND grantee_group_id = $1;
 DELETE FROM shares s USING nodes n
 WHERE s.node_id = n.id AND n.space_id = $1 AND s.grantee_user_id = $2;
 
+
+-- name: ClearExternalGrantsOnJoin :exec
+-- Somebody who joins a space holds its grants as a member from now on. An
+-- `is_external` flag left on them would let a later departure fall back to the
+-- outsider path, and their access would outlive their membership.
+UPDATE shares s SET is_external = false
+FROM nodes n
+WHERE s.node_id = n.id AND n.space_id = $1 AND s.grantee_user_id = $2 AND s.is_external;
 -- name: DeleteSharesByCreatorInSpace :exec
 -- Every grant the departed member made, links included: their sharing
 -- decisions leave with them. Admins recover content — and re-share it — from
@@ -240,6 +248,84 @@ WHERE n.deleted_at IS NULL
   )
 ORDER BY n.kind, n.name
 LIMIT 200;
+
+-- name: ListExternalEntryPoints :many
+-- "Shared from outside": the topmost nodes the caller reaches through an
+-- external grant, in spaces they do not belong to. The same reach rule as
+-- NodeAccessCaps for a non-member — a live external direct share made by a
+-- current member, while the instance (@external_enabled) and the space allow
+-- external sharing and the space is not archived — so nothing is listed that
+-- would not open.
+WITH RECURSIVE entry(id) AS (
+    SELECT DISTINCT s.node_id
+    FROM shares s
+    JOIN nodes gn ON gn.id = s.node_id
+    JOIN spaces sp ON sp.id = gn.space_id
+    WHERE s.kind = 'direct' AND s.is_external AND s.grantee_user_id = @user_id
+      AND (s.expires_at IS NULL OR s.expires_at > now())
+      AND @external_enabled::bool AND sp.external_sharing AND sp.archived_at IS NULL
+      AND NOT EXISTS (
+          SELECT 1 FROM space_members sm
+          WHERE sm.space_id = gn.space_id AND sm.user_id = @user_id
+      )
+      AND EXISTS (
+          SELECT 1 FROM space_members cm
+          WHERE cm.space_id = gn.space_id AND cm.user_id = s.created_by
+      )
+),
+walk(origin, id) AS (
+    SELECT e.id, p.id
+    FROM entry e
+    JOIN nodes n ON n.id = e.id
+    JOIN nodes p ON p.id = n.parent_id
+    WHERE p.deleted_at IS NULL
+  UNION
+    SELECT w.origin, p.id
+    FROM walk w
+    JOIN nodes c ON c.id = w.id
+    JOIN nodes p ON p.id = c.parent_id
+    WHERE p.deleted_at IS NULL
+)
+SELECT
+  n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id,
+  v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
+  u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email
+FROM entry e
+JOIN nodes n ON n.id = e.id
+LEFT JOIN node_versions v ON v.id = n.current_version_id
+LEFT JOIN users u ON u.id = n.created_by
+WHERE n.deleted_at IS NULL
+  AND NOT EXISTS (
+      SELECT 1 FROM walk w
+      JOIN entry e2 ON e2.id = w.id
+      WHERE w.origin = e.id
+  )
+ORDER BY n.kind, n.name
+LIMIT 200;
+
+-- name: ListNodePeople :many
+-- Who a document's @-mention list offers: the space's members when the caller
+-- is one (@include_members), plus whoever holds a live direct grant on, or
+-- created, one of @chain_ids — the node and the ancestors the caller can
+-- open (the handler cuts the chain where their reach ends). An outsider sees
+-- the people the document was explicitly opened to, never the company's
+-- roster or who holds the folders above their share.
+WITH people(user_id) AS (
+    SELECT sm.user_id FROM space_members sm
+    WHERE @include_members::bool AND sm.space_id = @space_id
+  UNION
+    SELECT s.grantee_user_id FROM shares s
+    WHERE s.node_id = ANY(@chain_ids::uuid[]) AND s.kind = 'direct'
+      AND (s.expires_at IS NULL OR s.expires_at > now())
+  UNION
+    SELECT n.created_by FROM nodes n WHERE n.id = ANY(@chain_ids::uuid[])
+)
+SELECT u.id, u.email, u.name, u.display_name, u.avatar_url
+FROM people p
+JOIN users u ON u.id = p.user_id
+WHERE u.suspended_at IS NULL
+ORDER BY lower(COALESCE(NULLIF(u.display_name, ''), NULLIF(u.name, ''), u.email));
 
 -- name: ListGroupEmailRecipients :many
 -- Who a group grant emails: live accounts in the group, minus the granter.

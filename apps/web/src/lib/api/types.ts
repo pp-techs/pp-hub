@@ -81,6 +81,10 @@ export interface UserProfile {
   mcp_url?: string;
   /** Whether this account may create personal access tokens. Absent means no. */
   mcp_tokens?: boolean;
+  /** The caller's personal space, absent when they have none. */
+  personal_space_id?: string;
+  /** Instance switch: may anyone share with people outside a space. */
+  external_sharing_enabled: boolean;
 }
 
 export interface SpaceMember {
@@ -122,6 +126,12 @@ export interface Space {
   admin_count: number;
   /** The Logto organization this space mirrors. Absent when unlinked. */
   idp_org_id?: string;
+  /** A personal space ("My Drive") belongs to one person. */
+  kind: "org" | "personal";
+  /** Whether people outside the space can be given access by email. */
+  external_sharing: boolean;
+  /** Whether public links may be created in this space. */
+  allow_public_links: boolean;
 }
 
 /** A space member as the link preview names them. */
@@ -223,10 +233,21 @@ export interface AdminSetting {
   source: "database" | "env" | "default";
   description: string;
   default: unknown;
-  type: "string" | "number" | "smtp";
+  type: "string" | "number" | "boolean" | "smtp";
 }
 
 export type AdminSettingsMap = Record<string, AdminSetting>;
+
+/** A personal space whose owner is gone: unreachable until an admin purges it. */
+export interface ArchivedPersonalSpace {
+  id: string;
+  name: string;
+  owner_email: string;
+  used_bytes: number;
+  archived_at: string;
+  created_at: string;
+}
+
 /**
  * One row of the instance security log.
  *
@@ -302,6 +323,8 @@ export interface Node {
    * do not resolve caps, e.g. recent/starred/search.
    */
   shared?: boolean;
+  /** Rows of `GET /shared?scope=external` only: the space the node lives in. */
+  space_name?: string;
   /**
    * Live nodes inside this folder that somebody else created. Only resolved on
    * a single-folder GET — a listing would need one subtree walk per row — and
@@ -502,6 +525,8 @@ export interface Share {
    * so the dialog warns before the revoke. Direct shares only.
    */
   grantee_owned?: number;
+  /** Direct share to someone outside the node's space. */
+  is_external?: boolean;
 }
 
 /**
@@ -516,7 +541,39 @@ export interface Share {
  */
 export type CreateShareBody =
   | ({ kind: "direct"; user_id: string } & GrantCaps)
+  | ({ kind: "direct"; email: string } & GrantCaps & { expires_in?: number })
   | { kind: "link"; level: "view"; can_download: boolean; can_share: false; expires_in: number };
+
+/**
+ * An invitation to an email address that has no account yet. It turns into a
+ * direct share when that person first signs in.
+ */
+export interface PendingShare {
+  id: string;
+  node_id: string;
+  email: string;
+  level: "view" | "edit";
+  can_download: boolean;
+  created_at: string;
+  expires_at?: string;
+}
+
+/** `POST /nodes/{id}/shares` answer for an email with no account (202). */
+export type PendingShareCreated = PendingShare & { mail_sent: boolean };
+
+/** One step of `GET /nodes/{id}/path`, topmost viewable ancestor first. */
+export interface PathEntry {
+  id: string;
+  name: string;
+}
+
+/** A mention candidate from `GET /nodes/{id}/people`. */
+export interface NodePerson {
+  user_id: string;
+  name: string;
+  email: string;
+  avatar_url?: string;
+}
 
 /**
  * Someone reaching a node from above it, as `GET /nodes/{id}/inherited-access`

@@ -5,6 +5,7 @@ import { api, ApiError } from "../client";
 import type {
   ActivityEvent,
   AdminSettingsMap,
+  ArchivedPersonalSpace,
   AdminStats,
   AdminUser,
   CollabSession,
@@ -27,6 +28,10 @@ import type {
   UsageCategory,
   ShareInfo,
   LinkPreview,
+  NodePerson,
+  PathEntry,
+  PendingShare,
+  PendingShareCreated,
   Space,
   TrashNode,
   TreeNode,
@@ -57,6 +62,9 @@ export interface SpaceSettings {
   slug?: string;
   description?: string;
   default_as_admin?: boolean;
+  allow_public_links?: boolean;
+  /** Organization spaces only. */
+  external_sharing?: boolean;
   quota_bytes?: number;
   /** Days to keep trashed items. 0 keeps them indefinitely. */
   trash_retention_days?: number;
@@ -150,6 +158,19 @@ export async function deleteAdminSetting(key: string): Promise<AdminSettingsMap>
   return res.json() as Promise<AdminSettingsMap>;
 }
 
+/** Personal spaces left behind by deleted accounts. Admin only. */
+export async function getArchivedPersonalSpaces(): Promise<ArchivedPersonalSpace[]> {
+  const res = await api.get("api/v1/admin/personal-spaces");
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<ArchivedPersonalSpace[]>;
+}
+
+/** Deletes an archived personal space and everything in it, for good. */
+export async function purgeArchivedPersonalSpace(spaceId: string): Promise<void> {
+  const res = await api.delete(`api/v1/admin/personal-spaces/${spaceId}`);
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+}
+
 export async function sendTestEmail(): Promise<{ to: string }> {
   const res = await api.post("api/v1/admin/settings/smtp/test");
   if (!res.ok) throw new ApiError(res.status, await res.text());
@@ -172,6 +193,27 @@ export async function getNode(nodeId: string): Promise<Node> {
   const res = await api.get(`api/v1/nodes/${nodeId}`);
   if (!res.ok) throw new ApiError(res.status, await res.text());
   return res.json() as Promise<Node>;
+}
+
+/** A folder's children by node id — works for grantees outside the space. */
+export async function getNodeChildren(nodeId: string): Promise<Node[]> {
+  const res = await api.get(`api/v1/nodes/${nodeId}/children`);
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<Node[]>;
+}
+
+/** From the topmost ancestor the caller can view down to the node itself. */
+export async function getNodePath(nodeId: string): Promise<PathEntry[]> {
+  const res = await api.get(`api/v1/nodes/${nodeId}/path`);
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<PathEntry[]>;
+}
+
+/** Mention candidates for a document: members plus grantees and its creator. */
+export async function getNodePeople(nodeId: string): Promise<NodePerson[]> {
+  const res = await api.get(`api/v1/nodes/${nodeId}/people`);
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<NodePerson[]>;
 }
 
 export async function createFolder(
@@ -402,10 +444,25 @@ export async function getShares(nodeId: string): Promise<Share[]> {
  * Creates a share, or — for a direct share to someone who already holds one
  * on this node — updates it: 201 created, 200 updated, same body either way.
  */
-export async function createShare(nodeId: string, body: CreateShareBody): Promise<Share> {
+export async function createShare(
+  nodeId: string,
+  body: CreateShareBody,
+): Promise<Share | PendingShareCreated> {
   const res = await api.post(`api/v1/nodes/${nodeId}/shares`, { json: body });
   if (!res.ok) throw new ApiError(res.status, await res.text());
-  return res.json() as Promise<Share>;
+  return res.json() as Promise<Share | PendingShareCreated>;
+}
+
+/** Invitations to email addresses that have no account yet. Share-gated. */
+export async function getPendingShares(nodeId: string): Promise<PendingShare[]> {
+  const res = await api.get(`api/v1/nodes/${nodeId}/pending-shares`);
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<PendingShare[]>;
+}
+
+export async function revokePendingShare(nodeId: string, pendingId: string): Promise<void> {
+  const res = await api.delete(`api/v1/nodes/${nodeId}/pending-shares/${pendingId}`);
+  if (!res.ok) throw new ApiError(res.status, await res.text());
 }
 
 export async function revokeShare(nodeId: string, shareId: string): Promise<void> {
@@ -607,6 +664,13 @@ export async function getTrash(spaceId: string): Promise<TrashNode[]> {
 /** Grant entry points inside one space — where the caller's access begins. */
 export async function getShared(spaceId: string): Promise<Node[]> {
   const res = await api.get(`api/v1/shared?space=${spaceId}`);
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<Node[]>;
+}
+
+/** Grant entry points in spaces the caller is not a member of. */
+export async function getExternalShared(): Promise<Node[]> {
+  const res = await api.get("api/v1/shared?scope=external");
   if (!res.ok) throw new ApiError(res.status, await res.text());
   return res.json() as Promise<Node[]>;
 }

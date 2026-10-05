@@ -1,7 +1,7 @@
 -- name: UpdateSpaceSettings :one
 UPDATE spaces
 SET name = $2, slug = $3, description = $4, default_as_admin = $5, quota_bytes = $6,
-    trash_retention_days = $7, allow_public_links = $8
+    trash_retention_days = $7, allow_public_links = $8, external_sharing = $9
 WHERE id = $1
 RETURNING *;
 

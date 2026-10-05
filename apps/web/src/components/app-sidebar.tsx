@@ -7,6 +7,7 @@ import {
   SidebarSeparator,
 } from "@workspace/ui/components/sidebar";
 import { NavCreate } from "@/components/nav-create";
+import { NavExternal } from "@/components/nav-external";
 import { NavSpace } from "@/components/nav-space";
 import { NavUser } from "@/components/nav-user";
 import { SpaceSwitcher } from "@/components/space-switcher";
@@ -41,6 +42,7 @@ export function AppSidebar({
             <NavSpace spaceId={spaceId} />
           </>
         )}
+        <NavExternal />
       </SidebarContent>
       <SidebarFooter>
         <StorageMeter />

@@ -1,6 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useNavigate } from "@tanstack/react-router";
-import { ChevronsUpDown, Plus } from "lucide-react";
+import { ChevronsUpDown, HardDrive, Plus } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +18,7 @@ import {
 } from "@workspace/ui/components/sidebar";
 import { useMe, useSpaces } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
+import { useSpaceLabel } from "@/lib/use-space-label";
 import { cn } from "@workspace/ui/lib/utils";
 
 /** Two-letter monogram for a space, e.g. "Acme Core" -> "AC". */
@@ -51,6 +52,7 @@ export function SpaceSwitcher({ spaceId }: { spaceId: string | undefined }) {
   const canCreateSpaces = useMe().data?.can_create_spaces ?? false;
   const { isMobile } = useSidebar();
   const { t } = useLingui();
+  const spaceLabel = useSpaceLabel();
 
   const current = spaces.data?.find((s) => s.id === spaceId);
 
@@ -71,6 +73,10 @@ export function SpaceSwitcher({ spaceId }: { spaceId: string | undefined }) {
                     alt=""
                     className="flex aspect-square size-8 shrink-0 rounded-lg object-cover"
                   />
+                ) : current?.kind === "personal" ? (
+                  <div className="bg-foreground text-background flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg">
+                    <HardDrive className="size-4" />
+                  </div>
                 ) : (
                   <div className="bg-foreground text-background flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg text-[11px] font-semibold">
                     {current ? monogram(current.name) : "—"}
@@ -78,9 +84,9 @@ export function SpaceSwitcher({ spaceId }: { spaceId: string | undefined }) {
                 )}
                 <div className="grid flex-1 text-left leading-tight">
                   <span className="truncate text-sm font-medium">
-                    {current?.name ?? t`Select a space`}
+                    {current ? spaceLabel(current) : t`Select a space`}
                   </span>
-                  {current?.is_admin && (
+                  {current?.is_admin && current.kind !== "personal" && (
                     <span className="text-muted-foreground truncate text-[10px] tracking-wider uppercase">
                       <Trans>Admin</Trans>
                     </span>
@@ -111,8 +117,9 @@ export function SpaceSwitcher({ spaceId }: { spaceId: string | undefined }) {
                     })
                   }
                 >
-                  <span className="truncate">{space.name}</span>
-                  {space.is_admin && (
+                  {space.kind === "personal" && <HardDrive />}
+                  <span className="truncate">{spaceLabel(space)}</span>
+                  {space.is_admin && space.kind !== "personal" && (
                     <span className="text-muted-foreground ml-auto text-[10px] uppercase">
                       <Trans>Admin</Trans>
                     </span>

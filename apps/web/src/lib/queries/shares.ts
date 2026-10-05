@@ -4,9 +4,11 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tansta
 import {
   createShare,
   getInheritedAccess,
+  getPendingShares,
   getShareChildren,
   getShareInfo,
   getShares,
+  revokePendingShare,
   revokeShare,
   type CreateShareBody,
 } from "@/lib/api";
@@ -47,6 +49,8 @@ function invalidateAccess(qc: QueryClient, nodeId: string) {
   void qc.invalidateQueries({ queryKey: keys.node(nodeId) });
   void qc.invalidateQueries({ queryKey: ["children"] });
   void qc.invalidateQueries({ queryKey: ["shared"] });
+  void qc.invalidateQueries({ queryKey: keys.pendingShares(nodeId) });
+  void qc.invalidateQueries({ queryKey: ["node-children"] });
 }
 
 export function useCreateShare() {
@@ -63,6 +67,24 @@ export function useRevokeShare() {
   return useMutation({
     mutationFn: ({ nodeId, shareId }: { nodeId: string; shareId: string }) =>
       revokeShare(nodeId, shareId),
+    onSuccess: (_d, { nodeId }) => invalidateAccess(qc, nodeId),
+  });
+}
+
+/** Invitations to addresses with no account yet. Share-gated like `useShares`. */
+export function usePendingShares(nodeId: string | null) {
+  return useQuery({
+    queryKey: keys.pendingShares(nodeId ?? ""),
+    queryFn: () => getPendingShares(nodeId!),
+    enabled: nodeId !== null,
+  });
+}
+
+export function useRevokePendingShare() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ nodeId, pendingId }: { nodeId: string; pendingId: string }) =>
+      revokePendingShare(nodeId, pendingId),
     onSuccess: (_d, { nodeId }) => invalidateAccess(qc, nodeId),
   });
 }

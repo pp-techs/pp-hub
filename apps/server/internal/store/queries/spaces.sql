@@ -7,10 +7,47 @@ RETURNING *;
 SELECT * FROM spaces WHERE id = $1 LIMIT 1;
 
 -- name: ListMySpaces :many
+-- The personal space leads: it is the one every account has (when the instance
+-- provisions them), and the place a person lands. An archived personal space
+-- belongs to an account Logto no longer has; it is listed for nobody.
 SELECT s.* FROM spaces s
 JOIN space_members m ON m.space_id = s.id
 WHERE m.user_id = $1
-ORDER BY s.created_at;
+  AND (s.kind <> 'personal' OR s.archived_at IS NULL)
+ORDER BY (s.kind = 'personal') DESC, s.created_at;
+
+-- name: CreatePersonalSpace :one
+-- At most one per owner (spaces_personal_owner_uniq). A concurrent sign-in
+-- that lost the race gets no row and reads the winner's instead.
+INSERT INTO spaces (name, owner_id, kind, external_sharing, quota_bytes)
+VALUES (@name, @owner_id, 'personal', true, @quota_bytes)
+ON CONFLICT (owner_id) WHERE kind = 'personal' DO NOTHING
+RETURNING *;
+
+-- name: GetPersonalSpace :one
+SELECT * FROM spaces WHERE owner_id = $1 AND kind = 'personal' LIMIT 1;
+
+-- name: ArchivePersonalSpace :exec
+-- The owner's account is gone upstream: nobody reaches the space again, and an
+-- instance administrator purges it.
+UPDATE spaces SET archived_at = now()
+WHERE owner_id = $1 AND kind = 'personal' AND archived_at IS NULL;
+
+-- name: CountOrgSpaces :one
+-- Organization spaces the person belongs to — whether `personal_spaces =
+-- members` admits them.
+SELECT COUNT(*)::bigint FROM space_members m
+JOIN spaces s ON s.id = m.space_id
+WHERE m.user_id = $1 AND s.kind = 'org';
+
+-- name: ListArchivedPersonalSpaces :many
+-- Personal spaces whose owner Logto no longer has, for an instance admin to
+-- purge.
+SELECT s.id, s.name, s.used_bytes, s.archived_at, s.created_at, u.email AS owner_email
+FROM spaces s
+JOIN users u ON u.id = s.owner_id
+WHERE s.kind = 'personal' AND s.archived_at IS NOT NULL
+ORDER BY s.archived_at;
 
 -- name: AddSpaceMember :exec
 -- Membership only: there is no role column anymore (M15). Admin authority is

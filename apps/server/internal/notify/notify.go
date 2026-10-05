@@ -31,7 +31,19 @@ type Share struct {
 	Level       store.ShareLevel
 	CanDownload bool
 	Group       string // group name; "" for a direct share
-	Recipients  []Recipient
+	// External: the recipients are outside the node's space, so the space's
+	// own routes are not theirs to open; the link goes through /open/.
+	External   bool
+	Recipients []Recipient
+}
+
+// Invite is a share waiting for an address with no account.
+type Invite struct {
+	Granter     store.User
+	Node        store.Node
+	Level       store.ShareLevel
+	CanDownload bool
+	Email       string
 }
 
 type emailJob struct {
@@ -76,19 +88,8 @@ func (n *Notifier) Shared(ctx context.Context, s Share) {
 		slog.WarnContext(ctx, "share notification skipped", "err", err)
 		return
 	}
-
-	instance := "pp-hub"
-	if n.sys != nil {
-		instance = n.sys.InstanceName(sysconfig.DefaultTenantID)
-	}
-
-	granterName := s.Granter.DisplayName
-	if granterName == "" {
-		granterName = s.Granter.Name
-	}
-	if granterName == "" {
-		granterName = s.Granter.Email
-	}
+	instance := n.instance()
+	granterName := displayName(s.Granter)
 
 	spaceID := uuidString(s.Node.SpaceID)
 	nodeID := uuidString(s.Node.ID)
@@ -96,6 +97,9 @@ func (n *Notifier) Shared(ctx context.Context, s Share) {
 	link := n.externalURL + "/drive/" + spaceID + "/shared"
 	if s.Node.Kind == store.NodeKindDir {
 		link = n.externalURL + "/drive/" + spaceID + "?dir=" + nodeID
+	}
+	if s.External {
+		link = n.externalURL + "/open/" + nodeID
 	}
 
 	for _, r := range s.Recipients {
@@ -113,7 +117,7 @@ func (n *Notifier) Shared(ctx context.Context, s Share) {
 			NodeName:     s.Node.Name,
 			IsDir:        s.Node.Kind == store.NodeKindDir,
 			Group:        s.Group,
-			SpaceName:    space.Name,
+			SpaceName:    spaceLabel(space),
 			Instance:     instance,
 			Level:        s.Level,
 			CanDownload:  s.CanDownload,
@@ -135,6 +139,67 @@ func (n *Notifier) Shared(ctx context.Context, s Share) {
 			continue
 		}
 	}
+}
+
+// Invited mails an address with no account that something was shared with
+// it. Nil-safe and never returns an error, like Shared. The recipient has no
+// preferences yet, so the mail is in the granter's language — the likelier
+// guess for somebody they chose to invite.
+func (n *Notifier) Invited(ctx context.Context, inv Invite) {
+	if n == nil || n.mail == nil || !n.mail.Enabled() || inv.Email == "" {
+		return
+	}
+	space, err := n.q.GetSpace(ctx, inv.Node.SpaceID)
+	if err != nil {
+		slog.WarnContext(ctx, "invitation email skipped", "err", err)
+		return
+	}
+	subject, body := renderInvite(localeOf(users.DecodePreferences(inv.Granter.Settings).Locale), msgData{
+		GranterName:  displayName(inv.Granter),
+		GranterEmail: inv.Granter.Email,
+		NodeName:     inv.Node.Name,
+		IsDir:        inv.Node.Kind == store.NodeKindDir,
+		SpaceName:    spaceLabel(space),
+		Instance:     n.instance(),
+		Level:        inv.Level,
+		CanDownload:  inv.CanDownload,
+		Link:         n.externalURL + "/open/" + uuidString(inv.Node.ID),
+	})
+	payload, err := json.Marshal(emailJob{To: inv.Email, Subject: subject, Body: body})
+	if err != nil {
+		slog.WarnContext(ctx, "failed to marshal email job", "err", err)
+		return
+	}
+	if _, err := n.q.EnqueueJob(ctx, store.EnqueueJobParams{Kind: KindEmail, Payload: payload}); err != nil {
+		slog.WarnContext(ctx, "failed to enqueue email job", "err", err)
+	}
+}
+
+func (n *Notifier) instance() string {
+	if n.sys != nil {
+		return n.sys.InstanceName(sysconfig.DefaultTenantID)
+	}
+	return "pp-hub"
+}
+
+func displayName(u store.User) string {
+	if u.DisplayName != "" {
+		return u.DisplayName
+	}
+	if u.Name != "" {
+		return u.Name
+	}
+	return u.Email
+}
+
+// spaceLabel is how a mail names where the item lives. A personal space is
+// named after its owner, who is already the granter in the sentence, so it
+// is left out rather than read as "in Jane Doe".
+func spaceLabel(sp store.Space) string {
+	if sp.Kind == "personal" {
+		return ""
+	}
+	return sp.Name
 }
 
 // SecurityAlert is one alert as the watcher raised it.

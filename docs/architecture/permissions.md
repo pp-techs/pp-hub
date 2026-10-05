@@ -6,7 +6,8 @@ A space **is a company**. One instance hosts several, a person can belong to
 more than one, and a space owns exactly one file tree.
 
 Content access comes from exactly two mechanisms, both of which require the
-caller to be a **current member of the node's space**:
+caller to be a **current member of the node's space** — with one narrow
+exception for people outside it, below:
 
 1. **Ownership** — `nodes.created_by`. The creator of a node holds every
    capability on it and on everything beneath it. Ownership is intrinsic: it is
@@ -16,7 +17,14 @@ caller to be a **current member of the node's space**:
 2. **Grants** — a row in `shares` naming a user, a group, or a link token,
    carried down the subtree from whatever node it names.
 
-There is no third mechanism. **Being an admin grants no file access at all.**
+**External grants (M42).** A direct share flagged `is_external` reaches
+somebody who is not a member of the node's space, and it is the only thing that
+does: no group grant and no ownership counts for a non-member, and an external
+grant counts only while `external_sharing_enabled` (instance) and
+`spaces.external_sharing` (space) are both on and the space is not archived. It
+never carries `can_share`. See [Outside the Space](#outside-the-space).
+
+There is no other mechanism. **Being an admin grants no file access at all.**
 Admin is membership in the space's `Admin` group, and it buys space
 administration (members, groups, settings, trash purge, the archive) — never
 readership of a colleague's files.
@@ -788,6 +796,39 @@ session. An account Logto no longer has is suspended the same way — never
 deleted, because it owns files and history — and each organization it was in
 is reconciled at once so its memberships become departures. Only an account
 issued by some other provider keeps a local-only suspension.
+
+## Outside the Space
+
+M42 ([personal-spaces.md](personal-spaces.md)) lets a node be shared by email
+with somebody outside its space. Everything that follows from it is narrow on
+purpose:
+
+- **Who may.** Whoever holds `CapShare`, through `POST /nodes/{id}/shares` with
+  `email`, gated by `allowExternal`: the instance switch, the space switch,
+  `mcp_external_shares` for an agent, and no `can_share` for the outsider. A
+  user id outside the space stays a 422. The covering rule applies as to any
+  grant.
+- **What it opens.** The node's subtree at the grant's level, read through
+  node-addressed routes only (`/nodes/{id}/…`, WOPI, collab). Every
+  space-addressed route still gates on membership, so an outsider never lists a
+  space's top level, its members or its groups. Creating inside a shared folder
+  takes edit on that folder (`requireParentWrite`); what they create is reached
+  through the grant, not owned.
+- **What it never opens.** Group grants, ownership, re-sharing, a team folder's
+  management.
+- **Ending it.** Revoking the row; either switch off (the row stays, so on again
+  restores it); archiving a personal space; the share's maker leaving the
+  space — it resolves only while they are a member. Joining the space turns a
+  person's external grants there into ordinary ones, and leaving takes every
+  grant they hold, as for any member.
+- **Invitations.** An address with no account — or whose account never had it
+  verified — gets a `pending_shares` row, turned into a grant (external, or
+  ordinary for a member) only at a sign-in with that address verified, and only
+  if its inviter still could make it.
+- **What they can learn.** `GET /nodes/{id}/people`, the breadcrumb and the
+  parent names in search, Starred and Recent stop at the topmost node the
+  outsider can open: never the roster, nor who holds or what is called anything
+  above their share.
 
 ## Agents (MCP)
 

@@ -8,7 +8,7 @@ import { Button } from "@workspace/ui/components/button";
 import { Popover, PopoverContent } from "@workspace/ui/components/popover";
 import type { PpCommentStore } from "@/lib/comments";
 import { mentionedIds, type PickedMention } from "@/lib/comment-mentions";
-import { commentsOptions, useSpaceMembers } from "@/lib/queries";
+import { commentsOptions, useNodePeople } from "@/lib/queries";
 import { CommentInput } from "@/components/comments/comment-input";
 
 /**
@@ -25,17 +25,15 @@ import { CommentInput } from "@/components/comments/comment-input";
 export function CommentComposer({
   editor,
   store,
-  spaceId,
   onCreated,
 }: {
   editor: Editor;
   store: PpCommentStore;
-  spaceId: string;
   onCreated?: (threadId: string) => void;
 }) {
   const { t } = useLingui();
   const comments = useComments(editor);
-  const members = useSpaceMembers(comments.composer.open ? spaceId : null);
+  const members = useNodePeople(comments.composer.open ? store.nodeId : null);
   const [body, setBody] = useState("");
   const [picked, setPicked] = useState<PickedMention[]>([]);
   const [pending, setPending] = useState(false);

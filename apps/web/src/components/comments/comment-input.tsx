@@ -3,7 +3,7 @@ import { useLingui } from "@lingui/react/macro";
 import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/avatar";
 import { Textarea } from "@workspace/ui/components/textarea";
 import { cn } from "@workspace/ui/lib/utils";
-import type { SpaceMember } from "@/lib/api";
+import type { NodePerson } from "@/lib/api";
 import { presenceInitials } from "@/lib/collab/presence";
 import { mentionQueryAt, type MentionQuery, type PickedMention } from "@/lib/comment-mentions";
 
@@ -11,7 +11,7 @@ import { mentionQueryAt, type MentionQuery, type PickedMention } from "@/lib/com
 const MAX_SUGGESTIONS = 6;
 
 /**
- * A comment text box with `@` suggestions from the space's members. Picking
+ * A comment text box with `@` suggestions from the document's people. Picking
  * one inserts `@Name ` and reports the pick; the caller keeps the picks and
  * sends the ones still in the text as `mentions` (see `mentionedIds`).
  *
@@ -35,7 +35,7 @@ export function CommentInput({
   onCancel?: () => void;
   onMention?: (mention: PickedMention) => void;
   /** Suggestion source; omit for a box without mentions (editing a comment). */
-  members?: SpaceMember[];
+  members?: NodePerson[];
   placeholder?: string;
   autoFocus?: boolean;
   disabled?: boolean;
@@ -50,9 +50,7 @@ export function CommentInput({
     if (!mention || !members) return [];
     const q = mention.query.toLocaleLowerCase();
     return members
-      .filter((m) =>
-        [m.display_name, m.name, m.email].some((field) => field?.toLocaleLowerCase().includes(q)),
-      )
+      .filter((m) => [m.name, m.email].some((field) => field?.toLocaleLowerCase().includes(q)))
       .slice(0, MAX_SUGGESTIONS);
   }, [mention, members]);
 
@@ -64,9 +62,9 @@ export function CommentInput({
     if (next?.query !== mention?.query) setHighlighted(0);
   };
 
-  const pick = (member: SpaceMember) => {
+  const pick = (member: NodePerson) => {
     if (!mention) return;
-    const label = member.display_name || member.name || member.email;
+    const label = member.name || member.email;
     const end = mention.start + 1 + mention.query.length;
     const insert = `@${label} `;
     onChange(value.slice(0, mention.start) + insert + value.slice(end));
@@ -140,7 +138,7 @@ export function CommentInput({
           className="bg-popover ring-foreground/10 flex flex-col rounded-md p-1 shadow-sm ring-1"
         >
           {suggestions.map((member, i) => {
-            const label = member.display_name || member.name || member.email;
+            const label = member.name || member.email;
             return (
               <li
                 key={member.user_id}

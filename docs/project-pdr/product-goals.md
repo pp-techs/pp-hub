@@ -7,6 +7,7 @@ A minimal, self-hosted Google Workspace alternative: Drive, collaborative office
 ## Target Users
 
 - Small teams / individuals self-hosting their files and documents.
+- Individuals on an instance that offers personal spaces (M42, `personal_spaces`), sharing by email with anyone.
 - Later: SMB (50–500 users), multi-tenant SaaS.
 
 ## Competitive Landscape (decision inputs)

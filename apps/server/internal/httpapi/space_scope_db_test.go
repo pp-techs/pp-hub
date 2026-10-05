@@ -62,6 +62,8 @@ func feedUser(t *testing.T, q *store.Queries, label string) store.User {
 		OidcIss: "test",
 		Email:   sub + "@test.local",
 		Name:    label,
+		// A sign-in through Logto: the address is verified.
+		EmailVerified: true,
 	})
 	if err != nil {
 		t.Fatalf("create user %s: %v", label, err)

@@ -157,6 +157,12 @@ func (s *Server) handleListRecent(w http.ResponseWriter, r *http.Request) {
 		Error(w, r, err)
 		return
 	}
+	if err := hideParents(r.Context(), s, rc, rows,
+		func(n store.ListRecentNodesRow) pgtype.UUID { return n.ParentID },
+		func(n *store.ListRecentNodesRow) { n.ParentName = "" }); err != nil {
+		Error(w, r, err)
+		return
+	}
 
 	// DISTINCT ON must order by the node id, so the rows arrive grouped rather
 	// than sorted by time. Re-sort here and trim to the requested page.
@@ -195,6 +201,12 @@ func (s *Server) handleListStarred(w http.ResponseWriter, r *http.Request) {
 		func(n store.ListStarredNodesRow) pgtype.UUID { return n.ID },
 		func(n store.ListStarredNodesRow) pgtype.UUID { return n.SpaceID })
 	if err != nil {
+		Error(w, r, err)
+		return
+	}
+	if err := hideParents(r.Context(), s, rc, rows,
+		func(n store.ListStarredNodesRow) pgtype.UUID { return n.ParentID },
+		func(n *store.ListStarredNodesRow) { n.ParentName = "" }); err != nil {
 		Error(w, r, err)
 		return
 	}

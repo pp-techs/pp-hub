@@ -110,7 +110,7 @@ func (s *Service) applyIdentity(ctx context.Context, user store.User, m Member) 
 	if m.Name != "" {
 		name = m.Name
 	}
-	if email == user.Email && name == user.Name {
+	if email == user.Email && name == user.Name && user.EmailVerified == (email != "") {
 		return user, nil
 	}
 	updated, err := s.q.SetUserIdpIdentity(ctx, store.SetUserIdpIdentityParams{ID: user.ID, Email: email, Name: name})
@@ -158,12 +158,18 @@ func (s *Service) applySuspension(ctx context.Context, user store.User, suspende
 // The local row stays — it owns files, grants and history, and the Archive
 // handover needs it — but it is suspended with its sessions ended, and every
 // organization it was in is reconciled now rather than at the next sweep, so
-// its memberships become departures an admin can hand over.
+// its memberships become departures an admin can hand over. A personal space
+// has nobody to hand over to: it is archived, which takes it out of every
+// listing and ends the external grants into it, and an instance admin purges
+// it.
 func (s *Service) accountGone(ctx context.Context, user store.User) error {
 	if !user.SuspendedAt.Valid {
 		if err := s.applySuspension(ctx, user, true, reasonDeleted); err != nil {
 			return err
 		}
+	}
+	if err := s.q.ArchivePersonalSpace(ctx, user.ID); err != nil {
+		return err
 	}
 	mine, err := s.q.ListMySpaces(ctx, user.ID)
 	if err != nil {

@@ -193,7 +193,7 @@ func (s *Server) handleListGroups(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleCreateGroup(w http.ResponseWriter, r *http.Request) {
-	u, space, ok := s.requireSpaceAdmin(w, r)
+	u, space, ok := s.requireOrgSpaceAdmin(w, r)
 	if !ok {
 		return
 	}
@@ -215,7 +215,7 @@ func (s *Server) handleCreateGroup(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleUpdateGroup(w http.ResponseWriter, r *http.Request) {
-	u, space, ok := s.requireSpaceAdmin(w, r)
+	u, space, ok := s.requireOrgSpaceAdmin(w, r)
 	if !ok {
 		return
 	}
@@ -245,7 +245,7 @@ func (s *Server) handleUpdateGroup(w http.ResponseWriter, r *http.Request) {
 // handleDeleteGroup reports how many folders the group opened, because the
 // grants cascade away with it and the people in it lose that access silently.
 func (s *Server) handleDeleteGroup(w http.ResponseWriter, r *http.Request) {
-	u, space, ok := s.requireSpaceAdmin(w, r)
+	u, space, ok := s.requireOrgSpaceAdmin(w, r)
 	if !ok {
 		return
 	}
@@ -307,7 +307,7 @@ func (s *Server) handleListGroupMembers(w http.ResponseWriter, r *http.Request) 
 // admin never buys. Another admin can still do it, and every change is in the
 // security log.
 func (s *Server) handleAddGroupMember(w http.ResponseWriter, r *http.Request) {
-	u, space, ok := s.requireSpaceAdmin(w, r)
+	u, space, ok := s.requireOrgSpaceAdmin(w, r)
 	if !ok {
 		return
 	}
@@ -355,7 +355,7 @@ func (s *Server) handleAddGroupMember(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleRemoveGroupMember(w http.ResponseWriter, r *http.Request) {
-	u, space, ok := s.requireSpaceAdmin(w, r)
+	u, space, ok := s.requireOrgSpaceAdmin(w, r)
 	if !ok {
 		return
 	}

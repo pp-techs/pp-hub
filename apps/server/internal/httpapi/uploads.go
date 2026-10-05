@@ -100,11 +100,10 @@ func (s *Server) authorizeUploadTarget(w http.ResponseWriter, r *http.Request, t
 		t.spaceID, t.parentID, t.name = node.SpaceID, node.ParentID, node.Name
 		return true
 	}
+	// requireParentWrite gates the space's top level on membership and a
+	// folder on edit, which is how somebody outside the space holding an
+	// external edit grant on a folder can add to it.
 	u := caller(r)
-	if err := s.spaces.RequireMember(r.Context(), t.spaceID, u.ID); err != nil {
-		s.spaceError(w, r, err)
-		return false
-	}
 	return s.requireParentWrite(w, r, t.spaceID, t.parentID, u)
 }
 

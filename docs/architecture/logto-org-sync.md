@@ -64,6 +64,7 @@ flowchart TB
     ORG -->|"1 · ID token claims at sign-in"| REC
     ORG -->|"2 · webhook Organization.*"| REC
     ORG -->|"3 · hourly ticker"| REC
+    ORG -->|"4 · GET /users/{id}/organizations<br/>on GET /spaces, 15 s throttle"| REC
     REC --> SM
     REC -->|"gone from the org"| DEP
     P -->|"write-through · Management API"| ORG
@@ -96,6 +97,18 @@ A space missing from the token can also mean its organization was deleted.
 Before a claims-driven departure, `orgGone` looks the organization up: a 404
 unlinks the space instead (see [Deletion does not travel](#deletion-does-not-travel)),
 and a failed lookup skips the departure and leaves it to the sweep.
+
+**Listing spaces asks Logto too.** A session lives for weeks, so claims alone
+left an organization created or joined in Logto invisible until the person
+signed out — and a webhook cannot help when Logto cannot reach pp-hub (a
+local Logto refuses private addresses; see [deployment.md](../deployment.md)).
+`GET /api/v1/spaces` therefore calls `orgsync.RefreshUser`, which reads
+`GET /api/users/{sub}/organizations` — the same ids and roles the claims carry
+— and runs the same `ReconcileUser`, at most once per account every
+`RefreshInterval` (15 s), only for accounts this tenant issued. A failure is
+logged and the list is served from what is already known. The web client
+refetches the list when its window regains focus, and the `/drive/$spaceId`
+guard refetches once before calling a space id unknown.
 
 ### Members who have never signed in
 
@@ -255,14 +268,16 @@ CREATE TABLE detached_orgs (
 );
 ```
 
-`spaces.owner_id` is `NOT NULL REFERENCES users(id)`, so a space is **not**
-created from a webhook — there is no user in that context to own it. A space is
-created either by an instance admin in pp-hub (`CreateSpace`, which creates the
-organization first) or lazily on the first sign-in of an organization member
-whose organization has no space yet. Either way that person owns the row
-whatever their role: their admin status is then corrected from the
-organization like everybody else's, so owning the row buys nothing on its own
-(`ensureSpace`). No nullable owner, no placeholder account.
+`spaces.owner_id` is `NOT NULL REFERENCES users(id)`, so a space needs a person
+to own it. It is created by an instance admin in pp-hub (`CreateSpace`, which
+creates the organization first); for a member whose organization has no space
+yet, at sign-in or on `RefreshUser`; or by `ReconcileOrg` — a webhook or the
+sweep — which takes an owner from the organization's roster, an admin when
+there is one (`createFromRoster`). An organization with no members yet gets
+no space until its first one arrives. Whoever owns the row, their admin status
+is then corrected from the organization like everybody else's, so owning the
+row buys nothing on its own (`ensureSpace`). No nullable owner, no placeholder
+account.
 
 ## Package `internal/orgsync`
 
@@ -352,7 +367,11 @@ membership. Upstream first means there is nothing to compensate: if the local
 half fails, the organization is already in the creator's next ID token, and
 that sign-in creates the space the ordinary way. A creator whose account this
 Logto tenant did not issue has no organization to be seated in, and gets
-**422**. There is no longer a way to create a space that mirrors nothing.
+**422**. There is no longer a way to create a space that mirrors nothing —
+except a personal space (M42, [personal-spaces.md](personal-spaces.md)), which
+mirrors nothing by definition: `spaces_personal_unlinked_ck` keeps it unlinkable,
+`linkTarget` refuses it before Logto is called, and every reconcile and sweep
+already skips a space with no `idp_org_id`.
 
 The decision rides on the profile as `can_create_spaces`, so the client hides
 the control instead of offering a button that answers 403 — and the empty

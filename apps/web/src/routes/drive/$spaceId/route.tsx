@@ -1,14 +1,20 @@
 import { Outlet, createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
 import { Trans } from "@lingui/react/macro";
 import { Button } from "@workspace/ui/components/button";
-import { fetchSpaces, useSpace } from "@/lib/queries";
+import { fetchSpaces, refetchSpaces, useSpace } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
 import { NoAdminBanner } from "@/components/no-admin-banner";
 
 export const Route = createFileRoute("/drive/$spaceId")({
   beforeLoad: async ({ context, params }) => {
-    const spaces = await fetchSpaces(context.queryClient);
-    const space = spaces.find((s) => s.id === params.spaceId);
+    let spaces = await fetchSpaces(context.queryClient);
+    let space = spaces.find((s) => s.id === params.spaceId);
+    // Not in the cached list: it may be a space created since the list was
+    // loaded (an organization made in Logto). Ask once before giving up.
+    if (!space) {
+      spaces = await refetchSpaces(context.queryClient);
+      space = spaces.find((s) => s.id === params.spaceId);
+    }
     // A deleted space, or one the caller was removed from, must not stay the
     // space `/drive` redirects to.
     if (!space) {

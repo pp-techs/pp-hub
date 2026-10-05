@@ -27,6 +27,7 @@ import (
 	"net/url"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -74,13 +75,58 @@ type Service struct {
 	// audit records account changes Logto reported: a suspension that arrives
 	// by webhook must leave the same trail as one an admin clicked.
 	audit *audit.Service
+
+	// refreshed throttles RefreshUser: when each account last read its
+	// organizations from Logto.
+	refreshMu sync.Mutex
+	refreshed map[pgtype.UUID]time.Time
 }
 
 func NewService(q *store.Queries, sp *spaces.Service, profiles *users.Service, client *Client, issuer, publicURL string) *Service {
 	return &Service{
 		q: q, spaces: sp, profiles: profiles, client: client,
 		issuer: issuer, publicURL: publicURL, audit: audit.New(q),
+		refreshed: make(map[pgtype.UUID]time.Time),
 	}
+}
+
+// RefreshInterval is how often RefreshUser asks Logto about one account.
+const RefreshInterval = 15 * time.Second
+
+// RefreshUser converges one person's memberships from Logto itself rather
+// than from an ID token, so an organization created or joined in Logto
+// shows up the next time the client lists spaces — not at the next sign-in,
+// and not only when a webhook gets through (a local Logto cannot deliver one
+// to a development server at all). Throttled to one Management API call per
+// account per RefreshInterval; accounts this tenant did not issue are left
+// alone.
+func (s *Service) RefreshUser(ctx context.Context, user store.User) error {
+	if s == nil || user.OidcIss != s.issuer || user.OidcSub == "" || !s.refreshDue(user.ID) {
+		return nil
+	}
+	claims, err := s.client.UserOrganizations(ctx, user.OidcSub)
+	if err != nil {
+		return err
+	}
+	return s.ReconcileUser(ctx, user, claims)
+}
+
+func (s *Service) refreshDue(userID pgtype.UUID) bool {
+	now := time.Now()
+	s.refreshMu.Lock()
+	defer s.refreshMu.Unlock()
+	if last, ok := s.refreshed[userID]; ok && now.Sub(last) < RefreshInterval {
+		return false
+	}
+	if len(s.refreshed) > 10_000 {
+		for id, at := range s.refreshed {
+			if now.Sub(at) >= RefreshInterval {
+				delete(s.refreshed, id)
+			}
+		}
+	}
+	s.refreshed[userID] = now
+	return true
 }
 
 // --- sign-in path ---
@@ -232,11 +278,10 @@ func (s *Service) ReconcileUser(ctx context.Context, user store.User, claims Cla
 // its members still carry it in their tokens, and recreating an empty space
 // for it at the next sign-in would undo the deletion.
 //
-// Creation happens here, at a sign-in, rather than from the Organization.Created
-// webhook, for a structural reason: spaces.owner_id is NOT NULL, and a webhook
-// carries no user to own the result. The first member through the door owns
-// it; their admin status is then corrected from the organization like
-// everybody else's, so owning the row buys nothing on its own.
+// spaces.owner_id is NOT NULL, so creation needs a person: the member a
+// sign-in or RefreshUser is converging, or one ReconcileOrg picks from the
+// organization's roster. Owning the row buys nothing on its own — their admin
+// status is corrected from the organization like everybody else's.
 func (s *Service) ensureSpace(ctx context.Context, orgID string, creator store.User) (store.Space, bool, error) {
 	space, err := s.q.GetSpaceByOrgID(ctx, pgtype.Text{String: orgID, Valid: true})
 	if err == nil {
@@ -329,15 +374,13 @@ func (s *Service) depart(ctx context.Context, spaceID, userID pgtype.UUID, sourc
 
 // ReconcileOrg converges a space against its organization: its name and its
 // whole member list. An organization Logto no longer has unlinks the space
-// instead (orgGone).
-//
-// An organization with no space is not an error and not a reason to create
-// one: nobody has signed in from it yet, and creating a space needs an owner.
+// instead (orgGone). An organization with no space yet gets one once it has
+// a member to own it — preferably an admin — so a webhook for an organization
+// created in Logto is enough; nobody has to sign in first.
 func (s *Service) ReconcileOrg(ctx context.Context, orgID string) error {
 	space, err := s.q.GetSpaceByOrgID(ctx, pgtype.Text{String: orgID, Valid: true})
 	if errors.Is(err, pgx.ErrNoRows) {
-		slog.DebugContext(ctx, "reconcile skipped: no space mirrors this organization", "org", orgID)
-		return nil
+		return s.createFromRoster(ctx, orgID)
 	}
 	if err != nil {
 		return err
@@ -396,6 +439,41 @@ func (s *Service) ReconcileOrg(ctx context.Context, orgID string) error {
 	return nil
 }
 
+// createFromRoster makes the space for an organization that has none, owned
+// by one of its members — an admin when there is one. ensureSpace then queues
+// the reconcile that pulls in everybody else. An organization with no members
+// yet (just created in the Console) waits for its first one: the membership
+// webhook brings it back here.
+func (s *Service) createFromRoster(ctx context.Context, orgID string) error {
+	if detached, err := s.q.IsOrgDetached(ctx, orgID); err != nil || detached {
+		return err
+	}
+	members, err := s.client.OrgMembers(ctx, orgID)
+	if Status(err) == http.StatusNotFound {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if len(members) == 0 {
+		slog.DebugContext(ctx, "organization has no members yet; no space to create", "org", orgID)
+		return nil
+	}
+	owner := members[0]
+	for _, m := range members {
+		if m.IsAdmin {
+			owner = m
+			break
+		}
+	}
+	user, err := s.ensureUser(ctx, owner)
+	if err != nil {
+		return err
+	}
+	_, _, err = s.ensureSpace(ctx, orgID, user)
+	return err
+}
+
 // ensureUser resolves an organization member to a local account, creating one
 // when they have never signed in, and mirrors what the IdP owns about them —
 // address, name, profile fields and suspension (applyAccount).
@@ -424,8 +502,9 @@ func (s *Service) resolveMember(ctx context.Context, m Member) (store.User, erro
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return store.User{}, err
 	}
+	// Logto's primaryEmail is verified by construction.
 	user, err = s.q.CreateUser(ctx, store.CreateUserParams{
-		OidcSub: m.ID, OidcIss: s.issuer, Email: m.Email, Name: m.Name,
+		OidcSub: m.ID, OidcIss: s.issuer, Email: m.Email, Name: m.Name, EmailVerified: m.Email != "",
 	})
 	if err == nil {
 		return user, nil

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -40,6 +41,12 @@ type userProfileDTO struct {
 	MCPURL string `json:"mcp_url,omitempty"`
 	// MCPTokens says personal access tokens may be created (mcp_tokens).
 	MCPTokens bool `json:"mcp_tokens,omitempty"`
+	// PersonalSpaceID is the account's personal space; absent when it has
+	// none (the instance does not provision one for them).
+	PersonalSpaceID string `json:"personal_space_id,omitempty"`
+	// ExternalSharingEnabled is the instance switch on sharing with people
+	// outside a space; each space has its own beneath it.
+	ExternalSharingEnabled bool `json:"external_sharing_enabled"`
 }
 
 type updateProfileRequest struct {
@@ -102,9 +109,24 @@ func (s *Server) handleGetMyProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	dto := profileToDTO(profile, s.canCreateSpaces(u))
+	s.profileExtras(r, u, &dto)
+	writeJSON(w, http.StatusOK, dto)
+}
+
+// profileExtras fills the profile fields that come from instance settings and
+// the space table rather than from the account row.
+func (s *Server) profileExtras(r *http.Request, u *store.User, dto *userProfileDTO) {
 	dto.MCPURL = s.mcpConnectorURL()
 	dto.MCPTokens = s.mcpTokensAllowed()
-	writeJSON(w, http.StatusOK, dto)
+	dto.ExternalSharingEnabled = s.share.ExternalSharingEnabled()
+	if s.personal != nil {
+		if err := s.personal.Provision(r.Context(), *u); err != nil {
+			slog.WarnContext(r.Context(), "personal space on profile", "user", u.Email, "err", err)
+		}
+	}
+	if sp, err := s.store.GetPersonalSpace(r.Context(), u.ID); err == nil && !sp.ArchivedAt.Valid {
+		dto.PersonalSpaceID = uuidString(sp.ID)
+	}
 }
 
 // handleUpdateMyProfile updates the current user's profile.
@@ -121,8 +143,7 @@ func (s *Server) handleUpdateMyProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	dto := profileToDTO(profile, s.canCreateSpaces(u))
-	dto.MCPURL = s.mcpConnectorURL()
-	dto.MCPTokens = s.mcpTokensAllowed()
+	s.profileExtras(r, u, &dto)
 	writeJSON(w, http.StatusOK, dto)
 }
 

@@ -65,6 +65,11 @@ function GeneralForm({ space }: { space: Space }) {
   const [slug, setSlug] = useState(space.slug ?? "");
   const [description, setDescription] = useState(space.description ?? "");
   const [defaultAsAdmin, setDefaultAsAdmin] = useState(space.default_as_admin ?? false);
+  const [allowPublicLinks, setAllowPublicLinks] = useState(space.allow_public_links);
+  const [externalSharing, setExternalSharing] = useState(space.external_sharing);
+  // One person's own drive: no slug, no membership, an allowance set by the
+  // instance, and nobody outside to share with but by direct grants.
+  const personal = space.kind === "personal";
   // Held as a String so the field can be emptied without becoming 0, which
   // means "unlimited" and is a very different thing from "not yet typed".
   const [quotaGb, setQuotaGb] = useState(
@@ -95,6 +100,10 @@ function GeneralForm({ space }: { space: Space }) {
     if (defaultAsAdmin !== (space.default_as_admin ?? false)) {
       next.default_as_admin = defaultAsAdmin;
     }
+    if (allowPublicLinks !== space.allow_public_links) {
+      next.allow_public_links = allowPublicLinks;
+    }
+    if (externalSharing !== space.external_sharing) next.external_sharing = externalSharing;
     if (quota !== space.quota_bytes) next.quota_bytes = quota;
     if (retention !== (space.trash_retention_days ?? 0)) next.trash_retention_days = retention;
     return next;
@@ -108,6 +117,8 @@ function GeneralForm({ space }: { space: Space }) {
     setSlug(space.slug ?? "");
     setDescription(space.description ?? "");
     setDefaultAsAdmin(space.default_as_admin ?? false);
+    setAllowPublicLinks(space.allow_public_links);
+    setExternalSharing(space.external_sharing);
     setQuotaGb(space.quota_bytes > 0 ? String(Math.round(space.quota_bytes / 1024 ** 3)) : "");
     setRetentionDays(space.trash_retention_days ? String(space.trash_retention_days) : "");
   };
@@ -154,20 +165,22 @@ function GeneralForm({ space }: { space: Space }) {
           <Input id="space-name" value={name} onChange={(e) => setName(e.target.value)} required />
         </div>
 
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="space-slug">
-            <Trans>URL slug</Trans>
-          </Label>
-          <Input
-            id="space-slug"
-            value={slug}
-            onChange={(e) => setSlug(e.target.value)}
-            placeholder={t`marketing`}
-          />
-          <p className="text-muted-foreground text-[10px]">
-            <Trans>Lowercase letters, numbers and dashes. Leave empty for none.</Trans>
-          </p>
-        </div>
+        {!personal && (
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="space-slug">
+              <Trans>URL slug</Trans>
+            </Label>
+            <Input
+              id="space-slug"
+              value={slug}
+              onChange={(e) => setSlug(e.target.value)}
+              placeholder={t`marketing`}
+            />
+            <p className="text-muted-foreground text-[10px]">
+              <Trans>Lowercase letters, numbers and dashes. Leave empty for none.</Trans>
+            </p>
+          </div>
+        )}
 
         <div className="flex flex-col gap-1">
           <Label htmlFor="space-description">
@@ -182,29 +195,76 @@ function GeneralForm({ space }: { space: Space }) {
         </div>
       </section>
 
+      {!personal && (
+        <section className="flex flex-col gap-3">
+          <SectionLabel>
+            <Trans>Membership</Trans>
+          </SectionLabel>
+          <div className="flex items-start justify-between gap-4">
+            <Label
+              htmlFor="space-default-admin"
+              className="cursor-pointer flex-col items-start gap-0.5 font-normal"
+            >
+              <Trans>New members are admins by default</Trans>
+              <span className="text-muted-foreground block text-[10px]">
+                <Trans>
+                  When on, everyone you invite can change these settings. Change it per-person on
+                  the Members pane.
+                </Trans>
+              </span>
+            </Label>
+            <Switch
+              id="space-default-admin"
+              checked={defaultAsAdmin}
+              onCheckedChange={setDefaultAsAdmin}
+            />
+          </div>
+        </section>
+      )}
+
       <section className="flex flex-col gap-3">
         <SectionLabel>
-          <Trans>Membership</Trans>
+          <Trans>Sharing</Trans>
         </SectionLabel>
         <div className="flex items-start justify-between gap-4">
           <Label
-            htmlFor="space-default-admin"
+            htmlFor="space-public-links"
             className="cursor-pointer flex-col items-start gap-0.5 font-normal"
           >
-            <Trans>New members are admins by default</Trans>
+            <Trans>Public links</Trans>
             <span className="text-muted-foreground block text-[10px]">
               <Trans>
-                When on, everyone you invite can change these settings. Change it per-person on the
-                Members pane.
+                When on, anyone with a link can open what it points to, without signing in.
               </Trans>
             </span>
           </Label>
           <Switch
-            id="space-default-admin"
-            checked={defaultAsAdmin}
-            onCheckedChange={setDefaultAsAdmin}
+            id="space-public-links"
+            checked={allowPublicLinks}
+            onCheckedChange={setAllowPublicLinks}
           />
         </div>
+        {!personal && (
+          <div className="flex items-start justify-between gap-4">
+            <Label
+              htmlFor="space-external-sharing"
+              className="cursor-pointer flex-col items-start gap-0.5 font-normal"
+            >
+              <Trans>Share outside this space</Trans>
+              <span className="text-muted-foreground block text-[10px]">
+                <Trans>
+                  When on, people outside this space can be given access to files and folders by
+                  email.
+                </Trans>
+              </span>
+            </Label>
+            <Switch
+              id="space-external-sharing"
+              checked={externalSharing}
+              onCheckedChange={setExternalSharing}
+            />
+          </div>
+        )}
       </section>
 
       <section className="flex flex-col gap-3">
@@ -212,22 +272,25 @@ function GeneralForm({ space }: { space: Space }) {
           <Trans>Limits</Trans>
         </SectionLabel>
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="space-quota">
-              <Trans>Storage quota (GB)</Trans>
-            </Label>
-            <Input
-              id="space-quota"
-              type="number"
-              min={0}
-              value={quotaGb}
-              onChange={(e) => setQuotaGb(e.target.value)}
-              placeholder={t`Unlimited`}
-            />
-            <p className="text-muted-foreground text-[10px]">
-              <Trans>Empty means unlimited.</Trans>
-            </p>
-          </div>
+          {/* A personal space's allowance is the instance's to set. */}
+          {!personal && (
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="space-quota">
+                <Trans>Storage quota (GB)</Trans>
+              </Label>
+              <Input
+                id="space-quota"
+                type="number"
+                min={0}
+                value={quotaGb}
+                onChange={(e) => setQuotaGb(e.target.value)}
+                placeholder={t`Unlimited`}
+              />
+              <p className="text-muted-foreground text-[10px]">
+                <Trans>Empty means unlimited.</Trans>
+              </p>
+            </div>
+          )}
 
           <div className="flex flex-col gap-1">
             <Label htmlFor="space-retention">

@@ -285,7 +285,7 @@ function DocSurface({
         ...mdocNodeViews({
           attachmentUrl: (hash) => attachmentUrl(documentId, hash),
           editing: { documentId, adapter },
-          mentionItems: mentionItems(queryClient, node.space_id),
+          mentionItems: mentionItems(queryClient, node.id, node.space_id),
         }),
       ],
     }),
@@ -332,7 +332,6 @@ function DocSurface({
           <CommentComposer
             editor={editor}
             store={commentStore}
-            spaceId={node.space_id}
             onCreated={(threadId) =>
               onPanelsChange((p) => ({ ...p, comments: true, focusThreadId: threadId }))
             }
@@ -344,7 +343,6 @@ function DocSurface({
           <CommentsPanel
             editor={editor}
             store={commentStore}
-            spaceId={node.space_id}
             focusThreadId={panels.focusThreadId}
             onClose={() => onPanelsChange((p) => ({ ...p, comments: false, focusThreadId: null }))}
           />

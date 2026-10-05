@@ -26,6 +26,9 @@ var (
 	// ErrLastAdmin: removing or demoting them would leave the space
 	// unadministrable, with no route back through the UI.
 	ErrLastAdmin = errors.New("cannot remove the last admin")
+	// ErrPersonal refuses administration a personal space does not have:
+	// members, groups, departures, team folders, linking, deletion.
+	ErrPersonal = errors.New("a personal space has no members, groups or organization to manage")
 )
 
 // Service wraps space queries with membership checks.
@@ -135,6 +138,66 @@ func (s *Service) create(ctx context.Context, name string, ownerID pgtype.UUID) 
 	return sp, nil
 }
 
+// EnsurePersonal returns the owner's personal space, creating it on first
+// call: no organization, no Archive (nobody can depart from it), the owner
+// its only member and admin. The automatic groups exist anyway, because
+// membership and admin status are read through them everywhere.
+//
+// Idempotent under concurrent sign-ins: spaces_personal_owner_uniq lets one
+// insert win, and the loser's transaction reads the winner's row.
+func (s *Service) EnsurePersonal(ctx context.Context, owner store.User, quotaBytes int64) (store.Space, bool, error) {
+	if sp, err := s.q.GetPersonalSpace(ctx, owner.ID); err == nil {
+		return sp, false, nil
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		return store.Space{}, false, err
+	}
+	name := owner.DisplayName
+	if name == "" {
+		name = owner.Name
+	}
+	if name == "" {
+		name = owner.Email
+	}
+	var sp store.Space
+	created := false
+	err := s.inTx(ctx, func(s *Service) error {
+		var err error
+		sp, err = s.q.CreatePersonalSpace(ctx, store.CreatePersonalSpaceParams{
+			Name: name, OwnerID: owner.ID, QuotaBytes: quotaBytes,
+		})
+		if errors.Is(err, pgx.ErrNoRows) {
+			sp, err = s.q.GetPersonalSpace(ctx, owner.ID)
+			return err
+		}
+		if err != nil {
+			return err
+		}
+		created = true
+		for _, g := range []store.CreateGroupParams{
+			{SpaceID: sp.ID, Name: EveryoneGroupName, Description: "Everyone in this space. Membership is maintained automatically.", IsEveryone: true, CreatedBy: owner.ID},
+			{SpaceID: sp.ID, Name: AdminGroupName, Description: "Space administrators. Membership is the admin role; managed by admins.", IsAdmin: true, CreatedBy: owner.ID},
+		} {
+			if _, err := s.q.CreateGroup(ctx, g); err != nil {
+				return err
+			}
+		}
+		return s.addMember(ctx, sp.ID, owner.ID, true)
+	})
+	if err != nil {
+		return store.Space{}, false, err
+	}
+	return sp, created, nil
+}
+
+// IsPersonal reports whether a space is somebody's personal space.
+func IsPersonal(sp store.Space) bool { return sp.Kind == KindPersonal }
+
+// Space kinds (spaces.kind).
+const (
+	KindOrg      = "org"
+	KindPersonal = "personal"
+)
+
 func (s *Service) ListForUser(ctx context.Context, userID pgtype.UUID) ([]store.Space, error) {
 	return s.q.ListMySpaces(ctx, userID)
 }
@@ -189,6 +252,13 @@ func (s *Service) addMember(ctx context.Context, spaceID, userID pgtype.UUID, as
 	if err := s.q.AddSpaceMember(ctx, store.AddSpaceMemberParams{
 		SpaceID: spaceID,
 		UserID:  userID,
+	}); err != nil {
+		return err
+	}
+	// From now on they reach this space's content as a member; a leftover
+	// external flag would let their grants outlive a later departure.
+	if err := s.q.ClearExternalGrantsOnJoin(ctx, store.ClearExternalGrantsOnJoinParams{
+		SpaceID: spaceID, GranteeUserID: userID,
 	}); err != nil {
 		return err
 	}

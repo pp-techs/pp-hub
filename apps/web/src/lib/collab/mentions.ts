@@ -1,8 +1,8 @@
 import type { MentionItem, MentionOptions } from "@slash-editor/core";
 import type { QueryClient } from "@tanstack/react-query";
 import { isMarkdownFile, searchNodes } from "@/lib/api";
-import { getSpaceMembers } from "@/lib/api/users";
-import { keys } from "@/lib/queries/keys";
+import { nodePeopleOptions } from "@/lib/queries/nodes";
+import { fetchSpaces } from "@/lib/queries/spaces";
 import { MIN_QUERY_LENGTH } from "@/lib/queries/search";
 
 /** How many of each kind the `@` menu lists. */
@@ -16,36 +16,40 @@ const MARKDOWN_EXT = /\.md$/i;
 /* eslint-enable lingui/no-unlocalized-strings */
 
 /**
- * The `@` provider for a document in `spaceId`: the space's members, matched
- * on display name, name and email, then its markdown documents whose name
- * matches (from search, once the query is long enough for it). Ids are what
- * the markdown keeps — `user:<uuid>` and `doc:<uuid>` — and the member list
- * is the same cached query the rest of the app reads.
+ * The `@` provider for document `nodeId` in `spaceId`: the people who can be
+ * mentioned on it (`GET /nodes/{id}/people` — the space's members for a
+ * member, plus everyone holding a grant on it), matched on name and email,
+ * then the space's markdown documents whose name matches (from search, once
+ * the query is long enough). Documents are offered only to a member of the
+ * space: search is member-scoped. Ids are what the markdown keeps —
+ * `user:<uuid>` and `doc:<uuid>`.
  */
-export function mentionItems(queryClient: QueryClient, spaceId: string): MentionOptions["items"] {
+export function mentionItems(
+  queryClient: QueryClient,
+  nodeId: string,
+  spaceId: string,
+): MentionOptions["items"] {
   return async (query) => {
     const needle = query.trim().toLocaleLowerCase();
-    const [members, hits] = await Promise.all([
-      queryClient.fetchQuery({
-        queryKey: keys.members(spaceId),
-        queryFn: () => getSpaceMembers(spaceId),
-        staleTime: 60_000,
-      }),
+    const [people, hits] = await Promise.all([
+      queryClient.fetchQuery(nodePeopleOptions(nodeId)),
       needle.length >= MIN_QUERY_LENGTH
-        ? // eslint-disable-next-line lingui/no-unlocalized-strings -- search filter value
-          searchNodes(needle, { spaceId, kind: "file", limit: 25 })
+        ? fetchSpaces(queryClient).then((spaces) =>
+            spaces.some((s) => s.id === spaceId)
+              ? // eslint-disable-next-line lingui/no-unlocalized-strings -- search filter value
+                searchNodes(needle, { spaceId, kind: "file", limit: 25 })
+              : [],
+          )
         : Promise.resolve([]),
     ]);
 
-    const people: MentionItem[] = members
-      .filter((m) =>
-        [m.display_name, m.name, m.email].some((v) => v?.toLocaleLowerCase().includes(needle)),
-      )
+    const candidates: MentionItem[] = people
+      .filter((p) => [p.name, p.email].some((v) => v?.toLocaleLowerCase().includes(needle)))
       .slice(0, PER_KIND)
-      .map((m) => ({
-        id: `${MENTION_USER}${m.user_id}`,
-        label: m.display_name || m.name || m.email,
-        description: m.email,
+      .map((p) => ({
+        id: `${MENTION_USER}${p.user_id}`,
+        label: p.name || p.email,
+        description: p.email,
         // eslint-disable-next-line lingui/no-unlocalized-strings -- icon key
         icon: "user",
       }));
@@ -63,6 +67,6 @@ export function mentionItems(queryClient: QueryClient, spaceId: string): Mention
         icon: "file-text",
       }));
 
-    return [...people, ...documents];
+    return [...candidates, ...documents];
   };
 }

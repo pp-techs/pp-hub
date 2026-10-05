@@ -5,10 +5,17 @@ import type { QueryClient } from "@tanstack/react-query";
 import { createSpace, getSpaces, type SpaceSettings } from "@/lib/api";
 import { keys } from "./keys";
 
+/**
+ * The caller's spaces. Membership is decided in Logto, so an organization
+ * created or joined there must appear without signing out: the list refetches
+ * when the window regains focus (coming back from the Logto Console), and the
+ * server re-reads the person's organizations from Logto on each listing.
+ */
 export function useSpaces() {
   return useQuery({
     queryKey: keys.spaces,
     queryFn: getSpaces,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -27,6 +34,14 @@ export function useSpace(spaceId: string | undefined) {
 /** Route-loader form: the spaces list through the shared query cache. */
 export function fetchSpaces(qc: QueryClient) {
   return qc.ensureQueryData({ queryKey: keys.spaces, queryFn: getSpaces });
+}
+
+/**
+ * The spaces list fresh from the server, for a route that found a space id
+ * missing from the cache — it may be a space created since the list loaded.
+ */
+export function refetchSpaces(qc: QueryClient) {
+  return qc.fetchQuery({ queryKey: keys.spaces, queryFn: getSpaces, staleTime: 0 });
 }
 
 export function useCreateSpace() {

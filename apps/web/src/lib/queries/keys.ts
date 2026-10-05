@@ -29,7 +29,15 @@ export const keys = {
   usage: (spaceId: string) => ["usage", spaceId] as const,
   trash: (spaceId: string) => ["trash", spaceId] as const,
   shared: (spaceId: string) => ["shared", spaceId] as const,
+  // Under the "shared" root so share changes refresh it with the rest.
+  sharedExternal: ["shared", "@external"] as const,
+  // Listing by node id (outside-the-space browsing). Its own root: the
+  // space-scoped "children" caches are patched optimistically by shape.
+  nodeChildren: (nodeId: string) => ["node-children", nodeId] as const,
+  nodePath: (nodeId: string) => ["node-path", nodeId] as const,
+  nodePeople: (nodeId: string) => ["node-people", nodeId] as const,
   shares: (nodeId: string) => ["shares", nodeId] as const,
+  pendingShares: (nodeId: string) => ["pending-shares", nodeId] as const,
   shareInfo: (token: string) => ["share", token] as const,
   users: ["users"] as const,
   // People/group caches live under their own roots, NOT under "spaces":
@@ -59,6 +67,7 @@ export const keys = {
       offset,
     ] as const,
   adminSettings: ["admin", "settings"] as const,
+  archivedPersonalSpaces: ["admin", "personal-spaces"] as const,
   // Comment threads of one markdown document.
   comments: (nodeId: string) => ["comments", nodeId] as const,
   // The inbox: the list pages and the unread badge share the root, so one

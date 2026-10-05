@@ -209,6 +209,12 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	if len(rows) > int(q.limit) {
 		rows = rows[:q.limit]
 	}
+	if err := hideParents(r.Context(), s, rc, rows,
+		func(n store.SearchNodesRow) pgtype.UUID { return n.ParentID },
+		func(n *store.SearchNodesRow) { n.ParentName = "" }); err != nil {
+		Error(w, r, err)
+		return
+	}
 
 	// Snippets are cut only for the page actually returned, after the
 	// access filter: nothing is read from a document the caller cannot open.

@@ -14,13 +14,14 @@ import {
 import { cn } from "@workspace/ui/lib/utils";
 import { useSpace } from "@/lib/queries";
 import { useActiveSpaceId } from "@/lib/use-active-space";
+import { useSpaceLabel } from "@/lib/use-space-label";
 import {
   DEFAULT_SETTINGS_SLUG,
   useSettingsHash,
   useSettingsNavigation,
   type SettingsSlug,
 } from "@/lib/use-settings-hash";
-import { PANES, type SettingsPane } from "@/components/settings/panes";
+import { PANES, paneAvailable, type SettingsPane } from "@/components/settings/panes";
 import { SettingsDirtyProvider } from "@/components/settings/settings-dirty";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 
@@ -46,7 +47,8 @@ export const SettingsModal = createModal("settings", ({ modal }) => {
   const [pendingPane, setPendingPane] = useState<SettingsSlug | null>(null);
   const [pendingClose, setPendingClose] = useState(false);
 
-  const panes = PANES.filter((p) => p.group === "account" || space?.is_admin === true);
+  const spaceLabel = useSpaceLabel();
+  const panes = PANES.filter((p) => paneAvailable(p, space));
   const active =
     panes.find((p) => p.slug === parsed?.slug) ??
     panes.find((p) => p.slug === DEFAULT_SETTINGS_SLUG);
@@ -55,7 +57,7 @@ export const SettingsModal = createModal("settings", ({ modal }) => {
     { label: t`Account`, panes: panes.filter((p) => p.group === "account") },
   ];
   if (space?.is_admin) {
-    groups.push({ label: space.name, panes: panes.filter((p) => p.group === "space") });
+    groups.push({ label: spaceLabel(space), panes: panes.filter((p) => p.group === "space") });
   }
 
   if (!active) return null;

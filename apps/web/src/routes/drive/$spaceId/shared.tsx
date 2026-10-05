@@ -5,6 +5,7 @@ import { Users } from "lucide-react";
 import { useShared } from "@/lib/queries";
 import { Surface } from "@/components/surface";
 import { NodeTable } from "@/components/node-table";
+import { useOpenNode } from "@/components/use-open-node";
 import { pageTitle } from "@/lib/i18n";
 
 export const Route = createFileRoute("/drive/$spaceId/shared")({
@@ -24,6 +25,7 @@ function SharedPage() {
   const { t } = useLingui();
   const { spaceId } = Route.useParams();
   const shared = useShared(spaceId);
+  const openNode = useOpenNode();
 
   return (
     <Surface>
@@ -44,6 +46,7 @@ function SharedPage() {
         emptyTitle={t`Nothing shared with you here`}
         emptyDescription={t`When a group you are in is given a folder, or someone shares one with you, it appears here.`}
         allShared
+        onOpen={(node) => openNode(node, shared.data ?? [])}
       />
     </Surface>
   );

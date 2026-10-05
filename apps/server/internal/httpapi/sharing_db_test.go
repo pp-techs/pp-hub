@@ -94,7 +94,7 @@ func mkNode(t *testing.T, q *store.Queries, sp store.Space, parent pgtype.UUID, 
 
 func grantDirect(t *testing.T, srv *Server, node store.Node, to, by store.User, caps share.GrantCaps) store.Share {
 	t.Helper()
-	sh, err := srv.share.UpsertDirect(context.Background(), node.ID, to.ID, caps, pgtype.Timestamptz{}, by.ID)
+	sh, err := srv.share.UpsertDirect(context.Background(), node.ID, to.ID, caps, pgtype.Timestamptz{}, by.ID, false)
 	if err != nil {
 		t.Fatalf("grant: %v", err)
 	}

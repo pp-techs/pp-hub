@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"mime"
 	"net/http"
 	"path"
@@ -70,6 +71,12 @@ type spaceDTO struct {
 	// whether that may become a public URL is a company decision, not a
 	// per-grant one.
 	AllowPublicLinks bool `json:"allow_public_links"`
+	// Kind is "org" for a company mirrored from Logto, "personal" for
+	// somebody's own drive (no organization, one member).
+	Kind string `json:"kind"`
+	// ExternalSharing lets content here be granted to people outside the
+	// space, by email. Always true on a personal space.
+	ExternalSharing bool `json:"external_sharing"`
 }
 
 type nodeDTO struct {
@@ -105,6 +112,9 @@ type nodeDTO struct {
 	// "owner" language for content that has no personal owner.
 	TeamFolder bool `json:"team_folder,omitempty"`
 	InTeam     bool `json:"in_team,omitempty"`
+	// SpaceName names the space a node lives in where the caller cannot look
+	// it up in their own space list: entries shared from outside.
+	SpaceName string `json:"space_name,omitempty"`
 }
 
 type versionDTO struct {
@@ -146,6 +156,8 @@ func spaceToDTO(sp store.Space, isAdmin bool, adminCount int64) spaceDTO {
 		TrashRetentionDays: sp.TrashRetentionDays,
 		ArchiveRootID:      uuidString(sp.ArchiveRootID),
 		AllowPublicLinks:   sp.AllowPublicLinks,
+		Kind:               sp.Kind,
+		ExternalSharing:    sp.ExternalSharing,
 	}
 }
 
@@ -306,6 +318,21 @@ func (s *Server) handleCreateSpace(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleListSpaces(w http.ResponseWriter, r *http.Request) {
 	u := caller(r)
+	// Membership comes from Logto. Sign-in and webhooks converge it, but an
+	// organization created or joined since the session began must not wait
+	// for a sign-out: ask Logto directly (throttled per account). A failure
+	// costs freshness, not the list.
+	if err := s.orgs.RefreshUser(r.Context(), *u); err != nil {
+		slog.WarnContext(r.Context(), "organization refresh on listing", "user", u.Email, "err", err)
+	}
+	// Sign-in provisions personal spaces; this catches a session that began
+	// before the instance turned them on. A failure costs the space, not the
+	// list.
+	if s.personal != nil {
+		if err := s.personal.Provision(r.Context(), *u); err != nil {
+			slog.WarnContext(r.Context(), "personal space on listing", "user", u.Email, "err", err)
+		}
+	}
 	list, err := s.spaces.ListForUser(r.Context(), u.ID)
 	if err != nil {
 		Error(w, r, err)
@@ -503,10 +530,6 @@ func (s *Server) handleMkdir(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
 		return
 	}
-	if err := s.spaces.RequireMember(r.Context(), spaceID, u.ID); err != nil {
-		s.spaceError(w, r, err)
-		return
-	}
 	var body struct {
 		Name     string `json:"name"`
 		ParentID string `json:"parent_id"`
@@ -548,7 +571,7 @@ func (s *Server) handleMkdir(w http.ResponseWriter, r *http.Request) {
 // folder would be unreachable the moment it existed, since a team folder
 // grants nothing through ownership.
 func (s *Server) handleCreateTeamFolder(w http.ResponseWriter, r *http.Request) {
-	u, space, ok := s.requireSpaceAdmin(w, r)
+	u, space, ok := s.requireOrgSpaceAdmin(w, r)
 	if !ok {
 		return
 	}
@@ -574,10 +597,6 @@ func (s *Server) handleCreateDocument(w http.ResponseWriter, r *http.Request) {
 	spaceID, err := uuidParam(r, "spaceID")
 	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid space id")
-		return
-	}
-	if err := s.spaces.RequireMember(r.Context(), spaceID, u.ID); err != nil {
-		s.spaceError(w, r, err)
 		return
 	}
 
@@ -1293,8 +1312,13 @@ func (s *Server) handleListDeleted(w http.ResponseWriter, r *http.Request) {
 // handleListShared answers GET /api/v1/shared[?space=]. The entry-point query
 // already carries an optional space filter, and it applies a LIMIT, so the
 // scoping has to happen in SQL rather than on the assembled slice.
+// ?scope=external lists what was shared from spaces the caller is not in.
 func (s *Server) handleListShared(w http.ResponseWriter, r *http.Request) {
 	u := caller(r)
+	if r.URL.Query().Get("scope") == "external" {
+		s.listExternalShared(w, r, u)
+		return
+	}
 	spaceID, ok := s.optionalSpaceParam(w, r, u.ID)
 	if !ok {
 		return

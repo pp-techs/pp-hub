@@ -6,7 +6,7 @@ import {
   useSettingsHash,
   useSettingsNavigation,
 } from "@/lib/use-settings-hash";
-import { PANES } from "@/components/settings/panes";
+import { PANES, paneAvailable } from "@/components/settings/panes";
 import { SettingsModal } from "@/components/settings/settings-modal";
 
 /**
@@ -37,13 +37,18 @@ export function SettingsHashBridge() {
     else SettingsModal.hide();
   }, [open]);
 
-  // A space pane is admin-only, and the answer arrives with the spaces query.
-  // Waiting for `isSuccess` matters: treating "not loaded yet" as "not an
-  // admin" would bounce a deep link to a space pane before the permission it
-  // needs had even been fetched.
-  const isSpaceAdmin = spaces.data?.find((s) => s.id === spaceId)?.is_admin === true;
+  // A space pane is admin-only (and some are organization-only), and the
+  // answer arrives with the spaces query. Waiting for `isSuccess` matters:
+  // treating "not loaded yet" as "not an admin" would bounce a deep link to a
+  // space pane before the permission it needs had even been fetched.
+  const pane = PANES.find((p) => p.slug === slug);
   const forbidden =
-    PANES.find((p) => p.slug === slug)?.group === "space" && spaces.isSuccess && !isSpaceAdmin;
+    pane !== undefined &&
+    spaces.isSuccess &&
+    !paneAvailable(
+      pane,
+      spaces.data.find((s) => s.id === spaceId),
+    );
 
   useEffect(() => {
     if (!open) return;

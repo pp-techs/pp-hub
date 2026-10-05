@@ -962,8 +962,9 @@ Two development-only wrinkles. **No webhook reaches a development server**:
 Logto Cloud cannot reach `localhost`, and a local Logto refuses to deliver to
 `host.docker.internal` or any other private address. Expose the server through
 a public tunnel and point the webhook at that if you need it;
-without it, membership still converges, just at sign-in and on the hourly
-ticker rather than instantly. And **the two consent scopes are per
+without it, a person's own memberships still converge whenever the app lists
+their spaces (`orgsync.RefreshUser`, at most every 15 s), and everybody
+else's at sign-in and on the hourly ticker. And **the two consent scopes are per
 application**: an app registered before this feature existed has neither, and
 adding them to the wrong one of several dev applications looks exactly like a
 broken reconciler.

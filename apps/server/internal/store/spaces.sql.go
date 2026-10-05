@@ -28,10 +28,79 @@ func (q *Queries) AddSpaceMember(ctx context.Context, arg AddSpaceMemberParams) 
 	return err
 }
 
+const archivePersonalSpace = `-- name: ArchivePersonalSpace :exec
+UPDATE spaces SET archived_at = now()
+WHERE owner_id = $1 AND kind = 'personal' AND archived_at IS NULL
+`
+
+// The owner's account is gone upstream: nobody reaches the space again, and an
+// instance administrator purges it.
+func (q *Queries) ArchivePersonalSpace(ctx context.Context, ownerID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, archivePersonalSpace, ownerID)
+	return err
+}
+
+const countOrgSpaces = `-- name: CountOrgSpaces :one
+SELECT COUNT(*)::bigint FROM space_members m
+JOIN spaces s ON s.id = m.space_id
+WHERE m.user_id = $1 AND s.kind = 'org'
+`
+
+// Organization spaces the person belongs to — whether `personal_spaces =
+// members` admits them.
+func (q *Queries) CountOrgSpaces(ctx context.Context, userID pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countOrgSpaces, userID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const createPersonalSpace = `-- name: CreatePersonalSpace :one
+INSERT INTO spaces (name, owner_id, kind, external_sharing, quota_bytes)
+VALUES ($1, $2, 'personal', true, $3)
+ON CONFLICT (owner_id) WHERE kind = 'personal' DO NOTHING
+RETURNING id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at, allow_public_links, idp_org_id, avatar_blob, avatar_mime, kind, external_sharing
+`
+
+type CreatePersonalSpaceParams struct {
+	Name       string      `json:"name"`
+	OwnerID    pgtype.UUID `json:"owner_id"`
+	QuotaBytes int64       `json:"quota_bytes"`
+}
+
+// At most one per owner (spaces_personal_owner_uniq). A concurrent sign-in
+// that lost the race gets no row and reads the winner's instead.
+func (q *Queries) CreatePersonalSpace(ctx context.Context, arg CreatePersonalSpaceParams) (Space, error) {
+	row := q.db.QueryRow(ctx, createPersonalSpace, arg.Name, arg.OwnerID, arg.QuotaBytes)
+	var i Space
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.Name,
+		&i.OwnerID,
+		&i.QuotaBytes,
+		&i.UsedBytes,
+		&i.Slug,
+		&i.Description,
+		&i.ArchivedAt,
+		&i.TrashRetentionDays,
+		&i.ArchiveRootID,
+		&i.DefaultAsAdmin,
+		&i.CreatedAt,
+		&i.AllowPublicLinks,
+		&i.IdpOrgID,
+		&i.AvatarBlob,
+		&i.AvatarMime,
+		&i.Kind,
+		&i.ExternalSharing,
+	)
+	return i, err
+}
+
 const createSpace = `-- name: CreateSpace :one
 INSERT INTO spaces (name, owner_id)
 VALUES ($1, $2)
-RETURNING id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at, allow_public_links, idp_org_id, avatar_blob, avatar_mime
+RETURNING id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at, allow_public_links, idp_org_id, avatar_blob, avatar_mime, kind, external_sharing
 `
 
 type CreateSpaceParams struct {
@@ -60,12 +129,45 @@ func (q *Queries) CreateSpace(ctx context.Context, arg CreateSpaceParams) (Space
 		&i.IdpOrgID,
 		&i.AvatarBlob,
 		&i.AvatarMime,
+		&i.Kind,
+		&i.ExternalSharing,
+	)
+	return i, err
+}
+
+const getPersonalSpace = `-- name: GetPersonalSpace :one
+SELECT id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at, allow_public_links, idp_org_id, avatar_blob, avatar_mime, kind, external_sharing FROM spaces WHERE owner_id = $1 AND kind = 'personal' LIMIT 1
+`
+
+func (q *Queries) GetPersonalSpace(ctx context.Context, ownerID pgtype.UUID) (Space, error) {
+	row := q.db.QueryRow(ctx, getPersonalSpace, ownerID)
+	var i Space
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.Name,
+		&i.OwnerID,
+		&i.QuotaBytes,
+		&i.UsedBytes,
+		&i.Slug,
+		&i.Description,
+		&i.ArchivedAt,
+		&i.TrashRetentionDays,
+		&i.ArchiveRootID,
+		&i.DefaultAsAdmin,
+		&i.CreatedAt,
+		&i.AllowPublicLinks,
+		&i.IdpOrgID,
+		&i.AvatarBlob,
+		&i.AvatarMime,
+		&i.Kind,
+		&i.ExternalSharing,
 	)
 	return i, err
 }
 
 const getSpace = `-- name: GetSpace :one
-SELECT id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at, allow_public_links, idp_org_id, avatar_blob, avatar_mime FROM spaces WHERE id = $1 LIMIT 1
+SELECT id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at, allow_public_links, idp_org_id, avatar_blob, avatar_mime, kind, external_sharing FROM spaces WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetSpace(ctx context.Context, id pgtype.UUID) (Space, error) {
@@ -89,6 +191,8 @@ func (q *Queries) GetSpace(ctx context.Context, id pgtype.UUID) (Space, error) {
 		&i.IdpOrgID,
 		&i.AvatarBlob,
 		&i.AvatarMime,
+		&i.Kind,
+		&i.ExternalSharing,
 	)
 	return i, err
 }
@@ -109,13 +213,63 @@ func (q *Queries) GetSpaceAvatar(ctx context.Context, id pgtype.UUID) (GetSpaceA
 	return i, err
 }
 
-const listMySpaces = `-- name: ListMySpaces :many
-SELECT s.id, s.tenant_id, s.name, s.owner_id, s.quota_bytes, s.used_bytes, s.slug, s.description, s.archived_at, s.trash_retention_days, s.archive_root_id, s.default_as_admin, s.created_at, s.allow_public_links, s.idp_org_id, s.avatar_blob, s.avatar_mime FROM spaces s
-JOIN space_members m ON m.space_id = s.id
-WHERE m.user_id = $1
-ORDER BY s.created_at
+const listArchivedPersonalSpaces = `-- name: ListArchivedPersonalSpaces :many
+SELECT s.id, s.name, s.used_bytes, s.archived_at, s.created_at, u.email AS owner_email
+FROM spaces s
+JOIN users u ON u.id = s.owner_id
+WHERE s.kind = 'personal' AND s.archived_at IS NOT NULL
+ORDER BY s.archived_at
 `
 
+type ListArchivedPersonalSpacesRow struct {
+	ID         pgtype.UUID        `json:"id"`
+	Name       string             `json:"name"`
+	UsedBytes  int64              `json:"used_bytes"`
+	ArchivedAt pgtype.Timestamptz `json:"archived_at"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	OwnerEmail string             `json:"owner_email"`
+}
+
+// Personal spaces whose owner Logto no longer has, for an instance admin to
+// purge.
+func (q *Queries) ListArchivedPersonalSpaces(ctx context.Context) ([]ListArchivedPersonalSpacesRow, error) {
+	rows, err := q.db.Query(ctx, listArchivedPersonalSpaces)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListArchivedPersonalSpacesRow
+	for rows.Next() {
+		var i ListArchivedPersonalSpacesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.UsedBytes,
+			&i.ArchivedAt,
+			&i.CreatedAt,
+			&i.OwnerEmail,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listMySpaces = `-- name: ListMySpaces :many
+SELECT s.id, s.tenant_id, s.name, s.owner_id, s.quota_bytes, s.used_bytes, s.slug, s.description, s.archived_at, s.trash_retention_days, s.archive_root_id, s.default_as_admin, s.created_at, s.allow_public_links, s.idp_org_id, s.avatar_blob, s.avatar_mime, s.kind, s.external_sharing FROM spaces s
+JOIN space_members m ON m.space_id = s.id
+WHERE m.user_id = $1
+  AND (s.kind <> 'personal' OR s.archived_at IS NULL)
+ORDER BY (s.kind = 'personal') DESC, s.created_at
+`
+
+// The personal space leads: it is the one every account has (when the instance
+// provisions them), and the place a person lands. An archived personal space
+// belongs to an account Logto no longer has; it is listed for nobody.
 func (q *Queries) ListMySpaces(ctx context.Context, userID pgtype.UUID) ([]Space, error) {
 	rows, err := q.db.Query(ctx, listMySpaces, userID)
 	if err != nil {
@@ -143,6 +297,8 @@ func (q *Queries) ListMySpaces(ctx context.Context, userID pgtype.UUID) ([]Space
 			&i.IdpOrgID,
 			&i.AvatarBlob,
 			&i.AvatarMime,
+			&i.Kind,
+			&i.ExternalSharing,
 		); err != nil {
 			return nil, err
 		}
@@ -303,7 +459,7 @@ const setSpaceAvatar = `-- name: SetSpaceAvatar :one
 UPDATE spaces
 SET avatar_blob = $1, avatar_mime = $2
 WHERE id = $3 AND avatar_blob = $4
-RETURNING id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at, allow_public_links, idp_org_id, avatar_blob, avatar_mime
+RETURNING id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at, allow_public_links, idp_org_id, avatar_blob, avatar_mime, kind, external_sharing
 `
 
 type SetSpaceAvatarParams struct {
@@ -343,6 +499,8 @@ func (q *Queries) SetSpaceAvatar(ctx context.Context, arg SetSpaceAvatarParams) 
 		&i.IdpOrgID,
 		&i.AvatarBlob,
 		&i.AvatarMime,
+		&i.Kind,
+		&i.ExternalSharing,
 	)
 	return i, err
 }

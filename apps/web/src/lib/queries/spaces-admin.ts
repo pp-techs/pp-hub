@@ -5,6 +5,8 @@ import {
   clearSpaceAvatar,
   deleteAdminSetting,
   deleteSpace,
+  getArchivedPersonalSpaces,
+  purgeArchivedPersonalSpace,
   getAdminSettings,
   getAdminStats,
   getLinkPreview,
@@ -150,4 +152,24 @@ export function useDeleteAdminSetting() {
 
 export function useSendTestEmail() {
   return useMutation({ mutationFn: sendTestEmail });
+}
+
+/** Personal spaces whose owners were deleted. Admin only. */
+export function useArchivedPersonalSpaces() {
+  return useQuery({
+    queryKey: keys.archivedPersonalSpaces,
+    queryFn: getArchivedPersonalSpaces,
+  });
+}
+
+export function usePurgeArchivedPersonalSpace() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (spaceId: string) => purgeArchivedPersonalSpace(spaceId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: keys.archivedPersonalSpaces });
+      void qc.invalidateQueries({ queryKey: keys.adminStats });
+      void qc.invalidateQueries({ queryKey: ["admin", "security-events"] });
+    },
+  });
 }

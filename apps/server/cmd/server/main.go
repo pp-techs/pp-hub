@@ -28,6 +28,7 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/notify"
 	"github.com/nhatbui/pp-hub/apps/server/internal/obs"
 	"github.com/nhatbui/pp-hub/apps/server/internal/orgsync"
+	"github.com/nhatbui/pp-hub/apps/server/internal/personal"
 	"github.com/nhatbui/pp-hub/apps/server/internal/preview"
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 	"github.com/nhatbui/pp-hub/apps/server/internal/spaces"
@@ -146,6 +147,7 @@ func run() error {
 		slog.WarnContext(ctx, "sysconfig initial load", "err", err)
 	}
 	fsSvc.SetVersionRetention(func() int { return syscfg.VersionRetentionCount("default") })
+	shareSvc.SetExternalSharing(syscfg.ExternalSharingEnabled)
 
 	// Resumable uploads stage under the blob root; the sweep drops those
 	// idle past uploads.TTL, with their bytes.
@@ -195,6 +197,9 @@ func run() error {
 				} else if n > 0 {
 					slog.InfoContext(ctx, "read notifications purged", "count", n)
 				}
+				if _, err := shareSvc.PruneInvitationLog(ctx); err != nil {
+					slog.WarnContext(ctx, "invitation log sweep", "err", err)
+				}
 			}
 		}
 	}()
@@ -204,6 +209,9 @@ func run() error {
 	orgSvc := orgsync.NewService(queries, spacesSvc, usersSvc,
 		orgsync.NewClient(cfg.Logto), cfg.OIDCIssuerExt, cfg.ExternalURL)
 	authSvc.SetReconciler(orgSvc)
+	// Personal spaces and invitations to addresses with no account: both
+	// happen at sign-in, once membership is current.
+	authSvc.SetSignInHook(personal.New(queries, spacesSvc, shareSvc, syscfg, auditSvc).OnSignIn)
 	go orgSvc.Run(ctx)
 
 	// The block editor's rooms (M39). Started below, once the listener is

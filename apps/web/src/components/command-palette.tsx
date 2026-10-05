@@ -27,6 +27,7 @@ import {
 } from "@/lib/api";
 import { MIN_QUERY_LENGTH, useNodeSearch, useSpaces } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
+import { useSpaceLabel } from "@/lib/use-space-label";
 import { useDebounced } from "@/lib/use-debounced";
 import { highlightSegments } from "@/lib/highlight";
 import { PreviewModal } from "@/components/preview-modal";
@@ -56,6 +57,7 @@ export function CommandPalette() {
   const setOpen = useUiStore((s) => s.setPaletteOpen);
   const navigate = useNavigate();
   const spaces = useSpaces();
+  const spaceLabel = useSpaceLabel();
 
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<SearchKind | undefined>(undefined);
@@ -104,8 +106,8 @@ export function CommandPalette() {
   const matchedSpaces = useMemo(() => {
     if (tooShort || kind === "file") return [];
     const q = settled.trim().toLowerCase();
-    return (spaces.data ?? []).filter((s) => s.name.toLowerCase().includes(q));
-  }, [spaces.data, settled, kind, tooShort]);
+    return (spaces.data ?? []).filter((s) => spaceLabel(s).toLowerCase().includes(q));
+  }, [spaces.data, settled, kind, tooShort, spaceLabel]);
 
   const matchedNodes = useMemo(() => {
     if (tooShort) return [];
@@ -186,7 +188,7 @@ export function CommandPalette() {
                       onSelect={() => openSpace(space)}
                     >
                       <Users className="text-muted-foreground size-3.5 shrink-0" />
-                      <span className="truncate">{space.name}</span>
+                      <span className="truncate">{spaceLabel(space)}</span>
                       <CommandShortcut className="flex items-center gap-1.5 text-[10px] font-normal tracking-normal text-muted-foreground">
                         <span className="truncate">{space.is_admin ? t`Admin` : t`Member`}</span>
                         <CornerDownLeft className="text-muted-foreground hidden size-3 shrink-0 group-data-selected/command-item:inline-block" />

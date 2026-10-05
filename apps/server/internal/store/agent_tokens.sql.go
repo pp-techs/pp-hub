@@ -76,7 +76,7 @@ func (q *Queries) DeleteUserAgentToken(ctx context.Context, arg DeleteUserAgentT
 }
 
 const getAgentTokenByHash = `-- name: GetAgentTokenByHash :one
-SELECT t.id, t.user_id, t.name, t.token_hash, t.created_at, t.last_used_at, t.expires_at, u.id, u.tenant_id, u.oidc_sub, u.oidc_iss, u.email, u.name, u.display_name, u.avatar_url, u.bio, u.settings, u.is_admin, u.last_seen, u.email_hash, u.suspended_at, u.created_at, u.avatar_blob, u.avatar_mime, u.phone, u.gender, u.idp_picture, u.avatar_from_idp
+SELECT t.id, t.user_id, t.name, t.token_hash, t.created_at, t.last_used_at, t.expires_at, u.id, u.tenant_id, u.oidc_sub, u.oidc_iss, u.email, u.name, u.display_name, u.avatar_url, u.bio, u.settings, u.is_admin, u.last_seen, u.email_hash, u.suspended_at, u.created_at, u.avatar_blob, u.avatar_mime, u.phone, u.gender, u.idp_picture, u.avatar_from_idp, u.email_verified
 FROM agent_tokens t
 JOIN users u ON u.id = t.user_id
 WHERE t.token_hash = $1 AND t.expires_at > now()
@@ -121,6 +121,7 @@ func (q *Queries) GetAgentTokenByHash(ctx context.Context, tokenHash []byte) (Ge
 		&i.User.Gender,
 		&i.User.IdpPicture,
 		&i.User.AvatarFromIdp,
+		&i.User.EmailVerified,
 	)
 	return i, err
 }

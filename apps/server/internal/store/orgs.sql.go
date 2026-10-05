@@ -71,7 +71,7 @@ func (q *Queries) GetPendingDeparture(ctx context.Context, arg GetPendingDepartu
 }
 
 const getSpaceByOrgID = `-- name: GetSpaceByOrgID :one
-SELECT id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at, allow_public_links, idp_org_id, avatar_blob, avatar_mime FROM spaces WHERE idp_org_id = $1 LIMIT 1
+SELECT id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at, allow_public_links, idp_org_id, avatar_blob, avatar_mime, kind, external_sharing FROM spaces WHERE idp_org_id = $1 LIMIT 1
 `
 
 func (q *Queries) GetSpaceByOrgID(ctx context.Context, idpOrgID pgtype.Text) (Space, error) {
@@ -95,6 +95,8 @@ func (q *Queries) GetSpaceByOrgID(ctx context.Context, idpOrgID pgtype.Text) (Sp
 		&i.IdpOrgID,
 		&i.AvatarBlob,
 		&i.AvatarMime,
+		&i.Kind,
+		&i.ExternalSharing,
 	)
 	return i, err
 }
@@ -111,7 +113,7 @@ func (q *Queries) IsOrgDetached(ctx context.Context, orgID string) (bool, error)
 }
 
 const listLinkedSpaces = `-- name: ListLinkedSpaces :many
-SELECT id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at, allow_public_links, idp_org_id, avatar_blob, avatar_mime FROM spaces WHERE idp_org_id IS NOT NULL ORDER BY created_at
+SELECT id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at, allow_public_links, idp_org_id, avatar_blob, avatar_mime, kind, external_sharing FROM spaces WHERE idp_org_id IS NOT NULL ORDER BY created_at
 `
 
 // Every space with an upstream organization, for the periodic reconcile. The
@@ -144,6 +146,8 @@ func (q *Queries) ListLinkedSpaces(ctx context.Context) ([]Space, error) {
 			&i.IdpOrgID,
 			&i.AvatarBlob,
 			&i.AvatarMime,
+			&i.Kind,
+			&i.ExternalSharing,
 		); err != nil {
 			return nil, err
 		}
@@ -210,7 +214,7 @@ func (q *Queries) ListPendingDepartures(ctx context.Context, spaceID pgtype.UUID
 }
 
 const listSpaceMemberAccounts = `-- name: ListSpaceMemberAccounts :many
-SELECT u.id, u.tenant_id, u.oidc_sub, u.oidc_iss, u.email, u.name, u.display_name, u.avatar_url, u.bio, u.settings, u.is_admin, u.last_seen, u.email_hash, u.suspended_at, u.created_at, u.avatar_blob, u.avatar_mime, u.phone, u.gender, u.idp_picture, u.avatar_from_idp FROM space_members m JOIN users u ON u.id = m.user_id
+SELECT u.id, u.tenant_id, u.oidc_sub, u.oidc_iss, u.email, u.name, u.display_name, u.avatar_url, u.bio, u.settings, u.is_admin, u.last_seen, u.email_hash, u.suspended_at, u.created_at, u.avatar_blob, u.avatar_mime, u.phone, u.gender, u.idp_picture, u.avatar_from_idp, u.email_verified FROM space_members m JOIN users u ON u.id = m.user_id
 WHERE m.space_id = $1
 ORDER BY u.email
 `
@@ -248,6 +252,7 @@ func (q *Queries) ListSpaceMemberAccounts(ctx context.Context, spaceID pgtype.UU
 			&i.Gender,
 			&i.IdpPicture,
 			&i.AvatarFromIdp,
+			&i.EmailVerified,
 		); err != nil {
 			return nil, err
 		}

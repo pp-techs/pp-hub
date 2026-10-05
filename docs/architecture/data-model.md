@@ -147,6 +147,37 @@ Like `sessions`: only the hash is stored, lookup is one indexed read that filter
 `expires_at > now()` in SQL, revocation takes `(id, user_id)`, and `DeleteExpiredAgentTokens`
 runs on the same five-minute ticker.
 
+## Personal Spaces and External Sharing
+
+`migrations/0019_personal_spaces.sql` (M42). See [personal-spaces.md](personal-spaces.md).
+
+```sql
+spaces.kind                                     -- 'org' | 'personal' (spaces_kind_ck), default 'org'
+spaces.external_sharing                         -- may content here be granted outside the space; true on personal
+  CHECK (kind <> 'personal' OR idp_org_id IS NULL)   -- spaces_personal_unlinked_ck
+  UNIQUE (owner_id) WHERE kind = 'personal'          -- spaces_personal_owner_uniq: one per person
+
+shares.is_external                              -- a direct grant to someone outside the node's space
+  CHECK (NOT is_external OR (kind = 'direct' AND NOT can_share))   -- shares_external_direct_ck
+
+pending_shares(id, tenant_id, node_id,          -- ON DELETE CASCADE from nodes
+               email_norm,                      -- lower(btrim(email)), checked
+               level, can_download,             -- edit implies download, as on shares
+               created_by, created_at, expires_at)
+  UNIQUE (node_id, email_norm)                  -- re-inviting updates
+  INDEX (email_norm)
+```
+
+Adoption takes an address's invitations in one statement (`TakePendingShares`) and inserts a grant
+for each one whose inviter could still make it (`InsertAdoptedShare`, `ON CONFLICT … DO NOTHING`
+keeps a grant the person already holds), in one transaction. An archived personal space
+(`archived_at`) is dropped from `ListMySpaces` and from the resolver's non-member path.
+
+`migrations/0020_invite_hardening.sql` adds `users.email_verified` (whether the identity provider
+vouched for `users.email`; sharing by email matches verified addresses only) and the append-only
+`invitation_log(created_by, recipient, mailed, created_at)` behind the per-sender budget and the
+per-address mail cap, pruned after 48 hours by the five-minute sweep.
+
 ## Security Events
 
 `migrations/0003_security_events.sql`, plus `0008_read_audit.sql` for `node_id`. The audit

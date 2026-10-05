@@ -256,6 +256,30 @@ func (c *Client) RenameOrganization(ctx context.Context, orgID, name string) err
 		map[string]any{"name": name}, nil)
 }
 
+// UserOrganizations reads the organizations an account belongs to, with its
+// roles in each, in the shape the ID token's claims take. Organizations is
+// never nil: an empty list is Logto saying "none", which ReconcileUser reads
+// as leaving every linked space — the same meaning an empty claim has.
+func (c *Client) UserOrganizations(ctx context.Context, userID string) (Claims, error) {
+	var orgs []struct {
+		ID                string `json:"id"`
+		OrganizationRoles []struct {
+			Name string `json:"name"`
+		} `json:"organizationRoles"`
+	}
+	if err := c.do(ctx, http.MethodGet, "/api/users/"+url.PathEscape(userID)+"/organizations", nil, &orgs); err != nil {
+		return Claims{}, err
+	}
+	claims := Claims{Organizations: make([]string, 0, len(orgs))}
+	for _, o := range orgs {
+		claims.Organizations = append(claims.Organizations, o.ID)
+		for _, r := range o.OrganizationRoles {
+			claims.OrganizationRoles = append(claims.OrganizationRoles, o.ID+":"+r.Name)
+		}
+	}
+	return claims, nil
+}
+
 // FindUserByEmail resolves an address to an existing Logto account.
 //
 // Logto's `q` is a fuzzy match across several fields, so the exact comparison

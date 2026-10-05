@@ -424,14 +424,16 @@ func listAccess() Tool {
 func grantAccess() Tool {
 	return Tool{
 		Name: "grant_access", Title: "Share with a person or group",
-		Description: "Give one person (user_id from list_members) or one group (group_id from list_groups) access to a file or folder, or change the access they have. " +
-			"level is view or edit; can_download lets them keep a copy; can_share lets them share it on. You cannot give more than you hold.",
-		Schema:      json.RawMessage(`{"type":"object","properties":{"node_id":{"type":"string"},"user_id":{"type":"string"},"group_id":{"type":"string"},"level":{"type":"string","enum":["view","edit"]},"can_download":{"type":"boolean","default":true},"can_share":{"type":"boolean","default":false}},"required":["node_id","level"],"additionalProperties":false}`),
+		Description: "Give one person (user_id from list_members, or their email) or one group (group_id from list_groups) access to a file or folder, or change the access they have. " +
+			"level is view or edit; can_download lets them keep a copy; can_share lets them share it on. You cannot give more than you hold. " +
+			"An email outside the space works only where the instance allows agents to share outside a space; an address with no account gets an invitation.",
+		Schema:      json.RawMessage(`{"type":"object","properties":{"node_id":{"type":"string"},"user_id":{"type":"string"},"email":{"type":"string"},"group_id":{"type":"string"},"level":{"type":"string","enum":["view","edit"]},"can_download":{"type":"boolean","default":true},"can_share":{"type":"boolean","default":false}},"required":["node_id","level"],"additionalProperties":false}`),
 		Destructive: true,
 		Run: func(ctx context.Context, api API, args json.RawMessage) (any, error) {
 			var a struct {
 				NodeID      string `json:"node_id"`
 				UserID      string `json:"user_id"`
+				Email       string `json:"email"`
 				GroupID     string `json:"group_id"`
 				Level       string `json:"level"`
 				CanDownload *bool  `json:"can_download"`
@@ -445,8 +447,17 @@ func grantAccess() Tool {
 				return nil, err
 			}
 			download := a.CanDownload == nil || *a.CanDownload
+			given := 0
+			for _, v := range []string{a.UserID, a.Email, a.GroupID} {
+				if v != "" {
+					given++
+				}
+			}
+			if given != 1 {
+				return nil, badArgs("give exactly one of user_id, email or group_id")
+			}
 			switch {
-			case a.UserID != "" && a.GroupID == "":
+			case a.UserID != "":
 				user, err := id("user_id", a.UserID)
 				if err != nil {
 					return nil, err
@@ -455,7 +466,12 @@ func grantAccess() Tool {
 					"kind": "direct", "user_id": user, "level": a.Level,
 					"can_download": download, "can_share": a.CanShare,
 				})
-			case a.GroupID != "" && a.UserID == "":
+			case a.Email != "":
+				return call(ctx, api, http.MethodPost, "/nodes/"+node+"/shares", map[string]any{
+					"kind": "direct", "email": a.Email, "level": a.Level,
+					"can_download": download, "can_share": a.CanShare,
+				})
+			default:
 				group, err := id("group_id", a.GroupID)
 				if err != nil {
 					return nil, err
@@ -464,8 +480,6 @@ func grantAccess() Tool {
 					"group_id": group, "level": a.Level,
 					"can_download": download, "can_share": a.CanShare,
 				})
-			default:
-				return nil, badArgs("give exactly one of user_id or group_id")
 			}
 		},
 	}

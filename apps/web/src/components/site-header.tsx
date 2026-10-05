@@ -14,7 +14,7 @@ import {
 import { cn } from "@workspace/ui/lib/utils";
 import { SidebarTrigger } from "@workspace/ui/components/sidebar";
 import type { Node } from "@/lib/api";
-import { useMoveNodes, useNode } from "@/lib/queries";
+import { useMoveNodes, useNode, useNodePath } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
 import { isValidMoveTarget } from "@/lib/drag-drop";
 import { HeaderSlot } from "@/components/header-slot";
@@ -51,6 +51,7 @@ export function SiteHeader() {
     .map((segment) => SECTIONS[segment])
     .filter((label): label is MessageDescriptor => Boolean(label));
 
+  const onExternal = !spaceId && /^\/drive\/shared\/?$/.test(location.pathname);
   const onListing = sections.length === 0;
 
   return (
@@ -62,7 +63,9 @@ export function SiteHeader() {
 
       <Breadcrumb className="min-w-0">
         <BreadcrumbList className="gap-1 sm:gap-1.5">
-          {onListing ? (
+          {onExternal ? (
+            <ExternalBreadcrumb dir={dir} />
+          ) : onListing ? (
             <ListingBreadcrumb spaceId={spaceId} dir={dir} cachedDirs={cachedDirs} />
           ) : (
             <SectionBreadcrumb sections={sections} />
@@ -99,6 +102,50 @@ function SectionBreadcrumb({ sections }: { sections: MessageDescriptor[] }) {
           </Fragment>
         );
       })}
+    </>
+  );
+}
+
+/**
+ * Breadcrumb on `/drive/shared`: the page itself, then the trail the server
+ * resolves from the topmost folder the caller may view — walking `parent_id`
+ * would run into ancestors an outside grantee cannot open.
+ */
+function ExternalBreadcrumb({ dir }: { dir?: string }) {
+  const { t } = useLingui();
+  const path = useNodePath(dir ?? null);
+  const trail = dir ? (path.data ?? []) : [];
+  return (
+    <>
+      <BreadcrumbItem className="min-w-0">
+        {trail.length === 0 ? (
+          <BreadcrumbPage className="truncate font-medium">{t`Shared from outside`}</BreadcrumbPage>
+        ) : (
+          <BreadcrumbLink
+            className="truncate"
+            render={<Link to="/drive/shared" search={{ dir: undefined }} />}
+          >
+            {t`Shared from outside`}
+          </BreadcrumbLink>
+        )}
+      </BreadcrumbItem>
+      {trail.map((seg, i) => (
+        <Fragment key={seg.id}>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem className="min-w-0">
+            {i === trail.length - 1 ? (
+              <BreadcrumbPage className="truncate font-medium">{seg.name}</BreadcrumbPage>
+            ) : (
+              <BreadcrumbLink
+                className="truncate"
+                render={<Link to="/drive/shared" search={{ dir: seg.id }} />}
+              >
+                {seg.name}
+              </BreadcrumbLink>
+            )}
+          </BreadcrumbItem>
+        </Fragment>
+      ))}
     </>
   );
 }

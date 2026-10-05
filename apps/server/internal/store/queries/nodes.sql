@@ -146,15 +146,18 @@ WHERE n.space_id = $1
   AND n.deleted_at IS NULL
 ORDER BY n.kind, n.name;
 
--- name: ListSharedWithMe :many
-SELECT DISTINCT n.* FROM nodes n
-JOIN spaces s ON s.id = n.space_id
-JOIN space_members m ON m.space_id = s.id
-WHERE m.user_id = $1
-  AND n.deleted_at IS NULL
-  AND n.parent_id IS NOT NULL
-ORDER BY n.kind, n.name
-LIMIT 50;
+-- name: ListAncestry :many
+-- The node and every ancestor, nearest first — the path a breadcrumb draws.
+-- Callers resolve capabilities on the result and stop at the first node the
+-- caller cannot open.
+WITH RECURSIVE chain(id, parent_id, name, depth) AS (
+    SELECT n.id, n.parent_id, n.name, 0 FROM nodes n WHERE n.id = $1
+  UNION ALL
+    SELECT p.id, p.parent_id, p.name, c.depth + 1
+    FROM chain c JOIN nodes p ON p.id = c.parent_id
+    WHERE c.depth < 100
+)
+SELECT id, name FROM chain ORDER BY depth;
 
 -- name: GetNodeAny :one
 -- Like GetNode but does not filter out soft-deleted rows. Trash operations
@@ -213,8 +216,14 @@ WHERE n.space_id = $1 AND n.deleted_at IS NOT NULL
 ORDER BY n.deleted_at DESC;
 
 -- name: SearchNodes :many
--- Name and content search across every space the caller belongs to, or one
--- space when space_id is supplied.
+-- Name and content search across every space the caller belongs to, plus the
+-- subtrees they hold an external grant on in spaces they do not, or one space
+-- when space_id is supplied. Candidates are filtered by the caller's
+-- capabilities afterwards (reachableRows).
+--
+-- Outside a space the candidates are only the granted subtrees, never the
+-- whole space: the LIMIT runs before that filter, so hidden rows competing for
+-- the window would let an outsider count what a company holds that matches.
 --
 -- A node matches on its name (ILIKE, as always) or on the text extracted from
 -- its *current* version (node_texts): the folded full-text query, or the
@@ -225,7 +234,15 @@ ORDER BY n.deleted_at DESC;
 -- Every name hit ranks above every content-only hit; within names, an exact
 -- prefix beats a mid-string match and then trigram similarity decides;
 -- within content, ts_rank does.
-WITH content_hits AS (
+WITH RECURSIVE ext(id, depth) AS (
+  SELECT xs.node_id, 0 FROM shares xs
+  WHERE xs.kind = 'direct' AND xs.is_external AND xs.grantee_user_id = $1
+    AND (xs.expires_at IS NULL OR xs.expires_at > now())
+  UNION
+  SELECT c.id, e.depth + 1 FROM ext e JOIN nodes c ON c.parent_id = e.id
+  WHERE e.depth < 100
+),
+content_hits AS (
   SELECT t.node_id, t.node_version_id,
          ts_rank(t.tsv, to_tsquery('simple', sqlc.narg('content_tsquery')::text)) AS rank
   FROM node_texts t
@@ -241,13 +258,14 @@ SELECT
   COALESCE(p.name, '')::text AS parent_name,
   (n.name ILIKE '%' || sqlc.arg('query')::text || '%')::bool AS name_match
 FROM nodes n
-JOIN space_members m ON m.space_id = n.space_id AND m.user_id = $1
 JOIN spaces s ON s.id = n.space_id
 LEFT JOIN node_versions v ON v.id = n.current_version_id
 LEFT JOIN users u ON u.id = n.created_by
 LEFT JOIN nodes p ON p.id = n.parent_id AND p.deleted_at IS NULL
 LEFT JOIN content_hits h ON h.node_id = n.id AND h.node_version_id = n.current_version_id
 WHERE n.deleted_at IS NULL
+  AND (EXISTS (SELECT 1 FROM space_members m WHERE m.space_id = n.space_id AND m.user_id = $1)
+       OR n.id IN (SELECT ext.id FROM ext))
   AND (sqlc.narg('space_id')::uuid IS NULL OR n.space_id = sqlc.narg('space_id')::uuid)
   AND (sqlc.narg('kind')::node_kind IS NULL OR n.kind = sqlc.narg('kind')::node_kind)
   AND (sqlc.narg('owner_id')::uuid IS NULL OR n.created_by = sqlc.narg('owner_id')::uuid)
@@ -274,9 +292,10 @@ ON CONFLICT (user_id, node_id) DO NOTHING;
 DELETE FROM node_stars WHERE user_id = $1 AND node_id = $2;
 
 -- name: ListStarredNodes :many
--- The caller's starred nodes, newest star first. Space membership is rechecked
--- here because a star survives losing access to the space that holds it. A
--- null space_id spans every space; a set one scopes the listing to it.
+-- The caller's starred nodes, newest star first. Reach is rechecked here —
+-- membership, or an external grant in the space — because a star survives
+-- losing access; callers filter by capabilities afterwards. A null space_id
+-- spans every space; a set one scopes the listing to it.
 SELECT
   n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
   n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id,
@@ -286,12 +305,16 @@ SELECT
   COALESCE(p.name, '')::text AS parent_name
 FROM node_stars st
 JOIN nodes n ON n.id = st.node_id
-JOIN space_members m ON m.space_id = n.space_id AND m.user_id = st.user_id
 JOIN spaces s ON s.id = n.space_id
 LEFT JOIN node_versions v ON v.id = n.current_version_id
 LEFT JOIN users u ON u.id = n.created_by
 LEFT JOIN nodes p ON p.id = n.parent_id AND p.deleted_at IS NULL
 WHERE st.user_id = $1 AND n.deleted_at IS NULL
+  AND (EXISTS (SELECT 1 FROM space_members m WHERE m.space_id = n.space_id AND m.user_id = st.user_id)
+       OR EXISTS (
+           SELECT 1 FROM shares xs JOIN nodes xn ON xn.id = xs.node_id
+           WHERE xn.space_id = n.space_id AND xs.kind = 'direct' AND xs.is_external
+             AND xs.grantee_user_id = st.user_id))
   AND (sqlc.narg('space_id')::uuid IS NULL OR n.space_id = sqlc.narg('space_id')::uuid)
 ORDER BY st.created_at DESC
 LIMIT $2;
@@ -382,24 +405,40 @@ FROM nodes x
 WHERE x.id IN (SELECT id FROM sub) AND x.created_by <> @user_id;
 
 -- name: ListForeignTopmostInSubtree :many
--- The topmost nodes under @root_id that @user_id did not create. The walk
--- descends only through nodes @user_id owns, so each returned row is the head
--- of a subtree belonging to somebody else — move it and its contents follow.
+-- The topmost nodes under @root_id that another member of the space created.
+-- The walk descends through nodes @user_id owns, so each returned row is the
+-- head of a subtree belonging to somebody else — move it and its contents
+-- follow.
+--
+-- Content by somebody who never belonged to the space — an outsider who added
+-- it through an external edit grant — is not rescued: lifted to the top level
+-- it would sit outside that grant, owned by nobody who can reach it. It
+-- follows the purge like the purger's own, and the walk descends through it
+-- so a member's work beneath is still found. A departed member awaiting
+-- handover still counts as belonging: the handover files their top-level work
+-- in the Archive.
 --
 -- Tombstones are included on purpose: a purge would take them with it, and a
 -- colleague's trashed file is still their file.
 WITH RECURSIVE sub AS (
-    SELECT n.id, n.created_by, 0 AS depth
+    SELECT n.id, n.created_by, n.space_id, 0 AS depth
     FROM nodes n
     WHERE n.parent_id = @root_id
   UNION ALL
-    SELECT c.id, c.created_by, s.depth + 1
+    SELECT c.id, c.created_by, c.space_id, s.depth + 1
     FROM nodes c JOIN sub s ON c.parent_id = s.id
-    WHERE s.depth < 100 AND s.created_by = @user_id
+    WHERE s.depth < 100
+      AND (s.created_by = @user_id OR NOT (
+              EXISTS (SELECT 1 FROM space_members m WHERE m.space_id = s.space_id AND m.user_id = s.created_by)
+           OR EXISTS (SELECT 1 FROM space_departures d
+                      WHERE d.space_id = s.space_id AND d.user_id = s.created_by AND d.resolved_at IS NULL)))
 )
 SELECT x.id, x.created_by
 FROM nodes x
-WHERE x.id IN (SELECT id FROM sub) AND x.created_by <> @user_id;
+WHERE x.id IN (SELECT id FROM sub) AND x.created_by <> @user_id
+  AND (EXISTS (SELECT 1 FROM space_members m WHERE m.space_id = x.space_id AND m.user_id = x.created_by)
+    OR EXISTS (SELECT 1 FROM space_departures d
+               WHERE d.space_id = x.space_id AND d.user_id = x.created_by AND d.resolved_at IS NULL));
 
 -- name: DetachNodeToTopLevel :exec
 -- Lift a node out of whatever folder it sits in, keeping its deleted_at.

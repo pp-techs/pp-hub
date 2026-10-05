@@ -21,6 +21,7 @@ import { useFormatters } from "@/lib/format";
 import { useGrants, useShares, useSpace, useSpaceMembers, useVersions } from "@/lib/queries";
 import { useSettingsNavigation } from "@/lib/use-settings-hash";
 import { useUiStore } from "@/lib/ui-store";
+import { useSpaceLabel } from "@/lib/use-space-label";
 import { LoadingStatus } from "@/components/loading";
 import { NodeIcon } from "@/components/node-icon";
 import { MarkdownThumbnail } from "@/components/markdown-document-view";
@@ -167,6 +168,7 @@ function SpaceDetails({
   const { t } = useLingui();
   const f = useFormatters();
   const { openSettings } = useSettingsNavigation();
+  const spaceLabel = useSpaceLabel();
   const members = useSpaceMembers(space.id);
 
   const pct = storagePct(space);
@@ -184,7 +186,7 @@ function SpaceDetails({
           )}
         </div>
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium">{space.name}</p>
+          <p className="truncate text-sm font-medium">{spaceLabel(space)}</p>
           {space.description && (
             <p className="text-muted-foreground line-clamp-2 text-[11px]">{space.description}</p>
           )}
@@ -201,12 +203,14 @@ function SpaceDetails({
             // eslint-disable-next-line lingui/no-unlocalized-strings -- settings pane slug
             onClick={() => openSettings("space")}
           />
-          <PanelAction
-            icon={Users}
-            label={t`People`}
-            // eslint-disable-next-line lingui/no-unlocalized-strings -- settings pane slug
-            onClick={() => openSettings("members")}
-          />
+          {space.kind !== "personal" && (
+            <PanelAction
+              icon={Users}
+              label={t`People`}
+              // eslint-disable-next-line lingui/no-unlocalized-strings -- settings pane slug
+              onClick={() => openSettings("members")}
+            />
+          )}
         </div>
       )}
 

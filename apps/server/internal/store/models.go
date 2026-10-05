@@ -264,6 +264,14 @@ type GroupMember struct {
 	AddedAt pgtype.Timestamptz `json:"added_at"`
 }
 
+type InvitationLog struct {
+	ID        int64              `json:"id"`
+	CreatedBy pgtype.UUID        `json:"created_by"`
+	Recipient string             `json:"recipient"`
+	Mailed    bool               `json:"mailed"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
 type Job struct {
 	ID        pgtype.UUID        `json:"id"`
 	TenantID  string             `json:"tenant_id"`
@@ -341,6 +349,18 @@ type Notification struct {
 	ReadAt    pgtype.Timestamptz `json:"read_at"`
 }
 
+type PendingShare struct {
+	ID          pgtype.UUID        `json:"id"`
+	TenantID    string             `json:"tenant_id"`
+	NodeID      pgtype.UUID        `json:"node_id"`
+	EmailNorm   string             `json:"email_norm"`
+	Level       ShareLevel         `json:"level"`
+	CanDownload bool               `json:"can_download"`
+	CreatedBy   pgtype.UUID        `json:"created_by"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	ExpiresAt   pgtype.Timestamptz `json:"expires_at"`
+}
+
 type Preview struct {
 	NodeVersionID pgtype.UUID        `json:"node_version_id"`
 	Kind          string             `json:"kind"`
@@ -386,6 +406,7 @@ type Share struct {
 	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
 	CreatedBy      pgtype.UUID        `json:"created_by"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	IsExternal     bool               `json:"is_external"`
 }
 
 type Space struct {
@@ -406,6 +427,8 @@ type Space struct {
 	IdpOrgID           pgtype.Text        `json:"idp_org_id"`
 	AvatarBlob         string             `json:"avatar_blob"`
 	AvatarMime         string             `json:"avatar_mime"`
+	Kind               string             `json:"kind"`
+	ExternalSharing    bool               `json:"external_sharing"`
 }
 
 type SpaceDeparture struct {
@@ -471,4 +494,5 @@ type User struct {
 	Gender        string             `json:"gender"`
 	IdpPicture    pgtype.Text        `json:"idp_picture"`
 	AvatarFromIdp bool               `json:"avatar_from_idp"`
+	EmailVerified bool               `json:"email_verified"`
 }

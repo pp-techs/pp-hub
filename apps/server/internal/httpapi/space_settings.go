@@ -8,6 +8,9 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/nhatbui/pp-hub/apps/server/internal/audit"
+	"github.com/nhatbui/pp-hub/apps/server/internal/spaces"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 )
 
@@ -26,9 +29,24 @@ func (s *Server) handleUpdateSpace(w http.ResponseWriter, r *http.Request) {
 		QuotaBytes         *int64  `json:"quota_bytes"`
 		TrashRetentionDays *int32  `json:"trash_retention_days"`
 		AllowPublicLinks   *bool   `json:"allow_public_links"`
+		ExternalSharing    *bool   `json:"external_sharing"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid body")
+		return
+	}
+	// A personal space's owner is its admin, but not of everything an
+	// organization's admins decide: the quota is the instance's, a slug and
+	// a default role name nobody, and external sharing is what a personal
+	// space is for. Re-sending a field unchanged is fine — the settings form
+	// PATCHes back what it read.
+	if spaces.IsPersonal(space) &&
+		((body.Slug != nil && strings.TrimSpace(strings.ToLower(*body.Slug)) != space.Slug) ||
+			(body.DefaultAsAdmin != nil && *body.DefaultAsAdmin != space.DefaultAsAdmin) ||
+			(body.QuotaBytes != nil && *body.QuotaBytes != space.QuotaBytes) ||
+			(body.ExternalSharing != nil && *body.ExternalSharing != space.ExternalSharing)) {
+		writeProblem(w, http.StatusConflict, "Conflict",
+			"a personal space's slug, default role, quota and external sharing are not settings its owner changes")
 		return
 	}
 	next := store.UpdateSpaceSettingsParams{
@@ -40,6 +58,7 @@ func (s *Server) handleUpdateSpace(w http.ResponseWriter, r *http.Request) {
 		QuotaBytes:         space.QuotaBytes,
 		TrashRetentionDays: space.TrashRetentionDays,
 		AllowPublicLinks:   space.AllowPublicLinks,
+		ExternalSharing:    space.ExternalSharing,
 	}
 	if body.Name != nil {
 		if strings.TrimSpace(*body.Name) == "" {
@@ -80,6 +99,9 @@ func (s *Server) handleUpdateSpace(w http.ResponseWriter, r *http.Request) {
 	if body.AllowPublicLinks != nil {
 		next.AllowPublicLinks = *body.AllowPublicLinks
 	}
+	if body.ExternalSharing != nil {
+		next.ExternalSharing = *body.ExternalSharing
+	}
 	// The name is the organization's: rename it upstream first, or the next
 	// reconcile would put the old one back.
 	if next.Name != space.Name {
@@ -97,8 +119,19 @@ func (s *Server) handleUpdateSpace(w http.ResponseWriter, r *http.Request) {
 		Error(w, r, err)
 		return
 	}
+	// Who outside the company may be let in is an access decision, not a
+	// cosmetic one: it belongs in the security log.
+	if updated.ExternalSharing != space.ExternalSharing {
+		s.audit.Record(r, audit.Event{
+			Kind:    audit.KindSettingsUpdated,
+			UserID:  u.ID,
+			Subject: u.Email,
+			Detail: map[string]any{
+				"space": space.ID.String(), "external_sharing": updated.ExternalSharing,
+			},
+		})
+	}
 	writeJSON(w, http.StatusOK, spaceToDTO(updated, true, s.adminCount(r, updated.ID)))
-	_ = u
 }
 
 func spaceSettingsFrom(sp store.Space, slug, description string, defaultAsAdmin bool, quota int64) (store.UpdateSpaceSettingsParams, string) {
@@ -111,6 +144,7 @@ func spaceSettingsFrom(sp store.Space, slug, description string, defaultAsAdmin 
 		QuotaBytes:         sp.QuotaBytes,
 		TrashRetentionDays: sp.TrashRetentionDays,
 		AllowPublicLinks:   sp.AllowPublicLinks,
+		ExternalSharing:    sp.ExternalSharing,
 	}
 	if slug != "" {
 		normalised := strings.TrimSpace(strings.ToLower(slug))
@@ -137,7 +171,7 @@ func spaceSettingsFrom(sp store.Space, slug, description string, defaultAsAdmin 
 // in the same transaction, or its members' next sign-in would recreate an
 // empty space for it.
 func (s *Server) handleDeleteSpace(w http.ResponseWriter, r *http.Request) {
-	u, space, ok := s.requireSpaceAdmin(w, r)
+	u, space, ok := s.requireOrgSpaceAdmin(w, r)
 	if !ok {
 		return
 	}
@@ -194,6 +228,11 @@ func (s *Server) linkTarget(w http.ResponseWriter, r *http.Request) (store.Space
 	space, err := s.spaces.Get(r.Context(), spaceID)
 	if err != nil {
 		s.spaceError(w, r, err)
+		return store.Space{}, false
+	}
+	// The check constraint would refuse the link after Logto had already
+	// created the organization; refuse before anything leaves this server.
+	if s.refusePersonal(w, space) {
 		return store.Space{}, false
 	}
 	return space, true

@@ -37,8 +37,33 @@ const (
 	// cannot sign in through a browser (a .mcp.json, CI). On by default:
 	// agent access as a whole is already the instance's opt-in.
 	KeyMCPTokens = "mcp_tokens"
+	// KeyMCPExternalShares lets an agent give access to someone outside the
+	// node's space — an external grant or an invitation. Off by default for
+	// the reason public links are: it is what a prompt-injected document
+	// would aim for.
+	KeyMCPExternalShares = "mcp_external_shares"
+	// KeyPersonalSpaces decides who gets a personal space at sign-in:
+	// PersonalSpacesOff, PersonalSpacesMembers or PersonalSpacesEveryone.
+	KeyPersonalSpaces = "personal_spaces"
+	// KeyDefaultPersonalQuotaBytes is the quota a new personal space gets.
+	KeyDefaultPersonalQuotaBytes = "default_personal_quota_bytes"
+	// KeyExternalSharingEnabled is the instance-wide gate on external grants
+	// and invitations; each space has its own switch beneath it.
+	KeyExternalSharingEnabled = "external_sharing_enabled"
 
 	DefaultTenantID = "default"
+)
+
+// Values of KeyPersonalSpaces.
+const (
+	// PersonalSpacesOff provisions nobody.
+	PersonalSpacesOff = "off"
+	// PersonalSpacesMembers provisions people who belong to at least one
+	// organization — a company's self-host, where Logto's open email sign-up
+	// exists only so invitees can create their account.
+	PersonalSpacesMembers = "members"
+	// PersonalSpacesEveryone provisions every account — a public instance.
+	PersonalSpacesEveryone = "everyone"
 )
 
 // SettingDef describes a known system configuration knob.
@@ -292,6 +317,47 @@ func defaultDefs() map[string]SettingDef {
 			Description: "Let people create personal access tokens for agents",
 			Default:     true,
 		},
+		KeyMCPExternalShares: {
+			Key:         KeyMCPExternalShares,
+			Type:        "boolean",
+			Description: "Let connected agents give access to people outside a space",
+			Default:     false,
+		},
+		KeyPersonalSpaces: {
+			Key:         KeyPersonalSpaces,
+			Type:        "string",
+			Description: "Who gets a personal space at sign-in: off, members (people in an organization) or everyone",
+			Default:     PersonalSpacesOff,
+			Validate: func(val any) error {
+				switch val {
+				case PersonalSpacesOff, PersonalSpacesMembers, PersonalSpacesEveryone:
+					return nil
+				}
+				return errors.New("personal_spaces must be off, members or everyone")
+			},
+		},
+		KeyDefaultPersonalQuotaBytes: {
+			Key:         KeyDefaultPersonalQuotaBytes,
+			Type:        "number",
+			Description: "Storage quota in bytes for a new personal space (0 = unlimited; required when personal spaces are open to everyone)",
+			Default:     int64(0),
+			Validate: func(val any) error {
+				n, ok := val.(int64)
+				if !ok {
+					return errors.New("default_personal_quota_bytes must be an integer")
+				}
+				if n < 0 {
+					return errors.New("default_personal_quota_bytes cannot be negative")
+				}
+				return nil
+			},
+		},
+		KeyExternalSharingEnabled: {
+			Key:         KeyExternalSharingEnabled,
+			Type:        "boolean",
+			Description: "Let people give access to someone outside a space by email",
+			Default:     false,
+		},
 	}
 }
 
@@ -336,7 +402,7 @@ func decodeSettingValue(def SettingDef, raw []byte) any {
 		if err := json.Unmarshal(raw, &str); err == nil {
 			return str
 		}
-	case KeyMaxUploadBytes, KeyDefaultSpaceQuotaBytes:
+	case KeyMaxUploadBytes, KeyDefaultSpaceQuotaBytes, KeyDefaultPersonalQuotaBytes:
 		var num int64
 		if err := json.Unmarshal(raw, &num); err == nil {
 			return num
@@ -373,7 +439,7 @@ func (s *Service) coerceAndValidate(def SettingDef, raw json.RawMessage) (any, [
 		}
 		str = strings.TrimSpace(str)
 		val = str
-	case KeyMaxUploadBytes, KeyDefaultSpaceQuotaBytes:
+	case KeyMaxUploadBytes, KeyDefaultSpaceQuotaBytes, KeyDefaultPersonalQuotaBytes:
 		var num int64
 		if err := json.Unmarshal(raw, &num); err != nil {
 			return nil, nil, fmt.Errorf("%s must be an integer: %w", def.Key, err)
@@ -389,7 +455,7 @@ func (s *Service) coerceAndValidate(def SettingDef, raw json.RawMessage) (any, [
 		val = num
 	case KeySMTP:
 		return s.coerceSMTP(raw)
-	case KeyMCPEnabled, KeyMCPPublicLinks, KeyMCPTokens:
+	case KeyMCPEnabled, KeyMCPPublicLinks, KeyMCPTokens, KeyMCPExternalShares, KeyExternalSharingEnabled:
 		var b bool
 		if err := json.Unmarshal(raw, &b); err != nil {
 			return nil, nil, fmt.Errorf("%s must be true or false: %w", def.Key, err)
@@ -399,9 +465,9 @@ func (s *Service) coerceAndValidate(def SettingDef, raw json.RawMessage) (any, [
 		if def.Type == "string" {
 			var str string
 			if err := json.Unmarshal(raw, &str); err != nil {
-				return nil, nil, err
+				return nil, nil, fmt.Errorf("%s must be a string: %w", def.Key, err)
 			}
-			val = str
+			val = strings.TrimSpace(str)
 		} else {
 			var num int64
 			if err := json.Unmarshal(raw, &num); err != nil {
@@ -470,6 +536,10 @@ func (s *Service) UpdateMany(ctx context.Context, tenantID string, updates map[s
 			bytes []byte
 		}{def: def, val: val, bytes: canonicalJSON}
 	}
+	if err := s.checkCombination(validated[KeyPersonalSpaces].val, validated[KeyDefaultPersonalQuotaBytes].val,
+		updates[KeyPersonalSpaces] != nil, updates[KeyDefaultPersonalQuotaBytes] != nil); err != nil {
+		return nil, err
+	}
 
 	// Second pass: save to database and cache
 	s.mu.Lock()
@@ -506,6 +576,11 @@ func (s *Service) Delete(ctx context.Context, tenantID string, key string) error
 	}
 	if _, ok := s.defs[key]; !ok {
 		return fmt.Errorf("unknown configuration key: %q", key)
+	}
+	if key == KeyDefaultPersonalQuotaBytes {
+		if err := s.checkCombination(nil, int64(0), false, true); err != nil {
+			return err
+		}
 	}
 
 	s.mu.Lock()
@@ -648,6 +723,61 @@ func (s *Service) MCPPublicLinks() bool { return s.cachedBool(KeyMCPPublicLinks,
 
 // MCPTokens reports whether personal access tokens may be minted and used.
 func (s *Service) MCPTokens() bool { return s.cachedBool(KeyMCPTokens, true) }
+
+// MCPExternalShares reports whether connected agents may give access to
+// people outside a space.
+func (s *Service) MCPExternalShares() bool { return s.cachedBool(KeyMCPExternalShares, false) }
+
+// ExternalSharingEnabled reports the instance-wide gate on external grants.
+func (s *Service) ExternalSharingEnabled() bool {
+	return s.cachedBool(KeyExternalSharingEnabled, false)
+}
+
+// PersonalSpaces returns who gets a personal space at sign-in.
+func (s *Service) PersonalSpaces() string {
+	s.mu.RLock()
+	raw, ok := s.cache[KeyPersonalSpaces]
+	s.mu.RUnlock()
+	var v string
+	if !ok || json.Unmarshal(raw, &v) != nil {
+		return PersonalSpacesOff
+	}
+	switch v {
+	case PersonalSpacesMembers, PersonalSpacesEveryone:
+		return v
+	}
+	return PersonalSpacesOff
+}
+
+// DefaultPersonalQuotaBytes returns the quota a new personal space gets.
+func (s *Service) DefaultPersonalQuotaBytes() int64 {
+	s.mu.RLock()
+	raw, ok := s.cache[KeyDefaultPersonalQuotaBytes]
+	s.mu.RUnlock()
+	var n int64
+	if !ok || json.Unmarshal(raw, &n) != nil {
+		return 0
+	}
+	return n
+}
+
+// checkCombination refuses opening personal spaces to everyone without a
+// quota: an unbounded drive handed to anybody who can sign up is a free file
+// host. Values not in this batch are read from the current settings.
+func (s *Service) checkCombination(mode, quota any, modeSet, quotaSet bool) error {
+	m, _ := mode.(string)
+	if !modeSet {
+		m = s.PersonalSpaces()
+	}
+	q, _ := quota.(int64)
+	if !quotaSet {
+		q = s.DefaultPersonalQuotaBytes()
+	}
+	if m == PersonalSpacesEveryone && q <= 0 {
+		return errors.New("set default_personal_quota_bytes above 0 before opening personal spaces to everyone")
+	}
+	return nil
+}
 
 // cachedBool is the cached boolean value of key, or def when none is stored
 // or it does not decode.

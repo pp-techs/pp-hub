@@ -92,18 +92,22 @@ SELECT DISTINCT ON (n.id)
   a.created_at AS last_action_at
 FROM activity_events a
 JOIN nodes n ON n.id = a.node_id
-JOIN space_members m ON m.space_id = n.space_id AND m.user_id = $1
 JOIN spaces s ON s.id = n.space_id
 LEFT JOIN node_versions v ON v.id = n.current_version_id
 LEFT JOIN users u ON u.id = n.created_by
 LEFT JOIN nodes p ON p.id = n.parent_id AND p.deleted_at IS NULL
 WHERE a.actor_id = $1 AND n.deleted_at IS NULL AND n.kind = 'file'
+  AND (EXISTS (SELECT 1 FROM space_members m WHERE m.space_id = n.space_id AND m.user_id = $1)
+       OR EXISTS (
+           SELECT 1 FROM shares xs JOIN nodes xn ON xn.id = xs.node_id
+           WHERE xn.space_id = n.space_id AND xs.kind = 'direct' AND xs.is_external
+             AND xs.grantee_user_id = $1))
   AND ($2::uuid IS NULL OR n.space_id = $2::uuid)
 ORDER BY n.id, a.created_at DESC
 `
 
 type ListRecentNodesParams struct {
-	UserID  pgtype.UUID `json:"user_id"`
+	ActorID pgtype.UUID `json:"actor_id"`
 	SpaceID pgtype.UUID `json:"space_id"`
 }
 
@@ -138,9 +142,10 @@ type ListRecentNodesRow struct {
 // "Recent" is the caller's own touches, most recently touched first, one row
 // per node. DISTINCT ON collapses repeated edits of the same file into its
 // latest, which is what "recent" means to a person. A null space_id spans
-// every space the caller belongs to; a set one scopes the feed to it.
+// every space the caller belongs to or holds an external grant in; a set one
+// scopes the feed to it. Callers filter by capabilities afterwards.
 func (q *Queries) ListRecentNodes(ctx context.Context, arg ListRecentNodesParams) ([]ListRecentNodesRow, error) {
-	rows, err := q.db.Query(ctx, listRecentNodes, arg.UserID, arg.SpaceID)
+	rows, err := q.db.Query(ctx, listRecentNodes, arg.ActorID, arg.SpaceID)
 	if err != nil {
 		return nil, err
 	}

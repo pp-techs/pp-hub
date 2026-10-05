@@ -192,6 +192,18 @@ instead create a **personal token** in the same place (at most 90 days) and
 put it in an `Authorization: Bearer` header; administrators can turn personal
 tokens off on the same settings card.
 
+**Optional: personal spaces and sharing outside a space.** In **Admin →
+Settings → Personal use**, _Personal spaces_ gives each account a "My Drive"
+beside its organization spaces: **Members of an organization** for a company
+instance (Logto's email sign-up stays open for invitees, so **Everyone** would
+let anybody who finds the instance store files), **Everyone** for a public one,
+which requires a personal quota first. _Allow sharing outside a space_ lets
+people share by email with someone outside a space, or with an address that has
+no account yet (an invitation mail, so configure SMTP); each organization's
+admins still switch it on for their space in **Settings → General**. Personal
+spaces of accounts deleted in Logto are listed on the same card for purging.
+See [personal-spaces.md](architecture/personal-spaces.md).
+
 ## Day two
 
 **Upgrading pp-hub.** Change `PP_IMAGE_TAG` in `pphub.env` and run the same

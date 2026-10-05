@@ -7,7 +7,7 @@ export { keys } from "./keys";
 export { useMe, requireAuth, fetchMe, signOut } from "./auth";
 
 // Spaces
-export { useSpaces, useSpace, fetchSpaces, useCreateSpace } from "./spaces";
+export { useSpaces, useSpace, fetchSpaces, refetchSpaces, useCreateSpace } from "./spaces";
 
 // Groups and folder grants
 export {
@@ -50,6 +50,12 @@ export {
   useTree,
   useTrash,
   useShared,
+  externalSharedOptions,
+  useExternalShared,
+  useNodeChildren,
+  useNodePath,
+  nodePeopleOptions,
+  useNodePeople,
 } from "./nodes";
 
 // Block documents
@@ -76,6 +82,8 @@ export {
   useUpdateAdminSettings,
   useDeleteAdminSetting,
   useSendTestEmail,
+  useArchivedPersonalSpaces,
+  usePurgeArchivedPersonalSpace,
 } from "./spaces-admin";
 
 // Home surfaces
@@ -90,6 +98,8 @@ export {
   useShareInfo,
   useCreateShare,
   useRevokeShare,
+  usePendingShares,
+  useRevokePendingShare,
   useShareChildren,
 } from "./shares";
 

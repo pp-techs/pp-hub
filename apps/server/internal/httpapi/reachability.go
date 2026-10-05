@@ -63,6 +63,41 @@ func (rc *reachability) stamp(d *nodeDTO, nodeID pgtype.UUID) {
 	d.Caps = &c
 }
 
+// hideParents blanks the parent name on every row whose parent the caller
+// cannot open. A row they reach through a grant on the node itself — an
+// outsider's share root, a member's file shared alone — would otherwise name
+// the folder around it, which may itself say more than the file does. One
+// more AccessCaps batch for the page's parents.
+func hideParents[T any](ctx context.Context, s *Server, rc *reachability, rows []T,
+	parentOf func(T) pgtype.UUID, blank func(*T)) error {
+	var ids []pgtype.UUID
+	for _, row := range rows {
+		if p := parentOf(row); p.Valid {
+			if _, known := rc.resolved[p]; !known {
+				ids = append(ids, p)
+			}
+		}
+	}
+	if len(ids) > 0 {
+		more, err := s.share.AccessCaps(ctx, dedupe(ids), rc.userID)
+		if err != nil {
+			return err
+		}
+		if rc.resolved == nil {
+			rc.resolved = make(map[pgtype.UUID]share.Resolved, len(more))
+		}
+		for id, r := range more {
+			rc.resolved[id] = r
+		}
+	}
+	for i := range rows {
+		if p := parentOf(rows[i]); p.Valid && !rc.caps(p).View {
+			blank(&rows[i])
+		}
+	}
+	return nil
+}
+
 // filterRows keeps only the rows the user can reach. The accessors pull the
 // node and space id out of whichever row type the caller has, since each feed
 // has its own generated struct.

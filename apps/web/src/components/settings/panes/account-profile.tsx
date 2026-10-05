@@ -11,6 +11,7 @@ import { Skeleton } from "@workspace/ui/components/skeleton";
 import type { UserProfile } from "@/lib/api";
 import { useMe, useSpaces, useUpdateProfile } from "@/lib/queries";
 import { useFormatters } from "@/lib/format";
+import { useSpaceLabel } from "@/lib/use-space-label";
 import { UserAvatar } from "@/components/user-avatar";
 import { SectionLabel } from "@/components/section-label";
 import { useSettingsDirty } from "@/components/settings/settings-dirty";
@@ -66,6 +67,7 @@ function ProfileForm({ profile }: { profile: UserProfile }) {
   const f = useFormatters();
   const update = useUpdateProfile();
   const spaces = useSpaces();
+  const spaceLabel = useSpaceLabel();
   const [displayName, setDisplayName] = useState(profile.display_name || profile.name);
   const [bio, setBio] = useState(profile.bio);
 
@@ -218,7 +220,7 @@ function ProfileForm({ profile }: { profile: UserProfile }) {
                 aria-hidden
                 className="bg-foreground text-background grid size-5 shrink-0 place-content-center rounded-sm text-[10px] font-semibold"
               >
-                {monogram(space.name)}
+                {monogram(spaceLabel(space))}
               </span>
               {/* No explicit close: a navigation that does not name a hash
                   drops the one in the address, and the dialog follows it. */}
@@ -228,7 +230,7 @@ function ProfileForm({ profile }: { profile: UserProfile }) {
                 search={{ dir: undefined }}
                 className="min-w-0 flex-1 truncate text-xs font-medium hover:underline"
               >
-                {space.name}
+                {spaceLabel(space)}
               </Link>
               <span className="text-muted-foreground shrink-0 text-[10px] uppercase">
                 {space.is_admin ? <Trans>Admin</Trans> : <Trans>Member</Trans>}

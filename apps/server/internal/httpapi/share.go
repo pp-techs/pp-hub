@@ -5,7 +5,9 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	netmail "net/mail"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -38,6 +40,8 @@ type shareDTO struct {
 	// row to delete, so the dialog has to say what stays behind. Direct shares
 	// only — a group grant has no single author to attribute.
 	GranteeOwned int64 `json:"grantee_owned,omitempty"`
+	// IsExternal marks a direct share to someone outside the node's space.
+	IsExternal bool `json:"is_external,omitempty"`
 }
 
 // withGrantee names a direct share's grantee on the DTO.
@@ -58,7 +62,7 @@ func shareToDTO(sh store.Share, externalURL, token string) shareDTO {
 		Level:       string(sh.Level),
 		CanDownload: sh.CanDownload,
 		CanShare:    sh.CanShare,
-		CreatedAt:   sh.CreatedAt.Time.Format(time.RFC3339),
+		IsExternal:  sh.IsExternal,
 	}
 	if sh.ExpiresAt.Valid {
 		d.ExpiresAt = sh.ExpiresAt.Time.Format(time.RFC3339)
@@ -75,10 +79,11 @@ func shareToDTO(sh store.Share, externalURL, token string) shareDTO {
 // because a single ranked word cannot say "may view and pass on, but not
 // download", which is exactly what the share dialog offers.
 //
-// A direct grant names its grantee by user id, never by address: the dialog
-// picks from the space's member list, and an address lookup answered "no such
-// user" and "not in this space" differently — an oracle for which addresses
-// have accounts in other companies on the same instance.
+// A direct grant names its grantee by user id — a member picked from the
+// space's list — or by email, which is how somebody outside the space is
+// reached (shareByEmail). A user id belonging to a non-member is refused the
+// same way as an unknown one, so the id path stays no oracle for who has an
+// account in another company.
 func (s *Server) handleCreateShare(w http.ResponseWriter, r *http.Request) {
 	u, node, callerCaps := s.requireNodeCaps(w, r, share.CapShare)
 	if u == nil {
@@ -90,6 +95,7 @@ func (s *Server) handleCreateShare(w http.ResponseWriter, r *http.Request) {
 		CanDownload bool   `json:"can_download"`
 		CanShare    bool   `json:"can_share"`
 		UserID      string `json:"user_id"`
+		Email       string `json:"email"`
 		ExpiresIn   int64  `json:"expires_in"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -155,15 +161,18 @@ func (s *Server) handleCreateShare(w http.ResponseWriter, r *http.Request) {
 		})
 		writeJSON(w, http.StatusCreated, shareToDTO(sh, s.externalURL, token))
 	case "direct":
-		s.upsertDirectShare(w, r, u, node, callerCaps, body.UserID, want, expires)
+		if body.Email != "" {
+			s.shareByEmail(w, r, u, node, callerCaps, body.Email, want, expires)
+			return
+		}
+		s.shareWithMember(w, r, u, node, callerCaps, body.UserID, want, expires)
 	default:
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "kind must be link|direct")
 	}
 }
 
-// upsertDirectShare creates a person's grant on the node or replaces the one
-// they hold: 201 for a new grant, 200 for a change.
-func (s *Server) upsertDirectShare(
+// shareWithMember grants a member of the node's space, named by user id.
+func (s *Server) shareWithMember(
 	w http.ResponseWriter, r *http.Request,
 	u *store.User, node store.Node, callerCaps share.Caps,
 	rawUserID string, want share.GrantCaps, expires pgtype.Timestamptz,
@@ -171,7 +180,7 @@ func (s *Server) upsertDirectShare(
 	ctx := r.Context()
 	var granteeID pgtype.UUID
 	if err := granteeID.Scan(rawUserID); err != nil {
-		writeProblem(w, http.StatusBadRequest, "Bad Request", "user_id is required")
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "user_id or email is required")
 		return
 	}
 	if granteeID == u.ID {
@@ -190,9 +199,189 @@ func (s *Server) upsertDirectShare(
 			return
 		}
 		writeProblem(w, http.StatusUnprocessableEntity, "Unprocessable",
-			"that person is not a member of this space — share a link instead")
+			"that person is not a member of this space — share by email or with a link instead")
 		return
 	}
+	s.upsertDirectShare(w, r, u, node, callerCaps, grantee, want, expires, false)
+}
+
+// shareByEmail reaches anybody by address: a member of the node's space gets
+// an ordinary grant, an account outside it an external grant, and an address
+// with no account an invitation (202) that becomes a grant when somebody
+// signs in with it verified.
+//
+// Telling the three apart does say whether an address has an account here.
+// That is accepted, as Drive accepts it: the address must be typed whole, the
+// outside cases are behind two switches (instance and space), and the
+// invitation budget bounds how many a person can probe in a day.
+func (s *Server) shareByEmail(
+	w http.ResponseWriter, r *http.Request,
+	u *store.User, node store.Node, callerCaps share.Caps,
+	rawEmail string, want share.GrantCaps, expires pgtype.Timestamptz,
+) {
+	ctx := r.Context()
+	addr, err := netmail.ParseAddress(strings.TrimSpace(rawEmail))
+	if err != nil || addr.Name != "" {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "that is not an email address")
+		return
+	}
+	email := share.NormalizeEmail(addr.Address)
+	if email == share.NormalizeEmail(u.Email) {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", share.ErrSelfShare.Error())
+		return
+	}
+	grantee, err := s.store.GetUserByEmailNorm(ctx, email)
+	found := err == nil
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		Error(w, r, err)
+		return
+	}
+	if found && grantee.ID == u.ID {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", share.ErrSelfShare.Error())
+		return
+	}
+	if found && s.isMember(ctx, node.SpaceID, grantee.ID) {
+		s.upsertDirectShare(w, r, u, node, callerCaps, grantee, want, expires, false)
+		return
+	}
+	if !s.allowExternal(w, r, node, want) {
+		return
+	}
+	if found {
+		s.upsertDirectShare(w, r, u, node, callerCaps, grantee, want, expires, true)
+		return
+	}
+	s.invite(w, r, u, node, callerCaps, email, want, expires)
+}
+
+// allowExternal is every gate on giving access to someone outside the
+// node's space: the instance switch, the space's own, the agent switch when
+// an agent is asking, and no re-sharing for an outsider.
+func (s *Server) allowExternal(w http.ResponseWriter, r *http.Request, node store.Node, want share.GrantCaps) bool {
+	if !s.share.ExternalSharingEnabled() {
+		writeProblem(w, http.StatusForbidden, "Forbidden",
+			"sharing with people outside a space is turned off on this instance")
+		return false
+	}
+	sp, err := s.spaces.Get(r.Context(), node.SpaceID)
+	if err != nil {
+		s.spaceError(w, r, err)
+		return false
+	}
+	if !sp.ExternalSharing {
+		writeProblem(w, http.StatusForbidden, "Forbidden",
+			"sharing with people outside this space is turned off for it")
+		return false
+	}
+	if _, viaAgent := audit.Agent(r.Context()); viaAgent && !s.sysconfig.MCPExternalShares() {
+		writeProblem(w, http.StatusForbidden, "Forbidden",
+			"agents may not give access to people outside a space on this instance")
+		return false
+	}
+	if want.CanShare {
+		writeProblem(w, http.StatusForbidden, "Forbidden",
+			"someone outside the space cannot be allowed to re-share")
+		return false
+	}
+	return true
+}
+
+// invite records a share for an address with no account and mails it.
+//
+// Changing an existing invitation takes covering it, as changing a grant
+// does: otherwise a narrower sharer could downgrade, take over or — with a
+// one-second expiry — quietly withdraw an invitation an owner made. A new
+// invitation draws on the sender's budget and is logged; its mail goes out
+// only while the address is under its own daily cap.
+func (s *Server) invite(
+	w http.ResponseWriter, r *http.Request,
+	u *store.User, node store.Node, callerCaps share.Caps,
+	email string, want share.GrantCaps, expires pgtype.Timestamptz,
+) {
+	ctx := r.Context()
+	existing, err := s.share.ListPending(ctx, node.ID)
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+	renewing := false
+	for _, p := range existing {
+		if p.EmailNorm != email {
+			continue
+		}
+		renewing = true
+		if !callerCaps.Covers(share.GrantCaps{Level: p.Level, CanDownload: p.CanDownload}) {
+			writeProblem(w, http.StatusForbidden, "Forbidden", errGrantWider)
+			return
+		}
+		break
+	}
+	if !renewing && !s.invitationBudget(w, r, u) {
+		return
+	}
+	p, inserted, err := s.share.UpsertPending(ctx, node.ID, email, want, expires, u.ID)
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+	mailed := false
+	if inserted {
+		if s.mail.Enabled() {
+			if mailed, err = s.share.MayMailInvitation(ctx, email); err != nil {
+				Error(w, r, err)
+				return
+			}
+		}
+		if err := s.share.RecordInvitation(ctx, u.ID, email, mailed); err != nil {
+			Error(w, r, err)
+			return
+		}
+		if mailed {
+			s.notify.Invited(ctx, notify.Invite{
+				Granter: *u, Node: node, Level: p.Level, CanDownload: p.CanDownload, Email: email,
+			})
+		}
+	}
+	s.audit.Record(r, audit.Event{
+		Kind:    audit.KindPendingShareCreated,
+		UserID:  u.ID,
+		Subject: u.Email,
+		NodeID:  node.ID,
+		Detail: map[string]any{
+			"node": node.ID.String(), "name": node.Name, "invitee": email,
+			"level": string(p.Level), "can_download": p.CanDownload, "updated": !inserted,
+			"mailed": mailed,
+		},
+	})
+	dto := pendingToDTO(p)
+	dto.MailSent = &mailed
+	writeJSON(w, http.StatusAccepted, dto)
+}
+
+// invitationBudget answers 429 once the caller has reached
+// share.InvitationsPerDay, and reports whether they may go on.
+func (s *Server) invitationBudget(w http.ResponseWriter, r *http.Request, u *store.User) bool {
+	err := s.share.CheckInvitationBudget(r.Context(), u.ID)
+	if errors.Is(err, share.ErrTooManyInvitations) {
+		writeProblem(w, http.StatusTooManyRequests, "Too Many Requests", err.Error())
+		return false
+	}
+	if err != nil {
+		Error(w, r, err)
+		return false
+	}
+	return true
+}
+
+// upsertDirectShare creates a person's grant on the node or replaces the one
+// they hold: 201 for a new grant, 200 for a change. external marks a grantee
+// outside the node's space; the caller has already applied allowExternal.
+func (s *Server) upsertDirectShare(
+	w http.ResponseWriter, r *http.Request,
+	u *store.User, node store.Node, callerCaps share.Caps,
+	grantee store.User, want share.GrantCaps, expires pgtype.Timestamptz, external bool,
+) {
+	ctx := r.Context()
 	existing, had, err := s.share.DirectFor(ctx, node.ID, grantee.ID)
 	if err != nil {
 		Error(w, r, err)
@@ -203,14 +392,26 @@ func (s *Server) upsertDirectShare(
 			writeProblem(w, http.StatusForbidden, "Forbidden", errGrantWider)
 			return
 		}
-		if !s.keepsTeamManager(w, r, node, existing.CanShare, want.CanShare) {
+		if !s.keepsTeamManager(w, r, node, existing.CanShare, want.CanShare && !external) {
 			return
 		}
 	}
-	sh, err := s.share.UpsertDirect(ctx, node.ID, grantee.ID, want, expires, u.ID)
+	if external && !had && !s.invitationBudget(w, r, u) {
+		return
+	}
+	sh, err := s.share.UpsertDirect(ctx, node.ID, grantee.ID, want, expires, u.ID, external)
 	if err != nil {
 		Error(w, r, err)
 		return
+	}
+	if external && !had {
+		// The share notification below honours the recipient's own opt-out,
+		// so this counts toward the sender's budget without being an
+		// invitation mail.
+		if err := s.share.RecordInvitation(ctx, u.ID, share.NormalizeEmail(grantee.Email), false); err != nil {
+			Error(w, r, err)
+			return
+		}
 	}
 	s.activity.Node(ctx, u.ID, node, activity.KindShared, map[string]any{
 		"share_kind":   "direct",
@@ -219,6 +420,7 @@ func (s *Server) upsertDirectShare(
 		"can_share":    sh.CanShare,
 		"grantee":      grantee.Email,
 		"updated":      had,
+		"external":     external,
 	})
 	s.audit.Record(r, audit.Event{
 		Kind:    audit.KindShareCreated,
@@ -228,7 +430,7 @@ func (s *Server) upsertDirectShare(
 		Detail: map[string]any{
 			"node": node.ID.String(), "name": node.Name, "share_kind": "direct",
 			"level": string(sh.Level), "can_download": sh.CanDownload, "can_share": sh.CanShare,
-			"grantee": grantee.Email, "updated": had,
+			"grantee": grantee.Email, "updated": had, "external": external,
 		},
 	})
 	status := http.StatusOK
@@ -241,6 +443,7 @@ func (s *Server) upsertDirectShare(
 				Node:        node,
 				Level:       sh.Level,
 				CanDownload: sh.CanDownload,
+				External:    external,
 				Recipients: []notify.Recipient{{
 					ID:       grantee.ID,
 					Email:    grantee.Email,

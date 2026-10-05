@@ -47,6 +47,9 @@ func (s *Server) handleListDepartures(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Error", "invalid space id")
 		return
 	}
+	if !s.requireOrgSpace(w, r, spaceID) {
+		return
+	}
 	if err := s.spaces.RequireAdmin(r.Context(), spaceID, u.ID); err != nil {
 		s.spaceError(w, r, err)
 		return
@@ -79,6 +82,9 @@ func (s *Server) handleCompleteDeparture(w http.ResponseWriter, r *http.Request)
 	userID, err := uuidParam(r, "userID")
 	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Error", "invalid user id")
+		return
+	}
+	if !s.requireOrgSpace(w, r, spaceID) {
 		return
 	}
 	if err := s.spaces.RequireAdmin(r.Context(), spaceID, u.ID); err != nil {

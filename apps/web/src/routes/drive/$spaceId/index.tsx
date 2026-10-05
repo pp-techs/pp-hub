@@ -66,6 +66,7 @@ import { useFormatters } from "@/lib/format";
 import { groupActions } from "@/lib/group-actions";
 import { pageTitle } from "@/lib/i18n";
 import { useDocumentTitle } from "@/lib/use-page-head";
+import { useSpaceLabel } from "@/lib/use-space-label";
 import { NodePanels } from "@/components/node-panels";
 import { PreviewModal } from "@/components/preview-modal";
 import { DetailsPanel, type DetailsSubject } from "@/components/preview-panel";
@@ -176,7 +177,8 @@ function FolderView() {
 
   const currentFolder = useNode(dir);
   // The title is the folder's name, or the space's at its root — as Drive does.
-  useDocumentTitle(dir ? currentFolder.data?.name : space?.name);
+  const spaceLabel = useSpaceLabel();
+  useDocumentTitle(dir ? currentFolder.data?.name : space && spaceLabel(space));
   const sorted = useMemo(() => {
     const q = filterQuery.trim().toLowerCase();
     const base = children.data ?? [];

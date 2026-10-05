@@ -94,6 +94,9 @@ type Service struct {
 	// orgs accepts invitations and applies the organization claims to local
 	// membership. Set by SetReconciler before the server starts serving.
 	orgs Reconciler
+	// onSignIn provisions personal spaces and adopts pending shares. Nil in
+	// tests that do not exercise them.
+	onSignIn SignInHook
 	// profiles mirrors the IdP-owned profile fields — avatar, phone, gender
 	// — onto the account at every sign-in.
 	profiles *users.Service
@@ -304,6 +307,15 @@ func (s *Service) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	user = s.syncProfile(r, user, claims)
 	s.promoteBootstrapAdmin(r, &user, claims)
 	s.reconcileOrgs(r, user, claims)
+	// After membership is current, so the hook reads the spaces this
+	// sign-in just put the person in.
+	if s.onSignIn != nil {
+		verified := ""
+		if bool(claims.EmailVerified) {
+			verified = claims.Email
+		}
+		s.onSignIn(r, user, verified)
+	}
 
 	// Signing in again from a browser that already holds a session replaces
 	// it rather than stacking on top. The old cookie is about to be
@@ -337,6 +349,18 @@ func (s *Service) HandleCallback(w http.ResponseWriter, r *http.Request) {
 // live OIDC discovery — an ordering that no single constructor call can
 // satisfy without one of them taking the other's half-built self.
 func (s *Service) SetReconciler(r Reconciler) { s.orgs = r }
+
+// SignInHook runs at every successful interactive sign-in, after
+// organization membership has been reconciled and before the session is
+// issued. verifiedEmail is the address the identity provider vouched for, or
+// empty when it did not. A hook must not fail the sign-in: it logs and moves
+// on, like reconcileOrgs.
+type SignInHook func(r *http.Request, user store.User, verifiedEmail string)
+
+// SetSignInHook wires what personal spaces and pending shares need at
+// sign-in (cmd/server). A setter for the same ordering reason as
+// SetReconciler.
+func (s *Service) SetSignInHook(h SignInHook) { s.onSignIn = h }
 
 // reconcileOrgs accepts the invitations waiting for this person, then applies
 // the organization claims before the session is issued, so the first page
@@ -560,15 +584,15 @@ func (s *Service) resolveUser(r *http.Request, idToken *oidc.IDToken, claims idC
 		// admin's and be promoted, or to a colleague's and collect their
 		// pending invitations. The adoption path twenty lines below already
 		// refused to trust an unverified claim; the asymmetry was the bug.
-		email := user.Email
+		email, verified := user.Email, user.EmailVerified
 		if claims.Email != "" && bool(claims.EmailVerified) {
-			email = claims.Email
+			email, verified = claims.Email, true
 		} else if claims.Email != "" && claims.Email != user.Email {
 			slog.WarnContext(ctx, "ignoring an unverified email claim",
 				"user", user.ID.String(), "stored", user.Email, "claimed", claims.Email)
 		}
 		return s.queries.TouchUserLogin(ctx, store.TouchUserLoginParams{
-			ID: user.ID, Email: email, Name: claims.Name,
+			ID: user.ID, Email: email, Name: claims.Name, EmailVerified: verified,
 		})
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
@@ -608,6 +632,9 @@ func (s *Service) resolveUser(r *http.Request, idToken *oidc.IDToken, claims idC
 		OidcIss: idToken.Issuer,
 		Email:   claims.Email,
 		Name:    claims.Name,
+		// Recorded so sharing by email never resolves an address to an
+		// account that merely claimed it.
+		EmailVerified: claims.Email != "" && bool(claims.EmailVerified),
 	})
 	if err != nil {
 		// The email is spoken for by an account this identity is not allowed

@@ -97,6 +97,9 @@ func (s *Server) handleAddMember(w http.ResponseWriter, r *http.Request) {
 		s.spaceError(w, r, err)
 		return
 	}
+	if s.refusePersonal(w, space) {
+		return
+	}
 	outcome, err := s.orgs.Add(r.Context(), space, body.Email, body.AsAdmin)
 	if err != nil {
 		s.spaceError(w, r, err)
@@ -214,6 +217,9 @@ func (s *Server) memberTarget(w http.ResponseWriter, r *http.Request) (store.Spa
 	space, err := s.spaces.Get(r.Context(), spaceID)
 	if err != nil {
 		s.spaceError(w, r, err)
+		return store.Space{}, store.User{}, false
+	}
+	if s.refusePersonal(w, space) {
 		return store.Space{}, store.User{}, false
 	}
 	target, err := s.store.GetUser(r.Context(), userID)

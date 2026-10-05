@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { ChevronsUpDown, Lock, ShieldCheck, Users } from "lucide-react";
+import { ChevronsUpDown, Lock, Mail, ShieldCheck, Users } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import {
   DropdownMenu,
@@ -20,7 +20,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/av
  */
 export type Grantee =
   | { kind: "group"; id: string; label: string; isEveryone: boolean; isAdmin: boolean }
-  | { kind: "user"; id: string; label: string; email: string; avatarUrl?: string };
+  | { kind: "user"; id: string; label: string; email: string; avatarUrl?: string }
+  /** A typed address; `id` and `label` are the address itself. */
+  | { kind: "email"; id: string; label: string };
 
 interface GranteePickerProps {
   /** Everything still available — the caller filters out what already holds access. */
@@ -28,7 +30,12 @@ interface GranteePickerProps {
   onPick: (grantee: Grantee) => void;
   placeholder?: string;
   disabled?: boolean;
+  /** Offer "Invite {email}" for a typed address that matches nobody listed. */
+  allowEmail?: boolean;
 }
+
+/** Loose on purpose: the server is the one that rejects a bad address. */
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function matches(g: Grantee, needle: string) {
   if (g.label.toLowerCase().includes(needle)) return true;
@@ -43,7 +50,13 @@ function matches(g: Grantee, needle: string) {
  * would buy nothing, and scoping the search to the space is what keeps one
  * company's staff list out of another's autocomplete.
  */
-export function GranteePicker({ options, onPick, placeholder, disabled }: GranteePickerProps) {
+export function GranteePicker({
+  options,
+  onPick,
+  placeholder,
+  disabled,
+  allowEmail = false,
+}: GranteePickerProps) {
   const { t } = useLingui();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -52,6 +65,14 @@ export function GranteePicker({ options, onPick, placeholder, disabled }: Grante
   const visible = needle ? options.filter((g) => matches(g, needle)) : options;
   const groups = visible.filter((g) => g.kind === "group");
   const people = visible.filter((g) => g.kind === "user");
+  // A typed address nobody listed matches: offered as an invitation, for the
+  // server to resolve to a member, an outside account or a pending invite.
+  const inviteEmail =
+    allowEmail &&
+    EMAIL.test(needle) &&
+    !options.some((g) => g.kind === "user" && g.email.toLowerCase() === needle)
+      ? needle
+      : null;
 
   function pick(grantee: Grantee) {
     onPick(grantee);
@@ -70,7 +91,7 @@ export function GranteePicker({ options, onPick, placeholder, disabled }: Grante
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-[320px] p-2" align="start">
         <Input
-          placeholder={t`Search groups and people…`}
+          placeholder={allowEmail ? t`Search, or type an email…` : t`Search groups and people…`}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="mb-2"
@@ -86,9 +107,11 @@ export function GranteePicker({ options, onPick, placeholder, disabled }: Grante
           onKeyDown={(e) => e.key !== "Escape" && e.stopPropagation()}
         />
         <DropdownMenuGroup className="max-h-[260px] overflow-y-auto">
-          {visible.length === 0 && (
+          {visible.length === 0 && !inviteEmail && (
             <p className="text-muted-foreground py-2 text-center text-sm">
-              {options.length === 0 ? t`Everyone here already has access.` : t`Nothing matches.`}
+              {options.length === 0 && !allowEmail
+                ? t`Everyone here already has access.`
+                : t`Nothing matches.`}
             </p>
           )}
           {groups.length > 0 && (
@@ -140,6 +163,20 @@ export function GranteePicker({ options, onPick, placeholder, disabled }: Grante
               </div>
             </DropdownMenuItem>
           ))}
+          {inviteEmail && (
+            <DropdownMenuItem
+              onClick={() =>
+                // eslint-disable-next-line lingui/no-unlocalized-strings -- Grantee discriminator
+                pick({ kind: "email", id: inviteEmail, label: inviteEmail })
+              }
+              className="flex items-center gap-2"
+            >
+              <Mail className="text-muted-foreground h-4 w-4 shrink-0" />
+              <span className="truncate">
+                <Trans>Invite {inviteEmail}</Trans>
+              </span>
+            </DropdownMenuItem>
+          )}
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>

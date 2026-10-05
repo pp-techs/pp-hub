@@ -61,8 +61,14 @@ const (
 	KindGrantRevoked    Kind = "grant_revoked"
 	KindShareCreated    Kind = "share_created"
 	KindShareRevoked    Kind = "share_revoked"
-	KindMemberAdded     Kind = "member_added"
-	KindMemberRemoved   Kind = "member_removed"
+	// An invitation to an address with no account: a share waiting for
+	// whoever proves they own the address. Adoption is the moment it becomes
+	// a grant, at that person's first verified sign-in.
+	KindPendingShareCreated Kind = "pending_share_created"
+	KindPendingShareAdopted Kind = "pending_share_adopted"
+	KindPendingShareRevoked Kind = "pending_share_revoked"
+	KindMemberAdded         Kind = "member_added"
+	KindMemberRemoved       Kind = "member_removed"
 	// An address the identity provider was asked to invite into the space's
 	// organization. It has no user_id: the point of an invitation is that
 	// there may be no account to point at yet.

@@ -110,5 +110,5 @@ func (s *Service) ForUser(ctx context.Context, userID pgtype.UUID, limit int32) 
 // invalid spaceID spans every space the user belongs to; a set one scopes the
 // listing to that space.
 func (s *Service) Recent(ctx context.Context, userID, spaceID pgtype.UUID) ([]store.ListRecentNodesRow, error) {
-	return s.q.ListRecentNodes(ctx, store.ListRecentNodesParams{UserID: userID, SpaceID: spaceID})
+	return s.q.ListRecentNodes(ctx, store.ListRecentNodesParams{ActorID: userID, SpaceID: spaceID})
 }

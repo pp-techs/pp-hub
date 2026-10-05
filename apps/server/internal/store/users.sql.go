@@ -12,9 +12,9 @@ import (
 )
 
 const adoptUserIdentity = `-- name: AdoptUserIdentity :one
-UPDATE users SET oidc_iss = $2, oidc_sub = $3, email = $4, name = $5, last_seen = now()
+UPDATE users SET oidc_iss = $2, oidc_sub = $3, email = $4, name = $5, email_verified = true, last_seen = now()
 WHERE id = $1
-RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp
+RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp, email_verified
 `
 
 type AdoptUserIdentityParams struct {
@@ -33,6 +33,7 @@ type AdoptUserIdentityParams struct {
 // every returning user look brand new, the insert collided with the unique
 // index on (tenant_id, email_hash), and sign-in answered 500 with no way back
 // short of hand-editing Postgres.
+// Both callers adopt by an address the identity provider verified.
 func (q *Queries) AdoptUserIdentity(ctx context.Context, arg AdoptUserIdentityParams) (User, error) {
 	row := q.db.QueryRow(ctx, adoptUserIdentity,
 		arg.ID,
@@ -64,6 +65,7 @@ func (q *Queries) AdoptUserIdentity(ctx context.Context, arg AdoptUserIdentityPa
 		&i.Gender,
 		&i.IdpPicture,
 		&i.AvatarFromIdp,
+		&i.EmailVerified,
 	)
 	return i, err
 }
@@ -80,24 +82,27 @@ func (q *Queries) CountUsers(ctx context.Context, tenantID string) (int64, error
 }
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (oidc_sub, oidc_iss, email, name)
-VALUES ($1, $2, $3, $4)
-RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp
+INSERT INTO users (oidc_sub, oidc_iss, email, name, email_verified)
+VALUES ($1, $2, $3, $4, $5::bool)
+RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp, email_verified
 `
 
 type CreateUserParams struct {
-	OidcSub string `json:"oidc_sub"`
-	OidcIss string `json:"oidc_iss"`
-	Email   string `json:"email"`
-	Name    string `json:"name"`
+	OidcSub       string `json:"oidc_sub"`
+	OidcIss       string `json:"oidc_iss"`
+	Email         string `json:"email"`
+	Name          string `json:"name"`
+	EmailVerified bool   `json:"email_verified"`
 }
 
+// email_verified: whether the identity provider vouched for the address.
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
 	row := q.db.QueryRow(ctx, createUser,
 		arg.OidcSub,
 		arg.OidcIss,
 		arg.Email,
 		arg.Name,
+		arg.EmailVerified,
 	)
 	var i User
 	err := row.Scan(
@@ -122,6 +127,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Gender,
 		&i.IdpPicture,
 		&i.AvatarFromIdp,
+		&i.EmailVerified,
 	)
 	return i, err
 }
@@ -177,7 +183,7 @@ func (q *Queries) GetSpaceMembers(ctx context.Context, spaceID pgtype.UUID) ([]G
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp FROM users WHERE id = $1 LIMIT 1
+SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp, email_verified FROM users WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetUser(ctx context.Context, id pgtype.UUID) (User, error) {
@@ -205,6 +211,7 @@ func (q *Queries) GetUser(ctx context.Context, id pgtype.UUID) (User, error) {
 		&i.Gender,
 		&i.IdpPicture,
 		&i.AvatarFromIdp,
+		&i.EmailVerified,
 	)
 	return i, err
 }
@@ -226,7 +233,7 @@ func (q *Queries) GetUserAvatar(ctx context.Context, id pgtype.UUID) (GetUserAva
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp FROM users WHERE email = $1 LIMIT 1
+SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp, email_verified FROM users WHERE email = $1 LIMIT 1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -254,12 +261,55 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.Gender,
 		&i.IdpPicture,
 		&i.AvatarFromIdp,
+		&i.EmailVerified,
+	)
+	return i, err
+}
+
+const getUserByEmailNorm = `-- name: GetUserByEmailNorm :one
+SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp, email_verified FROM users
+WHERE lower(email) = $1::text AND email <> '' AND email_verified
+ORDER BY created_at
+LIMIT 1
+`
+
+// An address as somebody typed it into the share dialog, compared without
+// case: users.email keeps the identity provider's spelling. Only a verified
+// address names an account here — an account created from an unverified
+// claim must not collect what was shared with the address's real owner; that
+// address gets an invitation instead, adopted at a verified sign-in.
+func (q *Queries) GetUserByEmailNorm(ctx context.Context, emailNorm string) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByEmailNorm, emailNorm)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.OidcSub,
+		&i.OidcIss,
+		&i.Email,
+		&i.Name,
+		&i.DisplayName,
+		&i.AvatarUrl,
+		&i.Bio,
+		&i.Settings,
+		&i.IsAdmin,
+		&i.LastSeen,
+		&i.EmailHash,
+		&i.SuspendedAt,
+		&i.CreatedAt,
+		&i.AvatarBlob,
+		&i.AvatarMime,
+		&i.Phone,
+		&i.Gender,
+		&i.IdpPicture,
+		&i.AvatarFromIdp,
+		&i.EmailVerified,
 	)
 	return i, err
 }
 
 const getUserByIdentity = `-- name: GetUserByIdentity :one
-SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp FROM users WHERE oidc_iss = $1 AND oidc_sub = $2
+SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp, email_verified FROM users WHERE oidc_iss = $1 AND oidc_sub = $2
 `
 
 type GetUserByIdentityParams struct {
@@ -292,6 +342,7 @@ func (q *Queries) GetUserByIdentity(ctx context.Context, arg GetUserByIdentityPa
 		&i.Gender,
 		&i.IdpPicture,
 		&i.AvatarFromIdp,
+		&i.EmailVerified,
 	)
 	return i, err
 }
@@ -346,7 +397,7 @@ func (q *Queries) ListInstanceAdminRecipients(ctx context.Context) ([]ListInstan
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp FROM users
+SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp, email_verified FROM users
 WHERE tenant_id = $1
 ORDER BY created_at DESC
 LIMIT $2 OFFSET $3
@@ -389,6 +440,7 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 			&i.Gender,
 			&i.IdpPicture,
 			&i.AvatarFromIdp,
+			&i.EmailVerified,
 		); err != nil {
 			return nil, err
 		}
@@ -401,7 +453,7 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 }
 
 const listUsersByIssuer = `-- name: ListUsersByIssuer :many
-SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp FROM users WHERE oidc_iss = $1
+SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp, email_verified FROM users WHERE oidc_iss = $1
 `
 
 // Every account this identity provider issued, for the hourly account sweep.
@@ -436,6 +488,7 @@ func (q *Queries) ListUsersByIssuer(ctx context.Context, oidcIss string) ([]User
 			&i.Gender,
 			&i.IdpPicture,
 			&i.AvatarFromIdp,
+			&i.EmailVerified,
 		); err != nil {
 			return nil, err
 		}
@@ -549,7 +602,7 @@ UPDATE users
 SET avatar_url = $1, avatar_blob = $2, avatar_mime = $3,
     avatar_from_idp = false
 WHERE id = $4 AND avatar_blob = $5
-RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp
+RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp, email_verified
 `
 
 type SetUserAvatarParams struct {
@@ -597,6 +650,7 @@ func (q *Queries) SetUserAvatar(ctx context.Context, arg SetUserAvatarParams) (U
 		&i.Gender,
 		&i.IdpPicture,
 		&i.AvatarFromIdp,
+		&i.EmailVerified,
 	)
 	return i, err
 }
@@ -606,7 +660,7 @@ UPDATE users
 SET avatar_url = $1, avatar_blob = $2, avatar_mime = $3,
     avatar_from_idp = $2::text <> '', idp_picture = $4
 WHERE id = $5 AND avatar_blob = $6
-RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp
+RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp, email_verified
 `
 
 type SetUserIdpAvatarParams struct {
@@ -652,12 +706,13 @@ func (q *Queries) SetUserIdpAvatar(ctx context.Context, arg SetUserIdpAvatarPara
 		&i.Gender,
 		&i.IdpPicture,
 		&i.AvatarFromIdp,
+		&i.EmailVerified,
 	)
 	return i, err
 }
 
 const setUserIdpDetails = `-- name: SetUserIdpDetails :one
-UPDATE users SET phone = $2, gender = $3 WHERE id = $1 RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp
+UPDATE users SET phone = $2, gender = $3 WHERE id = $1 RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp, email_verified
 `
 
 type SetUserIdpDetailsParams struct {
@@ -691,14 +746,15 @@ func (q *Queries) SetUserIdpDetails(ctx context.Context, arg SetUserIdpDetailsPa
 		&i.Gender,
 		&i.IdpPicture,
 		&i.AvatarFromIdp,
+		&i.EmailVerified,
 	)
 	return i, err
 }
 
 const setUserIdpIdentity = `-- name: SetUserIdpIdentity :one
-UPDATE users SET email = $2, name = $3
+UPDATE users SET email = $2, name = $3, email_verified = ($2 <> '')
 WHERE id = $1
-RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp
+RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp, email_verified
 `
 
 type SetUserIdpIdentityParams struct {
@@ -708,7 +764,8 @@ type SetUserIdpIdentityParams struct {
 }
 
 // The same IdP-owned fields, refreshed from the Management API rather than
-// from a sign-in, so last_seen is left alone: nobody was seen.
+// from a sign-in, so last_seen is left alone: nobody was seen. Logto's
+// primaryEmail is verified by construction.
 func (q *Queries) SetUserIdpIdentity(ctx context.Context, arg SetUserIdpIdentityParams) (User, error) {
 	row := q.db.QueryRow(ctx, setUserIdpIdentity, arg.ID, arg.Email, arg.Name)
 	var i User
@@ -734,12 +791,13 @@ func (q *Queries) SetUserIdpIdentity(ctx context.Context, arg SetUserIdpIdentity
 		&i.Gender,
 		&i.IdpPicture,
 		&i.AvatarFromIdp,
+		&i.EmailVerified,
 	)
 	return i, err
 }
 
 const setUserIdpPicture = `-- name: SetUserIdpPicture :one
-UPDATE users SET idp_picture = $2 WHERE id = $1 RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp
+UPDATE users SET idp_picture = $2 WHERE id = $1 RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp, email_verified
 `
 
 type SetUserIdpPictureParams struct {
@@ -773,25 +831,32 @@ func (q *Queries) SetUserIdpPicture(ctx context.Context, arg SetUserIdpPicturePa
 		&i.Gender,
 		&i.IdpPicture,
 		&i.AvatarFromIdp,
+		&i.EmailVerified,
 	)
 	return i, err
 }
 
 const touchUserLogin = `-- name: TouchUserLogin :one
-UPDATE users SET email = $2, name = $3, last_seen = now()
+UPDATE users SET email = $2, name = $3, email_verified = $4::bool, last_seen = now()
 WHERE id = $1
-RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp
+RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp, email_verified
 `
 
 type TouchUserLoginParams struct {
-	ID    pgtype.UUID `json:"id"`
-	Email string      `json:"email"`
-	Name  string      `json:"name"`
+	ID            pgtype.UUID `json:"id"`
+	Email         string      `json:"email"`
+	Name          string      `json:"name"`
+	EmailVerified bool        `json:"email_verified"`
 }
 
 // Refreshes the profile fields the IdP owns on every sign-in.
 func (q *Queries) TouchUserLogin(ctx context.Context, arg TouchUserLoginParams) (User, error) {
-	row := q.db.QueryRow(ctx, touchUserLogin, arg.ID, arg.Email, arg.Name)
+	row := q.db.QueryRow(ctx, touchUserLogin,
+		arg.ID,
+		arg.Email,
+		arg.Name,
+		arg.EmailVerified,
+	)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -815,6 +880,7 @@ func (q *Queries) TouchUserLogin(ctx context.Context, arg TouchUserLoginParams) 
 		&i.Gender,
 		&i.IdpPicture,
 		&i.AvatarFromIdp,
+		&i.EmailVerified,
 	)
 	return i, err
 }
@@ -823,7 +889,7 @@ const updateUserProfile = `-- name: UpdateUserProfile :one
 UPDATE users
 SET display_name = $2, bio = $3, settings = COALESCE($4, settings)
 WHERE id = $1
-RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp
+RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp, email_verified
 `
 
 type UpdateUserProfileParams struct {
@@ -863,12 +929,13 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		&i.Gender,
 		&i.IdpPicture,
 		&i.AvatarFromIdp,
+		&i.EmailVerified,
 	)
 	return i, err
 }
 
 const updateUserSettings = `-- name: UpdateUserSettings :one
-UPDATE users SET settings = $2 WHERE id = $1 RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp
+UPDATE users SET settings = $2 WHERE id = $1 RETURNING id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp, email_verified
 `
 
 type UpdateUserSettingsParams struct {
@@ -905,6 +972,7 @@ func (q *Queries) UpdateUserSettings(ctx context.Context, arg UpdateUserSettings
 		&i.Gender,
 		&i.IdpPicture,
 		&i.AvatarFromIdp,
+		&i.EmailVerified,
 	)
 	return i, err
 }

@@ -87,9 +87,9 @@ func (q *Queries) SetUserSuspended(ctx context.Context, arg SetUserSuspendedPara
 const updateSpaceSettings = `-- name: UpdateSpaceSettings :one
 UPDATE spaces
 SET name = $2, slug = $3, description = $4, default_as_admin = $5, quota_bytes = $6,
-    trash_retention_days = $7, allow_public_links = $8
+    trash_retention_days = $7, allow_public_links = $8, external_sharing = $9
 WHERE id = $1
-RETURNING id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at, allow_public_links, idp_org_id, avatar_blob, avatar_mime
+RETURNING id, tenant_id, name, owner_id, quota_bytes, used_bytes, slug, description, archived_at, trash_retention_days, archive_root_id, default_as_admin, created_at, allow_public_links, idp_org_id, avatar_blob, avatar_mime, kind, external_sharing
 `
 
 type UpdateSpaceSettingsParams struct {
@@ -101,6 +101,7 @@ type UpdateSpaceSettingsParams struct {
 	QuotaBytes         int64       `json:"quota_bytes"`
 	TrashRetentionDays int32       `json:"trash_retention_days"`
 	AllowPublicLinks   bool        `json:"allow_public_links"`
+	ExternalSharing    bool        `json:"external_sharing"`
 }
 
 func (q *Queries) UpdateSpaceSettings(ctx context.Context, arg UpdateSpaceSettingsParams) (Space, error) {
@@ -113,6 +114,7 @@ func (q *Queries) UpdateSpaceSettings(ctx context.Context, arg UpdateSpaceSettin
 		arg.QuotaBytes,
 		arg.TrashRetentionDays,
 		arg.AllowPublicLinks,
+		arg.ExternalSharing,
 	)
 	var i Space
 	err := row.Scan(
@@ -133,6 +135,8 @@ func (q *Queries) UpdateSpaceSettings(ctx context.Context, arg UpdateSpaceSettin
 		&i.IdpOrgID,
 		&i.AvatarBlob,
 		&i.AvatarMime,
+		&i.Kind,
+		&i.ExternalSharing,
 	)
 	return i, err
 }

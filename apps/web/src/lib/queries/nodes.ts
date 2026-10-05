@@ -19,6 +19,10 @@ import {
   getTree,
   getTrash,
   getShared,
+  getExternalShared,
+  getNodeChildren,
+  getNodePath,
+  getNodePeople,
   moveImpact,
   moveNode,
   purgeNode,
@@ -290,6 +294,49 @@ export function useShared(spaceId: string) {
     queryKey: keys.shared(spaceId),
     queryFn: () => getShared(spaceId),
   });
+}
+
+/** Entry points in spaces the caller is not a member of. */
+export function externalSharedOptions() {
+  return {
+    queryKey: keys.sharedExternal,
+    queryFn: getExternalShared,
+  } as const;
+}
+
+export function useExternalShared() {
+  return useQuery(externalSharedOptions());
+}
+
+/** A folder's children by node id, for browsing outside one's spaces. */
+export function useNodeChildren(nodeId: string | null) {
+  return useQuery({
+    queryKey: keys.nodeChildren(nodeId ?? ""),
+    queryFn: () => getNodeChildren(nodeId!),
+    enabled: nodeId !== null,
+  });
+}
+
+/** Topmost viewable ancestor down to the node itself. */
+export function useNodePath(nodeId: string | null) {
+  return useQuery({
+    queryKey: keys.nodePath(nodeId ?? ""),
+    queryFn: () => getNodePath(nodeId!),
+    enabled: nodeId !== null,
+  });
+}
+
+/** Who can be mentioned on a document. */
+export function nodePeopleOptions(nodeId: string) {
+  return {
+    queryKey: keys.nodePeople(nodeId),
+    queryFn: () => getNodePeople(nodeId),
+    staleTime: 60_000,
+  } as const;
+}
+
+export function useNodePeople(nodeId: string | null) {
+  return useQuery({ ...nodePeopleOptions(nodeId ?? ""), enabled: nodeId !== null });
 }
 
 /**

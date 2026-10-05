@@ -8,7 +8,7 @@ Numbering is dependency order, not chronology — M25–M26 and M29–M40 landed
 M33–M35. **M12–M14 never existed** (`M12` was only the header of the retired
 `0012_personal_folders.sql`; M13 and M14 appear nowhere). Everything shipped
 through M15 is consolidated into `0001_init.sql`, and migration numbering
-restarted at `0002` with M20's sessions table: today only `0002`–`0016` exist as
+restarted at `0002` with M20's sessions table: today only `0002`–`0019` exist as
 files, so M7/M9/M10/M11 below name the tables they added rather than the
 migrations that carried them. Work that never got a number is recorded inside
 the milestone that owns its area and says so there, so nothing has to be looked
@@ -56,6 +56,7 @@ Each shipped milestone has its own file under [`milestones/`](milestones/) with 
 | M39 | Block documents (Markdown + slash-editor)              | ✅         | [detail](milestones/M39.md) |
 | M40 | Block documents, completed                             | ✅         | [detail](milestones/M40.md) |
 | M41 | Agent access over MCP                                  | ✅         | [detail](milestones/M41.md) |
+| M42 | Personal spaces and external sharing                   | ✅         | [detail](milestones/M42.md) |
 
 ## Upcoming — M27 Onward
 
@@ -119,6 +120,14 @@ What it deliberately did not build, and so what comes next on this line: an
 **agent embedded in pp-hub**, over the same `internal/agenttools` registry;
 binary upload, which a tool call's JSON cannot carry; and file management
 (folders, rename, move, trash) as tools.
+
+### Phase E — Personal use
+
+M42 shipped (personal spaces beside organization spaces, sharing by email
+across spaces including addresses with no account — [detail](milestones/M42.md),
+design in [personal-spaces.md](personal-spaces.md)). What it deliberately did
+not build: billing and plans, cross-space move/copy, external grants to
+groups, and re-sharing by an outsider.
 
 ### Named but Unscheduled
 

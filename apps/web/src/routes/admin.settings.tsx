@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
-import { RotateCcw, Save, Send } from "lucide-react";
+import { RotateCcw, Save, Send, Trash2 } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
@@ -34,12 +34,21 @@ import {
   requireAuth,
   useAdminSettings,
   useDeleteAdminSetting,
+  useArchivedPersonalSpaces,
   useMe,
+  usePurgeArchivedPersonalSpace,
   useSendTestEmail,
   useUpdateAdminSettings,
 } from "@/lib/queries";
 import { pageTitle } from "@/lib/i18n";
-import type { AdminSetting, AdminSettingsMap, SmtpSettingValue } from "@/lib/api";
+import { useFormatters } from "@/lib/format";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import type {
+  AdminSetting,
+  AdminSettingsMap,
+  ArchivedPersonalSpace,
+  SmtpSettingValue,
+} from "@/lib/api";
 
 export const Route = createFileRoute("/admin/settings")({
   head: () => ({ meta: [{ title: pageTitle(msg`Instance settings`) }] }),
@@ -168,8 +177,15 @@ type IntSettingKey = (typeof INT_SETTINGS)[number]["key"];
 type IntSettingValues = Record<IntSettingKey, string>;
 
 /** The on/off settings this form edits; absent from the server means its default. */
-// eslint-disable-next-line lingui/no-unlocalized-strings -- setting keys
-const BOOL_SETTINGS = ["mcp_enabled", "mcp_public_links", "mcp_tokens"] as const;
+/* eslint-disable lingui/no-unlocalized-strings -- setting keys */
+const BOOL_SETTINGS = [
+  "mcp_enabled",
+  "mcp_public_links",
+  "mcp_tokens",
+  "mcp_external_shares",
+  "external_sharing_enabled",
+] as const;
+/* eslint-enable lingui/no-unlocalized-strings */
 
 type BoolSettingKey = (typeof BOOL_SETTINGS)[number];
 type BoolSettingValues = Record<BoolSettingKey, boolean>;
@@ -179,7 +195,22 @@ const BOOL_DEFAULTS: BoolSettingValues = {
   mcp_enabled: false,
   mcp_public_links: false,
   mcp_tokens: true,
+  mcp_external_shares: false,
+  external_sharing_enabled: false,
 };
+
+/** Who is given a personal space; the server's `personal_spaces` values. */
+type PersonalSpacesMode = "off" | "members" | "everyone";
+
+function personalModeOf(value: unknown): PersonalSpacesMode {
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- setting values
+  return value === "members" || value === "everyone" ? value : "off";
+}
+
+/** Bytes as the whole-GB string the quota inputs hold; "0" for unlimited. */
+function gbOf(bytes: number): string {
+  return bytes > 0 ? String(Math.round(bytes / 1024 ** 3)) : "0";
+}
 
 /**
  * One switch row of a boolean setting: its source, a Reset when it is a
@@ -313,6 +344,95 @@ function IntSettingCard({
   );
 }
 
+/**
+ * Personal spaces whose owner was deleted at the identity provider. Nobody
+ * can open them any more; they hold storage until an administrator purges
+ * them, which is permanent — hence the confirmation.
+ */
+function ArchivedPersonalSpacesCard() {
+  const { t } = useLingui();
+  const f = useFormatters();
+  const archived = useArchivedPersonalSpaces();
+  const purge = usePurgeArchivedPersonalSpace();
+  const [pending, setPending] = useState<ArchivedPersonalSpace | null>(null);
+  const pendingOwner = pending?.owner_email ?? "";
+  const pendingSize = f.size(pending?.used_bytes ?? 0);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>
+          <Trans>Archived personal spaces</Trans>
+        </CardTitle>
+        <CardDescription>
+          <Trans>
+            Personal spaces of deleted accounts. Nobody can open them; purge one to free its
+            storage.
+          </Trans>
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {archived.isPending ? (
+          <LoadingStatus className="flex flex-col gap-2">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+          </LoadingStatus>
+        ) : archived.isError ? (
+          <p className="text-destructive text-sm">{archived.error.message}</p>
+        ) : archived.data.length === 0 ? (
+          <p className="text-muted-foreground text-sm">
+            <Trans>No archived personal spaces.</Trans>
+          </p>
+        ) : (
+          <ul className="divide-y rounded-md border">
+            {archived.data.map((s) => {
+              const size = f.size(s.used_bytes);
+              const archivedOn = f.date(s.archived_at);
+              return (
+                <li key={s.id} className="flex items-center gap-3 p-3 text-sm">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">{s.owner_email || s.name}</p>
+                    <p className="text-muted-foreground text-xs tabular-nums">
+                      <Trans>
+                        {size} · archived {archivedOn}
+                      </Trans>
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    disabled={purge.isPending}
+                    onClick={() => setPending(s)}
+                  >
+                    <Trash2 className="size-3.5" />
+                    <Trans>Purge</Trans>
+                  </Button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </CardContent>
+      <ConfirmDialog
+        open={pending !== null}
+        onOpenChange={(open) => !open && setPending(null)}
+        title={t`Purge this personal space?`}
+        description={t`Everything in ${pendingOwner}'s personal space (${pendingSize}) is deleted permanently. This cannot be undone.`}
+        confirmLabel={t`Purge permanently`}
+        onConfirm={() => {
+          if (!pending) return;
+          purge.mutate(pending.id, {
+            onSuccess: () => toast.success(t`Personal space purged`),
+            onError: (e) => toast.error(e.message || t`Could not purge the personal space`),
+          });
+          setPending(null);
+        }}
+      />
+    </Card>
+  );
+}
+
 function SettingsForm({ settings }: { settings: AdminSettingsMap }) {
   const { t } = useLingui();
   const update = useUpdateAdminSettings();
@@ -341,6 +461,12 @@ function SettingsForm({ settings }: { settings: AdminSettingsMap }) {
   );
   const setInt = (key: IntSettingKey, value: string) =>
     setInts((prev) => ({ ...prev, [key]: value }));
+  const currentPersonalSpaces = personalModeOf(settings.personal_spaces?.value);
+  const [personalSpaces, setPersonalSpaces] = useState(currentPersonalSpaces);
+  const initialPersonalQuotaGb = gbOf(
+    (settings.default_personal_quota_bytes?.value as number) ?? 0,
+  );
+  const [personalQuotaGb, setPersonalQuotaGb] = useState(initialPersonalQuotaGb);
 
   const initialMaxUploadGb =
     currentMaxUpload > 0 ? String(Math.round(currentMaxUpload / 1024 ** 3)) : "0";
@@ -351,7 +477,30 @@ function SettingsForm({ settings }: { settings: AdminSettingsMap }) {
     maxUploadGb !== initialMaxUploadGb ||
     INT_SETTINGS.some((s) => ints[s.key] !== currentInts[s.key]) ||
     BOOL_SETTINGS.some((k) => bools[k] !== currentBools[k]) ||
-    defaultSpaceQuotaGb !== initialQuotaGb;
+    defaultSpaceQuotaGb !== initialQuotaGb ||
+    personalSpaces !== currentPersonalSpaces ||
+    personalQuotaGb !== initialPersonalQuotaGb;
+
+  const personalOptions: { value: PersonalSpacesMode; label: string; description: string }[] = [
+    {
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- setting value
+      value: "off",
+      label: t`Off`,
+      description: t`Nobody gets a personal space. Existing ones stay as they are.`,
+    },
+    {
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- setting value
+      value: "members",
+      label: t`Members of an organization`,
+      description: t`Everyone who belongs to at least one organization space gets their own drive.`,
+    },
+    {
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- setting value
+      value: "everyone",
+      label: t`Everyone`,
+      description: t`Every account gets its own drive, including people who belong to no organization.`,
+    },
+  ];
 
   const intErrors: Record<IntSettingKey, string> = {
     audit_retention_days: t`Audit retention must be between 1 and 3650 days`,
@@ -412,6 +561,17 @@ function SettingsForm({ settings }: { settings: AdminSettingsMap }) {
       patch.default_space_quota_bytes = Math.round(parsedQuota * 1024 ** 3);
     }
 
+    if (personalSpaces !== currentPersonalSpaces) patch.personal_spaces = personalSpaces;
+
+    if (personalQuotaGb !== initialPersonalQuotaGb) {
+      const parsed = Number.parseFloat(personalQuotaGb);
+      if (Number.isNaN(parsed) || parsed < 0) {
+        toast.error(t`Personal space quota must be a valid number (0 for unlimited)`);
+        return;
+      }
+      patch.default_personal_quota_bytes = Math.round(parsed * 1024 ** 3);
+    }
+
     if (Object.keys(patch).length === 0) return;
 
     try {
@@ -442,6 +602,18 @@ function SettingsForm({ settings }: { settings: AdminSettingsMap }) {
   const resetBool = async (key: BoolSettingKey) => {
     const next = await handleReset(key);
     if (next) setBool(key, (next[key]?.value as boolean | undefined) ?? BOOL_DEFAULTS[key]);
+  };
+
+  const resetPersonalSpaces = async () => {
+    // eslint-disable-next-line lingui/no-unlocalized-strings -- setting key
+    const next = await handleReset("personal_spaces");
+    if (next) setPersonalSpaces(personalModeOf(next.personal_spaces?.value));
+  };
+
+  const resetPersonalQuota = async () => {
+    // eslint-disable-next-line lingui/no-unlocalized-strings -- setting key
+    const next = await handleReset("default_personal_quota_bytes");
+    if (next) setPersonalQuotaGb(gbOf((next.default_personal_quota_bytes?.value as number) ?? 0));
   };
 
   return (
@@ -675,6 +847,142 @@ function SettingsForm({ settings }: { settings: AdminSettingsMap }) {
 
       <section className="flex flex-col gap-3">
         <SectionLabel>
+          <Trans>Personal use</Trans>
+        </SectionLabel>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <CardTitle>
+                <Trans>Personal spaces</Trans>
+              </CardTitle>
+              {settings.personal_spaces && <SourceBadge source={settings.personal_spaces.source} />}
+            </div>
+            <CardDescription>{settings.personal_spaces?.description}</CardDescription>
+            {settings.personal_spaces?.source === "database" && (
+              <CardAction>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void resetPersonalSpaces()}
+                  disabled={remove.isPending}
+                >
+                  <RotateCcw className="size-3.5" />
+                  <Trans>Reset</Trans>
+                </Button>
+              </CardAction>
+            )}
+          </CardHeader>
+          <CardContent>
+            <div className="flex max-w-sm flex-col gap-1.5">
+              <Label htmlFor="personal_spaces">
+                <Trans>Who gets a personal space (“My Drive”)</Trans>
+              </Label>
+              <Select
+                value={personalSpaces}
+                items={personalOptions.map((o) => ({ value: o.value, label: o.label }))}
+                onValueChange={(v) => setPersonalSpaces((v as PersonalSpacesMode) ?? "off")}
+              >
+                <SelectTrigger id="personal_spaces" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {personalOptions.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-muted-foreground text-xs">
+                {personalOptions.find((o) => o.value === personalSpaces)?.description}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <CardTitle>
+                <Trans>Personal space quota</Trans>
+              </CardTitle>
+              {settings.default_personal_quota_bytes && (
+                <SourceBadge source={settings.default_personal_quota_bytes.source} />
+              )}
+            </div>
+            <CardDescription>{settings.default_personal_quota_bytes?.description}</CardDescription>
+            {settings.default_personal_quota_bytes?.source === "database" && (
+              <CardAction>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void resetPersonalQuota()}
+                  disabled={remove.isPending}
+                >
+                  <RotateCcw className="size-3.5" />
+                  <Trans>Reset</Trans>
+                </Button>
+              </CardAction>
+            )}
+          </CardHeader>
+          <CardContent>
+            <div className="flex max-w-sm flex-col gap-1.5">
+              <Label htmlFor="default_personal_quota_bytes">
+                <Trans>Quota for each personal space (GB, 0 = unlimited)</Trans>
+              </Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="default_personal_quota_bytes"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={personalQuotaGb}
+                  onChange={(e) => setPersonalQuotaGb(e.target.value)}
+                />
+                <span className="text-muted-foreground text-sm">
+                  <Trans>GB</Trans>
+                </span>
+              </div>
+              <p className="text-muted-foreground text-xs">
+                <Trans>Offering personal spaces to everyone requires a quota above 0.</Trans>
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              <Trans>External sharing</Trans>
+            </CardTitle>
+            <CardDescription>
+              <Trans>
+                Lets people share files and folders by email with anyone, including people outside
+                their space or without an account. Each space admin still decides for their space.
+              </Trans>
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <BoolSettingRow
+              // eslint-disable-next-line lingui/no-unlocalized-strings -- setting key
+              settingKey="external_sharing_enabled"
+              settings={settings}
+              values={bools}
+              label={<Trans>Allow sharing outside a space</Trans>}
+              onChange={setBool}
+              onReset={resetBool}
+              resetDisabled={remove.isPending}
+            />
+          </CardContent>
+        </Card>
+
+        <ArchivedPersonalSpacesCard />
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <SectionLabel>
           <Trans>AI agents</Trans>
         </SectionLabel>
         <Card>
@@ -723,6 +1031,17 @@ function SettingsForm({ settings }: { settings: AdminSettingsMap }) {
               onReset={resetBool}
               resetDisabled={remove.isPending}
             />
+            <BoolSettingRow
+              // eslint-disable-next-line lingui/no-unlocalized-strings -- setting key
+              settingKey="mcp_external_shares"
+              settings={settings}
+              values={bools}
+              label={<Trans>Let agents share with people outside a space</Trans>}
+              disabled={!bools.mcp_enabled}
+              onChange={setBool}
+              onReset={resetBool}
+              resetDisabled={remove.isPending}
+            />
           </CardContent>
         </Card>
       </section>
@@ -738,6 +1057,8 @@ function SettingsForm({ settings }: { settings: AdminSettingsMap }) {
             setInts(currentInts);
             setBools(currentBools);
             setDefaultSpaceQuotaGb(initialQuotaGb);
+            setPersonalSpaces(currentPersonalSpaces);
+            setPersonalQuotaGb(initialPersonalQuotaGb);
           }}
         >
           <Trans>Discard</Trans>

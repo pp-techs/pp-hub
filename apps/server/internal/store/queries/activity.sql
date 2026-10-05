@@ -33,7 +33,8 @@ LIMIT $2;
 -- "Recent" is the caller's own touches, most recently touched first, one row
 -- per node. DISTINCT ON collapses repeated edits of the same file into its
 -- latest, which is what "recent" means to a person. A null space_id spans
--- every space the caller belongs to; a set one scopes the feed to it.
+-- every space the caller belongs to or holds an external grant in; a set one
+-- scopes the feed to it. Callers filter by capabilities afterwards.
 SELECT DISTINCT ON (n.id)
   n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
   n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id,
@@ -45,12 +46,16 @@ SELECT DISTINCT ON (n.id)
   a.created_at AS last_action_at
 FROM activity_events a
 JOIN nodes n ON n.id = a.node_id
-JOIN space_members m ON m.space_id = n.space_id AND m.user_id = $1
 JOIN spaces s ON s.id = n.space_id
 LEFT JOIN node_versions v ON v.id = n.current_version_id
 LEFT JOIN users u ON u.id = n.created_by
 LEFT JOIN nodes p ON p.id = n.parent_id AND p.deleted_at IS NULL
 WHERE a.actor_id = $1 AND n.deleted_at IS NULL AND n.kind = 'file'
+  AND (EXISTS (SELECT 1 FROM space_members m WHERE m.space_id = n.space_id AND m.user_id = $1)
+       OR EXISTS (
+           SELECT 1 FROM shares xs JOIN nodes xn ON xn.id = xs.node_id
+           WHERE xn.space_id = n.space_id AND xs.kind = 'direct' AND xs.is_external
+             AND xs.grantee_user_id = $1))
   AND (sqlc.narg('space_id')::uuid IS NULL OR n.space_id = sqlc.narg('space_id')::uuid)
 ORDER BY n.id, a.created_at DESC;
 

@@ -11,6 +11,7 @@ import {
   UsersRound,
   type LucideIcon,
 } from "lucide-react";
+import type { Space } from "@/lib/api";
 import type { SettingsSlug } from "@/lib/use-settings-hash";
 import { AccountGeneralPane } from "@/components/settings/panes/account-general";
 import { AccountProfilePane } from "@/components/settings/panes/account-profile";
@@ -41,6 +42,8 @@ export interface SettingsPane {
   icon: LucideIcon;
   /** Renders the nav row in the destructive tone, for a Danger zone. */
   danger?: boolean;
+  /** Space panes that make no sense on a personal space. */
+  orgOnly?: boolean;
   /**
    * Panes take no props. A space pane reads the active space the same way the
    * rail does, through `useActiveSpaceId()`, which works from the modal
@@ -91,6 +94,7 @@ export const PANES: readonly SettingsPane[] = [
     label: msg`Members`,
     icon: Users,
     Component: SpaceMembersPane,
+    orgOnly: true,
   },
   {
     slug: "groups",
@@ -98,6 +102,7 @@ export const PANES: readonly SettingsPane[] = [
     label: msg`Groups`,
     icon: UsersRound,
     Component: SpaceGroupsPane,
+    orgOnly: true,
   },
   {
     slug: "danger",
@@ -105,6 +110,21 @@ export const PANES: readonly SettingsPane[] = [
     label: msg`Danger zone`,
     icon: TriangleAlert,
     danger: true,
+    orgOnly: true,
     Component: SpaceDangerPane,
   },
 ];
+
+/**
+ * Whether `pane` is offered for `space`: account panes always; space panes to
+ * the space's admins, minus the organization-only ones on a personal space —
+ * it has one member, no groups and cannot be deleted.
+ */
+export function paneAvailable(
+  pane: SettingsPane,
+  space: Pick<Space, "is_admin" | "kind"> | undefined,
+): boolean {
+  if (pane.group === "account") return true;
+  if (space?.is_admin !== true) return false;
+  return !(pane.orgOnly && space.kind === "personal");
+}

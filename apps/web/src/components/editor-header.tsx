@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
 import { capsOf, exportDocumentUrl, isMarkdownFile, type Node } from "@/lib/api";
+import { useSpaces } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
 import { useFormatters } from "@/lib/format";
 import { NodeIcon } from "@/components/node-icon";
@@ -41,6 +42,11 @@ export function EditorHeader({
   // Named so the extracted message reads `version {version}` rather than
   // `version {0}`: the placeholder name is all a translator gets.
   const version = node?.version;
+  // Somebody reached through an outside share has no way into the space;
+  // their way back is the outside-shares browser.
+  const spaces = useSpaces();
+  const outsider =
+    node !== undefined && spaces.isSuccess && !spaces.data.some((s) => s.id === node.space_id);
 
   return (
     <header className="border-border flex h-12 shrink-0 items-center gap-2 border-b px-3">
@@ -49,11 +55,17 @@ export function EditorHeader({
         size="icon-sm"
         aria-label={t`Back to Drive`}
         render={
-          <Link
-            to={node ? ("/drive/$spaceId" as const) : ("/drive" as const)}
-            params={node ? { spaceId: node.space_id } : undefined}
-            search={node ? { dir: node.parent_id } : undefined}
-          />
+          !node ? (
+            <Link to="/drive" />
+          ) : outsider ? (
+            <Link to="/drive/shared" search={{ dir: node.parent_id }} />
+          ) : (
+            <Link
+              to="/drive/$spaceId"
+              params={{ spaceId: node.space_id }}
+              search={{ dir: node.parent_id }}
+            />
+          )
         }
       >
         <ArrowLeft />

@@ -18,6 +18,7 @@ import type { Node } from "@/lib/api";
 import { useFormatters } from "@/lib/format";
 import { NodeIcon } from "@/components/node-icon";
 import { SkeletonTableRows } from "@/components/loading";
+import { Button } from "@workspace/ui/components/button";
 
 interface NodeTableProps {
   nodes: Node[];
@@ -29,6 +30,10 @@ interface NodeTableProps {
   renderActions?: (node: Node) => React.ReactNode;
   /** Whether all nodes are shared (shows share indicator on folder icons). */
   allShared?: boolean;
+  /** Makes the name a button; the caller decides what opening means. */
+  onOpen?: (node: Node) => void;
+  /** A column right after Name — the space on outside shares. */
+  extraColumn?: { header: string; cell: (node: Node) => React.ReactNode };
 }
 
 /**
@@ -44,6 +49,8 @@ export function NodeTable({
   emptyDescription,
   renderActions,
   allShared,
+  onOpen,
+  extraColumn,
 }: NodeTableProps) {
   const f = useFormatters();
 
@@ -66,6 +73,7 @@ export function NodeTable({
           <TableHead>
             <Trans>Name</Trans>
           </TableHead>
+          {extraColumn && <TableHead className="w-40">{extraColumn.header}</TableHead>}
           <TableHead className="w-36">
             <Trans>Modified</Trans>
           </TableHead>
@@ -80,16 +88,33 @@ export function NodeTable({
       </TableHeader>
       <TableBody>
         {isPending ? (
-          <SkeletonTableRows columns={renderActions ? 5 : 4} />
+          <SkeletonTableRows columns={4 + (renderActions ? 1 : 0) + (extraColumn ? 1 : 0)} />
         ) : (
           nodes.map((n) => (
             <TableRow key={n.id}>
               <TableCell>
-                <div className="flex items-center gap-2">
-                  <NodeIcon node={n} isShared={allShared} />
-                  <span className="truncate font-medium">{n.name}</span>
-                </div>
+                {onOpen ? (
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    className="h-auto max-w-full justify-start px-0 font-medium hover:bg-transparent hover:underline"
+                    onClick={() => onOpen(n)}
+                  >
+                    <NodeIcon node={n} isShared={allShared} />
+                    <span className="truncate">{n.name}</span>
+                  </Button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <NodeIcon node={n} isShared={allShared} />
+                    <span className="truncate font-medium">{n.name}</span>
+                  </div>
+                )}
               </TableCell>
+              {extraColumn && (
+                <TableCell className="text-muted-foreground truncate">
+                  {extraColumn.cell(n)}
+                </TableCell>
+              )}
               <TableCell className="text-muted-foreground tabular-nums">
                 {f.date(n.modified_at)}
               </TableCell>

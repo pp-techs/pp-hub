@@ -27,6 +27,25 @@ func (q *Queries) AddGroupMember(ctx context.Context, arg AddGroupMemberParams) 
 	return err
 }
 
+const clearExternalGrantsOnJoin = `-- name: ClearExternalGrantsOnJoin :exec
+UPDATE shares s SET is_external = false
+FROM nodes n
+WHERE s.node_id = n.id AND n.space_id = $1 AND s.grantee_user_id = $2 AND s.is_external
+`
+
+type ClearExternalGrantsOnJoinParams struct {
+	SpaceID       pgtype.UUID `json:"space_id"`
+	GranteeUserID pgtype.UUID `json:"grantee_user_id"`
+}
+
+// Somebody who joins a space holds its grants as a member from now on. An
+// `is_external` flag left on them would let a later departure fall back to the
+// outsider path, and their access would outlive their membership.
+func (q *Queries) ClearExternalGrantsOnJoin(ctx context.Context, arg ClearExternalGrantsOnJoinParams) error {
+	_, err := q.db.Exec(ctx, clearExternalGrantsOnJoin, arg.SpaceID, arg.GranteeUserID)
+	return err
+}
+
 const countGrantsForGroup = `-- name: CountGrantsForGroup :one
 SELECT COUNT(*)::int FROM shares WHERE kind = 'group' AND grantee_group_id = $1
 `
@@ -424,6 +443,133 @@ func (q *Queries) ListEntryPoints(ctx context.Context, arg ListEntryPointsParams
 	return items, nil
 }
 
+const listExternalEntryPoints = `-- name: ListExternalEntryPoints :many
+WITH RECURSIVE entry(id) AS (
+    SELECT DISTINCT s.node_id
+    FROM shares s
+    JOIN nodes gn ON gn.id = s.node_id
+    JOIN spaces sp ON sp.id = gn.space_id
+    WHERE s.kind = 'direct' AND s.is_external AND s.grantee_user_id = $1
+      AND (s.expires_at IS NULL OR s.expires_at > now())
+      AND $2::bool AND sp.external_sharing AND sp.archived_at IS NULL
+      AND NOT EXISTS (
+          SELECT 1 FROM space_members sm
+          WHERE sm.space_id = gn.space_id AND sm.user_id = $1
+      )
+      AND EXISTS (
+          SELECT 1 FROM space_members cm
+          WHERE cm.space_id = gn.space_id AND cm.user_id = s.created_by
+      )
+),
+walk(origin, id) AS (
+    SELECT e.id, p.id
+    FROM entry e
+    JOIN nodes n ON n.id = e.id
+    JOIN nodes p ON p.id = n.parent_id
+    WHERE p.deleted_at IS NULL
+  UNION
+    SELECT w.origin, p.id
+    FROM walk w
+    JOIN nodes c ON c.id = w.id
+    JOIN nodes p ON p.id = c.parent_id
+    WHERE p.deleted_at IS NULL
+)
+SELECT
+  n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id,
+  v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
+  u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email
+FROM entry e
+JOIN nodes n ON n.id = e.id
+LEFT JOIN node_versions v ON v.id = n.current_version_id
+LEFT JOIN users u ON u.id = n.created_by
+WHERE n.deleted_at IS NULL
+  AND NOT EXISTS (
+      SELECT 1 FROM walk w
+      JOIN entry e2 ON e2.id = w.id
+      WHERE w.origin = e.id
+  )
+ORDER BY n.kind, n.name
+LIMIT 200
+`
+
+type ListExternalEntryPointsParams struct {
+	UserID          pgtype.UUID `json:"user_id"`
+	ExternalEnabled bool        `json:"external_enabled"`
+}
+
+type ListExternalEntryPointsRow struct {
+	ID               pgtype.UUID        `json:"id"`
+	TenantID         string             `json:"tenant_id"`
+	SpaceID          pgtype.UUID        `json:"space_id"`
+	ParentID         pgtype.UUID        `json:"parent_id"`
+	Kind             NodeKind           `json:"kind"`
+	Name             string             `json:"name"`
+	CurrentVersionID pgtype.UUID        `json:"current_version_id"`
+	DeletedAt        pgtype.Timestamptz `json:"deleted_at"`
+	CreatedBy        pgtype.UUID        `json:"created_by"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	TeamRootID       pgtype.UUID        `json:"team_root_id"`
+	VID              pgtype.UUID        `json:"v_id"`
+	BlobHash         pgtype.Text        `json:"blob_hash"`
+	VSize            pgtype.Int8        `json:"v_size"`
+	Mime             pgtype.Text        `json:"mime"`
+	VersionNo        pgtype.Int4        `json:"version_no"`
+	VCreatedBy       pgtype.UUID        `json:"v_created_by"`
+	VCreatedAt       pgtype.Timestamptz `json:"v_created_at"`
+	OwnerUid         pgtype.UUID        `json:"owner_uid"`
+	OwnerName        pgtype.Text        `json:"owner_name"`
+	OwnerEmail       pgtype.Text        `json:"owner_email"`
+}
+
+// "Shared from outside": the topmost nodes the caller reaches through an
+// external grant, in spaces they do not belong to. The same reach rule as
+// NodeAccessCaps for a non-member — a live external direct share made by a
+// current member, while the instance (@external_enabled) and the space allow
+// external sharing and the space is not archived — so nothing is listed that
+// would not open.
+func (q *Queries) ListExternalEntryPoints(ctx context.Context, arg ListExternalEntryPointsParams) ([]ListExternalEntryPointsRow, error) {
+	rows, err := q.db.Query(ctx, listExternalEntryPoints, arg.UserID, arg.ExternalEnabled)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListExternalEntryPointsRow
+	for rows.Next() {
+		var i ListExternalEntryPointsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.SpaceID,
+			&i.ParentID,
+			&i.Kind,
+			&i.Name,
+			&i.CurrentVersionID,
+			&i.DeletedAt,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.TeamRootID,
+			&i.VID,
+			&i.BlobHash,
+			&i.VSize,
+			&i.Mime,
+			&i.VersionNo,
+			&i.VCreatedBy,
+			&i.VCreatedAt,
+			&i.OwnerUid,
+			&i.OwnerName,
+			&i.OwnerEmail,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listGrantedChildrenWithMeta = `-- name: ListGrantedChildrenWithMeta :many
 
 SELECT
@@ -727,6 +873,70 @@ func (q *Queries) ListGroups(ctx context.Context, spaceID pgtype.UUID) ([]ListGr
 	return items, nil
 }
 
+const listNodePeople = `-- name: ListNodePeople :many
+WITH people(user_id) AS (
+    SELECT sm.user_id FROM space_members sm
+    WHERE $1::bool AND sm.space_id = $2
+  UNION
+    SELECT s.grantee_user_id FROM shares s
+    WHERE s.node_id = ANY($3::uuid[]) AND s.kind = 'direct'
+      AND (s.expires_at IS NULL OR s.expires_at > now())
+  UNION
+    SELECT n.created_by FROM nodes n WHERE n.id = ANY($3::uuid[])
+)
+SELECT u.id, u.email, u.name, u.display_name, u.avatar_url
+FROM people p
+JOIN users u ON u.id = p.user_id
+WHERE u.suspended_at IS NULL
+ORDER BY lower(COALESCE(NULLIF(u.display_name, ''), NULLIF(u.name, ''), u.email))
+`
+
+type ListNodePeopleParams struct {
+	IncludeMembers bool          `json:"include_members"`
+	SpaceID        pgtype.UUID   `json:"space_id"`
+	ChainIds       []pgtype.UUID `json:"chain_ids"`
+}
+
+type ListNodePeopleRow struct {
+	ID          pgtype.UUID `json:"id"`
+	Email       string      `json:"email"`
+	Name        string      `json:"name"`
+	DisplayName string      `json:"display_name"`
+	AvatarUrl   string      `json:"avatar_url"`
+}
+
+// Who a document's @-mention list offers: the space's members when the caller
+// is one (@include_members), plus whoever holds a live direct grant on, or
+// created, one of @chain_ids — the node and the ancestors the caller can
+// open (the handler cuts the chain where their reach ends). An outsider sees
+// the people the document was explicitly opened to, never the company's
+// roster or who holds the folders above their share.
+func (q *Queries) ListNodePeople(ctx context.Context, arg ListNodePeopleParams) ([]ListNodePeopleRow, error) {
+	rows, err := q.db.Query(ctx, listNodePeople, arg.IncludeMembers, arg.SpaceID, arg.ChainIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListNodePeopleRow
+	for rows.Next() {
+		var i ListNodePeopleRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.Name,
+			&i.DisplayName,
+			&i.AvatarUrl,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const removeGroupMember = `-- name: RemoveGroupMember :exec
 DELETE FROM group_members WHERE group_id = $1 AND user_id = $2
 `
@@ -796,7 +1006,7 @@ VALUES ($1, 'group', $2, $3, $4, $5, $6)
 ON CONFLICT (node_id, grantee_group_id) WHERE kind = 'group'
 DO UPDATE SET level = EXCLUDED.level, can_download = EXCLUDED.can_download,
               can_share = EXCLUDED.can_share, created_by = EXCLUDED.created_by
-RETURNING id, tenant_id, node_id, kind, token_hash, grantee_user_id, grantee_group_id, level, can_download, can_share, expires_at, created_by, created_at
+RETURNING id, tenant_id, node_id, kind, token_hash, grantee_user_id, grantee_group_id, level, can_download, can_share, expires_at, created_by, created_at, is_external
 `
 
 type UpsertGroupGrantParams struct {
@@ -834,6 +1044,7 @@ func (q *Queries) UpsertGroupGrant(ctx context.Context, arg UpsertGroupGrantPara
 		&i.ExpiresAt,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.IsExternal,
 	)
 	return i, err
 }

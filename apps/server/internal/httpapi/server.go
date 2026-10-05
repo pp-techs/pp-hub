@@ -20,6 +20,7 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/notify"
 	"github.com/nhatbui/pp-hub/apps/server/internal/obs"
 	"github.com/nhatbui/pp-hub/apps/server/internal/orgsync"
+	"github.com/nhatbui/pp-hub/apps/server/internal/personal"
 	"github.com/nhatbui/pp-hub/apps/server/internal/preview"
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 	"github.com/nhatbui/pp-hub/apps/server/internal/spaces"
@@ -73,6 +74,9 @@ type Server struct {
 	// is the MCP endpoint's per-person rate limit (mcp.go).
 	agentRouter http.Handler
 	mcpLimit    *limiter
+	// personal provisions personal spaces (sign-in does it too; the space
+	// list catches sessions that predate the setting). Nil in handler tests.
+	personal *personal.Service
 }
 
 // Deps is what the HTTP edge needs. A struct rather than a parameter list
@@ -147,6 +151,7 @@ func NewServer(d Deps) *Server {
 	if s.sysconfig == nil {
 		s.sysconfig = sysconfig.NewService(d.Store, nil)
 	}
+	s.personal = personal.New(d.Store, d.Spaces, d.Share, s.sysconfig, s.audit)
 	return s
 }
 
@@ -292,6 +297,8 @@ func (s *Server) apiRoutes(r chi.Router, agent bool) {
 	r.Patch("/admin/settings", s.handleUpdateAdminSettings)
 	r.Delete("/admin/settings/{key}", s.handleDeleteAdminSetting)
 	r.Post("/admin/settings/smtp/test", s.handleTestSMTP)
+	r.Get("/admin/personal-spaces", s.handleAdminListArchivedPersonal)
+	r.Delete("/admin/personal-spaces/{spaceID}", s.handleAdminPurgePersonal)
 	r.Get("/users", s.handleListUsers)
 	r.Get("/users/{userID}/avatar", s.handleGetAvatar)
 
@@ -338,6 +345,9 @@ func (s *Server) apiRoutes(r chi.Router, agent bool) {
 	})
 	r.Route("/nodes/{nodeID}", func(r chi.Router) {
 		r.Get("/", s.handleGetNode)
+		r.Get("/children", s.handleListNodeChildren)
+		r.Get("/path", s.handleNodePath)
+		r.Get("/people", s.handleNodePeople)
 		r.Get("/download", s.handleDownload)
 		r.Get("/content", s.handleContent)
 		r.Patch("/rename", s.handleRenameNode)
@@ -354,6 +364,8 @@ func (s *Server) apiRoutes(r chi.Router, agent bool) {
 		r.Post("/shares", s.handleCreateShare)
 		r.Get("/shares", s.handleListShares)
 		r.Delete("/shares/{shareID}", s.handleRevokeShare)
+		r.Get("/pending-shares", s.handleListPendingShares)
+		r.Delete("/pending-shares/{pendingID}", s.handleRevokePendingShare)
 		r.Get("/inherited-access", s.handleInheritedAccess)
 		r.Post("/edit-session", s.handleEditSession)
 		r.Get("/collab", s.handleCollabSession)

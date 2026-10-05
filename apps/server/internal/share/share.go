@@ -14,6 +14,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -133,10 +134,25 @@ func Live(sh store.Share) bool {
 
 type Service struct {
 	q *store.Queries
+	// externalEnabled reports the instance's external_sharing_enabled switch.
+	// Nil means off, so a service built without sysconfig (tests, tools)
+	// resolves no external grant at all.
+	externalEnabled func() bool
 }
 
 func NewService(q *store.Queries) *Service {
 	return &Service{q: q}
+}
+
+// SetExternalSharing wires the instance switch the resolver consults for
+// external grants. Called once at startup, before any request.
+func (s *Service) SetExternalSharing(enabled func() bool) {
+	s.externalEnabled = enabled
+}
+
+// ExternalSharingEnabled reports the instance switch.
+func (s *Service) ExternalSharingEnabled() bool {
+	return s.externalEnabled != nil && s.externalEnabled()
 }
 
 // CreateLink generates a random token, stores its sha256, returns plaintext
@@ -204,11 +220,18 @@ func newLinkToken() (string, error) {
 // UpsertDirect grants a user access to a node, or replaces the grant they
 // already hold on it (shares_direct_uniq): re-sharing is how a grant is
 // narrowed or widened, never a second row beside the first.
-func (s *Service) UpsertDirect(ctx context.Context, nodeID, granteeID pgtype.UUID, caps GrantCaps, expiresAt pgtype.Timestamptz, creator pgtype.UUID) (store.Share, error) {
+//
+// external marks a grantee outside the node's space. Such a grant never
+// re-shares (shares_external_direct_ck), so CanShare is dropped here rather
+// than left to fail at the constraint.
+func (s *Service) UpsertDirect(ctx context.Context, nodeID, granteeID pgtype.UUID, caps GrantCaps, expiresAt pgtype.Timestamptz, creator pgtype.UUID, external bool) (store.Share, error) {
 	if granteeID == creator {
 		return store.Share{}, ErrSelfShare
 	}
 	caps = caps.Normalized()
+	if external {
+		caps.CanShare = false
+	}
 	return s.q.UpsertDirectShare(ctx, store.UpsertDirectShareParams{
 		NodeID:        nodeID,
 		GranteeUserID: granteeID,
@@ -217,6 +240,7 @@ func (s *Service) UpsertDirect(ctx context.Context, nodeID, granteeID pgtype.UUI
 		CanShare:      caps.CanShare,
 		ExpiresAt:     expiresAt,
 		CreatedBy:     creator,
+		IsExternal:    external,
 	})
 }
 
@@ -251,6 +275,194 @@ func (s *Service) Get(ctx context.Context, nodeID, shareID pgtype.UUID) (store.S
 func (s *Service) Revoke(ctx context.Context, nodeID, shareID pgtype.UUID) (bool, error) {
 	n, err := s.q.DeleteShare(ctx, store.DeleteShareParams{ID: shareID, NodeID: nodeID})
 	return n > 0, err
+}
+
+// --- Pending shares: invitations to addresses with no account ---
+
+// InvitationsPerDay bounds how many people outside the spaces involved one
+// person may give access to — external grants plus invitations — in any 24
+// hours. With personal spaces open to everyone, the invitation mail is
+// otherwise a free spam relay with this instance's name on it. Counted from
+// invitation_log, which revoking does not shrink.
+const InvitationsPerDay = 50
+
+// InvitationMailsPerAddressPerDay caps how many invitation mails one address
+// receives in any 24 hours, from everybody together. Past it the invitation
+// is still recorded — it is adopted at sign-in like any other — but no mail
+// goes out, so the instance cannot be pointed at somebody's inbox.
+const InvitationMailsPerAddressPerDay = 3
+
+// ErrTooManyInvitations is the rate limit's refusal.
+var ErrTooManyInvitations = errors.New("too many invitations today — try again tomorrow")
+
+// NormalizeEmail is the form pending shares are keyed and matched by.
+func NormalizeEmail(email string) string {
+	return strings.ToLower(strings.TrimSpace(email))
+}
+
+func dayAgo() pgtype.Timestamptz {
+	return pgtype.Timestamptz{Time: time.Now().Add(-24 * time.Hour), Valid: true}
+}
+
+// CheckInvitationBudget refuses a new external grant or invitation once the
+// creator has made InvitationsPerDay of them in the last 24 hours.
+func (s *Service) CheckInvitationBudget(ctx context.Context, creator pgtype.UUID) error {
+	n, err := s.q.CountInvitationsBySender(ctx, store.CountInvitationsBySenderParams{
+		CreatedBy: creator, Since: dayAgo(),
+	})
+	if err != nil {
+		return err
+	}
+	if n >= InvitationsPerDay {
+		return ErrTooManyInvitations
+	}
+	return nil
+}
+
+// MayMailInvitation reports whether recipient is still under
+// InvitationMailsPerAddressPerDay.
+func (s *Service) MayMailInvitation(ctx context.Context, recipient string) (bool, error) {
+	n, err := s.q.CountInvitationMailsTo(ctx, store.CountInvitationMailsToParams{
+		Recipient: recipient, Since: dayAgo(),
+	})
+	return n < InvitationMailsPerAddressPerDay, err
+}
+
+// RecordInvitation appends to invitation_log: one external grant or
+// invitation handed out, and whether a mail went with it.
+func (s *Service) RecordInvitation(ctx context.Context, creator pgtype.UUID, recipient string, mailed bool) error {
+	return s.q.RecordInvitation(ctx, store.RecordInvitationParams{
+		CreatedBy: creator, Recipient: recipient, Mailed: mailed,
+	})
+}
+
+// PruneInvitationLog drops entries older than any window counts.
+func (s *Service) PruneInvitationLog(ctx context.Context) (int64, error) {
+	return s.q.PruneInvitationLog(ctx, pgtype.Timestamptz{Time: time.Now().Add(-48 * time.Hour), Valid: true})
+}
+
+// UpsertPending invites an address with no account, or changes the
+// invitation it already has on the node. inserted reports a new invitation.
+// A pending share never re-shares: it becomes an external grant, or an
+// ordinary one if its recipient turns out to be a member.
+func (s *Service) UpsertPending(ctx context.Context, nodeID pgtype.UUID, emailNorm string, caps GrantCaps, expiresAt pgtype.Timestamptz, creator pgtype.UUID) (store.PendingShare, bool, error) {
+	caps = caps.Normalized()
+	row, err := s.q.UpsertPendingShare(ctx, store.UpsertPendingShareParams{
+		NodeID:      nodeID,
+		EmailNorm:   emailNorm,
+		Level:       caps.Level,
+		CanDownload: caps.CanDownload,
+		CreatedBy:   creator,
+		ExpiresAt:   expiresAt,
+	})
+	if err != nil {
+		return store.PendingShare{}, false, err
+	}
+	return store.PendingShare{
+		ID: row.ID, TenantID: row.TenantID, NodeID: row.NodeID, EmailNorm: row.EmailNorm,
+		Level: row.Level, CanDownload: row.CanDownload, CreatedBy: row.CreatedBy,
+		CreatedAt: row.CreatedAt, ExpiresAt: row.ExpiresAt,
+	}, row.Inserted, nil
+}
+
+// ListPending returns the live invitations on exactly this node.
+func (s *Service) ListPending(ctx context.Context, nodeID pgtype.UUID) ([]store.PendingShare, error) {
+	return s.q.ListPendingSharesForNode(ctx, nodeID)
+}
+
+// GetPending loads one invitation, only if it sits on nodeID.
+func (s *Service) GetPending(ctx context.Context, nodeID, pendingID pgtype.UUID) (store.PendingShare, error) {
+	p, err := s.q.GetPendingShareOnNode(ctx, store.GetPendingShareOnNodeParams{ID: pendingID, NodeID: nodeID})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return store.PendingShare{}, ErrNotFound
+	}
+	return p, err
+}
+
+// RevokePending withdraws an invitation; false when none matched on nodeID.
+func (s *Service) RevokePending(ctx context.Context, nodeID, pendingID pgtype.UUID) (bool, error) {
+	n, err := s.q.DeletePendingShare(ctx, store.DeletePendingShareParams{ID: pendingID, NodeID: nodeID})
+	return n > 0, err
+}
+
+// Adopted is one invitation that became a grant.
+type Adopted struct {
+	Share     store.Share
+	NodeName  string
+	InvitedBy pgtype.UUID
+}
+
+// AdoptPending turns the invitations waiting for emailNorm into grants for
+// user and deletes them all. Only call it with an address the identity
+// provider has verified as the user's: the address is the whole of the claim.
+//
+// An invitation is the inviter's decision, deferred, so it is honoured only
+// if the inviter could still make it now: they are still a member of the
+// node's space, not suspended, and hold share on the node covering what they
+// offered. Anything else — a departed or demoted inviter, an expiry passed —
+// is dropped. A grant becomes external unless the user is already a member of
+// the node's space, and a grant the user already holds is kept.
+func (s *Service) AdoptPending(ctx context.Context, user store.User, emailNorm string) ([]Adopted, error) {
+	if emailNorm == "" {
+		return nil, nil
+	}
+	var out []Adopted
+	err := s.q.InTx(ctx, func(q *store.Queries) error {
+		tx := &Service{q: q, externalEnabled: s.externalEnabled}
+		rows, err := q.TakePendingShares(ctx, emailNorm)
+		if err != nil {
+			return err
+		}
+		for _, p := range rows {
+			if p.CreatedBy == user.ID || (p.ExpiresAt.Valid && !p.ExpiresAt.Time.After(time.Now())) {
+				continue
+			}
+			ok, err := tx.inviterStillMay(ctx, p)
+			if err != nil {
+				return err
+			}
+			if !ok {
+				continue
+			}
+			member, err := q.IsSpaceMember(ctx, store.IsSpaceMemberParams{SpaceID: p.SpaceID, UserID: user.ID})
+			if err != nil {
+				return err
+			}
+			sh, err := q.InsertAdoptedShare(ctx, store.InsertAdoptedShareParams{
+				NodeID: p.NodeID, GranteeUserID: user.ID, Level: p.Level, CanDownload: p.CanDownload,
+				ExpiresAt: p.ExpiresAt, CreatedBy: p.CreatedBy, IsExternal: !member,
+			})
+			if errors.Is(err, pgx.ErrNoRows) {
+				continue
+			}
+			if err != nil {
+				return err
+			}
+			out = append(out, Adopted{Share: sh, NodeName: p.NodeName, InvitedBy: p.CreatedBy})
+		}
+		return nil
+	})
+	return out, err
+}
+
+func (s *Service) inviterStillMay(ctx context.Context, p store.TakePendingSharesRow) (bool, error) {
+	inviter, err := s.q.GetUser(ctx, p.CreatedBy)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil || inviter.SuspendedAt.Valid {
+		return false, err
+	}
+	member, err := s.q.IsSpaceMember(ctx, store.IsSpaceMemberParams{SpaceID: p.SpaceID, UserID: p.CreatedBy})
+	if err != nil || !member {
+		return false, err
+	}
+	res, err := s.AccessCaps(ctx, []pgtype.UUID{p.NodeID}, p.CreatedBy)
+	if err != nil {
+		return false, err
+	}
+	caps := EffectiveCaps(res[p.NodeID])
+	return caps.Share && caps.Covers(GrantCaps{Level: p.Level, CanDownload: p.CanDownload}), nil
 }
 
 // ResolveLink validates a link token and returns the share row.
@@ -314,8 +526,9 @@ func (s *Service) AccessCaps(ctx context.Context, nodeIDs []pgtype.UUID, userID 
 		return out, nil
 	}
 	rows, err := s.q.NodeAccessCaps(ctx, store.NodeAccessCapsParams{
-		NodeIds: nodeIDs,
-		UserID:  userID,
+		NodeIds:         nodeIDs,
+		UserID:          userID,
+		ExternalEnabled: s.ExternalSharingEnabled(),
 	})
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return out, err

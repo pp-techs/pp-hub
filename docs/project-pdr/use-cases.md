@@ -6,6 +6,7 @@
 - **Space member** — belongs to a space. Membership alone opens no file: what they reach is what they created plus what has been granted to them or to a group they are in.
 - **Space admin** — member of the space's automatic `Admin` group. Runs membership, groups and space settings; gains no file access from it.
 - **Anonymous visitor** — holds a share link token, no account.
+- **Outsider** — has an account but is not a member of a node's space; reaches exactly what was shared with them by email (an external grant), when the instance and that space allow it.
 
 ## Drive
 
@@ -34,7 +35,7 @@
 1. Whoever can share the node — its creator, or someone whose grant carries the re-share flag — grants it to a space member (`POST /nodes/{nodeID}/shares`, `kind: "direct"`) or to one of the space's groups (`PUT /nodes/{nodeID}/grants`).
 2. The request carries the capability itself: a level (`view` | `edit`) plus the independent `can_download` and `can_share` flags, so "view but pass it on" and "edit but do not re-share" are both expressible. `edit` implies `can_download`, because an editor must be able to fetch what it edits.
 3. The grant inherits down the whole subtree under the node it names, so granting a folder opens everything inside it.
-4. A sharer can never hand out more than they hold themselves (403), and a grantee outside the space is refused with "share a link instead".
+4. A sharer can never hand out more than they hold themselves (403). A user id outside the space is refused (422); somebody outside is reached by email instead (UC-15).
 
 ### UC-5: Share link
 
@@ -69,7 +70,7 @@
 
 ### UC-9: Effective permission check
 
-- Every node access resolves in one recursive query, and it starts with membership: a caller who is not in the node's space resolves to nothing. Inside the space, owning the node or any ancestor (`created_by`) is intrinsic full access; otherwise capabilities are the union of the unexpired grants on the node and its ancestors — view, download, share, edit. Grants only widen and nothing narrows; there is no baseline access, so an admin who owns nothing and was granted nothing resolves to nothing.
+- Every node access resolves in one recursive query, and it starts with membership. Inside the space, owning the node or any ancestor (`created_by`) is intrinsic full access; otherwise capabilities are the union of the unexpired grants on the node and its ancestors — view, download, share, edit. Outside it, only external direct grants count, while the instance and the space allow external sharing — no group grant, no ownership (UC-15). Grants only widen and nothing narrows; there is no baseline access, so an admin who owns nothing and was granted nothing resolves to nothing.
 - Each route names the capability it needs; node listings carry the resolved set as `caps`, so the UI enables exactly the actions the server would allow.
 - A link token (no user) resolves to view, plus download if the link allows it — read paths only.
 
@@ -107,3 +108,18 @@
 
 1. The ⌘K palette matches names across every space the user belongs to, and — for markdown and plain-text files — their contents, accent-insensitively.
 2. A content match shows a snippet with the matched words highlighted; name matches rank first. Results are filtered to what the user can reach, as for name search. Office documents and PDFs are matched by name only.
+
+## Personal Use
+
+### UC-14: A personal space
+
+1. An instance admin sets `personal_spaces` in Admin › Settings › Personal use: `members` (people in at least one organization) or `everyone` (any account; needs a personal quota).
+2. At sign-in the account gets its personal space — no organization, the owner its only member — listed first in the switcher as "My Drive", alongside the organization spaces.
+3. It has General settings only: no members, groups, departures, team folders, linking or deletion (409), and its quota is the instance's.
+4. When the account is deleted in Logto, the space is archived; an instance admin purges it from Admin › Settings.
+
+### UC-15: Share with somebody outside the space
+
+1. With `external_sharing_enabled` on the instance and "Share outside this space" on the space (always on for a personal one), the share dialog accepts a typed email.
+2. An account outside the space gets an external grant (view or edit, never re-share) and a mail linking to `/open/{id}`; an address with no account gets an invitation (202) that becomes a grant at its first verified sign-in. Fifty new outsiders per sender per day.
+3. The outsider finds it under **Shared from outside**, browses it by node, opens and co-edits documents, and mentions only the people the document was opened to. Either switch off ends their access at once.

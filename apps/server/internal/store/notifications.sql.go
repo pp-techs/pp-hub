@@ -120,7 +120,7 @@ func (q *Queries) CreateVersionMentionNotification(ctx context.Context, arg Crea
 
 const getNotificationsByIDs = `-- name: GetNotificationsByIDs :many
 SELECT n.id, n.user_id, n.kind, n.node_id, n.thread_id, n.comment_id, n.excerpt,
-       n.created_at, n.read_at, nd.name AS node_name, nd.space_id, a.id, a.tenant_id, a.oidc_sub, a.oidc_iss, a.email, a.name, a.display_name, a.avatar_url, a.bio, a.settings, a.is_admin, a.last_seen, a.email_hash, a.suspended_at, a.created_at, a.avatar_blob, a.avatar_mime, a.phone, a.gender, a.idp_picture, a.avatar_from_idp
+       n.created_at, n.read_at, nd.name AS node_name, nd.space_id, a.id, a.tenant_id, a.oidc_sub, a.oidc_iss, a.email, a.name, a.display_name, a.avatar_url, a.bio, a.settings, a.is_admin, a.last_seen, a.email_hash, a.suspended_at, a.created_at, a.avatar_blob, a.avatar_mime, a.phone, a.gender, a.idp_picture, a.avatar_from_idp, a.email_verified
 FROM notifications n
 JOIN nodes nd ON nd.id = n.node_id AND nd.deleted_at IS NULL
 JOIN users a ON a.id = n.actor_id
@@ -185,6 +185,7 @@ func (q *Queries) GetNotificationsByIDs(ctx context.Context, ids []pgtype.UUID) 
 			&i.User.Gender,
 			&i.User.IdpPicture,
 			&i.User.AvatarFromIdp,
+			&i.User.EmailVerified,
 		); err != nil {
 			return nil, err
 		}
@@ -228,7 +229,7 @@ func (q *Queries) GetPreviousVersion(ctx context.Context, arg GetPreviousVersion
 
 const listNotifications = `-- name: ListNotifications :many
 SELECT n.id, n.user_id, n.kind, n.node_id, n.thread_id, n.comment_id, n.excerpt,
-       n.created_at, n.read_at, nd.name AS node_name, nd.space_id, a.id, a.tenant_id, a.oidc_sub, a.oidc_iss, a.email, a.name, a.display_name, a.avatar_url, a.bio, a.settings, a.is_admin, a.last_seen, a.email_hash, a.suspended_at, a.created_at, a.avatar_blob, a.avatar_mime, a.phone, a.gender, a.idp_picture, a.avatar_from_idp
+       n.created_at, n.read_at, nd.name AS node_name, nd.space_id, a.id, a.tenant_id, a.oidc_sub, a.oidc_iss, a.email, a.name, a.display_name, a.avatar_url, a.bio, a.settings, a.is_admin, a.last_seen, a.email_hash, a.suspended_at, a.created_at, a.avatar_blob, a.avatar_mime, a.phone, a.gender, a.idp_picture, a.avatar_from_idp, a.email_verified
 FROM notifications n
 JOIN nodes nd ON nd.id = n.node_id AND nd.deleted_at IS NULL
 JOIN users a ON a.id = n.actor_id
@@ -310,6 +311,7 @@ func (q *Queries) ListNotifications(ctx context.Context, arg ListNotificationsPa
 			&i.User.Gender,
 			&i.User.IdpPicture,
 			&i.User.AvatarFromIdp,
+			&i.User.EmailVerified,
 		); err != nil {
 			return nil, err
 		}

@@ -3,7 +3,7 @@ import { createModal } from "@buiducnhat/better-modal";
 import { Plural, Select, Trans, useLingui } from "@lingui/react/macro";
 import { msg, plural } from "@lingui/core/macro";
 import { toast } from "sonner";
-import { ChevronDown, Copy, Folder, Link2, Lock, ShieldCheck, Users, X } from "lucide-react";
+import { ChevronDown, Copy, Folder, Link2, Lock, Mail, ShieldCheck, Users, X } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -63,10 +63,13 @@ import {
   useGroups,
   useInheritedAccess,
   useMe,
+  usePendingShares,
   useRevokeGrant,
+  useRevokePendingShare,
   useRevokeShare,
   useShares,
   useSpaceMembers,
+  useSpaces,
   useUpsertGrant,
 } from "@/lib/queries";
 import { useKeyedState } from "@/lib/use-keyed-state";
@@ -142,16 +145,30 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
   const nodeName = node.name;
   const held = capsOf(node);
   const me = useMe();
-  const { data: groups = [] } = useGroups(live ? node.space_id : null);
-  const { data: members = [] } = useSpaceMembers(live ? node.space_id : null);
+  // Groups and members are member-only reads. Someone holding share on a
+  // node in a space they do not belong to picks from neither, and may not
+  // invite by email either: the space's switch is theirs to see only as a
+  // member.
+  const space = useSpaces().data?.find((s) => s.id === node.space_id);
+  const isMember = space !== undefined;
+  const allowEmail =
+    (me.data?.external_sharing_enabled ?? false) && space?.external_sharing === true;
+  // A personal space's automatic groups hold only its owner: nothing to offer.
+  const { data: groups = [] } = useGroups(
+    live && isMember && space.kind !== "personal" ? node.space_id : null,
+  );
+  const { data: members = [] } = useSpaceMembers(live && isMember ? node.space_id : null);
   const grants = useGrants(live ? node.id : null);
   const shares = useShares(live ? node.id : null);
   const inherited = useInheritedAccess(live ? node.id : null);
+  const pending = usePendingShares(live ? node.id : null);
+  const pendingShares = pending.data ?? [];
 
   const upsertGrant = useUpsertGrant(node.id);
   const revokeGrant = useRevokeGrant(node.id);
   const createShare = useCreateShare();
   const revokeShare = useRevokeShare();
+  const revokePending = useRevokePendingShare();
 
   // Keyed to the node: better-modal keeps a closed modal mounted, so plain
   // useState would carry the previous item's picks into the next opening and
@@ -264,27 +281,48 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
           ? upsertGrant.mutateAsync({ groupId: g.id, caps })
           : createShare.mutateAsync({
               nodeId: node.id,
-              // eslint-disable-next-line lingui/no-unlocalized-strings -- share kind discriminator
-              body: { kind: "direct", user_id: g.id, ...caps },
+              // An address may belong to someone outside the space, who may
+              // never re-share; the server refuses the attempt outright.
+              body:
+                g.kind === "email"
+                  ? // eslint-disable-next-line lingui/no-unlocalized-strings -- share kind discriminator
+                    { kind: "direct", email: g.id, ...caps, can_share: false }
+                  : // eslint-disable-next-line lingui/no-unlocalized-strings -- share kind discriminator
+                    { kind: "direct", user_id: g.id, ...caps },
             }),
       ),
     );
     const failed: string[] = [];
     let firstError = "";
+    let granted = 0;
+    let firstGranted = "";
     results.forEach((r, i) => {
       if (r.status === "rejected") {
         failed.push(picked[i].label);
-        firstError ||= message(r.reason, t`Could not share`);
+        firstError ||= shareError(r.reason);
+        return;
       }
+      // 202: the address has no account yet, so what was made is an
+      // invitation, not access.
+      if (r.value && "mail_sent" in r.value) {
+        const invitee = r.value.email;
+        if (r.value.mail_sent) toast.success(t`Invitation sent to ${invitee}`);
+        else
+          toast.warning(
+            t`Invited ${invitee}, but no email could be sent — share the link yourself.`,
+          );
+        return;
+      }
+      granted += 1;
+      firstGranted ||= picked[i].label;
     });
-    const shared = picked.length - failed.length;
-    if (shared > 0) {
+    if (granted > 0) {
       // One whole sentence per level rather than a verb spliced onto a
       // subject: "can now view" does not survive being assembled elsewhere.
       const who =
-        shared === 1
-          ? picked[0].label
-          : t`${plural(shared, { one: "# grantee", other: "# grantees" })}`;
+        granted === 1
+          ? firstGranted
+          : t`${plural(granted, { one: "# grantee", other: "# grantees" })}`;
       toast.success(caps.level === "edit" ? t`${who} can now edit` : t`${who} can now view`);
     }
     if (failed.length > 0) {
@@ -292,6 +330,17 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
       toast.error(`${failed.join(", ")}: ${firstError}`);
     }
     setPicked(failed.length > 0 ? picked.filter((g) => failed.includes(g.label)) : []);
+  }
+
+  /** The refusals an invitation can meet, in words the sharer can act on. */
+  function shareError(e: unknown) {
+    if (e instanceof ApiError && e.status === 429) {
+      return t`Too many invitations today. Try again tomorrow.`;
+    }
+    if (e instanceof ApiError && e.status === 403) {
+      return e.message || t`Sharing outside this space is not allowed here.`;
+    }
+    return message(e, t`Could not share`);
   }
 
   function createLink() {
@@ -312,7 +361,7 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
         // The token is stored hashed, so this response is the only time the
         // URL exists anywhere the caller can read it. It stays in the dialog
         // until they close it, rather than in a toast that times out.
-        onSuccess: (sh: Share) => setLinkUrl(sh.url ?? null),
+        onSuccess: (sh) => setLinkUrl("url" in sh ? (sh.url ?? null) : null),
         onError: (e) => toast.error(message(e, t`Could not create link`)),
       },
     );
@@ -354,7 +403,12 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
 
   const loading = grants.isPending || shares.isPending || inherited.isPending;
   const rowCount =
-    owners.length + above.size + grantRows.length + directShares.length + linkShares.length;
+    owners.length +
+    above.size +
+    grantRows.length +
+    directShares.length +
+    linkShares.length +
+    pendingShares.length;
 
   return (
     <Dialog open={live} onOpenChange={(open) => !open && modal.resolve(null)}>
@@ -386,10 +440,17 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
                 <Trans>Give access</Trans>
               </h3>
               <p className="text-muted-foreground mt-1 text-xs">
-                <Trans>
-                  Groups and people come from this space. The access below applies to everyone
-                  picked.
-                </Trans>
+                {allowEmail ? (
+                  <Trans>
+                    Groups and people come from this space; anyone else can be invited by email. The
+                    access below applies to everyone picked.
+                  </Trans>
+                ) : (
+                  <Trans>
+                    Groups and people come from this space. The access below applies to everyone
+                    picked.
+                  </Trans>
+                )}
               </p>
             </div>
 
@@ -416,7 +477,11 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
               <div className="flex flex-wrap gap-1.5">
                 {picked.map((g) => (
                   <Badge key={g.id} variant="secondary" className="gap-1 py-1 font-normal">
-                    {g.kind === "group" ? <Users className="h-3 w-3" /> : null}
+                    {g.kind === "group" ? (
+                      <Users className="h-3 w-3" />
+                    ) : g.kind === "email" ? (
+                      <Mail className="h-3 w-3" />
+                    ) : null}
                     {g.label}
                     <button
                       type="button"
@@ -430,7 +495,11 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
               </div>
             )}
 
-            <GranteePicker options={options} onPick={(g) => setPicked([...picked, g])} />
+            <GranteePicker
+              options={options}
+              allowEmail={allowEmail}
+              onPick={(g) => setPicked([...picked, g])}
+            />
 
             <div className="flex flex-wrap items-end gap-4">
               {/* Only an editor may make editors, so without edit there is no
@@ -651,8 +720,13 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
                           )}
                         </Avatar>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate font-medium">
+                          <p className="flex items-center gap-2 truncate font-medium">
                             {s.kind === "link" ? <Trans>Anyone with the link</Trans> : grantee}
+                            {s.is_external && (
+                              <Badge variant="outline" className="font-normal">
+                                <Trans>External</Trans>
+                              </Badge>
+                            )}
                           </p>
                           {s.kind === "link" ? (
                             <p className="text-muted-foreground text-[10px] uppercase">
@@ -681,6 +755,7 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
                             summary={capsLabel(s)}
                             label={t`Change access for ${{ name: grantee }}`}
                             disabled={busy}
+                            noReshare={s.is_external === true}
                             onChange={(next) =>
                               createShare.mutate(
                                 {
@@ -721,6 +796,48 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
                             <X />
                           </Button>
                         )}
+                      </li>
+                    );
+                  })}
+                  {pendingShares.map((p) => {
+                    const invitee = p.email;
+                    return (
+                      <li key={`pending:${p.id}`} className="flex items-center gap-3 p-3 text-sm">
+                        <Avatar size="sm">
+                          <AvatarFallback>
+                            <Mail className="size-3.5" />
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0 flex-1">
+                          <p className="flex items-center gap-2 truncate font-medium">
+                            {invitee}
+                            <Badge variant="outline" className="font-normal">
+                              <Trans>Invited</Trans>
+                            </Badge>
+                          </p>
+                          <p className="text-muted-foreground text-xs">
+                            <Trans>Gets access after signing in for the first time.</Trans>
+                          </p>
+                        </div>
+                        <CapsSummary text={capsLabel({ ...p, can_share: false })} />
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          className="shrink-0"
+                          aria-label={t`Cancel the invitation for ${invitee}`}
+                          disabled={revokePending.isPending}
+                          onClick={() =>
+                            revokePending.mutate(
+                              { nodeId: node.id, pendingId: p.id },
+                              {
+                                onSuccess: () => toast.success(t`Invitation cancelled`),
+                                onError: (e) => toast.error(message(e, t`Could not revoke`)),
+                              },
+                            )
+                          }
+                        >
+                          <X />
+                        </Button>
                       </li>
                     );
                   })}
@@ -922,6 +1039,7 @@ function CapsControl({
   label,
   disabled,
   onChange,
+  noReshare = false,
 }: {
   value: GrantCaps;
   held: NodeCaps;
@@ -929,6 +1047,8 @@ function CapsControl({
   label: string;
   disabled: boolean;
   onChange: (next: GrantCaps) => void;
+  /** Outsiders may not re-share: the option is left out rather than refused. */
+  noReshare?: boolean;
 }) {
   // eslint-disable-next-line lingui/no-unlocalized-strings -- preset ids
   const preset: Preset = value.level === "edit" ? "edit" : value.can_download ? "download" : "view";
@@ -975,7 +1095,7 @@ function CapsControl({
             </DropdownMenuRadioItem>
           )}
         </DropdownMenuRadioGroup>
-        {held.share && (
+        {held.share && !noReshare && (
           <>
             <DropdownMenuSeparator />
             <DropdownMenuCheckboxItem

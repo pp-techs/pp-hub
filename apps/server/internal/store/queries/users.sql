@@ -1,6 +1,7 @@
 -- name: CreateUser :one
-INSERT INTO users (oidc_sub, oidc_iss, email, name)
-VALUES ($1, $2, $3, $4)
+-- email_verified: whether the identity provider vouched for the address.
+INSERT INTO users (oidc_sub, oidc_iss, email, name, email_verified)
+VALUES ($1, $2, $3, $4, sqlc.arg('email_verified')::bool)
 RETURNING *;
 
 -- name: GetUserByIdentity :one
@@ -8,14 +9,15 @@ SELECT * FROM users WHERE oidc_iss = $1 AND oidc_sub = $2;
 
 -- Refreshes the profile fields the IdP owns on every sign-in.
 -- name: TouchUserLogin :one
-UPDATE users SET email = $2, name = $3, last_seen = now()
+UPDATE users SET email = $2, name = $3, email_verified = sqlc.arg('email_verified')::bool, last_seen = now()
 WHERE id = $1
 RETURNING *;
 
 -- The same IdP-owned fields, refreshed from the Management API rather than
--- from a sign-in, so last_seen is left alone: nobody was seen.
+-- from a sign-in, so last_seen is left alone: nobody was seen. Logto's
+-- primaryEmail is verified by construction.
 -- name: SetUserIdpIdentity :one
-UPDATE users SET email = $2, name = $3
+UPDATE users SET email = $2, name = $3, email_verified = ($2 <> '')
 WHERE id = $1
 RETURNING *;
 
@@ -32,7 +34,8 @@ SELECT * FROM users WHERE oidc_iss = $1;
 -- index on (tenant_id, email_hash), and sign-in answered 500 with no way back
 -- short of hand-editing Postgres.
 -- name: AdoptUserIdentity :one
-UPDATE users SET oidc_iss = $2, oidc_sub = $3, email = $4, name = $5, last_seen = now()
+-- Both callers adopt by an address the identity provider verified.
+UPDATE users SET oidc_iss = $2, oidc_sub = $3, email = $4, name = $5, email_verified = true, last_seen = now()
 WHERE id = $1
 RETURNING *;
 
@@ -41,6 +44,17 @@ SELECT * FROM users WHERE id = $1 LIMIT 1;
 
 -- name: GetUserByEmail :one
 SELECT * FROM users WHERE email = $1 LIMIT 1;
+
+-- name: GetUserByEmailNorm :one
+-- An address as somebody typed it into the share dialog, compared without
+-- case: users.email keeps the identity provider's spelling. Only a verified
+-- address names an account here — an account created from an unverified
+-- claim must not collect what was shared with the address's real owner; that
+-- address gets an invitation instead, adopted at a verified sign-in.
+SELECT * FROM users
+WHERE lower(email) = @email_norm::text AND email <> '' AND email_verified
+ORDER BY created_at
+LIMIT 1;
 
 -- name: UpdateUserProfile :one
 UPDATE users

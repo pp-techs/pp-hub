@@ -58,6 +58,10 @@ type fakeLogto struct {
 	added       map[string][]string
 	admins      map[string]bool
 	renamed     map[string]string
+	// userOrgs is what GET /api/users/{id}/organizations answers per
+	// account; orgLookups counts those calls.
+	userOrgs   map[string][]map[string]any
+	orgLookups int
 }
 
 func newFakeLogto(t *testing.T) *fakeLogto {
@@ -65,7 +69,7 @@ func newFakeLogto(t *testing.T) *fakeLogto {
 	f := &fakeLogto{t: t, orgName: "Acme", accepted: map[string]string{},
 		accounts: map[string]map[string]any{}, unlisted: map[string]bool{},
 		missingOrgs: map[string]bool{}, added: map[string][]string{},
-		admins: map[string]bool{}, renamed: map[string]string{}}
+		admins: map[string]bool{}, renamed: map[string]string{}, userOrgs: map[string][]map[string]any{}}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/oidc/token", func(w http.ResponseWriter, r *http.Request) {
 		if id, secret, ok := r.BasicAuth(); !ok || id != "m2m" || secret != "secret" {
@@ -165,7 +169,17 @@ func newFakeLogto(t *testing.T) *fakeLogto {
 		writeJSON(w, out)
 	})
 	mux.HandleFunc("/api/users/", func(w http.ResponseWriter, r *http.Request) {
-		u, ok := f.accounts[strings.TrimPrefix(r.URL.Path, "/api/users/")]
+		rest := strings.TrimPrefix(r.URL.Path, "/api/users/")
+		if id, ok := strings.CutSuffix(rest, "/organizations"); ok {
+			f.orgLookups++
+			out := f.userOrgs[id]
+			if out == nil {
+				out = []map[string]any{}
+			}
+			writeJSON(w, out)
+			return
+		}
+		u, ok := f.accounts[rest]
 		if !ok {
 			w.WriteHeader(http.StatusNotFound)
 			return
@@ -557,5 +571,95 @@ func TestSignInAcceptsPendingInvitationsIntoTheSpace(t *testing.T) {
 	}
 	if _, departed := pendingFor(t, q, space.ID, email); departed {
 		t.Error("the fresh membership was recorded as a departure")
+	}
+}
+
+// An organization created or joined in Logto after the session began reaches
+// the person the next time their spaces are listed — no sign-out, no webhook.
+// The lookup is throttled per account.
+func TestRefreshUserPicksUpANewOrganization(t *testing.T) {
+	q, sp, logto, svc := testEnv(t)
+	ctx := context.Background()
+	orgID := fmt.Sprintf("org-refresh-%d", os.Getpid())
+	user, err := q.CreateUser(ctx, store.CreateUserParams{
+		OidcSub: "sub-refresh-" + orgID, OidcIss: testIssuer,
+		Email: "refresh-" + orgID + "@test.local", Name: "refresh", EmailVerified: true,
+	})
+	if err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	logto.userOrgs[user.OidcSub] = []map[string]any{{
+		"id": orgID, "name": "Acme", "organizationRoles": []map[string]any{{"id": "r1", "name": "admin"}},
+	}}
+
+	if err := svc.RefreshUser(ctx, user); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+	space, err := q.GetSpaceByOrgID(ctx, pgtype.Text{String: orgID, Valid: true})
+	if err != nil {
+		t.Fatalf("no space for the new organization: %v", err)
+	}
+	t.Cleanup(func() { _ = q.DeleteSpace(ctx, space.ID) })
+	if !sp.IsAdmin(ctx, space.ID, user.ID) {
+		t.Error("the organization's admin role did not carry over")
+	}
+
+	if err := svc.RefreshUser(ctx, user); err != nil {
+		t.Fatalf("second refresh: %v", err)
+	}
+	if logto.orgLookups != 1 {
+		t.Errorf("a second listing within the interval must not ask Logto again; asked %d times", logto.orgLookups)
+	}
+
+	// Accounts another issuer made are not this tenant's to ask about.
+	other := user
+	other.OidcIss = "https://elsewhere.test"
+	other.ID = pgtype.UUID{Bytes: [16]byte{1}, Valid: true}
+	if err := svc.RefreshUser(ctx, other); err != nil || logto.orgLookups != 1 {
+		t.Errorf("a foreign account must not be looked up: err=%v lookups=%d", err, logto.orgLookups)
+	}
+}
+
+// The membership webhook for an organization with no space yet creates one,
+// owned by an admin from its roster, without anybody signing in.
+func TestReconcileOrgCreatesTheSpaceFromItsRoster(t *testing.T) {
+	q, sp, logto, svc := testEnv(t)
+	ctx := context.Background()
+	orgID := fmt.Sprintf("org-roster-%d", os.Getpid())
+	logto.roster = []map[string]any{
+		member("sub-plain-"+orgID, "plain-"+orgID+"@test.local", false),
+		member("sub-boss-"+orgID, "boss-"+orgID+"@test.local", true),
+	}
+	if err := svc.ReconcileOrg(ctx, orgID); err != nil {
+		t.Fatalf("reconcile: %v", err)
+	}
+	space, err := q.GetSpaceByOrgID(ctx, pgtype.Text{String: orgID, Valid: true})
+	if err != nil {
+		t.Fatalf("no space created: %v", err)
+	}
+	t.Cleanup(func() { _ = q.DeleteSpace(ctx, space.ID) })
+	boss, err := q.GetUserByIdentity(ctx, store.GetUserByIdentityParams{OidcIss: testIssuer, OidcSub: "sub-boss-" + orgID})
+	if err != nil {
+		t.Fatalf("owner account: %v", err)
+	}
+	if space.OwnerID != boss.ID || !sp.IsAdmin(ctx, space.ID, boss.ID) {
+		t.Errorf("the space must be owned and administered by the organization's admin")
+	}
+	// A second run converges the rest of the roster.
+	if err := svc.ReconcileOrg(ctx, orgID); err != nil {
+		t.Fatalf("second reconcile: %v", err)
+	}
+	if got := memberIDs(t, q, space.ID); len(got) != 2 || got["plain-"+orgID+"@test.local"] {
+		t.Errorf("want both members, plain one not admin; got %v", got)
+	}
+
+	// An organization nobody belongs to yet waits for its first member.
+	empty := orgID + "-empty"
+	logto.roster = nil
+	if err := svc.ReconcileOrg(ctx, empty); err != nil {
+		t.Fatalf("reconcile empty: %v", err)
+	}
+	if _, err := q.GetSpaceByOrgID(ctx, pgtype.Text{String: empty, Valid: true}); err == nil {
+		t.Error("an organization with no members must not get a space")
 	}
 }
