@@ -108,7 +108,7 @@ export default function ReadOnlyEditor({
 
   return (
     <TooltipProvider>
-      <div className="flex gap-2">
+      <div className="flex gap-2 lg:gap-10">
         <div className={cn("slash-content min-w-0 flex-1", DOCUMENT_COLUMN, className)}>
           {lossy ? (
             <p className="text-muted-foreground mb-4 flex items-center gap-1.5 text-xs">

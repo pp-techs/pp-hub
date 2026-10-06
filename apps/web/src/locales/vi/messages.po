@@ -984,6 +984,10 @@ msgstr "Đóng danh sách truyền"
 msgid "Code block"
 msgstr "Khối mã"
 
+#: src/components/nodes/code-block-node-view.tsx:59
+msgid "Code language"
+msgstr "Ngôn ngữ mã"
+
 #: src/components/doc-editor/page-tree-panel.tsx:173
 #: src/components/folder-tree.tsx:103
 #: src/components/move-dialog.tsx:267
@@ -3323,6 +3327,10 @@ msgstr "Số điện thoại"
 #: src/components/doc-editor/labels.ts:24
 msgid "Plain paragraph"
 msgstr "Đoạn văn thường"
+
+#: src/components/nodes/code-block-node-view.tsx:36
+msgid "Plain text"
+msgstr "Văn bản thuần"
 
 #: src/routes/admin.settings.tsx:1234
 msgid "Port"

@@ -461,7 +461,7 @@ function DocSurface({
       ) : null}
       <div className="relative min-h-0 flex-1">
         <div ref={scrollRef} className="h-full overflow-y-auto">
-          <div className="mx-auto w-full max-w-5xl px-4 pt-10 md:px-20">
+          <div className="mx-auto w-full max-w-5xl px-4 pt-10 md:pr-32 md:pl-20">
             <PageHeader
               store={pageStore}
               pageId={documentId}
@@ -470,7 +470,7 @@ function DocSurface({
               adapter={adapter}
             />
           </div>
-          <div className="slash-content relative mx-auto w-full max-w-5xl px-4 pt-4 pb-10 md:px-20">
+          <div className="slash-content relative mx-auto w-full max-w-5xl px-4 pt-4 pb-10 md:pr-32 md:pl-20">
             <EditorContent editor={editor} />
             {editable ? (
               <>
@@ -493,7 +493,7 @@ function DocSurface({
               onOpenThreadChange={setOpenThreadId}
             />
           </div>
-          <div className="mx-auto w-full max-w-5xl px-4 pb-10 md:px-20">
+          <div className="mx-auto w-full max-w-5xl px-4 pb-10 md:pr-32 md:pl-20">
             <PageBacklinks store={pageStore} pageId={documentId} onNavigate={onNavigate} />
           </div>
         </div>

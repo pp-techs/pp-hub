@@ -193,6 +193,15 @@ editor, the read-only renderer and the fixture script alike, so the schema a
 browser can write is exactly the schema `mdoc` can store; `mention: {items}`
 and `comment: {store}` pass through to slash-editor.
 
+`codeBlock` is slash-editor's lowlight block (`@slash-editor/core/code-block`,
+the `common` grammars): the node, its `language` attribute and its markdown
+fence are the plain block's, so nothing stored changes — highlighting is a
+decoration, themed by the `hljs-*` rules in `packages/ui/src/styles/globals.css`.
+A block with no language stays uncolored rather than letting lowlight guess.
+Its node view (`components/nodes/code-block-node-view.tsx`, supplied by `mdocNodeViews`
+with the kit's own `codeBlock` turned off, like mermaid) adds a language picker over the
+registered grammars: choosing one writes the `language` attribute, "Plain text" clears it.
+
 **Block ids are written by `Parse`.** Every block carries an `id` attr
 (`data-block-id`); `parseMarkdown` emits none, and an editor mounting an
 id-less document assigns them and writes that into the shared doc — two

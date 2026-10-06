@@ -11,8 +11,10 @@ import {
   type UploadAdapter,
   type UploadResult,
 } from "@slash-editor/core";
+import { CodeBlock } from "@slash-editor/core/code-block";
 import type { AnyExtension } from "@tiptap/core";
 import { ReactNodeViewRenderer } from "@tiptap/react";
+import { CodeBlockNodeView } from "@/components/nodes/code-block-node-view";
 import { EmbedNodeView } from "@/components/nodes/embed-node-view";
 import { FileNodeView } from "@/components/nodes/file-node-view";
 import { ImageNodeView } from "@/components/nodes/image-node-view";
@@ -26,7 +28,7 @@ import {
   type AttachmentResult,
   type AttachmentUrl,
 } from "@/lib/collab/attachments";
-import type { MdocKitOptions } from "@/lib/collab/mdoc-kit";
+import { mdocLowlight, type MdocKitOptions } from "@/lib/collab/mdoc-kit";
 
 /**
  * The nodes `mdocNodeViews` supplies, turned off in the kit so each exists
@@ -34,6 +36,7 @@ import type { MdocKitOptions } from "@/lib/collab/mdoc-kit";
  * document — the editor and the read-only renderer alike.
  */
 export const MDOC_NODE_VIEW_KIT_OPTIONS = {
+  codeBlock: false,
   image: false,
   file: false,
   video: false,
@@ -73,8 +76,8 @@ export const PAGE_NODE_VIEWS: NonNullable<PagesOptions["nodeViews"]> = {
 };
 
 /**
- * pp-hub's node views for the v1 block set — image, file, video, embed,
- * mermaid and mention — as the kit's own nodes extended with React views, so
+ * pp-hub's node views for the v1 block set — code block, image, file, video,
+ * embed, mermaid and mention — as the kit's own nodes extended with React views, so
  * the schema stays exactly `createMdocKit`'s. Each media node's `resolveSrc`
  * maps `attachment:<hash>` through `attachmentUrl`; the views read it from
  * their extension's options. The page nodes' views travel separately, as
@@ -94,6 +97,9 @@ export function mdocNodeViews({
   const resolveSrc = attachmentResolver(attachmentUrl);
   const items = mentionItems ?? (() => []);
   return [
+    CodeBlock.extend({ addNodeView: () => ReactNodeViewRenderer(CodeBlockNodeView) }).configure({
+      lowlight: mdocLowlight,
+    }),
     Image.extend({
       addNodeView: () =>
         ReactNodeViewRenderer((props) => <ImageNodeView {...props} adapter={adapter} />),

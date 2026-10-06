@@ -984,6 +984,10 @@ msgstr "Close transfers"
 msgid "Code block"
 msgstr "Code block"
 
+#: src/components/nodes/code-block-node-view.tsx:59
+msgid "Code language"
+msgstr "Code language"
+
 #: src/components/doc-editor/page-tree-panel.tsx:173
 #: src/components/folder-tree.tsx:103
 #: src/components/move-dialog.tsx:267
@@ -3323,6 +3327,10 @@ msgstr "Phone"
 #: src/components/doc-editor/labels.ts:24
 msgid "Plain paragraph"
 msgstr "Plain paragraph"
+
+#: src/components/nodes/code-block-node-view.tsx:36
+msgid "Plain text"
+msgstr "Plain text"
 
 #: src/routes/admin.settings.tsx:1234
 msgid "Port"

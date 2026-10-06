@@ -134,6 +134,16 @@
   * {
     @apply border-border outline-ring/50;
   }
+  /*
+   * Slim, rounded-looking scrollbar: thin, transparent track, and a thumb
+   * tinted from the theme so it follows dark mode. Standard properties only:
+   * Chromium 121+ ignores `::-webkit-scrollbar` once these are set. The
+   * `no-scrollbar` utility still wins (utilities layer).
+   */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--muted-foreground) 35%, transparent) transparent;
+  }
   body {
     @apply bg-background text-foreground;
   }
@@ -193,6 +203,77 @@
   }
   .slash-content pre {
     @apply bg-muted my-2 overflow-x-auto rounded-md p-3 font-mono text-xs leading-relaxed;
+  }
+  /* Code highlighting: lowlight tags tokens with `hljs-*`; this is the theme. */
+  .slash-content {
+    --hljs-comment: oklch(0.55 0.02 260);
+    --hljs-keyword: oklch(0.55 0.2 20);
+    --hljs-string: oklch(0.45 0.12 250);
+    --hljs-number: oklch(0.5 0.14 250);
+    --hljs-title: oklch(0.5 0.18 300);
+    --hljs-type: oklch(0.5 0.13 150);
+    --hljs-variable: oklch(0.55 0.16 50);
+  }
+  .dark .slash-content {
+    --hljs-comment: oklch(0.65 0.02 260);
+    --hljs-keyword: oklch(0.72 0.17 20);
+    --hljs-string: oklch(0.78 0.1 250);
+    --hljs-number: oklch(0.78 0.12 230);
+    --hljs-title: oklch(0.78 0.14 300);
+    --hljs-type: oklch(0.78 0.13 150);
+    --hljs-variable: oklch(0.8 0.13 60);
+  }
+  .slash-content .hljs-comment,
+  .slash-content .hljs-quote {
+    color: var(--hljs-comment);
+    font-style: italic;
+  }
+  .slash-content .hljs-keyword,
+  .slash-content .hljs-selector-tag,
+  .slash-content .hljs-doctag,
+  .slash-content .hljs-meta .hljs-keyword {
+    color: var(--hljs-keyword);
+  }
+  .slash-content .hljs-string,
+  .slash-content .hljs-regexp,
+  .slash-content .hljs-meta .hljs-string,
+  .slash-content .hljs-addition {
+    color: var(--hljs-string);
+  }
+  .slash-content .hljs-number,
+  .slash-content .hljs-literal,
+  .slash-content .hljs-symbol,
+  .slash-content .hljs-bullet {
+    color: var(--hljs-number);
+  }
+  .slash-content .hljs-title,
+  .slash-content .hljs-section,
+  .slash-content .hljs-name,
+  .slash-content .hljs-selector-id,
+  .slash-content .hljs-selector-class {
+    color: var(--hljs-title);
+  }
+  .slash-content .hljs-type,
+  .slash-content .hljs-built_in,
+  .slash-content .hljs-class .hljs-title {
+    color: var(--hljs-type);
+  }
+  .slash-content .hljs-attr,
+  .slash-content .hljs-attribute,
+  .slash-content .hljs-variable,
+  .slash-content .hljs-template-variable,
+  .slash-content .hljs-params,
+  .slash-content .hljs-property {
+    color: var(--hljs-variable);
+  }
+  .slash-content .hljs-deletion {
+    color: var(--hljs-keyword);
+  }
+  .slash-content .hljs-emphasis {
+    font-style: italic;
+  }
+  .slash-content .hljs-strong {
+    font-weight: 600;
   }
   .slash-content hr {
     @apply border-border my-4;

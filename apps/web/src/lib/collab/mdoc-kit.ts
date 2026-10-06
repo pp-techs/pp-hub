@@ -7,6 +7,7 @@ import {
   type PageStore,
   type PagesOptions,
 } from "@slash-editor/core";
+import { CodeBlock, codeBlock, type Lowlight } from "@slash-editor/core/code-block";
 import { emoji } from "@slash-editor/core/emoji";
 
 /**
@@ -75,6 +76,22 @@ const mdocEmoji = emoji().extend({
 });
 
 /**
+ * The syntax-highlighted code block (lowlight's `common` grammars). It keeps
+ * the `codeBlock` node name, `language` attribute and markdown fence, so the
+ * stored document is unchanged; highlighting is decoration only, themed by the
+ * `hljs-*` rules in `globals.css`.
+ *
+ * A block without a language is left plain: lowlight would otherwise guess
+ * one, and prose or logs come out colored as if they were code. (Not
+ * `defaultLanguage`, which would also become the stored `language` of every
+ * new block.)
+ */
+export const mdocLowlight: Lowlight = CodeBlock.options.lowlight;
+// eslint-disable-next-line lingui/no-unlocalized-strings -- highlight.js language id
+mdocLowlight.highlightAuto = (value: string) => mdocLowlight.highlight("plaintext", value);
+const mdocCodeBlock = codeBlock({ lowlight: mdocLowlight });
+
+/**
  * `createBlockKit` narrowed to the v1 block set: exactly what
  * `apps/server/internal/mdoc` stores. Keep in sync with the Go golden
  * fixtures (`bun apps/web/scripts/mdoc-fixtures.ts`). `mention: {items}` and
@@ -88,6 +105,7 @@ export function createMdocKit(options: MdocKitOptions = {}): AnyExtension[] {
   return createBlockKit({
     ...rest,
     starterKit: { ...starterKit, underline: false },
+    codeBlock: rest.codeBlock ?? mdocCodeBlock,
     emoji: rest.emoji ?? mdocEmoji,
     mention: mention === false ? false : { items: noMentions, ...mention },
     pages: { resolveHref: pageHref, ...(pages ?? readOnlyPages) },

@@ -137,7 +137,7 @@ export function BlockComments({
           variant="ghost"
           size="icon-sm"
           aria-label={t`Add a comment`}
-          className="text-muted-foreground pointer-events-auto absolute right-0 md:right-6"
+          className="text-muted-foreground pointer-events-auto absolute right-0 md:right-18"
           style={{ top: tops.get(hovered) }}
           // Keep the editor's focus: the composer opens on the selection.
           onMouseDown={(event) => event.preventDefault()}
@@ -186,7 +186,7 @@ function BlockCommentButton({
             variant="ghost"
             size="sm"
             aria-label={t`Show comments on this block`}
-            className="text-muted-foreground pointer-events-auto absolute right-0 md:right-6"
+            className="text-muted-foreground pointer-events-auto absolute right-0 md:right-18"
             style={{ top }}
           />
         }
