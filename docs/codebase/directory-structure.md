@@ -65,7 +65,7 @@ pp-hub/
 │   │       │   ├── table-controls.tsx    # block editor: add/delete rows and columns, header toggle, delete table
 │   │       │   ├── new-document-dialog.tsx # New → Document/Spreadsheet/…; the markdown template picker
 │   │       │   ├── version-preview-modal.tsx # a rendered markdown version with Restore
-│   │       │   ├── comments/             # comments panel, composer (with @mention), avatars (M29)
+│   │       │   ├── comments/             # block comment buttons, comments popover, composer (with @mention), avatars (M29)
 │   │       │   ├── notifications-bell.tsx # unread badge + list in the site and editor headers (M29)
 │   │       │   ├── settings/             # the one settings dialog (see below)
 │   │       │   │   ├── settings-modal.tsx       # shell: nav, header, unsaved-changes guard

@@ -18,7 +18,6 @@ import {
   MessageSquareText,
   RefreshCw,
   SquarePen,
-  TableOfContents,
 } from "lucide-react";
 import { useIsMobile } from "@workspace/ui/hooks/use-mobile";
 import { Badge } from "@workspace/ui/components/badge";
@@ -60,7 +59,8 @@ import { PresenceAvatars } from "@/components/presence-avatars";
 import { SlashMenu } from "@/components/slash-menu";
 import { TableControls } from "@/components/table-controls";
 import { CommentComposer } from "@/components/comments/comment-composer";
-import { CommentsPanel } from "@/components/comments/comments-panel";
+import { BlockComments } from "@/components/comments/block-comments";
+import { CommentsPopover } from "@/components/comments/comments-popover";
 import { pickEmbedLink } from "@/components/nodes/embed-node-view";
 import {
   MDOC_NODE_VIEW_KIT_OPTIONS,
@@ -88,7 +88,7 @@ function errorMessage(error: unknown): string | undefined {
   return error instanceof Error ? error.message : undefined;
 }
 
-/** The side panels beside the document; any of them may be open at once. */
+/** The page tree beside the document, and the comments popover's state. */
 interface Panels extends DocPanels {
   comments: boolean;
   /** The thread the comments panel scrolls to and selects. */
@@ -96,12 +96,13 @@ interface Panels extends DocPanels {
 }
 
 /** A narrow screen lays a side panel over the document, so it opens on demand only. */
-const CLOSED_PANELS: DocPanels = { pages: false, outline: false };
+const CLOSED_PANELS: DocPanels = { pages: false };
 
 /**
  * The block editor for a markdown document: the shared header, and a
  * slash-editor surface co-edited over the document's collab room, with the
- * outline and the comment threads as panels beside it.
+ * outline floating over it and the comments floating from the header and
+ * from the blocks that have them.
  *
  * Whether this user may type comes from the room's REST answer
  * (`can_write`), never from the socket — the server drops a reader's writes
@@ -124,13 +125,14 @@ export function DocEditor({ node, thread }: { node: Node; thread?: string }) {
   const ancestors = lineage.data?.ancestors ?? [];
   const rootPage = useNode(ancestors[0]?.id);
   const [lossyAccepted, setLossyAccepted] = useState(false);
-  // The page tree and the outline follow the reader across pages (each page
-  // remounts this editor) and reloads; on a narrow screen they would cover
-  // the document, so there they start closed and are this page's alone.
+  // The page tree follows the reader across pages (each page remounts this
+  // editor) and reloads; on a narrow screen it would cover the document, so
+  // there it starts closed and is this page's alone.
   const isMobile = useIsMobile();
   const docPanels = useUiStore((s) => s.docPanels);
   const setDocPanel = useUiStore((s) => s.setDocPanel);
   const [mobilePanels, setMobilePanels] = useState<DocPanels>(CLOSED_PANELS);
+  const [commentsButton, setCommentsButton] = useState<HTMLElement | null>(null);
   const [threadPanel, setThreadPanel] = useState({
     comments: !!thread,
     focusThreadId: thread ?? null,
@@ -139,7 +141,7 @@ export function DocEditor({ node, thread }: { node: Node; thread?: string }) {
   const setPanels = (update: (panels: Panels) => Panels) => {
     const next = update(panels);
     // eslint-disable-next-line lingui/no-unlocalized-strings -- DocPanels keys
-    for (const key of ["pages", "outline"] as const) {
+    for (const key of ["pages"] as const) {
       if (next[key] === panels[key]) continue;
       if (isMobile) setMobilePanels((p) => ({ ...p, [key]: next[key] }));
       else setDocPanel(key, next[key]);
@@ -226,26 +228,12 @@ export function DocEditor({ node, thread }: { node: Node; thread?: string }) {
               <ListTree />
             </PanelToggle>
             <PanelToggle
-              label={t`Outline`}
-              // The outline and the comments share the right-hand side:
-              // showing the outline puts the comments away.
-              pressed={panels.outline && !panels.comments}
-              onPressedChange={(outline) =>
-                setPanels((p) =>
-                  outline
-                    ? { ...p, outline, comments: false, focusThreadId: null }
-                    : { ...p, outline },
-                )
-              }
-            >
-              <TableOfContents />
-            </PanelToggle>
-            <PanelToggle
               label={t`Comments`}
               pressed={panels.comments}
               onPressedChange={(comments) =>
                 setPanels((p) => ({ ...p, comments, focusThreadId: null }))
               }
+              toggleRef={setCommentsButton}
             >
               <MessageSquareText />
             </PanelToggle>
@@ -272,6 +260,7 @@ export function DocEditor({ node, thread }: { node: Node; thread?: string }) {
               treeRootId={ancestors[0]?.id ?? node.id}
               treeExpanded={ancestors.map((page) => page.id)}
               treeReady={!lineage.isPending}
+              commentsButton={commentsButton}
             />
           </TooltipProvider>
         ) : (
@@ -338,6 +327,7 @@ function DocSurface({
   treeRootId,
   treeExpanded,
   treeReady,
+  commentsButton,
 }: {
   node: Node;
   doc: Y.Doc;
@@ -355,7 +345,10 @@ function DocSurface({
   treeExpanded: string[];
   /** The open page's ancestors are known, so the tree can open on it. */
   treeReady: boolean;
+  /** The header's Comments button, which the global comments popover hangs from. */
+  commentsButton: HTMLElement | null;
 }) {
+  const [openThreadId, setOpenThreadId] = useState<string | null>(null);
   const { t, i18n } = useLingui();
   const me = useMe();
   const queryClient = useQueryClient();
@@ -466,65 +459,60 @@ function DocSurface({
           />
         </SidePanel>
       ) : null}
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-5xl px-4 pt-10 md:px-20">
-          <PageHeader
-            store={pageStore}
-            pageId={documentId}
-            editor={editor}
-            editable={editable}
-            adapter={adapter}
-          />
-        </div>
-        <div className="slash-content mx-auto w-full max-w-5xl px-4 pt-4 pb-10 md:px-20">
-          <EditorContent editor={editor} />
-          {editable ? (
-            <>
-              <SlashMenu editor={editor} />
-              <MentionMenu editor={editor} />
-              <EmojiMenu editor={editor} />
-              <BubbleToolbar editor={editor} />
-              <LinkEditorPopover editor={editor} />
-              <TableControls editor={editor} />
-              {/* The handle sits in a gutter left of the text that a narrow
+      <div className="relative min-h-0 flex-1">
+        <div ref={scrollRef} className="h-full overflow-y-auto">
+          <div className="mx-auto w-full max-w-5xl px-4 pt-10 md:px-20">
+            <PageHeader
+              store={pageStore}
+              pageId={documentId}
+              editor={editor}
+              editable={editable}
+              adapter={adapter}
+            />
+          </div>
+          <div className="slash-content relative mx-auto w-full max-w-5xl px-4 pt-4 pb-10 md:px-20">
+            <EditorContent editor={editor} />
+            {editable ? (
+              <>
+                <SlashMenu editor={editor} />
+                <MentionMenu editor={editor} />
+                <EmojiMenu editor={editor} />
+                <BubbleToolbar editor={editor} />
+                <LinkEditorPopover editor={editor} />
+                <TableControls editor={editor} />
+                {/* The handle sits in a gutter left of the text that a narrow
                   screen does not have; there, blocks move by cut and paste. */}
-              {isMobile ? null : <BlockHandle editor={editor} />}
-            </>
-          ) : null}
-          <CommentComposer
-            editor={editor}
-            store={commentStore}
-            onCreated={(threadId) =>
-              onPanelsChange((p) => ({ ...p, comments: true, focusThreadId: threadId }))
-            }
-          />
+                {isMobile ? null : <BlockHandle editor={editor} />}
+              </>
+            ) : null}
+            <CommentComposer editor={editor} store={commentStore} onCreated={setOpenThreadId} />
+            <BlockComments
+              editor={editor}
+              store={commentStore}
+              openThreadId={openThreadId}
+              onOpenThreadChange={setOpenThreadId}
+            />
+          </div>
+          <div className="mx-auto w-full max-w-5xl px-4 pb-10 md:px-20">
+            <PageBacklinks store={pageStore} pageId={documentId} onNavigate={onNavigate} />
+          </div>
         </div>
-        <div className="mx-auto w-full max-w-5xl px-4 pb-10 md:px-20">
-          <PageBacklinks store={pageStore} pageId={documentId} onNavigate={onNavigate} />
-        </div>
+        <OutlinePanel
+          editor={editor}
+          scrollRef={scrollRef}
+          className="absolute top-4 right-4 z-10"
+        />
       </div>
-      {/* The outline and the comments share the right-hand slot — same
-          panel, same width — so switching between them swaps the content
-          without moving the document. */}
-      {panels.outline && !panels.comments ? (
-        <SidePanel side="right">
-          <OutlinePanel
-            editor={editor}
-            scrollRef={scrollRef}
-            onClose={() => onPanelsChange((p) => ({ ...p, outline: false }))}
-          />
-        </SidePanel>
-      ) : null}
-      {panels.comments ? (
-        <SidePanel side="right">
-          <CommentsPanel
-            editor={editor}
-            store={commentStore}
-            focusThreadId={panels.focusThreadId}
-            onClose={() => onPanelsChange((p) => ({ ...p, comments: false, focusThreadId: null }))}
-          />
-        </SidePanel>
-      ) : null}
+      <CommentsPopover
+        editor={editor}
+        store={commentStore}
+        open={panels.comments}
+        onOpenChange={(comments) =>
+          onPanelsChange((p) => ({ ...p, comments, focusThreadId: null }))
+        }
+        anchor={commentsButton}
+        focusThreadId={panels.focusThreadId}
+      />
     </>
   );
 }
@@ -558,23 +546,31 @@ function SidePanel({ side, children }: { side: "left" | "right"; children: React
   );
 }
 
-/** A header button that shows or hides one of the side panels. */
+/** A header button that shows or hides one of the side panels or floating views. */
 function PanelToggle({
   label,
   pressed,
   onPressedChange,
+  toggleRef,
   children,
 }: {
   label: string;
   pressed: boolean;
   onPressedChange: (pressed: boolean) => void;
+  /** The button's element, for a view that hangs from it. */
+  toggleRef?: (el: HTMLButtonElement | null) => void;
   children: ReactNode;
 }) {
   return (
     <Tooltip>
       <TooltipTrigger
         render={
-          <Toggle aria-label={label} pressed={pressed} onPressedChange={onPressedChange}>
+          <Toggle
+            ref={toggleRef}
+            aria-label={label}
+            pressed={pressed}
+            onPressedChange={onPressedChange}
+          >
             {children}
           </Toggle>
         }

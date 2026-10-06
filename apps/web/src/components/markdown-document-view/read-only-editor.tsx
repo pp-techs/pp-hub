@@ -108,7 +108,7 @@ export default function ReadOnlyEditor({
 
   return (
     <TooltipProvider>
-      <div className="flex gap-6">
+      <div className="flex gap-2">
         <div className={cn("slash-content min-w-0 flex-1", DOCUMENT_COLUMN, className)}>
           {lossy ? (
             <p className="text-muted-foreground mb-4 flex items-center gap-1.5 text-xs">
@@ -120,14 +120,13 @@ export default function ReadOnlyEditor({
           ) : null}
           <EditorContent editor={editor} />
         </div>
-        {/* In the right margin, as in the editor: sized to its headings and
-            held in view while the text scrolls. */}
+        {/* In the right margin, as in the editor: the dashes held in view
+            while the text scrolls. */}
         {outlineScrollRef ? (
           <OutlinePanel
             editor={editor}
             scrollRef={outlineScrollRef}
-            hideWhenEmpty
-            className="sticky top-4 hidden h-auto max-h-[calc(100svh-8rem)] w-64 self-start rounded-md border lg:flex"
+            className="sticky top-4 hidden self-start lg:block"
           />
         ) : null}
       </div>

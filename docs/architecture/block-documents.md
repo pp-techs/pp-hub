@@ -500,8 +500,9 @@ document looks the same read as edited. Its callers are the preview panel for
 markdown, the version preview modal (`version-preview-modal.tsx`, with a
 **Restore** action), and the share page. The read-only kit enables
 `tableOfContents`; a caller that hands it a scroll container — the share page
-does, for a link's rendered document — also gets `OutlinePanel` in the text's
-right margin, following that scroll and hidden below `lg` where there is no room.
+does, for a link's rendered document — also gets `OutlinePanel` (the same
+dash table of contents) in the text's right margin, following that scroll and
+hidden below `lg` where there is no room.
 
 **Through a link**, `/s/{token}/document?node=<id>` and
 `/s/{token}/attachments/{hash}?node=<id>` answer the same tree and bytes on the
@@ -683,9 +684,15 @@ streams is that process's.
 
 On the web, `lib/comments.ts` is the thread store over REST — polled every
 10 s while the document is open and refetched on focus and after a mutation —
-and `components/comments/` the panel and composer (with @mention of space
-members), both mounted by `doc-editor.tsx`: the composer comments the current
-selection, and the panel toggles from the editor header. `/edit/<id>?thread=`
+and `components/comments/` the comment views and composer (with @mention of
+space members), both mounted by `doc-editor.tsx`: the composer comments the
+current selection; every block with an open thread gets a comment button at
+its right showing the comment count, which floats that block's threads, and
+hovering any other text block (in an editable document) shows an add-comment
+button there that comments the whole block (`block-comments.tsx`); and the
+editor header's Comments button floats every thread of the document, resolved
+and detached ones too (`comments-popover.tsx`) — there is no comments panel.
+A thread just created opens on its block. `/edit/<id>?thread=`
 opens the document on a thread, which is where a notification leads.
 
 Notifications themselves — the bell, the list, the SSE stream — are described
@@ -708,19 +715,16 @@ in [M29](milestones/M29.md) and [data-model.md](data-model.md#comments-and-notif
   and derived from the display name (`lib/collab/presence.ts`).
 - Editing aids (M40): table controls (add or delete a row or column, toggle
   the header row, delete the table — `components/table-controls.tsx`); an
-  outline panel of the top-level `h1`–`h3` headings from slash-editor's
-  `tableOfContents` extension (`useTableOfContents`, `maxLevel: 3`), whose
-  active row follows the caret while typing and the scroll position otherwise,
-  click to jump, toggled from the editor header (`doc-editor/outline-panel.tsx`).
-  It takes turns with the comments panel in the right-hand slot, in the same
-  frame (width, header, rule), so switching swaps the content without moving
-  the document; showing the outline closes the comments and opening the
-  comments puts the outline away. Below `md` either lies over the document's
-  edge. Whether the page tree (open by
-  default) and the outline are open is a per-browser preference in
-  `ui-store` (`docPanels`, persisted), so moving between pages — each remounts
-  the editor — and reloading keep the layout; below `md` both start closed
-  per page because they would cover the text;
+  Notion-style outline of the top-level `h1`–`h3` headings from slash-editor's
+  `tableOfContents` extension (`useTableOfContents`, `maxLevel: 3`): a column
+  of dashes floating at the editor's top-right, one per heading, that opens
+  into a card of titles on hover or focus; the active entry follows the caret
+  while typing and the scroll position otherwise, click to jump. It is always
+  shown once the document has headings (`doc-editor/outline-panel.tsx`), so it
+  has no header toggle. Whether the page tree (open by default) is open is a
+  per-browser preference in `ui-store` (`docPanels`, persisted), so moving
+  between pages — each remounts the editor — and reloading keep the layout;
+  below `md` it starts closed per page because it would cover the text;
   `@` mentions of space members (`lib/collab/mentions.ts`,
   `nodes/mention-node-view.tsx`; pages join the `@` menu as page links since
   M43); a video node view and an embed node view

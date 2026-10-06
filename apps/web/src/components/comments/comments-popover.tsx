@@ -12,7 +12,6 @@ import {
   RotateCcw,
   Trash2,
   Unlink,
-  X,
 } from "lucide-react";
 import { Badge } from "@workspace/ui/components/badge";
 import { Button } from "@workspace/ui/components/button";
@@ -23,6 +22,7 @@ import {
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
 import { Label } from "@workspace/ui/components/label";
+import { Popover, PopoverContent } from "@workspace/ui/components/popover";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { Switch } from "@workspace/ui/components/switch";
 import { cn } from "@workspace/ui/lib/utils";
@@ -37,9 +37,11 @@ import { CommentInput } from "@/components/comments/comment-input";
 import { SocialAvatar } from "@/components/comments/social-avatar";
 
 /** Where a thread's `comment` mark sits in the document, and the text it covers. */
-interface ThreadAnchor {
+export interface ThreadAnchor {
   from: number;
   to: number;
+  /** Position before the text block the mark starts in. */
+  block: number;
   text: string;
 }
 
@@ -64,13 +66,19 @@ function collectAnchors(doc: PmNode): Map<string, ThreadAnchor> {
   });
   const anchors = new Map<string, ThreadAnchor>();
   for (const [id, { from, to }] of spans) {
-    anchors.set(id, { from, to, text: doc.textBetween(from, to, " ") });
+    const $from = doc.resolve(from);
+    anchors.set(id, {
+      from,
+      to,
+      block: $from.depth > 0 ? $from.before() : from,
+      text: doc.textBetween(from, to, " "),
+    });
   }
   return anchors;
 }
 
 /** The anchors of the live document, recomputed on every change (local or remote). */
-function useThreadAnchors(editor: Editor): Map<string, ThreadAnchor> {
+export function useThreadAnchors(editor: Editor): Map<string, ThreadAnchor> {
   const [anchors, setAnchors] = useState(() => collectAnchors(editor.state.doc));
   useEffect(() => {
     const update = () => setAnchors(collectAnchors(editor.state.doc));
@@ -86,31 +94,121 @@ function useThreadAnchors(editor: Editor): Map<string, ThreadAnchor> {
 }
 
 /**
- * The threads of the open document beside the editor. Threads whose mark is
- * in the document are listed in document order; clicking one selects its
- * text. Threads whose text was deleted are "detached" and listed after.
- * Resolved threads are hidden unless asked for.
- *
- * `focusThreadId` (the `?thread=` deep link from a notification) selects that
- * thread once its data has loaded, showing resolved threads if it is one.
+ * What a thread card needs from the editor and the document's people, shared
+ * by the global comments popover and the per-block ones: the anchors, the
+ * text selection a card jumps to, and the props every `ThreadCard` takes.
  */
-export function CommentsPanel({
-  editor,
-  store,
-  focusThreadId,
-  onClose,
-}: {
-  editor: Editor;
-  store: PpCommentStore;
-  focusThreadId?: string | null;
-  onClose: () => void;
-}) {
-  const { t } = useLingui();
-  const threads = useQuery(commentsOptions(store.nodeId));
+export function useThreadCards(editor: Editor, store: PpCommentStore) {
   const node = useNode(store.nodeId);
   const me = useMe();
   const members = useNodePeople(store.nodeId);
   const anchors = useThreadAnchors(editor);
+  const canModerate = capsOf(node.data).edit;
+
+  const selectText = (threadId: string, focus: boolean) => {
+    const anchor = anchors.get(threadId);
+    if (!anchor) return;
+    const chain = editor.chain();
+    if (focus) chain.focus();
+    chain.setTextSelection({ from: anchor.from, to: anchor.to }).scrollIntoView().run();
+  };
+
+  /** A deleted thread's mark goes with it, when this viewer may write the document. */
+  const dropAnchor = (threadId: string) => {
+    if (!editor.isEditable) return;
+    editor
+      .chain()
+      .command(({ tr, state }) => {
+        const type = state.schema.marks.comment;
+        if (!type) return false;
+        tr.removeMark(0, state.doc.content.size, type.create({ threadId }));
+        return true;
+      })
+      .run();
+  };
+
+  const cardProps = (thread: DocCommentThread) => ({
+    thread,
+    anchor: anchors.get(thread.id),
+    meId: me.data?.id,
+    canModerate,
+    store,
+    members: members.data,
+    onThreadDeleted: () => dropAnchor(thread.id),
+  });
+
+  return { anchors, selectText, cardProps };
+}
+
+/**
+ * Every thread of the open document, floating from the header's Comments
+ * button. Threads whose mark is in the document are listed in document
+ * order; clicking one selects its text. Threads whose text was deleted are
+ * "detached" and listed after. Resolved threads are hidden unless asked for.
+ *
+ * `focusThreadId` (the `?thread=` deep link from a notification) selects that
+ * thread once its data has loaded, showing resolved threads if it is one.
+ */
+export function CommentsPopover({
+  editor,
+  store,
+  open,
+  onOpenChange,
+  anchor,
+  focusThreadId,
+}: {
+  editor: Editor;
+  store: PpCommentStore;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** The header button the popover hangs from. */
+  anchor: HTMLElement | null;
+  focusThreadId?: string | null;
+}) {
+  const { t } = useLingui();
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(next, details) => {
+        // The header button opens and closes this itself; pressing it is an
+        // outside press here, and closing on it would let its own click reopen.
+        if (
+          !next &&
+          details.reason === "outside-press" &&
+          details.event.target instanceof Node &&
+          anchor?.contains(details.event.target)
+        ) {
+          return;
+        }
+        onOpenChange(next);
+      }}
+    >
+      <PopoverContent
+        anchor={anchor}
+        align="end"
+        side="bottom"
+        sideOffset={8}
+        aria-label={t`Comments`}
+        className="max-h-[min(80svh,40rem)] w-96 max-w-[calc(100vw-1rem)] gap-0 p-0"
+      >
+        <CommentsList editor={editor} store={store} focusThreadId={focusThreadId} />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function CommentsList({
+  editor,
+  store,
+  focusThreadId,
+}: {
+  editor: Editor;
+  store: PpCommentStore;
+  focusThreadId?: string | null;
+}) {
+  const { t } = useLingui();
+  const threads = useQuery(commentsOptions(store.nodeId));
+  const { anchors, selectText, cardProps } = useThreadCards(editor, store);
   const activeIds = useSyncExternalStore(
     (listener) => editor.storage.comment.subscribe(listener),
     () => editor.storage.comment.state.activeThreadIds,
@@ -121,22 +219,12 @@ export function CommentsPanel({
   const cards = useRef(new Map<string, HTMLElement>());
   const handledFocus = useRef<string | null>(null);
 
-  const canModerate = capsOf(node.data).edit;
-
   // The caret entering a thread's text selects that thread here too — unless
   // the selected one is among those under the caret (overlapping threads).
   useEffect(() => {
     const first = activeIds[0];
     if (first && !activeIds.includes(selectedId ?? "")) setSelectedId(first);
   }, [activeIds, selectedId]);
-
-  const selectText = (threadId: string, focus: boolean) => {
-    const anchor = anchors.get(threadId);
-    if (!anchor) return;
-    const chain = editor.chain();
-    if (focus) chain.focus();
-    chain.setTextSelection({ from: anchor.from, to: anchor.to }).scrollIntoView().run();
-  };
 
   const select = (threadId: string) => {
     setSelectedId(threadId);
@@ -177,20 +265,6 @@ export function CommentsPanel({
     };
   }, [threads.data, anchors, showResolved]);
 
-  /** A deleted thread's mark goes with it, when this viewer may write the document. */
-  const dropAnchor = (threadId: string) => {
-    if (!editor.isEditable) return;
-    editor
-      .chain()
-      .command(({ tr, state }) => {
-        const type = state.schema.marks.comment;
-        if (!type) return false;
-        tr.removeMark(0, state.doc.content.size, type.create({ threadId }));
-        return true;
-      })
-      .run();
-  };
-
   const renderCard = (thread: DocCommentThread) => (
     <ThreadCard
       key={thread.id}
@@ -198,38 +272,24 @@ export function CommentsPanel({
         if (el) cards.current.set(thread.id, el);
         else cards.current.delete(thread.id);
       }}
-      thread={thread}
-      anchor={anchors.get(thread.id)}
+      {...cardProps(thread)}
       selected={thread.id === selectedId}
       onSelect={() => select(thread.id)}
-      meId={me.data?.id}
-      canModerate={canModerate}
-      store={store}
-      members={members.data}
-      onThreadDeleted={() => dropAnchor(thread.id)}
     />
   );
 
   const empty = anchored.length === 0 && detached.length === 0;
 
   return (
-    <aside
-      aria-label={t`Comments`}
-      className="border-border bg-background flex h-full w-80 shrink-0 flex-col border-l"
-    >
+    <>
       <div className="border-border flex h-10 shrink-0 items-center gap-2 border-b px-3">
         <span className="text-sm font-medium">
           <Trans>Comments</Trans>
         </span>
-        <div className="ml-auto flex items-center gap-1.5">
-          <Label className="text-muted-foreground flex items-center gap-1.5 text-[11px] font-normal">
-            <Switch size="sm" checked={showResolved} onCheckedChange={setShowResolved} />
-            <Trans>Resolved ({resolvedCount})</Trans>
-          </Label>
-          <Button variant="ghost" size="icon-sm" aria-label={t`Close comments`} onClick={onClose}>
-            <X />
-          </Button>
-        </div>
+        <Label className="text-muted-foreground ml-auto flex items-center gap-1.5 text-[11px] font-normal">
+          <Switch size="sm" checked={showResolved} onCheckedChange={setShowResolved} />
+          <Trans>Resolved ({resolvedCount})</Trans>
+        </Label>
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2">
@@ -267,11 +327,11 @@ export function CommentsPanel({
           </>
         )}
       </div>
-    </aside>
+    </>
   );
 }
 
-function ThreadCard({
+export function ThreadCard({
   ref,
   thread,
   anchor,
@@ -283,7 +343,7 @@ function ThreadCard({
   members,
   onThreadDeleted,
 }: {
-  ref: (el: HTMLElement | null) => void;
+  ref?: (el: HTMLElement | null) => void;
   thread: DocCommentThread;
   anchor: ThreadAnchor | undefined;
   selected: boolean;

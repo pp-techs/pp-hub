@@ -17,7 +17,6 @@ interface DirEntry {
 export interface DocPanels {
   /** The page tree. */
   pages: boolean;
-  outline: boolean;
 }
 
 interface UiState {
@@ -78,7 +77,7 @@ interface UiState {
    * Which of the block editor's side panels are open on a wide screen. Kept
    * here, and persisted, so moving from page to page (each page remounts its
    * editor) or reloading keeps the layout the reader chose. The page tree
-   * starts open; the outline starts closed.
+   * starts open.
    */
   docPanels: DocPanels;
   setDocPanel: (panel: keyof DocPanels, open: boolean) => void;
@@ -121,7 +120,7 @@ export const useUiStore = create<UiState>()(
       toggleDetails: () => set((s) => ({ detailsOpen: !s.detailsOpen })),
       draggingNodes: null,
       setDraggingNodes: (val) => set({ draggingNodes: val }),
-      docPanels: { pages: true, outline: false },
+      docPanels: { pages: true },
       setDocPanel: (panel, open) => set((s) => ({ docPanels: { ...s.docPanels, [panel]: open } })),
     }),
     {

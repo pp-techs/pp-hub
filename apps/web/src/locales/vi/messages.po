@@ -25,7 +25,7 @@ msgstr "Đã sao chép “{nodeName}” — dán vào thư mục khác"
 msgid "“{nodeName}” cut — paste it in another folder"
 msgstr "Đã cắt “{nodeName}” — dán vào thư mục khác"
 
-#: src/components/comments/comments-panel.tsx:513
+#: src/components/comments/comments-popover.tsx:573
 msgid "(edited)"
 msgstr "(đã sửa)"
 
@@ -553,6 +553,10 @@ msgstr "Thêm"
 #~ msgid "Add {name} to a group"
 #~ msgstr "Thêm {name} vào một nhóm"
 
+#: src/components/comments/block-comments.tsx:139
+msgid "Add a comment"
+msgstr ""
+
 #: src/components/comments/comment-composer.tsx:89
 msgid "Add a comment… (@ to mention)"
 msgstr "Thêm bình luận… (@ để nhắc đến)"
@@ -730,7 +734,7 @@ msgstr "Quản trị viên chưa bật quyền truy cập cho tác tử."
 msgid "An administrator has turned personal tokens off."
 msgstr "Quản trị viên đã tắt mã truy cập cá nhân."
 
-#: src/components/doc-editor/doc-editor.tsx:364
+#: src/components/doc-editor/doc-editor.tsx:358
 msgid "Anonymous"
 msgstr "Ẩn danh"
 
@@ -859,8 +863,8 @@ msgid "Can view + download"
 msgstr "Có thể xem + tải xuống"
 
 #: src/components/comments/comment-composer.tsx:94
-#: src/components/comments/comments-panel.tsx:421
-#: src/components/comments/comments-panel.tsx:559
+#: src/components/comments/comments-popover.tsx:481
+#: src/components/comments/comments-popover.tsx:619
 #: src/components/confirm-dialog.tsx:71
 #: src/components/doc-editor/lossy-edit-modal.tsx:39
 #: src/components/group-list.tsx:394
@@ -953,16 +957,16 @@ msgid "Close"
 msgstr "Đóng"
 
 #: src/components/comments/comments-panel.tsx:229
-msgid "Close comments"
-msgstr "Đóng bình luận"
+#~ msgid "Close comments"
+#~ msgstr "Đóng bình luận"
 
 #: src/components/preview-panel.tsx:113
 msgid "Close details"
 msgstr "Đóng chi tiết"
 
 #: src/components/doc-editor/outline-panel.tsx:57
-msgid "Close outline"
-msgstr "Đóng mục lục"
+#~ msgid "Close outline"
+#~ msgstr "Đóng mục lục"
 
 #: src/components/doc-editor/page-tree-panel.tsx:97
 msgid "Close pages"
@@ -1028,7 +1032,7 @@ msgstr "Cột"
 msgid "Comment"
 msgstr "Bình luận"
 
-#: src/components/comments/comments-panel.tsx:523
+#: src/components/comments/comments-popover.tsx:583
 msgid "Comment actions"
 msgstr "Thao tác bình luận"
 
@@ -1036,13 +1040,14 @@ msgstr "Thao tác bình luận"
 msgid "Comment on the selected text"
 msgstr "Bình luận về đoạn văn đã chọn"
 
-#: src/components/comments/comments-panel.tsx:350
+#: src/components/comments/comments-popover.tsx:410
 msgid "Comment thread"
 msgstr "Chuỗi bình luận"
 
-#: src/components/comments/comments-panel.tsx:217
-#: src/components/comments/comments-panel.tsx:222
-#: src/components/doc-editor/doc-editor.tsx:243
+#: src/components/comments/block-comments.tsx:201
+#: src/components/comments/comments-popover.tsx:191
+#: src/components/comments/comments-popover.tsx:287
+#: src/components/doc-editor/doc-editor.tsx:231
 msgid "Comments"
 msgstr "Bình luận"
 
@@ -1191,7 +1196,7 @@ msgstr "Không thể xoá"
 msgid "Could not delete “{name}”"
 msgstr "Không thể xoá “{name}”"
 
-#: src/components/comments/comments-panel.tsx:343
+#: src/components/comments/comments-popover.tsx:403
 msgid "Could not delete the comment"
 msgstr "Không thể xóa bình luận"
 
@@ -1223,7 +1228,7 @@ msgstr "Không thể di chuyển “{nodeName}”"
 msgid "Could not move the sub-page to the trash"
 msgstr "Không thể chuyển trang con vào thùng rác"
 
-#: src/components/doc-editor/doc-editor.tsx:302
+#: src/components/doc-editor/doc-editor.tsx:292
 msgid "Could not open the document"
 msgstr "Không thể mở tài liệu"
 
@@ -1243,11 +1248,11 @@ msgstr "Không thể xóa ảnh đại diện không gian"
 msgid "Could not rename the page"
 msgstr "Không thể đổi tên trang"
 
-#: src/components/comments/comments-panel.tsx:334
+#: src/components/comments/comments-popover.tsx:394
 msgid "Could not reopen the thread"
 msgstr "Không thể mở lại chuỗi bình luận"
 
-#: src/components/comments/comments-panel.tsx:334
+#: src/components/comments/comments-popover.tsx:394
 msgid "Could not resolve the thread"
 msgstr "Không thể đánh dấu đã giải quyết"
 
@@ -1274,7 +1279,7 @@ msgstr "Không thể thu hồi mã đó"
 msgid "Could not save"
 msgstr "Không thể lưu"
 
-#: src/components/comments/comments-panel.tsx:490
+#: src/components/comments/comments-popover.tsx:550
 msgid "Could not save the comment"
 msgstr "Không thể lưu bình luận"
 
@@ -1286,7 +1291,7 @@ msgstr "Không thể lưu cài đặt tác tử."
 msgid "Could not save your notification setting."
 msgstr "Không thể lưu cài đặt thông báo của bạn."
 
-#: src/components/comments/comments-panel.tsx:323
+#: src/components/comments/comments-popover.tsx:383
 msgid "Could not send the reply"
 msgstr "Không thể gửi trả lời"
 
@@ -1460,8 +1465,8 @@ msgid "Default space quota"
 msgstr "Hạn mức không gian mặc định"
 
 #: src/components/block-handle.tsx:253
-#: src/components/comments/comments-panel.tsx:450
-#: src/components/comments/comments-panel.tsx:540
+#: src/components/comments/comments-popover.tsx:510
+#: src/components/comments/comments-popover.tsx:600
 #: src/components/selection-bar.tsx:88
 msgid "Delete"
 msgstr "Xoá"
@@ -1503,7 +1508,7 @@ msgstr "Xoá không gian"
 msgid "Delete table"
 msgstr "Xóa bảng"
 
-#: src/components/comments/comments-panel.tsx:444
+#: src/components/comments/comments-popover.tsx:504
 msgid "Delete this comment?"
 msgstr "Xóa bình luận này?"
 
@@ -1546,11 +1551,11 @@ msgstr "Giảm dần"
 msgid "Description"
 msgstr "Mô tả"
 
-#: src/components/comments/comments-panel.tsx:371
+#: src/components/comments/comments-popover.tsx:431
 msgid "Detached"
 msgstr "Đã tách rời"
 
-#: src/components/comments/comments-panel.tsx:262
+#: src/components/comments/comments-popover.tsx:322
 msgid "Detached — the commented text was removed"
 msgstr "Đã tách rời — đoạn văn được bình luận đã bị xóa"
 
@@ -1682,8 +1687,8 @@ msgstr "Mỗi dòng là một phiên đang hoạt động. Đăng xuất một p
 msgid "edit"
 msgstr "chỉnh sửa"
 
-#: src/components/comments/comments-panel.tsx:534
-#: src/components/doc-editor/doc-editor.tsx:215
+#: src/components/comments/comments-popover.tsx:594
+#: src/components/doc-editor/doc-editor.tsx:218
 #: src/components/node-actions.tsx:140
 msgid "Edit"
 msgstr "Chỉnh sửa"
@@ -2190,8 +2195,8 @@ msgid "Heading 3"
 msgstr "Tiêu đề 3"
 
 #: src/components/doc-editor/outline-panel.tsx:65
-msgid "Headings you add appear here."
-msgstr "Các tiêu đề bạn thêm sẽ hiện ở đây."
+#~ msgid "Headings you add appear here."
+#~ msgstr "Các tiêu đề bạn thêm sẽ hiện ở đây."
 
 #: src/components/doc-editor/labels.ts:32
 msgid "Highlighted aside"
@@ -2339,7 +2344,7 @@ msgstr "IP"
 msgid "It is now the current version."
 msgstr "Đây hiện là phiên bản hiện tại."
 
-#: src/components/comments/comments-panel.tsx:447
+#: src/components/comments/comments-popover.tsx:507
 msgid "It is the only comment in its thread, so the thread is deleted too."
 msgstr "Đây là bình luận duy nhất trong chuỗi, nên chuỗi bình luận cũng sẽ bị xóa."
 
@@ -2877,11 +2882,11 @@ msgstr "Không có không gian cá nhân nào đã lưu trữ."
 msgid "No blocks match “{query}”."
 msgstr "Không có khối nào khớp với “{query}”."
 
-#: src/components/comments/comments-panel.tsx:252
+#: src/components/comments/comments-popover.tsx:312
 msgid "No comments yet."
 msgstr "Chưa có bình luận nào."
 
-#: src/components/comments/comments-panel.tsx:250
+#: src/components/comments/comments-popover.tsx:310
 msgid "No comments yet. Select some text and choose Comment to start a thread."
 msgstr "Chưa có bình luận nào. Chọn một đoạn văn rồi chọn Bình luận để bắt đầu."
 
@@ -2934,7 +2939,7 @@ msgstr "Chưa có thông báo nào."
 msgid "No one matches these filters."
 msgstr "Không có ai khớp với các bộ lọc này."
 
-#: src/components/comments/comments-panel.tsx:248
+#: src/components/comments/comments-popover.tsx:308
 msgid "No open comments."
 msgstr "Không có bình luận đang mở."
 
@@ -3077,7 +3082,7 @@ msgstr "Muốn cấp không gian cá nhân cho mọi người thì hạn mức p
 msgid "Office"
 msgstr "Office"
 
-#: src/components/doc-editor/doc-editor.tsx:609
+#: src/components/doc-editor/doc-editor.tsx:605
 msgid "Offline"
 msgstr "Ngoại tuyến"
 
@@ -3168,9 +3173,7 @@ msgstr "Thư gửi đi (SMTP)"
 msgid "Outgoing mail settings reset"
 msgstr "Đã đặt lại cài đặt thư gửi đi"
 
-#: src/components/doc-editor/doc-editor.tsx:228
-#: src/components/doc-editor/outline-panel.tsx:51
-#: src/components/doc-editor/outline-panel.tsx:54
+#: src/components/doc-editor/outline-panel.tsx:48
 msgid "Outline"
 msgstr "Mục lục"
 
@@ -3203,7 +3206,7 @@ msgstr "Không tìm thấy trang."
 msgid "Page title"
 msgstr "Tiêu đề trang"
 
-#: src/components/doc-editor/doc-editor.tsx:221
+#: src/components/doc-editor/doc-editor.tsx:224
 #: src/components/doc-editor/labels.ts:58
 #: src/components/doc-editor/page-tree-panel.tsx:84
 #: src/components/doc-editor/page-tree-panel.tsx:89
@@ -3423,7 +3426,7 @@ msgstr "chia sẻ lại"
 msgid "read-only"
 msgstr "chỉ đọc"
 
-#: src/components/doc-editor/doc-editor.tsx:209
+#: src/components/doc-editor/doc-editor.tsx:212
 msgid "Read-only"
 msgstr "Chỉ đọc"
 
@@ -3542,8 +3545,8 @@ msgstr "Đổi tên"
 msgid "Renamed to “{restored}” — the old name was taken."
 msgstr "Đã đổi tên thành “{restored}” — tên cũ đã được sử dụng."
 
-#: src/components/comments/comments-panel.tsx:385
-#: src/components/comments/comments-panel.tsx:386
+#: src/components/comments/comments-popover.tsx:445
+#: src/components/comments/comments-popover.tsx:446
 msgid "Reopen thread"
 msgstr "Mở lại chuỗi bình luận"
 
@@ -3555,12 +3558,12 @@ msgstr "Đăng nhập thất bại nhiều lần"
 msgid "Replace"
 msgstr "Thay thế"
 
-#: src/components/comments/comments-panel.tsx:424
-#: src/components/comments/comments-panel.tsx:435
+#: src/components/comments/comments-popover.tsx:484
+#: src/components/comments/comments-popover.tsx:495
 msgid "Reply"
 msgstr "Trả lời"
 
-#: src/components/comments/comments-panel.tsx:415
+#: src/components/comments/comments-popover.tsx:475
 msgid "Reply… (@ to mention)"
 msgstr "Trả lời… (@ để nhắc đến)"
 
@@ -3583,16 +3586,16 @@ msgstr "Đặt lại"
 msgid "Resize image"
 msgstr "Đổi kích thước hình ảnh"
 
-#: src/components/comments/comments-panel.tsx:385
-#: src/components/comments/comments-panel.tsx:386
+#: src/components/comments/comments-popover.tsx:445
+#: src/components/comments/comments-popover.tsx:446
 msgid "Resolve thread"
 msgstr "Đánh dấu đã giải quyết"
 
-#: src/components/comments/comments-panel.tsx:377
+#: src/components/comments/comments-popover.tsx:437
 msgid "Resolved"
 msgstr "Đã giải quyết"
 
-#: src/components/comments/comments-panel.tsx:227
+#: src/components/comments/comments-popover.tsx:291
 msgid "Resolved ({resolvedCount})"
 msgstr "Đã giải quyết ({resolvedCount})"
 
@@ -3668,7 +3671,7 @@ msgstr "Hàng"
 msgid "Rows and columns of cells"
 msgstr "Các hàng và cột ô"
 
-#: src/components/comments/comments-panel.tsx:562
+#: src/components/comments/comments-popover.tsx:622
 #: src/routes/drive/$spaceId/index.tsx:708
 msgid "Save"
 msgstr "Lưu"
@@ -3680,7 +3683,7 @@ msgstr "Lưu"
 msgid "Save changes"
 msgstr "Lưu thay đổi"
 
-#: src/components/doc-editor/doc-editor.tsx:599
+#: src/components/doc-editor/doc-editor.tsx:595
 msgid "Saved"
 msgstr "Đã lưu"
 
@@ -3932,7 +3935,11 @@ msgstr "Không được phép chia sẻ ra ngoài không gian này."
 msgid "Show all events for this item"
 msgstr "Hiện mọi sự kiện của mục này"
 
-#: src/components/comments/comments-panel.tsx:435
+#: src/components/comments/block-comments.tsx:188
+msgid "Show comments on this block"
+msgstr ""
+
+#: src/components/comments/comments-popover.tsx:495
 msgid "Show in document"
 msgstr "Hiện trong tài liệu"
 
@@ -4179,7 +4186,7 @@ msgstr "Đã tạm khoá"
 msgid "Switch space"
 msgstr "Chuyển không gian"
 
-#: src/components/doc-editor/doc-editor.tsx:604
+#: src/components/doc-editor/doc-editor.tsx:600
 msgid "Syncing…"
 msgstr "Đang đồng bộ…"
 
@@ -4225,7 +4232,7 @@ msgstr "Đã gửi email thử nghiệm tới {to}"
 msgid "Text"
 msgstr "Văn bản"
 
-#: src/components/comments/comments-panel.tsx:151
+#: src/components/comments/comments-popover.tsx:239
 msgid "That comment thread no longer exists."
 msgstr "Chuỗi bình luận đó không còn tồn tại."
 
@@ -4263,11 +4270,11 @@ msgstr "Tổ chức đã được tạo; các thành viên đang được thêm 
 msgid "the public link"
 msgstr "liên kết công khai"
 
-#: src/components/comments/comments-panel.tsx:448
+#: src/components/comments/comments-popover.tsx:508
 msgid "The rest of the thread stays."
 msgstr "Phần còn lại của chuỗi bình luận vẫn được giữ."
 
-#: src/components/doc-editor/doc-editor.tsx:307
+#: src/components/doc-editor/doc-editor.tsx:297
 #: src/components/markdown-document-view/index.tsx:207
 msgid "The server did not answer."
 msgstr "Máy chủ không phản hồi."
@@ -4348,7 +4355,7 @@ msgstr "Thiết bị này luôn ở trạng thái đăng nhập."
 msgid "This document cannot be shown"
 msgstr "Không thể hiển thị tài liệu này"
 
-#: src/components/doc-editor/doc-editor.tsx:285
+#: src/components/doc-editor/doc-editor.tsx:275
 msgid "This document is not available"
 msgstr "Tài liệu này không khả dụng"
 
@@ -4522,7 +4529,7 @@ msgstr "Thời gian giữ trong thùng rác (ngày)"
 msgid "Try a different search."
 msgstr "Hãy thử tìm kiếm khác."
 
-#: src/components/doc-editor/doc-editor.tsx:313
+#: src/components/doc-editor/doc-editor.tsx:303
 msgid "Try again"
 msgstr "Thử lại"
 
@@ -4583,7 +4590,7 @@ msgstr "Tài liệu không tên"
 msgid "Untitled file"
 msgstr "Tệp không tên"
 
-#: src/components/doc-editor/outline-panel.tsx:83
+#: src/components/doc-editor/outline-panel.tsx:78
 msgid "Untitled heading"
 msgstr "Tiêu đề chưa đặt tên"
 
@@ -4916,7 +4923,7 @@ msgstr "Bạn đã tải lên"
 msgid "Your access"
 msgstr "Quyền của bạn"
 
-#: src/components/doc-editor/doc-editor.tsx:288
+#: src/components/doc-editor/doc-editor.tsx:278
 msgid "Your access may have been removed, or the file is no longer a markdown document."
 msgstr "Có thể quyền truy cập của bạn đã bị gỡ, hoặc tệp không còn là tài liệu markdown."
 

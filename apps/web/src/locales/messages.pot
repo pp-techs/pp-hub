@@ -25,7 +25,7 @@ msgstr ""
 msgid "“{nodeName}” cut — paste it in another folder"
 msgstr ""
 
-#: src/components/comments/comments-panel.tsx:513
+#: src/components/comments/comments-popover.tsx:573
 msgid "(edited)"
 msgstr ""
 
@@ -541,6 +541,10 @@ msgstr ""
 msgid "Add"
 msgstr ""
 
+#: src/components/comments/block-comments.tsx:139
+msgid "Add a comment"
+msgstr ""
+
 #: src/components/comments/comment-composer.tsx:89
 msgid "Add a comment… (@ to mention)"
 msgstr ""
@@ -710,7 +714,7 @@ msgstr ""
 msgid "An administrator has turned personal tokens off."
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:364
+#: src/components/doc-editor/doc-editor.tsx:358
 msgid "Anonymous"
 msgstr ""
 
@@ -839,8 +843,8 @@ msgid "Can view + download"
 msgstr ""
 
 #: src/components/comments/comment-composer.tsx:94
-#: src/components/comments/comments-panel.tsx:421
-#: src/components/comments/comments-panel.tsx:559
+#: src/components/comments/comments-popover.tsx:481
+#: src/components/comments/comments-popover.tsx:619
 #: src/components/confirm-dialog.tsx:71
 #: src/components/doc-editor/lossy-edit-modal.tsx:39
 #: src/components/group-list.tsx:394
@@ -932,16 +936,8 @@ msgstr ""
 msgid "Close"
 msgstr ""
 
-#: src/components/comments/comments-panel.tsx:229
-msgid "Close comments"
-msgstr ""
-
 #: src/components/preview-panel.tsx:113
 msgid "Close details"
-msgstr ""
-
-#: src/components/doc-editor/outline-panel.tsx:57
-msgid "Close outline"
 msgstr ""
 
 #: src/components/doc-editor/page-tree-panel.tsx:97
@@ -1008,7 +1004,7 @@ msgstr ""
 msgid "Comment"
 msgstr ""
 
-#: src/components/comments/comments-panel.tsx:523
+#: src/components/comments/comments-popover.tsx:583
 msgid "Comment actions"
 msgstr ""
 
@@ -1016,13 +1012,14 @@ msgstr ""
 msgid "Comment on the selected text"
 msgstr ""
 
-#: src/components/comments/comments-panel.tsx:350
+#: src/components/comments/comments-popover.tsx:410
 msgid "Comment thread"
 msgstr ""
 
-#: src/components/comments/comments-panel.tsx:217
-#: src/components/comments/comments-panel.tsx:222
-#: src/components/doc-editor/doc-editor.tsx:243
+#: src/components/comments/block-comments.tsx:201
+#: src/components/comments/comments-popover.tsx:191
+#: src/components/comments/comments-popover.tsx:287
+#: src/components/doc-editor/doc-editor.tsx:231
 msgid "Comments"
 msgstr ""
 
@@ -1171,7 +1168,7 @@ msgstr ""
 msgid "Could not delete “{name}”"
 msgstr ""
 
-#: src/components/comments/comments-panel.tsx:343
+#: src/components/comments/comments-popover.tsx:403
 msgid "Could not delete the comment"
 msgstr ""
 
@@ -1203,7 +1200,7 @@ msgstr ""
 msgid "Could not move the sub-page to the trash"
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:302
+#: src/components/doc-editor/doc-editor.tsx:292
 msgid "Could not open the document"
 msgstr ""
 
@@ -1223,11 +1220,11 @@ msgstr ""
 msgid "Could not rename the page"
 msgstr ""
 
-#: src/components/comments/comments-panel.tsx:334
+#: src/components/comments/comments-popover.tsx:394
 msgid "Could not reopen the thread"
 msgstr ""
 
-#: src/components/comments/comments-panel.tsx:334
+#: src/components/comments/comments-popover.tsx:394
 msgid "Could not resolve the thread"
 msgstr ""
 
@@ -1254,7 +1251,7 @@ msgstr ""
 msgid "Could not save"
 msgstr ""
 
-#: src/components/comments/comments-panel.tsx:490
+#: src/components/comments/comments-popover.tsx:550
 msgid "Could not save the comment"
 msgstr ""
 
@@ -1266,7 +1263,7 @@ msgstr ""
 msgid "Could not save your notification setting."
 msgstr ""
 
-#: src/components/comments/comments-panel.tsx:323
+#: src/components/comments/comments-popover.tsx:383
 msgid "Could not send the reply"
 msgstr ""
 
@@ -1440,8 +1437,8 @@ msgid "Default space quota"
 msgstr ""
 
 #: src/components/block-handle.tsx:253
-#: src/components/comments/comments-panel.tsx:450
-#: src/components/comments/comments-panel.tsx:540
+#: src/components/comments/comments-popover.tsx:510
+#: src/components/comments/comments-popover.tsx:600
 #: src/components/selection-bar.tsx:88
 msgid "Delete"
 msgstr ""
@@ -1483,7 +1480,7 @@ msgstr ""
 msgid "Delete table"
 msgstr ""
 
-#: src/components/comments/comments-panel.tsx:444
+#: src/components/comments/comments-popover.tsx:504
 msgid "Delete this comment?"
 msgstr ""
 
@@ -1526,11 +1523,11 @@ msgstr ""
 msgid "Description"
 msgstr ""
 
-#: src/components/comments/comments-panel.tsx:371
+#: src/components/comments/comments-popover.tsx:431
 msgid "Detached"
 msgstr ""
 
-#: src/components/comments/comments-panel.tsx:262
+#: src/components/comments/comments-popover.tsx:322
 msgid "Detached — the commented text was removed"
 msgstr ""
 
@@ -1658,8 +1655,8 @@ msgstr ""
 msgid "edit"
 msgstr ""
 
-#: src/components/comments/comments-panel.tsx:534
-#: src/components/doc-editor/doc-editor.tsx:215
+#: src/components/comments/comments-popover.tsx:594
+#: src/components/doc-editor/doc-editor.tsx:218
 #: src/components/node-actions.tsx:140
 msgid "Edit"
 msgstr ""
@@ -2161,10 +2158,6 @@ msgstr ""
 msgid "Heading 3"
 msgstr ""
 
-#: src/components/doc-editor/outline-panel.tsx:65
-msgid "Headings you add appear here."
-msgstr ""
-
 #: src/components/doc-editor/labels.ts:32
 msgid "Highlighted aside"
 msgstr ""
@@ -2311,7 +2304,7 @@ msgstr ""
 msgid "It is now the current version."
 msgstr ""
 
-#: src/components/comments/comments-panel.tsx:447
+#: src/components/comments/comments-popover.tsx:507
 msgid "It is the only comment in its thread, so the thread is deleted too."
 msgstr ""
 
@@ -2813,11 +2806,11 @@ msgstr ""
 msgid "No blocks match “{query}”."
 msgstr ""
 
-#: src/components/comments/comments-panel.tsx:252
+#: src/components/comments/comments-popover.tsx:312
 msgid "No comments yet."
 msgstr ""
 
-#: src/components/comments/comments-panel.tsx:250
+#: src/components/comments/comments-popover.tsx:310
 msgid "No comments yet. Select some text and choose Comment to start a thread."
 msgstr ""
 
@@ -2866,7 +2859,7 @@ msgstr ""
 msgid "No one matches these filters."
 msgstr ""
 
-#: src/components/comments/comments-panel.tsx:248
+#: src/components/comments/comments-popover.tsx:308
 msgid "No open comments."
 msgstr ""
 
@@ -3005,7 +2998,7 @@ msgstr ""
 msgid "Office"
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:609
+#: src/components/doc-editor/doc-editor.tsx:605
 msgid "Offline"
 msgstr ""
 
@@ -3092,9 +3085,7 @@ msgstr ""
 msgid "Outgoing mail settings reset"
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:228
-#: src/components/doc-editor/outline-panel.tsx:51
-#: src/components/doc-editor/outline-panel.tsx:54
+#: src/components/doc-editor/outline-panel.tsx:48
 msgid "Outline"
 msgstr ""
 
@@ -3127,7 +3118,7 @@ msgstr ""
 msgid "Page title"
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:221
+#: src/components/doc-editor/doc-editor.tsx:224
 #: src/components/doc-editor/labels.ts:58
 #: src/components/doc-editor/page-tree-panel.tsx:84
 #: src/components/doc-editor/page-tree-panel.tsx:89
@@ -3337,7 +3328,7 @@ msgstr ""
 msgid "read-only"
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:209
+#: src/components/doc-editor/doc-editor.tsx:212
 msgid "Read-only"
 msgstr ""
 
@@ -3444,8 +3435,8 @@ msgstr ""
 msgid "Renamed to “{restored}” — the old name was taken."
 msgstr ""
 
-#: src/components/comments/comments-panel.tsx:385
-#: src/components/comments/comments-panel.tsx:386
+#: src/components/comments/comments-popover.tsx:445
+#: src/components/comments/comments-popover.tsx:446
 msgid "Reopen thread"
 msgstr ""
 
@@ -3457,12 +3448,12 @@ msgstr ""
 msgid "Replace"
 msgstr ""
 
-#: src/components/comments/comments-panel.tsx:424
-#: src/components/comments/comments-panel.tsx:435
+#: src/components/comments/comments-popover.tsx:484
+#: src/components/comments/comments-popover.tsx:495
 msgid "Reply"
 msgstr ""
 
-#: src/components/comments/comments-panel.tsx:415
+#: src/components/comments/comments-popover.tsx:475
 msgid "Reply… (@ to mention)"
 msgstr ""
 
@@ -3485,16 +3476,16 @@ msgstr ""
 msgid "Resize image"
 msgstr ""
 
-#: src/components/comments/comments-panel.tsx:385
-#: src/components/comments/comments-panel.tsx:386
+#: src/components/comments/comments-popover.tsx:445
+#: src/components/comments/comments-popover.tsx:446
 msgid "Resolve thread"
 msgstr ""
 
-#: src/components/comments/comments-panel.tsx:377
+#: src/components/comments/comments-popover.tsx:437
 msgid "Resolved"
 msgstr ""
 
-#: src/components/comments/comments-panel.tsx:227
+#: src/components/comments/comments-popover.tsx:291
 msgid "Resolved ({resolvedCount})"
 msgstr ""
 
@@ -3566,7 +3557,7 @@ msgstr ""
 msgid "Rows and columns of cells"
 msgstr ""
 
-#: src/components/comments/comments-panel.tsx:562
+#: src/components/comments/comments-popover.tsx:622
 #: src/routes/drive/$spaceId/index.tsx:708
 msgid "Save"
 msgstr ""
@@ -3578,7 +3569,7 @@ msgstr ""
 msgid "Save changes"
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:599
+#: src/components/doc-editor/doc-editor.tsx:595
 msgid "Saved"
 msgstr ""
 
@@ -3812,7 +3803,11 @@ msgstr ""
 msgid "Show all events for this item"
 msgstr ""
 
-#: src/components/comments/comments-panel.tsx:435
+#: src/components/comments/block-comments.tsx:188
+msgid "Show comments on this block"
+msgstr ""
+
+#: src/components/comments/comments-popover.tsx:495
 msgid "Show in document"
 msgstr ""
 
@@ -4051,7 +4046,7 @@ msgstr ""
 msgid "Switch space"
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:604
+#: src/components/doc-editor/doc-editor.tsx:600
 msgid "Syncing…"
 msgstr ""
 
@@ -4092,7 +4087,7 @@ msgstr ""
 msgid "Text"
 msgstr ""
 
-#: src/components/comments/comments-panel.tsx:151
+#: src/components/comments/comments-popover.tsx:239
 msgid "That comment thread no longer exists."
 msgstr ""
 
@@ -4130,11 +4125,11 @@ msgstr ""
 msgid "the public link"
 msgstr ""
 
-#: src/components/comments/comments-panel.tsx:448
+#: src/components/comments/comments-popover.tsx:508
 msgid "The rest of the thread stays."
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:307
+#: src/components/doc-editor/doc-editor.tsx:297
 #: src/components/markdown-document-view/index.tsx:207
 msgid "The server did not answer."
 msgstr ""
@@ -4211,7 +4206,7 @@ msgstr ""
 msgid "This document cannot be shown"
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:285
+#: src/components/doc-editor/doc-editor.tsx:275
 msgid "This document is not available"
 msgstr ""
 
@@ -4381,7 +4376,7 @@ msgstr ""
 msgid "Try a different search."
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:313
+#: src/components/doc-editor/doc-editor.tsx:303
 msgid "Try again"
 msgstr ""
 
@@ -4442,7 +4437,7 @@ msgstr ""
 msgid "Untitled file"
 msgstr ""
 
-#: src/components/doc-editor/outline-panel.tsx:83
+#: src/components/doc-editor/outline-panel.tsx:78
 msgid "Untitled heading"
 msgstr ""
 
@@ -4759,7 +4754,7 @@ msgstr ""
 msgid "Your access"
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:288
+#: src/components/doc-editor/doc-editor.tsx:278
 msgid "Your access may have been removed, or the file is no longer a markdown document."
 msgstr ""
 
