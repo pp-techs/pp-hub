@@ -91,6 +91,32 @@ function readThemeVariables(element: HTMLElement): ThemeVariables {
   return variables;
 }
 
+let scratch: HTMLElement | null = null;
+
+/**
+ * Where Mermaid builds a diagram before handing back its SVG. Left to
+ * itself it appends that scratch element to `<body>` in normal flow, so for
+ * the length of a render the document is taller than the window and the
+ * page flashes a scrollbar. A fixed, off-screen, invisible box is measurable
+ * (Mermaid reads text sizes from it) yet adds nothing to the scrollable area.
+ */
+function scratchContainer(): HTMLElement {
+  if (scratch?.isConnected) return scratch;
+  scratch = document.createElement("div");
+  scratch.setAttribute("aria-hidden", "true");
+  Object.assign(scratch.style, {
+    position: "fixed",
+    top: "0",
+    left: "-10000px",
+    width: "100vw",
+    visibility: "hidden",
+    pointerEvents: "none",
+  });
+  document.body.appendChild(scratch);
+  void scratch.offsetWidth;
+  return scratch;
+}
+
 let queue: Promise<unknown> = Promise.resolve();
 let appliedTheme = "";
 let renderCount = 0;
@@ -128,7 +154,7 @@ export function renderMermaid(source: string, element: HTMLElement): Promise<str
     const id = `slash-mermaid-${++renderCount}`;
 
     try {
-      return (await mermaid.render(id, source)).svg;
+      return (await mermaid.render(id, source, scratchContainer())).svg;
     } finally {
       // A failed render leaves its scratch container behind in <body>.
       document.getElementById(`d${id}`)?.remove();
