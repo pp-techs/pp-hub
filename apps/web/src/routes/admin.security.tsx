@@ -1,6 +1,5 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { toast } from "sonner";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
 import type { I18n, MessageDescriptor } from "@lingui/core";
@@ -8,6 +7,7 @@ import { Download, X } from "lucide-react";
 
 import { Badge } from "@workspace/ui/components/badge";
 import { Button } from "@workspace/ui/components/button";
+import { Card } from "@workspace/ui/components/card";
 import { Input } from "@workspace/ui/components/input";
 import {
   Select,
@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select";
-import { AdminHeader } from "@/components/admin-header";
+import { AdminPage } from "@/components/admin-page";
 import {
   Table,
   TableBody,
@@ -28,27 +28,15 @@ import {
 import { cn } from "@workspace/ui/lib/utils";
 import { type SecurityEvent, type SecurityEventFilters } from "@/lib/api";
 import { securityEventsExportUrl } from "@/lib/api/users";
-import { requireAuth, SECURITY_PAGE_SIZE, useSecurityEvents } from "@/lib/queries";
+import { SECURITY_PAGE_SIZE, useSecurityEvents } from "@/lib/queries";
 import { describeAgent } from "@/lib/user-agent";
 import { useFormatters } from "@/lib/format";
-import { i18n as globalI18n, pageTitle } from "@/lib/i18n";
-import { SectionLabel } from "@/components/section-label";
+import { pageTitle } from "@/lib/i18n";
 import { SkeletonTableRows } from "@/components/loading";
 
 export const Route = createFileRoute("/admin/security")({
   head: () => ({ meta: [{ title: pageTitle(msg`Security log`) }] }),
-  // Gate here, not in the component. A page that resolves and then says
-  // "admin only" has already told the caller that this URL exists and what it
-  // is for; the redirect says nothing.
-  beforeLoad: async ({ context, location }) => {
-    const me = await requireAuth(context.queryClient, location.href);
-    if (!me.is_admin) {
-      // `beforeLoad` runs outside React, so the singleton answers here the
-      // same way it does for `pageTitle` above.
-      toast.error(globalI18n._(msg`Only an administrator can read the security log.`));
-      throw redirect({ to: "/drive" });
-    }
-  },
+  // The `/admin` layout gates the whole section on an instance admin.
   component: SecurityLogPage,
 });
 
@@ -195,164 +183,167 @@ function SecurityLogPage() {
   const filterLabel = filter ? kindLabel(i18n, filter) : null;
 
   return (
-    <main className="bg-background text-foreground flex min-h-svh flex-col">
-      <AdminHeader
-        title={<Trans>Security log</Trans>}
-        subtitle={
-          <Trans>Sign-ins, failures, access changes and file access across this install</Trans>
-        }
-        // eslint-disable-next-line lingui/no-unlocalized-strings -- admin tab identifier
-        activeTab="security"
-      />
-
-      <div className="flex flex-col gap-6 p-4">
-        <section className="flex flex-col gap-2">
-          <div className="flex items-center justify-between gap-2">
-            <SectionLabel>
-              <Trans>Events</Trans>
-            </SectionLabel>
-            <div className="flex flex-wrap items-center gap-2">
-              <Select
-                value={kind}
-                items={kindItems}
-                onValueChange={(v) => {
-                  setKind((v as string) ?? ALL);
-                  setOffset(0);
-                }}
-              >
-                <SelectTrigger aria-label={t`Filter by event kind`} className="w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {kindItems.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input
-                type="date"
-                aria-label={t`From date`}
-                className="w-36"
-                value={fromDate}
-                max={toDate || undefined}
-                onChange={(e) => {
-                  setFromDate(e.target.value);
-                  setOffset(0);
-                }}
-              />
-              <Input
-                type="date"
-                aria-label={t`To date`}
-                className="w-36"
-                value={toDate}
-                min={fromDate || undefined}
-                onChange={(e) => {
-                  setToDate(e.target.value);
-                  setOffset(0);
-                }}
-              />
-              {/* Follows the filters on screen: what is exported is what
-                  the reader is looking at, every page of it. */}
-              <Button
-                variant="outline"
-                size="sm"
-                render={<a href={securityEventsExportUrl(filters)} />}
-              >
-                <Download data-icon="inline-start" /> <Trans>Export CSV</Trans>
-              </Button>
-            </div>
-          </div>
-
+    <AdminPage
+      title={<Trans>Security log</Trans>}
+      description={
+        <Trans>Sign-ins, failures, access changes and file access across this install</Trans>
+      }
+      actions={
+        // Follows the filters on screen: what is exported is what the reader
+        // is looking at, every page of it.
+        <Button variant="outline" render={<a href={securityEventsExportUrl(filters)} />}>
+          <Download data-icon="inline-start" /> <Trans>Export CSV</Trans>
+        </Button>
+      }
+    >
+      <Card className="gap-0 py-0">
+        <div className="flex flex-wrap items-center gap-2 border-b p-3">
+          <Select
+            value={kind}
+            items={kindItems}
+            onValueChange={(v) => {
+              setKind((v as string) ?? ALL);
+              setOffset(0);
+            }}
+          >
+            <SelectTrigger aria-label={t`Filter by event kind`} className="w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {kindItems.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Input
+            type="date"
+            aria-label={t`From date`}
+            className="w-36"
+            value={fromDate}
+            max={toDate || undefined}
+            onChange={(e) => {
+              setFromDate(e.target.value);
+              setOffset(0);
+            }}
+          />
+          <span aria-hidden className="text-muted-foreground text-xs">
+            –
+          </span>
+          <Input
+            type="date"
+            aria-label={t`To date`}
+            className="w-36"
+            value={toDate}
+            min={fromDate || undefined}
+            onChange={(e) => {
+              setToDate(e.target.value);
+              setOffset(0);
+            }}
+          />
           {node && (
-            <div>
-              <Badge variant="outline" className="gap-1 pr-0.5">
-                <Trans>File: {nodeName}</Trans>
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  aria-label={t`Clear file filter`}
-                  onClick={() => {
-                    setNode(null);
-                    setOffset(0);
-                  }}
-                >
-                  <X />
-                </Button>
-              </Badge>
-            </div>
-          )}
-
-          {!isLoading && events.length === 0 ? (
-            <p className="text-muted-foreground text-xs">
-              {node || fromDate || toDate ? (
-                <Trans>No events match these filters.</Trans>
-              ) : filterLabel ? (
-                <Trans>No events recorded for {filterLabel}.</Trans>
-              ) : (
-                <Trans>No events recorded.</Trans>
-              )}
-            </p>
-          ) : (
-            <Table className="text-xs">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-32">
-                    <Trans>When</Trans>
-                  </TableHead>
-                  <TableHead className="w-40">
-                    <Trans>Event</Trans>
-                  </TableHead>
-                  <TableHead>
-                    <Trans>Who</Trans>
-                  </TableHead>
-                  <TableHead className="w-36">
-                    <Trans>IP</Trans>
-                  </TableHead>
-                  <TableHead className="w-44">
-                    <Trans>Device</Trans>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <SkeletonTableRows columns={5} />
-                ) : (
-                  events.map((e) => <EventRow key={e.id} event={e} onFilterNode={filterNode} />)
-                )}
-              </TableBody>
-            </Table>
-          )}
-
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-muted-foreground text-[10px] tabular-nums">
-              <Trans>
-                {from}–{to} of {total}
-              </Trans>
-            </span>
-            <div className="flex items-center gap-1">
+            <Badge variant="outline" className="h-7 gap-1 pr-1">
+              <Trans>File: {nodeName}</Trans>
               <Button
-                variant="outline"
-                size="xs"
-                disabled={offset === 0}
-                onClick={() => setOffset((o) => Math.max(0, o - SECURITY_PAGE_SIZE))}
+                variant="ghost"
+                size="icon-xs"
+                aria-label={t`Clear file filter`}
+                onClick={() => {
+                  setNode(null);
+                  setOffset(0);
+                }}
               >
-                <Trans>Previous</Trans>
+                <X />
               </Button>
-              <Button
-                variant="outline"
-                size="xs"
-                disabled={to >= total}
-                onClick={() => setOffset((o) => o + SECURITY_PAGE_SIZE)}
-              >
-                <Trans>Next</Trans>
-              </Button>
-            </div>
+            </Badge>
+          )}
+          {(filter || node || fromDate || toDate) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="ml-auto"
+              onClick={() => {
+                setKind(ALL);
+                setNode(null);
+                setFromDate("");
+                setToDate("");
+                setOffset(0);
+              }}
+            >
+              <Trans>Clear filters</Trans>
+            </Button>
+          )}
+        </div>
+
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="h-9 w-36 pl-4 text-[11px] tracking-wider uppercase">
+                <Trans>When</Trans>
+              </TableHead>
+              <TableHead className="h-9 w-40 text-[11px] tracking-wider uppercase">
+                <Trans>Event</Trans>
+              </TableHead>
+              <TableHead className="h-9 text-[11px] tracking-wider uppercase">
+                <Trans>Who</Trans>
+              </TableHead>
+              <TableHead className="h-9 w-36 text-[11px] tracking-wider uppercase">
+                <Trans>IP</Trans>
+              </TableHead>
+              <TableHead className="h-9 w-44 pr-4 text-[11px] tracking-wider uppercase">
+                <Trans>Device</Trans>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <SkeletonTableRows columns={5} />
+            ) : events.length === 0 ? (
+              <TableRow className="hover:bg-transparent">
+                <TableCell colSpan={5} className="text-muted-foreground py-10 text-center text-sm">
+                  {node || fromDate || toDate ? (
+                    <Trans>No events match these filters.</Trans>
+                  ) : filterLabel ? (
+                    <Trans>No events recorded for {filterLabel}.</Trans>
+                  ) : (
+                    <Trans>No events recorded.</Trans>
+                  )}
+                </TableCell>
+              </TableRow>
+            ) : (
+              events.map((e) => <EventRow key={e.id} event={e} onFilterNode={filterNode} />)
+            )}
+          </TableBody>
+        </Table>
+
+        <div className="flex items-center justify-between gap-2 border-t px-4 py-2.5">
+          <span className="text-muted-foreground text-xs tabular-nums">
+            <Trans>
+              {from}–{to} of {total}
+            </Trans>
+          </span>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={offset === 0}
+              onClick={() => setOffset((o) => Math.max(0, o - SECURITY_PAGE_SIZE))}
+            >
+              <Trans>Previous</Trans>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={to >= total}
+              onClick={() => setOffset((o) => o + SECURITY_PAGE_SIZE)}
+            >
+              <Trans>Next</Trans>
+            </Button>
           </div>
-        </section>
-      </div>
-    </main>
+        </div>
+      </Card>
+    </AdminPage>
   );
 }
 
@@ -380,7 +371,10 @@ function EventRow({
 
   return (
     <TableRow className={cn(failed && "bg-destructive/5")}>
-      <TableCell className="text-muted-foreground tabular-nums" title={f.date(event.created_at)}>
+      <TableCell
+        className="text-muted-foreground py-3 pl-4 tabular-nums"
+        title={f.date(event.created_at)}
+      >
         {f.relative(event.created_at)}
       </TableCell>
       <TableCell>
@@ -410,7 +404,7 @@ function EventRow({
         </div>
       </TableCell>
       <TableCell className="text-muted-foreground tabular-nums">{event.ip || "—"}</TableCell>
-      <TableCell className="text-muted-foreground truncate" title={event.user_agent}>
+      <TableCell className="text-muted-foreground max-w-0 truncate pr-4" title={event.user_agent}>
         {event.user_agent ? describeAgent(event.user_agent).label : "—"}
       </TableCell>
     </TableRow>

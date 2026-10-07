@@ -142,16 +142,16 @@ msgstr "{done, plural, one {Uploaded # file} other {Uploaded # files}}"
 msgid "{done} uploaded, {failed} failed"
 msgstr "{done} uploaded, {failed} failed"
 
-#: src/routes/admin.users.tsx:251
+#: src/routes/admin.users.tsx:320
 msgid "{email} reinstated"
 msgstr "{email} reinstated"
 
-#: src/routes/admin.users.tsx:251
+#: src/routes/admin.users.tsx:320
 msgid "{email} suspended"
 msgstr "{email} suspended"
 
 #: src/components/transfer-tray.tsx:121
-#: src/routes/admin.users.tsx:132
+#: src/routes/admin.users.tsx:141
 msgid "{failed, plural, one {# failed} other {# failed}}"
 msgstr "{failed, plural, one {# failed} other {# failed}}"
 
@@ -180,7 +180,7 @@ msgstr "{folders, plural, one {# folder} other {# folders}} and {files, plural, 
 msgid "{folders, plural, one {# folder} other {# folders}} and {files, plural, one {# file} other {# files}} selected"
 msgstr "{folders, plural, one {# folder} other {# folders}} and {files, plural, one {# file} other {# files}} selected"
 
-#: src/routes/admin.security.tsx:330
+#: src/routes/admin.security.tsx:322
 msgid "{from}–{to} of {total}"
 msgstr "{from}–{to} of {total}"
 
@@ -225,7 +225,7 @@ msgstr "{MIN_QUERY_LENGTH, plural, one {Type at least # character to search.} ot
 msgid "{moved, plural, one {Moved # item} other {Moved # items}}"
 msgstr "{moved, plural, one {Moved # item} other {Moved # items}}"
 
-#: src/routes/admin.users.tsx:281
+#: src/routes/admin.users.tsx:350
 msgid "{n, plural, one {# suspended} other {# suspended}}"
 msgstr "{n, plural, one {# suspended} other {# suspended}}"
 
@@ -289,7 +289,11 @@ msgstr "{sharedBy} shared this file"
 msgid "{sharedBy} shared this folder"
 msgstr "{sharedBy} shared this folder"
 
-#: src/routes/admin.settings.tsx:396
+#: src/routes/admin.users.tsx:167
+msgid "{shown} of {total} users"
+msgstr "{shown} of {total} users"
+
+#: src/routes/admin.settings.tsx:313
 msgid "{size} · archived {archivedOn}"
 msgstr "{size} · archived {archivedOn}"
 
@@ -353,7 +357,7 @@ msgstr "{total, plural, one {# member} other {# members}}"
 msgid "{totalSize} used"
 msgstr "{totalSize} used"
 
-#: src/routes/admin.users.tsx:120
+#: src/routes/admin.users.tsx:127
 msgid "{trashed, plural, one {# in trash} other {# in trash}}"
 msgstr "{trashed, plural, one {# in trash} other {# in trash}}"
 
@@ -451,9 +455,17 @@ msgstr "<0>{actor}</0> uploaded <1>{nodeName}</1> in <2>{spaceName}</2>"
 msgid "<0>Keep both</0> uploads alongside, named “{kept}”. <1>Replace</1> adds a new version to the file that is already there, keeping its owner, its link and its history."
 msgstr "<0>Keep both</0> uploads alongside, named “{kept}”. <1>Replace</1> adds a new version to the file that is already there, keeping its owner, its link and its history."
 
+#: src/routes/admin.settings.tsx:621
+msgid "0 means unlimited."
+msgstr "0 means unlimited."
+
+#: src/routes/admin.settings.tsx:717
+msgid "0 means unlimited. Offering personal spaces to everyone requires a quota above 0."
+msgstr "0 means unlimited. Offering personal spaces to everyone requires a quota above 0."
+
 #: src/routes/admin.settings.tsx:826
-msgid "0 turns alerts off. Alerts are emailed to administrators when mail is configured."
-msgstr "0 turns alerts off. Alerts are emailed to administrators when mail is configured."
+#~ msgid "0 turns alerts off. Alerts are emailed to administrators when mail is configured."
+#~ msgstr "0 turns alerts off. Alerts are emailed to administrators when mail is configured."
 
 #: src/components/share-dialog.tsx:99
 msgid "1 day"
@@ -507,11 +519,11 @@ msgstr "Account"
 msgid "Account menu"
 msgstr "Account menu"
 
-#: src/routes/admin.security.tsx:80
+#: src/routes/admin.security.tsx:68
 msgid "account suspended"
 msgstr "account suspended"
 
-#: src/routes/admin.security.tsx:81
+#: src/routes/admin.security.tsx:69
 msgid "account unsuspended"
 msgstr "account unsuspended"
 
@@ -528,6 +540,10 @@ msgstr "Action"
 msgid "Actions"
 msgstr "Actions"
 
+#: src/routes/admin.users.tsx:286
+msgid "Actions for {email}"
+msgstr "Actions for {email}"
+
 #: src/components/people-table.tsx:537
 msgid "Actions for {memberEmail}"
 msgstr "Actions for {memberEmail}"
@@ -537,7 +553,7 @@ msgstr "Actions for {memberEmail}"
 msgid "Actions for {nodeName}"
 msgstr "Actions for {nodeName}"
 
-#: src/routes/admin.users.tsx:221
+#: src/routes/admin.users.tsx:276
 msgid "Active"
 msgstr "Active"
 
@@ -623,15 +639,16 @@ msgstr "Added to {groupName}"
 #: src/components/settings/panes/account-profile.tsx:236
 #: src/components/space-switcher.tsx:91
 #: src/components/space-switcher.tsx:124
+#: src/routes/admin.users.tsx:252
 msgid "Admin"
 msgstr "Admin"
 
 #: src/routes/admin.settings.tsx:72
 #: src/routes/admin.users.tsx:82
-msgid "Admin access required."
-msgstr "Admin access required."
+#~ msgid "Admin access required."
+#~ msgstr "Admin access required."
 
-#: src/routes/admin.security.tsx:78
+#: src/routes/admin.security.tsx:66
 msgid "admin granted"
 msgstr "admin granted"
 
@@ -639,13 +656,18 @@ msgstr "admin granted"
 #~ msgid "Admin of this space: {name}"
 #~ msgstr "Admin of this space: {name}"
 
-#: src/routes/admin.security.tsx:79
+#: src/routes/admin.security.tsx:67
 msgid "admin revoked"
 msgstr "admin revoked"
 
 #: src/components/admin-header.tsx:32
-msgid "Admin sections"
-msgstr "Admin sections"
+#~ msgid "Admin sections"
+#~ msgstr "Admin sections"
+
+#: src/components/admin-sidebar.tsx:60
+#: src/routes/admin.tsx:62
+msgid "Administration"
+msgstr "Administration"
 
 #: src/components/share-dialog.tsx:642
 msgid "Admins"
@@ -660,23 +682,23 @@ msgid "Advanced blocks"
 msgstr "Advanced blocks"
 
 #: src/routes/admin.settings.tsx:991
-msgid "Agent access (MCP)"
-msgstr "Agent access (MCP)"
+#~ msgid "Agent access (MCP)"
+#~ msgstr "Agent access (MCP)"
 
 #: src/components/settings/panes/agent-access-section.tsx:250
-#: src/routes/admin.settings.tsx:986
+#: src/routes/admin.settings.tsx:756
 msgid "AI agents"
 msgstr "AI agents"
 
-#: src/routes/admin.settings.tsx:508
+#: src/routes/admin.settings.tsx:424
 msgid "Alert threshold must be between 0 and 10000"
 msgstr "Alert threshold must be between 0 and 10000"
 
-#: src/routes/admin.settings.tsx:839
+#: src/routes/admin.settings.tsx:670
 msgid "Alert window"
 msgstr "Alert window"
 
-#: src/routes/admin.settings.tsx:509
+#: src/routes/admin.settings.tsx:425
 msgid "Alert window must be between 1 and 1440 minutes"
 msgstr "Alert window must be between 1 and 1440 minutes"
 
@@ -684,11 +706,11 @@ msgstr "Alert window must be between 1 and 1440 minutes"
 msgid "All"
 msgstr "All"
 
-#: src/routes/admin.users.tsx:283
+#: src/routes/admin.users.tsx:352
 msgid "all active"
 msgstr "all active"
 
-#: src/routes/admin.security.tsx:113
+#: src/routes/admin.security.tsx:101
 msgid "All events"
 msgstr "All events"
 
@@ -706,7 +728,7 @@ msgstr "Allow download"
 msgid "Allow re-sharing"
 msgstr "Allow re-sharing"
 
-#: src/routes/admin.settings.tsx:973
+#: src/routes/admin.settings.tsx:752
 msgid "Allow sharing outside a space"
 msgstr "Allow sharing outside a space"
 
@@ -765,7 +787,7 @@ msgstr "Appearance"
 msgid "Archive"
 msgstr "Archive"
 
-#: src/routes/admin.settings.tsx:365
+#: src/routes/admin.settings.tsx:283
 msgid "Archived personal spaces"
 msgstr "Archived personal spaces"
 
@@ -781,7 +803,7 @@ msgstr "Ascending"
 msgid "Audio"
 msgstr "Audio"
 
-#: src/routes/admin.settings.tsx:506
+#: src/routes/admin.settings.tsx:422
 msgid "Audit retention must be between 1 and 3650 days"
 msgstr "Audit retention must be between 1 and 3650 days"
 
@@ -793,10 +815,8 @@ msgstr "Automatic"
 msgid "Avatar updated"
 msgstr "Avatar updated"
 
-#: src/components/admin-header.tsx:22
+#: src/components/admin-sidebar.tsx:98
 #: src/components/editor-header.tsx:65
-#: src/routes/admin.settings.tsx:75
-#: src/routes/admin.users.tsx:85
 #: src/routes/drive/$spaceId/route.tsx:57
 #: src/routes/open.$nodeId.tsx:75
 msgid "Back to Drive"
@@ -934,9 +954,13 @@ msgstr "Claude Code on my laptop"
 msgid "Clear completed"
 msgstr "Clear completed"
 
-#: src/routes/admin.security.tsx:275
+#: src/routes/admin.security.tsx:251
 msgid "Clear file filter"
 msgstr "Clear file filter"
+
+#: src/routes/admin.security.tsx:274
+msgid "Clear filters"
+msgstr "Clear filters"
 
 #: src/components/bubble-toolbar.tsx:119
 #: src/components/bubble-toolbar.tsx:127
@@ -947,7 +971,7 @@ msgstr "Clear formatting"
 msgid "Clear selection"
 msgstr "Clear selection"
 
-#: src/routes/admin.settings.tsx:1293
+#: src/routes/admin.settings.tsx:1031
 msgid "Cleared"
 msgstr "Cleared"
 
@@ -1240,7 +1264,7 @@ msgstr "Could not open the document"
 msgid "Could not paste “{nodeName}”"
 msgstr "Could not paste “{nodeName}”"
 
-#: src/routes/admin.settings.tsx:427
+#: src/routes/admin.settings.tsx:343
 msgid "Could not purge the personal space"
 msgstr "Could not purge the personal space"
 
@@ -1439,16 +1463,16 @@ msgstr "Danger zone"
 msgid "Dark"
 msgstr "Dark"
 
-#: src/routes/admin.settings.tsx:144
+#: src/components/admin-settings-ui.tsx:20
 msgid "Database override"
 msgstr "Database override"
 
-#: src/routes/admin.settings.tsx:801
-#: src/routes/admin.settings.tsx:813
+#: src/routes/admin.settings.tsx:656
+#: src/routes/admin.settings.tsx:659
 msgid "days"
 msgstr "days"
 
-#: src/routes/admin.settings.tsx:157
+#: src/components/admin-settings-ui.tsx:33
 msgid "Default"
 msgstr "Default"
 
@@ -1457,14 +1481,14 @@ msgid "Default listing"
 msgstr "Default listing"
 
 #: src/routes/admin.settings.tsx:751
-msgid "Default quota for new spaces (GB, 0 = unlimited)"
-msgstr "Default quota for new spaces (GB, 0 = unlimited)"
+#~ msgid "Default quota for new spaces (GB, 0 = unlimited)"
+#~ msgstr "Default quota for new spaces (GB, 0 = unlimited)"
 
-#: src/routes/admin.settings.tsx:558
+#: src/routes/admin.settings.tsx:474
 msgid "Default quota must be a valid number (0 for unlimited)"
 msgstr "Default quota must be a valid number (0 for unlimited)"
 
-#: src/routes/admin.settings.tsx:725
+#: src/routes/admin.settings.tsx:617
 msgid "Default space quota"
 msgstr "Default space quota"
 
@@ -1571,7 +1595,7 @@ msgstr "Detached — the commented text was removed"
 msgid "Details"
 msgstr "Details"
 
-#: src/routes/admin.security.tsx:314
+#: src/routes/admin.security.tsx:295
 msgid "Device"
 msgstr "Device"
 
@@ -1590,8 +1614,8 @@ msgstr "Direction"
 
 #: src/components/settings/panes/account-profile.tsx:204
 #: src/components/settings/panes/space-general.tsx:334
-#: src/routes/admin.settings.tsx:1064
-#: src/routes/admin.settings.tsx:1360
+#: src/routes/admin.settings.tsx:808
+#: src/routes/admin.settings.tsx:1086
 msgid "Discard"
 msgstr "Discard"
 
@@ -1608,7 +1632,6 @@ msgid "Display language"
 msgstr "Display language"
 
 #: src/components/settings/panes/account-profile.tsx:137
-#: src/routes/admin.settings.tsx:653
 msgid "Display name"
 msgstr "Display name"
 
@@ -1780,11 +1803,11 @@ msgstr "Enter a new name for this item."
 msgid "Enter a web address starting with http:// or https://."
 msgstr "Enter a web address starting with http:// or https://."
 
-#: src/routes/admin.settings.tsx:1152
+#: src/routes/admin.settings.tsx:898
 msgid "Enter the password: saving here replaces the environment configuration."
 msgstr "Enter the password: saving here replaces the environment configuration."
 
-#: src/routes/admin.settings.tsx:151
+#: src/components/admin-settings-ui.tsx:27
 msgid "Environment variable"
 msgstr "Environment variable"
 
@@ -1792,15 +1815,15 @@ msgstr "Environment variable"
 msgid "esc to close"
 msgstr "esc to close"
 
-#: src/routes/admin.security.tsx:305
+#: src/routes/admin.security.tsx:286
 msgid "Event"
 msgstr "Event"
 
 #: src/routes/admin.security.tsx:212
-msgid "Events"
-msgstr "Events"
+#~ msgid "Events"
+#~ msgstr "Events"
 
-#: src/routes/admin.settings.tsx:501
+#: src/routes/admin.settings.tsx:417
 msgid "Every account gets its own drive, including people who belong to no organization."
 msgstr "Every account gets its own drive, including people who belong to no organization."
 
@@ -1808,12 +1831,12 @@ msgstr "Every account gets its own drive, including people who belong to no orga
 msgid "Every saved revision of this file."
 msgstr "Every saved revision of this file."
 
-#: src/routes/admin.users.tsx:100
+#: src/routes/admin.users.tsx:110
 msgid "Every user and space on this install"
 msgstr "Every user and space on this install"
 
 #: src/components/share-dialog.tsx:636
-#: src/routes/admin.settings.tsx:500
+#: src/routes/admin.settings.tsx:416
 msgid "Everyone"
 msgstr "Everyone"
 
@@ -1829,11 +1852,11 @@ msgstr "Everyone in this space belongs to this group, and it updates itself as p
 msgid "Everyone listed here reaches this team folder and everything inside it. Nobody reaches it otherwise, including space admins."
 msgstr "Everyone listed here reaches this team folder and everything inside it. Nobody reaches it otherwise, including space admins."
 
-#: src/routes/admin.settings.tsx:495
+#: src/routes/admin.settings.tsx:411
 msgid "Everyone who belongs to at least one organization space gets their own drive."
 msgstr "Everyone who belongs to at least one organization space gets their own drive."
 
-#: src/routes/admin.settings.tsx:421
+#: src/routes/admin.settings.tsx:337
 msgid "Everything in {pendingOwner}'s personal space ({pendingSize}) is deleted permanently. This cannot be undone."
 msgstr "Everything in {pendingOwner}'s personal space ({pendingSize}) is deleted permanently. This cannot be undone."
 
@@ -1872,7 +1895,7 @@ msgid "Expires after"
 msgstr "Expires after"
 
 #: src/components/people-table.tsx:199
-#: src/routes/admin.security.tsx:263
+#: src/routes/admin.security.tsx:195
 msgid "Export CSV"
 msgstr "Export CSV"
 
@@ -1886,29 +1909,33 @@ msgstr "Export with images (.zip)"
 msgid "External"
 msgstr "External"
 
-#: src/routes/admin.settings.tsx:958
+#: src/routes/admin.settings.tsx:744
 msgid "External sharing"
 msgstr "External sharing"
 
-#: src/routes/admin.settings.tsx:823
+#: src/routes/admin.settings.tsx:661
 msgid "Failed sign-in alert threshold"
 msgstr "Failed sign-in alert threshold"
 
 #: src/routes/admin.settings.tsx:824
-msgid "Failed sign-ins from one address"
-msgstr "Failed sign-ins from one address"
+#~ msgid "Failed sign-ins from one address"
+#~ msgstr "Failed sign-ins from one address"
 
-#: src/routes/admin.settings.tsx:591
-#: src/routes/admin.settings.tsx:1130
+#: src/routes/admin.settings.tsx:664
+msgid "Failed sign-ins from one address. 0 turns alerts off. Alerts are emailed to administrators when mail is configured."
+msgstr "Failed sign-ins from one address. 0 turns alerts off. Alerts are emailed to administrators when mail is configured."
+
+#: src/routes/admin.settings.tsx:507
+#: src/routes/admin.settings.tsx:876
 msgid "Failed to reset setting"
 msgstr "Failed to reset setting"
 
-#: src/routes/admin.settings.tsx:581
-#: src/routes/admin.settings.tsx:1169
+#: src/routes/admin.settings.tsx:497
+#: src/routes/admin.settings.tsx:915
 msgid "Failed to save settings"
 msgstr "Failed to save settings"
 
-#: src/routes/admin.settings.tsx:1179
+#: src/routes/admin.settings.tsx:925
 msgid "Failed to send test email"
 msgstr "Failed to send test email"
 
@@ -1922,15 +1949,15 @@ msgstr "Female"
 msgid "File"
 msgstr "File"
 
-#: src/routes/admin.settings.tsx:811
+#: src/routes/admin.settings.tsx:658
 msgid "File access log retention"
 msgstr "File access log retention"
 
-#: src/routes/admin.settings.tsx:507
+#: src/routes/admin.settings.tsx:423
 msgid "File access retention must be between 1 and 3650 days"
 msgstr "File access retention must be between 1 and 3650 days"
 
-#: src/routes/admin.security.tsx:96
+#: src/routes/admin.security.tsx:84
 msgid "file downloaded"
 msgstr "file downloaded"
 
@@ -1938,17 +1965,17 @@ msgstr "file downloaded"
 #~ msgid "file names and details only"
 #~ msgstr "file names and details only"
 
-#: src/routes/admin.security.tsx:98
+#: src/routes/admin.security.tsx:86
 msgid "file viewed"
 msgstr "file viewed"
 
-#: src/routes/admin.security.tsx:271
+#: src/routes/admin.security.tsx:247
 msgid "File: {nodeName}"
 msgstr "File: {nodeName}"
 
 #: src/components/command-palette.tsx:43
 #: src/components/node-grid.tsx:143
-#: src/routes/admin.users.tsx:118
+#: src/routes/admin.users.tsx:125
 msgid "Files"
 msgstr "Files"
 
@@ -1970,7 +1997,7 @@ msgstr "Files owned"
 msgid "Files you upload or edit in this space show up here."
 msgstr "Files you upload or edit in this space show up here."
 
-#: src/routes/admin.security.tsx:223
+#: src/routes/admin.security.tsx:209
 msgid "Filter by event kind"
 msgstr "Filter by event kind"
 
@@ -1979,7 +2006,7 @@ msgid "Filter by group"
 msgstr "Filter by group"
 
 #: src/components/people-table.tsx:208
-#: src/routes/admin.users.tsx:150
+#: src/routes/admin.users.tsx:159
 msgid "Filter by name or email"
 msgstr "Filter by name or email"
 
@@ -1992,7 +2019,7 @@ msgstr "Filter deleted items"
 msgid "Filter people by name or email"
 msgstr "Filter people by name or email"
 
-#: src/routes/admin.users.tsx:151
+#: src/routes/admin.users.tsx:160
 msgid "Filter users"
 msgstr "Filter users"
 
@@ -2010,7 +2037,7 @@ msgstr "Flowcharts, sequences, and more"
 msgid "Folder"
 msgstr "Folder"
 
-#: src/routes/admin.security.tsx:97
+#: src/routes/admin.security.tsx:85
 msgid "folder downloaded"
 msgstr "folder downloaded"
 
@@ -2051,15 +2078,15 @@ msgstr "Found by the hourly check"
 msgid "From {viaName}"
 msgstr "From {viaName}"
 
-#: src/routes/admin.settings.tsx:1323
+#: src/routes/admin.settings.tsx:998
 msgid "From address"
 msgstr "From address"
 
-#: src/routes/admin.settings.tsx:1142
+#: src/routes/admin.settings.tsx:888
 msgid "From address is required when an SMTP host is set."
 msgstr "From address is required when an SMTP host is set."
 
-#: src/routes/admin.security.tsx:236
+#: src/routes/admin.security.tsx:222
 msgid "From date"
 msgstr "From date"
 
@@ -2067,9 +2094,9 @@ msgstr "From date"
 msgid "Gains access: {gaining}."
 msgstr "Gains access: {gaining}."
 
-#: src/routes/admin.settings.tsx:714
-#: src/routes/admin.settings.tsx:763
-#: src/routes/admin.settings.tsx:945
+#: src/routes/admin.settings.tsx:612
+#: src/routes/admin.settings.tsx:639
+#: src/routes/admin.settings.tsx:736
 msgid "GB"
 msgstr "GB"
 
@@ -2082,7 +2109,7 @@ msgstr "Gender"
 msgid "General"
 msgstr "General"
 
-#: src/routes/admin.settings.tsx:623
+#: src/routes/admin.settings.tsx:568
 msgid "General & Branding"
 msgstr "General & Branding"
 
@@ -2102,11 +2129,11 @@ msgstr "Give access"
 msgid "Go to Drive"
 msgstr "Go to Drive"
 
-#: src/routes/admin.security.tsx:82
+#: src/routes/admin.security.tsx:70
 msgid "grant created"
 msgstr "grant created"
 
-#: src/routes/admin.security.tsx:83
+#: src/routes/admin.security.tsx:71
 msgid "grant revoked"
 msgstr "grant revoked"
 
@@ -2124,23 +2151,23 @@ msgstr "Grid view"
 msgid "Group"
 msgstr "Group"
 
-#: src/routes/admin.security.tsx:91
+#: src/routes/admin.security.tsx:79
 msgid "group created"
 msgstr "group created"
 
-#: src/routes/admin.security.tsx:93
+#: src/routes/admin.security.tsx:81
 msgid "group deleted"
 msgstr "group deleted"
 
-#: src/routes/admin.security.tsx:94
+#: src/routes/admin.security.tsx:82
 msgid "group member added"
 msgstr "group member added"
 
-#: src/routes/admin.security.tsx:95
+#: src/routes/admin.security.tsx:83
 msgid "group member removed"
 msgstr "group member removed"
 
-#: src/routes/admin.security.tsx:92
+#: src/routes/admin.security.tsx:80
 msgid "group updated"
 msgstr "group updated"
 
@@ -2212,7 +2239,7 @@ msgstr "Highlighted aside"
 msgid "Home"
 msgstr "Home"
 
-#: src/routes/admin.settings.tsx:1222
+#: src/routes/admin.settings.tsx:950
 msgid "Host"
 msgstr "Host"
 
@@ -2228,7 +2255,7 @@ msgstr "I understand they will lose access"
 msgid "Identity"
 msgstr "Identity"
 
-#: src/routes/admin.security.tsx:77
+#: src/routes/admin.security.tsx:65
 msgid "identity adopted"
 msgstr "identity adopted"
 
@@ -2240,7 +2267,7 @@ msgstr "Image"
 msgid "Images"
 msgstr "Images"
 
-#: src/routes/admin.settings.tsx:1077
+#: src/routes/admin.settings.tsx:823
 msgid "Implicit TLS / SMTPS (port 465)"
 msgstr "Implicit TLS / SMTPS (port 465)"
 
@@ -2285,21 +2312,22 @@ msgstr "Insert row above"
 msgid "Insert row below"
 msgstr "Insert row below"
 
-#: src/routes/admin.settings.tsx:629
+#: src/routes/admin.settings.tsx:570
 msgid "Instance display name"
 msgstr "Instance display name"
 
-#: src/routes/admin.settings.tsx:521
+#: src/routes/admin.settings.tsx:437
 msgid "Instance name cannot be empty"
 msgstr "Instance name cannot be empty"
 
+#: src/components/admin-sidebar.tsx:37
 #: src/components/nav-user.tsx:132
-#: src/routes/admin.settings.tsx:54
-#: src/routes/admin.settings.tsx:84
+#: src/routes/admin.settings.tsx:45
+#: src/routes/admin.settings.tsx:59
 msgid "Instance settings"
 msgstr "Instance settings"
 
-#: src/routes/admin.security.tsx:87
+#: src/routes/admin.security.tsx:75
 msgid "invitation accepted"
 msgstr "invitation accepted"
 
@@ -2307,11 +2335,11 @@ msgstr "invitation accepted"
 msgid "Invitation cancelled"
 msgstr "Invitation cancelled"
 
-#: src/routes/admin.security.tsx:88
+#: src/routes/admin.security.tsx:76
 msgid "invitation revoked"
 msgstr "invitation revoked"
 
-#: src/routes/admin.security.tsx:86
+#: src/routes/admin.security.tsx:74
 msgid "invitation sent"
 msgstr "invitation sent"
 
@@ -2340,7 +2368,7 @@ msgstr "Invited"
 msgid "Invited {invitee}, but no email could be sent — share the link yourself."
 msgstr "Invited {invitee}, but no email could be sent — share the link yourself."
 
-#: src/routes/admin.security.tsx:311
+#: src/routes/admin.security.tsx:292
 msgid "IP"
 msgstr "IP"
 
@@ -2416,7 +2444,7 @@ msgstr "Joining the space opens no files on its own — what someone can see is 
 msgid "Keep both"
 msgstr "Keep both"
 
-#: src/routes/admin.settings.tsx:1312
+#: src/routes/admin.settings.tsx:1049
 msgid "Keep password"
 msgstr "Keep password"
 
@@ -2444,7 +2472,7 @@ msgstr "Last active"
 #~ msgid "Last modified"
 #~ msgstr "Last modified"
 
-#: src/routes/admin.users.tsx:166
+#: src/routes/admin.users.tsx:187
 msgid "Last seen"
 msgstr "Last seen"
 
@@ -2456,11 +2484,11 @@ msgstr "Leave empty for unlimited. Cannot be changed after creation."
 msgid "Left"
 msgstr "Left"
 
-#: src/routes/admin.settings.tsx:1017
+#: src/routes/admin.settings.tsx:767
 msgid "Let agents create public links"
 msgstr "Let agents create public links"
 
-#: src/routes/admin.settings.tsx:1039
+#: src/routes/admin.settings.tsx:777
 msgid "Let agents share with people outside a space"
 msgstr "Let agents share with people outside a space"
 
@@ -2468,19 +2496,19 @@ msgstr "Let agents share with people outside a space"
 msgid "Let AI agents act as me"
 msgstr "Let AI agents act as me"
 
-#: src/routes/admin.settings.tsx:1007
+#: src/routes/admin.settings.tsx:764
 msgid "Let people connect AI agents to their account"
 msgstr "Let people connect AI agents to their account"
 
-#: src/routes/admin.settings.tsx:1028
+#: src/routes/admin.settings.tsx:772
 msgid "Let people create personal access tokens for agents"
 msgstr "Let people create personal access tokens for agents"
 
-#: src/routes/admin.settings.tsx:994
+#: src/routes/admin.settings.tsx:758
 msgid "Lets people connect Claude, ChatGPT and other AI agents to their account. Public links let an agent publish files that anyone with the link can open without signing in."
 msgstr "Lets people connect Claude, ChatGPT and other AI agents to their account. Public links let an agent publish files that anyone with the link can open without signing in."
 
-#: src/routes/admin.settings.tsx:961
+#: src/routes/admin.settings.tsx:746
 msgid "Lets people share files and folders by email with anyone, including people outside their space or without an account. Each space admin still decides for their space."
 msgstr "Lets people share files and folders by email with anyone, including people outside their space or without an account. Each space admin still decides for their space."
 
@@ -2574,15 +2602,15 @@ msgstr "Loading…"
 msgid "Location"
 msgstr "Location"
 
-#: src/routes/admin.security.tsx:72
+#: src/routes/admin.security.tsx:60
 msgid "login"
 msgstr "login"
 
-#: src/routes/admin.security.tsx:73
+#: src/routes/admin.security.tsx:61
 msgid "login failed"
 msgstr "login failed"
 
-#: src/routes/admin.security.tsx:74
+#: src/routes/admin.security.tsx:62
 msgid "logout"
 msgstr "logout"
 
@@ -2598,7 +2626,7 @@ msgstr "Lowercase letters, numbers and dashes. Leave empty for none."
 msgid "Lowercase letters, numbers and dashes. Optional."
 msgstr "Lowercase letters, numbers and dashes. Optional."
 
-#: src/routes/admin.settings.tsx:1187
+#: src/routes/admin.settings.tsx:933
 msgid "Mail"
 msgstr "Mail"
 
@@ -2607,7 +2635,7 @@ msgid "Make a copy"
 msgstr "Make a copy"
 
 #: src/components/people-table.tsx:553
-#: src/routes/admin.users.tsx:239
+#: src/routes/admin.users.tsx:307
 msgid "Make admin"
 msgstr "Make admin"
 
@@ -2650,14 +2678,14 @@ msgstr "Marketing"
 #~ msgstr "Match the system"
 
 #: src/routes/admin.settings.tsx:702
-msgid "Maximum size (GB, 0 = unlimited)"
-msgstr "Maximum size (GB, 0 = unlimited)"
+#~ msgid "Maximum size (GB, 0 = unlimited)"
+#~ msgstr "Maximum size (GB, 0 = unlimited)"
 
-#: src/routes/admin.settings.tsx:676
+#: src/routes/admin.settings.tsx:594
 msgid "Maximum upload size"
 msgstr "Maximum upload size"
 
-#: src/routes/admin.settings.tsx:530
+#: src/routes/admin.settings.tsx:446
 msgid "Maximum upload size must be a valid number (0 for unlimited)"
 msgstr "Maximum upload size must be a valid number (0 for unlimited)"
 
@@ -2673,14 +2701,15 @@ msgstr "Medium section title"
 #: src/components/people-table.tsx:229
 #: src/components/preview-panel.tsx:258
 #: src/components/settings/panes/account-profile.tsx:236
+#: src/routes/admin.users.tsx:256
 msgid "Member"
 msgstr "Member"
 
-#: src/routes/admin.security.tsx:89
+#: src/routes/admin.security.tsx:77
 msgid "member added"
 msgstr "member added"
 
-#: src/routes/admin.security.tsx:90
+#: src/routes/admin.security.tsx:78
 msgid "member removed"
 msgstr "member removed"
 
@@ -2690,7 +2719,7 @@ msgstr "member removed"
 msgid "Members"
 msgstr "Members"
 
-#: src/routes/admin.settings.tsx:494
+#: src/routes/admin.settings.tsx:410
 msgid "Members of an organization"
 msgstr "Members of an organization"
 
@@ -2710,7 +2739,7 @@ msgstr "Minimal self-hosted workspace: drive, office, spaces."
 msgid "Minimal self-hosted workspace: drive, office, spaces. Nothing leaves the machine you run it on."
 msgstr "Minimal self-hosted workspace: drive, office, spaces. Nothing leaves the machine you run it on."
 
-#: src/routes/admin.settings.tsx:841
+#: src/routes/admin.settings.tsx:671
 msgid "minutes"
 msgstr "minutes"
 
@@ -2810,7 +2839,7 @@ msgid "navigate"
 msgstr "navigate"
 
 #: src/components/people-table.tsx:526
-#: src/routes/admin.users.tsx:210
+#: src/routes/admin.users.tsx:264
 msgid "never"
 msgstr "never"
 
@@ -2870,7 +2899,7 @@ msgstr "New sub-page"
 msgid "New team folder"
 msgstr "New team folder"
 
-#: src/routes/admin.security.tsx:349
+#: src/routes/admin.security.tsx:341
 msgid "Next"
 msgstr "Next"
 
@@ -2878,7 +2907,7 @@ msgstr "Next"
 msgid "Next file"
 msgstr "Next file"
 
-#: src/routes/admin.settings.tsx:384
+#: src/routes/admin.settings.tsx:301
 msgid "No archived personal spaces."
 msgstr "No archived personal spaces."
 
@@ -2903,15 +2932,15 @@ msgstr "No deleted items match"
 msgid "No emoji matches."
 msgstr "No emoji matches."
 
-#: src/routes/admin.security.tsx:290
+#: src/routes/admin.security.tsx:306
 msgid "No events match these filters."
 msgstr "No events match these filters."
 
-#: src/routes/admin.security.tsx:292
+#: src/routes/admin.security.tsx:308
 msgid "No events recorded for {filterLabel}."
 msgstr "No events recorded for {filterLabel}."
 
-#: src/routes/admin.security.tsx:294
+#: src/routes/admin.security.tsx:310
 msgid "No events recorded."
 msgstr "No events recorded."
 
@@ -2956,6 +2985,10 @@ msgstr "No preview available — use Download to view this file."
 msgid "No unsaved changes"
 msgstr "No unsaved changes"
 
+#: src/routes/admin.users.tsx:201
+msgid "No users match this filter."
+msgstr "No users match this filter."
+
 #: src/components/unlinked-space-alert.tsx:41
 msgid "Nobody can be added to this space until an instance administrator links it to an organization."
 msgstr "Nobody can be added to this space until an instance administrator links it to an organization."
@@ -2976,7 +3009,7 @@ msgstr "Nobody can see it yet — access to a team folder is given through Share
 #~ msgid "Nobody else reaches this — not even a space admin — unless a line here says so."
 #~ msgstr "Nobody else reaches this — not even a space admin — unless a line here says so."
 
-#: src/routes/admin.settings.tsx:489
+#: src/routes/admin.settings.tsx:405
 msgid "Nobody gets a personal space. Existing ones stay as they are."
 msgstr "Nobody gets a personal space. Existing ones stay as they are."
 
@@ -2996,11 +3029,11 @@ msgstr "Nobody or nothing matches."
 msgid "Nobody reaches this — not even a space admin — unless a line here says so."
 msgstr "Nobody reaches this — not even a space admin — unless a line here says so."
 
-#: src/routes/admin.settings.tsx:1078
+#: src/routes/admin.settings.tsx:824
 msgid "None — local relay only"
 msgstr "None — local relay only"
 
-#: src/routes/admin.users.tsx:134
+#: src/routes/admin.users.tsx:143
 msgid "none failed"
 msgstr "none failed"
 
@@ -3010,7 +3043,7 @@ msgstr "Not linked to a Logto organization"
 
 #: src/components/settings/panes/account-profile.tsx:175
 #: src/components/settings/panes/account-profile.tsx:181
-#: src/routes/admin.settings.tsx:1295
+#: src/routes/admin.settings.tsx:1033
 msgid "Not set"
 msgstr "Not set"
 
@@ -3074,13 +3107,13 @@ msgstr "Notifications, {count} unread"
 msgid "Numbered list"
 msgstr "Numbered list"
 
-#: src/routes/admin.settings.tsx:488
+#: src/routes/admin.settings.tsx:404
 msgid "Off"
 msgstr "Off"
 
 #: src/routes/admin.settings.tsx:949
-msgid "Offering personal spaces to everyone requires a quota above 0."
-msgstr "Offering personal spaces to everyone requires a quota above 0."
+#~ msgid "Offering personal spaces to everyone requires a quota above 0."
+#~ msgstr "Offering personal spaces to everyone requires a quota above 0."
 
 #: src/routes/login.tsx:130
 msgid "Office"
@@ -3102,9 +3135,13 @@ msgstr "Only a space admin can add or remove members, so leaving is a request to
 #~ msgid "Only a space admin can open settings"
 #~ msgstr "Only a space admin can open settings"
 
+#: src/routes/admin.tsx:26
+msgid "Only an administrator can open server administration."
+msgstr "Only an administrator can open server administration."
+
 #: src/routes/admin.security.tsx:48
-msgid "Only an administrator can read the security log."
-msgstr "Only an administrator can read the security log."
+#~ msgid "Only an administrator can read the security log."
+#~ msgstr "Only an administrator can read the security log."
 
 #: src/lib/collab/page-store.ts:46
 msgid "Only the open page’s icon and cover can be changed."
@@ -3140,7 +3177,7 @@ msgstr "Open link"
 msgid "Open Shared from outside"
 msgstr "Open Shared from outside"
 
-#: src/routes/admin.security.tsx:99
+#: src/routes/admin.security.tsx:87
 msgid "opened in editor"
 msgstr "opened in editor"
 
@@ -3153,7 +3190,7 @@ msgstr "Opening"
 msgid "Opening editor…"
 msgstr "Opening editor…"
 
-#: src/routes/admin.settings.tsx:85
+#: src/routes/admin.settings.tsx:60
 msgid "Operational policies and configuration across this install"
 msgstr "Operational policies and configuration across this install"
 
@@ -3169,11 +3206,11 @@ msgstr "Original location"
 msgid "Other"
 msgstr "Other"
 
-#: src/routes/admin.settings.tsx:1193
+#: src/routes/admin.settings.tsx:935
 msgid "Outgoing mail (SMTP)"
 msgstr "Outgoing mail (SMTP)"
 
-#: src/routes/admin.settings.tsx:1128
+#: src/routes/admin.settings.tsx:874
 msgid "Outgoing mail settings reset"
 msgstr "Outgoing mail settings reset"
 
@@ -3181,7 +3218,7 @@ msgstr "Outgoing mail settings reset"
 msgid "Outline"
 msgstr "Outline"
 
-#: src/routes/admin.users.tsx:108
+#: src/routes/admin.users.tsx:113
 msgid "Overview"
 msgstr "Overview"
 
@@ -3221,7 +3258,7 @@ msgstr "Pages"
 msgid "Pages cannot be changed through a share link."
 msgstr "Pages cannot be changed through a share link."
 
-#: src/routes/admin.settings.tsx:1283
+#: src/routes/admin.settings.tsx:1021
 msgid "Password"
 msgstr "Password"
 
@@ -3292,23 +3329,23 @@ msgstr "Permissions"
 msgid "Person"
 msgstr "Person"
 
-#: src/routes/admin.settings.tsx:426
+#: src/routes/admin.settings.tsx:342
 msgid "Personal space purged"
 msgstr "Personal space purged"
 
-#: src/routes/admin.settings.tsx:908
+#: src/routes/admin.settings.tsx:712
 msgid "Personal space quota"
 msgstr "Personal space quota"
 
-#: src/routes/admin.settings.tsx:569
+#: src/routes/admin.settings.tsx:485
 msgid "Personal space quota must be a valid number (0 for unlimited)"
 msgstr "Personal space quota must be a valid number (0 for unlimited)"
 
-#: src/routes/admin.settings.tsx:856
+#: src/routes/admin.settings.tsx:677
 msgid "Personal spaces"
 msgstr "Personal spaces"
 
-#: src/routes/admin.settings.tsx:368
+#: src/routes/admin.settings.tsx:286
 msgid "Personal spaces of deleted accounts. Nobody can open them; purge one to free its storage."
 msgstr "Personal spaces of deleted accounts. Nobody can open them; purge one to free its storage."
 
@@ -3316,7 +3353,7 @@ msgstr "Personal spaces of deleted accounts. Nobody can open them; purge one to 
 msgid "Personal tokens"
 msgstr "Personal tokens"
 
-#: src/routes/admin.settings.tsx:850
+#: src/routes/admin.settings.tsx:675
 msgid "Personal use"
 msgstr "Personal use"
 
@@ -3332,11 +3369,11 @@ msgstr "Plain paragraph"
 msgid "Plain text"
 msgstr "Plain text"
 
-#: src/routes/admin.settings.tsx:1234
+#: src/routes/admin.settings.tsx:962
 msgid "Port"
 msgstr "Port"
 
-#: src/routes/admin.settings.tsx:1146
+#: src/routes/admin.settings.tsx:892
 msgid "Port must be between 1 and 65535."
 msgstr "Port must be between 1 and 65535."
 
@@ -3365,11 +3402,11 @@ msgstr "Preview {nodeName}"
 msgid "Preview not available yet — it is generated shortly after upload."
 msgstr "Preview not available yet — it is generated shortly after upload."
 
-#: src/routes/admin.users.tsx:128
+#: src/routes/admin.users.tsx:137
 msgid "Preview queue"
 msgstr "Preview queue"
 
-#: src/routes/admin.security.tsx:341
+#: src/routes/admin.security.tsx:333
 msgid "Previous"
 msgstr "Previous"
 
@@ -3401,15 +3438,15 @@ msgstr "Public link"
 msgid "Public links"
 msgstr "Public links"
 
-#: src/routes/admin.settings.tsx:409
+#: src/routes/admin.settings.tsx:326
 msgid "Purge"
 msgstr "Purge"
 
-#: src/routes/admin.settings.tsx:422
+#: src/routes/admin.settings.tsx:338
 msgid "Purge permanently"
 msgstr "Purge permanently"
 
-#: src/routes/admin.settings.tsx:420
+#: src/routes/admin.settings.tsx:336
 msgid "Purge this personal space?"
 msgstr "Purge this personal space?"
 
@@ -3418,8 +3455,8 @@ msgid "Purges in"
 msgstr "Purges in"
 
 #: src/routes/admin.settings.tsx:933
-msgid "Quota for each personal space (GB, 0 = unlimited)"
-msgstr "Quota for each personal space (GB, 0 = unlimited)"
+#~ msgid "Quota for each personal space (GB, 0 = unlimited)"
+#~ msgstr "Quota for each personal space (GB, 0 = unlimited)"
 
 #: src/components/doc-editor/labels.ts:31
 #: src/components/doc-editor/labels.ts:77
@@ -3445,7 +3482,7 @@ msgstr "Read-only"
 msgid "Recent"
 msgstr "Recent"
 
-#: src/routes/admin.users.tsx:125
+#: src/routes/admin.users.tsx:133
 msgid "referenced blobs"
 msgstr "referenced blobs"
 
@@ -3453,7 +3490,7 @@ msgstr "referenced blobs"
 msgid "Refresh"
 msgstr "Refresh"
 
-#: src/routes/admin.users.tsx:258
+#: src/routes/admin.users.tsx:328
 msgid "Reinstate"
 msgstr "Reinstate"
 
@@ -3511,7 +3548,7 @@ msgstr "Remove icon"
 msgid "Remove link"
 msgstr "Remove link"
 
-#: src/routes/admin.settings.tsx:1314
+#: src/routes/admin.settings.tsx:1049
 msgid "Remove password"
 msgstr "Remove password"
 
@@ -3558,7 +3595,7 @@ msgstr "Renamed to “{restored}” — the old name was taken."
 msgid "Reopen thread"
 msgstr "Reopen thread"
 
-#: src/routes/admin.security.tsx:106
+#: src/routes/admin.security.tsx:94
 msgid "Repeated failed sign-ins"
 msgstr "Repeated failed sign-ins"
 
@@ -3579,14 +3616,7 @@ msgstr "Reply… (@ to mention)"
 msgid "Reported by the identity provider"
 msgstr "Reported by the identity provider"
 
-#: src/routes/admin.settings.tsx:260
-#: src/routes/admin.settings.tsx:321
-#: src/routes/admin.settings.tsx:645
-#: src/routes/admin.settings.tsx:694
-#: src/routes/admin.settings.tsx:743
-#: src/routes/admin.settings.tsx:871
-#: src/routes/admin.settings.tsx:925
-#: src/routes/admin.settings.tsx:1213
+#: src/components/admin-settings-ui.tsx:124
 msgid "Reset"
 msgstr "Reset"
 
@@ -3638,8 +3668,8 @@ msgstr "Resume uploads"
 
 #: src/routes/admin.settings.tsx:800
 #: src/routes/admin.settings.tsx:812
-msgid "Retention period (days)"
-msgstr "Retention period (days)"
+#~ msgid "Retention period (days)"
+#~ msgstr "Retention period (days)"
 
 #: src/components/nodes/uploadable-node-view.tsx:97
 #: src/components/transfer-tray.tsx:212
@@ -3659,7 +3689,7 @@ msgstr "Revoke"
 msgid "Revoke access for {grantee}"
 msgstr "Revoke access for {grantee}"
 
-#: src/routes/admin.users.tsx:239
+#: src/routes/admin.users.tsx:303
 msgid "Revoke admin"
 msgstr "Revoke admin"
 
@@ -3670,6 +3700,10 @@ msgstr "Revoking a group’s access leaves anything its members created in here 
 #: src/routes/drive/$spaceId/index.tsx:605
 msgid "Right-click here, or use New, to add something."
 msgstr "Right-click here, or use New, to add something."
+
+#: src/routes/admin.users.tsx:181
+msgid "Role"
+msgstr "Role"
 
 #: src/components/table-controls.tsx:76
 msgid "Row"
@@ -3686,8 +3720,8 @@ msgstr "Save"
 
 #: src/components/settings/panes/account-profile.tsx:193
 #: src/components/settings/panes/space-general.tsx:331
-#: src/routes/admin.settings.tsx:1068
-#: src/routes/admin.settings.tsx:1364
+#: src/routes/admin.settings.tsx:812
+#: src/routes/admin.settings.tsx:1090
 msgid "Save changes"
 msgstr "Save changes"
 
@@ -3712,8 +3746,8 @@ msgid "Saved to your account. Only sent when your administrator has set up mail.
 msgstr "Saved to your account. Only sent when your administrator has set up mail."
 
 #: src/routes/admin.settings.tsx:778
-msgid "Saving a new version removes the oldest ones beyond this number. The current version is always kept."
-msgstr "Saving a new version removes the oldest ones beyond this number. The current version is always kept."
+#~ msgid "Saving a new version removes the oldest ones beyond this number. The current version is always kept."
+#~ msgstr "Saving a new version removes the oldest ones beyond this number. The current version is always kept."
 
 #: src/components/command-palette.tsx:121
 msgid "Search"
@@ -3754,31 +3788,31 @@ msgstr "Searching…"
 #~ msgid "Seconds; use 0 for no expiration."
 #~ msgstr "Seconds; use 0 for no expiration."
 
-#: src/components/admin-header.tsx:47
 #: src/components/settings/panes.ts:80
-#: src/routes/admin.settings.tsx:1248
+#: src/routes/admin.settings.tsx:976
 msgid "Security"
 msgstr "Security"
 
-#: src/routes/admin.settings.tsx:792
+#: src/routes/admin.settings.tsx:654
 msgid "Security & Auditing"
 msgstr "Security & Auditing"
 
-#: src/routes/admin.security.tsx:100
+#: src/routes/admin.security.tsx:88
 msgid "security alert"
 msgstr "security alert"
 
+#: src/components/admin-sidebar.tsx:36
 #: src/components/nav-user.tsx:129
-#: src/routes/admin.security.tsx:39
-#: src/routes/admin.security.tsx:200
+#: src/routes/admin.security.tsx:38
+#: src/routes/admin.security.tsx:187
 msgid "Security log"
 msgstr "Security log"
 
-#: src/routes/admin.security.tsx:101
+#: src/routes/admin.security.tsx:89
 msgid "security log exported"
 msgstr "security log exported"
 
-#: src/routes/admin.settings.tsx:799
+#: src/routes/admin.settings.tsx:655
 msgid "Security log retention"
 msgstr "Security log retention"
 
@@ -3806,7 +3840,7 @@ msgstr "Select all deleted items"
 msgid "Selection actions"
 msgstr "Selection actions"
 
-#: src/routes/admin.settings.tsx:1343
+#: src/routes/admin.settings.tsx:1065
 msgid "Send test email"
 msgstr "Send test email"
 
@@ -3815,7 +3849,7 @@ msgstr "Send test email"
 #~ msgid "Sends to {0}. Save changes first."
 #~ msgstr "Sends to {0}. Save changes first."
 
-#: src/routes/admin.settings.tsx:1372
+#: src/routes/admin.settings.tsx:1068
 msgid "Sends to {targetEmail}. Save changes first."
 msgstr "Sends to {targetEmail}. Save changes first."
 
@@ -3831,17 +3865,21 @@ msgstr "Served by {PRODUCT_NAME} · self-hosted"
 #~ msgid "Served by pp-hub · self-hosted"
 #~ msgstr "Served by pp-hub · self-hosted"
 
+#: src/components/admin-sidebar.tsx:72
+msgid "Server"
+msgstr "Server"
+
 #: src/components/settings/panes/account-profile.tsx:101
 msgid "Server admin"
 msgstr "Server admin"
 
 #: src/components/nav-user.tsx:126
-#: src/routes/admin.users.tsx:37
-#: src/routes/admin.users.tsx:99
+#: src/routes/admin.users.tsx:60
+#: src/routes/admin.users.tsx:109
 msgid "Server administration"
 msgstr "Server administration"
 
-#: src/routes/admin.security.tsx:75
+#: src/routes/admin.security.tsx:63
 msgid "session revoked"
 msgstr "session revoked"
 
@@ -3850,7 +3888,7 @@ msgstr "session revoked"
 #~ msgid "Sessions"
 #~ msgstr "Sessions"
 
-#: src/routes/admin.security.tsx:76
+#: src/routes/admin.security.tsx:64
 msgid "sessions revoked"
 msgstr "sessions revoked"
 
@@ -3858,19 +3896,18 @@ msgstr "sessions revoked"
 msgid "Set link"
 msgstr "Set link"
 
-#: src/routes/admin.settings.tsx:588
+#: src/routes/admin.settings.tsx:504
 msgid "Setting reverted to deployment default"
 msgstr "Setting reverted to deployment default"
 
-#: src/components/admin-header.tsx:55
 #: src/components/nav-user.tsx:104
 #: src/components/settings/settings-modal.tsx:102
 msgid "Settings"
 msgstr "Settings"
 
 #: src/components/settings/panes/space-general.tsx:135
-#: src/routes/admin.settings.tsx:579
-#: src/routes/admin.settings.tsx:1167
+#: src/routes/admin.settings.tsx:495
+#: src/routes/admin.settings.tsx:913
 msgid "Settings saved"
 msgstr "Settings saved"
 
@@ -3891,11 +3928,11 @@ msgstr "Share"
 msgid "Share “{nodeName}”"
 msgstr "Share “{nodeName}”"
 
-#: src/routes/admin.security.tsx:84
+#: src/routes/admin.security.tsx:72
 msgid "share created"
 msgstr "share created"
 
-#: src/routes/admin.security.tsx:377
+#: src/routes/admin.security.tsx:368
 msgid "Share link visitor"
 msgstr "Share link visitor"
 
@@ -3903,7 +3940,7 @@ msgstr "Share link visitor"
 msgid "Share outside this space"
 msgstr "Share outside this space"
 
-#: src/routes/admin.security.tsx:85
+#: src/routes/admin.security.tsx:73
 msgid "share revoked"
 msgstr "share revoked"
 
@@ -3939,7 +3976,7 @@ msgstr "Sharing"
 msgid "Sharing outside this space is not allowed here."
 msgstr "Sharing outside this space is not allowed here."
 
-#: src/routes/admin.security.tsx:403
+#: src/routes/admin.security.tsx:397
 msgid "Show all events for this item"
 msgstr "Show all events for this item"
 
@@ -4013,11 +4050,15 @@ msgstr "Sign-in failed. Try again."
 msgid "Sign-in was cancelled."
 msgstr "Sign-in was cancelled."
 
+#: src/routes/admin.settings.tsx:662
+msgid "sign-ins"
+msgstr "sign-ins"
+
 #: src/routes/admin.security.tsx:133
 #~ msgid "Sign-ins, failures and access changes across this install"
 #~ msgstr "Sign-ins, failures and access changes across this install"
 
-#: src/routes/admin.security.tsx:202
+#: src/routes/admin.security.tsx:189
 msgid "Sign-ins, failures, access changes and file access across this install"
 msgstr "Sign-ins, failures, access changes and file access across this install"
 
@@ -4113,8 +4154,8 @@ msgstr "Space settings"
 
 #: src/components/command-palette.tsx:183
 #: src/components/space-switcher.tsx:106
-#: src/routes/admin.users.tsx:116
-#: src/routes/admin.users.tsx:163
+#: src/routes/admin.users.tsx:122
+#: src/routes/admin.users.tsx:184
 #: src/routes/login.tsx:133
 msgid "Spaces"
 msgstr "Spaces"
@@ -4143,11 +4184,11 @@ msgstr "Starred"
 msgid "Start from an empty page."
 msgstr "Start from an empty page."
 
-#: src/routes/admin.settings.tsx:1076
+#: src/routes/admin.settings.tsx:822
 msgid "STARTTLS (port 587)"
 msgstr "STARTTLS (port 587)"
 
-#: src/routes/admin.users.tsx:169
+#: src/routes/admin.users.tsx:190
 msgid "Status"
 msgstr "Status"
 
@@ -4157,7 +4198,7 @@ msgstr "Status"
 msgid "Storage"
 msgstr "Storage"
 
-#: src/routes/admin.settings.tsx:669
+#: src/routes/admin.settings.tsx:592
 msgid "Storage & Uploads"
 msgstr "Storage & Uploads"
 
@@ -4166,11 +4207,11 @@ msgstr "Storage & Uploads"
 msgid "Storage quota (GB)"
 msgstr "Storage quota (GB)"
 
-#: src/routes/admin.users.tsx:123
+#: src/routes/admin.users.tsx:131
 msgid "Storage used"
 msgstr "Storage used"
 
-#: src/routes/admin.settings.tsx:1294
+#: src/routes/admin.settings.tsx:1032
 msgid "Stored — leave blank to keep"
 msgstr "Stored — leave blank to keep"
 
@@ -4182,11 +4223,11 @@ msgstr "Strikethrough"
 msgid "Structure"
 msgstr "Structure"
 
-#: src/routes/admin.users.tsx:258
+#: src/routes/admin.users.tsx:332
 msgid "Suspend"
 msgstr "Suspend"
 
-#: src/routes/admin.users.tsx:221
+#: src/routes/admin.users.tsx:276
 msgid "Suspended"
 msgstr "Suspended"
 
@@ -4231,7 +4272,7 @@ msgstr "Templates could not be loaded; the document starts blank."
 #~ msgid "Test email sent to {0}"
 #~ msgstr "Test email sent to {0}"
 
-#: src/routes/admin.settings.tsx:1177
+#: src/routes/admin.settings.tsx:923
 msgid "Test email sent to {to}"
 msgstr "Test email sent to {to}"
 
@@ -4405,6 +4446,10 @@ msgstr "This group holds the space admins. Use the Admin switch in the table to 
 msgid "This group opens no folders, so nobody loses access."
 msgstr "This group opens no folders, so nobody loses access."
 
+#: src/components/admin-sidebar.tsx:63
+msgid "This install"
+msgstr "This install"
+
 #: src/routes/s/$token.tsx:446
 msgid "This kind of file cannot be shown here, and this link does not allow downloads."
 msgstr "This kind of file cannot be shown here, and this link does not allow downloads."
@@ -4457,7 +4502,7 @@ msgstr "This video can't be played here — use Download."
 msgid "Those names are taken"
 msgstr "Those names are taken"
 
-#: src/routes/admin.security.tsx:247
+#: src/routes/admin.security.tsx:236
 msgid "To date"
 msgstr "To date"
 
@@ -4581,6 +4626,7 @@ msgstr "Unordered list"
 
 #: src/components/settings/panes/account-profile.tsx:207
 #: src/components/settings/panes/space-general.tsx:337
+#: src/routes/admin.settings.tsx:787
 msgid "Unsaved changes"
 msgstr "Unsaved changes"
 
@@ -4673,7 +4719,7 @@ msgstr "Uploading…"
 msgid "URL slug"
 msgstr "URL slug"
 
-#: src/routes/admin.settings.tsx:1198
+#: src/routes/admin.settings.tsx:937
 msgid "Used to email people when a file or folder is shared with them. Leave the host empty to turn mail off."
 msgstr "Used to email people when a file or folder is shared with them. Leave the host empty to turn mail off."
 
@@ -4681,18 +4727,18 @@ msgstr "Used to email people when a file or folder is shared with them. Leave th
 msgid "Used when a link says nothing about how to draw the folder. A link that carries a view or a sort keeps the one it was copied with."
 msgstr "Used when a link says nothing about how to draw the folder. A link that carries a view or a sort keeps the one it was copied with."
 
+#: src/components/admin-sidebar.tsx:49
 #: src/components/nav-user.tsx:47
-#: src/routes/admin.users.tsx:160
+#: src/routes/admin.users.tsx:178
 msgid "User"
 msgstr "User"
 
-#: src/routes/admin.settings.tsx:1272
+#: src/routes/admin.settings.tsx:1010
 msgid "Username"
 msgstr "Username"
 
-#: src/components/admin-header.tsx:39
-#: src/routes/admin.users.tsx:112
-#: src/routes/admin.users.tsx:145
+#: src/components/admin-sidebar.tsx:35
+#: src/routes/admin.users.tsx:118
 msgid "Users"
 msgstr "Users"
 
@@ -4712,9 +4758,13 @@ msgstr "version {versionNo}"
 msgid "Version {versionNo}"
 msgstr "Version {versionNo}"
 
-#: src/routes/admin.settings.tsx:775
+#: src/routes/admin.settings.tsx:643
 msgid "Version history"
 msgstr "Version history"
+
+#: src/routes/admin.settings.tsx:644
+msgid "versions"
+msgstr "versions"
 
 #: src/components/editor-header.tsx:118
 #: src/components/node-actions.tsx:172
@@ -4729,12 +4779,16 @@ msgid "Versions are immutable. Restoring makes the selected version current; it 
 msgstr "Versions are immutable. Restoring makes the selected version current; it does not delete anything."
 
 #: src/routes/admin.settings.tsx:776
-msgid "Versions kept per file (0 = keep all)"
-msgstr "Versions kept per file (0 = keep all)"
+#~ msgid "Versions kept per file (0 = keep all)"
+#~ msgstr "Versions kept per file (0 = keep all)"
 
-#: src/routes/admin.settings.tsx:510
+#: src/routes/admin.settings.tsx:426
 msgid "Versions kept per file must be between 0 and 10000"
 msgstr "Versions kept per file must be between 0 and 10000"
+
+#: src/routes/admin.settings.tsx:646
+msgid "Versions kept per file; 0 keeps all. Saving a new version removes the oldest ones beyond this number. The current version is always kept."
+msgstr "Versions kept per file; 0 keeps all. Saving a new version removes the oldest ones beyond this number. The current version is always kept."
 
 #: src/components/versions-panel.tsx:25
 msgid "Versions of “{nodeName}”"
@@ -4786,7 +4840,7 @@ msgstr "Welcome to pp-hub"
 msgid "What lives in this space?"
 msgstr "What lives in this space?"
 
-#: src/routes/admin.security.tsx:302
+#: src/routes/admin.security.tsx:283
 msgid "When"
 msgstr "When"
 
@@ -4818,7 +4872,7 @@ msgstr "When someone outside your spaces shares a file or folder with you, it ap
 msgid "When turned on, everyone you invite joins as an admin."
 msgstr "When turned on, everyone you invite joins as an admin."
 
-#: src/routes/admin.security.tsx:308
+#: src/routes/admin.security.tsx:289
 msgid "Who"
 msgstr "Who"
 
@@ -4827,15 +4881,15 @@ msgid "Who belongs in here, and why"
 msgstr "Who belongs in here, and why"
 
 #: src/routes/admin.settings.tsx:879
-msgid "Who gets a personal space (“My Drive”)"
-msgstr "Who gets a personal space (“My Drive”)"
+#~ msgid "Who gets a personal space (“My Drive”)"
+#~ msgstr "Who gets a personal space (“My Drive”)"
 
 #: src/routes/admin.settings.tsx:840
-msgid "Window (minutes)"
-msgstr "Window (minutes)"
+#~ msgid "Window (minutes)"
+#~ msgstr "Window (minutes)"
 
 #: src/components/people-table.tsx:480
-#: src/routes/admin.users.tsx:196
+#: src/routes/admin.users.tsx:240
 msgid "You"
 msgstr "You"
 
@@ -4876,6 +4930,10 @@ msgstr "You do not have access to this file."
 #: src/routes/open.$nodeId.tsx:66
 msgid "You do not have access to this item"
 msgstr "You do not have access to this item"
+
+#: src/routes/admin.settings.tsx:791
+msgid "You have unsaved changes"
+msgstr "You have unsaved changes"
 
 #: src/routes/drive/$spaceId/home.tsx:45
 #: src/routes/drive/$spaceId/recent.tsx:36

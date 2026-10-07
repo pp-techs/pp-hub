@@ -1,14 +1,37 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
+import {
+  Activity,
+  Boxes,
+  Files,
+  HardDrive,
+  MoreHorizontal,
+  Search,
+  ShieldCheck,
+  ShieldOff,
+  UserCheck,
+  UserX,
+  Users,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type * as React from "react";
 
-import { AdminHeader } from "@/components/admin-header";
+import { AdminPage } from "@/components/admin-page";
 import { Button } from "@workspace/ui/components/button";
-import { Input } from "@workspace/ui/components/input";
 import { Badge } from "@workspace/ui/components/badge";
+import { Card } from "@workspace/ui/components/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@workspace/ui/components/dropdown-menu";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@workspace/ui/components/input-group";
+import { Skeleton } from "@workspace/ui/components/skeleton";
 import {
   Table,
   TableBody,
@@ -20,30 +43,28 @@ import {
 import { cn } from "@workspace/ui/lib/utils";
 import {
   adminStatsOptions,
-  requireAuth,
   useAdminStats,
   useMe,
   useUpdateAdminUser,
   useUsers,
   usersOptions,
 } from "@/lib/queries";
+import type { AdminUser } from "@/lib/api";
 import { useFormatters } from "@/lib/format";
+import { useLocale } from "@/components/locale-provider";
 import { pageTitle } from "@/lib/i18n";
 import { UserAvatar } from "@/components/user-avatar";
-import { SectionLabel } from "@/components/section-label";
 import { SkeletonTableRows } from "@/components/loading";
 
 export const Route = createFileRoute("/admin/users")({
   head: () => ({ meta: [{ title: pageTitle(msg`Server administration`) }] }),
-  beforeLoad: async ({ context, location }) => {
-    await requireAuth(context.queryClient, location.href);
-  },
-  // `requireAuth` above has already primed the identity cache under keys.me.
+  // The `/admin` layout has already authenticated the caller and primed the
+  // identity cache under keys.me.
   loader: ({ context }) => {
     void context.queryClient.ensureQueryData(adminStatsOptions());
     void context.queryClient.ensureQueryData(usersOptions(100, 0));
   },
-  component: AdminPage,
+  component: AdminUsersPage,
 });
 
 /**
@@ -54,220 +75,268 @@ export const Route = createFileRoute("/admin/users")({
  * enforces the same distinction, so this page rendering is not what keeps a
  * non-admin out.
  */
-function AdminPage() {
+function AdminUsersPage() {
   const { data: me } = useMe();
   const stats = useAdminStats();
   const { data, isLoading } = useUsers(100, 0);
-  const update = useUpdateAdminUser();
   const [query, setQuery] = useState("");
   const { t } = useLingui();
   const f = useFormatters();
+  const locale = useLocale();
 
+  const all = data?.users;
   const users = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const all = data?.users ?? [];
+    const list = all ?? [];
     return q
-      ? all.filter(
+      ? list.filter(
           (u) =>
             u.email.toLowerCase().includes(q) ||
             (u.display_name || u.name).toLowerCase().includes(q),
         )
-      : all;
-  }, [data, query]);
-
-  if (me && !me.is_admin) {
-    return (
-      <main className="flex min-h-svh flex-col items-center justify-center gap-3 p-6">
-        <p className="text-muted-foreground text-sm">
-          <Trans>Admin access required.</Trans>
-        </p>
-        <Button variant="outline" render={<Link to="/drive" />}>
-          <Trans>Back to Drive</Trans>
-        </Button>
-      </main>
-    );
-  }
+      : list;
+  }, [all, query]);
 
   // Named locals so the ICU messages read `{trashed, plural, …}` rather than
   // `{0, plural, …}`: the placeholder name is the only hint a translator has.
   const trashed = stats.data?.trashed ?? 0;
   const failed = stats.data?.jobs_failed ?? 0;
+  const shown = users.length;
+  const total = data?.total ?? shown;
 
   return (
-    <main className="bg-background text-foreground flex min-h-svh flex-col">
-      <AdminHeader
-        title={<Trans>Server administration</Trans>}
-        subtitle={<Trans>Every user and space on this install</Trans>}
-        // eslint-disable-next-line lingui/no-unlocalized-strings -- admin tab identifier
-        activeTab="users"
-      />
+    <AdminPage
+      title={<Trans>Server administration</Trans>}
+      description={<Trans>Every user and space on this install</Trans>}
+    >
+      <section
+        aria-label={t`Overview`}
+        className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5"
+      >
+        <StatTile
+          icon={Users}
+          label={<Trans>Users</Trans>}
+          value={stats.data?.users}
+          note={suspendedNote(stats.data?.suspended_users)}
+        />
+        <StatTile icon={Boxes} label={<Trans>Spaces</Trans>} value={stats.data?.spaces} />
+        <StatTile
+          icon={Files}
+          label={<Trans>Files</Trans>}
+          value={stats.data ? new Intl.NumberFormat(locale).format(stats.data.files) : undefined}
+          note={<Plural value={trashed} one="# in trash" other="# in trash" />}
+        />
+        <StatTile
+          icon={HardDrive}
+          label={<Trans>Storage used</Trans>}
+          value={stats.data ? f.size(stats.data.storage_bytes) : undefined}
+          note={<Trans>referenced blobs</Trans>}
+        />
+        <StatTile
+          icon={Activity}
+          label={<Trans>Preview queue</Trans>}
+          value={stats.data?.jobs_pending}
+          note={
+            failed ? (
+              <Plural value={failed} one="# failed" other="# failed" />
+            ) : (
+              <Trans>none failed</Trans>
+            )
+          }
+          alert={failed > 0}
+        />
+      </section>
 
-      <div className="flex flex-col gap-6 p-4">
-        <section>
-          <SectionLabel>
-            <Trans>Overview</Trans>
-          </SectionLabel>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-            <StatTile
-              label={<Trans>Users</Trans>}
-              value={stats.data?.users}
-              note={suspendedNote(stats.data?.suspended_users)}
-            />
-            <StatTile label={<Trans>Spaces</Trans>} value={stats.data?.spaces} />
-            <StatTile
-              label={<Trans>Files</Trans>}
-              value={stats.data?.files}
-              note={<Plural value={trashed} one="# in trash" other="# in trash" />}
-            />
-            <StatTile
-              label={<Trans>Storage used</Trans>}
-              value={stats.data ? f.size(stats.data.storage_bytes) : undefined}
-              note={<Trans>referenced blobs</Trans>}
-            />
-            <StatTile
-              label={<Trans>Preview queue</Trans>}
-              value={stats.data?.jobs_pending}
-              note={
-                failed ? (
-                  <Plural value={failed} one="# failed" other="# failed" />
-                ) : (
-                  <Trans>none failed</Trans>
-                )
-              }
-              alert={failed > 0}
-            />
-          </div>
-        </section>
-
-        <section className="flex flex-col gap-2">
-          <div className="flex items-center justify-between gap-2">
-            <SectionLabel>
-              <Trans>Users</Trans>
-            </SectionLabel>
-            <Input
+      <Card className="gap-0 py-0">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b p-3">
+          <InputGroup className="w-full sm:max-w-72">
+            <InputGroupAddon>
+              <Search />
+            </InputGroupAddon>
+            <InputGroupInput
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t`Filter by name or email`}
               aria-label={t`Filter users`}
-              className="max-w-64"
             />
-          </div>
+          </InputGroup>
+          <span className="text-muted-foreground text-xs tabular-nums">
+            {isLoading ? (
+              <Skeleton className="h-3.5 w-24" />
+            ) : (
+              <Trans>
+                {shown} of {total} users
+              </Trans>
+            )}
+          </span>
+        </div>
 
-          <Table className="text-xs">
-            <TableHeader>
-              <TableRow>
-                <TableHead>
-                  <Trans>User</Trans>
-                </TableHead>
-                <TableHead className="w-20">
-                  <Trans>Spaces</Trans>
-                </TableHead>
-                <TableHead className="w-32">
-                  <Trans>Last seen</Trans>
-                </TableHead>
-                <TableHead className="w-24">
-                  <Trans>Status</Trans>
-                </TableHead>
-                <TableHead className="w-48" />
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="h-9 pl-4 text-[11px] tracking-wider uppercase">
+                <Trans>User</Trans>
+              </TableHead>
+              <TableHead className="h-9 w-28 text-[11px] tracking-wider uppercase">
+                <Trans>Role</Trans>
+              </TableHead>
+              <TableHead className="h-9 w-20 text-[11px] tracking-wider uppercase">
+                <Trans>Spaces</Trans>
+              </TableHead>
+              <TableHead className="h-9 w-36 text-[11px] tracking-wider uppercase">
+                <Trans>Last seen</Trans>
+              </TableHead>
+              <TableHead className="h-9 w-28 text-[11px] tracking-wider uppercase">
+                <Trans>Status</Trans>
+              </TableHead>
+              <TableHead className="h-9 w-14 pr-4" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <SkeletonTableRows columns={6} />
+            ) : users.length === 0 ? (
+              <TableRow className="hover:bg-transparent">
+                <TableCell colSpan={6} className="text-muted-foreground py-10 text-center text-sm">
+                  <Trans>No users match this filter.</Trans>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <SkeletonTableRows columns={5} />
-              ) : (
-                users.map((u) => {
-                  const isSelf = u.id === me?.id;
-                  const email = u.email;
-                  return (
-                    <TableRow key={u.id} className={cn(u.suspended && "bg-destructive/5")}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <UserAvatar
-                            src={u.avatar_url}
-                            name={u.display_name || u.name}
-                            email={u.email}
-                            size="sm"
-                          />
-                          <div className="flex min-w-0 flex-col">
-                            <span className="flex items-center gap-1 truncate font-medium">
-                              {u.display_name || u.name}
-                              {isSelf && (
-                                <Badge>
-                                  <Trans>You</Trans>
-                                </Badge>
-                              )}
-                            </span>
-                            <span className="text-muted-foreground truncate text-[10px]">
-                              {u.email}
-                            </span>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground tabular-nums">
-                        {u.spaces ?? "—"}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground tabular-nums">
-                        {u.last_seen ? f.relative(u.last_seen) : <Trans>never</Trans>}
-                      </TableCell>
-                      <TableCell>
-                        <span
-                          className={cn(
-                            "rounded px-1 py-0.5 text-[10px] font-medium tracking-wider uppercase",
-                            u.suspended
-                              ? "bg-destructive/10 text-destructive"
-                              : "text-muted-foreground",
-                          )}
-                        >
-                          {u.suspended ? <Trans>Suspended</Trans> : <Trans>Active</Trans>}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-end gap-1">
-                          {/* Both guards mirror the server, which refuses an
-                              admin's attempt to lock themselves out. */}
-                          <Button
-                            variant="ghost"
-                            size="xs"
-                            disabled={isSelf && u.is_admin}
-                            onClick={() =>
-                              update.mutate(
-                                { userId: u.id, is_admin: !u.is_admin },
-                                { onError: (e) => toast.error(e.message) },
-                              )
-                            }
-                          >
-                            {u.is_admin ? <Trans>Revoke admin</Trans> : <Trans>Make admin</Trans>}
-                          </Button>
-                          <Button
-                            variant={u.suspended ? "ghost" : "destructive"}
-                            size="xs"
-                            disabled={isSelf}
-                            onClick={() =>
-                              update.mutate(
-                                { userId: u.id, suspended: !u.suspended },
-                                {
-                                  onSuccess: () =>
-                                    toast.success(
-                                      u.suspended ? t`${email} reinstated` : t`${email} suspended`,
-                                    ),
-                                  onError: (e) => toast.error(e.message),
-                                },
-                              )
-                            }
-                          >
-                            {u.suspended ? <Trans>Reinstate</Trans> : <Trans>Suspend</Trans>}
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
+            ) : (
+              users.map((u) => (
+                <UserRow key={u.id} user={u} isSelf={u.id === me?.id} lastSeen={f.relative} />
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </Card>
+    </AdminPage>
+  );
+}
+
+function UserRow({
+  user: u,
+  isSelf,
+  lastSeen,
+}: {
+  user: AdminUser;
+  isSelf: boolean;
+  lastSeen: (iso: string) => string;
+}) {
+  const { t } = useLingui();
+  const update = useUpdateAdminUser();
+  const email = u.email;
+  const name = u.display_name || u.name;
+
+  return (
+    <TableRow className={cn("h-14", u.suspended && "bg-destructive/5")}>
+      <TableCell className="pl-4">
+        <div className="flex items-center gap-3">
+          <UserAvatar src={u.avatar_url} name={name} email={u.email} size="sm" />
+          <div className="flex min-w-0 flex-col">
+            <span className="flex items-center gap-1.5 truncate text-sm font-medium">
+              {name}
+              {isSelf && (
+                <Badge variant="outline">
+                  <Trans>You</Trans>
+                </Badge>
               )}
-            </TableBody>
-          </Table>
-        </section>
-      </div>
-    </main>
+            </span>
+            <span className="text-muted-foreground truncate text-xs">{u.email}</span>
+          </div>
+        </div>
+      </TableCell>
+      <TableCell>
+        {u.is_admin ? (
+          <Badge variant="secondary">
+            <ShieldCheck />
+            <Trans>Admin</Trans>
+          </Badge>
+        ) : (
+          <span className="text-muted-foreground text-xs">
+            <Trans>Member</Trans>
+          </span>
+        )}
+      </TableCell>
+      <TableCell className="text-muted-foreground text-sm tabular-nums">
+        {u.spaces ?? "—"}
+      </TableCell>
+      <TableCell className="text-muted-foreground text-sm">
+        {u.last_seen ? lastSeen(u.last_seen) : <Trans>never</Trans>}
+      </TableCell>
+      <TableCell>
+        <span className="inline-flex items-center gap-1.5 text-xs">
+          <span
+            aria-hidden
+            className={cn(
+              "size-1.5 rounded-full",
+              u.suspended ? "bg-destructive" : "bg-emerald-500",
+            )}
+          />
+          <span className={cn(u.suspended ? "text-destructive font-medium" : "text-foreground")}>
+            {u.suspended ? <Trans>Suspended</Trans> : <Trans>Active</Trans>}
+          </span>
+        </span>
+      </TableCell>
+      <TableCell className="pr-4 text-right">
+        {/* Both guards mirror the server, which refuses an admin's attempt to
+            lock themselves out. A menu with nothing enabled is not offered. */}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button variant="ghost" size="icon-sm" aria-label={t`Actions for ${email}`}>
+                <MoreHorizontal />
+              </Button>
+            }
+          />
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuItem
+              disabled={isSelf && u.is_admin}
+              onClick={() =>
+                update.mutate(
+                  { userId: u.id, is_admin: !u.is_admin },
+                  { onError: (e) => toast.error(e.message) },
+                )
+              }
+            >
+              {u.is_admin ? (
+                <>
+                  <ShieldOff /> <Trans>Revoke admin</Trans>
+                </>
+              ) : (
+                <>
+                  <ShieldCheck /> <Trans>Make admin</Trans>
+                </>
+              )}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              variant={u.suspended ? "default" : "destructive"}
+              disabled={isSelf}
+              onClick={() =>
+                update.mutate(
+                  { userId: u.id, suspended: !u.suspended },
+                  {
+                    onSuccess: () =>
+                      toast.success(u.suspended ? t`${email} reinstated` : t`${email} suspended`),
+                    onError: (e) => toast.error(e.message),
+                  },
+                )
+              }
+            >
+              {u.suspended ? (
+                <>
+                  <UserCheck /> <Trans>Reinstate</Trans>
+                </>
+              ) : (
+                <>
+                  <UserX /> <Trans>Suspend</Trans>
+                </>
+              )}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </TableCell>
+    </TableRow>
   );
 }
 
@@ -285,24 +354,41 @@ function suspendedNote(n?: number): React.ReactNode {
 }
 
 interface StatTileProps {
+  icon: LucideIcon;
   label: React.ReactNode;
   value?: number | string;
   note?: React.ReactNode;
   alert?: boolean;
 }
 
-function StatTile({ label, value, note, alert }: StatTileProps) {
+function StatTile({ icon: Icon, label, value, note, alert }: StatTileProps) {
   return (
-    <div className="border-border flex flex-col gap-0.5 rounded-lg border p-3">
-      <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
-        {label}
-      </span>
-      <span className="text-xl font-semibold tabular-nums">{value ?? "—"}</span>
-      {note && (
-        <span className={cn("text-[10px]", alert ? "text-destructive" : "text-muted-foreground")}>
-          {note}
+    <Card className="gap-2 py-3.5">
+      <div className="flex items-center justify-between gap-2 px-4">
+        <span className="text-muted-foreground text-xs font-medium">{label}</span>
+        <span
+          className={cn(
+            "flex size-6 items-center justify-center rounded-md [&_svg]:size-3.5",
+            alert ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground",
+          )}
+        >
+          <Icon />
         </span>
-      )}
-    </div>
+      </div>
+      <div className="flex flex-col gap-0.5 px-4">
+        {value === undefined ? (
+          <Skeleton className="h-7 w-16" />
+        ) : (
+          <span className="text-2xl leading-tight font-semibold tracking-tight tabular-nums">
+            {value}
+          </span>
+        )}
+        {note && (
+          <span className={cn("text-xs", alert ? "text-destructive" : "text-muted-foreground")}>
+            {note}
+          </span>
+        )}
+      </div>
+    </Card>
   );
 }

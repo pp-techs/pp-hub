@@ -1,6 +1,6 @@
 # Directory Structure
 
-Monorepo managed with bun workspaces + Vite+ (`vp`). Workspaces: `packages/*`, `apps/*`, `tools/*` (declared in root `package.json`; `tools/` is reserved and currently empty — deploy lives at `deploy/`).
+Monorepo managed with bun workspaces + Vite+ (`vp`). Workspaces: `packages/*`, `apps/*`, `tools/*` (declared in root `package.json`; `tools/release` is the version carrier for the release flow — deploy lives at `deploy/`).
 
 ```
 pp-hub/
@@ -93,11 +93,17 @@ pp-hub/
 │   │       │   ├── node-actions.tsx      # single source for a node's menu actions
 │   │       │   ├── selection-bar.tsx     # floating bar for a multi-row selection
 │   │       │   ├── loading.tsx           # shared skeletons + FetchingBar; no bare "Loading…" lines
+│   │       │   ├── admin-sidebar.tsx     # the /admin rail: nav (ADMIN_NAV), back to Drive, signed-in user
+│   │       │   ├── admin-page.tsx        # AdminPage: title + description + actions frame for every admin page
+│   │       │   ├── admin-settings-ui.tsx # SettingsSection / SettingRow / UnitInput / SourceBadge for instance settings
 │   │       │   └── ...                  # folder-tree, preview, nav, etc. (edit is a route, not a panel)
 │   │       └── routes/             # TanStack Router file-based routes
 │   │           ├── login.tsx            # OIDC hand-off; ?redirect= survives the round trip
-│   │           ├── admin.users.tsx      # server administration: stats, suspend, admin flag
+│   │           ├── admin.tsx            # server-administration shell: layout route, admin gate, AdminSidebar + SidebarInset
+│   │           ├── admin.index.tsx      # /admin → /admin/users
+│   │           ├── admin.users.tsx      # users: stat tiles, searchable table, ⋯ menu (admin flag, suspend)
 │   │           ├── admin.security.tsx   # the security log: filters (kind, file, dates), CSV export
+│   │           ├── admin.settings.tsx   # instance settings: grouped setting rows, sticky save bar, SMTP
 │   │           ├── s/$token.tsx         # anonymous share-link browser (no rail, no account)
 │   │           ├── edit/$nodeId.tsx     # full-page editor (new tab): block editor for markdown, else OnlyOffice
 │   │           ├── drive.tsx            # drive shell: SidebarProvider + AppSidebar + SidebarInset
@@ -204,8 +210,20 @@ pp-hub/
 │   ├── lib/pp-env.sh               # env-file helper shared by the two scripts above
 │   ├── backup/                     # pp-backup.sh / pp-restore.sh
 │   └── weblate/                    # translation platform stack and setup
+├── tools/
+│   └── release/                    # @pp-hub/release — private; carries the product version for Changesets
+├── .changeset/                     # pending release notes (bun run changeset); config.json
+├── .github/
+│   ├── workflows/ci.yml            # web check/test/build, server vet/test/sqlc, image build smoke; also called by release
+│   ├── workflows/release.yml       # plan → Version Packages PR | CI → approve → images → tag + GitHub Release
+│   ├── workflows/images.yml        # reusable: build + push web/server/worker images for a version or :edge
+│   ├── workflows/edge.yml          # push to main → :edge images
+│   └── workflows/i18n.yml          # message catalogs must match the source
+├── scripts/version-packages.ts     # the Version Packages PR's commit: version, CHANGELOG, lockfile
+├── CHANGELOG.md                    # one section per release, written from the changesets
+├── CONTRIBUTING.md                 # workflow, changesets, and the release flow
 ├── docs/                           # this documentation
-└── package.json                    # bun workspaces, Vite+ catalog
+└── package.json                    # bun workspaces, Vite+ catalog, the product version
 ```
 
 ## Entry Points
@@ -234,7 +252,7 @@ pp-hub/
   every exit is a navigation, never `SettingsModal.hide()`. The space band is
   filtered out for a non-admin and a deep link to one of its panes is replaced
   with the default pane rather than answered — the same reasoning that makes
-  the two `admin.*` routes redirect in `beforeLoad`: a surface that resolves
+  the `/admin` layout route redirect in `beforeLoad`: a surface that resolves
   has already told the caller it exists and what it is for.
 - **Safety lives on the route group, not in the handler.** `httpapi/server.go`
   puts the rate limiter, the same-origin check and authentication on

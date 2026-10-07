@@ -1,24 +1,16 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
-import { RotateCcw, Save, Send, Trash2 } from "lucide-react";
+import { Save, Send, Trash2 } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
-import { Badge } from "@workspace/ui/components/badge";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { Switch } from "@workspace/ui/components/switch";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@workspace/ui/components/card";
+import { Card } from "@workspace/ui/components/card";
 import {
   Select,
   SelectContent,
@@ -26,12 +18,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select";
-import { AdminHeader } from "@/components/admin-header";
-import { SectionLabel } from "@/components/section-label";
+import { AdminPage } from "@/components/admin-page";
+import { SettingRow, SettingsSection, UnitInput } from "@/components/admin-settings-ui";
 import { LoadingStatus } from "@/components/loading";
 import {
   adminSettingsOptions,
-  requireAuth,
   useAdminSettings,
   useDeleteAdminSetting,
   useArchivedPersonalSpaces,
@@ -52,9 +43,7 @@ import type {
 
 export const Route = createFileRoute("/admin/settings")({
   head: () => ({ meta: [{ title: pageTitle(msg`Instance settings`) }] }),
-  beforeLoad: async ({ context, location }) => {
-    await requireAuth(context.queryClient, location.href);
-  },
+  // The `/admin` layout has already authenticated the caller as an admin.
   loader: ({ context }) => {
     void context.queryClient.ensureQueryData(adminSettingsOptions());
   },
@@ -62,100 +51,51 @@ export const Route = createFileRoute("/admin/settings")({
 });
 
 function AdminSettingsPage() {
-  const { data: me } = useMe();
   const { data: settings, isLoading } = useAdminSettings();
 
-  if (me && !me.is_admin) {
-    return (
-      <main className="flex min-h-svh flex-col items-center justify-center gap-3 p-6">
-        <p className="text-muted-foreground text-sm">
-          <Trans>Admin access required.</Trans>
-        </p>
-        <Button variant="outline" render={<Link to="/drive" />}>
-          <Trans>Back to Drive</Trans>
-        </Button>
-      </main>
-    );
-  }
-
   return (
-    <main className="bg-background text-foreground flex min-h-svh flex-col">
-      <AdminHeader
-        title={<Trans>Instance settings</Trans>}
-        subtitle={<Trans>Operational policies and configuration across this install</Trans>}
-        // eslint-disable-next-line lingui/no-unlocalized-strings -- admin tab identifier
-        activeTab="settings"
-      />
-
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-4 md:p-6">
-        {isLoading || !settings ? (
-          <SettingsSkeleton />
-        ) : (
-          <>
-            <SettingsForm settings={settings} />
-            <MailSettingsSection
-              key={JSON.stringify(settings.smtp?.value)}
-              setting={settings.smtp}
-            />
-          </>
-        )}
-      </div>
-    </main>
+    <AdminPage
+      narrow
+      title={<Trans>Instance settings</Trans>}
+      description={<Trans>Operational policies and configuration across this install</Trans>}
+    >
+      {isLoading || !settings ? (
+        <SettingsSkeleton />
+      ) : (
+        <div className="flex flex-col gap-8">
+          <SettingsForm settings={settings} />
+          <MailSettingsSection key={JSON.stringify(settings.smtp?.value)} setting={settings.smtp} />
+        </div>
+      )}
+    </AdminPage>
   );
 }
 
 /**
- * The page's opening sections as they will land: a section label over setting
- * cards, each a title, a description and one input. Real `Card`s, so the
- * padding and borders are the ones the form renders with.
+ * The page's opening sections as they will land: a heading over one card whose
+ * rows are a title, a description and a control. Real `Card`s, so the padding
+ * and borders are the ones the form renders with.
  */
 function SettingsSkeleton() {
   return (
-    <LoadingStatus className="flex flex-col gap-6">
-      {[1, 2].map((cards, s) => (
+    <LoadingStatus className="flex flex-col gap-8">
+      {[2, 3].map((rows, s) => (
         <section key={s} className="flex flex-col gap-3">
-          <Skeleton className="mb-1 h-3.5 w-32" />
-          <div className="flex flex-col gap-4">
-            {Array.from({ length: cards }, (_, c) => (
-              <Card key={c}>
-                <CardHeader>
+          <Skeleton className="h-4 w-32" />
+          <Card className="gap-0 divide-y py-0">
+            {Array.from({ length: rows }, (_, r) => (
+              <div key={r} className="flex items-center justify-between gap-8 p-4">
+                <div className="flex flex-1 flex-col gap-1.5">
                   <Skeleton className="h-4 w-40" />
                   <Skeleton className="h-3.5 w-3/4" />
-                </CardHeader>
-                <CardContent>
-                  <div className="flex max-w-sm flex-col gap-1.5">
-                    <Skeleton className="h-3 w-28" />
-                    <Skeleton className="h-7 w-full" />
-                  </div>
-                </CardContent>
-              </Card>
+                </div>
+                <Skeleton className="h-7 w-40" />
+              </div>
             ))}
-          </div>
+          </Card>
         </section>
       ))}
     </LoadingStatus>
-  );
-}
-
-function SourceBadge({ source }: { source: AdminSetting["source"] }) {
-  if (source === "database") {
-    return (
-      <Badge variant="default">
-        <Trans>Database override</Trans>
-      </Badge>
-    );
-  }
-  if (source === "env") {
-    return (
-      <Badge variant="secondary">
-        <Trans>Environment variable</Trans>
-      </Badge>
-    );
-  }
-  return (
-    <Badge variant="outline">
-      <Trans>Default</Trans>
-    </Badge>
   );
 }
 
@@ -185,6 +125,21 @@ const BOOL_SETTINGS = [
   "mcp_external_shares",
   "external_sharing_enabled",
 ] as const;
+
+/** The keys the rows below are built from, named once instead of spelled at each use. */
+const KEY = {
+  versionRetention: "version_retention_count",
+  auditRetention: "audit_retention_days",
+  readAuditRetention: "read_audit_retention_days",
+  alertThreshold: "alert_failed_login_threshold",
+  alertWindow: "alert_failed_login_window_minutes",
+  externalSharing: "external_sharing_enabled",
+  mcpEnabled: "mcp_enabled",
+  mcpPublicLinks: "mcp_public_links",
+  mcpTokens: "mcp_tokens",
+  mcpExternalShares: "mcp_external_shares",
+  instanceName: "instance_name",
+} as const;
 /* eslint-enable lingui/no-unlocalized-strings */
 
 type BoolSettingKey = (typeof BOOL_SETTINGS)[number];
@@ -237,37 +192,21 @@ function BoolSettingRow({
 }) {
   const setting = settings[settingKey];
   return (
-    <div className="flex items-center justify-between gap-4">
-      <div className="flex min-w-0 flex-col gap-1">
-        <div className="flex items-center gap-2">
-          <Label htmlFor={settingKey}>{label}</Label>
-          {setting && <SourceBadge source={setting.source} />}
-        </div>
-        {setting?.description && (
-          <p className="text-muted-foreground text-xs">{setting.description}</p>
-        )}
-      </div>
-      <div className="flex shrink-0 items-center gap-2">
-        {setting?.source === "database" && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => onReset(settingKey)}
-            disabled={resetDisabled}
-          >
-            <RotateCcw className="size-3.5" />
-            <Trans>Reset</Trans>
-          </Button>
-        )}
-        <Switch
-          id={settingKey}
-          checked={values[settingKey]}
-          disabled={disabled}
-          onCheckedChange={(v) => onChange(settingKey, v)}
-        />
-      </div>
-    </div>
+    <SettingRow
+      title={label}
+      htmlFor={settingKey}
+      description={setting?.description}
+      source={setting?.source}
+      onReset={setting?.source === "database" ? () => onReset(settingKey) : undefined}
+      resetDisabled={resetDisabled}
+    >
+      <Switch
+        id={settingKey}
+        checked={values[settingKey]}
+        disabled={disabled}
+        onCheckedChange={(v) => onChange(settingKey, v)}
+      />
+    </SettingRow>
   );
 }
 
@@ -275,13 +214,12 @@ function BoolSettingRow({
  * One integer setting: where its value comes from, a Reset back to the
  * deployment default when it is a database override, and the input itself.
  */
-function IntSettingCard({
+function IntSettingRow({
   settingKey,
   settings,
   values,
   title,
-  label,
-  suffix,
+  unit,
   hint,
   onChange,
   onReset,
@@ -291,8 +229,7 @@ function IntSettingCard({
   settings: AdminSettingsMap;
   values: IntSettingValues;
   title: React.ReactNode;
-  label: React.ReactNode;
-  suffix?: React.ReactNode;
+  unit?: React.ReactNode;
   hint?: React.ReactNode;
   onChange: (key: IntSettingKey, value: string) => void;
   onReset: (key: IntSettingKey) => void;
@@ -301,46 +238,27 @@ function IntSettingCard({
   const setting = settings[settingKey];
   const spec = INT_SETTINGS.find((s) => s.key === settingKey);
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <CardTitle>{title}</CardTitle>
-          {setting && <SourceBadge source={setting.source} />}
-        </div>
-        <CardDescription>{setting?.description}</CardDescription>
-        {setting?.source === "database" && (
-          <CardAction>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => onReset(settingKey)}
-              disabled={resetDisabled}
-            >
-              <RotateCcw className="size-3.5" />
-              <Trans>Reset</Trans>
-            </Button>
-          </CardAction>
-        )}
-      </CardHeader>
-      <CardContent>
-        <div className="flex max-w-sm flex-col gap-1.5">
-          <Label htmlFor={settingKey}>{label}</Label>
-          <div className="flex items-center gap-2">
-            <Input
-              id={settingKey}
-              type="number"
-              min={spec?.min}
-              max={spec?.max}
-              value={values[settingKey]}
-              onChange={(e) => onChange(settingKey, e.target.value)}
-            />
-            {suffix && <span className="text-muted-foreground text-sm">{suffix}</span>}
-          </div>
-          {hint && <p className="text-muted-foreground text-xs">{hint}</p>}
-        </div>
-      </CardContent>
-    </Card>
+    <SettingRow
+      title={title}
+      htmlFor={settingKey}
+      description={
+        <>
+          {setting?.description} {hint}
+        </>
+      }
+      source={setting?.source}
+      onReset={setting?.source === "database" ? () => onReset(settingKey) : undefined}
+      resetDisabled={resetDisabled}
+    >
+      <UnitInput
+        id={settingKey}
+        min={spec?.min}
+        max={spec?.max}
+        value={values[settingKey]}
+        onChange={(e) => onChange(settingKey, e.target.value)}
+        unit={unit}
+      />
+    </SettingRow>
   );
 }
 
@@ -349,7 +267,7 @@ function IntSettingCard({
  * can open them any more; they hold storage until an administrator purges
  * them, which is permanent — hence the confirmation.
  */
-function ArchivedPersonalSpacesCard() {
+function ArchivedPersonalSpacesRow() {
   const { t } = useLingui();
   const f = useFormatters();
   const archived = useArchivedPersonalSpaces();
@@ -359,61 +277,59 @@ function ArchivedPersonalSpacesCard() {
   const pendingSize = f.size(pending?.used_bytes ?? 0);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
+    <div className="flex flex-col gap-3 p-4">
+      <div className="flex flex-col gap-1">
+        <span className="text-sm font-medium">
           <Trans>Archived personal spaces</Trans>
-        </CardTitle>
-        <CardDescription>
+        </span>
+        <p className="text-muted-foreground max-w-prose text-xs/relaxed">
           <Trans>
             Personal spaces of deleted accounts. Nobody can open them; purge one to free its
             storage.
           </Trans>
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {archived.isPending ? (
-          <LoadingStatus className="flex flex-col gap-2">
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-full" />
-          </LoadingStatus>
-        ) : archived.isError ? (
-          <p className="text-destructive text-sm">{archived.error.message}</p>
-        ) : archived.data.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            <Trans>No archived personal spaces.</Trans>
-          </p>
-        ) : (
-          <ul className="divide-y rounded-md border">
-            {archived.data.map((s) => {
-              const size = f.size(s.used_bytes);
-              const archivedOn = f.date(s.archived_at);
-              return (
-                <li key={s.id} className="flex items-center gap-3 p-3 text-sm">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">{s.owner_email || s.name}</p>
-                    <p className="text-muted-foreground text-xs tabular-nums">
-                      <Trans>
-                        {size} · archived {archivedOn}
-                      </Trans>
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    disabled={purge.isPending}
-                    onClick={() => setPending(s)}
-                  >
-                    <Trash2 className="size-3.5" />
-                    <Trans>Purge</Trans>
-                  </Button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </CardContent>
+        </p>
+      </div>
+      {archived.isPending ? (
+        <LoadingStatus className="flex flex-col gap-2">
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+        </LoadingStatus>
+      ) : archived.isError ? (
+        <p className="text-destructive text-sm">{archived.error.message}</p>
+      ) : archived.data.length === 0 ? (
+        <p className="text-muted-foreground bg-muted/40 rounded-lg px-3 py-4 text-center text-xs">
+          <Trans>No archived personal spaces.</Trans>
+        </p>
+      ) : (
+        <ul className="divide-y rounded-lg border">
+          {archived.data.map((s) => {
+            const size = f.size(s.used_bytes);
+            const archivedOn = f.date(s.archived_at);
+            return (
+              <li key={s.id} className="flex items-center gap-3 p-3 text-sm">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{s.owner_email || s.name}</p>
+                  <p className="text-muted-foreground text-xs tabular-nums">
+                    <Trans>
+                      {size} · archived {archivedOn}
+                    </Trans>
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  disabled={purge.isPending}
+                  onClick={() => setPending(s)}
+                >
+                  <Trash2 className="size-3.5" />
+                  <Trans>Purge</Trans>
+                </Button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
       <ConfirmDialog
         open={pending !== null}
         onOpenChange={(open) => !open && setPending(null)}
@@ -429,7 +345,7 @@ function ArchivedPersonalSpacesCard() {
           setPending(null);
         }}
       />
-    </Card>
+    </div>
   );
 }
 
@@ -616,458 +532,288 @@ function SettingsForm({ settings }: { settings: AdminSettingsMap }) {
     if (next) setPersonalQuotaGb(gbOf((next.default_personal_quota_bytes?.value as number) ?? 0));
   };
 
+  const resetPending = remove.isPending;
+  const intRow = (
+    key: IntSettingKey,
+    title: React.ReactNode,
+    extra?: { unit?: React.ReactNode; hint?: React.ReactNode },
+  ) => (
+    <IntSettingRow
+      settingKey={key}
+      settings={settings}
+      values={ints}
+      title={title}
+      unit={extra?.unit}
+      hint={extra?.hint}
+      onChange={setInt}
+      onReset={resetInt}
+      resetDisabled={resetPending}
+    />
+  );
+  const boolRow = (key: BoolSettingKey, label: React.ReactNode, disabled?: boolean) => (
+    <BoolSettingRow
+      settingKey={key}
+      settings={settings}
+      values={bools}
+      label={label}
+      disabled={disabled}
+      onChange={setBool}
+      onReset={resetBool}
+      resetDisabled={resetPending}
+    />
+  );
+
   return (
-    <form onSubmit={handleSave} className="flex flex-col gap-6">
-      <section className="flex flex-col gap-3">
-        <SectionLabel>
-          <Trans>General & Branding</Trans>
-        </SectionLabel>
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <CardTitle>
-                <Trans>Instance display name</Trans>
-              </CardTitle>
-              {settings.instance_name && <SourceBadge source={settings.instance_name.source} />}
-            </div>
-            <CardDescription>{settings.instance_name?.description}</CardDescription>
-            {settings.instance_name?.source === "database" && (
-              <CardAction>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  // eslint-disable-next-line lingui/no-unlocalized-strings -- setting key
-                  onClick={() => handleReset("instance_name")}
-                  disabled={remove.isPending}
-                >
-                  <RotateCcw className="size-3.5" />
-                  <Trans>Reset</Trans>
-                </Button>
-              </CardAction>
-            )}
-          </CardHeader>
-          <CardContent>
-            <div className="flex max-w-sm flex-col gap-1.5">
-              <Label htmlFor="instance_name">
-                <Trans>Display name</Trans>
-              </Label>
-              <Input
-                id="instance_name"
-                value={instanceName}
-                onChange={(e) => setInstanceName(e.target.value)}
-                maxLength={64}
-                placeholder={defaultInstanceName}
-              />
-            </div>
-          </CardContent>
-        </Card>
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <SectionLabel>
-          <Trans>Storage & Uploads</Trans>
-        </SectionLabel>
-        <div className="flex flex-col gap-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <CardTitle>
-                  <Trans>Maximum upload size</Trans>
-                </CardTitle>
-                {settings.max_upload_bytes && (
-                  <SourceBadge source={settings.max_upload_bytes.source} />
-                )}
-              </div>
-              <CardDescription>{settings.max_upload_bytes?.description}</CardDescription>
-              {settings.max_upload_bytes?.source === "database" && (
-                <CardAction>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    // eslint-disable-next-line lingui/no-unlocalized-strings -- setting key
-                    onClick={() => handleReset("max_upload_bytes")}
-                    disabled={remove.isPending}
-                  >
-                    <RotateCcw className="size-3.5" />
-                    <Trans>Reset</Trans>
-                  </Button>
-                </CardAction>
-              )}
-            </CardHeader>
-            <CardContent>
-              <div className="flex max-w-sm flex-col gap-1.5">
-                <Label htmlFor="max_upload_bytes">
-                  <Trans>Maximum size (GB, 0 = unlimited)</Trans>
-                </Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="max_upload_bytes"
-                    type="number"
-                    min="0"
-                    step="0.5"
-                    value={maxUploadGb}
-                    onChange={(e) => setMaxUploadGb(e.target.value)}
-                  />
-                  <span className="text-muted-foreground text-sm">
-                    <Trans>GB</Trans>
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <CardTitle>
-                  <Trans>Default space quota</Trans>
-                </CardTitle>
-                {settings.default_space_quota_bytes && (
-                  <SourceBadge source={settings.default_space_quota_bytes.source} />
-                )}
-              </div>
-              <CardDescription>{settings.default_space_quota_bytes?.description}</CardDescription>
-              {settings.default_space_quota_bytes?.source === "database" && (
-                <CardAction>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    // eslint-disable-next-line lingui/no-unlocalized-strings -- setting key
-                    onClick={() => handleReset("default_space_quota_bytes")}
-                    disabled={remove.isPending}
-                  >
-                    <RotateCcw className="size-3.5" />
-                    <Trans>Reset</Trans>
-                  </Button>
-                </CardAction>
-              )}
-            </CardHeader>
-            <CardContent>
-              <div className="flex max-w-sm flex-col gap-1.5">
-                <Label htmlFor="default_space_quota_bytes">
-                  <Trans>Default quota for new spaces (GB, 0 = unlimited)</Trans>
-                </Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="default_space_quota_bytes"
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={defaultSpaceQuotaGb}
-                    onChange={(e) => setDefaultSpaceQuotaGb(e.target.value)}
-                  />
-                  <span className="text-muted-foreground text-sm">
-                    <Trans>GB</Trans>
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <IntSettingCard
-            // eslint-disable-next-line lingui/no-unlocalized-strings -- setting key
-            settingKey="version_retention_count"
-            settings={settings}
-            values={ints}
-            title={<Trans>Version history</Trans>}
-            label={<Trans>Versions kept per file (0 = keep all)</Trans>}
-            hint={
-              <Trans>
-                Saving a new version removes the oldest ones beyond this number. The current version
-                is always kept.
-              </Trans>
-            }
-            onChange={setInt}
-            onReset={resetInt}
-            resetDisabled={remove.isPending}
-          />
-        </div>
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <SectionLabel>
-          <Trans>Security & Auditing</Trans>
-        </SectionLabel>
-        <IntSettingCard
-          // eslint-disable-next-line lingui/no-unlocalized-strings -- setting key
-          settingKey="audit_retention_days"
-          settings={settings}
-          values={ints}
-          title={<Trans>Security log retention</Trans>}
-          label={<Trans>Retention period (days)</Trans>}
-          suffix={<Trans>days</Trans>}
-          onChange={setInt}
-          onReset={resetInt}
-          resetDisabled={remove.isPending}
-        />
-        <IntSettingCard
-          // eslint-disable-next-line lingui/no-unlocalized-strings -- setting key
-          settingKey="read_audit_retention_days"
-          settings={settings}
-          values={ints}
-          title={<Trans>File access log retention</Trans>}
-          label={<Trans>Retention period (days)</Trans>}
-          suffix={<Trans>days</Trans>}
-          onChange={setInt}
-          onReset={resetInt}
-          resetDisabled={remove.isPending}
-        />
-        <IntSettingCard
-          // eslint-disable-next-line lingui/no-unlocalized-strings -- setting key
-          settingKey="alert_failed_login_threshold"
-          settings={settings}
-          values={ints}
-          title={<Trans>Failed sign-in alert threshold</Trans>}
-          label={<Trans>Failed sign-ins from one address</Trans>}
-          hint={
-            <Trans>
-              0 turns alerts off. Alerts are emailed to administrators when mail is configured.
-            </Trans>
+    <form onSubmit={handleSave} className="flex flex-col gap-8">
+      <SettingsSection title={<Trans>General & Branding</Trans>}>
+        <SettingRow
+          title={<Trans>Instance display name</Trans>}
+          htmlFor="instance_name"
+          description={settings.instance_name?.description}
+          source={settings.instance_name?.source}
+          onReset={
+            settings.instance_name?.source === "database"
+              ? () => void handleReset(KEY.instanceName)
+              : undefined
           }
-          onChange={setInt}
-          onReset={resetInt}
-          resetDisabled={remove.isPending}
-        />
-        <IntSettingCard
-          // eslint-disable-next-line lingui/no-unlocalized-strings -- setting key
-          settingKey="alert_failed_login_window_minutes"
-          settings={settings}
-          values={ints}
-          title={<Trans>Alert window</Trans>}
-          label={<Trans>Window (minutes)</Trans>}
-          suffix={<Trans>minutes</Trans>}
-          onChange={setInt}
-          onReset={resetInt}
-          resetDisabled={remove.isPending}
-        />
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <SectionLabel>
-          <Trans>Personal use</Trans>
-        </SectionLabel>
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <CardTitle>
-                <Trans>Personal spaces</Trans>
-              </CardTitle>
-              {settings.personal_spaces && <SourceBadge source={settings.personal_spaces.source} />}
-            </div>
-            <CardDescription>{settings.personal_spaces?.description}</CardDescription>
-            {settings.personal_spaces?.source === "database" && (
-              <CardAction>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void resetPersonalSpaces()}
-                  disabled={remove.isPending}
-                >
-                  <RotateCcw className="size-3.5" />
-                  <Trans>Reset</Trans>
-                </Button>
-              </CardAction>
-            )}
-          </CardHeader>
-          <CardContent>
-            <div className="flex max-w-sm flex-col gap-1.5">
-              <Label htmlFor="personal_spaces">
-                <Trans>Who gets a personal space (“My Drive”)</Trans>
-              </Label>
-              <Select
-                value={personalSpaces}
-                items={personalOptions.map((o) => ({ value: o.value, label: o.label }))}
-                onValueChange={(v) => setPersonalSpaces((v as PersonalSpacesMode) ?? "off")}
-              >
-                <SelectTrigger id="personal_spaces" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {personalOptions.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      {o.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-muted-foreground text-xs">
-                {personalOptions.find((o) => o.value === personalSpaces)?.description}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <CardTitle>
-                <Trans>Personal space quota</Trans>
-              </CardTitle>
-              {settings.default_personal_quota_bytes && (
-                <SourceBadge source={settings.default_personal_quota_bytes.source} />
-              )}
-            </div>
-            <CardDescription>{settings.default_personal_quota_bytes?.description}</CardDescription>
-            {settings.default_personal_quota_bytes?.source === "database" && (
-              <CardAction>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void resetPersonalQuota()}
-                  disabled={remove.isPending}
-                >
-                  <RotateCcw className="size-3.5" />
-                  <Trans>Reset</Trans>
-                </Button>
-              </CardAction>
-            )}
-          </CardHeader>
-          <CardContent>
-            <div className="flex max-w-sm flex-col gap-1.5">
-              <Label htmlFor="default_personal_quota_bytes">
-                <Trans>Quota for each personal space (GB, 0 = unlimited)</Trans>
-              </Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  id="default_personal_quota_bytes"
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={personalQuotaGb}
-                  onChange={(e) => setPersonalQuotaGb(e.target.value)}
-                />
-                <span className="text-muted-foreground text-sm">
-                  <Trans>GB</Trans>
-                </span>
-              </div>
-              <p className="text-muted-foreground text-xs">
-                <Trans>Offering personal spaces to everyone requires a quota above 0.</Trans>
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              <Trans>External sharing</Trans>
-            </CardTitle>
-            <CardDescription>
-              <Trans>
-                Lets people share files and folders by email with anyone, including people outside
-                their space or without an account. Each space admin still decides for their space.
-              </Trans>
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <BoolSettingRow
-              // eslint-disable-next-line lingui/no-unlocalized-strings -- setting key
-              settingKey="external_sharing_enabled"
-              settings={settings}
-              values={bools}
-              label={<Trans>Allow sharing outside a space</Trans>}
-              onChange={setBool}
-              onReset={resetBool}
-              resetDisabled={remove.isPending}
-            />
-          </CardContent>
-        </Card>
-
-        <ArchivedPersonalSpacesCard />
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <SectionLabel>
-          <Trans>AI agents</Trans>
-        </SectionLabel>
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              <Trans>Agent access (MCP)</Trans>
-            </CardTitle>
-            <CardDescription>
-              <Trans>
-                Lets people connect Claude, ChatGPT and other AI agents to their account. Public
-                links let an agent publish files that anyone with the link can open without signing
-                in.
-              </Trans>
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <BoolSettingRow
-              // eslint-disable-next-line lingui/no-unlocalized-strings -- setting key
-              settingKey="mcp_enabled"
-              settings={settings}
-              values={bools}
-              label={<Trans>Let people connect AI agents to their account</Trans>}
-              onChange={setBool}
-              onReset={resetBool}
-              resetDisabled={remove.isPending}
-            />
-            <BoolSettingRow
-              // eslint-disable-next-line lingui/no-unlocalized-strings -- setting key
-              settingKey="mcp_public_links"
-              settings={settings}
-              values={bools}
-              label={<Trans>Let agents create public links</Trans>}
-              disabled={!bools.mcp_enabled}
-              onChange={setBool}
-              onReset={resetBool}
-              resetDisabled={remove.isPending}
-            />
-            <BoolSettingRow
-              // eslint-disable-next-line lingui/no-unlocalized-strings -- setting key
-              settingKey="mcp_tokens"
-              settings={settings}
-              values={bools}
-              label={<Trans>Let people create personal access tokens for agents</Trans>}
-              disabled={!bools.mcp_enabled}
-              onChange={setBool}
-              onReset={resetBool}
-              resetDisabled={remove.isPending}
-            />
-            <BoolSettingRow
-              // eslint-disable-next-line lingui/no-unlocalized-strings -- setting key
-              settingKey="mcp_external_shares"
-              settings={settings}
-              values={bools}
-              label={<Trans>Let agents share with people outside a space</Trans>}
-              disabled={!bools.mcp_enabled}
-              onChange={setBool}
-              onReset={resetBool}
-              resetDisabled={remove.isPending}
-            />
-          </CardContent>
-        </Card>
-      </section>
-
-      <div className="flex items-center justify-end gap-3 border-t pt-4">
-        <Button
-          type="button"
-          variant="outline"
-          disabled={!isDirty || update.isPending}
-          onClick={() => {
-            setInstanceName(currentInstanceName);
-            setMaxUploadGb(initialMaxUploadGb);
-            setInts(currentInts);
-            setBools(currentBools);
-            setDefaultSpaceQuotaGb(initialQuotaGb);
-            setPersonalSpaces(currentPersonalSpaces);
-            setPersonalQuotaGb(initialPersonalQuotaGb);
-          }}
+          resetDisabled={resetPending}
         >
-          <Trans>Discard</Trans>
-        </Button>
-        <Button type="submit" disabled={!isDirty || update.isPending}>
-          <Save className="size-4" />
-          <Trans>Save changes</Trans>
-        </Button>
-      </div>
+          <Input
+            id="instance_name"
+            className="w-full sm:w-56"
+            value={instanceName}
+            onChange={(e) => setInstanceName(e.target.value)}
+            maxLength={64}
+            placeholder={defaultInstanceName}
+          />
+        </SettingRow>
+      </SettingsSection>
+
+      <SettingsSection title={<Trans>Storage & Uploads</Trans>}>
+        <SettingRow
+          title={<Trans>Maximum upload size</Trans>}
+          htmlFor="max_upload_bytes"
+          description={settings.max_upload_bytes?.description}
+          source={settings.max_upload_bytes?.source}
+          onReset={
+            settings.max_upload_bytes?.source === "database"
+              ? // eslint-disable-next-line lingui/no-unlocalized-strings -- setting key
+                () => void handleReset("max_upload_bytes")
+              : undefined
+          }
+          resetDisabled={resetPending}
+        >
+          <UnitInput
+            id="max_upload_bytes"
+            min="0"
+            step="0.5"
+            value={maxUploadGb}
+            onChange={(e) => setMaxUploadGb(e.target.value)}
+            unit={<Trans>GB</Trans>}
+          />
+        </SettingRow>
+
+        <SettingRow
+          title={<Trans>Default space quota</Trans>}
+          htmlFor="default_space_quota_bytes"
+          description={
+            <>
+              {settings.default_space_quota_bytes?.description} <Trans>0 means unlimited.</Trans>
+            </>
+          }
+          source={settings.default_space_quota_bytes?.source}
+          onReset={
+            settings.default_space_quota_bytes?.source === "database"
+              ? // eslint-disable-next-line lingui/no-unlocalized-strings -- setting key
+                () => void handleReset("default_space_quota_bytes")
+              : undefined
+          }
+          resetDisabled={resetPending}
+        >
+          <UnitInput
+            id="default_space_quota_bytes"
+            min="0"
+            step="1"
+            value={defaultSpaceQuotaGb}
+            onChange={(e) => setDefaultSpaceQuotaGb(e.target.value)}
+            unit={<Trans>GB</Trans>}
+          />
+        </SettingRow>
+
+        {intRow(KEY.versionRetention, <Trans>Version history</Trans>, {
+          unit: <Trans>versions</Trans>,
+          hint: (
+            <Trans>
+              Versions kept per file; 0 keeps all. Saving a new version removes the oldest ones
+              beyond this number. The current version is always kept.
+            </Trans>
+          ),
+        })}
+      </SettingsSection>
+
+      <SettingsSection title={<Trans>Security & Auditing</Trans>}>
+        {intRow(KEY.auditRetention, <Trans>Security log retention</Trans>, {
+          unit: <Trans>days</Trans>,
+        })}
+        {intRow(KEY.readAuditRetention, <Trans>File access log retention</Trans>, {
+          unit: <Trans>days</Trans>,
+        })}
+        {intRow(KEY.alertThreshold, <Trans>Failed sign-in alert threshold</Trans>, {
+          unit: <Trans>sign-ins</Trans>,
+          hint: (
+            <Trans>
+              Failed sign-ins from one address. 0 turns alerts off. Alerts are emailed to
+              administrators when mail is configured.
+            </Trans>
+          ),
+        })}
+        {intRow(KEY.alertWindow, <Trans>Alert window</Trans>, {
+          unit: <Trans>minutes</Trans>,
+        })}
+      </SettingsSection>
+
+      <SettingsSection title={<Trans>Personal use</Trans>}>
+        <SettingRow
+          title={<Trans>Personal spaces</Trans>}
+          htmlFor="personal_spaces"
+          description={
+            <>
+              {settings.personal_spaces?.description}{" "}
+              {personalOptions.find((o) => o.value === personalSpaces)?.description}
+            </>
+          }
+          source={settings.personal_spaces?.source}
+          onReset={
+            settings.personal_spaces?.source === "database"
+              ? () => void resetPersonalSpaces()
+              : undefined
+          }
+          resetDisabled={resetPending}
+        >
+          <Select
+            value={personalSpaces}
+            items={personalOptions.map((o) => ({ value: o.value, label: o.label }))}
+            onValueChange={(v) => setPersonalSpaces((v as PersonalSpacesMode) ?? "off")}
+          >
+            <SelectTrigger id="personal_spaces" className="w-full sm:w-56">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {personalOptions.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </SettingRow>
+
+        <SettingRow
+          title={<Trans>Personal space quota</Trans>}
+          htmlFor="default_personal_quota_bytes"
+          description={
+            <>
+              {settings.default_personal_quota_bytes?.description}{" "}
+              <Trans>
+                0 means unlimited. Offering personal spaces to everyone requires a quota above 0.
+              </Trans>
+            </>
+          }
+          source={settings.default_personal_quota_bytes?.source}
+          onReset={
+            settings.default_personal_quota_bytes?.source === "database"
+              ? () => void resetPersonalQuota()
+              : undefined
+          }
+          resetDisabled={resetPending}
+        >
+          <UnitInput
+            id="default_personal_quota_bytes"
+            min="0"
+            step="1"
+            value={personalQuotaGb}
+            onChange={(e) => setPersonalQuotaGb(e.target.value)}
+            unit={<Trans>GB</Trans>}
+          />
+        </SettingRow>
+
+        <ArchivedPersonalSpacesRow />
+      </SettingsSection>
+
+      <SettingsSection
+        title={<Trans>External sharing</Trans>}
+        description={
+          <Trans>
+            Lets people share files and folders by email with anyone, including people outside their
+            space or without an account. Each space admin still decides for their space.
+          </Trans>
+        }
+      >
+        {boolRow(KEY.externalSharing, <Trans>Allow sharing outside a space</Trans>)}
+      </SettingsSection>
+
+      <SettingsSection
+        title={<Trans>AI agents</Trans>}
+        description={
+          <Trans>
+            Lets people connect Claude, ChatGPT and other AI agents to their account. Public links
+            let an agent publish files that anyone with the link can open without signing in.
+          </Trans>
+        }
+      >
+        {boolRow(KEY.mcpEnabled, <Trans>Let people connect AI agents to their account</Trans>)}
+        {boolRow(
+          KEY.mcpPublicLinks,
+          <Trans>Let agents create public links</Trans>,
+          !bools.mcp_enabled,
+        )}
+        {boolRow(
+          KEY.mcpTokens,
+          <Trans>Let people create personal access tokens for agents</Trans>,
+          !bools.mcp_enabled,
+        )}
+        {boolRow(
+          KEY.mcpExternalShares,
+          <Trans>Let agents share with people outside a space</Trans>,
+          !bools.mcp_enabled,
+        )}
+      </SettingsSection>
+
+      {/* Sticky so the way to save is always in reach of the field being
+          edited, and only present once there is something to save. */}
+      {isDirty && (
+        <div
+          role="region"
+          aria-label={t`Unsaved changes`}
+          className="bg-popover text-popover-foreground sticky bottom-4 z-10 flex items-center justify-between gap-3 rounded-xl p-2 pl-4 shadow-lg ring-1 ring-foreground/10"
+        >
+          <span className="text-sm font-medium">
+            <Trans>You have unsaved changes</Trans>
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={update.isPending}
+              onClick={() => {
+                setInstanceName(currentInstanceName);
+                setMaxUploadGb(initialMaxUploadGb);
+                setInts(currentInts);
+                setBools(currentBools);
+                setDefaultSpaceQuotaGb(initialQuotaGb);
+                setPersonalSpaces(currentPersonalSpaces);
+                setPersonalQuotaGb(initialPersonalQuotaGb);
+              }}
+            >
+              <Trans>Discard</Trans>
+            </Button>
+            <Button type="submit" disabled={update.isPending}>
+              <Save className="size-4" />
+              <Trans>Save changes</Trans>
+            </Button>
+          </div>
+        </div>
+      )}
     </form>
   );
 }
@@ -1180,203 +926,172 @@ function MailSettingsSection({ setting }: { setting?: AdminSetting }) {
     }
   };
 
+  const targetEmail = me?.email ?? "";
+
   return (
-    <form onSubmit={handleSave} className="flex flex-col gap-6">
-      <section className="flex flex-col gap-3">
-        <SectionLabel>
-          <Trans>Mail</Trans>
-        </SectionLabel>
-        <Card>
-          <CardHeader>
+    <form onSubmit={handleSave}>
+      <SettingsSection title={<Trans>Mail</Trans>}>
+        <SettingRow
+          title={<Trans>Outgoing mail (SMTP)</Trans>}
+          description={
+            <Trans>
+              Used to email people when a file or folder is shared with them. Leave the host empty
+              to turn mail off.
+            </Trans>
+          }
+          source={setting?.source}
+          onReset={source === "database" ? handleReset : undefined}
+          resetDisabled={remove.isPending}
+        />
+
+        <div className="grid gap-4 p-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="smtp-host">
+              <Trans>Host</Trans>
+            </Label>
+            <Input
+              id="smtp-host"
+              placeholder={defaultHostPlaceholder}
+              value={host}
+              onChange={(e) => setHost(e.target.value)}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="smtp-port">
+              <Trans>Port</Trans>
+            </Label>
+            <Input
+              id="smtp-port"
+              type="number"
+              min="1"
+              max="65535"
+              value={port}
+              onChange={(e) => setPort(e.target.value)}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="smtp-tls">
+              <Trans>Security</Trans>
+            </Label>
+            <Select
+              value={tls}
+              items={TLS_OPTIONS.map((opt) => ({ value: opt.value, label: i18n._(opt.label) }))}
+              onValueChange={(v) => setTls((v as "starttls" | "implicit" | "none") ?? "starttls")}
+            >
+              <SelectTrigger id="smtp-tls" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TLS_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {i18n._(opt.label)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="smtp-from">
+              <Trans>From address</Trans>
+            </Label>
+            <Input
+              id="smtp-from"
+              placeholder={defaultFromPlaceholder}
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="smtp-username">
+              <Trans>Username</Trans>
+            </Label>
+            <Input
+              id="smtp-username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="smtp-password">
+              <Trans>Password</Trans>
+            </Label>
             <div className="flex items-center gap-2">
-              <CardTitle>
-                <Trans>Outgoing mail (SMTP)</Trans>
-              </CardTitle>
-              {setting && <SourceBadge source={setting.source} />}
-            </div>
-            <CardDescription>
-              <Trans>
-                Used to email people when a file or folder is shared with them. Leave the host empty
-                to turn mail off.
-              </Trans>
-            </CardDescription>
-            {source === "database" && (
-              <CardAction>
+              <Input
+                id="smtp-password"
+                type="password"
+                autoComplete="new-password"
+                placeholder={
+                  value.password_set
+                    ? clearPassword
+                      ? t`Cleared`
+                      : t`Stored — leave blank to keep`
+                    : t`Not set`
+                }
+                value={password}
+                disabled={clearPassword}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              {value.password_set && source === "database" && (
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
-                  onClick={handleReset}
-                  disabled={remove.isPending}
+                  onClick={() => {
+                    setClearPassword((prev) => !prev);
+                    setPassword("");
+                  }}
                 >
-                  <RotateCcw className="size-3.5" />
-                  <Trans>Reset</Trans>
+                  {clearPassword ? <Trans>Keep password</Trans> : <Trans>Remove password</Trans>}
                 </Button>
-              </CardAction>
-            )}
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="smtp-host">
-                  <Trans>Host</Trans>
-                </Label>
-                <Input
-                  id="smtp-host"
-                  placeholder={defaultHostPlaceholder}
-                  value={host}
-                  onChange={(e) => setHost(e.target.value)}
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="smtp-port">
-                  <Trans>Port</Trans>
-                </Label>
-                <Input
-                  id="smtp-port"
-                  type="number"
-                  min="1"
-                  max="65535"
-                  value={port}
-                  onChange={(e) => setPort(e.target.value)}
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="smtp-tls">
-                  <Trans>Security</Trans>
-                </Label>
-                <Select
-                  value={tls}
-                  items={TLS_OPTIONS.map((opt) => ({ value: opt.value, label: i18n._(opt.label) }))}
-                  onValueChange={(v) =>
-                    setTls((v as "starttls" | "implicit" | "none") ?? "starttls")
-                  }
-                >
-                  <SelectTrigger id="smtp-tls" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TLS_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {i18n._(opt.label)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="smtp-username">
-                  <Trans>Username</Trans>
-                </Label>
-                <Input
-                  id="smtp-username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="smtp-password">
-                  <Trans>Password</Trans>
-                </Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="smtp-password"
-                    type="password"
-                    autoComplete="new-password"
-                    placeholder={
-                      value.password_set
-                        ? clearPassword
-                          ? t`Cleared`
-                          : t`Stored — leave blank to keep`
-                        : t`Not set`
-                    }
-                    value={password}
-                    disabled={clearPassword}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                  {value.password_set && source === "database" && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setClearPassword((prev) => !prev);
-                        setPassword("");
-                      }}
-                    >
-                      {clearPassword ? (
-                        <Trans>Keep password</Trans>
-                      ) : (
-                        <Trans>Remove password</Trans>
-                      )}
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="smtp-from">
-                  <Trans>From address</Trans>
-                </Label>
-                <Input
-                  id="smtp-from"
-                  placeholder={defaultFromPlaceholder}
-                  value={from}
-                  onChange={(e) => setFrom(e.target.value)}
-                />
-              </div>
+              )}
             </div>
+          </div>
+        </div>
 
-            <div className="mt-6 flex flex-col gap-1.5 border-t pt-4">
-              <div className="flex items-center justify-between">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleSendTest}
-                  disabled={isDirty || !value.host || sendTest.isPending}
-                >
-                  <Send className="size-4" />
-                  <Trans>Send test email</Trans>
-                </Button>
-                <div className="flex items-center gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={!isDirty || update.isPending}
-                    onClick={() => {
-                      setHost(value.host ?? "");
-                      setPort(String(value.port || 587));
-                      setTls(value.tls || DEFAULT_TLS);
-                      setUsername(value.username ?? "");
-                      setPassword("");
-                      setClearPassword(false);
-                      setFrom(value.from ?? "");
-                    }}
-                  >
-                    <Trans>Discard</Trans>
-                  </Button>
-                  <Button type="submit" disabled={!isDirty || update.isPending}>
-                    <Save className="size-4" />
-                    <Trans>Save changes</Trans>
-                  </Button>
-                </div>
-              </div>
-              {(() => {
-                const targetEmail = me?.email ?? "";
-                return (
-                  <p className="text-muted-foreground text-xs">
-                    {t`Sends to ${targetEmail}. Save changes first.`}
-                  </p>
-                );
-              })()}
-            </div>
-          </CardContent>
-        </Card>
-      </section>
+        <div className="bg-muted/30 flex flex-wrap items-center justify-between gap-3 p-3 pl-4">
+          <div className="flex flex-col gap-1">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleSendTest}
+              disabled={isDirty || !value.host || sendTest.isPending}
+            >
+              <Send className="size-4" />
+              <Trans>Send test email</Trans>
+            </Button>
+            <p className="text-muted-foreground text-xs">
+              {t`Sends to ${targetEmail}. Save changes first.`}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!isDirty || update.isPending}
+              onClick={() => {
+                setHost(value.host ?? "");
+                setPort(String(value.port || 587));
+                setTls(value.tls || DEFAULT_TLS);
+                setUsername(value.username ?? "");
+                setPassword("");
+                setClearPassword(false);
+                setFrom(value.from ?? "");
+              }}
+            >
+              <Trans>Discard</Trans>
+            </Button>
+            <Button type="submit" disabled={!isDirty || update.isPending}>
+              <Save className="size-4" />
+              <Trans>Save changes</Trans>
+            </Button>
+          </div>
+        </div>
+      </SettingsSection>
     </form>
   );
 }
