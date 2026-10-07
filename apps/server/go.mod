@@ -14,7 +14,7 @@ require (
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef
 	github.com/zeebo/blake3 v0.2.4
 	golang.org/x/image v0.46.0
-	golang.org/x/net v0.57.0
+	golang.org/x/net v0.59.0
 	golang.org/x/oauth2 v0.37.0
 	golang.org/x/text v0.42.0
 )
