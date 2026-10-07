@@ -40,7 +40,7 @@
         "zustand": "^5.0.8",
       },
       "devDependencies": {
-        "@iconify-json/vscode-icons": "^1.2.77",
+        "@iconify-json/vscode-icons": "^1.2.84",
         "@lingui/babel-plugin-lingui-macro": "6.7.0",
         "@lingui/cli": "6.7.0",
         "@lingui/format-po": "6.7.0",
@@ -276,7 +276,7 @@
 
     "@humanwhocodes/retry": ["@humanwhocodes/retry@0.4.3", "", {}, "sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ=="],
 
-    "@iconify-json/vscode-icons": ["@iconify-json/vscode-icons@1.2.77", "", { "dependencies": { "@iconify/types": "*" } }, "sha512-yl8e3KlFfLLhiL9CH6YwX6syePeSLLwH2dL4cKGYC27SgdNHL3TRpheAyOjO3fw2+Ovp3tOSF5oj3AhSv4MQ8Q=="],
+    "@iconify-json/vscode-icons": ["@iconify-json/vscode-icons@1.2.84", "", { "dependencies": { "@iconify/types": "*" } }, "sha512-K7v1KdGn0HhrVBZ/MWtsUWX4g01MkjXSAWeVgjrfAH07+TyFR2l4Zq7uPHOXqqN+S5yIjtx1rK9Au10RPk/qXA=="],
 
     "@iconify/types": ["@iconify/types@2.0.0", "", {}, "sha512-+wluvCrRhXrhyOmRDJ3q8mux9JkKy5SJ/v8ol2tu4FVjyYvtEzkc/3pK15ET6RKg4b4w4BmTk1+gsCUhf21Ykg=="],
 
