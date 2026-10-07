@@ -14,7 +14,7 @@
   "dependencies": {
     "@buiducnhat/better-modal": "^0.0.6",
     "@hocuspocus/provider": "^4.7.0",
-    "@lingui/core": "6.7.0",
+    "@lingui/core": "6.9.0",
     "@lingui/react": "6.7.0",
     "@slash-editor/core": "0.7.0",
     "@slash-editor/react": "0.7.0",
