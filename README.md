@@ -61,12 +61,12 @@ vp run dev
 Set `PP_BOOTSTRAP_ADMIN_EMAIL` in `apps/server/.env` to your address before
 the first sign-in to become the instance administrator.
 
-| Task                           | Command                                                                                            |
-| ------------------------------ | -------------------------------------------------------------------------------------------------- |
-| Format, lint, type-check       | `vp check`                                                                                         |
-| Web tests                      | `vp test`                                                                                          |
-| Server tests (with a database) | `cd apps/server && PP_TEST_DATABASE_URL=postgres://pphub:pphub@localhost:5433/pphub go test ./...` |
-| Update translation catalogs    | `vp run web#i18n:extract`                                                                          |
+| Task                           | Command                                                                                                 |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| Format, lint, type-check       | `vp check`                                                                                              |
+| Web tests                      | `vp test`                                                                                               |
+| Server tests (with a database) | `cd apps/server && PP_TEST_DATABASE_URL=postgres://pphub:pphub@localhost:5433/pphub go test -p 1 ./...` |
+| Update translation catalogs    | `vp run web#i18n:extract`                                                                               |
 
 ## Documentation
 

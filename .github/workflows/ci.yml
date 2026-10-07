@@ -99,7 +99,7 @@ jobs:
       - name: Test
         env:
           PP_TEST_DATABASE_URL: postgres://pphub:pphub@localhost:5432/pphub?sslmode=disable
-        run: go test ./...
+        run: go test -p 1 ./...
 
       # Generated code is committed; this fails when a migration or query changed
       # without `sqlc generate`. Keep the version in step with the header of the

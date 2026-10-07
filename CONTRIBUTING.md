@@ -9,13 +9,13 @@ the local setup.
 1. Branch from `main`; keep the change to one concern.
 2. Run the checks that CI runs:
 
-   | Task                           | Command                                                                                            |
-   | ------------------------------ | -------------------------------------------------------------------------------------------------- |
-   | Format, lint, type-check       | `vp check` (`vp check --fix` to fix)                                                               |
-   | Web tests                      | `vp test`                                                                                          |
-   | Server tests (with a database) | `cd apps/server && PP_TEST_DATABASE_URL=postgres://pphub:pphub@localhost:5433/pphub go test ./...` |
-   | Server vet and sqlc            | `cd apps/server && go vet ./...`, and `sqlc generate` after touching a migration or query          |
-   | Message catalogs               | `vp run web#i18n:extract` after changing UI strings                                                |
+   | Task                           | Command                                                                                                 |
+   | ------------------------------ | ------------------------------------------------------------------------------------------------------- |
+   | Format, lint, type-check       | `vp check` (`vp check --fix` to fix)                                                                    |
+   | Web tests                      | `vp test`                                                                                               |
+   | Server tests (with a database) | `cd apps/server && PP_TEST_DATABASE_URL=postgres://pphub:pphub@localhost:5433/pphub go test -p 1 ./...` |
+   | Server vet and sqlc            | `cd apps/server && go vet ./...`, and `sqlc generate` after touching a migration or query               |
+   | Message catalogs               | `vp run web#i18n:extract` after changing UI strings                                                     |
 
 3. Add a changeset if the change is visible to someone running or using pp-hub
    (see below).
