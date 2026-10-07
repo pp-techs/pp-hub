@@ -9,7 +9,7 @@
 # must not spend time linking the worker, and vice versa. Both share the `deps`
 # stage, so the module download happens once.
 
-FROM golang:1.26-alpine AS deps
+FROM golang:1.27-alpine AS deps
 WORKDIR /src
 COPY go.mod go.sum ./
 # go.mod replaces reearth/ygo with the patched copy in third_party/ygo (see its
