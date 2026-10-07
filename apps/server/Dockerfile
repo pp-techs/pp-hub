@@ -45,7 +45,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 # nothing reaches it. That containment is the reason the media tooling lives
 # here: pdftoppm and ffmpeg parse hostile bytes in memory-unsafe code, and the
 # API process next door holds the session key and the database pool.
-FROM alpine:3.21 AS worker
+FROM alpine:3.24 AS worker
 RUN apk add --no-cache poppler-utils ffmpeg \
     && adduser -D app && mkdir -p /data/blobs && chown -R app:app /data
 USER app
@@ -63,7 +63,7 @@ ENTRYPOINT ["worker"]
 #
 # alpine already carries ca-certificates-bundle, which the OIDC and S3 clients
 # need — do not swap the base for `scratch` without adding it back.
-FROM alpine:3.21 AS server
+FROM alpine:3.24 AS server
 RUN adduser -D app && mkdir -p /data/blobs && chown -R app:app /data
 USER app
 COPY --from=build-server /out/server /usr/local/bin/server
