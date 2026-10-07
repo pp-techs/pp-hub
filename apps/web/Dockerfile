@@ -33,7 +33,7 @@ RUN --mount=type=cache,target=/root/.bun/install/cache \
 COPY . .
 RUN cd apps/web && bun run build
 
-FROM nginx:1.27-alpine AS web
+FROM nginx:1.31-alpine AS web
 COPY --from=build /src/apps/web/dist /usr/share/nginx/html
 
 # A template, not a finished config: the Content-Security-Policy has to name
