@@ -21,6 +21,9 @@ COPY package.json bun.lock ./
 COPY apps/web/package.json apps/web/
 COPY packages/ui/package.json packages/ui/
 COPY packages/utils/package.json packages/utils/
+# The product-version carrier is a workspace member too, so the lockfile
+# names it; without its manifest `--frozen-lockfile` below fails.
+COPY tools/release/package.json tools/release/
 # --ignore-scripts skips the root "prepare" hook (vp config), which sets up
 # git hooks for developers and needs a git binary this image has no reason to
 # carry.

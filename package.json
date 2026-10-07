@@ -1,6 +1,6 @@
 {
   "name": "pp-hub",
-  "version": "0.0.0",
+  "version": "0.14.1",
   "private": true,
   "workspaces": [
     "packages/*",
@@ -12,9 +12,12 @@
     "ready": "vp check && vp run web#i18n:extract && vp run -r test && vp run -r build",
     "dev": "vp run web#dev",
     "prepare": "vp config",
-    "check": "vp check"
+    "check": "vp check",
+    "changeset": "changeset",
+    "version-packages": "bun scripts/version-packages.ts"
   },
   "devDependencies": {
+    "@changesets/cli": "^3.0.3",
     "@shadcn/lint": "^0.1.0",
     "eslint-plugin-lingui": "0.16.0",
     "vite": "catalog:",

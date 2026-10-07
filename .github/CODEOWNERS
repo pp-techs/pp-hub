@@ -1,0 +1,9 @@
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything
+* @buiducnhat
+
+# Anything that can publish an image or change what a release contains
+/.github/ @buiducnhat
+/.changeset/ @buiducnhat
+/scripts/ @buiducnhat

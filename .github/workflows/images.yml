@@ -1,0 +1,126 @@
+# Build and push the three deployable images (web, server, worker).
+#
+# Production must never build on the VPS: a deploy that compiles is a deploy
+# whose output depends on the machine it ran on, and a rollback becomes a
+# rebuild rather than a tag change. compose.prod.yml pulls what this pushes.
+#
+# Not triggered directly. Callers:
+#
+#   release.yml  version=X.Y.Z → :X.Y.Z, :X.Y, :latest, :sha-<sha>
+#                (a prerelease X.Y.Z-rc.1 gets its own tag only: no :X.Y, no :latest)
+#   edge.yml     version=""    → :edge, :sha-<sha>   (every push to main)
+#
+# The image tag has no leading `v`; the git tag does. Releases are built from
+# the main commit the Version Packages PR merged to — the git tag is created
+# after the images are pushed — so this derives tags from the version it is
+# given rather than from the ref.
+#
+# linux/amd64 only. Every target this stack is deployed to is amd64, and a
+# second platform doubles build time for an image nobody pulls. Add
+# linux/arm64 to `platforms` below the day an arm VPS appears.
+name: images
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Release version without the leading v; empty builds the edge images.
+        type: string
+        default: ""
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  images:
+    name: Image (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    env:
+      VERSION: ${{ inputs.version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The web image carries no build-time configuration: the SPA reads
+          # nothing from import.meta.env, and the one deployment-specific
+          # value in nginx.conf (PP_ONLYOFFICE_URL, named in the CSP) is
+          # substituted by the official image's envsubst at startup. So one
+          # image is correct for every deployment, which is what makes a
+          # tagged release meaningful rather than per-environment.
+          - name: web
+            context: .
+            dockerfile: apps/web/Dockerfile
+            target: web
+          - name: server
+            context: apps/server
+            dockerfile: apps/server/Dockerfile
+            target: server
+          - name: worker
+            context: apps/server
+            dockerfile: apps/server/Dockerfile
+            target: worker
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Select tags
+        id: tags
+        run: |
+          # The first tag is the one the OCI version label is taken from.
+          if [ -z "$VERSION" ]; then
+            list="type=raw,value=edge"
+          else
+            list="type=raw,value=$VERSION"
+            case "$VERSION" in
+              *-*) ;; # prerelease: never moves the floating tags
+              *) list="$list"$'\n'"type=raw,value=${VERSION%.*}"$'\n'"type=raw,value=latest" ;;
+            esac
+          fi
+          list="$list"$'\n'"type=sha,prefix=sha-"
+          {
+            echo "list<<EOF"
+            echo "$list"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Log in to the registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image metadata
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.name }}
+          # Tags are chosen above; `latest=false` stops the action adding its own.
+          flavor: latest=false
+          tags: ${{ steps.tags.outputs.list }}
+
+      - name: Build and push
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          target: ${{ matrix.target }}
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Registry-backed cache, not gha: the three images share the bun
+          # install and the Go module download, and the gha cache is scoped
+          # per branch so a release would start cold every time.
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.name }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.name }}:buildcache,mode=max

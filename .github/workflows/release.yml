@@ -1,92 +1,218 @@
-# Build and publish the three deployable images.
+name: Release
+
+# Release flow (CONTRIBUTING.md#releasing). Every push to main runs `plan`:
 #
-# Production must never build on the VPS: a deploy that compiles is a deploy
-# whose output depends on the machine it ran on, and a rollback becomes a
-# rebuild rather than a tag change. compose.prod.yml pulls what this pushes.
+# - changesets pending → `version` opens or updates the "Version Packages" PR
+#   (`bun run version-packages`: product version bump, CHANGELOG, bun.lock);
+# - no changesets, and no tag vX.Y.Z for the committed version → `ci` and
+#   `verify` re-run every check and prepare the notes read-only, `approve`
+#   waits for a reviewer on the `production-release` environment, `images`
+#   builds and pushes the web, server and worker images as :X.Y.Z (+ :X.Y and
+#   :latest for a stable release), and `release` tags vX.Y.Z and creates the
+#   GitHub Release;
+# - otherwise nothing.
 #
-#   git tag v0.1.0 && git push origin v0.1.0   → :v0.1.0, :0.1, :sha-<sha>
-#   push to main                               → :edge, :sha-<sha>
+# Merging the Version Packages PR is the release. A failed run is retried by
+# re-running the failed jobs: images are rebuilt to the same tags, and an
+# existing GitHub Release is left alone. The tag is created last, so a tag
+# always means the images exist.
 #
-# linux/amd64 only. Every target this stack is deployed to is amd64, and a
-# second platform doubles build time for an image nobody pulls. Add
-# linux/arm64 to `platforms` below the day an arm VPS appears.
-name: release
+# Never push a release tag by hand: nothing listens for it.
 
 on:
   push:
-    branches: [main]
-    tags: ["v*"]
-  workflow_dispatch:
+    branches:
+      - main
 
-env:
-  REGISTRY: ghcr.io
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
-  images:
+  plan:
+    name: Plan
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      mode: ${{ steps.plan.outputs.mode }}
+      version: ${{ steps.plan.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Select mode
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(jq -r .version tools/release/package.json)
+          pending=$(find .changeset -maxdepth 1 -name '*.md' ! -name README.md | wc -l)
+          mode=none
+          if [ "$pending" -gt 0 ]; then
+            mode=version
+          else
+            # 200 = tagged (released), 404 = not yet; anything else must not guess.
+            status=$(curl -sS -o /dev/null -w '%{http_code}' \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/git/ref/tags/v$version")
+            case "$status" in
+              200) ;;
+              404) mode=publish ;;
+              *) echo "::error::GitHub returned $status for tag v$version"; exit 1 ;;
+            esac
+          fi
+          echo "$pending pending changesets, version $version → mode $mode"
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  version:
+    name: Version Packages PR
+    needs: plan
+    if: needs.plan.outputs.mode == 'version'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.4.2"
+          no-cache: true
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # The PR is created with GITHUB_TOKEN, so CI does not run on it; `ci`
+      # below re-runs every check on the merged commit before anything ships.
+      - name: Create or update the Version Packages PR
+        uses: changesets/action/version@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+        with:
+          script: bun run version-packages
+          commit-message: "chore(release): version packages"
+          pr-title: "chore(release): version packages"
+
+  ci:
+    name: CI
+    needs: plan
+    if: needs.plan.outputs.mode == 'publish'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci.yml
+
+  verify:
+    name: Verify release
+    needs: plan
+    if: needs.plan.outputs.mode == 'publish'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      VERSION: ${{ needs.plan.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check versions agree
+        run: |
+          for manifest in package.json tools/release/package.json; do
+            actual=$(jq -r .version "$manifest")
+            if [ "$actual" != "$VERSION" ]; then
+              echo "::error file=$manifest::version $actual, expected $VERSION"
+              exit 1
+            fi
+          done
+
+      - name: Extract release notes
+        run: |
+          mkdir -p "$RUNNER_TEMP/release"
+          awk -v heading="## [$VERSION]" '
+            index($0, heading) == 1 { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > "$RUNNER_TEMP/release/notes.md"
+          if ! grep -q '[^[:space:]]' "$RUNNER_TEMP/release/notes.md"; then
+            echo "::error file=CHANGELOG.md::no section for [$VERSION]"
+            exit 1
+          fi
+
+      - name: Upload release notes
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-notes
+          path: ${{ runner.temp }}/release
+          if-no-files-found: error
+          retention-days: 7
+
+  approve:
+    name: Approve release
+    needs: [plan, ci, verify]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Required reviewers on this environment are the human gate before anything
+    # is pushed to the registry. It is its own job, rather than on `images`, so
+    # the three-image matrix is approved once instead of per image.
+    environment: production-release
+    permissions: {}
+    steps:
+      - name: Approved
+        run: echo "Releasing v${{ needs.plan.outputs.version }}"
+
+  images:
+    name: Images
+    needs: [plan, approve]
     permissions:
       contents: read
       packages: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # The web image carries no build-time configuration: the SPA reads
-          # nothing from import.meta.env, and the one deployment-specific
-          # value in nginx.conf (PP_ONLYOFFICE_URL, named in the CSP) is
-          # substituted by the official image's envsubst at startup. So one
-          # image is correct for every deployment, which is what makes a
-          # tagged release meaningful rather than per-environment.
-          - name: web
-            context: .
-            dockerfile: apps/web/Dockerfile
-            target: web
-          - name: server
-            context: apps/server
-            dockerfile: apps/server/Dockerfile
-            target: server
-          - name: worker
-            context: apps/server
-            dockerfile: apps/server/Dockerfile
-            target: worker
+    uses: ./.github/workflows/images.yml
+    with:
+      version: ${{ needs.plan.outputs.version }}
 
+  release:
+    name: Tag and GitHub Release
+    needs: [plan, images]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # tag + GitHub Release
+    env:
+      VERSION: ${{ needs.plan.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: docker/setup-buildx-action@v3
-
-      - uses: docker/login-action@v3
+      - name: Download release notes
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          name: release-notes
+          path: ${{ runner.temp }}/release
 
-      - id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.name }}
-          # latest=auto publishes :latest on every release tag (and only
-          # there: main pushes and prerelease tags do not move it). Pinned
-          # tags stay the recommended PP_IMAGE_TAG value; :latest is for
-          # consumers who explicitly want the moving target.
-          flavor: latest=auto
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=edge,enable={{is_default_branch}}
-            type=sha,prefix=sha-
-
-      - uses: docker/build-push-action@v6
-        with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
-          target: ${{ matrix.target }}
-          platforms: linux/amd64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          # Registry-backed cache, not gha: the three images share the bun
-          # install and the Go module download, and the gha cache is scoped
-          # per branch so a release tag would start cold every time.
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.name }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.name }}:buildcache,mode=max
+      - name: Create tag and GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v$VERSION"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "GitHub Release $tag already exists"
+            exit 0
+          fi
+          prerelease=()
+          case "$VERSION" in *-*) prerelease=(--prerelease) ;; esac
+          gh release create "$tag" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "$tag" \
+            --notes-file "$RUNNER_TEMP/release/notes.md" \
+            "${prerelease[@]}"

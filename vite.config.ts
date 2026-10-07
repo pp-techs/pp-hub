@@ -141,8 +141,9 @@ export default defineConfig({
       },
       {
         // Developer scripts run from a terminal (the mdoc golden-fixture
-        // generator): markdown samples and file paths, no UI.
-        files: ["apps/web/scripts/**"],
+        // generator, the release version step): markdown samples, file paths
+        // and commands, no UI.
+        files: ["apps/web/scripts/**", "scripts/**"],
         rules: { "lingui/no-unlocalized-strings": "off" },
       },
       {

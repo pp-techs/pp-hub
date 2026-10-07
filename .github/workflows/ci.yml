@@ -1,0 +1,140 @@
+# Everything that must be green before a change lands on main.
+#
+# Also called by release.yml (`workflow_call`) on the commit being released, so
+# a release is held to exactly the checks a pull request is.
+#
+# The message catalogs are checked by i18n.yml, which only runs when web
+# sources change.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  web:
+    name: Web (check, test, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.4.2"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Check (format, lint, typecheck)
+        run: bunx vp check
+
+      - name: Unit tests
+        run: bunx vp run -r test
+
+      - name: Build
+        run: bunx vp run -r build
+
+  server:
+    name: Server (vet, test, sqlc)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/server
+    services:
+      # The permission and job-queue invariants live in SQL, so their tests need
+      # a real database; without PP_TEST_DATABASE_URL they skip and prove nothing.
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: pphub
+          POSTGRES_PASSWORD: pphub
+          POSTGRES_DB: pphub
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pphub"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: apps/server/go.mod
+          cache-dependency-path: apps/server/go.sum
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test
+        env:
+          PP_TEST_DATABASE_URL: postgres://pphub:pphub@localhost:5432/pphub?sslmode=disable
+        run: go test ./...
+
+      # Generated code is committed; this fails when a migration or query changed
+      # without `sqlc generate`. Keep the version in step with the header of the
+      # generated files.
+      - name: Check generated sqlc code is current
+        run: go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1 diff
+
+  images:
+    name: Image build (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: web
+            context: .
+            dockerfile: apps/web/Dockerfile
+          - name: server
+            context: apps/server
+            dockerfile: apps/server/Dockerfile
+          - name: worker
+            context: apps/server
+            dockerfile: apps/server/Dockerfile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      # Build only: a broken Dockerfile is found here rather than after the merge.
+      - name: Build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          target: ${{ matrix.name }}
+          platforms: linux/amd64
+          push: false
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,scope=${{ matrix.name }},mode=max

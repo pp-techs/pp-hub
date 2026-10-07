@@ -131,13 +131,18 @@ missing variable rather than booting a half-configured stack.
 
 ### Releases
 
-`up -d`, not `up -d --build`. The three application images are published by
-`.github/workflows/release.yml` to
-`ghcr.io/pp-techs/pp-hub/{web,server,worker}`, and `PP_IMAGE_TAG` names the
-one this stack runs. Pushing the git tag `v0.1.0` publishes `:0.1.0`, `:0.1`,
-`:latest` and `:sha-<short>` — the image tag drops the `v`; a push to `main`
-publishes `:edge` and `:sha-<short>`. Prerelease tags (`v2.0.0-beta.1`) get
-their own tag but do not move `:latest`.
+`up -d`, not `up -d --build`. The three application images are published to
+`ghcr.io/pp-techs/pp-hub/{web,server,worker}` by the release flow
+(`release.yml`, described in [CONTRIBUTING.md](../CONTRIBUTING.md#releasing)),
+and `PP_IMAGE_TAG` names the one this stack runs. A release is cut by merging
+the "Version Packages" PR: after a reviewer approves the `production-release`
+environment, version `0.1.0` publishes `:0.1.0`, `:0.1`, `:latest` and
+`:sha-<short>`, then the git tag `v0.1.0` and its GitHub Release (the image tag
+drops the `v`; the git tag is created last, so a tag means the images exist).
+A prerelease (`0.2.0-rc.1`) gets its own tag only, not `:0.2` or `:latest`.
+Every push to `main` publishes `:edge` and
+`:sha-<short>` (`edge.yml`). Release tags are never pushed by hand — nothing
+listens for them.
 
 | Action        | What you do                                      |
 | ------------- | ------------------------------------------------ |

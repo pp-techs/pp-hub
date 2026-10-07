@@ -7,5 +7,6 @@
 - Use `vp` for all tooling: `vp check` (format + lint + typecheck), `vp lint`, `vp test`, `vp dev`, `vp run <script>` for package.json scripts. Lint config lives in the root `vite.config.ts` `lint` block
 - `@shadcn/lint` is registered as an Oxlint JS plugin for design-system rules; add them under `lint.rules` with the `shadcn/` prefix (e.g. `shadcn/no-restyle`). After UI changes, run `vp lint` and fix all errors
 - When modifying UI strings, run `bun run i18n:extract` (or `vp run web#i18n:extract`) to keep both the `.po` catalogs and `.pot` template in sync
+- Releases go through Changesets (see `CONTRIBUTING.md#releasing`): add one with `bun run changeset` (package `@pp-hub/release`) for any user- or operator-visible change. Never bump versions, edit `CHANGELOG.md`'s release sections, or push release tags by hand
 
 <!-- RULES END-->

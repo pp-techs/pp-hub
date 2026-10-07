@@ -1,6 +1,6 @@
 # pp-hub — full production stack for a VPS or Dokploy.
 #
-# Everything the app needs, from images published by .github/workflows/release.yml.
+# Everything the app needs, from images published by the release flow (CONTRIBUTING.md#releasing).
 # Deliberately publishes no host ports: Dokploy's Traefik routes to containers
 # over its own network, and binding 80/443 here would collide with it. For a
 # plain VPS with your own reverse proxy, uncomment the `ports:` blocks marked
