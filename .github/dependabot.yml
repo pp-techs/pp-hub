@@ -1,12 +1,18 @@
+# Updates arrive grouped and monthly so the PR list stays readable: one PR per
+# ecosystem rather than one per dependency. Security updates are not limited by
+# this schedule; GitHub raises those as they are published.
 version: 2
 
 updates:
   - package-ecosystem: "bun"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
-    open-pull-requests-limit: 10
+      interval: "monthly"
+    open-pull-requests-limit: 3
+    groups:
+      web-dependencies:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
     commit-message:
       prefix: "chore"
       include: "scope"
@@ -14,9 +20,12 @@ updates:
   - package-ecosystem: "gomod"
     directory: "/apps/server"
     schedule:
-      interval: "weekly"
-      day: "monday"
-    open-pull-requests-limit: 10
+      interval: "monthly"
+    open-pull-requests-limit: 3
+    groups:
+      server-dependencies:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
     commit-message:
       prefix: "chore"
       include: "scope"
@@ -26,8 +35,8 @@ updates:
       - "/apps/web"
       - "/apps/server"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
+    open-pull-requests-limit: 2
     commit-message:
       prefix: "chore"
       include: "scope"
@@ -35,9 +44,11 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
-    open-pull-requests-limit: 10
+      interval: "monthly"
+    open-pull-requests-limit: 2
+    groups:
+      actions:
+        patterns: ["*"]
     commit-message:
       prefix: "ci"
       include: "scope"

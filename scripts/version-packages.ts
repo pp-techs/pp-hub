@@ -5,11 +5,12 @@
  * pp-hub ships one product version, not one per workspace package. `@pp-hub/release` exists only
  * to carry it through Changesets, so `changeset version` bumps that package; on top of that this
  * gives the root package the same version, writes the root CHANGELOG section from the changesets
- * it consumes (the package-level CHANGELOG Changesets writes is dropped: there is one changelog),
- * and refreshes `bun.lock`, which records workspace versions.
+ * it consumes, and refreshes `bun.lock`, which records workspace versions. The package-level
+ * `tools/release/CHANGELOG.md` Changesets writes is kept: changesets/action reads it to build the
+ * PR description, and fails without it. The root CHANGELOG.md is the one people read.
  */
 import { execFileSync } from "node:child_process";
-import { readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 
 const CHANGESET_DIR = ".changeset";
 const CARRIER = "tools/release";
@@ -59,9 +60,16 @@ writeFileSync(
   ROOT_CHANGELOG,
   changelog.replace(CHANGELOG_MARKER, `${CHANGELOG_MARKER}\n\n${section}`),
 );
-rmSync(`${CARRIER}/CHANGELOG.md`, { force: true });
 
 run("bun", ["install"]);
-run("bun", ["x", "vp", "fmt", "package.json", ROOT_CHANGELOG, `${CARRIER}/package.json`]);
+run("bun", [
+  "x",
+  "vp",
+  "fmt",
+  "package.json",
+  ROOT_CHANGELOG,
+  `${CARRIER}/package.json`,
+  `${CARRIER}/CHANGELOG.md`,
+]);
 
 console.log(`Versioned the product to ${version}.`);
