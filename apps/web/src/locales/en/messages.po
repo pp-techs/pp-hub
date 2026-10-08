@@ -756,7 +756,7 @@ msgstr "An administrator has not turned on agent access."
 msgid "An administrator has turned personal tokens off."
 msgstr "An administrator has turned personal tokens off."
 
-#: src/components/doc-editor/doc-editor.tsx:358
+#: src/components/doc-editor/doc-editor.tsx:377
 msgid "Anonymous"
 msgstr "Anonymous"
 
@@ -1012,7 +1012,7 @@ msgstr "Code block"
 msgid "Code language"
 msgstr "Code language"
 
-#: src/components/doc-editor/page-tree-panel.tsx:173
+#: src/components/doc-editor/page-tree-panel.tsx:178
 #: src/components/folder-tree.tsx:103
 #: src/components/move-dialog.tsx:267
 msgid "Collapse"
@@ -1075,7 +1075,7 @@ msgstr "Comment thread"
 #: src/components/comments/block-comments.tsx:201
 #: src/components/comments/comments-popover.tsx:191
 #: src/components/comments/comments-popover.tsx:287
-#: src/components/doc-editor/doc-editor.tsx:231
+#: src/components/doc-editor/doc-editor.tsx:247
 msgid "Comments"
 msgstr "Comments"
 
@@ -1256,7 +1256,7 @@ msgstr "Could not move “{nodeName}”"
 msgid "Could not move the sub-page to the trash"
 msgstr "Could not move the sub-page to the trash"
 
-#: src/components/doc-editor/doc-editor.tsx:292
+#: src/components/doc-editor/doc-editor.tsx:309
 msgid "Could not open the document"
 msgstr "Could not open the document"
 
@@ -1715,7 +1715,7 @@ msgid "edit"
 msgstr "edit"
 
 #: src/components/comments/comments-popover.tsx:594
-#: src/components/doc-editor/doc-editor.tsx:218
+#: src/components/doc-editor/doc-editor.tsx:234
 #: src/components/node-actions.tsx:140
 msgid "Edit"
 msgstr "Edit"
@@ -1732,7 +1732,7 @@ msgstr "Edit anyway"
 msgid "Edit documents and spreadsheets together in the browser."
 msgstr "Edit documents and spreadsheets together in the browser."
 
-#: src/routes/edit/$nodeId.tsx:18
+#: src/routes/edit/$nodeId.tsx:19
 msgid "Editing"
 msgstr "Editing"
 
@@ -1868,7 +1868,7 @@ msgstr "Everything in {spaceName}"
 msgid "Everywhere your access to this space begins. Open one to see what is inside."
 msgstr "Everywhere your access to this space begins. Open one to see what is inside."
 
-#: src/components/doc-editor/page-tree-panel.tsx:173
+#: src/components/doc-editor/page-tree-panel.tsx:178
 #: src/components/folder-tree.tsx:103
 #: src/components/move-dialog.tsx:267
 msgid "Expand"
@@ -2271,7 +2271,7 @@ msgstr "Images"
 msgid "Implicit TLS / SMTPS (port 465)"
 msgstr "Implicit TLS / SMTPS (port 465)"
 
-#: src/components/nodes/page-node-views.tsx:103
+#: src/components/nodes/page-node-views.tsx:110
 msgid "In trash"
 msgstr "In trash"
 
@@ -3119,7 +3119,7 @@ msgstr "Off"
 msgid "Office"
 msgstr "Office"
 
-#: src/components/doc-editor/doc-editor.tsx:605
+#: src/components/doc-editor/doc-editor.tsx:633
 msgid "Offline"
 msgstr "Offline"
 
@@ -3143,11 +3143,11 @@ msgstr "Only an administrator can open server administration."
 #~ msgid "Only an administrator can read the security log."
 #~ msgstr "Only an administrator can read the security log."
 
-#: src/lib/collab/page-store.ts:46
+#: src/lib/collab/page-store.ts:47
 msgid "Only the open page’s icon and cover can be changed."
 msgstr "Only the open page’s icon and cover can be changed."
 
-#: src/routes/edit/$nodeId.tsx:156
+#: src/routes/edit/$nodeId.tsx:225
 msgid "OnlyOffice editor"
 msgstr "OnlyOffice editor"
 
@@ -3185,8 +3185,8 @@ msgstr "opened in editor"
 msgid "Opening"
 msgstr "Opening"
 
-#: src/routes/edit/$nodeId.tsx:63
-#: src/routes/edit/$nodeId.tsx:124
+#: src/routes/edit/$nodeId.tsx:135
+#: src/routes/edit/$nodeId.tsx:193
 msgid "Opening editor…"
 msgstr "Opening editor…"
 
@@ -3234,8 +3234,8 @@ msgstr "Owner"
 msgid "Page"
 msgstr "Page"
 
-#: src/components/nodes/page-node-views.tsx:81
-#: src/components/nodes/page-node-views.tsx:136
+#: src/components/nodes/page-node-views.tsx:88
+#: src/components/nodes/page-node-views.tsx:145
 msgid "Page not available"
 msgstr "Page not available"
 
@@ -3247,14 +3247,14 @@ msgstr "Page not found."
 msgid "Page title"
 msgstr "Page title"
 
-#: src/components/doc-editor/doc-editor.tsx:224
+#: src/components/doc-editor/doc-editor.tsx:240
 #: src/components/doc-editor/labels.ts:58
 #: src/components/doc-editor/page-tree-panel.tsx:84
 #: src/components/doc-editor/page-tree-panel.tsx:89
 msgid "Pages"
 msgstr "Pages"
 
-#: src/lib/collab/page-store.ts:45
+#: src/lib/collab/page-store.ts:46
 msgid "Pages cannot be changed through a share link."
 msgstr "Pages cannot be changed through a share link."
 
@@ -3467,11 +3467,11 @@ msgstr "Quote"
 msgid "re-share"
 msgstr "re-share"
 
-#: src/routes/edit/$nodeId.tsx:118
+#: src/routes/edit/$nodeId.tsx:187
 msgid "read-only"
 msgstr "read-only"
 
-#: src/components/doc-editor/doc-editor.tsx:212
+#: src/components/doc-editor/doc-editor.tsx:228
 msgid "Read-only"
 msgstr "Read-only"
 
@@ -3725,7 +3725,7 @@ msgstr "Save"
 msgid "Save changes"
 msgstr "Save changes"
 
-#: src/components/doc-editor/doc-editor.tsx:595
+#: src/components/doc-editor/doc-editor.tsx:623
 msgid "Saved"
 msgstr "Saved"
 
@@ -3733,7 +3733,7 @@ msgstr "Saved"
 msgid "Saved {created} · {size}"
 msgstr "Saved {created} · {size}"
 
-#: src/routes/edit/$nodeId.tsx:118
+#: src/routes/edit/$nodeId.tsx:187
 msgid "saved by OnlyOffice"
 msgstr "saved by OnlyOffice"
 
@@ -4235,7 +4235,7 @@ msgstr "Suspended"
 msgid "Switch space"
 msgstr "Switch space"
 
-#: src/components/doc-editor/doc-editor.tsx:600
+#: src/components/doc-editor/doc-editor.tsx:628
 msgid "Syncing…"
 msgstr "Syncing…"
 
@@ -4323,7 +4323,7 @@ msgstr "the public link"
 msgid "The rest of the thread stays."
 msgstr "The rest of the thread stays."
 
-#: src/components/doc-editor/doc-editor.tsx:297
+#: src/components/doc-editor/doc-editor.tsx:314
 #: src/components/markdown-document-view/index.tsx:207
 msgid "The server did not answer."
 msgstr "The server did not answer."
@@ -4404,7 +4404,7 @@ msgstr "This device stays signed in."
 msgid "This document cannot be shown"
 msgstr "This document cannot be shown"
 
-#: src/components/doc-editor/doc-editor.tsx:275
+#: src/components/doc-editor/doc-editor.tsx:292
 msgid "This document is not available"
 msgstr "This document is not available"
 
@@ -4582,7 +4582,7 @@ msgstr "Trash retention (days)"
 msgid "Try a different search."
 msgstr "Try a different search."
 
-#: src/components/doc-editor/doc-editor.tsx:303
+#: src/components/doc-editor/doc-editor.tsx:320
 msgid "Try again"
 msgstr "Try again"
 
@@ -4631,8 +4631,8 @@ msgid "Unsaved changes"
 msgstr "Unsaved changes"
 
 #: src/components/new-document-dialog.tsx:70
-#: src/components/nodes/page-node-views.tsx:13
-#: src/lib/collab/page-store.ts:44
+#: src/components/nodes/page-node-views.tsx:14
+#: src/lib/collab/page-store.ts:45
 msgid "Untitled"
 msgstr "Untitled"
 
@@ -4989,7 +4989,7 @@ msgstr "You uploaded"
 msgid "Your access"
 msgstr "Your access"
 
-#: src/components/doc-editor/doc-editor.tsx:278
+#: src/components/doc-editor/doc-editor.tsx:295
 msgid "Your access may have been removed, or the file is no longer a markdown document."
 msgstr "Your access may have been removed, or the file is no longer a markdown document."
 

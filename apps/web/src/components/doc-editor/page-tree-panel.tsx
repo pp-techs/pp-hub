@@ -116,6 +116,7 @@ export function PageTreePanel({
             canToggle={index > 0}
             onToggle={() => tree.toggle(row.page.id)}
             onNavigate={() => onNavigate(row.page.id)}
+            onWarm={() => store.prefetch(row.page.id)}
             onKeyDown={(event) => onKeyDown(event, index)}
           />
         ))}
@@ -132,6 +133,7 @@ function TreeRow({
   canToggle,
   onToggle,
   onNavigate,
+  onWarm,
   onKeyDown,
 }: {
   page: PageMeta;
@@ -141,6 +143,7 @@ function TreeRow({
   canToggle: boolean;
   onToggle: () => void;
   onNavigate: () => void;
+  onWarm: () => void;
   onKeyDown: (event: KeyboardEvent<HTMLElement>) => void;
 }) {
   const { t } = useLingui();
@@ -157,6 +160,8 @@ function TreeRow({
       aria-expanded={hasChildren ? expanded : undefined}
       aria-current={active ? "page" : undefined}
       onClick={onNavigate}
+      onPointerEnter={onWarm}
+      onFocus={onWarm}
       onKeyDown={onKeyDown}
       className={cn(
         "hover:bg-muted focus-visible:ring-ring flex cursor-pointer items-center gap-1 rounded-md py-1 pr-2 text-xs outline-none focus-visible:ring-2",
