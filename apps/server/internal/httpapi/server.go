@@ -389,6 +389,7 @@ func (s *Server) apiRoutes(r chi.Router, agent bool) {
 		r.Delete("/grants/{groupID}", s.handleRevokeGrant)
 		if agent {
 			r.Get("/text", s.handleReadText)
+			r.Get("/file", s.handleReadFile)
 			r.Put("/text", s.handleWriteMarkdown)
 		}
 	})

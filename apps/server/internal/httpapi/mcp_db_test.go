@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
@@ -19,7 +20,9 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/auth"
+	"github.com/nhatbui/pp-hub/apps/server/internal/blob"
 	"github.com/nhatbui/pp-hub/apps/server/internal/config"
+	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 	"github.com/nhatbui/pp-hub/apps/server/internal/sysconfig"
 	"github.com/nhatbui/pp-hub/apps/server/internal/users"
@@ -380,6 +383,51 @@ func TestMcpDocumentsFollowAccessAndConcurrency(t *testing.T) {
 	}
 	if n == 0 {
 		t.Fatal("no security event marked as the agent's")
+	}
+}
+
+// download_file hands over a binary file's exact bytes, to whoever may
+// download it and nobody less, and refuses what is too large to carry.
+func TestMcpDownloadFile(t *testing.T) {
+	rig := newMCPRig(t)
+	f := rig.collabRig.fixture(t, "mcpdl", "# Doc\n")
+	ctx := context.Background()
+
+	content := append([]byte("PK\x03\x04"), randomBytes(t, 4096)...)
+	put := func(name string, b []byte) store.Node {
+		n, _, err := rig.srv.fs.PutFile(ctx, f.space.ID, pgtype.UUID{}, pgtype.UUID{}, name, bytes.NewReader(b), f.owner.ID)
+		if err != nil {
+			t.Fatalf("put %s: %v", name, err)
+		}
+		return n
+	}
+	sheet := put("model.xlsx", content)
+	grantDirect(t, rig.srv, sheet, f.reader, f.owner, share.GrantCaps{Level: share.LevelView, CanDownload: true})
+	grantDirect(t, rig.srv, sheet, f.viewer, f.owner, share.GrantCaps{Level: share.LevelView})
+	id := uuidString(sheet.ID)
+
+	var got struct {
+		Name    string `json:"name"`
+		Size    int64  `json:"size"`
+		ETag    string `json:"etag"`
+		Content []byte `json:"content_base64"`
+	}
+	mustTool(t, rig.agent(t, f.reader), "download_file", map[string]any{"node_id": id}, &got)
+	if got.Name != "model.xlsx" || got.Size != int64(len(content)) || got.ETag != blob.Hash(content) || !bytes.Equal(got.Content, content) {
+		t.Fatalf("download differs from the file: name=%q size=%d etag=%q", got.Name, got.Size, got.ETag)
+	}
+
+	// Viewing is not downloading, and a stranger has neither.
+	for name, cs := range map[string]*mcp.ClientSession{"viewer": rig.agent(t, f.viewer), "stranger": rig.agent(t, f.stranger)} {
+		if text, isErr := callTool(t, cs, "download_file", map[string]any{"node_id": id}); !isErr || !strings.Contains(text, "403") {
+			t.Fatalf("%s downloaded the file: %s", name, text)
+		}
+	}
+
+	owner := rig.agent(t, f.owner)
+	big := put("big.pdf", bytes.Repeat([]byte{1}, maxAgentFileBytes+1))
+	if text, isErr := callTool(t, owner, "download_file", map[string]any{"node_id": uuidString(big.ID)}); !isErr || !strings.Contains(text, "413") {
+		t.Fatalf("an oversized file was downloaded: %.200s", text)
 	}
 }
 
