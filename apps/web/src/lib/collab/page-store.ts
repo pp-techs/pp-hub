@@ -31,6 +31,7 @@ import {
   type PpPageMeta,
 } from "@/lib/queries/pages";
 import { MIN_QUERY_LENGTH } from "@/lib/queries/search";
+import { nodeOptions } from "@/lib/queries/nodes";
 import { fetchSpaces } from "@/lib/queries/spaces";
 import { ATTACHMENT_SCHEME } from "@/lib/collab/attachments";
 
@@ -77,6 +78,12 @@ export interface PpPageStore extends PageStore {
   restore(pageId: string): Promise<void>;
   /** Where the page's cover image is served, if it has one. */
   coverUrl(page: PageMeta): string | undefined;
+  /**
+   * Warms what opening the page reads — its node and its lineage — so a hover
+   * or focus on a link to it saves the round trips of the click. A share link
+   * has no editor to open the page in: nothing to warm.
+   */
+  prefetch(pageId: string): void;
 }
 
 /** A node's name as a page title: without `.md`, whatever its case. */
@@ -405,6 +412,13 @@ export function createPageStore(queryClient: QueryClient, source: PageSource): P
       });
     },
 
+    prefetch(pageId) {
+      if (source.kind !== "node") return;
+      // `ensure`, not `prefetch`: a cached node needs no refetch on every hover.
+      queryClient.ensureQueryData(nodeOptions(pageId)).catch(() => undefined);
+      void queryClient.prefetchQuery(pageLineageOptions(source, pageId));
+    },
+
     coverUrl(page) {
       // Only the page's own attachment: pp-hub does not hotlink another
       // site's image, whatever a hand-edited frontmatter says.
@@ -416,6 +430,11 @@ export function createPageStore(queryClient: QueryClient, source: PageSource): P
     },
   };
   return store;
+}
+
+/** Warms what opening `pageId` reads, when `store` is pp-hub's (see `PpPageStore.prefetch`). */
+export function prefetchPage(store: PageStore, pageId: string): void {
+  if ("prefetch" in store) (store as PpPageStore).prefetch(pageId);
 }
 
 /** One store per source for the life of the component — the editor latches it once. */

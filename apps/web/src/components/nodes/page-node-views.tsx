@@ -8,6 +8,7 @@ import { FileTextIcon, FileXIcon, Trash2Icon } from "lucide-react";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { cn } from "@workspace/ui/lib/utils";
 import { emptyPageStore } from "@/lib/collab/mdoc-kit";
+import { prefetchPage } from "@/lib/collab/page-store";
 
 /** What a page with no title reads as, wherever pp-hub draws one. */
 export const UNTITLED_PAGE = msg`Untitled`;
@@ -22,6 +23,9 @@ function usePageNode({ editor, node }: Pick<NodeViewProps, "editor" | "node">) {
   const navigate = () => {
     if (pageId) options?.onNavigate(pageId);
   };
+  const warm = () => {
+    if (pageId && options) prefetchPage(options.store, pageId);
+  };
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key !== "Enter" && event.key !== " ") return;
     event.preventDefault();
@@ -32,6 +36,7 @@ function usePageNode({ editor, node }: Pick<NodeViewProps, "editor" | "node">) {
     // eslint-disable-next-line lingui/no-unlocalized-strings -- status value
     status: (page?.trashed ? "trashed" : status) as NodeStatus,
     navigate,
+    warm,
     onKeyDown,
   };
 }
@@ -61,7 +66,7 @@ export function usePageTitle(page: Pick<PageMeta, "title"> | undefined): string 
  * reader may not open, says that instead.
  */
 export function SubPageNodeView({ editor, node, selected }: NodeViewProps) {
-  const { page, status, navigate, onKeyDown } = usePageNode({ editor, node });
+  const { page, status, navigate, warm, onKeyDown } = usePageNode({ editor, node });
   const title = usePageTitle(page);
 
   return (
@@ -71,6 +76,8 @@ export function SubPageNodeView({ editor, node, selected }: NodeViewProps) {
         tabIndex={0}
         data-status={status}
         onClick={navigate}
+        onPointerEnter={warm}
+        onFocus={warm}
         onKeyDown={onKeyDown}
         className="hover:bg-muted/60 focus-visible:ring-ring in-data-selected:ring-ring flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 outline-none select-none focus-visible:ring-2 in-data-selected:ring-2"
       >
@@ -117,7 +124,7 @@ const CHIP =
 
 /** An inline link to a page: its icon and live title; a click or Enter opens it. */
 export function PageLinkNodeView({ editor, node, selected }: NodeViewProps) {
-  const { page, status, navigate, onKeyDown } = usePageNode({ editor, node });
+  const { page, status, navigate, warm, onKeyDown } = usePageNode({ editor, node });
   const title = usePageTitle(page);
 
   return (
@@ -128,6 +135,8 @@ export function PageLinkNodeView({ editor, node, selected }: NodeViewProps) {
         tabIndex={0}
         data-status={status}
         onClick={navigate}
+        onPointerEnter={warm}
+        onFocus={warm}
         onKeyDown={onKeyDown}
         className={CHIP}
       >

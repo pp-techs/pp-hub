@@ -756,7 +756,7 @@ msgstr "Quản trị viên chưa bật quyền truy cập cho tác tử."
 msgid "An administrator has turned personal tokens off."
 msgstr "Quản trị viên đã tắt mã truy cập cá nhân."
 
-#: src/components/doc-editor/doc-editor.tsx:358
+#: src/components/doc-editor/doc-editor.tsx:377
 msgid "Anonymous"
 msgstr "Ẩn danh"
 
@@ -1012,7 +1012,7 @@ msgstr "Khối mã"
 msgid "Code language"
 msgstr "Ngôn ngữ mã"
 
-#: src/components/doc-editor/page-tree-panel.tsx:173
+#: src/components/doc-editor/page-tree-panel.tsx:178
 #: src/components/folder-tree.tsx:103
 #: src/components/move-dialog.tsx:267
 msgid "Collapse"
@@ -1075,7 +1075,7 @@ msgstr "Chuỗi bình luận"
 #: src/components/comments/block-comments.tsx:201
 #: src/components/comments/comments-popover.tsx:191
 #: src/components/comments/comments-popover.tsx:287
-#: src/components/doc-editor/doc-editor.tsx:231
+#: src/components/doc-editor/doc-editor.tsx:247
 msgid "Comments"
 msgstr "Bình luận"
 
@@ -1256,7 +1256,7 @@ msgstr "Không thể di chuyển “{nodeName}”"
 msgid "Could not move the sub-page to the trash"
 msgstr "Không thể chuyển trang con vào thùng rác"
 
-#: src/components/doc-editor/doc-editor.tsx:292
+#: src/components/doc-editor/doc-editor.tsx:309
 msgid "Could not open the document"
 msgstr "Không thể mở tài liệu"
 
@@ -1715,7 +1715,7 @@ msgid "edit"
 msgstr "chỉnh sửa"
 
 #: src/components/comments/comments-popover.tsx:594
-#: src/components/doc-editor/doc-editor.tsx:218
+#: src/components/doc-editor/doc-editor.tsx:234
 #: src/components/node-actions.tsx:140
 msgid "Edit"
 msgstr "Chỉnh sửa"
@@ -1732,7 +1732,7 @@ msgstr "Vẫn chỉnh sửa"
 msgid "Edit documents and spreadsheets together in the browser."
 msgstr "Cùng chỉnh sửa tài liệu và bảng tính ngay trong trình duyệt."
 
-#: src/routes/edit/$nodeId.tsx:18
+#: src/routes/edit/$nodeId.tsx:19
 msgid "Editing"
 msgstr "Chỉnh sửa"
 
@@ -1868,7 +1868,7 @@ msgstr "Mọi thứ trong {spaceName}"
 msgid "Everywhere your access to this space begins. Open one to see what is inside."
 msgstr "Nơi bắt đầu mọi quyền truy cập của bạn vào không gian này. Mở một mục để xem bên trong."
 
-#: src/components/doc-editor/page-tree-panel.tsx:173
+#: src/components/doc-editor/page-tree-panel.tsx:178
 #: src/components/folder-tree.tsx:103
 #: src/components/move-dialog.tsx:267
 msgid "Expand"
@@ -2271,7 +2271,7 @@ msgstr "Hình ảnh"
 msgid "Implicit TLS / SMTPS (port 465)"
 msgstr "TLS ngầm định / SMTPS (cổng 465)"
 
-#: src/components/nodes/page-node-views.tsx:103
+#: src/components/nodes/page-node-views.tsx:110
 msgid "In trash"
 msgstr "Trong thùng rác"
 
@@ -3119,7 +3119,7 @@ msgstr "Tắt"
 msgid "Office"
 msgstr "Office"
 
-#: src/components/doc-editor/doc-editor.tsx:605
+#: src/components/doc-editor/doc-editor.tsx:633
 msgid "Offline"
 msgstr "Ngoại tuyến"
 
@@ -3143,11 +3143,11 @@ msgstr "Chỉ quản trị viên mới có thể mở trang quản trị máy ch
 #~ msgid "Only an administrator can read the security log."
 #~ msgstr "Chỉ quản trị viên mới đọc được nhật ký bảo mật."
 
-#: src/lib/collab/page-store.ts:46
+#: src/lib/collab/page-store.ts:47
 msgid "Only the open page’s icon and cover can be changed."
 msgstr "Chỉ có thể đổi biểu tượng và ảnh bìa của trang đang mở."
 
-#: src/routes/edit/$nodeId.tsx:156
+#: src/routes/edit/$nodeId.tsx:225
 msgid "OnlyOffice editor"
 msgstr "Trình chỉnh sửa OnlyOffice"
 
@@ -3185,8 +3185,8 @@ msgstr "đã mở trong trình soạn thảo"
 msgid "Opening"
 msgstr "Đang mở"
 
-#: src/routes/edit/$nodeId.tsx:63
-#: src/routes/edit/$nodeId.tsx:124
+#: src/routes/edit/$nodeId.tsx:135
+#: src/routes/edit/$nodeId.tsx:193
 msgid "Opening editor…"
 msgstr "Đang mở trình chỉnh sửa…"
 
@@ -3234,8 +3234,8 @@ msgstr "Chủ sở hữu"
 msgid "Page"
 msgstr "Trang"
 
-#: src/components/nodes/page-node-views.tsx:81
-#: src/components/nodes/page-node-views.tsx:136
+#: src/components/nodes/page-node-views.tsx:88
+#: src/components/nodes/page-node-views.tsx:145
 msgid "Page not available"
 msgstr "Trang không khả dụng"
 
@@ -3247,14 +3247,14 @@ msgstr "Không tìm thấy trang."
 msgid "Page title"
 msgstr "Tiêu đề trang"
 
-#: src/components/doc-editor/doc-editor.tsx:224
+#: src/components/doc-editor/doc-editor.tsx:240
 #: src/components/doc-editor/labels.ts:58
 #: src/components/doc-editor/page-tree-panel.tsx:84
 #: src/components/doc-editor/page-tree-panel.tsx:89
 msgid "Pages"
 msgstr "Trang"
 
-#: src/lib/collab/page-store.ts:45
+#: src/lib/collab/page-store.ts:46
 msgid "Pages cannot be changed through a share link."
 msgstr "Không thể thay đổi trang qua liên kết chia sẻ."
 
@@ -3467,11 +3467,11 @@ msgstr "Trích dẫn"
 msgid "re-share"
 msgstr "chia sẻ lại"
 
-#: src/routes/edit/$nodeId.tsx:118
+#: src/routes/edit/$nodeId.tsx:187
 msgid "read-only"
 msgstr "chỉ đọc"
 
-#: src/components/doc-editor/doc-editor.tsx:212
+#: src/components/doc-editor/doc-editor.tsx:228
 msgid "Read-only"
 msgstr "Chỉ đọc"
 
@@ -3725,7 +3725,7 @@ msgstr "Lưu"
 msgid "Save changes"
 msgstr "Lưu thay đổi"
 
-#: src/components/doc-editor/doc-editor.tsx:595
+#: src/components/doc-editor/doc-editor.tsx:623
 msgid "Saved"
 msgstr "Đã lưu"
 
@@ -3733,7 +3733,7 @@ msgstr "Đã lưu"
 msgid "Saved {created} · {size}"
 msgstr "Đã lưu {created} · {size}"
 
-#: src/routes/edit/$nodeId.tsx:118
+#: src/routes/edit/$nodeId.tsx:187
 msgid "saved by OnlyOffice"
 msgstr "được lưu bởi OnlyOffice"
 
@@ -4235,7 +4235,7 @@ msgstr "Đã tạm khoá"
 msgid "Switch space"
 msgstr "Chuyển không gian"
 
-#: src/components/doc-editor/doc-editor.tsx:600
+#: src/components/doc-editor/doc-editor.tsx:628
 msgid "Syncing…"
 msgstr "Đang đồng bộ…"
 
@@ -4323,7 +4323,7 @@ msgstr "liên kết công khai"
 msgid "The rest of the thread stays."
 msgstr "Phần còn lại của chuỗi bình luận vẫn được giữ."
 
-#: src/components/doc-editor/doc-editor.tsx:297
+#: src/components/doc-editor/doc-editor.tsx:314
 #: src/components/markdown-document-view/index.tsx:207
 msgid "The server did not answer."
 msgstr "Máy chủ không phản hồi."
@@ -4404,7 +4404,7 @@ msgstr "Thiết bị này luôn ở trạng thái đăng nhập."
 msgid "This document cannot be shown"
 msgstr "Không thể hiển thị tài liệu này"
 
-#: src/components/doc-editor/doc-editor.tsx:275
+#: src/components/doc-editor/doc-editor.tsx:292
 msgid "This document is not available"
 msgstr "Tài liệu này không khả dụng"
 
@@ -4582,7 +4582,7 @@ msgstr "Thời gian giữ trong thùng rác (ngày)"
 msgid "Try a different search."
 msgstr "Hãy thử tìm kiếm khác."
 
-#: src/components/doc-editor/doc-editor.tsx:303
+#: src/components/doc-editor/doc-editor.tsx:320
 msgid "Try again"
 msgstr "Thử lại"
 
@@ -4631,8 +4631,8 @@ msgid "Unsaved changes"
 msgstr "Thay đổi chưa lưu"
 
 #: src/components/new-document-dialog.tsx:70
-#: src/components/nodes/page-node-views.tsx:13
-#: src/lib/collab/page-store.ts:44
+#: src/components/nodes/page-node-views.tsx:14
+#: src/lib/collab/page-store.ts:45
 msgid "Untitled"
 msgstr "Không tiêu đề"
 
@@ -4989,7 +4989,7 @@ msgstr "Bạn đã tải lên"
 msgid "Your access"
 msgstr "Quyền của bạn"
 
-#: src/components/doc-editor/doc-editor.tsx:278
+#: src/components/doc-editor/doc-editor.tsx:295
 msgid "Your access may have been removed, or the file is no longer a markdown document."
 msgstr "Có thể quyền truy cập của bạn đã bị gỡ, hoặc tệp không còn là tài liệu markdown."
 

@@ -624,6 +624,9 @@ Query (keys `['pages', scope, kind, id]`, `scope` `node` or `share:<token>`);
 `doc-editor/page-tree-panel.tsx`, `doc-editor/page-backlinks.tsx`,
 `components/page-trail.tsx` and `components/sub-page-count.tsx` draw it.
 Titles and the tree refetch on focus and staleness; nothing pushes them.
+Moving between markdown pages swaps editors rather than remounting one: the
+next page is built hidden beside the shown one and replaces it once drawn
+([M43](milestones/M43.md#web)).
 
 ## Link bookmarks (unfurl)
 

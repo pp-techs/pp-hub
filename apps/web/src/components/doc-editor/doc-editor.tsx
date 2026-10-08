@@ -112,8 +112,20 @@ const CLOSED_PANELS: DocPanels = { pages: false };
  *
  * `thread` (the page's `?thread=`, where a comment notification links)
  * opens the comments on that thread.
+ *
+ * `onSettled` is called once the page has something to show in place of a
+ * skeleton: the editor is built, or the room was refused or failed. A page
+ * loading out of sight is put on screen then.
  */
-export function DocEditor({ node, thread }: { node: Node; thread?: string }) {
+export function DocEditor({
+  node,
+  thread,
+  onSettled,
+}: {
+  node: Node;
+  thread?: string;
+  onSettled?: () => void;
+}) {
   const { t } = useLingui();
   const navigate = useNavigate();
   const { room, retry } = useCollabRoom(node.id);
@@ -171,6 +183,10 @@ export function DocEditor({ node, thread }: { node: Node; thread?: string }) {
   const lossyLocked = !!session?.lossy && !lossyAccepted;
   const editable = !!session?.can_write && !lossyLocked;
   const ready = room.phase === "open" && room.ready;
+
+  useEffect(() => {
+    if (room.phase === "denied" || room.phase === "failed") onSettled?.();
+  }, [room.phase, onSettled]);
 
   const confirmLossyEdit = () => {
     LossyEditModal.show({ name: node.name }).then(
@@ -256,6 +272,7 @@ export function DocEditor({ node, thread }: { node: Node; thread?: string }) {
               onPanelsChange={setPanels}
               pageStore={pageStore}
               onNavigate={openPage}
+              onShown={onSettled}
               // The tree hangs from the top-most page this reader can view.
               treeRootId={ancestors[0]?.id ?? node.id}
               treeExpanded={ancestors.map((page) => page.id)}
@@ -328,6 +345,7 @@ function DocSurface({
   treeExpanded,
   treeReady,
   commentsButton,
+  onShown,
 }: {
   node: Node;
   doc: Y.Doc;
@@ -347,6 +365,7 @@ function DocSurface({
   treeReady: boolean;
   /** The header's Comments button, which the global comments popover hangs from. */
   commentsButton: HTMLElement | null;
+  onShown?: () => void;
 }) {
   const [openThreadId, setOpenThreadId] = useState<string | null>(null);
   const { t, i18n } = useLingui();
@@ -428,6 +447,15 @@ function DocSurface({
   useEffect(() => {
     editor?.setEditable(editable);
   }, [editor, editable]);
+
+  // A frame after the editor exists, not at once: the page tree and header
+  // beside it fill from the cache in microtasks, and a page put on screen
+  // before they have would show them empty for a frame.
+  useEffect(() => {
+    if (!editor) return;
+    const frame = requestAnimationFrame(() => onShown?.());
+    return () => cancelAnimationFrame(frame);
+  }, [editor, onShown]);
 
   if (!editor) {
     return (
