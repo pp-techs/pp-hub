@@ -308,7 +308,7 @@ PANEL 2, captioned "ADMIN — USERS & SERVER":
 # Apps & kanban (M44–M46)
 
 Ten screens for the extensions feature, generated into project 1 with the
-`pp-hub` design system. Local copies (PNG + HTML) are in `.stitch/designs/`.
+`pp-hub` design system. Local copies (PNG + HTML) go in `.stitch/designs/`, which is git-ignored; re-download any of them with `get_screen`.
 Fetch any of them with `get_screen` and `name = projects/11969748414038004354/screens/<id>`.
 
 | #   | Screen                                                           | Screen id                          | File                                       |

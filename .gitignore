@@ -49,6 +49,8 @@ deploy/out/
 
 # Stitch screen renders pulled down for reference, not sources
 .stitch/out/
+# The PNG/HTML exports of the generated screens (ids and prompts are in SCREEN-PROMPTS.md)
+.stitch/designs/
 
 .agents/
 .claude/
