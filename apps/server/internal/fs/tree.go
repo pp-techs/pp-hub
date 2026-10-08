@@ -53,6 +53,10 @@ func (s *Service) treeChildren(ctx context.Context, t *TreeNode, depth int) erro
 		return err
 	}
 	for _, row := range rows {
+		// An extension node has no bytes to archive.
+		if row.Node.Kind == store.NodeKindExt {
+			continue
+		}
 		page := row.Node.Kind == store.NodeKindFile && IsMarkdown(row.Mime)
 		// Under a page only sub-pages count, as ListChildPages has it.
 		if t.Page && !page {

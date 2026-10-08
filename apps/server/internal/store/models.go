@@ -60,6 +60,7 @@ type NodeKind string
 const (
 	NodeKindDir  NodeKind = "dir"
 	NodeKindFile NodeKind = "file"
+	NodeKindExt  NodeKind = "ext"
 )
 
 func (e *NodeKind) Scan(src interface{}) error {
@@ -231,12 +232,27 @@ type CommentThread struct {
 	CreatedAt  pgtype.Timestamptz `json:"created_at"`
 	ResolvedAt pgtype.Timestamptz `json:"resolved_at"`
 	ResolvedBy pgtype.UUID        `json:"resolved_by"`
+	Subject    pgtype.Text        `json:"subject"`
 }
 
 type DetachedOrg struct {
 	OrgID      string             `json:"org_id"`
 	DetachedAt pgtype.Timestamptz `json:"detached_at"`
 	DetachedBy pgtype.UUID        `json:"detached_by"`
+}
+
+type ExtMigration struct {
+	ExtID     string             `json:"ext_id"`
+	Version   string             `json:"version"`
+	AppliedAt pgtype.Timestamptz `json:"applied_at"`
+}
+
+type ExtState struct {
+	ExtID     string             `json:"ext_id"`
+	SpaceID   pgtype.UUID        `json:"space_id"`
+	Enabled   bool               `json:"enabled"`
+	UpdatedBy pgtype.UUID        `json:"updated_by"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
 type FileLock struct {
@@ -297,6 +313,7 @@ type Node struct {
 	CreatedBy        pgtype.UUID        `json:"created_by"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	TeamRootID       pgtype.UUID        `json:"team_root_id"`
+	ExtKind          pgtype.Text        `json:"ext_kind"`
 }
 
 type NodeAttachment struct {
@@ -347,6 +364,7 @@ type Notification struct {
 	Excerpt   string             `json:"excerpt"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	ReadAt    pgtype.Timestamptz `json:"read_at"`
+	Subject   pgtype.Text        `json:"subject"`
 }
 
 type PageMetum struct {

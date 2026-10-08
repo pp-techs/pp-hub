@@ -370,6 +370,17 @@ Four notes on the table:
   no longer view, so a revoked grant stops the excerpts too. The stream
   re-checks its session every 60 s. **Unfurl** takes `CapEdit`: it stores an
   attachment on the document.
+- **Extension nodes (M44–M46).** An extension never decides access: its routes
+  sit behind `Guard`, which resolves `share.EffectiveCapsForNode` of the node
+  and applies the capability the route names (kanban: `CapView` reads and
+  subscribes, `CapEdit` writes). A node of an extension that is off — for the
+  instance or for its space — answers 403 whatever the caller may do to it.
+  Comments on a card take `CapView` like a document's. An assignee must be
+  someone who could open the board, and a card's link to a drive file shows its
+  name only to a viewer who can open that file (`Host.Resolve`); the writer
+  must be able to open it too. A long-lived stream asks the same question every
+  minute (`Host.Allowed`) and ends when the answer changes. See
+  [extensions.md](extensions.md).
 
 ### Every Node Carries Its Own Answer
 

@@ -58,11 +58,14 @@ Each shipped milestone has its own file under [`milestones/`](milestones/) with 
 | M41 | Agent access over MCP                                  | ✅         | [detail](milestones/M41.md) |
 | M42 | Personal spaces and external sharing                   | ✅         | [detail](milestones/M42.md) |
 | M43 | Pages: page links and sub-pages                        | ✅         | [detail](milestones/M43.md) |
+| M44 | Extension host                                         | ✅         | [detail](milestones/M44.md) |
+| M45 | Kanban core                                            | ✅         | [detail](milestones/M45.md) |
+| M46 | Kanban collaboration                                   | ✅         | [detail](milestones/M46.md) |
 
 ## Upcoming — M27 Onward
 
-Everything above shipped except M27's office half and M28, including the P0
-register in full as of M24. None of the below is scheduled; the numbering is
+Everything above shipped except M27's office half and M28, including
+the P0 register in full as of M24. None of the below is scheduled; the numbering is
 the order the dependencies suggest, which is also
 [production-readiness.md](production-readiness.md)'s phasing. Each entry names
 the section of that document holding the evidence rather than restating it, so
@@ -142,6 +145,19 @@ export, zip and copy, MCP and search. What it deliberately did not build:
 databases or collection views, drag-and-drop re-parenting in the page tree
 (Move takes a document as destination instead), realtime push of titles and
 tree changes (they refetch), and sub-pages that are not markdown.
+
+### Phase G — Extensions
+
+M44–M46 shipped (small apps compiled into the server and the SPA behind a
+public SDK, switched on per instance and per space — the xcaddy model, not
+runtime install and not a sandbox — with a kanban board as the first one;
+[M44](milestones/M44.md), [M45](milestones/M45.md), [M46](milestones/M46.md),
+design in [extensions.md](extensions.md)). What they deliberately did not
+build, and so what comes next on this line: share links to boards, a
+cross-board "assigned to me" view and due-date reminders, MCP tools from
+extensions, a published SDK with a semver promise (after a second extension
+has been written against the contract alone), per-extension translation
+catalogs.
 
 ### Named but Unscheduled
 

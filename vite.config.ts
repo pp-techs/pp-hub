@@ -8,10 +8,12 @@ export default defineConfig({
     // Written by apps/web/scripts/mdoc-fixtures.ts; reformatting them would
     // make every regeneration a diff. The block-document templates are in the
     // exact form mdoc.Render writes (blockdoc's tests hold them to it).
+    // `.stitch/designs` is Stitch's own HTML export, kept as it was generated.
     ignorePatterns: [
       "apps/server/internal/mdoc/testdata/**",
       "apps/server/internal/mdoc/emoji.json",
       "apps/server/internal/blockdoc/templates/**",
+      ".stitch/designs/**",
     ],
   },
   lint: {
@@ -175,7 +177,14 @@ export default defineConfig({
         // particular has no i18n dependency by design — its few reader-facing
         // strings are the English defaults of UiStringsProvider, which the app
         // overrides.
-        files: ["packages/**"],
+        // The extension packages (packages/ext-*) are not shared UI kit: they
+        // draw the screens of an app and are held to the same rule as the web app.
+        files: ["packages/ui/**", "packages/utils/**"],
+        rules: { "lingui/no-unlocalized-strings": "off" },
+      },
+      {
+        // pp-apps is a terminal tool: paths, commands and file contents.
+        files: ["tools/**"],
         rules: { "lingui/no-unlocalized-strings": "off" },
       },
       {

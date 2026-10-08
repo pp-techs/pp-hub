@@ -21,7 +21,13 @@ export default defineConfig({
   catalogs: [
     {
       path: "<rootDir>/src/locales/{locale}/messages",
-      include: ["<rootDir>/src"],
+      // The extension packages hold strings too: one catalog, for now.
+      include: [
+        "<rootDir>/src",
+        "<rootDir>/../../packages/ext-sdk/src",
+        "<rootDir>/../../packages/ext-kanban/src",
+        "<rootDir>/../../packages/ext-checklist/src",
+      ],
       exclude: ["**/node_modules/**", "**/*.test.*", "**/routeTree.gen.ts"],
     },
   ],

@@ -365,6 +365,7 @@ type nodeParts struct {
 	SpaceID    pgtype.UUID
 	ParentID   pgtype.UUID
 	Kind       store.NodeKind
+	ExtKind    pgtype.Text
 	Name       string
 	CreatedAt  pgtype.Timestamptz
 	VID        pgtype.UUID
@@ -386,6 +387,7 @@ func (n nodeParts) dto() searchResultDTO {
 		ID:        id.(string),
 		SpaceID:   sid.(string),
 		Kind:      string(n.Kind),
+		ExtKind:   n.ExtKind.String,
 		Name:      n.Name,
 		CreatedAt: n.CreatedAt.Time.Format(timeLayout),
 	}
@@ -418,7 +420,7 @@ func (n nodeParts) dto() searchResultDTO {
 
 func starredRowToDTO(n store.ListStarredNodesRow) searchResultDTO {
 	return nodeParts{
-		ID: n.ID, SpaceID: n.SpaceID, ParentID: n.ParentID, Kind: n.Kind, Name: n.Name,
+		ID: n.ID, SpaceID: n.SpaceID, ParentID: n.ParentID, Kind: n.Kind, ExtKind: n.ExtKind, Name: n.Name,
 		CreatedAt: n.CreatedAt, VID: n.VID, VSize: n.VSize, Mime: n.Mime,
 		VersionNo: n.VersionNo, VCreatedAt: n.VCreatedAt, OwnerUid: n.OwnerUid,
 		OwnerName: n.OwnerName, OwnerEmail: n.OwnerEmail,
@@ -429,7 +431,7 @@ func starredRowToDTO(n store.ListStarredNodesRow) searchResultDTO {
 func recentRowToDTO(n store.ListRecentNodesRow) recentDTO {
 	return recentDTO{
 		searchResultDTO: nodeParts{
-			ID: n.ID, SpaceID: n.SpaceID, ParentID: n.ParentID, Kind: n.Kind, Name: n.Name,
+			ID: n.ID, SpaceID: n.SpaceID, ParentID: n.ParentID, Kind: n.Kind, ExtKind: n.ExtKind, Name: n.Name,
 			CreatedAt: n.CreatedAt, VID: n.VID, VSize: n.VSize, Mime: n.Mime,
 			VersionNo: n.VersionNo, VCreatedAt: n.VCreatedAt, OwnerUid: n.OwnerUid,
 			OwnerName: n.OwnerName, OwnerEmail: n.OwnerEmail,

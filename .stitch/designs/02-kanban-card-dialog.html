@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Acme Core / pp-hub - Launch Plan Kanban</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-tint": "#2980b9",
+            "surface-container-low": "#f3f3f4",
+            "on-error-container": "#b3000a",
+            "on-primary-fixed-variant": "#004b73",
+            "tertiary": "#5c5c5c",
+            "primary-fixed-dim": "#92ccff",
+            "on-tertiary-container": "#404040",
+            "on-background": "#1a1c1c",
+            "surface-dim": "#dadada",
+            "primary-container": "#207ab3",
+            "on-error": "#ffffff",
+            "on-primary": "#ffffff",
+            "inverse-surface": "#2f3131",
+            "on-secondary-container": "#171717",
+            "background": "#ffffff",
+            "on-surface": "#0a0a0a",
+            "surface-variant": "#e2e2e2",
+            "on-surface-variant": "#40484f",
+            "on-primary-fixed": "#001e31",
+            "surface-container-high": "#e8e8e8",
+            "on-tertiary": "#ffffff",
+            "surface-bright": "#ffffff",
+            "secondary-fixed": "#e2e2e2",
+            "on-secondary-fixed": "#1a1c1c",
+            "outline-variant": "#e5e5e5",
+            "error": "#e7000b",
+            "tertiary-container": "#e5e5e5",
+            "surface-container-highest": "#e2e2e2",
+            "primary-fixed": "#cce5ff",
+            "inverse-primary": "#92ccff",
+            "on-secondary": "#171717",
+            "surface-container-lowest": "#ffffff",
+            "secondary-container": "#f5f5f5",
+            "secondary": "#5d5f5f",
+            "surface-container": "#eeeeee",
+            "outline": "#a1a1a1",
+            "error-container": "#ffdad6",
+            "on-tertiary-fixed": "#1b1c1c",
+            "tertiary-fixed": "#e3e2e2",
+            "on-primary-container": "#fdfcff",
+            "inverse-on-surface": "#f0f1f1",
+            "on-tertiary-fixed-variant": "#464747",
+            "on-secondary-fixed-variant": "#454747",
+            "primary": "#006193",
+            "surface": "#ffffff",
+            "secondary-fixed-dim": "#c6c6c7",
+            "tertiary-fixed-dim": "#c7c6c6"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "space-xl": "24px",
+            "gutter": "8px",
+            "space-md": "12px",
+            "margin": "16px",
+            "space-xs": "4px",
+            "space-lg": "16px",
+            "space-sm": "8px"
+          },
+          "fontFamily": {
+            "micro": ["Noto Sans"],
+            "display-lg": ["Noto Sans"],
+            "headline-md": ["Noto Sans"],
+            "body-base": ["Noto Sans"],
+            "field-text": ["Noto Sans"],
+            "body-bold": ["Noto Sans"],
+            "label-caps": ["Noto Sans"]
+          },
+          "fontSize": {
+            "micro": ["10px", { "lineHeight": "14px", "letterSpacing": "0", "fontWeight": "500" }],
+            "display-lg": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "headline-md": ["14px", { "lineHeight": "20px", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+            "body-base": ["12px", { "lineHeight": "20px", "letterSpacing": "0", "fontWeight": "400" }],
+            "field-text": ["14px", { "lineHeight": "20px", "letterSpacing": "0", "fontWeight": "400" }],
+            "body-bold": ["12px", { "lineHeight": "20px", "letterSpacing": "0", "fontWeight": "500" }],
+            "label-caps": ["11px", { "lineHeight": "16px", "letterSpacing": "0.04em", "fontWeight": "500" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 16px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #dadada;
+      border-radius: 3px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #a1a1a1;
+    }
+  </style>
+</head>
+<body class="h-full bg-background text-on-surface antialiased overflow-hidden font-body-base text-body-base select-none">
+<!-- BACKGROUND: Kanban Board Canvas (Launch plan editor in Acme Core / pp-hub) -->
+<div aria-hidden="true" class="h-full w-full flex flex-col bg-surface-container-low filter blur-[1.5px] pointer-events-none select-none opacity-80">
+<!-- Top System Bar -->
+<header class="h-14 bg-surface border-b border-outline-variant px-space-lg flex items-center justify-between flex-shrink-0">
+<div class="flex items-center gap-space-md">
+<div class="flex items-center gap-1.5 font-headline-md text-headline-md font-semibold text-on-surface">
+<span class="w-6 h-6 rounded bg-primary text-on-primary flex items-center justify-center font-display-lg text-micro font-bold">pp</span>
+<span>pp-hub</span>
+</div>
+<span class="text-outline">/</span>
+<div class="flex items-center gap-1 text-on-surface-variant font-body-base text-body-base">
+<span>Acme Core</span>
+<span class="text-outline">/</span>
+<span>Projects</span>
+<span class="text-outline">/</span>
+<span class="font-body-bold text-body-bold text-on-surface">Launch plan</span>
+</div>
+</div>
+<div class="flex items-center gap-space-sm">
+<div class="flex items-center bg-surface-container px-2 py-1 rounded border border-outline-variant text-body-base text-on-surface-variant gap-1.5 w-60">
+<span class="material-symbols-outlined text-outline">search</span>
+<span class="text-on-surface-variant font-body-base text-body-base">Search issues, cards...</span>
+</div>
+<button class="px-3 py-1 bg-surface border border-outline-variant rounded font-body-bold text-body-bold text-on-surface flex items-center gap-1">
+<span class="material-symbols-outlined">filter_list</span> Filter
+        </button>
+<button class="px-3 py-1 bg-primary text-on-primary rounded font-body-bold text-body-bold flex items-center gap-1">
+<span class="material-symbols-outlined">add</span> New Issue
+        </button>
+</div>
+</header>
+<!-- Sub-header & Filter Bar -->
+<div class="px-space-lg py-2 bg-surface border-b border-outline-variant flex items-center justify-between flex-shrink-0">
+<div class="flex items-center gap-3">
+<span class="font-headline-md text-headline-md font-semibold text-on-surface">Board View</span>
+<div class="h-4 w-[1px] bg-outline-variant"></div>
+<div class="flex items-center gap-1.5">
+<span class="text-label-caps font-label-caps text-on-surface-variant uppercase">Assignee:</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container border border-outline-variant text-micro font-micro">All</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="text-label-caps font-label-caps text-on-surface-variant uppercase">Label:</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container border border-outline-variant text-micro font-micro">Launch, Marketing</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="text-label-caps font-label-caps text-on-surface-variant uppercase">Due:</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container border border-outline-variant text-micro font-micro">Next 14 Days</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-micro font-micro text-on-surface-variant">42 cards total</span>
+</div>
+</div>
+<!-- Kanban Board Columns (Simulated) -->
+<div class="flex-1 p-space-lg overflow-x-auto flex gap-space-lg">
+<!-- Column: Backlog -->
+<div class="w-72 flex-shrink-0 flex flex-col bg-surface-container rounded-lg border border-outline-variant max-h-full">
+<div class="p-3 border-b border-outline-variant flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="font-headline-md text-headline-md text-on-surface font-semibold">Backlog</span>
+<span class="text-micro font-micro bg-surface-container-high px-1.5 py-0.5 rounded text-on-surface-variant">5</span>
+</div>
+<span class="material-symbols-outlined text-secondary">more_horiz</span>
+</div>
+<div class="p-2 space-y-2 overflow-y-hidden">
+<div class="p-3 bg-surface rounded border border-outline-variant shadow-sm space-y-2">
+<span class="text-micro font-micro text-on-surface-variant font-medium">CORE-104</span>
+<p class="font-body-bold text-body-bold text-on-surface">Telemetry integration pipeline</p>
+<div class="flex items-center justify-between pt-1">
+<span class="text-micro font-micro px-1.5 py-0.5 rounded bg-surface-container text-on-surface-variant">Telemetry</span>
+<span class="w-5 h-5 rounded-full bg-tertiary text-on-tertiary flex items-center justify-center text-micro">DL</span>
+</div>
+</div>
+<div class="p-3 bg-surface rounded border border-outline-variant shadow-sm space-y-2">
+<span class="text-micro font-micro text-on-surface-variant font-medium">CORE-105</span>
+<p class="font-body-bold text-body-bold text-on-surface">Benchmark memory consumption</p>
+</div>
+</div>
+</div>
+<!-- Column: To do -->
+<div class="w-72 flex-shrink-0 flex flex-col bg-surface-container rounded-lg border border-outline-variant max-h-full">
+<div class="p-3 border-b border-outline-variant flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary-container"></span>
+<span class="font-headline-md text-headline-md text-on-surface font-semibold">To do</span>
+<span class="text-micro font-micro bg-surface-container-high px-1.5 py-0.5 rounded text-on-surface-variant">3</span>
+</div>
+<span class="material-symbols-outlined text-secondary">more_horiz</span>
+</div>
+<div class="p-2 space-y-2">
+<div class="p-3 bg-surface rounded border border-outline-variant shadow-sm space-y-2 ring-2 ring-primary">
+<span class="text-micro font-micro text-primary font-medium">CORE-112</span>
+<p class="font-body-bold text-body-bold text-on-surface">Write launch announcement</p>
+<div class="flex items-center gap-1 flex-wrap">
+<span class="text-micro font-micro px-1.5 py-0.5 rounded bg-surface-container text-primary font-medium">Marketing</span>
+<span class="text-micro font-micro px-1.5 py-0.5 rounded bg-primary-fixed text-primary font-medium">Launch</span>
+</div>
+<div class="flex items-center justify-between pt-1 text-on-surface-variant text-micro font-micro">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-micro">schedule</span> May 11</span>
+<div class="flex -space-x-1">
+<span class="w-5 h-5 rounded-full bg-primary text-on-primary flex items-center justify-center text-micro">NB</span>
+<span class="w-5 h-5 rounded-full bg-secondary text-on-secondary flex items-center justify-center text-micro">MT</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Column: In progress -->
+<div class="w-72 flex-shrink-0 flex flex-col bg-surface-container rounded-lg border border-outline-variant max-h-full">
+<div class="p-3 border-b border-outline-variant flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-surface-tint"></span>
+<span class="font-headline-md text-headline-md text-on-surface font-semibold">In progress</span>
+<span class="text-micro font-micro bg-surface-container-high px-1.5 py-0.5 rounded text-on-surface-variant">4</span>
+</div>
+<span class="material-symbols-outlined text-secondary">more_horiz</span>
+</div>
+<div class="p-2 space-y-2">
+<div class="p-3 bg-surface rounded border border-outline-variant shadow-sm space-y-2">
+<span class="text-micro font-micro text-on-surface-variant font-medium">CORE-98</span>
+<p class="font-body-bold text-body-bold text-on-surface">Audit package dependencies</p>
+</div>
+</div>
+</div>
+<!-- Column: In review -->
+<div class="w-72 flex-shrink-0 flex flex-col bg-surface-container rounded-lg border border-outline-variant max-h-full">
+<div class="p-3 border-b border-outline-variant flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-outline"></span>
+<span class="font-headline-md text-headline-md text-on-surface font-semibold">In review</span>
+<span class="text-micro font-micro bg-surface-container-high px-1.5 py-0.5 rounded text-on-surface-variant">2</span>
+</div>
+<span class="material-symbols-outlined text-secondary">more_horiz</span>
+</div>
+</div>
+<!-- Column: Done -->
+<div class="w-72 flex-shrink-0 flex flex-col bg-surface-container rounded-lg border border-outline-variant max-h-full">
+<div class="p-3 border-b border-outline-variant flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary-container"></span>
+<span class="font-headline-md text-headline-md text-on-surface font-semibold">Done</span>
+<span class="text-micro font-micro bg-surface-container-high px-1.5 py-0.5 rounded text-on-surface-variant">12</span>
+</div>
+<span class="material-symbols-outlined text-secondary">more_horiz</span>
+</div>
+</div>
+</div>
+</div>
+<!-- DIMMED BACKDROP OVERLAY -->
+<div class="fixed inset-0 bg-on-surface/40 backdrop-blur-[2px] z-40 transition-opacity"></div>
+<!-- MODAL DIALOG CONTAINER: CENTERED -->
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-hidden">
+<div class="max-w-[640px] w-full max-h-[901px] flex flex-col rounded-xl bg-surface border border-outline-variant shadow-2xl overflow-hidden relative">
+<!-- 1. Dialog Header (fixed flex-shrink-0) -->
+<div class="flex-shrink-0 p-4 border-b border-outline-variant flex items-start justify-between bg-surface">
+<div>
+<div class="flex items-center gap-2">
+<h2 class="font-headline-md text-headline-md font-semibold text-on-surface">Edit card</h2>
+<span class="font-micro text-micro px-1.5 py-0.5 rounded bg-surface-container text-on-surface-variant font-medium">CORE-112</span>
+</div>
+<p class="font-body-base text-body-base text-on-surface-variant mt-0.5">Title, description, due date, assignees and labels of this card.</p>
+</div>
+<button aria-label="Close dialog" class="w-7 h-7 rounded flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors duration-150">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<!-- 2. Form Body (scrollable flex-1) -->
+<div class="flex-1 min-h-0 overflow-y-auto p-5 space-y-5 font-body-base text-body-base custom-scrollbar">
+<!-- Title field -->
+<div>
+<label class="font-label-caps text-label-caps uppercase text-on-surface-variant font-medium mb-1 block">Title</label>
+<input class="h-8 font-body-base text-body-base px-2.5 rounded-md border border-outline-variant bg-surface-container-low/50 text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary w-full transition-colors" type="text" value="Write launch announcement"/>
+</div>
+<!-- Description field -->
+<div>
+<label class="font-label-caps text-label-caps uppercase text-on-surface-variant font-medium mb-1 block">Description</label>
+<textarea class="min-h-[72px] font-body-base text-body-base p-2.5 rounded-md border border-outline-variant bg-surface-container-low/50 text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary w-full resize-none transition-colors" rows="3">Draft announcement blog post and sync with @marketing on product screenshots.
+Ensure release notes adhere to the v2.4 template.</textarea>
+</div>
+<!-- Due Date Field -->
+<div>
+<label class="font-label-caps text-label-caps uppercase text-on-surface-variant font-medium mb-1 block">Due date</label>
+<div class="relative flex items-center max-w-xs">
+<span class="absolute left-2.5 text-on-surface-variant flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-[16px]">calendar_today</span>
+</span>
+<input class="h-8 pl-8 pr-7 font-body-base text-body-base rounded-md border border-outline-variant bg-surface-container-low/50 text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary w-full" type="text" value="05/11/2026"/>
+<button class="absolute right-2 text-on-surface-variant hover:text-on-surface flex items-center justify-center p-0.5 rounded hover:bg-surface-container-high transition-colors" title="Clear date">
+<span class="material-symbols-outlined text-[14px]">close</span>
+</button>
+</div>
+</div>
+<!-- Assignees Row & Popover -->
+<div class="relative">
+<label class="font-label-caps text-label-caps uppercase text-on-surface-variant font-medium mb-1.5 block">Assignees</label>
+<!-- Chips Row -->
+<div class="flex items-center flex-wrap gap-1.5">
+<!-- Chip 1: Nguyen Bui -->
+<div class="inline-flex items-center gap-1.5 pl-1 pr-1.5 py-0.5 rounded-full bg-surface-container border border-outline-variant text-on-surface">
+<span class="w-4 h-4 rounded-full bg-primary text-on-primary flex items-center justify-center text-micro font-bold">NB</span>
+<span class="font-body-base text-body-base">Nguyen Bui</span>
+<button class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-full w-3.5 h-3.5 flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined text-[12px]">close</span>
+</button>
+</div>
+<!-- Chip 2: Mai Tran -->
+<div class="inline-flex items-center gap-1.5 pl-1 pr-1.5 py-0.5 rounded-full bg-surface-container border border-outline-variant text-on-surface">
+<span class="w-4 h-4 rounded-full bg-secondary text-on-secondary flex items-center justify-center text-micro font-bold">MT</span>
+<span class="font-body-base text-body-base">Mai Tran</span>
+<button class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-full w-3.5 h-3.5 flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined text-[12px]">close</span>
+</button>
+</div>
+<!-- Ghost '+ Assign' Button -->
+<button class="h-6 px-2 rounded-full border border-dashed border-outline hover:border-primary text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors inline-flex items-center gap-1 font-body-base text-body-base">
+<span class="material-symbols-outlined text-[14px]">add</span>
+<span>Assign</span>
+</button>
+</div>
+<!-- Open Floating Dropdown Popover -->
+<div class="mt-2 w-64 rounded-lg border border-outline-variant bg-surface shadow-lg p-1.5 z-20">
+<!-- Popover Search -->
+<div class="relative mb-1">
+<span class="absolute left-2 top-2 text-on-surface-variant flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-[14px]">search</span>
+</span>
+<input class="h-7 pl-7 pr-2 font-body-base text-body-base rounded border border-outline-variant bg-surface-container-low/40 w-full focus:outline-none focus:border-primary" placeholder="Search people…" type="text"/>
+</div>
+<!-- People List -->
+<div class="space-y-0.5">
+<!-- Item 1: Nguyen Bui (Checked) -->
+<div class="flex items-center justify-between px-2 py-1 rounded hover:bg-surface-container-high transition-colors cursor-pointer">
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-full bg-primary text-on-primary flex items-center justify-center text-micro font-medium">NB</span>
+<div class="leading-tight">
+<p class="font-body-bold text-body-bold text-on-surface">Nguyen Bui</p>
+<p class="font-micro text-micro text-on-surface-variant">nguyen@acme.dev</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-primary text-[16px]">check</span>
+</div>
+<!-- Item 2: Mai Tran (Checked) -->
+<div class="flex items-center justify-between px-2 py-1 rounded hover:bg-surface-container-high transition-colors cursor-pointer">
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-full bg-secondary text-on-secondary flex items-center justify-center text-micro font-medium">MT</span>
+<div class="leading-tight">
+<p class="font-body-bold text-body-bold text-on-surface">Mai Tran</p>
+<p class="font-micro text-micro text-on-surface-variant">mai@acme.dev</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-primary text-[16px]">check</span>
+</div>
+<!-- Item 3: Le Hoang (Active / Hover state) -->
+<div class="flex items-center justify-between px-2 py-1 rounded bg-surface-container-high transition-colors cursor-pointer">
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-full bg-surface-dim text-on-surface flex items-center justify-center text-micro font-medium border border-outline">LH</span>
+<div class="leading-tight">
+<p class="font-body-bold text-body-bold text-on-surface">Le Hoang</p>
+<p class="font-micro text-micro text-on-surface-variant">le@acme.dev</p>
+</div>
+</div>
+<span class="w-3.5 h-3.5 border border-outline rounded-sm"></span>
+</div>
+<!-- Item 4: Pham Anh -->
+<div class="flex items-center justify-between px-2 py-1 rounded hover:bg-surface-container-high transition-colors cursor-pointer">
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-full bg-surface-dim text-on-surface flex items-center justify-center text-micro font-medium border border-outline">PA</span>
+<div class="leading-tight">
+<p class="font-body-bold text-body-bold text-on-surface">Pham Anh</p>
+<p class="font-micro text-micro text-on-surface-variant">anh@acme.dev</p>
+</div>
+</div>
+<span class="w-3.5 h-3.5 border border-outline rounded-sm"></span>
+</div>
+</div>
+</div>
+</div>
+<!-- Labels Section -->
+<div>
+<label class="font-label-caps text-label-caps uppercase text-on-surface-variant font-medium mb-1.5 block">Labels</label>
+<div class="flex items-center flex-wrap gap-1.5">
+<!-- Selected Label: Marketing (warm amber/orange tint) -->
+<button class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-tertiary-fixed border border-secondary text-on-surface font-body-bold text-body-bold transition-all">
+<span class="material-symbols-outlined text-[13px] text-primary">check</span>
+<span>Marketing</span>
+</button>
+<!-- Selected Label: Launch (Blue #2980b9 tint badge) -->
+<button class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary-fixed border border-primary text-on-primary-fixed-variant font-body-bold text-body-bold transition-all">
+<span class="material-symbols-outlined text-[13px] text-primary">check</span>
+<span>Launch</span>
+</button>
+<!-- Unselected: Docs -->
+<button class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-container border border-outline-variant text-on-surface-variant hover:bg-surface-container-high font-body-base text-body-base transition-colors">
+<span>Docs</span>
+</button>
+<!-- Unselected: Ops -->
+<button class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-container border border-outline-variant text-on-surface-variant hover:bg-surface-container-high font-body-base text-body-base transition-colors">
+<span>Ops</span>
+</button>
+<!-- Ghost buttons -->
+<button class="h-6 px-2 rounded-full border border-dashed border-outline hover:border-primary text-on-surface-variant hover:text-primary transition-colors inline-flex items-center gap-1 font-body-base text-body-base">
+<span class="material-symbols-outlined text-[14px]">add</span>
+<span>New label</span>
+</button>
+<button class="h-6 px-1.5 text-on-surface-variant hover:text-on-surface transition-colors inline-flex items-center gap-0.5 font-micro text-micro">
+<span>Manage labels</span>
+</button>
+</div>
+</div>
+<!-- 3. Linked Items Section -->
+<div class="border-t border-outline-variant pt-4">
+<span class="font-label-caps text-label-caps uppercase text-on-surface-variant tracking-wider font-semibold mb-2 block">Linked items</span>
+<div class="space-y-1.5">
+<!-- Linked File 1: Document -->
+<div class="flex items-center justify-between px-2.5 py-1.5 rounded-md bg-surface-container-low border border-outline-variant hover:border-outline transition-colors">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[18px]">description</span>
+<span class="font-body-bold text-body-bold text-on-surface">Launch brief.md</span>
+<span class="font-micro text-micro text-on-surface-variant">Acme Core / Docs</span>
+</div>
+<div class="flex items-center gap-1">
+<button class="p-1 text-on-surface-variant hover:text-primary rounded hover:bg-surface-container transition-colors" title="Open document">
+<span class="material-symbols-outlined text-[16px]">open_in_new</span>
+</button>
+<button class="p-1 text-on-surface-variant hover:text-error rounded hover:bg-surface-container transition-colors" title="Remove link">
+<span class="material-symbols-outlined text-[16px]">close</span>
+</button>
+</div>
+</div>
+<!-- Linked File 2: Muted privacy chip -->
+<div class="flex items-center justify-between px-2.5 py-1.5 rounded-md bg-surface-container-low/60 border border-outline-variant/80 text-secondary">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-[18px]">lock</span>
+<span class="font-body-base text-body-base italic">No access</span>
+<span class="font-micro text-micro text-outline">(Restricted project link)</span>
+</div>
+<button class="p-1 text-on-surface-variant hover:text-error rounded hover:bg-surface-container transition-colors" title="Remove link">
+<span class="material-symbols-outlined text-[16px]">close</span>
+</button>
+</div>
+<!-- Ghost action: + Add link -->
+<button class="h-7 px-2 text-primary hover:bg-primary-fixed/20 rounded font-body-bold text-body-bold inline-flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[16px]">add_link</span>
+<span>Add link</span>
+</button>
+</div>
+</div>
+<!-- 4. Discussion Section -->
+<div class="border-t border-outline-variant pt-4 space-y-3">
+<div class="flex items-center justify-between">
+<span class="font-label-caps text-label-caps uppercase text-on-surface-variant tracking-wider font-semibold">Discussion</span>
+<span class="font-micro text-micro text-on-surface-variant bg-surface-container px-1.5 py-0.5 rounded">3 comments</span>
+</div>
+<!-- Thread List -->
+<div class="space-y-3">
+<!-- Comment 1 (Open with reply box) -->
+<div class="p-3 rounded-lg bg-surface-container-low border border-outline-variant space-y-2">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-full bg-secondary text-on-secondary flex items-center justify-center text-micro font-bold">MT</span>
+<span class="font-body-bold text-body-bold text-on-surface">Mai Tran</span>
+<span class="font-micro text-micro text-on-surface-variant">2 hours ago</span>
+</div>
+<div class="flex items-center gap-1">
+<button class="px-1.5 py-0.5 text-micro font-micro text-on-surface-variant hover:text-on-surface rounded hover:bg-surface-container transition-colors">Resolve</button>
+<button class="px-1.5 py-0.5 text-micro font-micro text-on-surface-variant hover:text-on-surface rounded hover:bg-surface-container transition-colors">Reply</button>
+</div>
+</div>
+<p class="text-on-surface text-body-base font-body-base leading-relaxed pl-7">
+                Make sure we mention the new file grid view improvements! 
+                <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-primary-container text-on-primary-container font-medium text-micro font-micro mx-0.5">@Nguyen Bui</span> 
+                can you provide the updated screenshot assets?
+              </p>
+<!-- Reply input nested -->
+<div class="pl-7 pt-1">
+<div class="flex items-center gap-2">
+<input class="h-7 text-micro font-micro px-2 rounded border border-outline-variant bg-surface w-full focus:outline-none focus:border-primary" placeholder="Reply to Mai Tran…" type="text"/>
+<button class="h-7 px-2.5 bg-surface border border-outline-variant hover:bg-surface-container text-on-surface font-body-bold text-body-bold rounded text-micro transition-colors">
+                    Send
+                  </button>
+</div>
+</div>
+</div>
+<!-- Comment 2 (Open) -->
+<div class="p-3 rounded-lg bg-surface-container-low border border-outline-variant space-y-2">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-5 h-5 rounded-full bg-primary text-on-primary flex items-center justify-center text-micro font-bold">NB</span>
+<span class="font-body-bold text-body-bold text-on-surface">Nguyen Bui</span>
+<span class="font-micro text-micro text-on-surface-variant">45 min ago</span>
+</div>
+<div class="flex items-center gap-1">
+<button class="px-1.5 py-0.5 text-micro font-micro text-on-surface-variant hover:text-on-surface rounded hover:bg-surface-container transition-colors">Resolve</button>
+<button class="px-1.5 py-0.5 text-micro font-micro text-on-surface-variant hover:text-on-surface rounded hover:bg-surface-container transition-colors">Reply</button>
+</div>
+</div>
+<p class="text-on-surface text-body-base font-body-base pl-7">
+                Screenshots exported to the drive folder. Ready for review.
+              </p>
+</div>
+<!-- Comment 3 (Resolved thread) -->
+<div class="p-2.5 rounded-lg bg-surface-container/60 border border-outline-variant opacity-70 space-y-1">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-4 h-4 rounded-full bg-surface-dim text-on-surface flex items-center justify-center text-micro">LH</span>
+<span class="font-body-base text-body-base font-medium text-on-surface">Le Hoang</span>
+<span class="flex items-center gap-1 text-micro font-micro text-primary-container">
+<span class="material-symbols-outlined text-[13px]">check_circle</span>
+<span>Resolved by Mai Tran</span>
+</span>
+</div>
+<span class="font-micro text-micro text-outline">Yesterday</span>
+</div>
+<p class="text-on-surface-variant text-body-base font-body-base pl-6 italic">
+                Checked legal disclaimer notes.
+              </p>
+</div>
+</div>
+<!-- Comment Composer -->
+<div class="pt-2">
+<div class="border border-outline-variant rounded-md overflow-hidden bg-surface focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
+<textarea class="w-full p-2.5 font-body-base text-body-base border-none focus:ring-0 text-on-surface bg-transparent resize-none placeholder:text-outline" placeholder="Write a comment… (@ to mention)" rows="2"></textarea>
+<div class="flex items-center justify-between px-2.5 py-1.5 bg-surface-container-low border-t border-outline-variant">
+<div class="flex items-center gap-1 text-on-surface-variant">
+<button class="p-1 hover:text-on-surface hover:bg-surface-container rounded transition-colors" title="Attach file">
+<span class="material-symbols-outlined text-[15px]">attach_file</span>
+</button>
+<button class="p-1 hover:text-on-surface hover:bg-surface-container rounded transition-colors" title="Mention teammate">
+<span class="material-symbols-outlined text-[15px]">alternate_email</span>
+</button>
+<button class="p-1 hover:text-on-surface hover:bg-surface-container rounded transition-colors" title="Formatting help">
+<span class="material-symbols-outlined text-[15px]">format_bold</span>
+</button>
+</div>
+<button class="h-6 px-3 bg-primary-container text-on-primary-container hover:bg-primary font-body-bold text-body-bold rounded text-micro transition-colors">
+                  Comment
+                </button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- 5. Footer (fixed flex-shrink-0) -->
+<div class="flex-shrink-0 p-3.5 px-5 border-t border-outline-variant bg-surface-container-low flex items-center justify-between">
+<!-- Left: Destructive Action -->
+<button class="h-7 px-2 text-error hover:bg-error-container/40 rounded font-body-bold text-body-bold inline-flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[16px]">delete</span>
+<span>Delete card</span>
+</button>
+<!-- Right: Actions -->
+<div class="flex items-center gap-2">
+<button class="h-7 px-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded border border-outline-variant bg-surface font-body-base text-body-base transition-colors">
+            Cancel
+          </button>
+<button class="h-7 px-4 rounded bg-primary-container hover:bg-primary text-on-primary-container font-body-bold text-body-bold shadow-sm transition-colors flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">check</span>
+<span>Save</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</body></html>

@@ -5,7 +5,9 @@ import {
   type LazyExoticComponent,
   type SVGProps,
 } from "react";
+import { Puzzle } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
+import { extKindOf } from "@/ext/registry";
 import type { Node } from "@/lib/api";
 
 export type IconComponent = FunctionComponent<SVGProps<SVGSVGElement>>;
@@ -284,6 +286,13 @@ export function NodeIcon({
         <Folder className={cls} />
       </Suspense>
     );
+  }
+
+  // An extension node wears its registered kind's glyph; a kind this build
+  // does not carry gets a generic one rather than a file icon it is not.
+  if (node.kind === "ext") {
+    const Glyph = extKindOf(node.ext_kind)?.icon ?? Puzzle;
+    return <Glyph className={cls} aria-hidden="true" />;
   }
 
   const dot = node.name.lastIndexOf(".");

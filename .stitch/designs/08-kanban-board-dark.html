@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+
+<html class="h-full dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Launch plan — pp-hub Kanban</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "background": "#0a0a0a",
+            "surface": "#141414",
+            "surface-container": "#0d0d0d",
+            "surface-container-low": "#141414",
+            "surface-container-high": "#222222",
+            "surface-container-highest": "#2c2c2c",
+            "on-background": "#fafafa",
+            "on-surface": "#fafafa",
+            "on-surface-variant": "#a1a1a1",
+            "outline": "#404040",
+            "outline-variant": "rgba(255, 255, 255, 0.08)",
+            "primary": "#2980b9",
+            "primary-container": "rgba(41, 128, 185, 0.15)",
+            "on-primary": "#fafafa",
+            "error": "#ef4444",
+            "error-container": "rgba(239, 68, 68, 0.12)",
+            "on-error-container": "#f87171"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "margin": "16px",
+            "gutter": "8px",
+            "space-xs": "4px",
+            "space-xl": "24px",
+            "space-sm": "8px",
+            "space-md": "12px",
+            "space-lg": "16px"
+          },
+          "fontFamily": {
+            "label-caps": ["Noto Sans"],
+            "micro": ["Noto Sans"],
+            "headline-md": ["Noto Sans"],
+            "field-text": ["Noto Sans"],
+            "body-bold": ["Noto Sans"],
+            "display-lg": ["Noto Sans"],
+            "body-base": ["Noto Sans"]
+          },
+          "fontSize": {
+            "label-caps": ["11px", { "lineHeight": "16px", "letterSpacing": "0.04em", "fontWeight": "500" }],
+            "micro": ["10px", { "lineHeight": "14px", "letterSpacing": "0", "fontWeight": "500" }],
+            "headline-md": ["14px", { "lineHeight": "20px", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+            "field-text": ["14px", { "lineHeight": "20px", "letterSpacing": "0", "fontWeight": "400" }],
+            "body-bold": ["12px", { "lineHeight": "20px", "letterSpacing": "0", "fontWeight": "500" }],
+            "display-lg": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "body-base": ["12px", { "lineHeight": "20px", "letterSpacing": "0", "fontWeight": "400" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 16px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+      user-select: none;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      height: 8px;
+      width: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: #0a0a0a;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #262626;
+      border-radius: 4px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+      background: #383838;
+    }
+  </style>
+</head>
+<body class="bg-[#0a0a0a] text-[#fafafa] font-body-base text-body-base h-screen w-screen overflow-hidden flex flex-col select-none antialiased">
+<!-- 1. EDITOR HEADER (40px) -->
+<header class="h-10 shrink-0 border-b border-white/[0.08] px-4 flex items-center justify-between bg-[#111111] z-20">
+<!-- Left Cluster -->
+<div class="flex items-center gap-2">
+<button class="h-7 w-7 rounded flex items-center justify-center text-[#a1a1a1] hover:text-[#fafafa] hover:bg-[#262626] transition-colors duration-150" title="Back to Acme Core / Projects">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</button>
+<span class="h-4 w-px bg-white/[0.08]"></span>
+<!-- Folder navigation breadcrumb anchor -->
+<a class="flex items-center gap-1.5 text-[#a1a1a1] hover:text-[#fafafa] transition-colors duration-150 font-body-base text-body-base" href="#">
+<span class="material-symbols-outlined text-[15px] text-[#a1a1a1]" data-icon="folder">folder</span>
+<span class="text-[#a1a1a1]">Acme Core</span>
+<span class="text-neutral-600">/</span>
+<span class="text-[#a1a1a1]">Projects</span>
+</a>
+<span class="h-4 w-px bg-white/[0.08]"></span>
+<div class="flex items-center gap-1.5 pl-1">
+<span class="material-symbols-outlined text-[#2980b9]" data-icon="view_kanban">view_kanban</span>
+<h1 class="font-headline-md text-headline-md text-[#fafafa] font-semibold tracking-tight">Launch plan</h1>
+<button class="h-6 w-6 flex items-center justify-center text-[#a1a1a1] hover:text-amber-400 transition-colors ml-0.5" title="Star board">
+<span class="material-symbols-outlined text-[17px] text-amber-400" data-icon="star" data-weight="fill" style="font-variation-settings: 'FILL' 1;">star</span>
+</button>
+</div>
+<span class="ml-2 px-1.5 py-0.5 rounded bg-[#1e1e1e] text-[#a1a1a1] font-micro text-micro border border-white/[0.08]">
+        Engineering Team
+      </span>
+</div>
+<!-- Right Cluster -->
+<div class="flex items-center gap-3">
+<!-- Collaborator Stack with Tiny Green Presence Dots -->
+<div class="flex items-center -space-x-1.5 pr-1">
+<div class="relative group cursor-pointer" title="Mai Tran (Viewing)">
+<div class="w-6 h-6 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center text-[10px] font-semibold text-neutral-300 ring-2 ring-[#111111]">MT</div>
+<span class="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 ring-1 ring-[#111111]"></span>
+</div>
+<div class="relative group cursor-pointer" title="Le Hoang (Viewing)">
+<div class="w-6 h-6 rounded-full bg-[#173a5e] border border-[#2980b9]/40 flex items-center justify-center text-[10px] font-semibold text-[#8cc6f4] ring-2 ring-[#111111]">LH</div>
+<span class="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 ring-1 ring-[#111111]"></span>
+</div>
+<div class="relative group cursor-pointer" title="Nguyen Bui (Viewing)">
+<div class="w-6 h-6 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center text-[10px] font-semibold text-neutral-300 ring-2 ring-[#111111]">NB</div>
+<span class="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 ring-1 ring-[#111111]"></span>
+</div>
+</div>
+<span class="h-4 w-px bg-white/[0.08]"></span>
+<!-- Share Action -->
+<button class="h-7 px-2.5 rounded bg-[#1a1a1a] border border-white/[0.08] hover:bg-[#262626] text-[#fafafa] font-body-bold text-body-bold flex items-center gap-1.5 transition-colors duration-150">
+<span class="material-symbols-outlined text-[15px]" data-icon="link">link</span>
+<span>Share</span>
+</button>
+<!-- Notifications with unread badge -->
+<button class="relative h-7 w-7 rounded flex items-center justify-center text-[#a1a1a1] hover:text-[#fafafa] hover:bg-[#262626] transition-colors duration-150" title="Notifications (3 unread)">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500 ring-1 ring-[#111111]"></span>
+</button>
+<span class="h-4 w-px bg-white/[0.08]"></span>
+<!-- Current User Profile Avatar -->
+<div class="w-6 h-6 rounded-full bg-[#2980b9] text-white flex items-center justify-center text-[10px] font-semibold cursor-pointer ring-1 ring-white/10" title="Current account (Alex R.)">
+        AR
+      </div>
+</div>
+</header>
+<!-- 2. BOARD TOOLBAR (36px) -->
+<div class="h-9 shrink-0 border-b border-white/[0.08] px-4 flex items-center justify-between bg-[#121212] z-10">
+<!-- Left Filter Controls -->
+<div class="flex items-center gap-2">
+<!-- Search Input -->
+<div class="relative flex items-center">
+<span class="material-symbols-outlined text-[#a1a1a1] absolute left-2 text-[15px] pointer-events-none" data-icon="search">search</span>
+<input class="h-7 w-52 pl-7 pr-8 bg-[#181818] text-[#fafafa] placeholder:text-neutral-500 font-body-base text-body-base border border-white/[0.08] rounded focus:outline-none focus:border-[#2980b9] focus:ring-1 focus:ring-[#2980b9] transition-colors" placeholder="Filter cards…" type="text" value=""/>
+<kbd class="absolute right-2 px-1 py-0.2 text-[10px] font-micro text-[#a1a1a1] bg-[#222222] rounded border border-white/[0.08] pointer-events-none select-none">⌘F</kbd></div>
+<!-- Quick Filter Chips -->
+<div class="flex items-center gap-1.5 pl-1">
+<button class="h-6 px-2 rounded border border-white/[0.08] bg-[#181818] hover:bg-[#262626] text-[#fafafa] font-label-caps text-label-caps flex items-center gap-1 transition-colors">
+<span>Assignee</span>
+<span class="material-symbols-outlined text-[13px] text-[#a1a1a1]" data-icon="expand_more">expand_more</span>
+</button>
+<button class="h-6 px-2 rounded border border-white/[0.08] bg-[#181818] hover:bg-[#262626] text-[#fafafa] font-label-caps text-label-caps flex items-center gap-1 transition-colors">
+<span>Label</span>
+<span class="material-symbols-outlined text-[13px] text-[#a1a1a1]" data-icon="expand_more">expand_more</span>
+</button>
+<button class="h-6 px-2 rounded border border-white/[0.08] bg-[#181818] hover:bg-[#262626] text-[#fafafa] font-label-caps text-label-caps flex items-center gap-1 transition-colors">
+<span>Due</span>
+<span class="material-symbols-outlined text-[13px] text-[#a1a1a1]" data-icon="expand_more">expand_more</span>
+</button>
+</div>
+</div>
+<!-- Right Summary & Actions -->
+<div class="flex items-center gap-3">
+<span class="font-label-caps text-label-caps text-[#a1a1a1]">12 cards · 5 columns</span>
+<span class="h-3.5 w-px bg-white/[0.08]"></span>
+<button class="h-6 px-2 rounded border border-white/[0.08] bg-[#181818] hover:bg-[#262626] text-[#fafafa] font-label-caps text-label-caps flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[13px] text-[#a1a1a1]" data-icon="label">label</span>
+<span>Manage labels</span>
+</button>
+<button class="h-6 w-6 rounded border border-white/[0.08] bg-[#181818] hover:bg-[#262626] flex items-center justify-center text-[#a1a1a1] hover:text-[#fafafa] transition-colors" title="View options">
+<span class="material-symbols-outlined text-[15px]" data-icon="tune">tune</span>
+</button>
+</div>
+</div>
+<!-- 3. BOARD CANVAS & COLUMNS -->
+<main class="flex-1 h-[calc(100vh-76px)] overflow-x-auto overflow-y-hidden p-4 flex gap-3 items-start bg-[#0a0a0a] custom-scroll">
+<!-- COLUMN 1: Backlog (4 cards) -->
+<section class="w-72 shrink-0 max-h-full rounded-lg border border-white/[0.08] bg-[#141414] flex flex-col">
+<!-- Column Header -->
+<div class="px-3 py-2 flex items-center justify-between border-b border-white/[0.08] shrink-0">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-neutral-600 cursor-grab" data-icon="drag_indicator">drag_indicator</span>
+<h2 class="font-body-bold text-body-bold text-[#fafafa]">Backlog</h2>
+<span class="px-1.5 py-0.2 rounded-full bg-[#202020] text-[#a1a1a1] font-micro text-micro border border-white/[0.08]">4</span>
+</div>
+<div class="flex items-center gap-0.5">
+<button class="w-5 h-5 rounded flex items-center justify-center text-[#a1a1a1] hover:bg-[#262626] hover:text-[#fafafa]" title="Add card">
+<span class="material-symbols-outlined text-[15px]" data-icon="add">add</span>
+</button>
+<button class="w-5 h-5 rounded flex items-center justify-center text-[#a1a1a1] hover:bg-[#262626] hover:text-[#fafafa]" title="Column options">
+<span class="material-symbols-outlined text-[15px]" data-icon="more_horiz">more_horiz</span>
+</button>
+</div>
+</div>
+<!-- Card List -->
+<div class="p-2 space-y-2 overflow-y-auto flex-1 custom-scroll">
+<!-- Card 1: Active Hover State representation -->
+<article class="p-2 bg-[#1c1c1c] rounded border border-[#2980b9]/60 ring-1 ring-[#2980b9]/20 relative group cursor-pointer transition-all">
+<div class="flex items-start justify-between gap-1">
+<h3 class="font-body-bold text-body-bold text-[#fafafa] leading-tight">Write launch announcement &amp; changelog notes</h3>
+<!-- Context action button visible on active/hover -->
+<button class="opacity-100 -mr-0.5 -mt-0.5 w-5 h-5 rounded hover:bg-[#262626] text-[#a1a1a1] hover:text-[#fafafa] flex items-center justify-center" title="Card actions">
+<span class="material-symbols-outlined text-[14px]" data-icon="more_horiz">more_horiz</span>
+</button>
+</div>
+<!-- Metadata row -->
+<div class="flex flex-wrap items-center justify-between gap-1.5 mt-2 pt-1 border-t border-white/[0.06]">
+<div class="flex items-center gap-1.5">
+<span class="px-1.5 py-0.5 rounded font-micro text-micro bg-amber-500/10 text-amber-300 border border-amber-500/20">Marketing</span>
+<span class="flex items-center gap-0.5 text-[#a1a1a1] font-micro text-micro">
+<span class="material-symbols-outlined text-[13px]" data-icon="chat_bubble">chat_bubble</span>
+<span>3</span>
+</span>
+</div>
+<div class="w-5 h-5 rounded-full bg-neutral-800 border border-neutral-700 text-neutral-300 flex items-center justify-center text-[10px] font-semibold" title="Assigned to Mai Tran">
+              MT
+            </div>
+</div>
+</article>
+<!-- Card 2: Minimal Chore card (Clean title only) -->
+<article class="p-2 bg-[#1c1c1c] rounded border border-white/[0.08] hover:border-neutral-700 cursor-pointer transition-colors">
+<h3 class="font-body-bold text-body-bold text-[#fafafa] leading-tight">Audit group permissions matrix for compliance</h3>
+<div class="flex items-center justify-between gap-1.5 mt-2 pt-1 border-t border-white/[0.06]">
+<div class="flex items-center gap-1.5">
+<span class="px-1.5 py-0.5 rounded font-micro text-micro bg-neutral-800 text-neutral-300 border border-white/[0.08]">Ops</span>
+</div>
+<div class="w-5 h-5 rounded-full bg-neutral-800 border border-neutral-700 text-neutral-300 flex items-center justify-center text-[10px] font-semibold" title="Assigned to Le Hoang">
+              LH
+            </div>
+</div>
+</article>
+<!-- Card 3: Benchmark WebGL canvas -->
+<article class="p-2 bg-[#1c1c1c] rounded border border-white/[0.08] hover:border-neutral-700 cursor-pointer transition-colors">
+<h3 class="font-body-bold text-body-bold text-[#fafafa] leading-tight">Benchmark WebGL canvas thumbnail rendering</h3>
+<div class="flex items-center justify-between gap-1.5 mt-2 pt-1 border-t border-white/[0.06]">
+<div class="flex items-center gap-1.5">
+<span class="px-1.5 py-0.5 rounded font-micro text-micro bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Backend</span>
+<span class="flex items-center gap-0.5 text-[#a1a1a1] font-micro text-micro">
+<span class="material-symbols-outlined text-[13px]" data-icon="attachment">attachment</span>
+<span>2</span>
+</span>
+</div>
+<div class="w-5 h-5 rounded-full bg-[#173a5e] border border-[#2980b9]/30 text-[#8cc6f4] flex items-center justify-center text-[10px] font-semibold" title="Alex R.">
+              AR
+            </div>
+</div>
+</article>
+<!-- Card 4: Prep slide deck -->
+<article class="p-2 bg-[#1c1c1c] rounded border border-white/[0.08] hover:border-neutral-700 cursor-pointer transition-colors">
+<h3 class="font-body-bold text-body-bold text-[#fafafa] leading-tight">Prep slide deck for Q3 release kickoff</h3>
+<div class="flex items-center justify-between gap-1.5 mt-2 pt-1 border-t border-white/[0.06]">
+<div class="flex items-center gap-1.5">
+<span class="px-1.5 py-0.5 rounded font-micro text-micro bg-[#2980b9]/15 text-[#63b1de] border border-[#2980b9]/30">Design</span>
+<span class="flex items-center gap-0.5 font-micro text-micro text-[#a1a1a1]">
+<span class="material-symbols-outlined text-[13px]" data-icon="calendar_today">calendar_today</span>
+<span>Nov 5</span>
+</span>
+</div>
+<div class="w-5 h-5 rounded-full bg-neutral-800 border border-neutral-700 text-neutral-300 flex items-center justify-center text-[10px] font-semibold" title="Nguyen Bui">
+              NB
+            </div>
+</div>
+</article>
+</div>
+<!-- Add card footer -->
+<div class="p-1.5 border-t border-white/[0.08] shrink-0">
+<button class="w-full py-1 px-2 text-[#a1a1a1] hover:text-[#fafafa] hover:bg-[#262626] rounded flex items-center gap-1.5 font-body-base text-body-base transition-colors">
+<span class="material-symbols-outlined text-[15px]" data-icon="add">add</span>
+<span>Add card</span>
+</button>
+</div>
+</section>
+<!-- COLUMN 2: To do (3 cards with active drag item) -->
+<section class="w-72 shrink-0 max-h-full rounded-lg border border-white/[0.08] bg-[#141414] flex flex-col">
+<!-- Column Header -->
+<div class="px-3 py-2 flex items-center justify-between border-b border-white/[0.08] shrink-0">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-neutral-600 cursor-grab" data-icon="drag_indicator">drag_indicator</span>
+<h2 class="font-body-bold text-body-bold text-[#fafafa]">To do</h2>
+<span class="px-1.5 py-0.2 rounded-full bg-[#202020] text-[#a1a1a1] font-micro text-micro border border-white/[0.08]">3</span>
+</div>
+<div class="flex items-center gap-0.5">
+<button class="w-5 h-5 rounded flex items-center justify-center text-[#a1a1a1] hover:bg-[#262626] hover:text-[#fafafa]" title="Add card">
+<span class="material-symbols-outlined text-[15px]" data-icon="add">add</span>
+</button>
+<button class="w-5 h-5 rounded flex items-center justify-center text-[#a1a1a1] hover:bg-[#262626] hover:text-[#fafafa]" title="Column options">
+<span class="material-symbols-outlined text-[15px]" data-icon="more_horiz">more_horiz</span>
+</button>
+</div>
+</div>
+<!-- Card List -->
+<div class="p-2 space-y-2 overflow-y-auto flex-1 custom-scroll relative">
+<!-- Card 1: Setup automated regression suite -->
+<article class="p-2 bg-[#1c1c1c] rounded border border-white/[0.08] hover:border-neutral-700 cursor-pointer transition-colors">
+<h3 class="font-body-bold text-body-bold text-[#fafafa] leading-tight">Setup automated regression testing suite</h3>
+<div class="flex items-center justify-between gap-1.5 mt-2 pt-1 border-t border-white/[0.06]">
+<div class="flex items-center gap-1.5">
+<span class="px-1.5 py-0.5 rounded font-micro text-micro bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Backend</span>
+<span class="flex items-center gap-0.5 font-micro text-micro text-[#a1a1a1]">
+<span class="material-symbols-outlined text-[13px]" data-icon="checklist">checklist</span>
+<span>3/5</span>
+</span>
+</div>
+<div class="w-5 h-5 rounded-full bg-neutral-800 border border-neutral-700 text-neutral-300 flex items-center justify-center text-[10px] font-semibold">
+              LH
+            </div>
+</div>
+</article>
+<!-- GHOST PLACEHOLDER for the actively dragged card -->
+<div class="h-20 rounded border-2 border-dashed border-[#2980b9]/40 bg-[#2980b9]/10 flex items-center justify-center">
+<span class="font-micro text-micro text-[#63b1de] font-medium tracking-wide">Drop target</span>
+</div>
+<!-- ACTIVELY DRAGGED CARD (Elevated, rotated, cursor-grabbing) -->
+<article class="p-2 bg-[#222222] rounded border border-[#2980b9] ring-2 ring-[#2980b9]/40 transform rotate-2 scale-[1.02] shadow-xl cursor-grabbing z-30 transition-none pointer-events-none">
+<div class="flex items-start justify-between">
+<h3 class="font-body-bold text-body-bold text-[#fafafa] leading-tight">Migrate billing webhooks to v2 endpoint</h3>
+<span class="material-symbols-outlined text-[13px] text-[#63b1de]" data-icon="pan_tool">pan_tool</span>
+</div>
+<div class="flex items-center justify-between gap-1.5 mt-2 pt-1 border-t border-white/[0.08]">
+<div class="flex items-center gap-1.5">
+<span class="px-1.5 py-0.5 rounded font-micro text-micro bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">Backend</span>
+<span class="flex items-center gap-0.5 font-micro text-micro text-[#a1a1a1]">
+<span class="material-symbols-outlined text-[13px]" data-icon="chat_bubble">chat_bubble</span>
+<span>1</span>
+</span>
+</div>
+<div class="w-5 h-5 rounded-full bg-[#2980b9] text-white flex items-center justify-center text-[10px] font-semibold">
+              AR
+            </div>
+</div>
+</article>
+<!-- Card 3: Sync identity realms -->
+<article class="p-2 bg-[#1c1c1c] rounded border border-white/[0.08] hover:border-neutral-700 cursor-pointer transition-colors">
+<h3 class="font-body-bold text-body-bold text-[#fafafa] leading-tight">Sync identity realms with OIDC session refresh</h3>
+<div class="flex items-center justify-between gap-1.5 mt-2 pt-1 border-t border-white/[0.06]">
+<div class="flex items-center gap-1.5">
+<span class="px-1.5 py-0.5 rounded font-micro text-micro bg-neutral-800 text-neutral-300 border border-white/[0.08]">Ops</span>
+</div>
+<div class="w-5 h-5 rounded-full bg-neutral-800 border border-neutral-700 text-neutral-300 flex items-center justify-center text-[10px] font-semibold">
+              MT
+            </div>
+</div>
+</article>
+</div>
+<!-- Add card footer -->
+<div class="p-1.5 border-t border-white/[0.08] shrink-0">
+<button class="w-full py-1 px-2 text-[#a1a1a1] hover:text-[#fafafa] hover:bg-[#262626] rounded flex items-center gap-1.5 font-body-base text-body-base transition-colors">
+<span class="material-symbols-outlined text-[15px]" data-icon="add">add</span>
+<span>Add card</span>
+</button>
+</div>
+</section>
+<!-- COLUMN 3: In progress (3 / 3 WIP Limit Warning & Active Drop Line) -->
+<section class="w-72 shrink-0 max-h-full rounded-lg border border-amber-500/40 bg-[#141414] flex flex-col ring-1 ring-amber-500/20">
+<!-- Column Header with Amber Warning Limit Pill -->
+<div class="px-3 py-2 flex items-center justify-between border-b border-amber-500/20 shrink-0 bg-amber-500/[0.06]">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-neutral-600 cursor-grab" data-icon="drag_indicator">drag_indicator</span>
+<h2 class="font-body-bold text-body-bold text-[#fafafa]">In progress</h2>
+<!-- Amber WIP warning pill -->
+<span class="px-1.5 py-0.2 rounded-full bg-amber-500/15 text-amber-300 font-micro text-micro border border-amber-500/30 font-medium" title="Column reached maximum WIP limit (3/3)">
+            3 / 3
+          </span>
+</div>
+<div class="flex items-center gap-0.5">
+<button class="w-5 h-5 rounded flex items-center justify-center text-amber-400 hover:bg-amber-500/20" title="WIP limit alert">
+<span class="material-symbols-outlined text-[15px]" data-icon="warning">warning</span>
+</button>
+<button class="w-5 h-5 rounded flex items-center justify-center text-[#a1a1a1] hover:bg-[#262626] hover:text-[#fafafa]" title="Column options">
+<span class="material-symbols-outlined text-[15px]" data-icon="more_horiz">more_horiz</span>
+</button>
+</div>
+</div>
+<!-- Card List with Belize Blue Drop Indicator Line -->
+<div class="p-2 space-y-2 overflow-y-auto flex-1 custom-scroll">
+<!-- Card 1: Design review (with rich metadata) -->
+<article class="p-2 bg-[#1c1c1c] rounded border border-white/[0.08] hover:border-neutral-700 cursor-pointer transition-colors">
+<h3 class="font-body-bold text-body-bold text-[#fafafa] leading-tight">Design review: onboarding checklist modal</h3>
+<div class="flex flex-wrap items-center justify-between gap-1.5 mt-2 pt-1 border-t border-white/[0.06]">
+<div class="flex items-center gap-1.5">
+<span class="px-1.5 py-0.5 rounded font-micro text-micro bg-[#2980b9]/15 text-[#63b1de] border border-[#2980b9]/30">Design</span>
+<span class="flex items-center gap-0.5 font-micro text-micro text-[#a1a1a1]">
+<span class="material-symbols-outlined text-[13px]" data-icon="calendar_today">calendar_today</span>
+<span>Oct 24</span>
+</span>
+</div>
+<!-- Avatar stack of two -->
+<div class="flex items-center -space-x-1">
+<div class="w-5 h-5 rounded-full bg-[#173a5e] border border-[#2980b9]/30 text-[#8cc6f4] flex items-center justify-center text-[9px] font-semibold ring-1 ring-[#1c1c1c]" title="Alex R.">
+                AR
+              </div>
+<div class="w-5 h-5 rounded-full bg-neutral-800 border border-neutral-700 text-neutral-300 flex items-center justify-center text-[9px] font-semibold ring-1 ring-[#1c1c1c]" title="Mai Tran">
+                MT
+              </div>
+</div>
+</div>
+</article>
+<!-- BELIZE BLUE DROP INDICATOR TARGET LINE with end dots -->
+<div class="py-1 px-0.5">
+<div class="h-0.5 bg-[#2980b9] rounded-full relative">
+<span class="absolute -left-1 -top-1 w-2.5 h-2.5 rounded-full bg-[#2980b9] ring-2 ring-[#141414]"></span>
+<span class="absolute -right-1 -top-1 w-2.5 h-2.5 rounded-full bg-[#2980b9] ring-2 ring-[#141414]"></span>
+</div>
+</div>
+<!-- Card 2: Fix upload retry (Overdue red badge & bug chip) -->
+<article class="p-2 bg-[#1c1c1c] rounded border border-white/[0.08] hover:border-neutral-700 cursor-pointer transition-colors">
+<h3 class="font-body-bold text-body-bold text-[#fafafa] leading-tight">Fix upload retry on flaky networks</h3>
+<div class="flex flex-wrap items-center justify-between gap-1.5 mt-2 pt-1 border-t border-white/[0.06]">
+<div class="flex items-center gap-1.5">
+<span class="px-1.5 py-0.5 rounded font-micro text-micro bg-rose-500/10 text-rose-400 border border-rose-500/20">Bug</span>
+<!-- Overdue pill -->
+<span class="px-1.5 py-0.2 rounded font-micro text-micro bg-red-500/10 text-red-400 border border-red-500/20 flex items-center gap-0.5 font-medium">
+<span class="material-symbols-outlined text-[11px]" data-icon="schedule">schedule</span>
+<span>Oct 2</span>
+</span>
+</div>
+<div class="w-5 h-5 rounded-full bg-neutral-800 border border-neutral-700 text-neutral-300 flex items-center justify-center text-[10px] font-semibold" title="Le Hoang">
+              LH
+            </div>
+</div>
+</article>
+<!-- Card 3: Export CSV reports -->
+<article class="p-2 bg-[#1c1c1c] rounded border border-white/[0.08] hover:border-neutral-700 cursor-pointer transition-colors">
+<h3 class="font-body-bold text-body-bold text-[#fafafa] leading-tight">Export CSV reports in background worker</h3>
+<div class="flex items-center justify-between gap-1.5 mt-2 pt-1 border-t border-white/[0.06]">
+<div class="flex items-center gap-1.5">
+<span class="px-1.5 py-0.5 rounded font-micro text-micro bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Backend</span>
+<span class="flex items-center gap-0.5 text-[#a1a1a1] font-micro text-micro">
+<span class="material-symbols-outlined text-[13px]" data-icon="chat_bubble">chat_bubble</span>
+<span>2</span>
+</span>
+</div>
+<div class="w-5 h-5 rounded-full bg-neutral-800 border border-neutral-700 text-neutral-300 flex items-center justify-center text-[10px] font-semibold" title="Nguyen Bui">
+              NB
+            </div>
+</div>
+</article>
+</div>
+<!-- Add card footer -->
+<div class="p-1.5 border-t border-white/[0.08] shrink-0">
+<button class="w-full py-1 px-2 text-[#a1a1a1] hover:text-[#fafafa] hover:bg-[#262626] rounded flex items-center gap-1.5 font-body-base text-body-base transition-colors opacity-60 hover:opacity-100" title="WIP limit reached">
+<span class="material-symbols-outlined text-[15px]" data-icon="add">add</span>
+<span>Add card</span>
+</button>
+</div>
+</section>
+<!-- COLUMN 4: In review (1 card) -->
+<section class="w-72 shrink-0 max-h-full rounded-lg border border-white/[0.08] bg-[#141414] flex flex-col">
+<!-- Column Header -->
+<div class="px-3 py-2 flex items-center justify-between border-b border-white/[0.08] shrink-0">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-neutral-600 cursor-grab" data-icon="drag_indicator">drag_indicator</span>
+<h2 class="font-body-bold text-body-bold text-[#fafafa]">In review</h2>
+<span class="px-1.5 py-0.2 rounded-full bg-[#202020] text-[#a1a1a1] font-micro text-micro border border-white/[0.08]">1</span>
+</div>
+<div class="flex items-center gap-0.5">
+<button class="w-5 h-5 rounded flex items-center justify-center text-[#a1a1a1] hover:bg-[#262626] hover:text-[#fafafa]" title="Add card">
+<span class="material-symbols-outlined text-[15px]" data-icon="add">add</span>
+</button>
+<button class="w-5 h-5 rounded flex items-center justify-center text-[#a1a1a1] hover:bg-[#262626] hover:text-[#fafafa]" title="Column options">
+<span class="material-symbols-outlined text-[15px]" data-icon="more_horiz">more_horiz</span>
+</button>
+</div>
+</div>
+<!-- Card List -->
+<div class="p-2 space-y-2 overflow-y-auto flex-1 custom-scroll">
+<article class="p-2 bg-[#1c1c1c] rounded border border-white/[0.08] hover:border-neutral-700 cursor-pointer transition-colors">
+<h3 class="font-body-bold text-body-bold text-[#fafafa] leading-tight">Implement dark mode token system sync</h3>
+<div class="flex items-center justify-between gap-1.5 mt-2 pt-1 border-t border-white/[0.06]">
+<div class="flex items-center gap-1.5">
+<span class="px-1.5 py-0.5 rounded font-micro text-micro bg-[#2980b9]/15 text-[#63b1de] border border-[#2980b9]/30">Design</span>
+<span class="flex items-center gap-0.5 text-[#a1a1a1] font-micro text-micro">
+<span class="material-symbols-outlined text-[13px]" data-icon="attachment">attachment</span>
+<span>4</span>
+</span>
+</div>
+<div class="w-5 h-5 rounded-full bg-neutral-800 border border-neutral-700 text-neutral-300 flex items-center justify-center text-[10px] font-semibold" title="Mai Tran">
+              MT
+            </div>
+</div>
+</article>
+</div>
+<!-- Add card footer -->
+<div class="p-1.5 border-t border-white/[0.08] shrink-0">
+<button class="w-full py-1 px-2 text-[#a1a1a1] hover:text-[#fafafa] hover:bg-[#262626] rounded flex items-center gap-1.5 font-body-base text-body-base transition-colors">
+<span class="material-symbols-outlined text-[15px]" data-icon="add">add</span>
+<span>Add card</span>
+</button>
+</div>
+</section>
+<!-- COLUMN 5: Done (4 cards, muted title) -->
+<section class="w-72 shrink-0 max-h-full rounded-lg border border-white/[0.08] bg-[#141414] flex flex-col">
+<!-- Column Header -->
+<div class="px-3 py-2 flex items-center justify-between border-b border-white/[0.08] shrink-0">
+<div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-neutral-600 cursor-grab" data-icon="drag_indicator">drag_indicator</span><h2 class="font-body-bold text-body-bold text-[#fafafa]">Done</h2><span class="px-1.5 py-0.2 rounded-full bg-[#202020] text-[#a1a1a1] font-micro text-micro border border-white/[0.08]">4</span></div>
+<div class="flex items-center gap-0.5">
+<button class="w-5 h-5 rounded flex items-center justify-center text-[#a1a1a1] hover:bg-[#262626] hover:text-[#fafafa]" title="Add card">
+<span class="material-symbols-outlined text-[15px]" data-icon="add">add</span>
+</button>
+<button class="w-5 h-5 rounded flex items-center justify-center text-[#a1a1a1] hover:bg-[#262626] hover:text-[#fafafa]" title="Column options">
+<span class="material-symbols-outlined text-[15px]" data-icon="more_horiz">more_horiz</span>
+</button>
+</div>
+</div>
+<!-- Card List -->
+<div class="p-2 space-y-2 overflow-y-auto flex-1 custom-scroll"><article class="p-2 bg-[#1c1c1c] rounded border border-white/[0.08] hover:border-neutral-700 cursor-pointer transition-colors"><div class="flex items-start gap-1.5"><span class="material-symbols-outlined text-[16px] text-emerald-500 mt-0.5 shrink-0" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span><h3 class="font-body-bold text-body-bold text-[#a1a1a1] line-through leading-tight">Provision Frankfurt multi-region S3 bucket</h3></div><div class="flex items-center justify-between gap-1.5 mt-2 pt-1 border-t border-white/[0.06]"><div class="flex items-center gap-1.5"><span class="px-1.5 py-0.5 rounded font-micro text-micro bg-neutral-800 text-neutral-300 border border-white/[0.08]">Ops</span><span class="flex items-center gap-0.5 text-[#a1a1a1] font-micro text-micro"><span class="material-symbols-outlined text-[13px]" data-icon="schedule">schedule</span><span>Sep 26</span></span></div><div class="w-5 h-5 rounded-full bg-[#173a5e] border border-[#2980b9]/30 text-[#8cc6f4] flex items-center justify-center text-[10px] font-semibold" title="Alex R.">AR</div></div></article><article class="p-2 bg-[#1c1c1c] rounded border border-white/[0.08] hover:border-neutral-700 cursor-pointer transition-colors"><div class="flex items-start gap-1.5"><span class="material-symbols-outlined text-[16px] text-emerald-500 mt-0.5 shrink-0" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span><h3 class="font-body-bold text-body-bold text-[#a1a1a1] line-through leading-tight">Define API contracts for shared folder invites</h3></div><div class="flex items-center justify-between gap-1.5 mt-2 pt-1 border-t border-white/[0.06]"><div class="flex items-center gap-1.5"><span class="px-1.5 py-0.5 rounded font-micro text-micro bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Backend</span><span class="flex items-center gap-0.5 text-[#a1a1a1] font-micro text-micro"><span class="material-symbols-outlined text-[13px]" data-icon="chat_bubble">chat_bubble</span><span>5</span></span></div><div class="w-5 h-5 rounded-full bg-neutral-800 border border-neutral-700 text-neutral-300 flex items-center justify-center text-[10px] font-semibold" title="Le Hoang">LH</div></div></article><article class="p-2 bg-[#1c1c1c] rounded border border-white/[0.08] hover:border-neutral-700 cursor-pointer transition-colors"><div class="flex items-start gap-1.5"><span class="material-symbols-outlined text-[16px] text-emerald-500 mt-0.5 shrink-0" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span><h3 class="font-body-bold text-body-bold text-[#a1a1a1] line-through leading-tight">Telemetry pipeline rate limiting</h3></div><div class="flex items-center justify-between gap-1.5 mt-2 pt-1 border-t border-white/[0.06]"><div class="flex items-center gap-1.5"><span class="px-1.5 py-0.5 rounded font-micro text-micro bg-neutral-800 text-neutral-300 border border-white/[0.08]">Ops</span></div><div class="w-5 h-5 rounded-full bg-neutral-800 border border-neutral-700 text-neutral-300 flex items-center justify-center text-[10px] font-semibold" title="Nguyen Bui">NB</div></div></article><article class="p-2 bg-[#1c1c1c] rounded border border-white/[0.08] opacity-80 hover:opacity-100 cursor-pointer transition-opacity"><div class="flex items-start gap-1.5"><span class="material-symbols-outlined text-[16px] text-emerald-500 mt-0.5 shrink-0" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span><h3 class="font-body-bold text-body-bold text-[#a1a1a1] line-through leading-tight">Provision multi-region read replicas</h3></div><div class="flex items-center justify-between gap-1.5 mt-2 pt-1 border-t border-white/[0.06]"><div class="flex items-center gap-1.5"><span class="px-1.5 py-0.5 rounded font-micro text-micro bg-neutral-800 text-neutral-300 border border-white/[0.08]">Ops</span><span class="flex items-center gap-0.5 text-[#a1a1a1] font-micro text-micro"><span class="material-symbols-outlined text-[13px]" data-icon="schedule">schedule</span><span>Sep 28</span></span></div><div class="w-5 h-5 rounded-full bg-neutral-800 border border-neutral-700 text-neutral-300 flex items-center justify-center text-[10px] font-semibold" title="Le Hoang">LH</div></div></article></div>
+<!-- Add card footer -->
+<div class="p-1.5 border-t border-white/[0.08] shrink-0">
+<button class="w-full py-1 px-2 text-[#a1a1a1] hover:text-[#fafafa] hover:bg-[#262626] rounded flex items-center gap-1.5 font-body-base text-body-base transition-colors">
+<span class="material-symbols-outlined text-[15px]" data-icon="add">add</span>
+<span>Add card</span>
+</button>
+</div>
+</section>
+<!-- COLUMN 6: + Add Column Dashed Tile -->
+<div class="w-72 shrink-0 h-28 rounded-lg border-2 border-dashed border-white/[0.12] hover:border-[#2980b9] text-[#a1a1a1] hover:text-[#63b1de] flex flex-col items-center justify-center gap-1.5 cursor-pointer transition-all bg-[#141414]/50 hover:bg-[#1a1a1a]" role="button" tabindex="0"><div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[18px]" data-icon="add">add</span><span class="font-body-bold text-body-bold">Add column</span></div><span class="text-[11px] font-micro text-neutral-500">Create workflow stage</span></div>
+</main>
+</body></html>

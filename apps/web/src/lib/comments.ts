@@ -9,7 +9,7 @@ import {
   setThreadResolved,
   type DocCommentThread,
 } from "@/lib/api";
-import { commentsOptions, keys } from "@/lib/queries";
+import { commentsOptions } from "@/lib/queries";
 
 /** A new comment: the text, and the users it @mentions (ids, notified by the server). */
 export interface CommentInput {
@@ -61,12 +61,16 @@ export function toEditorThread(thread: DocCommentThread): CommentThread {
   };
 }
 
-export function createCommentStore(qc: QueryClient, nodeId: string): PpCommentStore {
-  const options = commentsOptions(nodeId);
+export function createCommentStore(
+  qc: QueryClient,
+  nodeId: string,
+  subject?: string,
+): PpCommentStore {
+  const options = commentsOptions(nodeId, subject);
   const queryHash = hashKey(options.queryKey);
 
   const threads = () => qc.ensureQueryData(options);
-  const refresh = () => qc.invalidateQueries({ queryKey: keys.comments(nodeId) });
+  const refresh = () => qc.invalidateQueries({ queryKey: options.queryKey });
 
   /** Puts one thread as the server answered it into the cache (or removes it). */
   const settle = (threadId: string, next: DocCommentThread | null) => {
@@ -84,7 +88,7 @@ export function createCommentStore(qc: QueryClient, nodeId: string): PpCommentSt
     nodeId,
 
     async createThread({ body, mentions }) {
-      const thread = await createCommentThread(nodeId, body, mentions);
+      const thread = await createCommentThread(nodeId, body, mentions, subject);
       settle(thread.id, thread);
       return toEditorThread(thread);
     },
@@ -164,4 +168,22 @@ export function useCommentStore(nodeId: string): PpCommentStore {
   const store = useMemo(() => createCommentStore(qc, nodeId), [qc, nodeId]);
   useQuery({ ...commentsOptions(nodeId), refetchInterval: 10_000, refetchOnWindowFocus: true });
   return store;
+}
+
+/**
+ * The discussion of one subject of an extension node ("card:<id>"): its
+ * threads (oldest first, resolved included), polled every 10 s while the
+ * caller is mounted, and the store whose `createThread`, `addMessage`,
+ * `resolveThread`, `reopenThread`, `editComment` and `deleteComment` write
+ * them. New threads carry `subject`.
+ */
+export function useNodeThreads(nodeId: string, subject: string) {
+  const qc = useQueryClient();
+  const store = useMemo(() => createCommentStore(qc, nodeId, subject), [qc, nodeId, subject]);
+  const query = useQuery({
+    ...commentsOptions(nodeId, subject),
+    refetchInterval: 10_000,
+    refetchOnWindowFocus: true,
+  });
+  return { threads: query.data, isLoading: query.isLoading, error: query.error, store };
 }

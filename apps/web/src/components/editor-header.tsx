@@ -55,6 +55,8 @@ export function EditorHeader({
   const spaces = useSpaces();
   const outsider =
     node !== undefined && spaces.isSuccess && !spaces.data.some((s) => s.id === node.space_id);
+  // An extension node has no versions and no bytes to download.
+  const hasBytes = node?.kind !== "ext";
   const dir = driveDir === undefined ? node?.parent_id : (driveDir ?? undefined);
 
   return (
@@ -109,18 +111,20 @@ export function EditorHeader({
             <Link2 data-icon="inline-start" /> <Trans>Share</Trans>
           </Button>
         )}
-        <Button
-          variant="ghost"
-          size="sm"
-          disabled={!node}
-          onClick={() => node && openPanel("versions", node)}
-        >
-          <History data-icon="inline-start" /> <Trans>Versions</Trans>
-        </Button>
+        {hasBytes && (
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={!node}
+            onClick={() => node && openPanel("versions", node)}
+          >
+            <History data-icon="inline-start" /> <Trans>Versions</Trans>
+          </Button>
+        )}
         {/* A markdown document downloads two ways: the `.md` alone, whose
             `attachment:` references only resolve inside pp-hub, or a zip
             with its images and files beside it. */}
-        {node && capsOf(node).download && isMarkdownFile(node) ? (
+        {!hasBytes ? null : node && capsOf(node).download && isMarkdownFile(node) ? (
           <DropdownMenu>
             <DropdownMenuTrigger
               render={<Button variant="ghost" size="icon-sm" aria-label={t`Download`} />}

@@ -37,6 +37,7 @@ import { useFormatters } from "@/lib/format";
 import { groupActions } from "@/lib/group-actions";
 import { useNodeActions, type NodeActionHandlers } from "@/components/node-actions";
 import { NodeIcon } from "@/components/node-icon";
+import { ExtOffBadge } from "@/components/ext-off-badge";
 import { SubPageCount } from "@/components/sub-page-count";
 import { LoadingStatus } from "@/components/loading";
 import { LISTING_PADDING } from "@/components/surface";
@@ -394,6 +395,7 @@ const NodeCard = memo(function NodeCard({
     <span className="flex min-w-0 items-center gap-1.5 truncate text-xs font-medium" title={title}>
       <span className="truncate">{nodeName}</span>
       <SubPageCount node={node} />
+      <ExtOffBadge node={node} />
     </span>
   );
 

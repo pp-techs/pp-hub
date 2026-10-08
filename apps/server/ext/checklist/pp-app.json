@@ -1,0 +1,11 @@
+{
+  "id": "checklist",
+  "name": "Checklist",
+  "version": "1.0.0",
+  "description": "A list of items to tick, live for everyone who has it open.",
+  "author": "pp-hub",
+  "engines": { "sdk": 1 },
+  "nodeKinds": [{ "kind": "checklist.list" }],
+  "server": { "package": "github.com/nhatbui/pp-hub/apps/server/ext/checklist" },
+  "web": { "package": "@pp-hub/ext-checklist" }
+}

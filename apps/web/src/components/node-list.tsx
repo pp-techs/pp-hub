@@ -27,6 +27,7 @@ import { useFormatters } from "@/lib/format";
 import { groupActions } from "@/lib/group-actions";
 import { useNodeActions, type NodeActionHandlers } from "@/components/node-actions";
 import { NodeIcon } from "@/components/node-icon";
+import { ExtOffBadge } from "@/components/ext-off-badge";
 import { SubPageCount } from "@/components/sub-page-count";
 import { LoadingStatus } from "@/components/loading";
 import { LISTING_PADDING } from "@/components/surface";
@@ -297,6 +298,7 @@ const NodeListRow = memo(function NodeListRow({
               >
                 <span className="truncate">{node.name}</span>
                 <SubPageCount node={node} />
+                <ExtOffBadge node={node} />
               </span>
             </div>
           </td>

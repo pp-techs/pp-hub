@@ -13,6 +13,7 @@ import type {
   DocComment,
   DocCommentThread,
   DocumentKind,
+  Extension,
   EditSession,
   InheritedAccess,
   MarkdownDocument,
@@ -264,6 +265,54 @@ export async function createDocument(
   });
   if (!res.ok) throw new ApiError(res.status, await res.text());
   return res.json() as Promise<Node>;
+}
+
+/** The extensions the server carries; `enabled` is effective for `spaceId`, or the instance switch without one. */
+export async function getExtensions(spaceId?: string): Promise<Extension[]> {
+  const res = await api.get("api/v1/extensions", {
+    searchParams: spaceId ? { space_id: spaceId } : undefined,
+  });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<Extension[]>;
+}
+
+/** Instance admin: turns an extension on or off for the whole instance. */
+export async function setInstanceExtension(extId: string, enabled: boolean): Promise<Extension[]> {
+  const res = await api.patch(`api/v1/admin/extensions/${extId}`, { json: { enabled } });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<Extension[]>;
+}
+
+/** Space admin: turns an extension the instance enabled off for one space, or back on. */
+export async function setSpaceExtension(
+  spaceId: string,
+  extId: string,
+  enabled: boolean,
+): Promise<Extension[]> {
+  const res = await api.put(`api/v1/spaces/${spaceId}/extensions/${extId}`, { json: { enabled } });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<Extension[]>;
+}
+
+/** Creates an extension node (a kanban board) in a folder, or at the space's top level. */
+export async function createExtNode(
+  spaceId: string,
+  extKind: string,
+  name: string,
+  parentId?: string,
+): Promise<Node> {
+  const res = await api.post(`api/v1/spaces/${spaceId}/ext-nodes`, {
+    json: { ext_kind: extKind, name, parent_id: parentId },
+  });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<Node>;
+}
+
+/** An app's nodes in a space, by name, only those the caller can open. */
+export async function listExtNodes(spaceId: string, extId: string): Promise<Node[]> {
+  const res = await api.get(`api/v1/spaces/${spaceId}/extensions/${extId}/nodes`);
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<Node[]>;
 }
 
 /** Renames a node; the server answers no node, only success. */
@@ -719,22 +768,35 @@ export async function getExternalShared(): Promise<Node[]> {
 
 // ─── Comments and notifications ─────────────────────────────────────────────
 
-/** Every comment thread on a markdown document, resolved ones included. */
-export async function getCommentThreads(nodeId: string): Promise<DocCommentThread[]> {
-  const res = await api.get(`api/v1/nodes/${nodeId}/comments`);
+/**
+ * Every comment thread on a node, resolved ones included. For an extension
+ * node `subject` narrows to one part of it ("card:<id>"); without it, all.
+ */
+export async function getCommentThreads(
+  nodeId: string,
+  subject?: string,
+): Promise<DocCommentThread[]> {
+  const res = await api.get(
+    `api/v1/nodes/${nodeId}/comments`,
+    subject ? { searchParams: { subject } } : undefined,
+  );
   if (!res.ok) throw new ApiError(res.status, await res.text());
   const body = (await res.json()) as { threads: DocCommentThread[] };
   return body.threads;
 }
 
-/** Starts a thread; the server picks its id, which the caller then anchors in the document. */
+/**
+ * Starts a thread; the server picks its id, which the caller then anchors in
+ * the document. `subject` is required on an extension node, forbidden on a document.
+ */
 export async function createCommentThread(
   nodeId: string,
   body: string,
   mentions?: string[],
+  subject?: string,
 ): Promise<DocCommentThread> {
   const res = await api.post(`api/v1/nodes/${nodeId}/comment-threads`, {
-    json: { body, mentions },
+    json: { body, mentions, subject },
   });
   if (!res.ok) throw new ApiError(res.status, await res.text());
   return res.json() as Promise<DocCommentThread>;

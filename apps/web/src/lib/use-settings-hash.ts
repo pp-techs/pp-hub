@@ -15,6 +15,7 @@ export const SETTINGS_SLUGS = [
   "space",
   "members",
   "groups",
+  "apps",
   "danger",
 ] as const;
 

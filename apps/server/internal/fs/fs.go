@@ -23,6 +23,8 @@ import (
 var (
 	ErrNotFound = errors.New("node not found")
 	ErrNotFile  = errors.New("node is not a file")
+	// ErrNoExtensions is an extension node asked for where no host is wired.
+	ErrNoExtensions = errors.New("extensions are not available")
 	// ErrNotContainer refuses a parent that cannot hold the node: see
 	// CanContain.
 	ErrNotContainer  = errors.New("only a folder can hold this; a document holds only other documents")
@@ -44,12 +46,28 @@ const (
 // VersionHook is called after a new version is committed (e.g. to enqueue previews).
 type VersionHook func(ctx context.Context, ver store.NodeVersion, name string)
 
+// ExtHooks is how an extension takes part in its nodes' life: it seeds a new
+// node and copies the rows of a copied one. Both run inside the transaction
+// that writes the node, so a node and its extension rows exist together or not
+// at all; tx is that transaction.
+type ExtHooks interface {
+	OnCreate(ctx context.Context, tx store.DBTX, node store.Node) error
+	OnCopy(ctx context.Context, tx store.DBTX, src, dst store.Node) error
+}
+
 type Service struct {
 	q         *store.Queries
 	blobs     blob.Store
 	onVersion VersionHook
 	onRestore RestoreHook
 	retention func() int
+	ext       ExtHooks
+}
+
+// SetExtHooks registers the extension host. Without one, an extension node
+// cannot be created or copied.
+func (s *Service) SetExtHooks(h ExtHooks) {
+	s.ext = h
 }
 
 func NewService(q *store.Queries, blobs blob.Store) *Service {
@@ -168,6 +186,37 @@ func (s *Service) Mkdir(ctx context.Context, spaceID, parentID pgtype.UUID, name
 		Kind:      store.NodeKindDir,
 		Name:      name,
 		CreatedBy: creator,
+	})
+	if isUniqueViolation(err) {
+		return store.Node{}, ErrNameConflict
+	}
+	return n, err
+}
+
+// CreateExt makes a node whose content is an extension's rows: no version, no
+// blob. A name already taken in the folder is ErrNameConflict, as for a folder.
+// The extension's OnCreate runs in the same transaction.
+func (s *Service) CreateExt(ctx context.Context, spaceID, parentID pgtype.UUID, name, extKind string, creator pgtype.UUID) (store.Node, error) {
+	if s.ext == nil {
+		return store.Node{}, ErrNoExtensions
+	}
+	if _, err := s.liveParent(ctx, parentID, Child{Kind: store.NodeKindExt}); err != nil {
+		return store.Node{}, err
+	}
+	var n store.Node
+	err := s.inTx(ctx, func(s *Service) error {
+		var err error
+		n, err = s.q.CreateExtNode(ctx, store.CreateExtNodeParams{
+			SpaceID:   spaceID,
+			ParentID:  parentID,
+			ExtKind:   pgtype.Text{String: extKind, Valid: true},
+			Name:      name,
+			CreatedBy: creator,
+		})
+		if err != nil {
+			return err
+		}
+		return s.ext.OnCreate(ctx, s.q.DB(), n)
 	})
 	if isUniqueViolation(err) {
 		return store.Node{}, ErrNameConflict
@@ -441,6 +490,7 @@ func childRowsToMeta(rows []store.ListChildrenWithMetaRow) []store.NodeWithMeta 
 				CreatedBy:        r.CreatedBy,
 				CreatedAt:        r.CreatedAt,
 				TeamRootID:       r.TeamRootID,
+				ExtKind:          r.ExtKind,
 			},
 			VerID:        r.VID,
 			VerBlobHash:  r.BlobHash.String,
@@ -674,6 +724,10 @@ func (s *Service) copyInto(
 		CreatedBy: op.creator,
 	}
 
+	if src.Kind == store.NodeKindExt {
+		return s.copyExt(ctx, src, params)
+	}
+
 	if src.Kind == store.NodeKindDir {
 		created, err := s.createWithFreeName(ctx, params)
 		if err != nil {
@@ -888,6 +942,22 @@ func (s *Service) EntryPointsWithMeta(ctx context.Context, userID, spaceID pgtyp
 func (s *Service) ExternalEntryPointsWithMeta(ctx context.Context, userID pgtype.UUID, externalEnabled bool) ([]store.NodeWithMeta, error) {
 	rows, err := s.q.ListExternalEntryPoints(ctx, store.ListExternalEntryPointsParams{
 		UserID: userID, ExternalEnabled: externalEnabled,
+	})
+	if err != nil {
+		return nil, err
+	}
+	plain := make([]store.ListChildrenWithMetaRow, len(rows))
+	for i, r := range rows {
+		plain[i] = store.ListChildrenWithMetaRow(r)
+	}
+	return childRowsToMeta(plain), nil
+}
+
+// ListExtNodes returns the live nodes of one extension in a space, wherever
+// they hang. They are candidates only: the caller keeps what the viewer can open.
+func (s *Service) ListExtNodes(ctx context.Context, spaceID pgtype.UUID, extID string) ([]store.NodeWithMeta, error) {
+	rows, err := s.q.ListExtNodesWithMeta(ctx, store.ListExtNodesWithMetaParams{
+		SpaceID: spaceID, ExtPrefix: extID + ".%",
 	})
 	if err != nil {
 		return nil, err
@@ -1366,4 +1436,37 @@ func suffixName(name string, n int) string {
 		base, ext = name, ""
 	}
 	return fmt.Sprintf("%s (%d)%s", base, n, ext)
+}
+
+// copyExt copies an extension node: the node, then the extension's own rows
+// through its OnCopy, in one savepoint per name attempt. An extension this
+// build does not carry cannot copy its rows, so the copy is refused rather than
+// leaving an empty node.
+func (s *Service) copyExt(ctx context.Context, src store.Node, p store.CreateNodeParams) (store.Node, error) {
+	if s.ext == nil {
+		return store.Node{}, ErrNoExtensions
+	}
+	base := p.Name
+	for attempt := 1; attempt <= maxRestoreNameAttempts; attempt++ {
+		var created store.Node
+		err := s.inTx(ctx, func(s *Service) error {
+			var err error
+			created, err = s.q.CreateExtNode(ctx, store.CreateExtNodeParams{
+				SpaceID: p.SpaceID, ParentID: p.ParentID, ExtKind: src.ExtKind,
+				Name: p.Name, CreatedBy: p.CreatedBy,
+			})
+			if err != nil {
+				return err
+			}
+			return s.ext.OnCopy(ctx, s.q.DB(), src, created)
+		})
+		if err == nil {
+			return created, nil
+		}
+		if !isUniqueViolation(err) {
+			return store.Node{}, err
+		}
+		p.Name = suffixName(base, attempt+1)
+	}
+	return store.Node{}, ErrNameConflict
 }

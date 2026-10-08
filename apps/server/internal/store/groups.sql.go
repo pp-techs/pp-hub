@@ -325,7 +325,7 @@ walk(origin, id) AS (
 )
 SELECT
   n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
-  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id, n.ext_kind,
   v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
   u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email
 FROM entry e
@@ -333,6 +333,10 @@ JOIN nodes n ON n.id = e.id
 LEFT JOIN node_versions v ON v.id = n.current_version_id
 LEFT JOIN users u ON u.id = n.created_by
 WHERE n.deleted_at IS NULL
+  -- An app's nodes are listed under Apps in the sidebar, in the home view and
+  -- in "Shared with me" alike. (Shared from outside keeps them: a person who
+  -- is not a member has no Apps list to find them in.)
+  AND n.kind <> 'ext'
   AND ($1::uuid IS NULL OR n.space_id = $1::uuid)
   AND ($2::bool OR n.created_by <> $3)
   -- Every walk row is already a strict ancestor — the base step starts at the
@@ -364,6 +368,7 @@ type ListEntryPointsRow struct {
 	CreatedBy        pgtype.UUID        `json:"created_by"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	TeamRootID       pgtype.UUID        `json:"team_root_id"`
+	ExtKind          pgtype.Text        `json:"ext_kind"`
 	VID              pgtype.UUID        `json:"v_id"`
 	BlobHash         pgtype.Text        `json:"blob_hash"`
 	VSize            pgtype.Int8        `json:"v_size"`
@@ -422,6 +427,7 @@ func (q *Queries) ListEntryPoints(ctx context.Context, arg ListEntryPointsParams
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.TeamRootID,
+			&i.ExtKind,
 			&i.VID,
 			&i.BlobHash,
 			&i.VSize,
@@ -476,7 +482,7 @@ walk(origin, id) AS (
 )
 SELECT
   n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
-  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id, n.ext_kind,
   v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
   u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email
 FROM entry e
@@ -510,6 +516,7 @@ type ListExternalEntryPointsRow struct {
 	CreatedBy        pgtype.UUID        `json:"created_by"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	TeamRootID       pgtype.UUID        `json:"team_root_id"`
+	ExtKind          pgtype.Text        `json:"ext_kind"`
 	VID              pgtype.UUID        `json:"v_id"`
 	BlobHash         pgtype.Text        `json:"blob_hash"`
 	VSize            pgtype.Int8        `json:"v_size"`
@@ -549,6 +556,7 @@ func (q *Queries) ListExternalEntryPoints(ctx context.Context, arg ListExternalE
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.TeamRootID,
+			&i.ExtKind,
 			&i.VID,
 			&i.BlobHash,
 			&i.VSize,
@@ -574,7 +582,7 @@ const listGrantedChildrenWithMeta = `-- name: ListGrantedChildrenWithMeta :many
 
 SELECT
   n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
-  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id, n.ext_kind,
   v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
   u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email
 FROM nodes n
@@ -583,6 +591,7 @@ LEFT JOIN users u ON u.id = n.created_by
 WHERE n.space_id = $1
   AND n.parent_id IS NOT DISTINCT FROM $2
   AND n.deleted_at IS NULL
+  AND n.kind <> 'ext'
   AND ( (n.created_by = $3 AND n.team_root_id IS NULL)
      OR EXISTS (
         SELECT 1 FROM shares s
@@ -613,6 +622,7 @@ type ListGrantedChildrenWithMetaRow struct {
 	CreatedBy        pgtype.UUID        `json:"created_by"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	TeamRootID       pgtype.UUID        `json:"team_root_id"`
+	ExtKind          pgtype.Text        `json:"ext_kind"`
 	VID              pgtype.UUID        `json:"v_id"`
 	BlobHash         pgtype.Text        `json:"blob_hash"`
 	VSize            pgtype.Int8        `json:"v_size"`
@@ -655,6 +665,7 @@ func (q *Queries) ListGrantedChildrenWithMeta(ctx context.Context, arg ListGrant
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.TeamRootID,
+			&i.ExtKind,
 			&i.VID,
 			&i.BlobHash,
 			&i.VSize,

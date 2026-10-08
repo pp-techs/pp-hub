@@ -109,6 +109,18 @@ export function nodeActions(
   const restructure = canRestructure(node);
   const actions: NodeAction[] = [];
 
+  // An extension node has no bytes, so nothing below that reads them applies:
+  // it opens in its extension's editor and has no preview, download or versions.
+  if (node.kind === "ext") {
+    actions.push({
+      key: "edit",
+      label: msg`Open`,
+      icon: SquarePen,
+      group: "open",
+      run: () => openEditor(node),
+    });
+  }
+
   if (node.kind === "file") {
     actions.push({
       key: "preview",

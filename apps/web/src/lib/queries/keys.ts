@@ -77,10 +77,21 @@ export const keys = {
       filters.to ?? null,
       offset,
     ] as const,
+  // Per space, because the effective `enabled` differs; `null` is the
+  // instance answer the admin page reads. One root so a switch refreshes all.
+  extensions: (spaceId?: string) => ["extensions", spaceId ?? null] as const,
+  extensionsRoot: ["extensions"] as const,
+  // One app's nodes in a space; the space-level prefix is what node mutations invalidate.
+  extNodes: (spaceId: string, extId: string) => ["ext-nodes", spaceId, extId] as const,
+  extNodesRoot: (spaceId: string) => ["ext-nodes", spaceId] as const,
   adminSettings: ["admin", "settings"] as const,
   archivedPersonalSpaces: ["admin", "personal-spaces"] as const,
-  // Comment threads of one markdown document.
-  comments: (nodeId: string) => ["comments", nodeId] as const,
+  // Comment threads of one node; an extension node's subject has its own entry
+  // under the node's, so invalidating the node refreshes them all.
+  comments: (nodeId: string, subject?: string) =>
+    subject === undefined
+      ? (["comments", nodeId] as const)
+      : (["comments", nodeId, subject] as const),
   // The inbox: the list pages and the unread badge share the root, so one
   // invalidation after "mark read" or a live event refreshes both.
   notifications: ["notifications"] as const,

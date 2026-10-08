@@ -302,3 +302,44 @@ PANEL 2, captioned "ADMIN — USERS & SERVER":
   "Hoang Yen / yen@partner.io" · Guest · 1 · 0 GB · Mar 09 · ACTIVE, with an "External" chip.
   "Vu Minh / minh@acme.dev" · Member · 1 · 4 GB · Feb 28 · SUSPENDED, the row carrying a faint 10% red tint.
   "khanh@acme.dev" · Member · 0 · — · — · INVITED, its avatar a light-gray circle with an envelope glyph and the email in muted italic.
+
+---
+
+# Apps & kanban (M44–M46)
+
+Ten screens for the extensions feature, generated into project 1 with the
+`pp-hub` design system. Local copies (PNG + HTML) are in `.stitch/designs/`.
+Fetch any of them with `get_screen` and `name = projects/11969748414038004354/screens/<id>`.
+
+| #   | Screen                                                           | Screen id                          | File                                       |
+| :-- | :--------------------------------------------------------------- | :--------------------------------- | :----------------------------------------- |
+| 01  | Board editor — columns, cards, WIP limit, drag and drop          | `0a2d6708ce9a4f04af3eb03cd0d031f8` | `designs/01-kanban-board.*`                |
+| 02  | Card dialog — assignees, labels, linked items, discussion        | `a166f8954ea246dbaffa26bc6f1afd85` | `designs/02-kanban-card-dialog.*`          |
+| 03  | Admin › Apps — instance switch                                   | `3a9e4d6b60034dab9de1f923246279ad` | `designs/03-admin-apps.*`                  |
+| 04  | Space settings › Apps — per-space switch                         | `a7631757e3ff47d58b963bef0e8a6efe` | `designs/04-space-settings-apps.*`         |
+| 05  | New menu entry and the naming dialog                             | `14287242fe8c401694f22cd30d42901f` | `designs/05-new-kanban-board.*`            |
+| 06  | States — view-only, app turned off, app not in this installation | `bff82edfdef4407499d8d40a28e01fd3` | `designs/06-kanban-states.*`               |
+| 07  | Notification bell with an assignment                             | `bbac2c69b2814692ba0638d5ba687a67` | `designs/07-kanban-notification.*`         |
+| 08  | Board editor, dark mode                                          | `5e4dbd817a2c46a78e2dbc94291eb7d7` | `designs/08-kanban-board-dark.*`           |
+| 09  | Delete-column and Manage-labels dialogs                          | `1d023c9de0e2493f9345fb0047abd4b0` | `designs/09-kanban-column-label-dialogs.*` |
+| 10  | Empty board and the inline card composer                         | `83dfe73478024a1599b87798c586f874` | `designs/10-kanban-empty-board.*`          |
+
+## Things to know when re-running
+
+- **Screens made through the MCP API do not show on the project canvas.**
+  `list_screens` and `get_project.screenInstances` omit them (a fresh project
+  behaves the same), but `get_screen` returns them. This is the attach problem
+  already noted above.
+- **The 30 s MCP request timeout is shorter than a generation (about 70–225 s).**
+  `generate_screen_from_text` through the harness times out and the outcome is
+  unknown. `.mcp.json` now has `"timeout": 600000` on the `stitch` server (the
+  file is git-ignored); it takes effect after the harness restarts. Until then
+  the same call can be made straight over HTTP: `initialize`, then
+  `tools/call` against `https://stitch.googleapis.com/mcp` with the
+  `X-Goog-Api-Key` header, no client-side deadline.
+- The prompts describe layout, content and states only; colour, type and shape
+  come from the design system, so they carry no hex codes.
+- Differences from the build the designs invite: Stitch drew a breadcrumb, a
+  space badge, card keys (`CORE-112`), "Request edit access", "Used in 4 of 6
+  spaces", a card progress ratio and a `⌘F` hint. None of those exist in the app.
+  What the app has is in `docs/architecture/extensions.md`.

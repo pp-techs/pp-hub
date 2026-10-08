@@ -20,6 +20,7 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/bootstrap"
 	"github.com/nhatbui/pp-hub/apps/server/internal/collab"
 	"github.com/nhatbui/pp-hub/apps/server/internal/config"
+	"github.com/nhatbui/pp-hub/apps/server/internal/exthost"
 	"github.com/nhatbui/pp-hub/apps/server/internal/fs"
 	"github.com/nhatbui/pp-hub/apps/server/internal/gc"
 	"github.com/nhatbui/pp-hub/apps/server/internal/httpapi"
@@ -122,6 +123,18 @@ func run() error {
 	// the open streams, and the mention job below delivers through it, so
 	// the job runs here and never in cmd/worker.
 	notificationsSvc := notifications.NewService(queries, blobs, shareSvc)
+	// Extensions (M44): compiled into this build (extensions.go), migrated
+	// here beside the core schema, and registered before the router is built.
+	extHost, err := exthost.New(exthost.Config{
+		Pool: deps.Pool, Store: queries, FS: fsSvc, Share: shareSvc, Notifications: notificationsSvc,
+	}, extensions()...)
+	if err != nil {
+		return err
+	}
+	fsSvc.SetExtHooks(extHost)
+	if err := extHost.Start(ctx); err != nil {
+		return err
+	}
 	fsSvc.SetVersionHook(func(ctx context.Context, ver store.NodeVersion, name string) {
 		if err := previewWorker.Enqueue(ctx, ver, name); err != nil {
 			slog.WarnContext(ctx, "enqueue preview", "err", err)
@@ -252,6 +265,7 @@ func run() error {
 		Notifier:        notifier,
 		Notifications:   notificationsSvc,
 		Metrics:         metrics.HTTP,
+		Ext:             extHost,
 	})
 	srv := &http.Server{
 		Addr:              cfg.Addr,
@@ -295,6 +309,8 @@ func run() error {
 		// Notification streams never end on their own; without this,
 		// Shutdown would wait out its whole grace period for them.
 		srv.RegisterOnShutdown(notificationsSvc.Shutdown)
+		// Likewise an extension's live streams.
+		srv.RegisterOnShutdown(extHost.Close)
 		err := srv.Shutdown(shutdownCtx)
 		return errors.Join(err, <-roomsClosed)
 	}

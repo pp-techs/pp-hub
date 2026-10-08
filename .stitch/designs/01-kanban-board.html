@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>pp-hub - Kanban Board Editor</title>
+<!-- Material Symbols Outlined Font -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Noto Sans Font -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS v3 with Plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-container-low": "#fafafa",
+            "on-secondary-fixed": "#1a1c1c",
+            "primary": "#006193",
+            "inverse-surface": "#2f3131",
+            "on-background": "#0a0a0a",
+            "surface-container-highest": "#d4d4d4",
+            "secondary-fixed": "#e2e2e2",
+            "inverse-on-surface": "#ffffff",
+            "secondary-fixed-dim": "#c6c6c7",
+            "on-error": "#ffffff",
+            "tertiary-container": "#e5e5e5",
+            "on-secondary-container": "#171717",
+            "tertiary-fixed-dim": "#c7c6c6",
+            "surface-container-lowest": "#ffffff",
+            "surface": "#ffffff",
+            "surface-bright": "#f9f9f9",
+            "on-secondary": "#171717",
+            "on-tertiary": "#ffffff",
+            "surface-container-high": "#e8e8e8",
+            "on-tertiary-fixed-variant": "#464747",
+            "secondary": "#5d5f5f",
+            "surface-tint": "#2980b9",
+            "outline": "#a1a1a1",
+            "on-surface-variant": "#737373",
+            "error": "#e7000b",
+            "error-container": "#fdeaea",
+            "primary-container": "#207ab3",
+            "on-primary": "#fafafa",
+            "outline-variant": "#c0c7d1",
+            "on-secondary-fixed-variant": "#454747",
+            "surface-variant": "#e2e2e2",
+            "on-primary-fixed-variant": "#004b73",
+            "secondary-container": "#dcdddd",
+            "primary-fixed": "#cce5ff",
+            "inverse-primary": "#63b1de",
+            "on-primary-fixed": "#001e31",
+            "on-primary-container": "#1f6a94",
+            "on-tertiary-fixed": "#1b1c1c",
+            "on-tertiary-container": "#fefcfc",
+            "surface-container": "#eeeeee",
+            "on-surface": "#0a0a0a",
+            "tertiary": "#5c5c5c",
+            "primary-fixed-dim": "#92ccff",
+            "on-error-container": "#93000a",
+            "tertiary-fixed": "#e3e2e2",
+            "background": "#ffffff",
+            "surface-dim": "#dadada"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "space-xs": "4px",
+            "space-md": "12px",
+            "space-xl": "24px",
+            "space-sm": "8px",
+            "space-lg": "16px",
+            "margin": "16px",
+            "gutter": "8px"
+          },
+          "fontFamily": {
+            "body-base": ["Noto Sans"],
+            "display-lg": ["Noto Sans"],
+            "field-text": ["Noto Sans"],
+            "label-caps": ["Noto Sans"],
+            "body-bold": ["Noto Sans"],
+            "micro": ["Noto Sans"],
+            "headline-md": ["Noto Sans"]
+          },
+          "fontSize": {
+            "body-base": ["12px", { "lineHeight": "20px", "letterSpacing": "0", "fontWeight": "400" }],
+            "display-lg": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "field-text": ["14px", { "lineHeight": "20px", "letterSpacing": "0", "fontWeight": "400" }],
+            "label-caps": ["11px", { "lineHeight": "16px", "letterSpacing": "0.04em", "fontWeight": "500" }],
+            "body-bold": ["12px", { "lineHeight": "20px", "letterSpacing": "0", "fontWeight": "500" }],
+            "micro": ["10px", { "lineHeight": "14px", "letterSpacing": "0", "fontWeight": "500" }],
+            "headline-md": ["14px", { "lineHeight": "20px", "letterSpacing": "-0.01em", "fontWeight": "500" }]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    /* Subtle custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #fafafa;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #c0c7d1;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #a1a1a1;
+    }
+  </style>
+</head>
+<body class="h-full bg-surface text-on-surface font-body-base text-body-base overflow-hidden flex flex-col select-none antialiased">
+<!-- 1. EDITOR HEADER (40px, dense, hairline separation, tools-first) -->
+<header class="h-10 border-b border-outline-variant px-3 flex items-center justify-between bg-surface z-20 flex-shrink-0">
+<!-- Left Navigation & Context Breadcrumb -->
+<div class="flex items-center gap-2">
+<!-- Back Arrow (28px ghost) -->
+<button class="w-7 h-7 flex items-center justify-center rounded hover:bg-surface-container text-on-surface-variant hover:text-on-surface transition-colors" title="Back to All Files">
+<span class="material-symbols-outlined text-[18px]">arrow_back</span>
+</button>
+<!-- Board Icon -->
+<div class="w-6 h-6 rounded flex items-center justify-center bg-primary-fixed text-primary font-body-bold">
+<span class="material-symbols-outlined text-[16px]">view_kanban</span>
+</div>
+<!-- Breadcrumbs -->
+<div class="flex items-center gap-1.5 text-body-base font-body-base">
+<span class="text-on-surface-variant hover:text-on-surface cursor-pointer">Acme Core</span>
+<span class="text-outline text-micro font-micro">/</span>
+<span class="text-on-surface-variant hover:text-on-surface cursor-pointer">Projects</span>
+<span class="text-outline text-micro font-micro">/</span>
+<span class="font-body-bold text-body-bold text-on-surface flex items-center gap-1">
+          Launch plan
+          <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 ml-0.5" title="Saved to cloud"></span>
+</span>
+</div>
+<!-- Star Button -->
+<button class="w-6 h-6 flex items-center justify-center rounded text-on-surface-variant hover:text-amber-500 hover:bg-surface-container transition-colors ml-0.5" title="Star Board">
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">star</span>
+</button>
+<!-- Space Badge -->
+<div class="ml-1 px-1.5 py-0.5 rounded bg-surface-container border border-outline-variant text-on-surface-variant font-micro text-micro flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">group</span>
+<span>Engineering Team</span>
+</div>
+</div>
+<!-- Right Actions & Collaborator Presence -->
+<div class="flex items-center gap-3">
+<!-- Viewer Avatars Stack with Tiny Presence Dots -->
+<div class="flex items-center -space-x-1.5">
+<div class="relative group cursor-pointer" title="Minh Tran (MT) - Viewing now">
+<div class="w-6 h-6 rounded-full bg-blue-100 border border-surface text-blue-800 text-[10px] font-bold flex items-center justify-center">MT</div>
+<span class="absolute bottom-0 right-0 w-1.5 h-1.5 rounded-full bg-emerald-500 ring-1 ring-surface"></span>
+</div>
+<div class="relative group cursor-pointer" title="Linh Hoang (LH) - Editing card">
+<div class="w-6 h-6 rounded-full bg-emerald-100 border border-surface text-emerald-800 text-[10px] font-bold flex items-center justify-center">LH</div>
+<span class="absolute bottom-0 right-0 w-1.5 h-1.5 rounded-full bg-emerald-500 ring-1 ring-surface"></span>
+</div>
+<div class="relative group cursor-pointer" title="Nam Bui (NB) - Viewing now">
+<div class="w-6 h-6 rounded-full bg-purple-100 border border-surface text-purple-800 text-[10px] font-bold flex items-center justify-center">NB</div>
+<span class="absolute bottom-0 right-0 w-1.5 h-1.5 rounded-full bg-emerald-500 ring-1 ring-surface"></span>
+</div>
+</div>
+<div class="h-4 w-[1px] bg-outline-variant"></div>
+<!-- Share Ghost Button -->
+<button class="h-7 px-2 flex items-center gap-1.5 rounded border border-outline-variant hover:bg-surface-container text-on-surface font-body-bold text-body-bold transition-colors">
+<span class="material-symbols-outlined text-[15px] text-primary">link</span>
+<span>Share</span>
+</button>
+<!-- Notification Bell with Unread Badge -->
+<button class="relative w-7 h-7 flex items-center justify-center rounded hover:bg-surface-container text-on-surface-variant hover:text-on-surface transition-colors" title="Notifications">
+<span class="material-symbols-outlined text-[18px]">notifications</span>
+<span class="absolute top-1 right-1 w-3.5 h-3.5 bg-error text-on-error font-micro text-[9px] rounded-full flex items-center justify-center leading-none">3</span>
+</button>
+<!-- User Profile Avatar -->
+<div class="w-7 h-7 rounded-full bg-primary text-on-primary font-body-bold text-[11px] flex items-center justify-center cursor-pointer ring-1 ring-outline-variant hover:opacity-90" title="Alex Rivera (AR)">
+        AR
+      </div>
+</div>
+</header>
+<!-- 2. BOARD TOOLBAR (36px, dense controls, hairline border) -->
+<div class="h-9 border-b border-outline-variant px-3 flex items-center justify-between bg-surface-container-low z-10 flex-shrink-0">
+<!-- Left Filter Cluster -->
+<div class="flex items-center gap-2">
+<!-- Search Field (28px height, hairline border, recessed fill) -->
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-2 text-[15px] text-on-surface-variant pointer-events-none">search</span>
+<input class="h-7 w-48 pl-7 pr-8 py-0 rounded bg-surface border border-outline-variant text-body-base font-body-base text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all" placeholder="Filter cards…" type="text"/>
+<kbd class="absolute right-1.5 text-[9px] font-mono text-on-surface-variant border border-outline-variant px-1 rounded bg-surface-container">⌘F</kbd>
+</div>
+<div class="h-3.5 w-[1px] bg-outline-variant"></div>
+<!-- Dropdown Filter Chips -->
+<div class="flex items-center gap-1.5">
+<button class="h-7 px-2 rounded border border-outline-variant bg-surface hover:bg-surface-container flex items-center gap-1 text-on-surface text-body-base font-body-base transition-colors">
+<span>Assignee</span>
+<span class="material-symbols-outlined text-[14px] text-on-surface-variant">expand_more</span>
+</button>
+<button class="h-7 px-2 rounded border border-outline-variant bg-surface hover:bg-surface-container flex items-center gap-1 text-on-surface text-body-base font-body-base transition-colors">
+<span>Label</span>
+<span class="material-symbols-outlined text-[14px] text-on-surface-variant">expand_more</span>
+</button>
+<button class="h-7 px-2 rounded border border-outline-variant bg-surface hover:bg-surface-container flex items-center gap-1 text-on-surface text-body-base font-body-base transition-colors">
+<span>Due</span>
+<span class="material-symbols-outlined text-[14px] text-on-surface-variant">expand_more</span>
+</button>
+</div>
+</div>
+<!-- Right Summary & Views Cluster -->
+<div class="flex items-center gap-3">
+<span class="text-on-surface-variant font-micro text-micro tracking-wide">12 cards · 5 columns</span>
+<div class="h-3.5 w-[1px] bg-outline-variant"></div>
+<button class="h-7 px-2 rounded hover:bg-surface-container text-on-surface-variant hover:text-on-surface flex items-center gap-1 font-body-base text-body-base transition-colors">
+<span class="material-symbols-outlined text-[15px]">label</span>
+<span>Manage labels</span>
+</button>
+<button class="w-7 h-7 rounded hover:bg-surface-container text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors" title="View options">
+<span class="material-symbols-outlined text-[17px]">tune</span>
+</button>
+</div>
+</div>
+<!-- 3. BOARD CANVAS (overflow-x-auto, no shadows, precision layout) -->
+<main class="flex-1 overflow-x-auto overflow-y-hidden p-4 bg-surface-container-lowest flex gap-3 items-start relative">
+<!-- COLUMN 1: Backlog (4 cards) -->
+<section class="w-[288px] flex-shrink-0 bg-surface-container-low rounded border border-outline-variant flex flex-col max-h-full">
+<!-- Sticky Column Header -->
+<div class="p-2 border-b border-outline-variant flex items-center justify-between bg-surface-container-low rounded-t">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px] text-outline cursor-grab" title="Drag column">drag_indicator</span>
+<h2 class="font-body-bold text-body-bold text-on-surface">Backlog</h2>
+<span class="px-1.5 py-0.2 rounded-full bg-surface-container border border-outline-variant text-on-surface-variant font-micro text-micro">4</span>
+</div>
+<div class="flex items-center gap-0.5">
+<button class="w-6 h-6 flex items-center justify-center rounded hover:bg-surface-container text-on-surface-variant hover:text-on-surface" title="Add Card">
+<span class="material-symbols-outlined text-[15px]">add</span>
+</button>
+<button class="w-6 h-6 flex items-center justify-center rounded hover:bg-surface-container text-on-surface-variant hover:text-on-surface" title="Column options">
+<span class="material-symbols-outlined text-[15px]">more_horiz</span>
+</button>
+</div>
+</div>
+<!-- Card List -->
+<div class="flex-1 overflow-y-auto p-2 space-y-2">
+<!-- Card 1: Long title & comments (Has active hover state preview) -->
+<div class="group relative bg-surface p-2 rounded border border-outline-variant hover:border-primary flex flex-col gap-1.5 cursor-pointer transition-colors">
+<div class="flex items-start justify-between gap-1">
+<p class="font-body-bold text-body-bold text-on-surface leading-tight">Write launch announcement &amp; changelog notes</p>
+<button class="opacity-100 md:opacity-0 group-hover:opacity-100 w-5 h-5 -mr-1 -mt-1 flex items-center justify-center rounded hover:bg-surface-container text-on-surface-variant hover:text-on-surface transition-opacity" title="Card actions">
+<span class="material-symbols-outlined text-[14px]">more_horiz</span>
+</button>
+</div>
+<div class="flex items-center justify-between pt-1 border-t border-outline-variant border-dashed mt-0.5">
+<div class="flex items-center gap-1.5 flex-wrap">
+<span class="px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-200 font-micro text-micro">Marketing</span>
+<span class="flex items-center gap-0.5 text-on-surface-variant font-micro text-micro">
+<span class="material-symbols-outlined text-[12px]">chat_bubble_outline</span>
+<span>3</span>
+</span>
+</div>
+<div class="w-5 h-5 rounded-full bg-blue-100 border border-surface text-blue-800 text-[9px] font-bold flex items-center justify-center" title="Minh Tran">MT</div>
+</div>
+</div>
+<!-- Card 2: Minimal card with ops label -->
+<div class="group bg-surface p-2 rounded border border-outline-variant hover:border-primary flex flex-col gap-1.5 cursor-pointer transition-colors">
+<p class="font-body-bold text-body-bold text-on-surface leading-tight">Sync identity realms with OIDC session refresh</p>
+<div class="flex items-center justify-between pt-1 border-t border-outline-variant border-dashed mt-0.5">
+<span class="px-1.5 py-0.2 rounded bg-zinc-100 text-zinc-700 border border-zinc-300 font-micro text-micro">Ops</span>
+<div class="w-5 h-5 rounded-full bg-blue-100 border border-surface text-blue-800 text-[9px] font-bold flex items-center justify-center" title="Minh Tran">MT</div>
+</div>
+</div>
+<!-- Card 3: Backend & Comments -->
+<div class="group bg-surface p-2 rounded border border-outline-variant hover:border-primary flex flex-col gap-1.5 cursor-pointer transition-colors">
+<p class="font-body-bold text-body-bold text-on-surface leading-tight">Export CSV reports in background worker</p>
+<div class="flex items-center justify-between pt-1 border-t border-outline-variant border-dashed mt-0.5">
+<div class="flex items-center gap-1.5">
+<span class="px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-micro text-micro">Backend</span>
+<span class="flex items-center gap-0.5 text-on-surface-variant font-micro text-micro">
+<span class="material-symbols-outlined text-[12px]">chat_bubble_outline</span>
+<span>2</span>
+</span>
+</div>
+<div class="w-5 h-5 rounded-full bg-purple-100 border border-surface text-purple-800 text-[9px] font-bold flex items-center justify-center" title="Nam Bui">NB</div>
+</div>
+</div>
+<!-- Card 4: Dark mode sync -->
+<div class="group bg-surface p-2 rounded border border-outline-variant hover:border-primary flex flex-col gap-1.5 cursor-pointer transition-colors">
+<p class="font-body-bold text-body-bold text-on-surface leading-tight">Implement dark mode token system sync</p>
+<div class="flex items-center justify-between pt-1 border-t border-outline-variant border-dashed mt-0.5">
+<div class="flex items-center gap-1.5">
+<span class="px-1.5 py-0.2 rounded bg-blue-50 text-primary border border-blue-200 font-micro text-micro">Design</span>
+<span class="flex items-center gap-0.5 text-on-surface-variant font-micro text-micro">
+<span class="material-symbols-outlined text-[12px]">attach_file</span>
+<span>4</span>
+</span>
+</div>
+<div class="w-5 h-5 rounded-full bg-blue-100 border border-surface text-blue-800 text-[9px] font-bold flex items-center justify-center" title="Minh Tran">MT</div>
+</div>
+</div>
+</div>
+<!-- Add Card Ghost Action -->
+<div class="p-2 pt-0">
+<button class="w-full py-1 px-2 rounded hover:bg-surface-container text-on-surface-variant hover:text-on-surface font-body-base text-body-base flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[15px]">add</span>
+<span>Add card</span>
+</button>
+</div>
+</section>
+<!-- COLUMN 2: To do (3 cards - Interactive Drag State Demo) -->
+<section class="w-[288px] flex-shrink-0 bg-surface-container-low rounded border border-outline-variant flex flex-col max-h-full">
+<!-- Sticky Column Header -->
+<div class="p-2 border-b border-outline-variant flex items-center justify-between bg-surface-container-low rounded-t">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px] text-outline cursor-grab">drag_indicator</span>
+<h2 class="font-body-bold text-body-bold text-on-surface">To do</h2>
+<span class="px-1.5 py-0.2 rounded-full bg-surface-container border border-outline-variant text-on-surface-variant font-micro text-micro">3</span>
+</div>
+<div class="flex items-center gap-0.5">
+<button class="w-6 h-6 flex items-center justify-center rounded hover:bg-surface-container text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-[15px]">add</span>
+</button>
+<button class="w-6 h-6 flex items-center justify-center rounded hover:bg-surface-container text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-[15px]">more_horiz</span>
+</button>
+</div>
+</div>
+<!-- Card List -->
+<div class="flex-1 overflow-y-auto p-2 space-y-2 relative">
+<!-- Card 1: Regression testing suite -->
+<div class="group bg-surface p-2 rounded border border-outline-variant hover:border-primary flex flex-col gap-1.5 cursor-pointer transition-colors">
+<p class="font-body-bold text-body-bold text-on-surface leading-tight">Setup automated regression testing suite</p>
+<div class="flex items-center justify-between pt-1 border-t border-outline-variant border-dashed mt-0.5">
+<div class="flex items-center gap-1.5">
+<span class="px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-micro text-micro">Backend</span>
+<span class="flex items-center gap-0.5 text-on-surface-variant font-micro text-micro">
+<span class="material-symbols-outlined text-[12px]">checklist</span>
+<span>3/5</span>
+</span>
+</div>
+<div class="w-5 h-5 rounded-full bg-emerald-100 border border-surface text-emerald-800 text-[9px] font-bold flex items-center justify-center" title="Linh Hoang">LH</div>
+</div>
+</div>
+<!-- DRAG PLACEHOLDER GHOST (Position left behind by lifted card) -->
+<div class="h-[68px] w-full rounded border-2 border-dashed border-primary bg-primary-fixed/20 flex items-center justify-center">
+<span class="text-primary font-micro text-micro flex items-center gap-1 font-body-bold">
+<span class="material-symbols-outlined text-[14px]">move_up</span>
+            Drop target
+          </span>
+</div>
+<!-- ACTIVE DRAGGING CARD (Visually lifted, rotated, distinct blue ring, cursor-grabbing) -->
+<div class="pointer-events-none transform rotate-1 scale-[1.02] bg-surface p-2 rounded border-2 border-surface-tint ring-2 ring-primary-fixed shadow-md flex flex-col gap-1.5 z-30">
+<div class="flex items-center justify-between">
+<p class="font-body-bold text-body-bold text-on-surface leading-tight">Migrate billing webhooks to v2 endpoint</p>
+<span class="material-symbols-outlined text-[14px] text-surface-tint">pan_tool</span>
+</div>
+<div class="flex items-center justify-between pt-1 border-t border-outline-variant border-dashed mt-0.5">
+<div class="flex items-center gap-1.5">
+<span class="px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-micro text-micro">Backend</span>
+<span class="text-on-surface-variant font-micro text-micro flex items-center gap-0.5">
+<span class="material-symbols-outlined text-[12px]">calendar_today</span>
+<span>Nov 5</span>
+</span>
+</div>
+<div class="w-5 h-5 rounded-full bg-emerald-100 border border-surface text-emerald-800 text-[9px] font-bold flex items-center justify-center">LH</div>
+</div>
+</div>
+<!-- Card 3: Design review -->
+<div class="group bg-surface p-2 rounded border border-outline-variant hover:border-primary flex flex-col gap-1.5 cursor-pointer transition-colors">
+<p class="font-body-bold text-body-bold text-on-surface leading-tight">Design review: onboarding checklist modal</p>
+<div class="flex items-center justify-between pt-1 border-t border-outline-variant border-dashed mt-0.5">
+<div class="flex items-center gap-1.5">
+<span class="px-1.5 py-0.2 rounded bg-blue-50 text-primary border border-blue-200 font-micro text-micro">Design</span>
+<span class="flex items-center gap-0.5 text-on-surface-variant font-micro text-micro">
+<span class="material-symbols-outlined text-[12px]">calendar_today</span>
+<span>Oct 24</span>
+</span>
+</div>
+<div class="flex items-center -space-x-1">
+<div class="w-5 h-5 rounded-full bg-primary text-on-primary text-[8px] font-bold flex items-center justify-center ring-1 ring-surface" title="Alex Rivera">AR</div>
+<div class="w-5 h-5 rounded-full bg-blue-100 text-blue-800 text-[8px] font-bold flex items-center justify-center ring-1 ring-surface" title="Minh Tran">MT</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Add Card Ghost Action -->
+<div class="p-2 pt-0">
+<button class="w-full py-1 px-2 rounded hover:bg-surface-container text-on-surface-variant hover:text-on-surface font-body-base text-body-base flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[15px]">add</span>
+<span>Add card</span>
+</button>
+</div>
+</section>
+<!-- COLUMN 3: In progress (3 / 3 cards - WIP limit reached & active Belize Blue drop-indicator) -->
+<section class="w-[288px] flex-shrink-0 bg-surface-container-low rounded border border-outline-variant flex flex-col max-h-full">
+<!-- Sticky Column Header with WIP Limit Warning -->
+<div class="p-2 border-b border-outline-variant flex items-center justify-between bg-surface-container-low rounded-t">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px] text-outline cursor-grab">drag_indicator</span>
+<h2 class="font-body-bold text-body-bold text-on-surface">In progress</h2>
+<!-- Amber/Warning Badge for Reached WIP Limit -->
+<div class="px-1.5 py-0.2 rounded bg-amber-100 border border-amber-300 text-amber-900 font-micro text-micro flex items-center gap-0.5 font-body-bold" title="WIP limit reached (3 of 3)">
+<span class="material-symbols-outlined text-[11px] text-amber-700">warning</span>
+<span>3 / 3</span>
+</div>
+</div>
+<div class="flex items-center gap-0.5">
+<button class="w-6 h-6 flex items-center justify-center rounded hover:bg-surface-container text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-[15px]">add</span>
+</button>
+<button class="w-6 h-6 flex items-center justify-center rounded hover:bg-surface-container text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-[15px]">more_horiz</span>
+</button>
+</div>
+</div>
+<!-- Card List -->
+<div class="flex-1 overflow-y-auto p-2 space-y-2">
+<!-- Card 1: Overdue bug card with red tint warning -->
+<div class="group bg-surface p-2 rounded border border-outline-variant hover:border-primary flex flex-col gap-1.5 cursor-pointer transition-colors">
+<div class="flex items-start justify-between gap-1">
+<p class="font-body-bold text-body-bold text-on-surface leading-tight">Fix upload retry on flaky networks</p>
+<button class="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded hover:bg-surface-container text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-[14px]">more_horiz</span>
+</button>
+</div>
+<div class="flex items-center justify-between pt-1 border-t border-outline-variant border-dashed mt-0.5">
+<div class="flex items-center gap-1.5">
+<span class="px-1.5 py-0.2 rounded bg-error-container text-error border border-error/30 font-micro text-micro">Bug</span>
+<!-- Overdue Due Date Chip -->
+<span class="px-1 py-0.2 rounded bg-error/10 text-error font-micro text-micro flex items-center gap-0.5">
+<span class="material-symbols-outlined text-[11px]">warning</span>
+<span>Oct 2</span>
+</span>
+</div>
+<div class="w-5 h-5 rounded-full bg-emerald-100 border border-surface text-emerald-800 text-[9px] font-bold flex items-center justify-center" title="Linh Hoang">LH</div>
+</div>
+</div>
+<!-- ACTIVE DROP INDICATOR: Belize Blue (#2980b9) bar with circular endpoints indicating drop slot -->
+<div class="relative py-1 flex items-center justify-center my-0.5">
+<div class="w-2 h-2 rounded-full bg-surface-tint absolute left-0 ring-2 ring-surface"></div>
+<div class="h-0.5 w-full bg-surface-tint"></div>
+<div class="w-2 h-2 rounded-full bg-surface-tint absolute right-0 ring-2 ring-surface"></div>
+</div>
+<!-- Card 2: Microservice health check -->
+<div class="group bg-surface p-2 rounded border border-outline-variant hover:border-primary flex flex-col gap-1.5 cursor-pointer transition-colors">
+<p class="font-body-bold text-body-bold text-on-surface leading-tight">Implement heartbeat daemon for storage nodes</p>
+<div class="flex items-center justify-between pt-1 border-t border-outline-variant border-dashed mt-0.5">
+<div class="flex items-center gap-1.5">
+<span class="px-1.5 py-0.2 rounded bg-zinc-100 text-zinc-700 border border-zinc-300 font-micro text-micro">Ops</span>
+<span class="text-on-surface-variant font-micro text-micro flex items-center gap-0.5">
+<span class="material-symbols-outlined text-[12px]">calendar_today</span>
+<span>Nov 12</span>
+</span>
+</div>
+<div class="w-5 h-5 rounded-full bg-blue-100 border border-surface text-blue-800 text-[9px] font-bold flex items-center justify-center" title="Minh Tran">MT</div>
+</div>
+</div>
+<!-- Card 3: Cache invalidation pipeline -->
+<div class="group bg-surface p-2 rounded border border-outline-variant hover:border-primary flex flex-col gap-1.5 cursor-pointer transition-colors">
+<p class="font-body-bold text-body-bold text-on-surface leading-tight">Redis cache TTL tuning for file metadata trees</p>
+<div class="flex items-center justify-between pt-1 border-t border-outline-variant border-dashed mt-0.5">
+<div class="flex items-center gap-1.5">
+<span class="px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-micro text-micro">Backend</span>
+</div>
+<div class="w-5 h-5 rounded-full bg-purple-100 border border-surface text-purple-800 text-[9px] font-bold flex items-center justify-center" title="Nam Bui">NB</div>
+</div>
+</div>
+</div>
+<!-- Add Card Ghost Action -->
+<div class="p-2 pt-0">
+<button class="w-full py-1 px-2 rounded hover:bg-surface-container text-on-surface-variant hover:text-on-surface font-body-base text-body-base flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[15px]">add</span>
+<span>Add card</span>
+</button>
+</div>
+</section>
+<!-- COLUMN 4: In review (1 card) -->
+<section class="w-[288px] flex-shrink-0 bg-surface-container-low rounded border border-outline-variant flex flex-col max-h-full">
+<!-- Sticky Column Header -->
+<div class="p-2 border-b border-outline-variant flex items-center justify-between bg-surface-container-low rounded-t">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px] text-outline cursor-grab">drag_indicator</span>
+<h2 class="font-body-bold text-body-bold text-on-surface">In review</h2>
+<span class="px-1.5 py-0.2 rounded-full bg-surface-container border border-outline-variant text-on-surface-variant font-micro text-micro">1</span>
+</div>
+<div class="flex items-center gap-0.5">
+<button class="w-6 h-6 flex items-center justify-center rounded hover:bg-surface-container text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-[15px]">add</span>
+</button>
+<button class="w-6 h-6 flex items-center justify-center rounded hover:bg-surface-container text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-[15px]">more_horiz</span>
+</button>
+</div>
+</div>
+<!-- Card List -->
+<div class="flex-1 overflow-y-auto p-2 space-y-2">
+<!-- Card: Multi-tenant auth tokens -->
+<div class="group bg-surface p-2 rounded border border-outline-variant hover:border-primary flex flex-col gap-1.5 cursor-pointer transition-colors">
+<div class="flex items-start justify-between gap-1">
+<p class="font-body-bold text-body-bold text-on-surface leading-tight">Evaluate tenant boundary encryption keys</p>
+<button class="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded hover:bg-surface-container text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-[14px]">more_horiz</span>
+</button>
+</div>
+<div class="flex items-center justify-between pt-1 border-t border-outline-variant border-dashed mt-0.5">
+<div class="flex items-center gap-1.5">
+<span class="px-1.5 py-0.2 rounded bg-zinc-100 text-zinc-700 border border-zinc-300 font-micro text-micro">Ops</span>
+<span class="flex items-center gap-0.5 text-on-surface-variant font-micro text-micro">
+<span class="material-symbols-outlined text-[12px]">chat_bubble_outline</span>
+<span>5</span>
+</span>
+</div>
+<div class="w-5 h-5 rounded-full bg-primary text-on-primary text-[8px] font-bold flex items-center justify-center" title="Alex Rivera">AR</div>
+</div>
+</div>
+</div>
+<!-- Add Card Ghost Action -->
+<div class="p-2 pt-0">
+<button class="w-full py-1 px-2 rounded hover:bg-surface-container text-on-surface-variant hover:text-on-surface font-body-base text-body-base flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[15px]">add</span>
+<span>Add card</span>
+</button>
+</div>
+</section>
+<!-- COLUMN 5: Done (4 cards - Muted header & Checkmark) -->
+<section class="w-[288px] flex-shrink-0 bg-surface-container-low rounded border border-outline-variant flex flex-col max-h-full">
+<!-- Sticky Column Header with checkmark -->
+<div class="p-2 border-b border-outline-variant flex items-center justify-between bg-surface-container-low rounded-t">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px] text-outline cursor-grab">drag_indicator</span>
+<span class="material-symbols-outlined text-[15px] text-emerald-600">check_circle</span>
+<h2 class="font-body-bold text-body-bold text-on-surface-variant">Done</h2>
+<span class="px-1.5 py-0.2 rounded-full bg-surface-container border border-outline-variant text-on-surface-variant font-micro text-micro">4</span>
+</div>
+<div class="flex items-center gap-0.5">
+<button class="w-6 h-6 flex items-center justify-center rounded hover:bg-surface-container text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-[15px]">add</span>
+</button>
+<button class="w-6 h-6 flex items-center justify-center rounded hover:bg-surface-container text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-[15px]">more_horiz</span>
+</button>
+</div>
+</div>
+<!-- Card List -->
+<div class="flex-1 overflow-y-auto p-2 space-y-2 opacity-90">
+<!-- Card 1 Done -->
+<div class="group bg-surface p-2 rounded border border-outline-variant hover:border-primary flex flex-col gap-1.5 cursor-pointer transition-colors">
+<p class="font-body-bold text-body-bold text-on-surface-variant line-through leading-tight">Create API payload contracts for Q3 endpoints</p>
+<div class="flex items-center justify-between pt-1 border-t border-outline-variant border-dashed mt-0.5">
+<span class="px-1.5 py-0.2 rounded bg-surface-container text-on-surface-variant font-micro text-micro">Backend</span>
+<div class="w-5 h-5 rounded-full bg-purple-100 border border-surface text-purple-800 text-[9px] font-bold flex items-center justify-center">NB</div>
+</div>
+</div>
+<!-- Card 2 Done -->
+<div class="group bg-surface p-2 rounded border border-outline-variant hover:border-primary flex flex-col gap-1.5 cursor-pointer transition-colors">
+<p class="font-body-bold text-body-bold text-on-surface-variant line-through leading-tight">Figma component library sync v2.4</p>
+<div class="flex items-center justify-between pt-1 border-t border-outline-variant border-dashed mt-0.5">
+<span class="px-1.5 py-0.2 rounded bg-surface-container text-on-surface-variant font-micro text-micro">Design</span>
+<div class="w-5 h-5 rounded-full bg-primary text-on-primary text-[8px] font-bold flex items-center justify-center">AR</div>
+</div>
+</div>
+<!-- Card 3 Done -->
+<div class="group bg-surface p-2 rounded border border-outline-variant hover:border-primary flex flex-col gap-1.5 cursor-pointer transition-colors">
+<p class="font-body-bold text-body-bold text-on-surface-variant line-through leading-tight">Setup staging deployment pipeline in EU-West</p>
+<div class="flex items-center justify-between pt-1 border-t border-outline-variant border-dashed mt-0.5">
+<span class="px-1.5 py-0.2 rounded bg-surface-container text-on-surface-variant font-micro text-micro">Ops</span>
+<div class="w-5 h-5 rounded-full bg-blue-100 border border-surface text-blue-800 text-[9px] font-bold flex items-center justify-center">MT</div>
+</div>
+</div>
+<!-- Card 4 Done -->
+<div class="group bg-surface p-2 rounded border border-outline-variant hover:border-primary flex flex-col gap-1.5 cursor-pointer transition-colors">
+<p class="font-body-bold text-body-bold text-on-surface-variant line-through leading-tight">Resolve memory leak during bulk zip exports</p>
+<div class="flex items-center justify-between pt-1 border-t border-outline-variant border-dashed mt-0.5">
+<span class="px-1.5 py-0.2 rounded bg-surface-container text-on-surface-variant font-micro text-micro">Bug</span>
+<div class="w-5 h-5 rounded-full bg-emerald-100 border border-surface text-emerald-800 text-[9px] font-bold flex items-center justify-center">LH</div>
+</div>
+</div>
+</div>
+<!-- Add Card Ghost Action -->
+<div class="p-2 pt-0">
+<button class="w-full py-1 px-2 rounded hover:bg-surface-container text-on-surface-variant hover:text-on-surface font-body-base text-body-base flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[15px]">add</span>
+<span>Add card</span>
+</button>
+</div>
+</section>
+<!-- COLUMN 6: Dashed Tile '+ Add column' -->
+<div class="w-72 h-12 flex-shrink-0 flex items-center justify-center text-body-base font-body-bold text-on-surface-variant hover:text-on-surface border-2 border-dashed border-outline-variant rounded bg-surface-container-low/50 hover:bg-surface-container cursor-pointer transition-all gap-1.5 group">
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant group-hover:text-on-surface">add</span>
+<span>Add column</span>
+</div>
+</main>
+<script>
+    // Micro-interaction handlers for interactive feel
+    document.addEventListener('keydown', (e) => {
+      // Focus filter cards on Cmd+F / Ctrl+F
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f') {
+        const searchInput = document.querySelector('input[type="text"]');
+        if (searchInput) {
+          e.preventDefault();
+          searchInput.focus();
+        }
+      }
+    });
+  </script>
+</body></html>

@@ -128,7 +128,7 @@ const createNode = `-- name: CreateNode :one
 INSERT INTO nodes (space_id, parent_id, kind, name, created_by, team_root_id)
 VALUES ($1, $2, $3, $4, $5,
         (SELECT p.team_root_id FROM nodes p WHERE p.id = $2))
-RETURNING id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, deleted_by, created_by, created_at, team_root_id
+RETURNING id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, deleted_by, created_by, created_at, team_root_id, ext_kind
 `
 
 type CreateNodeParams struct {
@@ -163,6 +163,7 @@ func (q *Queries) CreateNode(ctx context.Context, arg CreateNodeParams) (Node, e
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.TeamRootID,
+		&i.ExtKind,
 	)
 	return i, err
 }
@@ -170,7 +171,7 @@ func (q *Queries) CreateNode(ctx context.Context, arg CreateNodeParams) (Node, e
 const createTeamRoot = `-- name: CreateTeamRoot :one
 INSERT INTO nodes (space_id, kind, name, created_by)
 VALUES ($1, 'dir', $2, $3)
-RETURNING id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, deleted_by, created_by, created_at, team_root_id
+RETURNING id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, deleted_by, created_by, created_at, team_root_id, ext_kind
 `
 
 type CreateTeamRootParams struct {
@@ -198,6 +199,7 @@ func (q *Queries) CreateTeamRoot(ctx context.Context, arg CreateTeamRootParams) 
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.TeamRootID,
+		&i.ExtKind,
 	)
 	return i, err
 }
@@ -243,7 +245,7 @@ func (q *Queries) GetCurrentVersion(ctx context.Context, id pgtype.UUID) (NodeVe
 }
 
 const getNode = `-- name: GetNode :one
-SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, deleted_by, created_by, created_at, team_root_id FROM nodes WHERE id = $1 AND deleted_at IS NULL LIMIT 1
+SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, deleted_by, created_by, created_at, team_root_id, ext_kind FROM nodes WHERE id = $1 AND deleted_at IS NULL LIMIT 1
 `
 
 func (q *Queries) GetNode(ctx context.Context, id pgtype.UUID) (Node, error) {
@@ -262,12 +264,13 @@ func (q *Queries) GetNode(ctx context.Context, id pgtype.UUID) (Node, error) {
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.TeamRootID,
+		&i.ExtKind,
 	)
 	return i, err
 }
 
 const getNodeAny = `-- name: GetNodeAny :one
-SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, deleted_by, created_by, created_at, team_root_id FROM nodes WHERE id = $1 LIMIT 1
+SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, deleted_by, created_by, created_at, team_root_id, ext_kind FROM nodes WHERE id = $1 LIMIT 1
 `
 
 // Like GetNode but does not filter out soft-deleted rows. Trash operations
@@ -288,6 +291,7 @@ func (q *Queries) GetNodeAny(ctx context.Context, id pgtype.UUID) (Node, error) 
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.TeamRootID,
+		&i.ExtKind,
 	)
 	return i, err
 }
@@ -304,7 +308,7 @@ func (q *Queries) GetNodeParent(ctx context.Context, id pgtype.UUID) (pgtype.UUI
 }
 
 const getSpaceRoot = `-- name: GetSpaceRoot :one
-SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, deleted_by, created_by, created_at, team_root_id FROM nodes
+SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, deleted_by, created_by, created_at, team_root_id, ext_kind FROM nodes
 WHERE space_id = $1 AND parent_id IS NULL AND deleted_at IS NULL
 ORDER BY created_at LIMIT 1
 `
@@ -325,6 +329,7 @@ func (q *Queries) GetSpaceRoot(ctx context.Context, spaceID pgtype.UUID) (Node, 
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.TeamRootID,
+		&i.ExtKind,
 	)
 	return i, err
 }
@@ -351,10 +356,12 @@ func (q *Queries) GetVersion(ctx context.Context, id pgtype.UUID) (NodeVersion, 
 
 const hasChildren = `-- name: HasChildren :one
 SELECT COUNT(*) FROM nodes
-WHERE parent_id = $1 AND deleted_at IS NULL
+WHERE parent_id = $1 AND deleted_at IS NULL AND kind <> 'ext'
 LIMIT 1
 `
 
+// What a folder shows: apps' nodes live in the sidebar's Apps section, not in
+// the drive, so they do not make a folder look full.
 func (q *Queries) HasChildren(ctx context.Context, parentID pgtype.UUID) (int64, error) {
 	row := q.db.QueryRow(ctx, hasChildren, parentID)
 	var count int64
@@ -510,7 +517,7 @@ func (q *Queries) ListChainPrincipals(ctx context.Context, rootID pgtype.UUID) (
 }
 
 const listChildren = `-- name: ListChildren :many
-SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, deleted_by, created_by, created_at, team_root_id FROM nodes
+SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, deleted_by, created_by, created_at, team_root_id, ext_kind FROM nodes
 WHERE space_id = $1
   AND parent_id IS NOT DISTINCT FROM $2
   AND deleted_at IS NULL
@@ -544,6 +551,7 @@ func (q *Queries) ListChildren(ctx context.Context, arg ListChildrenParams) ([]N
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.TeamRootID,
+			&i.ExtKind,
 		); err != nil {
 			return nil, err
 		}
@@ -558,7 +566,7 @@ func (q *Queries) ListChildren(ctx context.Context, arg ListChildrenParams) ([]N
 const listChildrenWithMeta = `-- name: ListChildrenWithMeta :many
 SELECT
   n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
-  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id, n.ext_kind,
   v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
   u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email
 FROM nodes n
@@ -567,6 +575,8 @@ LEFT JOIN users u ON u.id = n.created_by
 WHERE n.space_id = $1
   AND n.parent_id IS NOT DISTINCT FROM $2
   AND n.deleted_at IS NULL
+  -- An app's nodes are listed under Apps in the sidebar, never among files.
+  AND n.kind <> 'ext'
 ORDER BY n.kind, n.name
 `
 
@@ -587,6 +597,7 @@ type ListChildrenWithMetaRow struct {
 	CreatedBy        pgtype.UUID        `json:"created_by"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	TeamRootID       pgtype.UUID        `json:"team_root_id"`
+	ExtKind          pgtype.Text        `json:"ext_kind"`
 	VID              pgtype.UUID        `json:"v_id"`
 	BlobHash         pgtype.Text        `json:"blob_hash"`
 	VSize            pgtype.Int8        `json:"v_size"`
@@ -620,6 +631,7 @@ func (q *Queries) ListChildrenWithMeta(ctx context.Context, arg ListChildrenWith
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.TeamRootID,
+			&i.ExtKind,
 			&i.VID,
 			&i.BlobHash,
 			&i.VSize,
@@ -642,7 +654,7 @@ func (q *Queries) ListChildrenWithMeta(ctx context.Context, arg ListChildrenWith
 }
 
 const listDeleted = `-- name: ListDeleted :many
-SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, deleted_by, created_by, created_at, team_root_id FROM nodes
+SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, deleted_by, created_by, created_at, team_root_id, ext_kind FROM nodes
 WHERE space_id = $1 AND deleted_at IS NOT NULL
 ORDER BY deleted_at DESC
 `
@@ -669,6 +681,7 @@ func (q *Queries) ListDeleted(ctx context.Context, spaceID pgtype.UUID) ([]Node,
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.TeamRootID,
+			&i.ExtKind,
 		); err != nil {
 			return nil, err
 		}
@@ -720,7 +733,7 @@ loc AS (
 )
 SELECT
   n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
-  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id, n.ext_kind,
   v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
   u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email,
   COALESCE(loc.path, '')::text AS location,
@@ -752,6 +765,7 @@ type ListDeletedWithMetaRow struct {
 	CreatedBy        pgtype.UUID        `json:"created_by"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	TeamRootID       pgtype.UUID        `json:"team_root_id"`
+	ExtKind          pgtype.Text        `json:"ext_kind"`
 	VID              pgtype.UUID        `json:"v_id"`
 	BlobHash         pgtype.Text        `json:"blob_hash"`
 	VSize            pgtype.Int8        `json:"v_size"`
@@ -791,6 +805,7 @@ func (q *Queries) ListDeletedWithMeta(ctx context.Context, spaceID pgtype.UUID) 
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.TeamRootID,
+			&i.ExtKind,
 			&i.VID,
 			&i.BlobHash,
 			&i.VSize,
@@ -1036,7 +1051,7 @@ func (q *Queries) ListStarredIDs(ctx context.Context, arg ListStarredIDsParams) 
 const listStarredNodes = `-- name: ListStarredNodes :many
 SELECT
   n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
-  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id, n.ext_kind,
   v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
   u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email,
   s.name AS space_name,
@@ -1076,6 +1091,7 @@ type ListStarredNodesRow struct {
 	CreatedBy        pgtype.UUID        `json:"created_by"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	TeamRootID       pgtype.UUID        `json:"team_root_id"`
+	ExtKind          pgtype.Text        `json:"ext_kind"`
 	VID              pgtype.UUID        `json:"v_id"`
 	BlobHash         pgtype.Text        `json:"blob_hash"`
 	VSize            pgtype.Int8        `json:"v_size"`
@@ -1115,6 +1131,7 @@ func (q *Queries) ListStarredNodes(ctx context.Context, arg ListStarredNodesPara
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.TeamRootID,
+			&i.ExtKind,
 			&i.VID,
 			&i.BlobHash,
 			&i.VSize,
@@ -1219,7 +1236,7 @@ func (q *Queries) ListTrashRootsWithUserContent(ctx context.Context, arg ListTra
 }
 
 const listTree = `-- name: ListTree :many
-SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, deleted_by, created_by, created_at, team_root_id FROM nodes
+SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, deleted_by, created_by, created_at, team_root_id, ext_kind FROM nodes
 WHERE space_id = $1
   AND parent_id IS NOT DISTINCT FROM $2
   AND deleted_at IS NULL
@@ -1253,6 +1270,7 @@ func (q *Queries) ListTree(ctx context.Context, arg ListTreeParams) ([]Node, err
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.TeamRootID,
+			&i.ExtKind,
 		); err != nil {
 			return nil, err
 		}
@@ -1451,7 +1469,7 @@ content_hits AS (
 )
 SELECT
   n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
-  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id, n.ext_kind,
   v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
   u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email,
   s.name AS space_name,
@@ -1509,6 +1527,7 @@ type SearchNodesRow struct {
 	CreatedBy        pgtype.UUID        `json:"created_by"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	TeamRootID       pgtype.UUID        `json:"team_root_id"`
+	ExtKind          pgtype.Text        `json:"ext_kind"`
 	VID              pgtype.UUID        `json:"v_id"`
 	BlobHash         pgtype.Text        `json:"blob_hash"`
 	VSize            pgtype.Int8        `json:"v_size"`
@@ -1573,6 +1592,7 @@ func (q *Queries) SearchNodes(ctx context.Context, arg SearchNodesParams) ([]Sea
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.TeamRootID,
+			&i.ExtKind,
 			&i.VID,
 			&i.BlobHash,
 			&i.VSize,

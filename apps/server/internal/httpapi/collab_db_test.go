@@ -60,6 +60,13 @@ type collabRig struct {
 
 func newCollabRig(t *testing.T, cfg collab.Config) *collabRig {
 	t.Helper()
+	return newCollabRigWith(t, cfg, nil)
+}
+
+// newCollabRigWith is newCollabRig with a chance to change the server before
+// its router is built — routes are mounted when Router runs.
+func newCollabRigWith(t *testing.T, cfg collab.Config, setup func(*Server)) *collabRig {
+	t.Helper()
 	srv, q, _ := uploadEnv(t)
 	srv.audit = audit.New(q)
 	ctx := context.Background()
@@ -108,6 +115,9 @@ func newCollabRig(t *testing.T, cfg collab.Config) *collabRig {
 	}
 	srv.collab = hub
 
+	if setup != nil {
+		setup(srv)
+	}
 	ts.Config.Handler = srv.Router()
 	ts.Start()
 	rig := &collabRig{srv: srv, q: q, hub: hub, reg: reg, url: base, cookies: map[pgtype.UUID]string{}}

@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>pp-hub Drive - Workspace &amp; Activity</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Noto Sans Font -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "inverse-primary": "#63b1de",
+            "surface-variant": "#f5f5f5",
+            "outline-variant": "#e5e5e5",
+            "tertiary-container": "#747474",
+            "outline": "#a1a1a1",
+            "on-secondary-fixed": "#1a1c1c",
+            "surface-container-lowest": "#ffffff",
+            "primary-fixed": "#cce5ff",
+            "inverse-on-surface": "#f0f1f1",
+            "surface-container-low": "#fafafa",
+            "on-primary": "#ffffff",
+            "surface-bright": "#ffffff",
+            "on-tertiary-container": "#fefcfc",
+            "on-primary-container": "#1f6a94",
+            "on-surface": "#1a1c1c",
+            "on-tertiary": "#ffffff",
+            "error": "#e7000b",
+            "secondary-container": "#dcdddd",
+            "surface-container-highest": "#e2e2e2",
+            "on-tertiary-fixed": "#1b1c1c",
+            "surface-container-high": "#e8e8e8",
+            "primary-fixed-dim": "#92ccff",
+            "on-secondary-container": "#171717",
+            "on-secondary": "#ffffff",
+            "on-error-container": "#b3000a",
+            "error-container": "#ffdad6",
+            "tertiary": "#5c5c5c",
+            "surface-tint": "#2980b9",
+            "inverse-surface": "#2f3131",
+            "on-secondary-fixed-variant": "#454747",
+            "primary-container": "#eaf2f8",
+            "on-background": "#1a1c1c",
+            "tertiary-fixed-dim": "#c7c6c6",
+            "on-primary-fixed-variant": "#004b73",
+            "surface-container": "#eeeeee",
+            "on-error": "#ffffff",
+            "surface-dim": "#f5f5f5",
+            "secondary-fixed-dim": "#c6c6c7",
+            "on-surface-variant": "#40484f",
+            "background": "#ffffff",
+            "tertiary-fixed": "#e3e2e2",
+            "secondary": "#5d5f5f",
+            "on-tertiary-fixed-variant": "#464747",
+            "secondary-fixed": "#e2e2e2",
+            "on-primary-fixed": "#001e31",
+            "surface": "#ffffff",
+            "primary": "#006193"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "space-lg": "16px",
+            "margin": "16px",
+            "space-sm": "8px",
+            "gutter": "8px",
+            "space-xs": "4px",
+            "space-md": "12px",
+            "space-xl": "24px"
+          },
+          "fontFamily": {
+            "label-caps": ["Noto Sans"],
+            "micro": ["Noto Sans"],
+            "headline-md": ["Noto Sans"],
+            "field-text": ["Noto Sans"],
+            "display-lg": ["Noto Sans"],
+            "body-bold": ["Noto Sans"],
+            "body-base": ["Noto Sans"]
+          },
+          "fontSize": {
+            "label-caps": ["11px", { "lineHeight": "16px", "letterSpacing": "0.04em", "fontWeight": "500" }],
+            "micro": ["10px", { "lineHeight": "14px", "letterSpacing": "0", "fontWeight": "500" }],
+            "headline-md": ["14px", { "lineHeight": "20px", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+            "field-text": ["14px", { "lineHeight": "20px", "letterSpacing": "0", "fontWeight": "400" }],
+            "display-lg": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "body-bold": ["12px", { "lineHeight": "20px", "letterSpacing": "0", "fontWeight": "500" }],
+            "body-base": ["12px", { "lineHeight": "20px", "letterSpacing": "0", "fontWeight": "400" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-family: 'Material Symbols Outlined';
+      font-weight: normal;
+      font-style: normal;
+      font-size: 18px;
+      line-height: 1;
+      letter-spacing: normal;
+      text-transform: none;
+      display: inline-block;
+      white-space: nowrap;
+      word-wrap: normal;
+      direction: ltr;
+      -webkit-font-feature-settings: 'liga';
+      -webkit-font-smoothing: antialiased;
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface antialiased overflow-hidden select-none">
+<!-- ========================================================================= -->
+<!-- 1. LEFT NAVIGATION RAIL (Shared Component: SideNavBar)                      -->
+<!-- ========================================================================= -->
+<aside class="fixed top-0 left-0 h-screen w-64 flex flex-col justify-between p-space-md z-40 bg-surface-container-low border-r border-outline-variant">
+<div class="flex flex-col gap-space-md">
+<!-- Workspace Switcher / Header -->
+<div class="flex items-center justify-between px-space-xs py-1 cursor-pointer hover:bg-surface-container rounded transition-colors duration-150">
+<div class="flex items-center gap-space-sm">
+<div class="w-7 h-7 rounded bg-primary text-on-primary flex items-center justify-center font-display-lg text-body-bold">
+            AC
+          </div>
+<div class="flex flex-col text-left">
+<span class="font-headline-md text-headline-md font-semibold text-on-surface tracking-tight leading-tight">Acme Core</span>
+<span class="font-micro text-micro text-on-surface-variant">Engineering Team</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline">unfold_more</span>
+</div>
+<!-- Action Button -->
+<button class="w-full flex items-center justify-center gap-space-sm bg-[#2980b9] hover:bg-[#20638f] text-on-primary py-1.5 px-space-md rounded font-body-bold text-body-bold shadow-sm transition-colors duration-150">
+<span class="material-symbols-outlined" style="font-size: 16px;">add</span>
+<span>Upload</span>
+</button>
+<!-- Primary Navigation Links (Shared Component Keys) -->
+<nav class="flex flex-col gap-0.5">
+<div class="px-space-xs py-1">
+<span class="font-label-caps text-label-caps text-outline uppercase tracking-wider">Quick Access</span>
+</div>
+<!-- Active Tab: All Files -->
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded bg-surface-container text-primary font-body-bold text-body-bold transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-primary">folder</span>
+<span>All Files</span>
+</a>
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant hover:bg-surface-container-high font-body-base text-body-base transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-outline">schedule</span>
+<span>Recent</span>
+</a>
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant hover:bg-surface-container-high font-body-base text-body-base transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-outline">group</span>
+<span>Shared</span>
+</a>
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant hover:bg-surface-container-high font-body-base text-body-base transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-outline">star</span>
+<span>Starred</span>
+</a>
+<a class="flex items-center gap-space-sm px-space-md py-space-xs rounded text-on-surface-variant hover:bg-surface-container-high font-body-base text-body-base transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-outline">delete</span>
+<span>Trash</span>
+</a>
+</nav>
+<!-- Folders Tree Navigation -->
+<div class="flex flex-col gap-0.5 pt-space-xs border-t border-outline-variant">
+<div class="px-space-xs py-1 flex items-center justify-between text-outline">
+<span class="font-label-caps text-label-caps uppercase tracking-wider">My Drive</span>
+<span class="material-symbols-outlined cursor-pointer hover:text-on-surface" style="font-size: 16px;">add</span>
+</div>
+<div class="flex flex-col gap-0.5 text-on-surface-variant font-body-base text-body-base">
+<div class="flex items-center justify-between px-space-sm py-1 rounded hover:bg-surface-container-high cursor-pointer group">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-outline group-hover:text-on-surface" style="font-size: 16px;">arrow_drop_down</span>
+<span class="material-symbols-outlined text-[#2980b9]" style="font-size: 16px;">folder_open</span>
+<span class="text-on-surface font-body-bold">Documents</span>
+</div>
+<span class="font-micro text-micro text-outline">18</span>
+</div>
+<div class="flex items-center justify-between px-space-sm py-1 rounded hover:bg-surface-container-high cursor-pointer group pl-6">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-outline group-hover:text-on-surface" style="font-size: 16px;">arrow_right</span>
+<span class="material-symbols-outlined text-outline" style="font-size: 16px;">folder</span>
+<span>Design</span>
+</div>
+<span class="font-micro text-micro text-outline">4</span>
+</div>
+<div class="flex items-center justify-between px-space-sm py-1 rounded hover:bg-surface-container-high cursor-pointer group pl-6">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-outline group-hover:text-on-surface" style="font-size: 16px;">arrow_right</span>
+<span class="material-symbols-outlined text-outline" style="font-size: 16px;">folder</span>
+<span>Engineering</span>
+</div>
+<span class="font-micro text-micro text-outline">12</span>
+</div>
+<div class="flex items-center justify-between px-space-sm py-1 rounded hover:bg-surface-container-high cursor-pointer group pl-6">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-outline group-hover:text-on-surface" style="font-size: 16px;">arrow_right</span>
+<span class="material-symbols-outlined text-outline" style="font-size: 16px;">folder</span>
+<span>Media</span>
+</div>
+<span class="font-micro text-micro text-outline">32</span>
+</div>
+<div class="flex items-center justify-between px-space-sm py-1 rounded hover:bg-surface-container-high cursor-pointer group pl-6">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-outline group-hover:text-on-surface" style="font-size: 16px;">arrow_right</span>
+<span class="material-symbols-outlined text-outline" style="font-size: 16px;">folder</span>
+<span>Archive</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Storage Widget and User Profile at Bottom of Rail -->
+<div class="flex flex-col gap-space-md pt-space-md border-t border-outline-variant">
+<!-- Storage progress -->
+<div class="bg-surface-container-lowest p-space-sm rounded border border-outline-variant flex flex-col gap-1.5">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1.5 text-on-surface-variant font-body-bold text-body-bold">
+<span class="material-symbols-outlined text-[#2980b9]" style="font-size: 16px;">hard_drive</span>
+<span>Storage</span>
+</div>
+<span class="font-micro text-micro text-outline">42.8%</span>
+</div>
+<div class="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
+<div class="bg-[#2980b9] h-full w-[42.8%] rounded-full"></div>
+</div>
+<span class="font-micro text-micro text-on-surface-variant">42.8 GB of 100 GB used</span>
+</div>
+<!-- User footer item -->
+<div class="flex items-center justify-between px-space-xs">
+<div class="flex items-center gap-space-sm">
+<div class="w-7 h-7 rounded-full bg-[#cce5ff] text-[#004b73] font-body-bold text-body-bold flex items-center justify-center border border-outline-variant">
+            NB
+          </div>
+<div class="flex flex-col">
+<span class="font-body-bold text-body-bold text-on-surface leading-tight">Nguyen Bui</span>
+<span class="font-micro text-micro text-outline">Workspace Admin</span>
+</div>
+</div>
+<button class="p-1 rounded text-outline hover:text-on-surface hover:bg-surface-container">
+<span class="material-symbols-outlined" style="font-size: 16px;">settings</span>
+</button>
+</div>
+</div>
+</aside>
+<!-- ========================================================================= -->
+<!-- 2. TOP NAVIGATION TOOLBAR (Shared Component: TopNavBar)                     -->
+<!-- ========================================================================= -->
+<header class="fixed top-0 left-64 right-0 h-14 px-space-lg flex items-center justify-between z-30 bg-surface border-b border-outline-variant">
+<!-- Breadcrumbs & Navigation Links -->
+<div class="flex items-center gap-space-md min-w-[280px]">
+<div class="flex items-center gap-1.5 font-body-base text-body-base text-on-surface-variant">
+<span class="hover:text-on-surface cursor-pointer">Acme Core</span>
+<span class="text-outline">/</span>
+<span class="hover:text-on-surface cursor-pointer">Documents</span>
+<span class="text-outline">/</span>
+<span class="font-body-bold text-body-bold text-on-surface">Marketing Assets</span>
+</div>
+</div>
+<!-- Search Input with Shortcut -->
+<div class="flex-1 max-w-md mx-space-lg">
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-2.5 text-outline pointer-events-none" style="font-size: 16px;">search</span>
+<input class="w-full bg-surface-container-low hover:bg-surface-container focus:bg-surface-container-lowest border border-outline-variant focus:border-[#2980b9] rounded pl-8 pr-12 py-1.5 font-body-base text-body-base text-on-surface placeholder:text-outline outline-none transition-colors duration-150" placeholder="Search files, folders or people..." type="text"/>
+<kbd class="absolute right-2.5 px-1.5 py-0.5 bg-surface-container border border-outline-variant rounded font-micro text-micro text-outline shadow-2xs">⌘K</kbd>
+</div>
+</div>
+<!-- Right Controls: View Switcher, Sort, Details & Notification Bell Anchor -->
+<div class="flex items-center gap-1.5">
+<!-- View mode switch -->
+<div class="flex items-center bg-surface-container-low p-0.5 rounded border border-outline-variant mr-1">
+<button class="p-1 rounded bg-surface shadow-2xs text-[#2980b9]">
+<span class="material-symbols-outlined" style="font-size: 16px;">grid_view</span>
+</button>
+<button class="p-1 rounded text-outline hover:text-on-surface">
+<span class="material-symbols-outlined" style="font-size: 16px;">view_list</span>
+</button>
+</div>
+<!-- Action controls -->
+<button class="h-8 px-2 flex items-center gap-1 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low rounded border border-transparent hover:border-outline-variant transition-colors duration-150">
+<span class="material-symbols-outlined" style="font-size: 16px;">filter_list</span>
+<span class="font-body-base text-body-base hidden xl:inline">Filter</span>
+</button>
+<button class="h-8 px-2 flex items-center gap-1 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low rounded border border-transparent hover:border-outline-variant transition-colors duration-150">
+<span class="material-symbols-outlined" style="font-size: 16px;">swap_vert</span>
+<span class="font-body-base text-body-base hidden xl:inline">Sort</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container-low rounded border border-transparent hover:border-outline-variant transition-colors duration-150">
+<span class="material-symbols-outlined" style="font-size: 18px;">info</span>
+</button>
+<div class="h-4 w-[1px] bg-outline-variant mx-1"></div>
+<!-- NOTIFICATION BELL ICON (Active/Open Anchor State) -->
+<div class="relative">
+<button aria-expanded="true" aria-label="Notifications" class="relative w-8 h-8 flex items-center justify-center rounded bg-primary-container text-primary border border-[#92ccff]/60 transition-colors duration-150" id="notification-bell-btn">
+<span class="material-symbols-outlined text-[#2980b9]" style="font-size: 18px;">notifications</span>
+<!-- Active Notification Badge '3' -->
+<span class="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-[#e7000b] text-on-error font-micro text-[10px] leading-4 text-center font-bold border border-surface shadow-xs">
+            3
+          </span>
+</button>
+<!-- ========================================================================= -->
+<!-- 3. NOTIFICATION BELL POPOVER (Anchored Top-Right)                           -->
+<!-- ========================================================================= -->
+<div class="absolute right-0 top-11 w-[360px] bg-white rounded-xl border border-outline-variant ring-1 ring-black/5 shadow-xl z-50 overflow-hidden flex flex-col transition-all duration-200 animate-in fade-in slide-in-from-top-1" id="notification-popover">
+<!-- Popover Header -->
+<div class="px-4 py-3 border-b border-outline-variant flex items-center justify-between bg-surface">
+<div class="flex items-center gap-2">
+<span class="font-headline-md text-headline-md font-semibold text-on-surface">Notifications</span>
+<span class="px-2 py-0.5 rounded-full bg-primary-container text-[#2980b9] font-micro text-micro font-semibold">3 new</span>
+</div>
+<button class="flex items-center gap-1 text-outline hover:text-on-surface font-label-caps text-label-caps transition-colors duration-150">
+<span class="material-symbols-outlined text-[#2980b9]" style="font-size: 15px;">done_all</span>
+<span>Mark all read</span>
+</button>
+</div>
+<!-- Notification Items List -->
+<div class="divide-y divide-outline-variant max-h-[380px] overflow-y-auto bg-surface">
+<!-- Item 1 (Unread) -->
+<div class="p-3.5 hover:bg-surface-container-low transition-colors duration-150 cursor-pointer flex gap-3 items-start group">
+<!-- Avatar with badge -->
+<div class="relative shrink-0 mt-0.5">
+<div class="w-8 h-8 rounded-full bg-[#e0f2f1] text-[#00695c] font-body-bold text-[11px] flex items-center justify-center border border-teal-200">
+                  MT
+                </div>
+<div class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-surface-container-lowest border border-outline-variant flex items-center justify-center text-on-surface-variant shadow-2xs">
+<span class="material-symbols-outlined" style="font-size: 11px;">view_kanban</span>
+</div>
+</div>
+<!-- Content -->
+<div class="flex-1 flex flex-col gap-1 min-w-0">
+<p class="font-body-base text-body-base text-on-surface leading-snug">
+<span class="font-body-bold text-on-surface font-semibold">Mai Tran</span> assigned you to <span class="text-on-surface font-medium">“Write launch announcement”</span>
+</p>
+<div class="flex items-center gap-1.5 flex-wrap">
+<span class="inline-flex items-center gap-1 bg-surface-container px-1.5 py-0.5 rounded font-micro text-micro text-on-surface-variant">
+<span class="material-symbols-outlined" style="font-size: 12px;">assignment</span> Launch plan
+                  </span>
+<span class="font-micro text-micro text-outline">• 2m ago</span>
+</div>
+</div>
+<!-- Unread indicator dot -->
+<div class="shrink-0 pt-1.5 pl-1">
+<div class="w-2 h-2 rounded-full bg-[#2980b9]"></div>
+</div>
+</div>
+<!-- Item 2 (Unread) -->
+<div class="p-3.5 hover:bg-surface-container-low transition-colors duration-150 cursor-pointer flex gap-3 items-start group">
+<!-- Avatar with badge -->
+<div class="relative shrink-0 mt-0.5">
+<div class="w-8 h-8 rounded-full bg-[#ede7f6] text-[#5e35b1] font-body-bold text-[11px] flex items-center justify-center border border-indigo-200">
+                  LH
+                </div>
+<div class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-surface-container-lowest border border-outline-variant flex items-center justify-center text-on-surface-variant shadow-2xs">
+<span class="material-symbols-outlined" style="font-size: 11px;">chat_bubble</span>
+</div>
+</div>
+<!-- Content -->
+<div class="flex-1 flex flex-col gap-1 min-w-0">
+<p class="font-body-base text-body-base text-on-surface leading-snug">
+<span class="font-body-bold text-on-surface font-semibold">Le Hoang</span> commented on <span class="text-on-surface font-medium">“Fix upload retry on flaky networks”</span>
+</p>
+<p class="font-body-base text-body-base italic text-on-surface-variant bg-surface-container-low px-2 py-1 rounded border-l-2 border-[#2980b9] leading-tight">
+                  “I can repro this on the staging build…”
+                </p>
+<span class="font-micro text-micro text-outline">1h ago</span>
+</div>
+<!-- Unread indicator dot -->
+<div class="shrink-0 pt-1.5 pl-1">
+<div class="w-2 h-2 rounded-full bg-[#2980b9]"></div>
+</div>
+</div>
+<!-- Item 3 (Unread) -->
+<div class="p-3.5 hover:bg-surface-container-low transition-colors duration-150 cursor-pointer flex gap-3 items-start group">
+<!-- Avatar with badge -->
+<div class="relative shrink-0 mt-0.5">
+<div class="w-8 h-8 rounded-full bg-[#cce5ff] text-[#004b73] font-body-bold text-[11px] flex items-center justify-center border border-blue-200">
+                  NB
+                </div>
+<div class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-surface-container-lowest border border-outline-variant flex items-center justify-center text-on-surface-variant shadow-2xs">
+<span class="material-symbols-outlined" style="font-size: 11px;">alternate_email</span>
+</div>
+</div>
+<!-- Content -->
+<div class="flex-1 flex flex-col gap-1 min-w-0">
+<p class="font-body-base text-body-base text-on-surface leading-snug">
+<span class="font-body-bold text-on-surface font-semibold">Nguyen Bui</span> mentioned you in <span class="text-on-surface font-medium">“Design review: onboarding checklist”</span>
+</p>
+<div class="flex items-center gap-1.5 flex-wrap">
+<span class="bg-surface-container px-1.5 py-0.5 rounded font-micro text-micro text-on-surface-variant">
+                    “@you can you confirm the copy?”
+                  </span>
+<span class="font-micro text-micro text-outline">• 3h ago</span>
+</div>
+</div>
+<!-- Unread indicator dot -->
+<div class="shrink-0 pt-1.5 pl-1">
+<div class="w-2 h-2 rounded-full bg-[#2980b9]"></div>
+</div>
+</div>
+<!-- Item 4 (Read) -->
+<div class="p-3.5 hover:bg-surface-container-low transition-colors duration-150 cursor-pointer flex gap-3 items-start opacity-75">
+<!-- Avatar with badge -->
+<div class="relative shrink-0 mt-0.5">
+<div class="w-8 h-8 rounded-full bg-[#fff3e0] text-[#e65100] font-body-bold text-[11px] flex items-center justify-center border border-amber-200">
+                  TM
+                </div>
+<div class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-surface-container-lowest border border-outline-variant flex items-center justify-center text-on-surface-variant shadow-2xs">
+<span class="material-symbols-outlined" style="font-size: 11px;">folder_shared</span>
+</div>
+</div>
+<!-- Content -->
+<div class="flex-1 flex flex-col gap-1 min-w-0">
+<p class="font-body-base text-body-base text-on-surface-variant leading-snug">
+<span class="font-body-bold text-on-surface">Tran Minh</span> shared “Roadmap Q4.md” with you
+                </p>
+<div class="flex items-center gap-1.5">
+<span class="font-micro text-micro text-outline">Documents / Roadmaps • Yesterday</span>
+</div>
+</div>
+<!-- Read State: No dot -->
+<div class="shrink-0 w-2"></div>
+</div>
+</div>
+<!-- Popover Footer -->
+<div class="p-2.5 bg-surface-container-low border-t border-outline-variant text-center">
+<button class="w-full flex items-center justify-center gap-1.5 font-body-bold text-body-bold text-[#2980b9] hover:underline transition-colors py-0.5">
+<span>See all activity</span>
+<span class="material-symbols-outlined" style="font-size: 14px;">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Quick profile avatar -->
+<button class="w-8 h-8 rounded-full bg-[#cce5ff] text-[#004b73] font-body-bold text-body-bold flex items-center justify-center border border-outline-variant ml-1">
+        NB
+      </button>
+</div>
+</header>
+<!-- ========================================================================= -->
+<!-- 4. MAIN DRIVE WORKSPACE (BACKGROUND CANVAS)                                -->
+<!-- ========================================================================= -->
+<main class="ml-64 mt-14 h-[calc(100vh-3.5rem)] overflow-y-auto p-space-lg bg-surface">
+<!-- Header title & contextual banner -->
+<div class="flex items-center justify-between pb-space-md border-b border-outline-variant mb-space-lg">
+<div class="flex flex-col">
+<h1 class="font-display-lg text-display-lg font-semibold text-on-surface">Marketing Assets</h1>
+<p class="font-body-base text-body-base text-outline">Updated 14 minutes ago by Le Hoang • 24 items, 1.2 GB total</p>
+</div>
+<div class="flex items-center gap-2">
+<button class="h-8 px-3 rounded border border-outline-variant hover:bg-surface-container-low font-body-base text-body-base text-on-surface flex items-center gap-1.5 transition-colors">
+<span class="material-symbols-outlined text-outline" style="font-size: 16px;">share</span>
+<span>Share Folder</span>
+</button>
+<button class="h-8 px-3 rounded bg-surface-container hover:bg-surface-container-high font-body-bold text-body-bold text-on-surface flex items-center gap-1.5 transition-colors">
+<span class="material-symbols-outlined text-outline" style="font-size: 16px;">create_new_folder</span>
+<span>New Folder</span>
+</button>
+</div>
+</div>
+<!-- Folders Row (Bento/Card Grid) -->
+<section class="mb-space-xl">
+<div class="flex items-center justify-between mb-space-sm">
+<span class="font-label-caps text-label-caps text-outline uppercase tracking-wider">Subfolders</span>
+<span class="font-micro text-micro text-outline">3 folders</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+<!-- Folder 1 -->
+<div class="p-3.5 rounded-lg border border-outline-variant hover:border-outline bg-surface-container-lowest hover:bg-surface-container-low transition-all duration-150 cursor-pointer flex items-center justify-between group">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded bg-[#eaf2f8] flex items-center justify-center text-[#2980b9] group-hover:scale-105 transition-transform">
+<span class="material-symbols-outlined" style="font-size: 22px;">folder</span>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md font-medium text-on-surface group-hover:text-[#2980b9]">Marketing</h3>
+<p class="font-micro text-micro text-outline">12 files • 384 MB</p>
+</div>
+</div>
+<button class="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-surface-container text-outline">
+<span class="material-symbols-outlined" style="font-size: 16px;">more_vert</span>
+</button>
+</div>
+<!-- Folder 2 -->
+<div class="p-3.5 rounded-lg border border-outline-variant hover:border-outline bg-surface-container-lowest hover:bg-surface-container-low transition-all duration-150 cursor-pointer flex items-center justify-between group">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded bg-[#eaf2f8] flex items-center justify-center text-[#2980b9] group-hover:scale-105 transition-transform">
+<span class="material-symbols-outlined" style="font-size: 22px;">folder</span>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md font-medium text-on-surface group-hover:text-[#2980b9]">Q4 Reports</h3>
+<p class="font-micro text-micro text-outline">6 files • 112 MB</p>
+</div>
+</div>
+<button class="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-surface-container text-outline">
+<span class="material-symbols-outlined" style="font-size: 16px;">more_vert</span>
+</button>
+</div>
+<!-- Folder 3 -->
+<div class="p-3.5 rounded-lg border border-outline-variant hover:border-outline bg-surface-container-lowest hover:bg-surface-container-low transition-all duration-150 cursor-pointer flex items-center justify-between group">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded bg-[#eaf2f8] flex items-center justify-center text-[#2980b9] group-hover:scale-105 transition-transform">
+<span class="material-symbols-outlined" style="font-size: 22px;">folder</span>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md font-medium text-on-surface group-hover:text-[#2980b9]">Contracts</h3>
+<p class="font-micro text-micro text-outline">8 files • 42 MB</p>
+</div>
+</div>
+<button class="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-surface-container text-outline">
+<span class="material-symbols-outlined" style="font-size: 16px;">more_vert</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Files Grid Section -->
+<section>
+<div class="flex items-center justify-between mb-space-sm">
+<span class="font-label-caps text-label-caps text-outline uppercase tracking-wider">Recent Files</span>
+<span class="font-micro text-micro text-outline">5 items</span>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-space-md">
+<!-- File Card 1: invoice.pdf -->
+<div class="border border-outline-variant rounded-lg bg-surface-container-lowest hover:border-outline hover:shadow-sm transition-all duration-150 overflow-hidden flex flex-col group cursor-pointer">
+<div class="h-32 bg-[#fafafa] flex flex-col items-center justify-center border-b border-outline-variant relative">
+<span class="material-symbols-outlined text-[#e7000b]/80" style="font-size: 40px;">picture_as_pdf</span>
+<span class="absolute top-2 left-2 px-1.5 py-0.5 rounded font-micro text-[9px] uppercase tracking-wide bg-red-100 text-[#b3000a] font-bold">PDF</span>
+</div>
+<div class="p-2.5 flex flex-col gap-1">
+<div class="flex items-center justify-between">
+<span class="font-body-bold text-body-bold text-on-surface truncate group-hover:text-[#2980b9]">invoice_2024_09.pdf</span>
+<button class="text-outline hover:text-on-surface"><span class="material-symbols-outlined" style="font-size: 16px;">more_horiz</span></button>
+</div>
+<div class="flex items-center justify-between font-micro text-micro text-outline">
+<span>2.4 MB</span>
+<span>2 hours ago</span>
+</div>
+</div>
+</div>
+<!-- File Card 2: notes.md -->
+<div class="border border-outline-variant rounded-lg bg-surface-container-lowest hover:border-outline hover:shadow-sm transition-all duration-150 overflow-hidden flex flex-col group cursor-pointer">
+<div class="h-32 bg-[#fafafa] flex flex-col items-center justify-center border-b border-outline-variant relative">
+<span class="material-symbols-outlined text-[#2980b9]/80" style="font-size: 40px;">description</span>
+<span class="absolute top-2 left-2 px-1.5 py-0.5 rounded font-micro text-[9px] uppercase tracking-wide bg-blue-100 text-[#004b73] font-bold">MD</span>
+</div>
+<div class="p-2.5 flex flex-col gap-1">
+<div class="flex items-center justify-between">
+<span class="font-body-bold text-body-bold text-on-surface truncate group-hover:text-[#2980b9]">notes.md</span>
+<button class="text-outline hover:text-on-surface"><span class="material-symbols-outlined" style="font-size: 16px;">more_horiz</span></button>
+</div>
+<div class="flex items-center justify-between font-micro text-micro text-outline">
+<span>18 KB</span>
+<span>Yesterday</span>
+</div>
+</div>
+</div>
+<!-- File Card 3: report.xlsx -->
+<div class="border border-outline-variant rounded-lg bg-surface-container-lowest hover:border-outline hover:shadow-sm transition-all duration-150 overflow-hidden flex flex-col group cursor-pointer">
+<div class="h-32 bg-[#fafafa] flex flex-col items-center justify-center border-b border-outline-variant relative">
+<span class="material-symbols-outlined text-emerald-600" style="font-size: 40px;">table_chart</span>
+<span class="absolute top-2 left-2 px-1.5 py-0.5 rounded font-micro text-[9px] uppercase tracking-wide bg-emerald-100 text-emerald-800 font-bold">XLSX</span>
+</div>
+<div class="p-2.5 flex flex-col gap-1">
+<div class="flex items-center justify-between">
+<span class="font-body-bold text-body-bold text-on-surface truncate group-hover:text-[#2980b9]">report_q3_final.xlsx</span>
+<button class="text-outline hover:text-on-surface"><span class="material-symbols-outlined" style="font-size: 16px;">more_horiz</span></button>
+</div>
+<div class="flex items-center justify-between font-micro text-micro text-outline">
+<span>5.1 MB</span>
+<span>Sep 28</span>
+</div>
+</div>
+</div>
+<!-- File Card 4: hero.jpg -->
+<div class="border border-outline-variant rounded-lg bg-surface-container-lowest hover:border-outline hover:shadow-sm transition-all duration-150 overflow-hidden flex flex-col group cursor-pointer">
+<div class="h-32 bg-surface-container flex items-center justify-center border-b border-outline-variant relative overflow-hidden">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" data-alt="High-contrast minimalist architectural shot with brutalist concrete geometry bathed in soft northern daylight, embodying precision and subtle cool gray tones characteristic of enterprise software design aesthetics." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAiJHfT-4qcxdEjWONmxWchxP9vaWtxBU2RPLlm711Cd7xidiG-qhaf3pGgZo79Nlqh4tij7D9RG6NjHYpfvrJTArIr02qPK0vq2gGVY0eCrc1F8o5whRBAmm6W9OF8ny08I1weCy9EFqDpcc4Ib8P2jzjV2SrVJLHuGiGvzpfomUS8Yspr2c-QI2JASrh06HKHB1FBaTBJUeSiza_IWfqn1tLr5ghg6Ww-2uIJ-XmrjVnF2e3fIiwpGr7oiDsdLHpaAX6SzuGBSBQR"/>
+<span class="absolute top-2 left-2 px-1.5 py-0.5 rounded font-micro text-[9px] uppercase tracking-wide bg-black/60 text-white font-bold backdrop-blur-xs">JPG</span>
+</div>
+<div class="p-2.5 flex flex-col gap-1">
+<div class="flex items-center justify-between">
+<span class="font-body-bold text-body-bold text-on-surface truncate group-hover:text-[#2980b9]">hero_landing_v2.jpg</span>
+<button class="text-outline hover:text-on-surface"><span class="material-symbols-outlined" style="font-size: 16px;">more_horiz</span></button>
+</div>
+<div class="flex items-center justify-between font-micro text-micro text-outline">
+<span>8.9 MB</span>
+<span>Sep 25</span>
+</div>
+</div>
+</div>
+<!-- File Card 5: banner.png -->
+<div class="border border-outline-variant rounded-lg bg-surface-container-lowest hover:border-outline hover:shadow-sm transition-all duration-150 overflow-hidden flex flex-col group cursor-pointer">
+<div class="h-32 bg-surface-container flex items-center justify-center border-b border-outline-variant relative overflow-hidden">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" data-alt="Abstract dynamic render of translucent frosted glass plates aligned neatly against a sterile daylight studio background, with light refraction in Belize Blue highlights evoking modern developer tool craftsmanship." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCOWA6x4BmwKS91PGavimCQO0FxryZptewc8091lMZEiAdMUop8D9hZmxBxYLgCYTrS1cCnQZ2hspzzpKLXBcXHf1KW-h-15BoSbTM-j95IK0pMo3an_NjR0bwjh2l0wiY5n7BpYr_vH8QcO9Jz4zrt777FSfubph9drlIP3sBvdVGEALf5lz6XoGeQvEDaxbl1sWXisatq9J9Wzb16N4Cw-fsKOlsu8cDugaeOO9urEbfshG107XpE4ug1mZHKMgbJAg118dMAxr79"/>
+<span class="absolute top-2 left-2 px-1.5 py-0.5 rounded font-micro text-[9px] uppercase tracking-wide bg-black/60 text-white font-bold backdrop-blur-xs">PNG</span>
+</div>
+<div class="p-2.5 flex flex-col gap-1">
+<div class="flex items-center justify-between">
+<span class="font-body-bold text-body-bold text-on-surface truncate group-hover:text-[#2980b9]">campaign_banner.png</span>
+<button class="text-outline hover:text-on-surface"><span class="material-symbols-outlined" style="font-size: 16px;">more_horiz</span></button>
+</div>
+<div class="flex items-center justify-between font-micro text-micro text-outline">
+<span>3.2 MB</span>
+<span>Sep 22</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<script>
+    // Micro-interaction for bell toggling behavior
+    const bellBtn = document.getElementById('notification-bell-btn');
+    const popover = document.getElementById('notification-popover');
+
+    bellBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isHidden = popover.classList.contains('hidden');
+      if (isHidden) {
+        popover.classList.remove('hidden');
+      } else {
+        popover.classList.add('hidden');
+      }
+    });
+
+    // Close when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!popover.contains(e.target) && !bellBtn.contains(e.target)) {
+        popover.classList.add('hidden');
+      }
+    });
+  </script>
+</body></html>

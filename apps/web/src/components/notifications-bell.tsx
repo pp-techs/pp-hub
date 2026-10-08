@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Bell, CheckCheck, Circle, Loader2 } from "lucide-react";
+import { Bell, CheckCheck, Circle, Loader2, Puzzle } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@workspace/ui/components/popover";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { cn } from "@workspace/ui/lib/utils";
 import type { AppNotification } from "@/lib/api";
+import { extensionById } from "@/ext/registry";
+import { extNotificationIcon, extNotificationMessage } from "@/lib/ext-notification";
 import { useFormatters } from "@/lib/format";
 import {
   useMarkNotificationsRead,
@@ -17,12 +19,17 @@ import {
 import { LoadingStatus } from "@/components/loading";
 import { SocialAvatar } from "@/components/comments/social-avatar";
 
-/** Where a notification leads: its document, opened on its thread when it has one. */
+/** Where a notification leads: its node, opened on its subject and thread when it has them. */
 function notificationHref(item: AppNotification): string {
   // eslint-disable-next-line lingui/no-unlocalized-strings -- URL path
   const base = `/edit/${item.node.id}`;
-  // eslint-disable-next-line lingui/no-unlocalized-strings -- URL query
-  return item.thread_id ? `${base}?thread=${encodeURIComponent(item.thread_id)}` : base;
+  const params = new URLSearchParams();
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- URL query keys
+  if (item.subject) params.set("subject", item.subject);
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- URL query keys
+  if (item.thread_id) params.set("thread", item.thread_id);
+  const query = params.toString();
+  return query ? `${base}?${query}` : base;
 }
 
 /**
@@ -55,7 +62,7 @@ export function NotificationsBell() {
       void navigate({
         to: "/edit/$nodeId",
         params: { nodeId: item.node.id },
-        search: { thread: item.thread_id },
+        search: { thread: item.thread_id, subject: item.subject },
       });
     } else {
       // eslint-disable-next-line lingui/no-unlocalized-strings -- window target
@@ -156,6 +163,17 @@ export function NotificationsBell() {
   );
 }
 
+/** The manifest's line with the actor's name, when it opens the sentence, in the medium weight of the core lines. */
+function ExtLine({ text, actor }: { text: string; actor: string }) {
+  if (!actor || !text.startsWith(actor)) return text;
+  return (
+    <>
+      <strong className="font-medium">{actor}</strong>
+      {text.slice(actor.length)}
+    </>
+  );
+}
+
 function NotificationRow({
   item,
   onOpen,
@@ -165,11 +183,13 @@ function NotificationRow({
   onOpen: () => void;
   onMarkRead: () => void;
 }) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const f = useFormatters();
   const actor = item.actor.name;
   const doc = item.node.name;
+  const extLine = extNotificationMessage(item, extensionById);
   const unread = !item.read_at;
+  const ExtIcon = extNotificationIcon(item.kind, extensionById) ?? Puzzle;
 
   return (
     <li className={cn("group/row relative", unread && "bg-accent/40")}>
@@ -179,9 +199,11 @@ function NotificationRow({
         onClick={onOpen}
       >
         <SocialAvatar user={item.actor} />
-        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="line-clamp-2">
-            {item.kind === "mention" ? (
+        <span className="flex min-w-0 flex-1 flex-col gap-1">
+          <span className="line-clamp-2 leading-snug">
+            {extLine ? (
+              <ExtLine text={i18n._(extLine)} actor={actor} />
+            ) : item.kind === "mention" ? (
               <Trans>
                 <strong className="font-medium">{actor}</strong> mentioned you in{" "}
                 <strong className="font-medium">{doc}</strong>
@@ -198,8 +220,15 @@ function NotificationRow({
               </Trans>
             )}
           </span>
-          {item.excerpt ? (
-            <span className="text-muted-foreground line-clamp-2">{item.excerpt}</span>
+          {extLine ? (
+            <span className="bg-muted text-muted-foreground flex max-w-full items-center gap-1 self-start rounded px-1.5 py-0.5 text-[10px]">
+              <ExtIcon className="size-3 shrink-0" />
+              <span className="truncate">{doc}</span>
+            </span>
+          ) : item.excerpt ? (
+            <span className="bg-muted/60 text-muted-foreground border-primary line-clamp-2 rounded border-l-2 px-2 py-1 italic">
+              {item.excerpt}
+            </span>
           ) : null}
           <time
             dateTime={item.created_at}

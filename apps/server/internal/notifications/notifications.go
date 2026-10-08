@@ -69,6 +69,9 @@ type Item struct {
 	ThreadID  pgtype.UUID
 	CommentID pgtype.UUID
 	Excerpt   string
+	// Subject is the part of an extension node it is about ("card:<uuid>");
+	// empty for a document.
+	Subject   string
 	CreatedAt time.Time
 	ReadAt    pgtype.Timestamptz
 }
@@ -80,6 +83,8 @@ type New struct {
 	ThreadID  pgtype.UUID
 	CommentID pgtype.UUID
 	Excerpt   string
+	// Subject is set by an extension's notification, which has no thread.
+	Subject string
 }
 
 // Access resolves what a user may do with nodes (share.Service).
@@ -165,6 +170,7 @@ func (s *Service) Write(ctx context.Context, q *store.Queries, actor, node pgtyp
 			ThreadID:  n.ThreadID,
 			CommentID: n.CommentID,
 			Excerpt:   n.Excerpt,
+			Subject:   pgtype.Text{String: n.Subject, Valid: n.Subject != ""},
 		})
 		if err != nil {
 			return nil, err
@@ -190,7 +196,7 @@ func (s *Service) Deliver(ctx context.Context, ids []pgtype.UUID) {
 		s.broker.Publish(Item{
 			ID: r.ID, UserID: r.UserID, Kind: Kind(r.Kind), Actor: r.User,
 			NodeID: r.NodeID, NodeName: r.NodeName, SpaceID: r.SpaceID,
-			ThreadID: r.ThreadID, CommentID: r.CommentID, Excerpt: r.Excerpt,
+			ThreadID: r.ThreadID, CommentID: r.CommentID, Excerpt: r.Excerpt, Subject: r.Subject,
 			CreatedAt: r.CreatedAt.Time, ReadAt: r.ReadAt,
 		})
 	}
@@ -233,7 +239,7 @@ func (s *Service) List(ctx context.Context, user pgtype.UUID, cursor string, lim
 		items = append(items, Item{
 			ID: r.ID, UserID: r.UserID, Kind: Kind(r.Kind), Actor: r.User,
 			NodeID: r.NodeID, NodeName: r.NodeName, SpaceID: r.SpaceID,
-			ThreadID: r.ThreadID, CommentID: r.CommentID, Excerpt: r.Excerpt,
+			ThreadID: r.ThreadID, CommentID: r.CommentID, Excerpt: r.Excerpt, Subject: r.Subject,
 			CreatedAt: r.CreatedAt.Time, ReadAt: r.ReadAt,
 		})
 	}

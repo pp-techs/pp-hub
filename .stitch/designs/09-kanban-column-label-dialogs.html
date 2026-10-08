@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>pp-hub - Kanban Board &amp; Modal Dialogs Specification</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-primary": "#ffffff",
+            "surface-container-highest": "#e2e2e2",
+            "on-surface-variant": "#40484f",
+            "surface-container-high": "#e8e8e8",
+            "surface-tint": "#2980b9",
+            "inverse-primary": "#63b1de",
+            "on-error-container": "#b3000a",
+            "surface-container": "#f5f5f5",
+            "surface": "#ffffff",
+            "on-tertiary": "#ffffff",
+            "outline-variant": "#e5e5e5",
+            "inverse-surface": "#0a0a0a",
+            "surface-dim": "#f5f5f5",
+            "error": "#e7000b",
+            "outline": "#a1a1a1",
+            "on-tertiary-container": "#404040",
+            "secondary": "#5d5f5f",
+            "surface-bright": "#f9f9f9",
+            "error-container": "#ffdad6",
+            "on-secondary-container": "#5f6161",
+            "primary-fixed": "#cce5ff",
+            "on-surface": "#0a0a0a",
+            "on-primary-container": "#fdfcff",
+            "tertiary-container": "#747474",
+            "tertiary-fixed": "#e3e2e2",
+            "secondary-fixed": "#e2e2e2",
+            "on-tertiary-fixed-variant": "#464747",
+            "on-error": "#ffffff",
+            "surface-container-low": "#fafafa",
+            "primary": "#006193",
+            "tertiary": "#5c5c5c",
+            "on-primary-fixed-variant": "#004b73",
+            "secondary-container": "#f5f5f5",
+            "on-secondary": "#ffffff",
+            "on-background": "#0a0a0a",
+            "surface-container-lowest": "#ffffff",
+            "primary-container": "#207ab3",
+            "on-secondary-fixed": "#1a1c1c",
+            "background": "#ffffff",
+            "primary-fixed-dim": "#92ccff",
+            "inverse-on-surface": "#f0f1f1",
+            "on-tertiary-fixed": "#1b1c1c",
+            "surface-variant": "#f5f5f5",
+            "tertiary-fixed-dim": "#c7c6c6",
+            "on-secondary-fixed-variant": "#454747",
+            "secondary-fixed-dim": "#c6c6c7",
+            "on-primary-fixed": "#001e31"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "gutter": "8px",
+            "space-xl": "24px",
+            "space-md": "12px",
+            "space-sm": "8px",
+            "space-xs": "4px",
+            "space-lg": "16px",
+            "margin": "16px"
+          },
+          "fontFamily": {
+            "micro": ["Noto Sans"],
+            "display-lg": ["Noto Sans"],
+            "field-text": ["Noto Sans"],
+            "body-bold": ["Noto Sans"],
+            "headline-md": ["Noto Sans"],
+            "body-base": ["Noto Sans"],
+            "label-caps": ["Noto Sans"]
+          },
+          "fontSize": {
+            "micro": ["10px", { "lineHeight": "14px", "letterSpacing": "0", "fontWeight": "500" }],
+            "display-lg": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "field-text": ["14px", { "lineHeight": "20px", "letterSpacing": "0", "fontWeight": "400" }],
+            "body-bold": ["12px", { "lineHeight": "20px", "letterSpacing": "0", "fontWeight": "500" }],
+            "headline-md": ["14px", { "lineHeight": "20px", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+            "body-base": ["12px", { "lineHeight": "20px", "letterSpacing": "0", "fontWeight": "400" }],
+            "label-caps": ["11px", { "lineHeight": "16px", "letterSpacing": "0.04em", "fontWeight": "500" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 18px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #e2e2e2;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface antialiased h-full overflow-hidden font-body-base text-body-base select-none">
+<!-- ========================================================================= -->
+<!-- LAYER 1: AUTHENTIC REALISTIC KANBAN BOARD BACKDROP (Dimmed)              -->
+<!-- ========================================================================= -->
+<div class="fixed inset-0 flex flex-col bg-surface overflow-hidden">
+<!-- Top Header Bar -->
+<header class="h-14 border-b border-outline-variant bg-surface px-space-lg flex items-center justify-between shrink-0">
+<div class="flex items-center gap-space-md">
+<!-- Breadcrumbs -->
+<div class="flex items-center gap-space-xs text-on-surface-variant font-body-base text-body-base">
+<span class="hover:text-on-surface cursor-pointer">Acme Core</span>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<span class="hover:text-on-surface cursor-pointer">Projects</span>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<span class="font-body-bold text-body-bold text-on-surface flex items-center gap-1">
+            Launch plan
+            <span class="material-symbols-outlined text-[16px] text-amber-500 cursor-pointer" style="font-variation-settings: 'FILL' 1;">star</span>
+</span>
+</div>
+<div class="h-4 w-px bg-outline-variant"></div>
+<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-surface-container text-secondary text-micro font-micro border border-outline-variant">
+<span class="material-symbols-outlined text-[12px]">group</span>
+          Engineering Team
+        </span>
+</div>
+<div class="flex items-center gap-space-md">
+<!-- Team Stacked Avatars -->
+<div class="flex items-center -space-x-1.5">
+<img class="w-6 h-6 rounded-full border border-surface object-cover" data-alt="Close up professional portrait of a product engineer with soft studio lighting and clean minimalist background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDhmPWE4THlbVHDKvekWUWeXD6lx6PS39hcMJWSeiZxS7Ow4B0YzJ6ryLWIJavLxrR450be3ZTqIJyVDFfZOZUBNetrFUw7TusFhVecAFU7GXROuq4XV3pRshylzvPceS35JCMITdTrHANh2YD99qXiImRmYeLHTAPYah0HY_5sV1qkMiUDFyHs9qwBx6ohSUmR5eBHFVwZSQidNoo4uw-wAccdBDBV3TTF9v0HHrwR9nDpv9HkcXOjF-uioqP_J0hZn7OmDwCOFkac"/>
+<img class="w-6 h-6 rounded-full border border-surface object-cover" data-alt="Portrait photograph of a software architect in modern tech office environment with warm rim lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuArxAqF0GaGbeuha3uMrIqlqbJ2aO9NT4WORpsB-tRUAN86MTxi2PBLXC2MD2fAKrNTn7nA8D8epcMI2eNWvqeBONRUW4L9ca6MQQ-L4jHwGqEJnyadxSwPzl18EH7b_IDK3VWwjMhe-qfRUMLnix9JqoFaqNbNILY-o3Afo7u_yuKyGVOgmgw8XzRh588sosi0XFWyQJqkRdxjOPTqhYDDH2sM-0s4rXjUV2X5-a89RLf5u1PX1y6kGrrjNxl3VfNisCol4DJlXTeh"/>
+<img class="w-6 h-6 rounded-full border border-surface object-cover" data-alt="Professional designer portrait facing camera against high key studio interior with natural ambient light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAjwoK7S3qdTOl0eAiXbeNIrY6X9qwB5qU7icKsoRgBuatg9RLhA1p3mDqkjbnHyAMJv4ZLZRw3WKU2NFI6ioeDts_zuRBudno6J1wo26iASl8TY3cVkEi30zU0pfIaRnY_ZRsCo9FZT3IomSU2IAXijDAn50zUkn4tY2QQ-2bo5sGgcCii08CcSUqMLjyzESTKwyhpCZoels8GuyZp6WvWxc06OOJDiR0i6OCc8aDFuGL-f2tTi98Ts1fICh3IsSsgbNG6HUP4u6E2"/>
+<span class="w-6 h-6 rounded-full bg-surface-container-high border border-surface flex items-center justify-center text-micro font-micro text-on-surface-variant font-medium">+5</span>
+</div>
+<button class="h-7 px-space-md rounded border border-outline-variant bg-surface hover:bg-surface-container text-on-surface flex items-center gap-1.5 text-body-base font-body-base">
+<span class="material-symbols-outlined text-[14px]">share</span>
+          Share
+        </button>
+<button class="h-7 w-7 rounded border border-outline-variant flex items-center justify-center text-on-surface-variant hover:bg-surface-container">
+<span class="material-symbols-outlined text-[16px]">notifications</span>
+</button>
+<img class="w-7 h-7 rounded-full border border-outline-variant object-cover" data-alt="Studio headshot of lead technical founder with sleek dark attire and soft daylight illumination" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD86CaUgCnbCtkMYPxmnUE9YOCesxHjWGCPnwgCoAlbDgHkHTxevO1oAJ-xhQ5fPwrqAnLVsZqSXiJsVXscC8j9jx_M5c3HJNi2di8vkXV6jhkHR4PYChJpV2v-0Fkr_B4488ey9a5G_FdpbTgOD-JwgQscejB-S8fikpTr1gr0ZYmc25Z7aQm045jNCfrUlVzqac2e2LnQmE9ks2ArUthpajaJlyZUzZXj2lxPR4r9qD2wRG_CDJT_Qi_TSoCTGGNX2i805ZirvLQS"/>
+</div>
+</header>
+<!-- Subheader / Filter Bar -->
+<div class="h-11 border-b border-outline-variant bg-surface-container-low px-space-lg flex items-center justify-between shrink-0">
+<div class="flex items-center gap-space-sm">
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-2 text-outline text-[16px]">search</span>
+<input class="h-7 pl-7 pr-2 text-micro font-micro rounded border border-outline-variant bg-surface text-on-surface w-48 focus:outline-none focus:border-primary-container" placeholder="Filter cards..." type="text"/>
+</div>
+<button class="h-7 px-2 rounded border border-outline-variant bg-surface hover:bg-surface-container text-on-surface-variant flex items-center gap-1 text-micro font-micro">
+<span class="material-symbols-outlined text-[14px]">person</span> Assignee
+        </button>
+<button class="h-7 px-2 rounded border border-outline-variant bg-surface hover:bg-surface-container text-on-surface-variant flex items-center gap-1 text-micro font-micro">
+<span class="material-symbols-outlined text-[14px]">label</span> Label
+        </button>
+<button class="h-7 px-2 rounded border border-outline-variant bg-surface hover:bg-surface-container text-on-surface-variant flex items-center gap-1 text-micro font-micro">
+<span class="material-symbols-outlined text-[14px]">calendar_today</span> Due
+        </button>
+</div>
+<div class="flex items-center gap-space-sm">
+<button class="h-7 px-2.5 rounded bg-surface border border-outline-variant hover:bg-surface-container text-primary flex items-center gap-1 text-micro font-micro font-body-bold">
+<span class="material-symbols-outlined text-[14px]">new_label</span>
+          Manage labels
+        </button>
+<button class="h-7 px-2.5 rounded bg-primary-container text-on-primary-container hover:opacity-90 flex items-center gap-1 text-micro font-micro font-body-bold shadow-sm">
+<span class="material-symbols-outlined text-[14px]">add</span>
+          New card
+        </button>
+</div>
+</div>
+<!-- Board Columns (Realistic Cards) -->
+<div class="flex-1 p-space-lg flex gap-space-lg overflow-hidden bg-surface-bright">
+<!-- Column 1: Backlog -->
+<div class="w-72 bg-surface-container-low border border-outline-variant rounded flex flex-col max-h-full">
+<div class="p-space-sm flex items-center justify-between border-b border-outline-variant/60">
+<div class="flex items-center gap-1.5">
+<span class="font-body-bold text-body-bold text-on-surface">Backlog</span>
+<span class="text-micro font-micro px-1.5 py-0.5 rounded-full bg-surface-container-high text-secondary">4</span>
+</div>
+<span class="material-symbols-outlined text-outline cursor-pointer text-[16px]">more_horiz</span>
+</div>
+<div class="p-2 space-y-2 overflow-y-auto">
+<div class="p-2.5 rounded bg-surface border border-outline-variant shadow-xs">
+<span class="inline-block px-1.5 py-0.5 rounded text-[10px] bg-indigo-50 text-indigo-700 font-medium mb-1.5">Design</span>
+<p class="font-body-base text-body-base text-on-surface">Audit WCAG 2.1 contrast tokens</p>
+<div class="mt-2 flex items-center justify-between text-micro text-secondary">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">schedule</span> Oct 12</span>
+<span class="w-5 h-5 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-[9px]">AL</span>
+</div>
+</div>
+<div class="p-2.5 rounded bg-surface border border-outline-variant shadow-xs">
+<span class="inline-block px-1.5 py-0.5 rounded text-[10px] bg-emerald-50 text-emerald-700 font-medium mb-1.5">Backend</span>
+<p class="font-body-base text-body-base text-on-surface">GraphQL schema migration for v3 API</p>
+</div>
+<div class="p-2.5 rounded bg-surface border border-outline-variant shadow-xs">
+<span class="inline-block px-1.5 py-0.5 rounded text-[10px] bg-amber-50 text-amber-700 font-medium mb-1.5">Marketing</span>
+<p class="font-body-base text-body-base text-on-surface">Prepare Product Hunt teaser assets</p>
+</div>
+</div>
+</div>
+<!-- Column 2: To do -->
+<div class="w-72 bg-surface-container-low border border-outline-variant rounded flex flex-col max-h-full">
+<div class="p-space-sm flex items-center justify-between border-b border-outline-variant/60">
+<div class="flex items-center gap-1.5">
+<span class="font-body-bold text-body-bold text-on-surface">To do</span>
+<span class="text-micro font-micro px-1.5 py-0.5 rounded-full bg-surface-container-high text-secondary">3</span>
+</div>
+<span class="material-symbols-outlined text-outline cursor-pointer text-[16px]">more_horiz</span>
+</div>
+<div class="p-2 space-y-2">
+<div class="p-2.5 rounded bg-surface border border-outline-variant shadow-xs">
+<span class="inline-block px-1.5 py-0.5 rounded text-[10px] bg-rose-50 text-rose-700 font-medium mb-1.5">Bug</span>
+<p class="font-body-base text-body-base text-on-surface">Safari flexbox wrap bug on mobile header</p>
+</div>
+<div class="p-2.5 rounded bg-surface border border-outline-variant shadow-xs">
+<span class="inline-block px-1.5 py-0.5 rounded text-[10px] bg-slate-100 text-slate-700 font-medium mb-1.5">Ops</span>
+<p class="font-body-base text-body-base text-on-surface">Configure multi-region CDN failovers</p>
+</div>
+</div>
+</div>
+<!-- Column 3: In progress -->
+<div class="w-72 bg-surface-container-low border border-outline-variant rounded flex flex-col max-h-full">
+<div class="p-space-sm flex items-center justify-between border-b border-outline-variant/60">
+<div class="flex items-center gap-1.5">
+<span class="font-body-bold text-body-bold text-on-surface">In progress</span>
+<span class="text-micro font-micro px-1.5 py-0.5 rounded-full bg-blue-100 text-primary font-body-bold">3/3</span>
+</div>
+<span class="material-symbols-outlined text-outline cursor-pointer text-[16px]">more_horiz</span>
+</div>
+<div class="p-2 space-y-2">
+<div class="p-2.5 rounded bg-surface border border-outline-variant shadow-xs">
+<span class="inline-block px-1.5 py-0.5 rounded text-[10px] bg-emerald-50 text-emerald-700 font-medium mb-1.5">Backend</span>
+<p class="font-body-base text-body-base text-on-surface">Stripe webhook idempotent consumer</p>
+</div>
+<div class="p-2.5 rounded bg-surface border border-outline-variant shadow-xs">
+<span class="inline-block px-1.5 py-0.5 rounded text-[10px] bg-indigo-50 text-indigo-700 font-medium mb-1.5">Design</span>
+<p class="font-body-base text-body-base text-on-surface">Dialog component specification sheet</p>
+</div>
+</div>
+</div>
+<!-- Column 4: In review (Target of deletion) -->
+<div class="w-72 bg-surface-container-low border-2 border-primary-container/40 rounded flex flex-col max-h-full relative">
+<div class="p-space-sm flex items-center justify-between border-b border-outline-variant/60 bg-blue-50/50">
+<div class="flex items-center gap-1.5">
+<span class="font-body-bold text-body-bold text-on-surface">In review</span>
+<span class="text-micro font-micro px-1.5 py-0.5 rounded-full bg-surface-container-high text-secondary">1</span>
+</div>
+<span class="material-symbols-outlined text-primary cursor-pointer text-[16px]">more_horiz</span>
+</div>
+<div class="p-2 space-y-2">
+<div class="p-2.5 rounded bg-surface border border-outline-variant shadow-xs">
+<span class="inline-block px-1.5 py-0.5 rounded text-[10px] bg-indigo-50 text-indigo-700 font-medium mb-1.5">Design</span>
+<p class="font-body-base text-body-base text-on-surface">Micro-interactions prototype in Framer</p>
+</div>
+</div>
+</div>
+<!-- Column 5: Done -->
+<div class="w-72 bg-surface-container-low border border-outline-variant rounded flex flex-col max-h-full">
+<div class="p-space-sm flex items-center justify-between border-b border-outline-variant/60">
+<div class="flex items-center gap-1.5">
+<span class="font-body-bold text-body-bold text-on-surface">Done</span>
+<span class="text-micro font-micro px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-body-bold">4</span>
+</div>
+<span class="material-symbols-outlined text-outline cursor-pointer text-[16px]">more_horiz</span>
+</div>
+<div class="p-2 space-y-2">
+<div class="p-2.5 rounded bg-surface border border-outline-variant shadow-xs opacity-75">
+<span class="inline-block px-1.5 py-0.5 rounded text-[10px] bg-slate-100 text-slate-700 font-medium mb-1.5">Ops</span>
+<p class="font-body-base text-body-base text-on-surface line-through text-secondary">Staging deployment environment</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- ========================================================================= -->
+<!-- LAYER 2: DARK TRANSLUCENT OVERLAY (DIMMED PRESENTATION CANVAS)           -->
+<!-- ========================================================================= -->
+<div class="fixed inset-0 bg-[#0a0a0a]/65 backdrop-blur-[2px] z-50 overflow-y-auto flex items-center justify-center p-6">
+<!-- Presentation Hub Badge -->
+<div class="absolute top-4 left-6 flex items-center gap-2 px-3 py-1.5 rounded-md bg-surface border border-outline-variant shadow-lg text-micro font-micro">
+<span class="w-2 h-2 rounded-full bg-surface-tint animate-pulse"></span>
+<span class="font-body-bold text-body-bold text-on-surface">UI SPECIMEN:</span>
+<span class="text-secondary">Modal Dialog Variants (Delete Column vs. Manage Labels)</span>
+</div>
+<!-- ======================================================================= -->
+<!-- LAYER 3: MAIN CONTAINER (DUAL MODAL DIALOGS SIDE-BY-SIDE)               -->
+<!-- ======================================================================= -->
+<div class="flex flex-col lg:flex-row items-start justify-center gap-10 w-full max-w-[1020px] my-auto">
+<!-- ===================================================================== -->
+<!-- DIALOG 1 (LEFT, ~420px): "Delete column?" + Column Context Popover    -->
+<!-- ===================================================================== -->
+<div class="w-full max-w-[420px] flex flex-col relative shrink-0">
+<!-- Contextual Column Dropdown (Floating above modal to illustrate trigger state) -->
+<div class="absolute -top-16 -left-3 z-20 w-44 bg-surface rounded-lg border border-outline-variant shadow-xl py-1 text-on-surface animate-fade-in hidden sm:block">
+<div class="px-2.5 py-1 text-micro font-micro text-secondary uppercase font-semibold">Column Actions</div>
+<button class="w-full text-left px-2.5 py-1.5 hover:bg-surface-container flex items-center gap-2 text-micro text-on-surface">
+<span class="material-symbols-outlined text-[14px]">edit</span> Rename column
+          </button>
+<button class="w-full text-left px-2.5 py-1.5 hover:bg-surface-container flex items-center gap-2 text-micro text-on-surface">
+<span class="material-symbols-outlined text-[14px]">speed</span> WIP limit...
+          </button>
+<button class="w-full text-left px-2.5 py-1.5 hover:bg-surface-container flex items-center gap-2 text-micro text-on-surface">
+<span class="material-symbols-outlined text-[14px]">arrow_back</span> Move left
+          </button>
+<button class="w-full text-left px-2.5 py-1.5 hover:bg-surface-container flex items-center gap-2 text-micro text-on-surface">
+<span class="material-symbols-outlined text-[14px]">arrow_forward</span> Move right
+          </button>
+<div class="my-1 border-t border-outline-variant"></div>
+<button class="w-full text-left px-2.5 py-1.5 bg-red-50 text-error flex items-center gap-2 text-micro font-medium border-l-2 border-error">
+<span class="material-symbols-outlined text-[14px]">delete</span> Delete column
+          </button>
+</div>
+<!-- Dialog 1 Card -->
+<div class="w-full rounded-xl bg-surface border border-outline-variant shadow-2xl p-5 text-on-surface flex flex-col gap-4 relative">
+<!-- Modal Header -->
+<div class="flex items-start justify-between">
+<div class="flex items-center gap-2.5">
+<div class="w-8 h-8 rounded-full bg-error-container/60 border border-error/20 flex items-center justify-center text-error shrink-0">
+<span class="material-symbols-outlined text-[18px]">warning</span>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md font-semibold text-on-surface">Delete column?</h3>
+<span class="text-micro font-micro text-secondary block mt-0.5">Destructive action confirmation</span>
+</div>
+</div>
+<button class="w-7 h-7 -mr-1 -mt-1 rounded text-secondary hover:text-on-surface hover:bg-surface-container flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<!-- Modal Body -->
+<div class="flex flex-col gap-3">
+<p class="font-body-base text-body-base text-on-surface leading-snug">
+<span class="font-body-bold text-body-bold text-on-surface">“In review”</span> will be permanently deleted. Choose where its cards should be relocated.
+            </p>
+<!-- Form Control: Move its cards to -->
+<div class="space-y-1.5 mt-1">
+<label class="block text-micro font-micro font-semibold uppercase text-secondary tracking-wider">
+                Move its cards to
+              </label>
+<!-- Select Trigger (Simulating expanded state for UI specimen) -->
+<div class="relative">
+<button class="w-full h-8 px-3 rounded bg-surface border border-primary-container text-on-surface text-body-base font-body-base flex items-center justify-between shadow-xs" type="button">
+<span class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary-container"></span>
+<span class="font-medium">To do</span>
+<span class="text-secondary text-micro font-micro">(3 cards)</span>
+</span>
+<span class="material-symbols-outlined text-[16px] text-secondary">expand_less</span>
+</button>
+<!-- Expanded Custom Dropdown Popover Menu -->
+<div class="mt-1 w-full bg-surface border border-outline-variant rounded-md shadow-lg overflow-hidden py-1 z-10">
+<div class="px-3 py-1.5 hover:bg-surface-container flex items-center justify-between cursor-pointer text-body-base text-on-surface">
+<span class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-outline"></span>
+                      Backlog
+                    </span>
+<span class="text-micro font-micro text-secondary">4 cards</span>
+</div>
+<!-- Selected item -->
+<div class="px-3 py-1.5 bg-primary/10 flex items-center justify-between cursor-pointer text-body-base text-primary font-body-bold border-l-2 border-primary">
+<span class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                      To do
+                    </span>
+<div class="flex items-center gap-1.5">
+<span class="text-micro font-micro text-primary">3 cards</span>
+<span class="material-symbols-outlined text-[16px]">check</span>
+</div>
+</div>
+<div class="px-3 py-1.5 hover:bg-surface-container flex items-center justify-between cursor-pointer text-body-base text-on-surface">
+<span class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-outline"></span>
+                      In progress
+                    </span>
+<span class="text-micro font-micro text-secondary">3 cards</span>
+</div>
+<div class="px-3 py-1.5 hover:bg-surface-container flex items-center justify-between cursor-pointer text-body-base text-on-surface">
+<span class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-outline"></span>
+                      Done
+                    </span>
+<span class="text-micro font-micro text-secondary">4 cards</span>
+</div>
+</div>
+</div>
+<!-- Helper note -->
+<div class="mt-2.5 flex items-center gap-1.5 text-micro font-micro text-secondary">
+<span class="material-symbols-outlined text-[14px] text-primary">info</span>
+<span>1 card will be moved to the end of that column.</span>
+</div>
+</div>
+</div>
+<!-- Modal Footer -->
+<div class="pt-3 border-t border-outline-variant flex items-center justify-end gap-2 mt-1">
+<button class="h-7 px-3 rounded text-on-surface-variant hover:bg-surface-container text-body-base font-body-base font-medium transition-colors">
+              Cancel
+            </button>
+<button class="h-7 px-3 rounded bg-red-50 hover:bg-red-100 text-error border border-red-200 text-body-base font-body-bold transition-colors flex items-center gap-1">
+<span class="material-symbols-outlined text-[15px]">delete_forever</span>
+              Delete column
+            </button>
+</div>
+</div>
+<div class="mt-3 px-3 py-1.5 bg-surface/80 rounded border border-outline-variant/80 text-[11px] text-on-surface-variant flex items-center justify-between backdrop-blur-xs">
+<span>Component: <code class="font-mono text-primary font-bold">Dialog.DeleteColumn</code></span>
+<span class="text-secondary">W: 420px</span>
+</div>
+</div>
+<!-- ===================================================================== -->
+<!-- DIALOG 2 (RIGHT, ~480px): "Manage labels"                             -->
+<!-- ===================================================================== -->
+<div class="w-full max-w-[480px] flex flex-col relative shrink-0">
+<!-- Dialog 2 Card -->
+<div class="w-full rounded-xl bg-surface border border-outline-variant shadow-2xl p-5 text-on-surface flex flex-col gap-4">
+<!-- Modal Header -->
+<div class="flex items-start justify-between border-b border-outline-variant pb-3">
+<div>
+<h3 class="font-headline-md text-headline-md font-semibold text-on-surface flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-[20px]">label</span>
+                Manage labels
+              </h3>
+<p class="text-micro font-micro text-secondary mt-0.5">Labels are shared by every card on this board.</p>
+</div>
+<button class="w-7 h-7 -mr-1 -mt-1 rounded text-secondary hover:text-on-surface hover:bg-surface-container flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<!-- Existing labels list -->
+<div class="flex flex-col gap-2">
+<span class="text-micro font-micro font-semibold uppercase text-secondary tracking-wider">
+              Board Labels (5)
+            </span>
+<div class="space-y-1.5 max-h-[195px] overflow-y-auto pr-1 custom-scrollbar">
+<!-- Label Row 1: Design -->
+<div class="flex items-center gap-2 p-1.5 rounded-md bg-surface-container-low border border-outline-variant hover:border-outline transition-colors">
+<div class="w-4 h-4 rounded-sm bg-[#2980b9] shrink-0 shadow-xs" title="Design Color"></div>
+<input class="flex-1 h-7 px-2 text-body-base font-body-base rounded border border-transparent hover:border-outline-variant focus:border-primary-container bg-surface text-on-surface focus:outline-none" type="text" value="Design"/>
+<span class="text-micro font-micro px-2 py-0.5 rounded-full bg-surface-container-high text-secondary shrink-0 font-medium">4 cards</span>
+<button class="w-6 h-6 rounded flex items-center justify-center text-outline hover:text-error hover:bg-red-50 transition-colors" title="Delete label">
+<span class="material-symbols-outlined text-[15px]">delete</span>
+</button>
+</div>
+<!-- Label Row 2: Backend -->
+<div class="flex items-center gap-2 p-1.5 rounded-md bg-surface-container-low border border-outline-variant hover:border-outline transition-colors">
+<div class="w-4 h-4 rounded-sm bg-[#10b981] shrink-0 shadow-xs" title="Backend Color"></div>
+<input class="flex-1 h-7 px-2 text-body-base font-body-base rounded border border-transparent hover:border-outline-variant focus:border-primary-container bg-surface text-on-surface focus:outline-none" type="text" value="Backend"/>
+<span class="text-micro font-micro px-2 py-0.5 rounded-full bg-surface-container-high text-secondary shrink-0 font-medium">5 cards</span>
+<button class="w-6 h-6 rounded flex items-center justify-center text-outline hover:text-error hover:bg-red-50 transition-colors" title="Delete label">
+<span class="material-symbols-outlined text-[15px]">delete</span>
+</button>
+</div>
+<!-- Label Row 3: Bug -->
+<div class="flex items-center gap-2 p-1.5 rounded-md bg-surface-container-low border border-outline-variant hover:border-outline transition-colors">
+<div class="w-4 h-4 rounded-sm bg-[#f43f5e] shrink-0 shadow-xs" title="Bug Color"></div>
+<input class="flex-1 h-7 px-2 text-body-base font-body-base rounded border border-transparent hover:border-outline-variant focus:border-primary-container bg-surface text-on-surface focus:outline-none" type="text" value="Bug"/>
+<span class="text-micro font-micro px-2 py-0.5 rounded-full bg-surface-container-high text-secondary shrink-0 font-medium">2 cards</span>
+<button class="w-6 h-6 rounded flex items-center justify-center text-outline hover:text-error hover:bg-red-50 transition-colors" title="Delete label">
+<span class="material-symbols-outlined text-[15px]">delete</span>
+</button>
+</div>
+<!-- Label Row 4: Ops -->
+<div class="flex items-center gap-2 p-1.5 rounded-md bg-surface-container-low border border-outline-variant hover:border-outline transition-colors">
+<div class="w-4 h-4 rounded-sm bg-[#64748b] shrink-0 shadow-xs" title="Ops Color"></div>
+<input class="flex-1 h-7 px-2 text-body-base font-body-base rounded border border-transparent hover:border-outline-variant focus:border-primary-container bg-surface text-on-surface focus:outline-none" type="text" value="Ops"/>
+<span class="text-micro font-micro px-2 py-0.5 rounded-full bg-surface-container-high text-secondary shrink-0 font-medium">3 cards</span>
+<button class="w-6 h-6 rounded flex items-center justify-center text-outline hover:text-error hover:bg-red-50 transition-colors" title="Delete label">
+<span class="material-symbols-outlined text-[15px]">delete</span>
+</button>
+</div>
+<!-- Label Row 5: Marketing -->
+<div class="flex items-center gap-2 p-1.5 rounded-md bg-surface-container-low border border-outline-variant hover:border-outline transition-colors">
+<div class="w-4 h-4 rounded-sm bg-[#f59e0b] shrink-0 shadow-xs" title="Marketing Color"></div>
+<input class="flex-1 h-7 px-2 text-body-base font-body-base rounded border border-transparent hover:border-outline-variant focus:border-primary-container bg-surface text-on-surface focus:outline-none" type="text" value="Marketing"/>
+<span class="text-micro font-micro px-2 py-0.5 rounded-full bg-surface-container-high text-secondary shrink-0 font-medium">1 card</span>
+<button class="w-6 h-6 rounded flex items-center justify-center text-outline hover:text-error hover:bg-red-50 transition-colors" title="Delete label">
+<span class="material-symbols-outlined text-[15px]">delete</span>
+</button>
+</div>
+</div>
+</div>
+<!-- "New label" creation block -->
+<div class="rounded-lg border border-outline-variant bg-surface-container-low p-3 flex flex-col gap-2.5">
+<span class="text-[11px] uppercase tracking-wider font-semibold text-secondary">
+              Create new label
+            </span>
+<div class="flex items-center gap-2">
+<input class="flex-1 h-7 px-2.5 text-body-base font-body-base rounded border border-outline-variant bg-surface text-on-surface placeholder:text-outline focus:outline-none focus:border-primary-container" placeholder="Label name (e.g. Security, Docs)..." type="text"/>
+<button class="h-7 px-3 rounded bg-surface-tint hover:bg-[#207ab3] text-on-primary text-micro font-body-bold transition-colors flex items-center gap-1 shadow-xs">
+<span class="material-symbols-outlined text-[14px]">add</span>
+                Add
+              </button>
+</div>
+<!-- Color Palette: 12 Swatches Grid -->
+<div>
+<span class="text-micro font-micro text-secondary mb-1.5 block">Select color tag</span>
+<div class="grid grid-cols-6 gap-2">
+<!-- 1. Crimson Red -->
+<button class="h-6 rounded-sm bg-[#dc2626] hover:scale-105 transition-transform flex items-center justify-center" title="Crimson" type="button"></button>
+<!-- 2. Coral -->
+<button class="h-6 rounded-sm bg-[#f97316] hover:scale-105 transition-transform flex items-center justify-center" title="Coral" type="button"></button>
+<!-- 3. Amber -->
+<button class="h-6 rounded-sm bg-[#f59e0b] hover:scale-105 transition-transform flex items-center justify-center" title="Amber" type="button"></button>
+<!-- 4. Emerald Green -->
+<button class="h-6 rounded-sm bg-[#10b981] hover:scale-105 transition-transform flex items-center justify-center" title="Emerald" type="button"></button>
+<!-- 5. Mint -->
+<button class="h-6 rounded-sm bg-[#06b6d4] hover:scale-105 transition-transform flex items-center justify-center" title="Mint" type="button"></button>
+<!-- 6. Cyan -->
+<button class="h-6 rounded-sm bg-[#0284c7] hover:scale-105 transition-transform flex items-center justify-center" title="Cyan" type="button"></button>
+<!-- 7. Belize Blue (ACTIVE) -->
+<button class="h-6 rounded-sm bg-[#2980b9] ring-2 ring-offset-1 ring-primary flex items-center justify-center" title="Belize Blue" type="button">
+<span class="material-symbols-outlined text-white text-[14px]">check</span>
+</button>
+<!-- 8. Indigo -->
+<button class="h-6 rounded-sm bg-[#6366f1] hover:scale-105 transition-transform flex items-center justify-center" title="Indigo" type="button"></button>
+<!-- 9. Purple -->
+<button class="h-6 rounded-sm bg-[#a855f7] hover:scale-105 transition-transform flex items-center justify-center" title="Purple" type="button"></button>
+<!-- 10. Violet -->
+<button class="h-6 rounded-sm bg-[#7c3aed] hover:scale-105 transition-transform flex items-center justify-center" title="Violet" type="button"></button>
+<!-- 11. Fuchsia -->
+<button class="h-6 rounded-sm bg-[#d946ef] hover:scale-105 transition-transform flex items-center justify-center" title="Fuchsia" type="button"></button>
+<!-- 12. Slate -->
+<button class="h-6 rounded-sm bg-[#64748b] hover:scale-105 transition-transform flex items-center justify-center" title="Slate" type="button"></button>
+</div>
+</div>
+</div>
+<!-- Modal Footer -->
+<div class="pt-3 border-t border-outline-variant flex items-center justify-between">
+<span class="text-micro font-micro text-secondary flex items-center gap-1">
+<span class="material-symbols-outlined text-[13px]">palette</span>
+              Colors update in real-time
+            </span>
+<button class="h-7 px-4 rounded bg-surface-tint hover:bg-[#207ab3] text-on-primary text-body-base font-body-bold transition-colors shadow-xs">
+              Done
+            </button>
+</div>
+</div>
+<div class="mt-3 px-3 py-1.5 bg-surface/80 rounded border border-outline-variant/80 text-[11px] text-on-surface-variant flex items-center justify-between backdrop-blur-xs">
+<span>Component: <code class="font-mono text-primary font-bold">Dialog.ManageLabels</code></span>
+<span class="text-secondary">W: 480px</span>
+</div>
+</div>
+</div>
+</div>
+</body></html>

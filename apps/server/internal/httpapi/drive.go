@@ -80,10 +80,13 @@ type spaceDTO struct {
 }
 
 type nodeDTO struct {
-	ID         string `json:"id"`
-	SpaceID    string `json:"space_id"`
-	ParentID   string `json:"parent_id,omitempty"`
-	Kind       string `json:"kind"`
+	ID       string `json:"id"`
+	SpaceID  string `json:"space_id"`
+	ParentID string `json:"parent_id,omitempty"`
+	Kind     string `json:"kind"`
+	// ExtKind names the extension kind of an extension node ("kanban.board");
+	// empty for a folder or a file.
+	ExtKind    string `json:"ext_kind,omitempty"`
 	Name       string `json:"name"`
 	Size       int64  `json:"size,omitempty"`
 	Mime       string `json:"mime,omitempty"`
@@ -183,6 +186,7 @@ func nodeToDTO(n store.Node, ver *store.NodeVersion) nodeDTO {
 		ID:        id.(string),
 		SpaceID:   sid.(string),
 		Kind:      string(n.Kind),
+		ExtKind:   n.ExtKind.String,
 		Name:      n.Name,
 		CreatedAt: n.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
 	}
@@ -216,6 +220,7 @@ func nodeToDTOMeta(n store.NodeWithMeta) nodeDTO {
 		ID:        id.(string),
 		SpaceID:   sid.(string),
 		Kind:      string(n.Kind),
+		ExtKind:   n.ExtKind.String,
 		Name:      n.Name,
 		CreatedAt: n.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
 	}
@@ -1310,6 +1315,7 @@ func (s *Server) handleListDeleted(w http.ResponseWriter, r *http.Request) {
 			ID:         uuidString(n.ID),
 			SpaceID:    uuidString(n.SpaceID),
 			Kind:       string(n.Kind),
+			ExtKind:    n.ExtKind.String,
 			Name:       n.Name,
 			ModifiedAt: n.VCreatedAt.Time.Format(timeLayout),
 			DeletedAt:  n.DeletedAt.Time.Format(timeLayout),
@@ -1325,6 +1331,7 @@ func (s *Server) handleListDeleted(w http.ResponseWriter, r *http.Request) {
 			ID:         uuidString(n.ID),
 			SpaceID:    uuidString(n.SpaceID),
 			Kind:       string(n.Kind),
+			ExtKind:    n.ExtKind.String,
 			Name:       n.Name,
 			ModifiedAt: n.VCreatedAt.Time.Format(timeLayout),
 			DeletedAt:  n.DeletedAt.Time.Format(timeLayout),

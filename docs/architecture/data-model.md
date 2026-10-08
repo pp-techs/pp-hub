@@ -349,7 +349,8 @@ group_members(group_id, user_id, added_at)
   INDEX (user_id)                               -- resolution probes user-first
 
 nodes(id, tenant_id, space_id, parent_id,       -- NULL parent = space root
-      kind,                                     -- dir | file
+      kind,                                     -- dir | file | ext (M44: an extension's node, no version)
+      ext_kind,                                 -- 'kanban.board'; set exactly when kind = 'ext'
       name,
       current_version_id,
       deleted_at,                               -- soft delete (trash)
@@ -431,6 +432,44 @@ node_texts(node_id PK, node_version_id, content, folded,  -- M27 content search 
   -- position in content. GIN on tsv, GIN trigram on folded. Both FKs cascade.
 ```
 
+## Extensions
+
+Migrations `0022_ext_node_kind.sql` and `0023_extensions.sql` (M44,
+[extensions.md](extensions.md)). The enum value is added alone because Postgres
+will not use a value in the transaction that adds it.
+
+```sql
+nodes.kind              -- node_kind gains 'ext'
+nodes.ext_kind TEXT     -- CHECK ((kind = 'ext') = (ext_kind IS NOT NULL))  nodes_ext_kind_ck
+                        -- an ext node has no current_version_id: its content is its extension's rows
+
+ext_state(ext_id, space_id NULL, enabled, updated_by, updated_at)
+  UNIQUE (ext_id) WHERE space_id IS NULL        -- the instance switch; no row = off
+  UNIQUE (ext_id, space_id) WHERE space_id IS NOT NULL
+  -- a space row can only switch an instance-enabled extension OFF; switching it
+  -- back on deletes the row, so the space follows the instance again
+
+ext_migrations(ext_id, version, applied_at)    -- each extension's own migration track
+```
+
+Each extension owns a Postgres schema `ext_<id>`, created at startup, and its
+tables reference `public.nodes` with `ON DELETE CASCADE` so a purge takes its
+data along. `pg_dump` covers every schema, so backup needs no change. The
+kanban schema (`0001_init.sql`, `0002_card_links.sql`):
+
+```sql
+ext_kanban.columns(id, board_id → nodes, title, position COLLATE "C", wip_limit)
+ext_kanban.cards(id, board_id → nodes, column_id → columns, title, description_md,
+                 position COLLATE "C", due_at, created_by, created_at, updated_at, rev)
+ext_kanban.card_assignees(card_id, user_id)    -- INDEX (user_id): "assigned to me", later
+ext_kanban.labels(id, board_id, name, color)   UNIQUE (board_id, name), color #rrggbb
+ext_kanban.card_labels(card_id, label_id)
+ext_kanban.card_links(card_id, node_id → nodes)  -- re-resolved per viewer on read
+```
+
+`position` is a fractional-index string ordered bytewise; `rev` is bumped by
+every card write and checked by edits (`if_rev`).
+
 ## Comments and Notifications
 
 Migration `0015_comments_notifications.sql` (M29):
@@ -453,6 +492,11 @@ notifications(id, user_id, kind, actor_id, node_id, thread_id, comment_id,
   UNIQUE (user_id, version_id) WHERE version_id IS NOT NULL  -- a retried job cannot notify twice
 ```
 
+- **M46 (migration `0024_comment_subjects.sql`):** `comment_threads.subject`
+  (`card:<uuid>`) names the part of an extension node a thread is about — null
+  on a document — and `notifications.subject` does the same for a notification
+  with no thread; a comment's notification reads its thread's. `kind` may also
+  be `ext:<ext id>:<verb>` (`notifications_kind_check`, widened in `0023`).
 - A thread's anchor is not in the database: the markdown carries its id in a
   comment marker ([block-documents.md](block-documents.md#comment-anchors)).
   A thread whose marker was deleted from the text still exists and is listed.
@@ -515,6 +559,11 @@ CREATE INDEX page_refs_target ON page_refs (target_id);  -- backlinks
   node, `Move`, `Copy` and `Restore` apply it, and `httpapi` checks it before
   writing. A tus upload is a file child, so nothing uploads under a document.
   `Copy`'s cycle check covers every kind, since a document has descendants.
+
+- An extension node (`kind = 'ext'`) has no version and no blob: it is never
+  downloaded, previewed, zipped or opened by OnlyOffice, and it counts for
+  nothing in `used_bytes`. It can sit in a folder and nowhere else
+  (`fs.CanContain`: a document holds only documents).
 
 ## Query Patterns
 

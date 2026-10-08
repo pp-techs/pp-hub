@@ -9,6 +9,9 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+
+	"github.com/nhatbui/pp-hub/apps/server/ext/kanban"
+	"github.com/nhatbui/pp-hub/apps/server/internal/exthost"
 )
 
 // Every route the web client calls, as METHOD + pattern.
@@ -136,6 +139,14 @@ var clientRoutes = []string{
 	"GET /api/v1/notifications/unread-count",
 	"POST /api/v1/notifications/read",
 	"GET /api/v1/notifications/stream",
+	"GET /api/v1/extensions",
+	"PATCH /api/v1/admin/extensions/{extID}",
+	"PUT /api/v1/spaces/{spaceID}/extensions/{extID}",
+	"POST /api/v1/spaces/{spaceID}/ext-nodes",
+	"GET /api/v1/ext/kanban/*/boards/{nodeID}/",
+	"GET /api/v1/ext/kanban/*/boards/{nodeID}/events",
+	"POST /api/v1/ext/kanban/*/boards/{nodeID}/cards",
+	"POST /api/v1/ext/kanban/*/boards/{nodeID}/cards/{cardID}/move",
 
 	"GET /s/{token}/",
 	"GET /s/{token}/download",
@@ -151,7 +162,7 @@ func TestRouterRegistersClientRoutes(t *testing.T) {
 	// them, so a zero Server is enough to build the routing table.
 	registered := map[string]bool{}
 	err := chi.Walk(
-		(&Server{}).Router().(chi.Routes),
+		routerWithExtensions(t),
 		func(method, route string, _ http.Handler, _ ...func(http.Handler) http.Handler) error {
 			registered[method+" "+route] = true
 			return nil
@@ -179,12 +190,27 @@ func TestRouterRegistersClientRoutes(t *testing.T) {
 // The check is on the middleware chain rather than on a live 401, because a
 // zero Server has no session store to answer with and the invariant being
 // defended is structural: this handler is wrapped, whatever it does.
+// routerWithExtensions is the router with the extensions' routes registered
+// (no database is touched): an extension's routes are the API's too, and the
+// walks below must see them.
+func routerWithExtensions(t *testing.T) chi.Routes {
+	t.Helper()
+	reg, err := exthost.New(exthost.Config{}, kanban.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := reg.Register(); err != nil {
+		t.Fatal(err)
+	}
+	return (&Server{ext: reg}).Router().(chi.Routes)
+}
+
 func TestEveryAPIRouteIsAuthenticated(t *testing.T) {
 	guard := reflect.ValueOf((&Server{}).authenticated).Pointer()
 
 	var unguarded []string
 	err := chi.Walk(
-		(&Server{}).Router().(chi.Routes),
+		routerWithExtensions(t),
 		func(method, route string, _ http.Handler, middlewares ...func(http.Handler) http.Handler) error {
 			if !strings.HasPrefix(route, "/api/v1/") {
 				return nil
@@ -219,7 +245,7 @@ func TestEveryAPIMutationChecksOrigin(t *testing.T) {
 
 	var unguarded []string
 	err := chi.Walk(
-		(&Server{}).Router().(chi.Routes),
+		routerWithExtensions(t),
 		func(method, route string, _ http.Handler, middlewares ...func(http.Handler) http.Handler) error {
 			if !strings.HasPrefix(route, "/api/v1/") {
 				return nil

@@ -58,6 +58,17 @@ export {
   useNodePeople,
 } from "./nodes";
 
+// Extensions
+export {
+  extensionsOptions,
+  useExtensions,
+  extNodesOptions,
+  useExtNodes,
+  useSetInstanceExtension,
+  useSetSpaceExtension,
+  useCreateExtNode,
+} from "./extensions";
+
 // Block documents
 export { collabOptions } from "./collab";
 export { nodeDocumentOptions, useNodeDocument, useShareDocument } from "./documents";

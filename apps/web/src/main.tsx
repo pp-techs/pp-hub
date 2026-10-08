@@ -1,12 +1,17 @@
 import { StrictMode, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import { RouterProvider, createRouter } from "@tanstack/react-router";
+import { installExtHost } from "@pp-hub/ext-sdk";
 import "@workspace/ui/globals.css";
 import { setUnauthorizedHandler } from "@/lib/api";
+import { appExtHost } from "@/ext/host";
 import { queryClient } from "@/lib/query-client";
 import { activateLocale, detectLocale } from "@/lib/i18n";
 import { ThemeProvider } from "@/components/theme-provider";
 import { routeTree } from "./routeTree.gen";
+
+// Extensions reach the app only through the SDK; this is the one place it is wired.
+installExtHost(appExtHost);
 
 const Toaster = lazy(() => import("sonner").then((m) => ({ default: m.Toaster })));
 

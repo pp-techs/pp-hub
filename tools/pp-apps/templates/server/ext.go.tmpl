@@ -1,0 +1,56 @@
+// Package {{id}} is a pp-hub extension: {{Name}}. An item is a node in the
+// drive (kind "{{id}}.item"), so sharing, trash, search and activity are the
+// drive's own; what it holds lives in the Postgres schema ext_{{id}}. It uses
+// nothing but extsdk.
+package {{id}}
+
+import (
+	"embed"
+	"io/fs"
+
+	"github.com/nhatbui/pp-hub/apps/server/extsdk"
+)
+
+// ItemKind is the node kind of an item; pp-app.json declares it too.
+const ItemKind = "{{id}}.item"
+
+//go:embed pp-app.json
+var manifestJSON []byte
+
+//go:embed migrations/*.sql
+var migrations embed.FS
+
+// Ext is the {{Name}} extension.
+type Ext struct{}
+
+// New returns the extension for a build to include.
+func New() *Ext { return &Ext{} }
+
+var _ extsdk.Ext = (*Ext)(nil)
+
+// Manifest implements extsdk.Ext: the embedded pp-app.json plus the schema and
+// the hooks of its kinds.
+func (*Ext) Manifest() extsdk.Manifest {
+	m := extsdk.MustManifest(manifestJSON)
+	sub, err := fs.Sub(migrations, "migrations")
+	if err != nil {
+		panic(err) // the directory is embedded above
+	}
+	m.Migrations = sub
+	// Hooks go on the kinds the manifest declares, e.g.
+	// m.Kind(ItemKind).OnCreate = seedItem.
+	return m
+}
+
+// Register implements extsdk.Ext.
+func (*Ext) Register(h extsdk.Host) error {
+	s := &service{h: h, db: h.DB()}
+	r := h.Router()
+	r.With(h.Guard(ItemKind, extsdk.CapView)).Get("/items/{nodeID}/", s.handleItem)
+	return nil
+}
+
+type service struct {
+	h  extsdk.Host
+	db extsdk.DB
+}

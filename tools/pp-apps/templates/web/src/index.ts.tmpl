@@ -1,0 +1,20 @@
+import { lazy } from "react";
+import { msg } from "@lingui/core/macro";
+import { Box } from "lucide-react";
+import { defineExtension } from "@pp-hub/ext-sdk";
+
+export default defineExtension({
+  id: "{{id}}",
+  name: msg`{{Name}}`,
+  nodeKinds: [
+    {
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- node kind id
+      kind: "{{id}}.item",
+      label: msg`{{Name}}`,
+      icon: Box,
+      newLabel: msg`New {{Name}}`,
+      defaultName: msg`Untitled {{Name}}`,
+      editor: lazy(() => import("./{{slug}}-editor")),
+    },
+  ],
+});

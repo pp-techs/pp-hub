@@ -3,6 +3,7 @@ import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import {
   Building2,
+  Puzzle,
   ShieldCheck,
   SlidersHorizontal,
   TriangleAlert,
@@ -16,6 +17,7 @@ import type { SettingsSlug } from "@/lib/use-settings-hash";
 import { AccountGeneralPane } from "@/components/settings/panes/account-general";
 import { AccountProfilePane } from "@/components/settings/panes/account-profile";
 import { AccountSecurityPane } from "@/components/settings/panes/account-security";
+import { SpaceAppsPane } from "@/components/settings/panes/space-apps";
 import { SpaceDangerPane } from "@/components/settings/panes/space-danger";
 import { SpaceGeneralPane } from "@/components/settings/panes/space-general";
 import { SpaceGroupsPane } from "@/components/settings/panes/space-groups";
@@ -103,6 +105,13 @@ export const PANES: readonly SettingsPane[] = [
     icon: UsersRound,
     Component: SpaceGroupsPane,
     orgOnly: true,
+  },
+  {
+    slug: "apps",
+    group: "space",
+    label: msg`Apps`,
+    icon: Puzzle,
+    Component: SpaceAppsPane,
   },
   {
     slug: "danger",

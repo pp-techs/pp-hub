@@ -6,6 +6,7 @@ import {
   SidebarHeader,
   SidebarSeparator,
 } from "@workspace/ui/components/sidebar";
+import { NavApps } from "@/components/nav-apps";
 import { NavCreate } from "@/components/nav-create";
 import { NavExternal } from "@/components/nav-external";
 import { NavSpace } from "@/components/nav-space";
@@ -39,7 +40,9 @@ export function AppSidebar({
         {spaceId && (
           <>
             <NavCreate />
-            <NavSpace spaceId={spaceId} />
+            <NavSpace spaceId={spaceId}>
+              <NavApps spaceId={spaceId} />
+            </NavSpace>
           </>
         )}
         <NavExternal />

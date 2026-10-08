@@ -121,6 +121,10 @@ func (s *Server) handleShareChildren(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]nodeDTO, 0, len(children))
 	for _, c := range children {
+		// An extension node has no link view in this release.
+		if c.Kind == store.NodeKindExt {
+			continue
+		}
 		// Owner identity is internal; a link visitor has no account and no
 		// business learning who works here.
 		dto := nodeToDTOMeta(c)
@@ -254,6 +258,11 @@ func (s *Server) handleShareInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if node.Kind == store.NodeKindExt {
+		writeProblem(w, http.StatusUnprocessableEntity, "Unprocessable Entity",
+			"this item cannot be opened through a link")
+		return
+	}
 	dto := nodeToDTO(node, nil)
 	if node.Kind == store.NodeKindFile {
 		if ver, err := s.store.GetCurrentVersion(r.Context(), node.ID); err == nil {

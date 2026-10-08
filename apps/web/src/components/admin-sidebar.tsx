@@ -3,7 +3,7 @@ import { Link, useLocation } from "@tanstack/react-router";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
-import { ArrowLeft, Server, ShieldAlert, SlidersHorizontal, Users } from "lucide-react";
+import { ArrowLeft, Puzzle, Server, ShieldAlert, SlidersHorizontal, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
   Sidebar,
@@ -21,19 +21,20 @@ import { useMe } from "@/lib/queries";
 import { UserAvatar } from "@/components/user-avatar";
 
 export interface AdminNavItem {
-  to: "/admin/users" | "/admin/security" | "/admin/settings";
+  to: "/admin/users" | "/admin/security" | "/admin/apps" | "/admin/settings";
   label: MessageDescriptor;
   icon: LucideIcon;
 }
 
 /**
- * The three server-administration surfaces. A descriptor rather than a string:
+ * The server-administration surfaces. A descriptor rather than a string:
  * this is module scope and runs before any catalog is active. The layout's
  * breadcrumb reads the same list, so a page is added in one place.
  */
 export const ADMIN_NAV: AdminNavItem[] = [
   { to: "/admin/users", label: msg`Users`, icon: Users },
   { to: "/admin/security", label: msg`Security log`, icon: ShieldAlert },
+  { to: "/admin/apps", label: msg`Apps`, icon: Puzzle },
   { to: "/admin/settings", label: msg`Instance settings`, icon: SlidersHorizontal },
 ];
 
