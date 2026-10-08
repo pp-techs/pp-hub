@@ -893,8 +893,9 @@ capability of its own — it is its creator, as an OAuth token is.
 A token whose identity has no pp-hub account answers 403 ("sign in to pp-hub
 once…"); the MCP path never creates an account.
 
-Two routes exist only on the in-process agent router: `GET /nodes/{id}/text`
-takes `CapView` (reading is view) and `PUT /nodes/{id}/text` takes `CapEdit`.
+Three routes exist only on the in-process agent router: `GET /nodes/{id}/text`
+takes `CapView` (reading is view), `GET /nodes/{id}/file` takes `CapDownload`
+(it hands the bytes over, like `/download`) and `PUT /nodes/{id}/text` takes `CapEdit`.
 `add_comment` with a quote anchors the thread by writing the document, so it
 needs edit; without a quote it opens a thread like a reviewer, on view.
 

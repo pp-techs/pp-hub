@@ -200,6 +200,7 @@ a reverse proxy on the same host would trip it).
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Read          | `whoami`, `list_spaces`, `list_folder`, `search`, `get_node`, `list_recent`, `list_starred`, `list_shared_with_me`, `list_versions`, `list_members`, `list_groups`, `list_document_templates` | The existing reach-filtered routes, answered as the web client gets them. `list_folder` takes a markdown document's id as `folder_id` and lists its sub-pages (M43); rows carry `child_page_count`                                               |
 | Read          | `read_document`                                                                                                                                                                               | Markdown and `text/*` with an `etag`; anything else → 415 and a hint to send a link. The description says the YAML frontmatter holds the page `icon`/`cover` (keep it on update) and that `<!-- slash:subPage … -->` blocks mark sub-pages (M43) |
+| Read          | `download_file`                                                                                                                                                                               | Any file's bytes as `content_base64` with `name`, `mime`, `size`, `version`, `etag`. Needs download (not just view); at most 8 MiB, 413 above. Read-only — there is no binary write                                                              |
 | Read          | `get_web_link`                                                                                                                                                                                | `/edit/{id}` for a markdown document, the containing folder for any other file, the folder itself for a folder                                                                                                                                   |
 | Write         | `create_document`                                                                                                                                                                             | `.md`, empty, from a template, or with markdown (an empty first version, then the content as the second). `folder_id` may be a markdown document: the new document is its sub-page (M43)                                                         |
 | Write         | `update_document(node_id, markdown, base_etag)`                                                                                                                                               | See below                                                                                                                                                                                                                                        |
@@ -219,7 +220,7 @@ instructions to share, publish or rewrite.
 
 ### The text routes
 
-Two routes exist only on the agent router (`apiRoutes(r, true)`), never on the
+Three routes exist only on the agent router (`apiRoutes(r, true)`), never on the
 network; the web client edits documents through the collaboration room and does
 not need them.
 
@@ -229,6 +230,11 @@ not need them.
   agent reads what its editors see. Answers
   `{node_id, name, mime, version, etag, markdown, lossy, text}`; `etag` is the
   current version's blob hash. Audited as `file_viewed`.
+- **`GET /nodes/{id}/file`** — download. Any file, whole, as JSON with the bytes
+  in base64 (`{node_id, name, mime, size, version, etag, content_base64}`), at
+  most 8 MiB (`maxAgentFileBytes`; 413 above). Takes `CapDownload` like
+  `/download`, so a view-only share is refused (403); a folder is 400. A
+  document open in a room is flushed first. Audited as `file_downloaded`.
 - **`PUT /nodes/{id}/text`** `{markdown, base_etag}` — edit, markdown documents
   only. Lossy markdown (raw HTML, footnotes) is refused with 422: the document
   would open read-only on the web from then on. An office editor's lock still
@@ -293,9 +299,10 @@ here" from "off for me", and `mcp_tokens` while personal tokens may be minted.
 
 ## Non-goals
 
-Binary upload; file management (folders, rename, move, trash); text from office
-documents or PDFs (M27's office half); admin operations; the embedded agent
-(next, over the same registry); a CLI.
+Binary upload or write-back (`download_file` is read-only); file management
+(folders, rename, move, trash); text from office documents or PDFs (M27's office
+half); admin operations; the embedded agent (next, over the same registry); a
+CLI.
 
 ## Risks
 

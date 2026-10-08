@@ -76,7 +76,7 @@ func (s *Server) handleReadText(w http.ResponseWriter, r *http.Request) {
 	defer rc.Close()
 	if !isAgentText(ver.Mime) {
 		writeProblem(w, http.StatusUnsupportedMediaType, "Unsupported Media Type",
-			"only markdown and plain-text files can be read as text; send the person a link to open it in pp-hub")
+			"only markdown and plain-text files can be read as text; use download_file for its bytes, or send the person a link to open it in pp-hub")
 		return
 	}
 	if ver.Size > maxAgentTextBytes {
@@ -107,6 +107,67 @@ func (s *Server) handleReadText(w http.ResponseWriter, r *http.Request) {
 	}
 	s.audit.RecordRead(r, audit.Read{Kind: audit.KindFileViewed, User: u, Node: n})
 	writeJSON(w, http.StatusOK, dto)
+}
+
+// maxAgentFileBytes bounds what download_file hands over in one answer. It is
+// JSON with the bytes in base64, so the wire carries a third more.
+const maxAgentFileBytes = 8 << 20
+
+// agentFileDTO is a file's bytes, base64 on the wire.
+type agentFileDTO struct {
+	NodeID  string `json:"node_id"`
+	Name    string `json:"name"`
+	Mime    string `json:"mime"`
+	Size    int64  `json:"size"`
+	Version int32  `json:"version"`
+	ETag    string `json:"etag"`
+	Content []byte `json:"content_base64"`
+}
+
+// handleReadFile is GET /nodes/{id}/file: any file's bytes, for an agent that
+// can process them (an office document, a PDF, an image). It takes download,
+// like /download — handing the bytes over deliberately is that right, not
+// view's — and is audited as a download of the file. A block document open in
+// the editor is flushed first, as handleReadText does.
+func (s *Server) handleReadFile(w http.ResponseWriter, r *http.Request) {
+	u, node, _ := s.requireNodeCaps(w, r, share.CapDownload)
+	if u == nil {
+		return
+	}
+	if node.Kind != store.NodeKindFile {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "a folder has no content; list it instead")
+		return
+	}
+	if err := s.collab.Flush(r.Context(), node.ID); err != nil {
+		Error(w, r, err)
+		return
+	}
+	n, ver, rc, err := s.fs.OpenFile(r.Context(), node.ID)
+	if err != nil {
+		s.nodeError(w, r, err)
+		return
+	}
+	defer rc.Close()
+	if ver.Size > maxAgentFileBytes {
+		writeProblem(w, http.StatusRequestEntityTooLarge, "Payload Too Large",
+			"this file is too large to download here; send the person a link to open it in pp-hub")
+		return
+	}
+	raw, err := io.ReadAll(io.LimitReader(rc, maxAgentFileBytes+1))
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+	if len(raw) > maxAgentFileBytes {
+		writeProblem(w, http.StatusRequestEntityTooLarge, "Payload Too Large",
+			"this file is too large to download here; send the person a link to open it in pp-hub")
+		return
+	}
+	s.audit.RecordRead(r, audit.Read{Kind: audit.KindFileDownloaded, User: u, Node: n})
+	writeJSON(w, http.StatusOK, agentFileDTO{
+		NodeID: uuidString(n.ID), Name: n.Name, Mime: ver.Mime, Size: int64(len(raw)),
+		Version: ver.VersionNo, ETag: ver.BlobHash, Content: raw,
+	})
 }
 
 // errStaleText refuses a write whose base is no longer the current version.

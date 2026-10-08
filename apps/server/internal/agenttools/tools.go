@@ -14,7 +14,7 @@ func Tools(o Options) []Tool {
 	tools := []Tool{
 		whoami(), listSpaces(), listFolder(), search(), getNode(), listRecent(),
 		listStarred(), listSharedWithMe(), listVersions(), listMembers(), listGroups(),
-		readDocument(), getWebLink(o.WebURL), listDocumentTemplates(),
+		readDocument(), downloadFile(), getWebLink(o.WebURL), listDocumentTemplates(),
 		createDocument(), updateDocument(),
 		listAccess(), grantAccess(), revokeAccess(),
 		listComments(), addComment(), replyComment(), resolveThread(),
@@ -236,7 +236,7 @@ func readDocument() Tool {
 			"Markdown is the whole file, YAML frontmatter included: a document's page icon (`icon`, an emoji) and cover (`cover`, attachment:<hash>) live there — keep it when you update the document. " +
 			"Markdown may contain comment anchors like <!-- slash:comment {...} -->; they mark commented text, and " +
 			"<!-- slash:subPage {\"pageId\":...} --> blocks mark the document's sub-pages. " +
-			"Office documents and PDFs cannot be read as text — use get_web_link to send the person to them.",
+			"Office documents and PDFs cannot be read as text — use download_file for their bytes, or get_web_link to send the person to them.",
 		Schema: json.RawMessage(nodeArg), ReadOnly: true,
 		Run: func(ctx context.Context, api API, args json.RawMessage) (any, error) {
 			node, err := nodeID(args)
@@ -244,6 +244,22 @@ func readDocument() Tool {
 				return nil, err
 			}
 			return call(ctx, api, http.MethodGet, "/nodes/"+node+"/text", nil)
+		},
+	}
+}
+
+func downloadFile() Tool {
+	return Tool{
+		Name: "download_file", Title: "Download a file",
+		Description: "A file's bytes, base64 in content_base64, with its name, mime, size, version and etag — for office documents, PDFs, images and any other file read_document cannot return as text. " +
+			"Needs download permission on the file, and files over 8 MiB are refused (use get_web_link then). Read-only: the file cannot be written back this way.",
+		Schema: json.RawMessage(nodeArg), ReadOnly: true,
+		Run: func(ctx context.Context, api API, args json.RawMessage) (any, error) {
+			node, err := nodeID(args)
+			if err != nil {
+				return nil, err
+			}
+			return call(ctx, api, http.MethodGet, "/nodes/"+node+"/file", nil)
 		},
 	}
 }

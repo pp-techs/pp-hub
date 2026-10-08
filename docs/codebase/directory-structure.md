@@ -146,7 +146,7 @@ pp-hub/
 │           │   ├── webhooks.go     # POST /hooks/logto — HMAC over the raw body, then enqueue an org or user reconcile
 │           │   ├── mcp.go          # M41: /mcp/ (bearer-only, mcpBearer) + /.well-known/oauth-protected-resource
 │           │   ├── agent.go        # M41: agentAPI — tool calls dispatched in process through apiRoutes
-│           │   ├── agent_text.go   # M41: GET/PUT /nodes/{id}/text, mounted only on the agent router
+│           │   ├── agent_text.go   # M41: GET/PUT /nodes/{id}/text and GET /nodes/{id}/file, mounted only on the agent router
 │           │   ├── agent_tokens.go # M41: personal access tokens (/users/me/agent-tokens), never on the agent router
 │           │   └── spaces_members.go # space members API (list/add/remove, set-admin) + the departure queue
 │           ├── store/              # ✅ sqlc queries, embedded migrations runner
