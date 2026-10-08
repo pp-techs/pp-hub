@@ -20,6 +20,9 @@
         "@hocuspocus/provider": "^4.7.0",
         "@lingui/core": "6.9.0",
         "@lingui/react": "6.9.0",
+        "@pp-hub/ext-checklist": "workspace:*",
+        "@pp-hub/ext-kanban": "workspace:*",
+        "@pp-hub/ext-sdk": "workspace:*",
         "@slash-editor/core": "0.7.0",
         "@slash-editor/react": "0.7.0",
         "@tanstack/react-query": "^5.104.1",
@@ -65,6 +68,62 @@
         "vite-plus": "catalog:",
       },
     },
+    "packages/ext-checklist": {
+      "name": "@pp-hub/ext-checklist",
+      "version": "1.0.0",
+      "dependencies": {
+        "@lingui/core": "6.9.0",
+        "@lingui/react": "6.9.0",
+        "@pp-hub/ext-sdk": "workspace:*",
+        "@tanstack/react-query": "^5.104.1",
+        "@workspace/ui": "workspace:*",
+        "lucide-react": "^1.52.0",
+        "react": "^19.3.0",
+        "react-dom": "^19.3.0",
+        "sonner": "^2.0.8",
+      },
+      "devDependencies": {
+        "@types/react": "^19",
+        "@types/react-dom": "^19",
+      },
+    },
+    "packages/ext-kanban": {
+      "name": "@pp-hub/ext-kanban",
+      "version": "1.0.0",
+      "dependencies": {
+        "@lingui/core": "6.9.0",
+        "@lingui/react": "6.9.0",
+        "@pp-hub/ext-sdk": "workspace:*",
+        "@tanstack/react-query": "^5.104.1",
+        "@workspace/ui": "workspace:*",
+        "lucide-react": "^1.52.0",
+        "react": "^19.3.0",
+        "react-dom": "^19.3.0",
+        "sonner": "^2.0.8",
+      },
+      "devDependencies": {
+        "@types/react": "^19",
+        "@types/react-dom": "^19",
+      },
+    },
+    "packages/ext-sdk": {
+      "name": "@pp-hub/ext-sdk",
+      "version": "0.0.0",
+      "dependencies": {
+        "@buiducnhat/better-modal": "^0.0.6",
+        "@lingui/core": "6.9.0",
+        "@lingui/react": "6.9.0",
+        "@tanstack/react-query": "^5.104.1",
+        "@workspace/ui": "workspace:*",
+        "lucide-react": "^1.52.0",
+        "react": "^19.3.0",
+        "react-dom": "^19.3.0",
+      },
+      "devDependencies": {
+        "@types/react": "^19",
+        "@types/react-dom": "^19",
+      },
+    },
     "packages/ui": {
       "name": "@workspace/ui",
       "version": "0.0.0",
@@ -91,6 +150,18 @@
       "devDependencies": {
         "@types/node": "^26.6.4",
         "bumpp": "^11.1.0",
+        "typescript": "^7.0.2",
+        "vite-plus": "catalog:",
+      },
+    },
+    "tools/pp-apps": {
+      "name": "@pp-hub/pp-apps",
+      "version": "0.0.0",
+      "bin": {
+        "pp-apps": "./src/cli.ts",
+      },
+      "devDependencies": {
+        "@types/node": "^26.6.4",
         "typescript": "^7.0.2",
         "vite-plus": "catalog:",
       },
@@ -495,6 +566,14 @@
     "@pnpm/deps.graph-sequencer": ["@pnpm/deps.graph-sequencer@1100.0.1", "", {}, "sha512-pOr5+q1fLYKwFN3LAJuGZEnfXDcQ73zqgDHMtGy+K+uIoUqyY+6MeDCWFwfu+4EFuq76I5EPFofoNAI+Bmmq4A=="],
 
     "@polka/url": ["@polka/url@1.0.0-next.29", "", {}, "sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww=="],
+
+    "@pp-hub/ext-checklist": ["@pp-hub/ext-checklist@workspace:packages/ext-checklist"],
+
+    "@pp-hub/ext-kanban": ["@pp-hub/ext-kanban@workspace:packages/ext-kanban"],
+
+    "@pp-hub/ext-sdk": ["@pp-hub/ext-sdk@workspace:packages/ext-sdk"],
+
+    "@pp-hub/pp-apps": ["@pp-hub/pp-apps@workspace:tools/pp-apps"],
 
     "@pp-hub/release": ["@pp-hub/release@workspace:tools/release"],
 

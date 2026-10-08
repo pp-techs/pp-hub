@@ -346,6 +346,7 @@ func searchRowToDTO(n store.SearchNodesRow) searchResultDTO {
 		ID:        id.(string),
 		SpaceID:   sid.(string),
 		Kind:      string(n.Kind),
+		ExtKind:   n.ExtKind.String,
 		Name:      n.Name,
 		CreatedAt: n.CreatedAt.Time.Format(timeLayout),
 	}

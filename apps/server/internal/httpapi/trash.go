@@ -19,6 +19,7 @@ type trashNodeDTO struct {
 	SpaceID    string `json:"space_id"`
 	ParentID   string `json:"parent_id,omitempty"`
 	Kind       string `json:"kind"`
+	ExtKind    string `json:"ext_kind,omitempty"`
 	Name       string `json:"name"`
 	Size       int64  `json:"size,omitempty"`
 	Mime       string `json:"mime,omitempty"`

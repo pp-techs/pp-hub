@@ -1,6 +1,6 @@
 -- name: CreateNotification :one
-INSERT INTO notifications (user_id, kind, actor_id, node_id, thread_id, comment_id, excerpt)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO notifications (user_id, kind, actor_id, node_id, thread_id, comment_id, excerpt, subject)
+VALUES ($1, $2, $3, $4, $5, $6, $7, sqlc.narg('subject'))
 RETURNING id;
 
 -- name: CreateVersionMentionNotification :many
@@ -14,11 +14,14 @@ RETURNING id;
 -- name: ListNotifications :many
 -- A user's notifications, newest first, keyset-paginated on (created_at, id).
 -- A notification about a trashed document is hidden until it is restored.
+-- subject is the part of an extension node it is about: its own, or its thread's.
 SELECT n.id, n.user_id, n.kind, n.node_id, n.thread_id, n.comment_id, n.excerpt,
-       n.created_at, n.read_at, nd.name AS node_name, nd.space_id, sqlc.embed(a)
+       n.created_at, n.read_at, nd.name AS node_name, nd.space_id,
+       COALESCE(n.subject, t.subject, '')::text AS subject, sqlc.embed(a)
 FROM notifications n
 JOIN nodes nd ON nd.id = n.node_id AND nd.deleted_at IS NULL
 JOIN users a ON a.id = n.actor_id
+LEFT JOIN comment_threads t ON t.id = n.thread_id
 WHERE n.user_id = @user_id
   AND (sqlc.narg(before_at)::timestamptz IS NULL
        OR (n.created_at, n.id) < (sqlc.narg(before_at)::timestamptz, sqlc.narg(before_id)::uuid))
@@ -27,10 +30,12 @@ LIMIT @lim;
 
 -- name: GetNotificationsByIDs :many
 SELECT n.id, n.user_id, n.kind, n.node_id, n.thread_id, n.comment_id, n.excerpt,
-       n.created_at, n.read_at, nd.name AS node_name, nd.space_id, sqlc.embed(a)
+       n.created_at, n.read_at, nd.name AS node_name, nd.space_id,
+       COALESCE(n.subject, t.subject, '')::text AS subject, sqlc.embed(a)
 FROM notifications n
 JOIN nodes nd ON nd.id = n.node_id AND nd.deleted_at IS NULL
 JOIN users a ON a.id = n.actor_id
+LEFT JOIN comment_threads t ON t.id = n.thread_id
 WHERE n.id = ANY(@ids::uuid[])
 ORDER BY n.created_at, n.id;
 

@@ -45,8 +45,8 @@ func (q *Queries) CountUnreadNotificationsByNode(ctx context.Context, userID pgt
 }
 
 const createNotification = `-- name: CreateNotification :one
-INSERT INTO notifications (user_id, kind, actor_id, node_id, thread_id, comment_id, excerpt)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO notifications (user_id, kind, actor_id, node_id, thread_id, comment_id, excerpt, subject)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 RETURNING id
 `
 
@@ -58,6 +58,7 @@ type CreateNotificationParams struct {
 	ThreadID  pgtype.UUID `json:"thread_id"`
 	CommentID pgtype.UUID `json:"comment_id"`
 	Excerpt   string      `json:"excerpt"`
+	Subject   pgtype.Text `json:"subject"`
 }
 
 func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotificationParams) (pgtype.UUID, error) {
@@ -69,6 +70,7 @@ func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotification
 		arg.ThreadID,
 		arg.CommentID,
 		arg.Excerpt,
+		arg.Subject,
 	)
 	var id pgtype.UUID
 	err := row.Scan(&id)
@@ -120,10 +122,12 @@ func (q *Queries) CreateVersionMentionNotification(ctx context.Context, arg Crea
 
 const getNotificationsByIDs = `-- name: GetNotificationsByIDs :many
 SELECT n.id, n.user_id, n.kind, n.node_id, n.thread_id, n.comment_id, n.excerpt,
-       n.created_at, n.read_at, nd.name AS node_name, nd.space_id, a.id, a.tenant_id, a.oidc_sub, a.oidc_iss, a.email, a.name, a.display_name, a.avatar_url, a.bio, a.settings, a.is_admin, a.last_seen, a.email_hash, a.suspended_at, a.created_at, a.avatar_blob, a.avatar_mime, a.phone, a.gender, a.idp_picture, a.avatar_from_idp, a.email_verified
+       n.created_at, n.read_at, nd.name AS node_name, nd.space_id,
+       COALESCE(n.subject, t.subject, '')::text AS subject, a.id, a.tenant_id, a.oidc_sub, a.oidc_iss, a.email, a.name, a.display_name, a.avatar_url, a.bio, a.settings, a.is_admin, a.last_seen, a.email_hash, a.suspended_at, a.created_at, a.avatar_blob, a.avatar_mime, a.phone, a.gender, a.idp_picture, a.avatar_from_idp, a.email_verified
 FROM notifications n
 JOIN nodes nd ON nd.id = n.node_id AND nd.deleted_at IS NULL
 JOIN users a ON a.id = n.actor_id
+LEFT JOIN comment_threads t ON t.id = n.thread_id
 WHERE n.id = ANY($1::uuid[])
 ORDER BY n.created_at, n.id
 `
@@ -140,6 +144,7 @@ type GetNotificationsByIDsRow struct {
 	ReadAt    pgtype.Timestamptz `json:"read_at"`
 	NodeName  string             `json:"node_name"`
 	SpaceID   pgtype.UUID        `json:"space_id"`
+	Subject   string             `json:"subject"`
 	User      User               `json:"user"`
 }
 
@@ -164,6 +169,7 @@ func (q *Queries) GetNotificationsByIDs(ctx context.Context, ids []pgtype.UUID) 
 			&i.ReadAt,
 			&i.NodeName,
 			&i.SpaceID,
+			&i.Subject,
 			&i.User.ID,
 			&i.User.TenantID,
 			&i.User.OidcSub,
@@ -229,10 +235,12 @@ func (q *Queries) GetPreviousVersion(ctx context.Context, arg GetPreviousVersion
 
 const listNotifications = `-- name: ListNotifications :many
 SELECT n.id, n.user_id, n.kind, n.node_id, n.thread_id, n.comment_id, n.excerpt,
-       n.created_at, n.read_at, nd.name AS node_name, nd.space_id, a.id, a.tenant_id, a.oidc_sub, a.oidc_iss, a.email, a.name, a.display_name, a.avatar_url, a.bio, a.settings, a.is_admin, a.last_seen, a.email_hash, a.suspended_at, a.created_at, a.avatar_blob, a.avatar_mime, a.phone, a.gender, a.idp_picture, a.avatar_from_idp, a.email_verified
+       n.created_at, n.read_at, nd.name AS node_name, nd.space_id,
+       COALESCE(n.subject, t.subject, '')::text AS subject, a.id, a.tenant_id, a.oidc_sub, a.oidc_iss, a.email, a.name, a.display_name, a.avatar_url, a.bio, a.settings, a.is_admin, a.last_seen, a.email_hash, a.suspended_at, a.created_at, a.avatar_blob, a.avatar_mime, a.phone, a.gender, a.idp_picture, a.avatar_from_idp, a.email_verified
 FROM notifications n
 JOIN nodes nd ON nd.id = n.node_id AND nd.deleted_at IS NULL
 JOIN users a ON a.id = n.actor_id
+LEFT JOIN comment_threads t ON t.id = n.thread_id
 WHERE n.user_id = $1
   AND ($2::timestamptz IS NULL
        OR (n.created_at, n.id) < ($2::timestamptz, $3::uuid))
@@ -259,11 +267,13 @@ type ListNotificationsRow struct {
 	ReadAt    pgtype.Timestamptz `json:"read_at"`
 	NodeName  string             `json:"node_name"`
 	SpaceID   pgtype.UUID        `json:"space_id"`
+	Subject   string             `json:"subject"`
 	User      User               `json:"user"`
 }
 
 // A user's notifications, newest first, keyset-paginated on (created_at, id).
 // A notification about a trashed document is hidden until it is restored.
+// subject is the part of an extension node it is about: its own, or its thread's.
 func (q *Queries) ListNotifications(ctx context.Context, arg ListNotificationsParams) ([]ListNotificationsRow, error) {
 	rows, err := q.db.Query(ctx, listNotifications,
 		arg.UserID,
@@ -290,6 +300,7 @@ func (q *Queries) ListNotifications(ctx context.Context, arg ListNotificationsPa
 			&i.ReadAt,
 			&i.NodeName,
 			&i.SpaceID,
+			&i.Subject,
 			&i.User.ID,
 			&i.User.TenantID,
 			&i.User.OidcSub,

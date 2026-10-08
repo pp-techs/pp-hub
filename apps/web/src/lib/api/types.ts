@@ -301,7 +301,10 @@ export interface Node {
   id: string;
   space_id: string;
   parent_id?: string;
-  kind: "dir" | "file";
+  /** `ext` is a node an extension owns (a kanban board): no bytes, no versions. */
+  kind: "dir" | "file" | "ext";
+  /** The registered kind of an `ext` node, e.g. `kanban.board`. Absent on dirs and files. */
+  ext_kind?: string;
   name: string;
   size?: number;
   mime?: string;
@@ -493,7 +496,7 @@ export type NodeView = "grid" | "list";
 export interface TreeNode {
   id: string;
   parent_id?: string;
-  kind: "dir" | "file";
+  kind: "dir" | "file" | "ext";
   name: string;
   has_children: boolean;
 }
@@ -790,15 +793,20 @@ export interface DocCommentThread {
   created_at: string;
   created_by: SocialUser;
   comments: DocComment[];
+  /** The part of an extension node the thread is about ("card:<id>"); absent on a document. */
+  subject?: string;
 }
 
-export type NotificationKind = "comment" | "reply" | "mention";
+/** Core kinds, or `ext:<ext id>:<verb>` from an extension. */
+export type NotificationKind = "comment" | "reply" | "mention" | `ext:${string}:${string}`;
 
 export interface AppNotification {
   id: string;
   kind: NotificationKind;
   actor: SocialUser;
   node: { id: string; name: string; space_id: string };
+  /** The part of the node it is about (extension nodes). */
+  subject?: string;
   thread_id?: string;
   comment_id?: string;
   excerpt: string;
@@ -828,4 +836,24 @@ export interface UnfurledLink {
   title: string;
   description: string;
   thumbnail?: string;
+}
+
+/**
+ * An extension this build of the server carries. `instance` is the admin's
+ * switch, `space` the space admin's; `enabled` is the effective answer for the
+ * space the list was asked for (the instance switch when none was).
+ */
+export interface Extension {
+  id: string;
+  name: string;
+  node_kinds: string[];
+  /** From the app's manifest (pp-app.json); empty when the manifest leaves them out. */
+  version: string;
+  description: string;
+  author: string;
+  license: string;
+  homepage: string;
+  instance: boolean;
+  space: boolean;
+  enabled: boolean;
 }

@@ -37,7 +37,7 @@ LIMIT $2;
 -- scopes the feed to it. Callers filter by capabilities afterwards.
 SELECT DISTINCT ON (n.id)
   n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
-  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id, n.ext_kind,
   v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
   u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email,
   s.name AS space_name,
@@ -50,7 +50,7 @@ JOIN spaces s ON s.id = n.space_id
 LEFT JOIN node_versions v ON v.id = n.current_version_id
 LEFT JOIN users u ON u.id = n.created_by
 LEFT JOIN nodes p ON p.id = n.parent_id AND p.deleted_at IS NULL
-WHERE a.actor_id = $1 AND n.deleted_at IS NULL AND n.kind = 'file'
+WHERE a.actor_id = $1 AND n.deleted_at IS NULL AND n.kind IN ('file', 'ext')
   AND (EXISTS (SELECT 1 FROM space_members m WHERE m.space_id = n.space_id AND m.user_id = $1)
        OR EXISTS (
            SELECT 1 FROM shares xs JOIN nodes xn ON xn.id = xs.node_id

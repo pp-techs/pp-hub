@@ -89,7 +89,7 @@ Every table carries `tenant_id` (single value `'default'` in MVP). No tenant rou
 ## Sync & Marketplace Readiness (post-MVP)
 
 - **Desktop/mobile sync**: the CAS blob interface hides chunking. A later rollsum-based chunk layer under `blob.Put` plus `chunkExists/chunkPut` endpoints enables delta sync without changing callers.
-- **Marketplace/plugins**: modules already depend on interfaces, not concrete types — a plugin runtime can register new route providers and job kinds later.
+- **Marketplace/plugins**: designed as compile-time extensions behind a public `extsdk`, switched on per instance and per space — see [extensions.md](extensions.md) (M44–M46, kanban first).
 
 ## Deployment
 

@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/nhatbui/pp-hub/packages/ext-sdk/pp-app.schema.json",
+  "title": "pp-hub extension manifest (pp-app.json)",
+  "description": "Declared once per extension; the Go package embeds it and the npm package carries a byte-identical copy. Beyond what this schema states, every nodeKinds[].kind must start with \"<id>.\" and ids and kinds must be unique across a build; `pp-apps check` verifies both.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "name",
+    "version",
+    "description",
+    "author",
+    "engines",
+    "nodeKinds",
+    "server",
+    "web"
+  ],
+  "properties": {
+    "id": {
+      "description": "Name in URLs, Postgres schema (ext_<id>) and settings; also the Go import alias, so not a Go keyword.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,31}$",
+      "not": {
+        "enum": [
+          "break",
+          "case",
+          "chan",
+          "const",
+          "continue",
+          "default",
+          "defer",
+          "else",
+          "fallthrough",
+          "for",
+          "func",
+          "go",
+          "goto",
+          "if",
+          "import",
+          "interface",
+          "map",
+          "package",
+          "range",
+          "return",
+          "select",
+          "struct",
+          "switch",
+          "type",
+          "var",
+          "main",
+          "extsdk"
+        ]
+      }
+    },
+    "name": { "description": "Display name.", "type": "string", "minLength": 1, "pattern": "\\S" },
+    "version": {
+      "description": "Semantic version of the extension.",
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
+    },
+    "description": {
+      "description": "One sentence shown in Admin > Apps.",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "author": { "type": "string", "minLength": 1, "pattern": "\\S" },
+    "license": {
+      "description": "SPDX identifier.",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "homepage": { "type": "string", "minLength": 1, "pattern": "\\S" },
+    "engines": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sdk"],
+      "properties": {
+        "sdk": {
+          "description": "The extension API version (extsdk.APIVersion) the extension was written for.",
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "nodeKinds": {
+      "description": "The kinds of node the extension owns.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind"],
+        "properties": {
+          "kind": {
+            "description": "\"<id>.<name>\".",
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,31}\\.[^\\s.]+$"
+          }
+        }
+      }
+    },
+    "server": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["package"],
+      "properties": {
+        "package": {
+          "description": "Go import path of the package exporting New() extsdk.Ext.",
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        }
+      }
+    },
+    "web": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["package"],
+      "properties": {
+        "package": {
+          "description": "npm name of the package whose default export is the ExtManifest.",
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        }
+      }
+    }
+  }
+}

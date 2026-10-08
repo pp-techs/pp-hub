@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
 import { createEditSession, isMarkdownFile, type EditSession, type Node } from "@/lib/api";
@@ -10,7 +10,18 @@ import { faviconFor } from "@/components/node-icon";
 import { useDocumentTitle, useFavicon } from "@/lib/use-page-head";
 import { useLocale } from "@/components/locale-provider";
 import { useTheme } from "@/components/theme-provider";
+import { Puzzle } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
+import { Skeleton } from "@workspace/ui/components/skeleton";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@workspace/ui/components/empty";
+import { LoadingStatus } from "@/components/loading";
+import { extKindOf } from "@/ext/registry";
 import { NodePanels } from "@/components/node-panels";
 import { EditorHeader } from "@/components/editor-header";
 import { DocEditor } from "@/components/doc-editor/doc-editor";
@@ -18,9 +29,11 @@ import { DocEditor } from "@/components/doc-editor/doc-editor";
 export const Route = createFileRoute("/edit/$nodeId")({
   head: () => ({ meta: [{ title: pageTitle(msg`Editing`) }] }),
   // `thread` opens a markdown document's comments on that thread — where a
-  // comment notification links to.
-  validateSearch: (search: Record<string, unknown>): { thread?: string } => ({
+  // comment notification links to. `subject` is the part of an extension node
+  // a link points at, handed to its editor.
+  validateSearch: (search: Record<string, unknown>): { thread?: string; subject?: string } => ({
     thread: typeof search.thread === "string" && search.thread ? search.thread : undefined,
+    subject: typeof search.subject === "string" && search.subject ? search.subject : undefined,
   }),
   beforeLoad: async ({ context, location }) => {
     await requireAuth(context.queryClient, location.href);
@@ -46,7 +59,7 @@ export const Route = createFileRoute("/edit/$nodeId")({
  */
 function EditPage() {
   const { nodeId } = Route.useParams();
-  const { thread } = Route.useSearch();
+  const { thread, subject } = Route.useSearch();
   const [shown, setShown] = useState(nodeId);
   // The page whose editor (or refusal) has been drawn: only a drawn page is
   // worth holding on screen.
@@ -85,6 +98,7 @@ function EditPage() {
           visible={id === shown}
           // A notification's thread belongs to the page the URL names.
           thread={id === nodeId ? thread : undefined}
+          subject={id === nodeId ? subject : undefined}
           onSettled={settle}
         />
       ))}
@@ -111,11 +125,13 @@ function EditView({
   nodeId,
   visible,
   thread,
+  subject,
   onSettled,
 }: {
   nodeId: string;
   visible: boolean;
   thread?: string;
+  subject?: string;
   onSettled: (nodeId: string) => void;
 }) {
   const node = useEditNode(nodeId);
@@ -136,12 +152,64 @@ function EditView({
             </p>
           )}
         </>
+      ) : node.data.kind === "ext" ? (
+        <ExtEditor node={node.data} subject={subject} thread={thread} />
       ) : isMarkdownFile(node.data) ? (
         <DocEditor node={node.data} thread={thread} onSettled={settled} />
       ) : (
         <OfficeEditor node={node.data} />
       )}
     </div>
+  );
+}
+
+/**
+ * An extension node: the editor its extension registered for the node's kind,
+ * under the same header as the other editors. A kind this build does not carry
+ * (the server knows it, the SPA does not) has nothing to open it with. A board
+ * the app switched off answers 403 to the editor's own requests, and the
+ * editor says so itself.
+ */
+function ExtEditor({ node, subject, thread }: { node: Node; subject?: string; thread?: string }) {
+  const kind = extKindOf(node.ext_kind);
+  const Editor = kind?.editor;
+  return (
+    <>
+      <EditorHeader nodeId={node.id} node={node} />
+      {Editor ? (
+        <Suspense fallback={<ExtSkeleton />}>
+          <Editor nodeId={node.id} subject={subject} thread={thread} />
+        </Suspense>
+      ) : (
+        <Empty className="flex-1">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <Puzzle />
+            </EmptyMedia>
+            <EmptyTitle>
+              <Trans>This app is not part of this installation</Trans>
+            </EmptyTitle>
+            <EmptyDescription>
+              <Trans>
+                This item belongs to an app that this version of PP Hub does not include. It can
+                still be renamed, moved or deleted from the drive.
+              </Trans>
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      )}
+    </>
+  );
+}
+
+/** Stand-in while an extension's editor chunk loads: a row of column-shaped blocks. */
+function ExtSkeleton() {
+  return (
+    <LoadingStatus className="flex min-h-0 flex-1 gap-3 overflow-hidden p-4">
+      {[0, 1, 2].map((i) => (
+        <Skeleton key={i} className="h-2/3 w-72 shrink-0 rounded-lg" />
+      ))}
+    </LoadingStatus>
   );
 }
 

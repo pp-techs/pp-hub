@@ -44,6 +44,7 @@ type commentDTO struct {
 
 type threadDTO struct {
 	ID         string       `json:"id"`
+	Subject    string       `json:"subject,omitempty"`
 	Resolved   bool         `json:"resolved"`
 	ResolvedAt string       `json:"resolved_at,omitempty"`
 	ResolvedBy *personDTO   `json:"resolved_by,omitempty"`
@@ -68,6 +69,7 @@ func commentToDTO(c comments.Comment) commentDTO {
 func threadToDTO(t comments.Thread) threadDTO {
 	d := threadDTO{
 		ID:        uuidString(t.ID),
+		Subject:   t.Subject,
 		Resolved:  t.ResolvedAt.Valid,
 		CreatedAt: t.CreatedAt.Format(time.RFC3339),
 		CreatedBy: personOf(t.CreatedBy),
@@ -90,6 +92,8 @@ func threadToDTO(t comments.Thread) threadDTO {
 type commentInput struct {
 	Body     string   `json:"body"`
 	Mentions []string `json:"mentions"`
+	// Subject is what an extension node's thread is about ("card:<uuid>").
+	Subject string `json:"subject"`
 }
 
 // readCommentInput decodes a new comment, answering 400 for a malformed one.
@@ -102,7 +106,7 @@ func readCommentInput(w http.ResponseWriter, r *http.Request) (comments.Input, b
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
 		return comments.Input{}, false
 	}
-	in := comments.Input{Body: body.Body, Mentions: make([]pgtype.UUID, 0, len(body.Mentions))}
+	in := comments.Input{Body: body.Body, Subject: body.Subject, Mentions: make([]pgtype.UUID, 0, len(body.Mentions))}
 	for _, m := range body.Mentions {
 		var id pgtype.UUID
 		if err := id.Scan(m); err != nil {
@@ -128,15 +132,49 @@ func (s *Server) commentError(w http.ResponseWriter, r *http.Request, err error)
 	}
 }
 
-// requireDocumentComments resolves the document in the URL for a comments
-// route: view on a markdown document. Whoever can read a document can discuss
-// it, and reading is now view.
+// requireDocumentComments resolves the node in the URL for a comments route:
+// view on a markdown document, or on an extension node (M46), whose threads
+// are about its parts. Whoever can read a node can discuss it, and reading is
+// view.
 func (s *Server) requireDocumentComments(w http.ResponseWriter, r *http.Request) (*store.User, store.Node) {
 	u, node, _ := s.requireNodeCaps(w, r, share.CapView)
-	if u == nil || !s.isMarkdownFile(w, r, node) {
+	if u == nil {
+		return nil, store.Node{}
+	}
+	if node.Kind == store.NodeKindExt {
+		return u, node
+	}
+	if !s.isMarkdownFile(w, r, node) {
 		return nil, store.Node{}
 	}
 	return u, node
+}
+
+// commentSubject checks the subject of a thread about to be opened. A document
+// has none; an extension node's must name a part of it that its extension
+// accepts, so a thread cannot be hung on a card that is not there.
+func (s *Server) commentSubject(w http.ResponseWriter, r *http.Request, node store.Node, subject string) bool {
+	if node.Kind != store.NodeKindExt {
+		if subject != "" {
+			writeProblem(w, http.StatusBadRequest, "Bad Request", "a document's threads have no subject")
+			return false
+		}
+		return true
+	}
+	if subject == "" || s.ext == nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "subject is required")
+		return false
+	}
+	ok, err := s.ext.ValidSubject(r.Context(), node, subject)
+	if err != nil {
+		Error(w, r, err)
+		return false
+	}
+	if !ok {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "subject is not part of this node")
+		return false
+	}
+	return true
 }
 
 // requireThread resolves the thread in the URL and the caller's capabilities
@@ -178,7 +216,7 @@ func (s *Server) handleListComments(w http.ResponseWriter, r *http.Request) {
 	if u == nil {
 		return
 	}
-	threads, err := s.comments.Threads(r.Context(), node.ID)
+	threads, err := s.comments.Threads(r.Context(), node.ID, r.URL.Query().Get("subject"))
 	if err != nil {
 		s.commentError(w, r, err)
 		return
@@ -201,6 +239,9 @@ func (s *Server) handleCreateCommentThread(w http.ResponseWriter, r *http.Reques
 	}
 	in, ok := readCommentInput(w, r)
 	if !ok {
+		return
+	}
+	if !s.commentSubject(w, r, node, in.Subject) {
 		return
 	}
 	t, err := s.comments.CreateThread(r.Context(), *u, node, in)

@@ -24,6 +24,7 @@ import { useUiStore } from "@/lib/ui-store";
 import { useSpaceLabel } from "@/lib/use-space-label";
 import { LoadingStatus } from "@/components/loading";
 import { NodeIcon } from "@/components/node-icon";
+import { extKindOf } from "@/ext/registry";
 import { MarkdownThumbnail } from "@/components/markdown-document-view";
 import { PreviewModal } from "@/components/preview-modal";
 import { ShareDialog } from "@/components/share-dialog";
@@ -271,17 +272,23 @@ function SpaceDetails({
  * placeholder events.
  */
 function NodeDetails({ node }: { node: Node }) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const f = useFormatters();
   const openPanel = useUiStore((s) => s.openPanel);
   const caps = capsOf(node);
   const isFile = node.kind === "file";
+  // An extension node is shared like a file but has no bytes: no download,
+  // no versions, no size.
+  const isExt = node.kind === "ext";
+  const sharable = isFile || isExt;
+  const extKind = extKindOf(node.ext_kind);
+  const kindLabel = extKind ? i18n._(extKind.label) : t`App item`;
   // Who else holds this is a sharer's question, and the endpoint answers 403
   // to anyone else — so the query is not made, rather than made and mourned.
-  const shares = useShares(isFile && caps.share ? node.id : null);
+  const shares = useShares(sharable && caps.share ? node.id : null);
   // Group rows of /shares carry no name to show; /grants is the labelled view
   // of the same rows, read the same way the share dialog reads it.
-  const grants = useGrants(isFile && caps.share ? node.id : null);
+  const grants = useGrants(sharable && caps.share ? node.id : null);
   const access = [
     ...(grants.data ?? []).map((g) => ({ ...g, kind: "group" as const, label: g.group_name })),
     ...(shares.data ?? [])
@@ -331,13 +338,13 @@ function NodeDetails({ node }: { node: Node }) {
         <PanelAction
           icon={Eye}
           label={opensInEditor(node) ? t`Open` : t`Preview`}
-          disabled={!isFile || (!canPreview(node) && !opensInEditor(node))}
+          disabled={!sharable || (!canPreview(node) && !opensInEditor(node))}
           onClick={() => {
             if (opensInEditor(node)) openEditor(node);
             else void PreviewModal.show({ node });
           }}
         />
-        {caps.download && (
+        {caps.download && !isExt && (
           <PanelAction
             icon={Download}
             label={t`Download`}
@@ -353,13 +360,15 @@ function NodeDetails({ node }: { node: Node }) {
             onClick={() => void ShareDialog.show({ node })}
           />
         )}
-        <PanelAction
-          icon={History}
-          label={t`Versions`}
-          disabled={!isFile}
-          // eslint-disable-next-line lingui/no-unlocalized-strings -- panel id
-          onClick={() => openPanel("versions", node)}
-        />
+        {!isExt && (
+          <PanelAction
+            icon={History}
+            label={t`Versions`}
+            disabled={!isFile}
+            // eslint-disable-next-line lingui/no-unlocalized-strings -- panel id
+            onClick={() => openPanel("versions", node)}
+          />
+        )}
       </div>
 
       {/* Metadata */}
@@ -368,7 +377,10 @@ function NodeDetails({ node }: { node: Node }) {
           <Trans>Details</Trans>
         </SectionLabel>
         <div className="divide-border divide-y">
-          <DetailRow label={t`Type`} value={isFile ? (node.mime ?? t`File`) : t`Folder`} />
+          <DetailRow
+            label={t`Type`}
+            value={isExt ? kindLabel : isFile ? (node.mime ?? t`File`) : t`Folder`}
+          />
           {isFile && (
             <DetailRow label={t`Size`} value={node.size != null ? f.size(node.size) : "—"} />
           )}
@@ -401,7 +413,7 @@ function NodeDetails({ node }: { node: Node }) {
       </div>
 
       {/* Sharing */}
-      {isFile && caps.share && (
+      {sharable && caps.share && (
         <div>
           <SectionLabel>
             <Trans>Sharing</Trans>

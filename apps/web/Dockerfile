@@ -21,6 +21,12 @@ COPY package.json bun.lock ./
 COPY apps/web/package.json apps/web/
 COPY packages/ui/package.json packages/ui/
 COPY packages/utils/package.json packages/utils/
+# The extension packages and the tool that wires them (pp-apps.json) are
+# workspace members too.
+COPY packages/ext-sdk/package.json packages/ext-sdk/
+COPY packages/ext-kanban/package.json packages/ext-kanban/
+COPY packages/ext-checklist/package.json packages/ext-checklist/
+COPY tools/pp-apps/package.json tools/pp-apps/
 # The product-version carrier is a workspace member too, so the lockfile
 # names it; without its manifest `--frozen-lockfile` below fails.
 COPY tools/release/package.json tools/release/

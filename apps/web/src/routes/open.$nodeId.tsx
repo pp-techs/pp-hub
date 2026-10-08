@@ -29,7 +29,7 @@ export const Route = createFileRoute("/open/$nodeId")({
     // Every reachable node redirects below; only a refused one renders.
     if (!node) return;
 
-    if (node.kind === "file" && opensInEditor(node)) {
+    if (opensInEditor(node)) {
       throw redirect({ to: "/edit/$nodeId", params: { nodeId: node.id }, search: {} });
     }
     if (spaces.some((s) => s.id === node.space_id)) {

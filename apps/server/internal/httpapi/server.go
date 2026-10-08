@@ -13,6 +13,7 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/blob"
 	"github.com/nhatbui/pp-hub/apps/server/internal/collab"
 	"github.com/nhatbui/pp-hub/apps/server/internal/comments"
+	"github.com/nhatbui/pp-hub/apps/server/internal/exthost"
 	"github.com/nhatbui/pp-hub/apps/server/internal/fs"
 	"github.com/nhatbui/pp-hub/apps/server/internal/groups"
 	"github.com/nhatbui/pp-hub/apps/server/internal/mail"
@@ -77,6 +78,9 @@ type Server struct {
 	// personal provisions personal spaces (sign-in does it too; the space
 	// list catches sessions that predate the setting). Nil in handler tests.
 	personal *personal.Service
+	// ext is the extension host (M44); nil when a build carries none, in
+	// which case no extension route exists and every extension listing is empty.
+	ext *exthost.Registry
 }
 
 // Deps is what the HTTP edge needs. A struct rather than a parameter list
@@ -115,6 +119,8 @@ type Deps struct {
 	Notifications *notifications.Service
 	// Metrics records the HTTP series; nil disables them.
 	Metrics *obs.HTTPMetrics
+	// Ext is the extension host; nil serves a build with no extensions.
+	Ext *exthost.Registry
 }
 
 func NewServer(d Deps) *Server {
@@ -147,12 +153,26 @@ func NewServer(d Deps) *Server {
 		comments:       comments.NewService(d.Store, d.Notifications),
 		notifications:  d.Notifications,
 		metrics:        d.Metrics,
+		ext:            d.Ext,
+	}
+	if d.Ext != nil {
+		s.useExt(d.Ext)
 	}
 	if s.sysconfig == nil {
 		s.sysconfig = sysconfig.NewService(d.Store, nil)
 	}
 	s.personal = personal.New(d.Store, d.Spaces, d.Share, s.sysconfig, s.audit)
 	return s
+}
+
+// useExt mounts an extension host on this server and gives it the session
+// facts only the HTTP edge knows. Routes are added when Router runs.
+func (s *Server) useExt(h *exthost.Registry) {
+	s.ext = h
+	h.Bind(
+		func(r *http.Request) store.User { return *caller(r) },
+		func(r *http.Request) bool { return s.streamSessionActive(r, callerSession(r)) },
+	)
 }
 
 func (s *Server) uploadCap() int64 {
@@ -301,6 +321,14 @@ func (s *Server) apiRoutes(r chi.Router, agent bool) {
 	r.Patch("/admin/settings", s.handleUpdateAdminSettings)
 	r.Delete("/admin/settings/{key}", s.handleDeleteAdminSetting)
 	r.Post("/admin/settings/smtp/test", s.handleTestSMTP)
+	r.Get("/extensions", s.handleListExtensions)
+	r.Patch("/admin/extensions/{extID}", s.handleSetExtensionInstance)
+	// Extension routes (M44), under /ext/{id}. Mounted inside this group, so
+	// the same limits, origin and session checks cover them; a stream has no
+	// place in the agent dispatcher's request/response calls.
+	if !agent && s.ext != nil {
+		s.ext.Mount(r)
+	}
 	r.Get("/admin/personal-spaces", s.handleAdminListArchivedPersonal)
 	r.Delete("/admin/personal-spaces/{spaceID}", s.handleAdminPurgePersonal)
 	r.Get("/users", s.handleListUsers)
@@ -326,6 +354,9 @@ func (s *Server) apiRoutes(r chi.Router, agent bool) {
 			r.Post("/dirs", s.handleMkdir)
 			r.Post("/team-folders", s.handleCreateTeamFolder)
 			r.Post("/documents", s.handleCreateDocument)
+			r.Post("/ext-nodes", s.handleCreateExtNode)
+			r.Put("/extensions/{extID}", s.handleSetExtensionSpace)
+			r.Get("/extensions/{extID}/nodes", s.handleListExtNodes)
 			r.Route("/groups", func(r chi.Router) {
 				r.Get("/", s.handleListGroups)
 				r.Post("/", s.handleCreateGroup)

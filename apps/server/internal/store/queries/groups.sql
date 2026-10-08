@@ -138,7 +138,7 @@ WHERE s.node_id = n.id AND n.space_id = $1 AND s.created_by = $2;
 -- Callers must check the parent's capabilities first.
 SELECT
   n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
-  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id, n.ext_kind,
   v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
   u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email
 FROM nodes n
@@ -147,6 +147,7 @@ LEFT JOIN users u ON u.id = n.created_by
 WHERE n.space_id = @space_id
   AND n.parent_id IS NOT DISTINCT FROM @parent_id
   AND n.deleted_at IS NULL
+  AND n.kind <> 'ext'
   AND ( (n.created_by = @user_id AND n.team_root_id IS NULL)
      OR EXISTS (
         SELECT 1 FROM shares s
@@ -229,7 +230,7 @@ walk(origin, id) AS (
 )
 SELECT
   n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
-  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id, n.ext_kind,
   v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
   u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email
 FROM entry e
@@ -237,6 +238,10 @@ JOIN nodes n ON n.id = e.id
 LEFT JOIN node_versions v ON v.id = n.current_version_id
 LEFT JOIN users u ON u.id = n.created_by
 WHERE n.deleted_at IS NULL
+  -- An app's nodes are listed under Apps in the sidebar, in the home view and
+  -- in "Shared with me" alike. (Shared from outside keeps them: a person who
+  -- is not a member has no Apps list to find them in.)
+  AND n.kind <> 'ext'
   AND (sqlc.narg('space_id')::uuid IS NULL OR n.space_id = sqlc.narg('space_id')::uuid)
   AND (@include_owned::bool OR n.created_by <> @user_id)
   -- Every walk row is already a strict ancestor — the base step starts at the
@@ -288,7 +293,7 @@ walk(origin, id) AS (
 )
 SELECT
   n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
-  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id, n.ext_kind,
   v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
   u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email
 FROM entry e

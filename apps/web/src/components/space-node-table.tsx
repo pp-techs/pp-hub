@@ -19,6 +19,7 @@ import {
 import { opensInEditor, openEditor, type SearchResult } from "@/lib/api";
 import { useFormatters } from "@/lib/format";
 import { PreviewModal } from "@/components/preview-modal";
+import { ExtOffBadge } from "@/components/ext-off-badge";
 import { NodeIcon } from "@/components/node-icon";
 import { SkeletonTableRows } from "@/components/loading";
 
@@ -110,6 +111,7 @@ export function SpaceNodeTable({
                 >
                   <NodeIcon node={n} />
                   <span className="truncate">{n.name}</span>
+                  <ExtOffBadge node={n} />
                 </Button>
               </TableCell>
               {/* An empty parent name means the space root, which has no folder

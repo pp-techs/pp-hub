@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { Link, useLocation, useSearch } from "@tanstack/react-router";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
@@ -52,7 +53,7 @@ const cleanupRows: Row[] = [{ to: "/drive/$spaceId/trash", label: msg`Trash`, ic
  * Every navigable row in the rail, on the Sidebar primitives so collapse, the
  * mobile sheet and the active wash all come from one place.
  */
-export function NavSpace({ spaceId }: { spaceId: string }) {
+export function NavSpace({ spaceId, children }: { spaceId: string; children?: ReactNode }) {
   const space = useSpace(spaceId);
   const { t } = useLingui();
   const rememberDir = useUiStore((s) => s.rememberDir);
@@ -173,6 +174,9 @@ export function NavSpace({ spaceId }: { spaceId: string }) {
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
+
+      {/* Apps sit with the space's other surfaces, above the pinned Trash band. */}
+      {children}
 
       <SidebarGroup className="mt-auto">
         <SidebarGroupContent>

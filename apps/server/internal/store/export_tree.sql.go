@@ -12,7 +12,7 @@ import (
 )
 
 const listTreeChildren = `-- name: ListTreeChildren :many
-SELECT n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name, n.current_version_id, n.deleted_at, n.deleted_by, n.created_by, n.created_at, n.team_root_id,
+SELECT n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name, n.current_version_id, n.deleted_at, n.deleted_by, n.created_by, n.created_at, n.team_root_id, n.ext_kind,
        COALESCE(v.mime, '')::text AS mime,
        (n.kind = 'file' AND EXISTS (
            SELECT 1 FROM nodes c
@@ -67,6 +67,7 @@ func (q *Queries) ListTreeChildren(ctx context.Context, arg ListTreeChildrenPara
 			&i.Node.CreatedBy,
 			&i.Node.CreatedAt,
 			&i.Node.TeamRootID,
+			&i.Node.ExtKind,
 			&i.Mime,
 			&i.HasPages,
 		); err != nil {

@@ -13,6 +13,7 @@
     "dev": "vp run web#dev",
     "prepare": "vp config",
     "check": "vp check",
+    "apps": "bun tools/pp-apps/src/cli.ts",
     "changeset": "changeset",
     "version-packages": "bun scripts/version-packages.ts"
   },

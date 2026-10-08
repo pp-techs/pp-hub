@@ -517,7 +517,7 @@ export function ThreadCard({
   );
 }
 
-function CommentItem({
+export function CommentItem({
   comment,
   store,
   canEdit,

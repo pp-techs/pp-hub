@@ -101,7 +101,7 @@ func (q *Queries) GetAttachment(ctx context.Context, arg GetAttachmentParams) (N
 }
 
 const listAttachmentHolders = `-- name: ListAttachmentHolders :many
-SELECT n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name, n.current_version_id, n.deleted_at, n.deleted_by, n.created_by, n.created_at, n.team_root_id, a.node_id, a.blob_hash, a.name, a.mime, a.size, a.created_by, a.created_at
+SELECT n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name, n.current_version_id, n.deleted_at, n.deleted_by, n.created_by, n.created_at, n.team_root_id, n.ext_kind, a.node_id, a.blob_hash, a.name, a.mime, a.size, a.created_by, a.created_at
 FROM node_attachments a
 JOIN nodes n ON n.id = a.node_id
 WHERE a.blob_hash = $1
@@ -148,6 +148,7 @@ func (q *Queries) ListAttachmentHolders(ctx context.Context, arg ListAttachmentH
 			&i.Node.CreatedBy,
 			&i.Node.CreatedAt,
 			&i.Node.TeamRootID,
+			&i.Node.ExtKind,
 			&i.NodeAttachment.NodeID,
 			&i.NodeAttachment.BlobHash,
 			&i.NodeAttachment.Name,

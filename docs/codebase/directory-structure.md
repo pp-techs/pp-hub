@@ -23,6 +23,7 @@ pp-hub/
 │   │       │   ├── queries/        # TanStack Query hooks (per-resource); pages.ts = page/lineage/children/backlinks
 │   │       │   │                   #   options under ['pages', scope, …] (M43)
 │   │       │   ├── query-client.ts # shared QueryClient
+│   │       │   ├── ext-name.ts, ext-notification.ts # M44: an extension's translated name; how the bell words ext:<id>:<verb> notifications
 │   │       │   ├── ui-store.ts     # zustand ephemeral UI state
 │   │       │   ├── safe-path.ts    # the SPA half of auth.safeNext: a same-origin path, or nothing
 │   │       │   ├── user-agent.ts   # "Chrome on macOS" from a UA string, for the session and log lists
@@ -33,6 +34,7 @@ pp-hub/
 │   │       │   ├── drop-items.ts   # flattens a drop / folder pick into upload items
 │   │       │   ├── use-debounced.ts # trailing-edge debounce for the palette query
 │   │       │   └── use-keyed-state.ts # state that resets when its subject changes
+│   │       ├── ext/                # host side of the apps: host.ts (ExtHost handed to the SDK), registry.ts + registry.gen.ts (the list compiled into this build)
 │   │       ├── components/         # app-level UI panels
 │   │       │   ├── share-dialog.tsx      # the one access surface: groups, people, link (better-modal)
 │   │       │   ├── people-table.tsx      # space membership: fixed-height rows, per-row ⋯ menu (admin, groups, remove), pending handover
@@ -111,6 +113,10 @@ pp-hub/
 │   │                                    #   + home / recent / starred / shared / trash
 │   └── server/                     # Go backend — own go.mod
 │       ├── cmd/server/             # entry point: OIDC wait, http.Server; owns migrations; binds before collab Start (listenThenStart)
+│       │                           #   extensions.go: the apps compiled into this build (M44)
+│       ├── extsdk/                 # M44: the extension contract (Ext, Manifest, NodeKind, Host); imports nothing from internal/
+│       ├── ext/kanban/             # M45/M46: the kanban board — pp-app.json, handlers.go, position.go (fractional index), migrations/ (schema ext_kanban)
+│       ├── ext/checklist/          # the second app, written against extsdk alone — pp-app.json, handlers.go, migrations/ (schema ext_checklist)
 │       ├── cmd/worker/             # optional preview worker (pdftoppm/ffmpeg); --backfill (previews + text extraction)
 │       ├── Dockerfile              # targets: worker (poppler+ffmpeg), server (slim, default); copies third_party/
 │       ├── third_party/ygo/        # reearth/ygo v1.50.0, patched (PATCHES.md); go.mod `replace`s onto it
@@ -173,6 +179,7 @@ pp-hub/
 │           │                       #    markdown.go (.md → text/markdown), attachments.go (node_attachments);
 │           │                       #    CanContain (fs.go, M43), pages.go (PageTitle, PageTitles), tree.go (Tree, for
 │           │                       #    export), copy_pages.go (sub-pages copied with page ids remapped)
+│           ├── exthost/            # ✅ M44: extension registry, migrations per schema ext_<id>, Guard/Allowed, SSE broker, comments/notify/resolve facade
 │           ├── collab/             # ✅ block-document rooms over ygo: epochs, locks, write-back, reseed, 60 s recheck
 │           ├── mdoc/               # ✅ markdown ↔ ProseMirror ↔ Y.XmlFragment; mentions, Go-only comment markers
 │           │                       #    (format in mdoc.go); Attachments/Mentions/PlainText/MapAttachments;
@@ -196,6 +203,8 @@ pp-hub/
 │   ├── ui/                         # @workspace/ui — shadcn/ui preset (base-ui) + design tokens (globals.css)
 │   │   ├── src/components/         # primitives; `sidebar.tsx` owns the drive shell's geometry
 │   │   └── src/hooks/              # use-mobile.ts — the sidebar's md breakpoint
+│   ├── ext-sdk/                    # @pp-hub/ext-sdk — the web API of an app: manifest types, ExtHost bridge, query/SSE helpers, pp-app.schema.json
+│   ├── ext-kanban/  ext-checklist/ # the apps' web halves (@pp-hub/ext-<id>), each with a pp-app.json copy
 │   └── utils/                      # shared TS utils (template package, dist via vp pack)
 ├── deploy/
 │   ├── compose/
@@ -211,6 +220,7 @@ pp-hub/
 │   ├── backup/                     # pp-backup.sh / pp-restore.sh
 │   └── weblate/                    # translation platform stack and setup
 ├── tools/
+│   ├── pp-apps/                    # `bun run apps …`: new / gen / sync / check / list / add / remove for apps; templates/
 │   └── release/                    # @pp-hub/release — private; carries the product version for Changesets
 ├── .changeset/                     # pending release notes (bun run changeset); config.json
 ├── .github/

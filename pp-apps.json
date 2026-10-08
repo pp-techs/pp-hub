@@ -1,0 +1,22 @@
+{
+  "extensions": [
+    {
+      "id": "kanban",
+      "server": {
+        "dir": "apps/server/ext/kanban"
+      },
+      "web": {
+        "dir": "packages/ext-kanban"
+      }
+    },
+    {
+      "id": "checklist",
+      "server": {
+        "dir": "apps/server/ext/checklist"
+      },
+      "web": {
+        "dir": "packages/ext-checklist"
+      }
+    }
+  ]
+}

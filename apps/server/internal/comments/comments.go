@@ -52,8 +52,10 @@ type Notifier interface {
 
 // Thread is one discussion on a document, oldest comment first.
 type Thread struct {
-	ID         pgtype.UUID
-	NodeID     pgtype.UUID
+	ID     pgtype.UUID
+	NodeID pgtype.UUID
+	// Subject is the part of an extension node the thread is about; empty on a document.
+	Subject    string
 	CreatedAt  time.Time
 	CreatedBy  store.User
 	ResolvedAt pgtype.Timestamptz
@@ -76,6 +78,9 @@ type Comment struct {
 type Input struct {
 	Body     string
 	Mentions []pgtype.UUID
+	// Subject names the part of an extension node a new thread is about
+	// ("card:<uuid>"); empty for a document, whose text anchors its threads.
+	Subject string
 }
 
 type Service struct {
@@ -105,13 +110,15 @@ func (s *Service) CommentNode(ctx context.Context, commentID pgtype.UUID) (pgtyp
 	return c.NodeID, err
 }
 
-// Threads lists a document's threads, oldest first.
-func (s *Service) Threads(ctx context.Context, nodeID pgtype.UUID) ([]Thread, error) {
-	threads, err := s.q.ListCommentThreads(ctx, nodeID)
+// Threads lists a node's threads, oldest first. A subject limits them to the
+// threads about that part of an extension node ("" lists every thread).
+func (s *Service) Threads(ctx context.Context, nodeID pgtype.UUID, subject string) ([]Thread, error) {
+	sub := pgtype.Text{String: subject, Valid: subject != ""}
+	threads, err := s.q.ListCommentThreads(ctx, store.ListCommentThreadsParams{NodeID: nodeID, Subject: sub})
 	if err != nil {
 		return nil, err
 	}
-	rows, err := s.q.ListNodeComments(ctx, nodeID)
+	rows, err := s.q.ListNodeComments(ctx, store.ListNodeCommentsParams{NodeID: nodeID, Subject: sub})
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +144,9 @@ func (s *Service) CreateThread(ctx context.Context, actor store.User, node store
 	var ids []pgtype.UUID
 	err = s.q.InTx(ctx, func(q *store.Queries) error {
 		var err error
-		thread, err = q.CreateCommentThread(ctx, store.CreateCommentThreadParams{NodeID: node.ID, CreatedBy: actor.ID})
+		thread, err = q.CreateCommentThread(ctx, store.CreateCommentThreadParams{
+			NodeID: node.ID, CreatedBy: actor.ID, Subject: pgtype.Text{String: in.Subject, Valid: in.Subject != ""},
+		})
 		if err != nil {
 			return err
 		}
@@ -343,6 +352,7 @@ func (s *Service) assemble(ctx context.Context, threads []store.CommentThread, c
 		th := Thread{
 			ID:         t.ID,
 			NodeID:     t.NodeID,
+			Subject:    t.Subject.String,
 			CreatedAt:  t.CreatedAt.Time,
 			CreatedBy:  users[t.CreatedBy],
 			ResolvedAt: t.ResolvedAt,

@@ -30,7 +30,7 @@ A minimal, self-hosted Google Workspace alternative: Drive, collaborative office
 ## Non-Goals (MVP)
 
 - Desktop/mobile sync clients (must remain architecturally possible — see `docs/architecture/storage.md`).
-- Plugin marketplace (module boundaries must not preclude it later).
+- Plugin marketplace (module boundaries must not preclude it later). Compile-time extensions are designed in `docs/architecture/extensions.md`; a published SDK and catalog are its phase 2.
 - Multi-tenant SaaS operation (schema is tenant-ready, product is single-tenant self-host).
 - Mail, calendar, chat, contacts, federation.
 - Editing via share link (view/download only for link shares in MVP).

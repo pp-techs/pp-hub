@@ -1,6 +1,6 @@
 -- name: CreateCommentThread :one
-INSERT INTO comment_threads (node_id, created_by)
-VALUES ($1, $2)
+INSERT INTO comment_threads (node_id, created_by, subject)
+VALUES ($1, $2, sqlc.narg('subject'))
 RETURNING *;
 
 -- name: GetCommentThread :one
@@ -13,7 +13,23 @@ SELECT * FROM comment_threads WHERE id = $1;
 SELECT * FROM comment_threads WHERE id = $1 FOR UPDATE;
 
 -- name: ListCommentThreads :many
-SELECT * FROM comment_threads WHERE node_id = $1 ORDER BY created_at, id;
+-- A set subject lists the threads about that part of an extension node; none
+-- lists every thread on the node.
+SELECT * FROM comment_threads
+WHERE node_id = @node_id
+  AND (sqlc.narg('subject')::text IS NULL OR subject = sqlc.narg('subject')::text)
+ORDER BY created_at, id;
+
+-- name: CountSubjectComments :many
+-- Comments per subject on one node, for the badge on a kanban card.
+SELECT t.subject::text AS subject, count(*)::bigint AS comments
+FROM comment_threads t JOIN comments c ON c.thread_id = t.id
+WHERE t.node_id = $1 AND t.subject IS NOT NULL
+GROUP BY t.subject;
+
+-- name: DeleteSubjectThreads :exec
+-- A deleted card takes its discussion with it.
+DELETE FROM comment_threads WHERE node_id = $1 AND subject = $2;
 
 -- name: ResolveCommentThread :one
 -- Idempotent: resolving a resolved thread keeps who resolved it, and when.
@@ -56,7 +72,8 @@ SELECT sqlc.embed(c), sqlc.embed(u)
 FROM comments c
 JOIN comment_threads t ON t.id = c.thread_id
 JOIN users u ON u.id = c.author_id
-WHERE t.node_id = $1
+WHERE t.node_id = @node_id
+  AND (sqlc.narg('subject')::text IS NULL OR t.subject = sqlc.narg('subject')::text)
 ORDER BY c.created_at, c.id;
 
 -- name: ListThreadComments :many

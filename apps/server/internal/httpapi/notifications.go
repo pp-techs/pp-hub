@@ -50,8 +50,10 @@ type notificationDTO struct {
 	ThreadID  string              `json:"thread_id,omitempty"`
 	CommentID string              `json:"comment_id,omitempty"`
 	Excerpt   string              `json:"excerpt"`
-	CreatedAt string              `json:"created_at"`
-	ReadAt    string              `json:"read_at,omitempty"`
+	// Subject is the part of an extension node it is about ("card:<uuid>").
+	Subject   string `json:"subject,omitempty"`
+	CreatedAt string `json:"created_at"`
+	ReadAt    string `json:"read_at,omitempty"`
 }
 
 func notificationToDTO(it notifications.Item) notificationDTO {
@@ -63,6 +65,7 @@ func notificationToDTO(it notifications.Item) notificationDTO {
 		ThreadID:  uuidString(it.ThreadID),
 		CommentID: uuidString(it.CommentID),
 		Excerpt:   it.Excerpt,
+		Subject:   it.Subject,
 		CreatedAt: it.CreatedAt.Format(time.RFC3339),
 	}
 	if it.ReadAt.Valid {

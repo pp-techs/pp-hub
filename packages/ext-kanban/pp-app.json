@@ -1,0 +1,11 @@
+{
+  "id": "kanban",
+  "name": "Kanban",
+  "version": "1.0.0",
+  "description": "Project boards for teams: columns, cards, labels, assignees and due dates.",
+  "author": "pp-hub",
+  "engines": { "sdk": 1 },
+  "nodeKinds": [{ "kind": "kanban.board" }],
+  "server": { "package": "github.com/nhatbui/pp-hub/apps/server/ext/kanban" },
+  "web": { "package": "@pp-hub/ext-kanban" }
+}

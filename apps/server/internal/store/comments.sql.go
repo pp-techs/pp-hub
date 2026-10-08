@@ -11,6 +11,39 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countSubjectComments = `-- name: CountSubjectComments :many
+SELECT t.subject::text AS subject, count(*)::bigint AS comments
+FROM comment_threads t JOIN comments c ON c.thread_id = t.id
+WHERE t.node_id = $1 AND t.subject IS NOT NULL
+GROUP BY t.subject
+`
+
+type CountSubjectCommentsRow struct {
+	Subject  string `json:"subject"`
+	Comments int64  `json:"comments"`
+}
+
+// Comments per subject on one node, for the badge on a kanban card.
+func (q *Queries) CountSubjectComments(ctx context.Context, nodeID pgtype.UUID) ([]CountSubjectCommentsRow, error) {
+	rows, err := q.db.Query(ctx, countSubjectComments, nodeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CountSubjectCommentsRow
+	for rows.Next() {
+		var i CountSubjectCommentsRow
+		if err := rows.Scan(&i.Subject, &i.Comments); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const createComment = `-- name: CreateComment :one
 INSERT INTO comments (thread_id, author_id, body)
 VALUES ($1, $2, $3)
@@ -38,18 +71,19 @@ func (q *Queries) CreateComment(ctx context.Context, arg CreateCommentParams) (C
 }
 
 const createCommentThread = `-- name: CreateCommentThread :one
-INSERT INTO comment_threads (node_id, created_by)
-VALUES ($1, $2)
-RETURNING id, node_id, created_by, created_at, resolved_at, resolved_by
+INSERT INTO comment_threads (node_id, created_by, subject)
+VALUES ($1, $2, $3)
+RETURNING id, node_id, created_by, created_at, resolved_at, resolved_by, subject
 `
 
 type CreateCommentThreadParams struct {
 	NodeID    pgtype.UUID `json:"node_id"`
 	CreatedBy pgtype.UUID `json:"created_by"`
+	Subject   pgtype.Text `json:"subject"`
 }
 
 func (q *Queries) CreateCommentThread(ctx context.Context, arg CreateCommentThreadParams) (CommentThread, error) {
-	row := q.db.QueryRow(ctx, createCommentThread, arg.NodeID, arg.CreatedBy)
+	row := q.db.QueryRow(ctx, createCommentThread, arg.NodeID, arg.CreatedBy, arg.Subject)
 	var i CommentThread
 	err := row.Scan(
 		&i.ID,
@@ -58,6 +92,7 @@ func (q *Queries) CreateCommentThread(ctx context.Context, arg CreateCommentThre
 		&i.CreatedAt,
 		&i.ResolvedAt,
 		&i.ResolvedBy,
+		&i.Subject,
 	)
 	return i, err
 }
@@ -87,8 +122,23 @@ func (q *Queries) DeleteEmptyCommentThread(ctx context.Context, id pgtype.UUID) 
 	return result.RowsAffected(), nil
 }
 
+const deleteSubjectThreads = `-- name: DeleteSubjectThreads :exec
+DELETE FROM comment_threads WHERE node_id = $1 AND subject = $2
+`
+
+type DeleteSubjectThreadsParams struct {
+	NodeID  pgtype.UUID `json:"node_id"`
+	Subject pgtype.Text `json:"subject"`
+}
+
+// A deleted card takes its discussion with it.
+func (q *Queries) DeleteSubjectThreads(ctx context.Context, arg DeleteSubjectThreadsParams) error {
+	_, err := q.db.Exec(ctx, deleteSubjectThreads, arg.NodeID, arg.Subject)
+	return err
+}
+
 const getCommentThread = `-- name: GetCommentThread :one
-SELECT id, node_id, created_by, created_at, resolved_at, resolved_by FROM comment_threads WHERE id = $1
+SELECT id, node_id, created_by, created_at, resolved_at, resolved_by, subject FROM comment_threads WHERE id = $1
 `
 
 func (q *Queries) GetCommentThread(ctx context.Context, id pgtype.UUID) (CommentThread, error) {
@@ -101,6 +151,7 @@ func (q *Queries) GetCommentThread(ctx context.Context, id pgtype.UUID) (Comment
 		&i.CreatedAt,
 		&i.ResolvedAt,
 		&i.ResolvedBy,
+		&i.Subject,
 	)
 	return i, err
 }
@@ -133,11 +184,21 @@ func (q *Queries) GetCommentWithNode(ctx context.Context, id pgtype.UUID) (GetCo
 }
 
 const listCommentThreads = `-- name: ListCommentThreads :many
-SELECT id, node_id, created_by, created_at, resolved_at, resolved_by FROM comment_threads WHERE node_id = $1 ORDER BY created_at, id
+SELECT id, node_id, created_by, created_at, resolved_at, resolved_by, subject FROM comment_threads
+WHERE node_id = $1
+  AND ($2::text IS NULL OR subject = $2::text)
+ORDER BY created_at, id
 `
 
-func (q *Queries) ListCommentThreads(ctx context.Context, nodeID pgtype.UUID) ([]CommentThread, error) {
-	rows, err := q.db.Query(ctx, listCommentThreads, nodeID)
+type ListCommentThreadsParams struct {
+	NodeID  pgtype.UUID `json:"node_id"`
+	Subject pgtype.Text `json:"subject"`
+}
+
+// A set subject lists the threads about that part of an extension node; none
+// lists every thread on the node.
+func (q *Queries) ListCommentThreads(ctx context.Context, arg ListCommentThreadsParams) ([]CommentThread, error) {
+	rows, err := q.db.Query(ctx, listCommentThreads, arg.NodeID, arg.Subject)
 	if err != nil {
 		return nil, err
 	}
@@ -152,6 +213,7 @@ func (q *Queries) ListCommentThreads(ctx context.Context, nodeID pgtype.UUID) ([
 			&i.CreatedAt,
 			&i.ResolvedAt,
 			&i.ResolvedBy,
+			&i.Subject,
 		); err != nil {
 			return nil, err
 		}
@@ -169,16 +231,22 @@ FROM comments c
 JOIN comment_threads t ON t.id = c.thread_id
 JOIN users u ON u.id = c.author_id
 WHERE t.node_id = $1
+  AND ($2::text IS NULL OR t.subject = $2::text)
 ORDER BY c.created_at, c.id
 `
+
+type ListNodeCommentsParams struct {
+	NodeID  pgtype.UUID `json:"node_id"`
+	Subject pgtype.Text `json:"subject"`
+}
 
 type ListNodeCommentsRow struct {
 	Comment Comment `json:"comment"`
 	User    User    `json:"user"`
 }
 
-func (q *Queries) ListNodeComments(ctx context.Context, nodeID pgtype.UUID) ([]ListNodeCommentsRow, error) {
-	rows, err := q.db.Query(ctx, listNodeComments, nodeID)
+func (q *Queries) ListNodeComments(ctx context.Context, arg ListNodeCommentsParams) ([]ListNodeCommentsRow, error) {
+	rows, err := q.db.Query(ctx, listNodeComments, arg.NodeID, arg.Subject)
 	if err != nil {
 		return nil, err
 	}
@@ -363,7 +431,7 @@ func (q *Queries) ListUsersByIDs(ctx context.Context, ids []pgtype.UUID) ([]User
 }
 
 const lockCommentThread = `-- name: LockCommentThread :one
-SELECT id, node_id, created_by, created_at, resolved_at, resolved_by FROM comment_threads WHERE id = $1 FOR UPDATE
+SELECT id, node_id, created_by, created_at, resolved_at, resolved_by, subject FROM comment_threads WHERE id = $1 FOR UPDATE
 `
 
 // Serializes the writes to one thread (a reply, a delete, a resolve): a
@@ -379,6 +447,7 @@ func (q *Queries) LockCommentThread(ctx context.Context, id pgtype.UUID) (Commen
 		&i.CreatedAt,
 		&i.ResolvedAt,
 		&i.ResolvedBy,
+		&i.Subject,
 	)
 	return i, err
 }
@@ -386,7 +455,7 @@ func (q *Queries) LockCommentThread(ctx context.Context, id pgtype.UUID) (Commen
 const reopenCommentThread = `-- name: ReopenCommentThread :one
 UPDATE comment_threads SET resolved_at = NULL, resolved_by = NULL
 WHERE id = $1
-RETURNING id, node_id, created_by, created_at, resolved_at, resolved_by
+RETURNING id, node_id, created_by, created_at, resolved_at, resolved_by, subject
 `
 
 func (q *Queries) ReopenCommentThread(ctx context.Context, id pgtype.UUID) (CommentThread, error) {
@@ -399,6 +468,7 @@ func (q *Queries) ReopenCommentThread(ctx context.Context, id pgtype.UUID) (Comm
 		&i.CreatedAt,
 		&i.ResolvedAt,
 		&i.ResolvedBy,
+		&i.Subject,
 	)
 	return i, err
 }
@@ -408,7 +478,7 @@ UPDATE comment_threads
 SET resolved_at = COALESCE(resolved_at, now()),
     resolved_by = COALESCE(resolved_by, $1::uuid)
 WHERE id = $2
-RETURNING id, node_id, created_by, created_at, resolved_at, resolved_by
+RETURNING id, node_id, created_by, created_at, resolved_at, resolved_by, subject
 `
 
 type ResolveCommentThreadParams struct {
@@ -427,6 +497,7 @@ func (q *Queries) ResolveCommentThread(ctx context.Context, arg ResolveCommentTh
 		&i.CreatedAt,
 		&i.ResolvedAt,
 		&i.ResolvedBy,
+		&i.Subject,
 	)
 	return i, err
 }

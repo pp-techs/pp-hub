@@ -193,8 +193,12 @@ export function thumbnailFit(node: Node): "cover" | "contain" {
   return m.startsWith("image/") || m.startsWith("video/") ? "cover" : "contain";
 }
 
-/** File types that open in an editor on double-click: office files in OnlyOffice, markdown in the block editor. */
+/**
+ * What opens in an editor tab on double-click: office files in OnlyOffice,
+ * markdown in the block editor, and every extension node in its extension's editor.
+ */
 export function opensInEditor(node: Node): boolean {
+  if (node.kind === "ext") return true;
   return node.kind === "file" && (isOfficeFile(node.name) || isMarkdownFile(node));
 }
 
@@ -225,7 +229,8 @@ export function sortNodes(
 ): Node[] {
   const collator = new Intl.Collator(locale);
   return [...nodes].sort((a, b) => {
-    if (a.kind !== b.kind) return a.kind === "dir" ? -1 : 1;
+    // An extension node sorts with the files: it is an item, not a container.
+    if ((a.kind === "dir") !== (b.kind === "dir")) return a.kind === "dir" ? -1 : 1;
     let cmp = 0;
     switch (field) {
       case "name":

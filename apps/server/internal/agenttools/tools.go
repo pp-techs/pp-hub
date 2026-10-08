@@ -298,7 +298,8 @@ func webLink(base, id, space, parent, kind, name, mime string) string {
 	switch {
 	case kind == "dir":
 		return base + "/drive/" + space + "?dir=" + id
-	case strings.HasPrefix(mime, "text/markdown") || strings.HasSuffix(strings.ToLower(name), ".md"):
+	case kind == "ext",
+		strings.HasPrefix(mime, "text/markdown") || strings.HasSuffix(strings.ToLower(name), ".md"):
 		return base + "/edit/" + id
 	case parent != "":
 		return base + "/drive/" + space + "?dir=" + parent

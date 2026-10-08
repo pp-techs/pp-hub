@@ -123,8 +123,10 @@ WHERE space_id = $1
 ORDER BY kind, name;
 
 -- name: HasChildren :one
+-- What a folder shows: apps' nodes live in the sidebar's Apps section, not in
+-- the drive, so they do not make a folder look full.
 SELECT COUNT(*) FROM nodes
-WHERE parent_id = $1 AND deleted_at IS NULL
+WHERE parent_id = $1 AND deleted_at IS NULL AND kind <> 'ext'
 LIMIT 1;
 
 -- name: ListDeleted :many
@@ -135,7 +137,7 @@ ORDER BY deleted_at DESC;
 -- name: ListChildrenWithMeta :many
 SELECT
   n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
-  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id, n.ext_kind,
   v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
   u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email
 FROM nodes n
@@ -144,6 +146,8 @@ LEFT JOIN users u ON u.id = n.created_by
 WHERE n.space_id = $1
   AND n.parent_id IS NOT DISTINCT FROM $2
   AND n.deleted_at IS NULL
+  -- An app's nodes are listed under Apps in the sidebar, never among files.
+  AND n.kind <> 'ext'
 ORDER BY n.kind, n.name;
 
 -- name: ListAncestry :many
@@ -196,7 +200,7 @@ loc AS (
 )
 SELECT
   n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
-  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id, n.ext_kind,
   v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
   u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email,
   COALESCE(loc.path, '')::text AS location,
@@ -251,7 +255,7 @@ content_hits AS (
 )
 SELECT
   n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
-  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id, n.ext_kind,
   v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
   u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email,
   s.name AS space_name,
@@ -298,7 +302,7 @@ DELETE FROM node_stars WHERE user_id = $1 AND node_id = $2;
 -- spans every space; a set one scopes the listing to it.
 SELECT
   n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
-  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id,
+  n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id, n.ext_kind,
   v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
   u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email,
   s.name AS space_name,
