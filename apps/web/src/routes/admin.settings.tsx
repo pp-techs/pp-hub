@@ -66,7 +66,6 @@ function AdminSettingsPage() {
 
   return (
     <AdminPage
-      narrow
       title={<Trans>Instance settings</Trans>}
       description={<Trans>Operational policies and configuration across this install</Trans>}
     >
