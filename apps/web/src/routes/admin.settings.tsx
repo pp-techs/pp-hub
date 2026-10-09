@@ -11,6 +11,7 @@ import { Label } from "@workspace/ui/components/label";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { Switch } from "@workspace/ui/components/switch";
 import { Card } from "@workspace/ui/components/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs";
 import {
   Select,
   SelectContent,
@@ -43,6 +44,13 @@ import type {
 
 export const Route = createFileRoute("/admin/settings")({
   head: () => ({ meta: [{ title: pageTitle(msg`Instance settings`) }] }),
+  // An unknown or missing tab falls back to the first one rather than failing
+  // the route, so a stale link still opens the page.
+  validateSearch: (search: Record<string, unknown>): { tab?: SettingsTab } => ({
+    tab: SETTINGS_TABS.some((s) => s.value === search.tab)
+      ? (search.tab as SettingsTab)
+      : undefined,
+  }),
   // The `/admin` layout has already authenticated the caller as an admin.
   loader: ({ context }) => {
     void context.queryClient.ensureQueryData(adminSettingsOptions());
@@ -52,6 +60,9 @@ export const Route = createFileRoute("/admin/settings")({
 
 function AdminSettingsPage() {
   const { data: settings, isLoading } = useAdminSettings();
+  const { i18n } = useLingui();
+  const { tab = SETTINGS_TABS[0].value } = Route.useSearch();
+  const navigate = Route.useNavigate();
 
   return (
     <AdminPage
@@ -59,17 +70,59 @@ function AdminSettingsPage() {
       title={<Trans>Instance settings</Trans>}
       description={<Trans>Operational policies and configuration across this install</Trans>}
     >
-      {isLoading || !settings ? (
-        <SettingsSkeleton />
-      ) : (
-        <div className="flex flex-col gap-8">
-          <SettingsForm settings={settings} />
-          <MailSettingsSection key={JSON.stringify(settings.smtp?.value)} setting={settings.smtp} />
+      <Tabs
+        value={tab}
+        className="gap-6"
+        onValueChange={(next) =>
+          void navigate({ search: { tab: next as SettingsTab }, replace: true })
+        }
+      >
+        {/* Scrolls sideways on a narrow screen instead of wrapping the tabs
+            onto a second line. */}
+        <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
+          <TabsList variant="line" className="h-9 w-max min-w-full justify-start gap-4 border-b">
+            {SETTINGS_TABS.map((s) => (
+              <TabsTrigger key={s.value} value={s.value} className="flex-none px-1 text-sm">
+                {i18n._(s.label)}
+              </TabsTrigger>
+            ))}
+          </TabsList>
         </div>
-      )}
+
+        {isLoading || !settings ? (
+          <SettingsSkeleton />
+        ) : (
+          <>
+            <SettingsForm settings={settings} onMailTab={tab === "mail"} />
+            {/* Its own form with its own Save, so it stays mounted while another
+                tab is open: half-typed credentials survive a glance elsewhere. */}
+            <TabsContent value="mail" keepMounted className={PANEL_CLASS}>
+              <MailSettingsSection
+                key={JSON.stringify(settings.smtp?.value)}
+                setting={settings.smtp}
+              />
+            </TabsContent>
+          </>
+        )}
+      </Tabs>
     </AdminPage>
   );
 }
+
+/** The tabs, in the order they read: what the install is, then what it allows. */
+const SETTINGS_TABS = [
+  { value: "general", label: msg`General` },
+  { value: "storage", label: msg`Storage` },
+  { value: "security", label: msg`Security` },
+  { value: "sharing", label: msg`Sharing & agents` },
+  { value: "mail", label: msg`Mail` },
+] as const;
+
+type SettingsTab = (typeof SETTINGS_TABS)[number]["value"];
+
+/** A tab's panel: its sections stacked, at the page's text size rather than the tabs' own. */
+// eslint-disable-next-line lingui/no-unlocalized-strings -- class names
+const PANEL_CLASS = "flex flex-col gap-8 text-sm";
 
 /**
  * The page's opening sections as they will land: a heading over one card whose
@@ -352,7 +405,7 @@ function ArchivedPersonalSpacesRow() {
   );
 }
 
-function SettingsForm({ settings }: { settings: AdminSettingsMap }) {
+function SettingsForm({ settings, onMailTab }: { settings: AdminSettingsMap; onMailTab: boolean }) {
   const { t } = useLingui();
   const update = useUpdateAdminSettings();
   const remove = useDeleteAdminSetting();
@@ -568,235 +621,244 @@ function SettingsForm({ settings }: { settings: AdminSettingsMap }) {
 
   return (
     <form onSubmit={handleSave} className="flex flex-col gap-8">
-      <SettingsSection title={<Trans>General & Branding</Trans>}>
-        <SettingRow
-          title={<Trans>Instance display name</Trans>}
-          htmlFor="instance_name"
-          description={settings.instance_name?.description}
-          source={settings.instance_name?.source}
-          onReset={
-            settings.instance_name?.source === "database"
-              ? () => void handleReset(KEY.instanceName)
-              : undefined
-          }
-          resetDisabled={resetPending}
-        >
-          <Input
-            id="instance_name"
-            className="w-full sm:w-56"
-            value={instanceName}
-            onChange={(e) => setInstanceName(e.target.value)}
-            maxLength={64}
-            placeholder={defaultInstanceName}
-          />
-        </SettingRow>
-      </SettingsSection>
-
-      <SettingsSection title={<Trans>Storage & Uploads</Trans>}>
-        <SettingRow
-          title={<Trans>Maximum upload size</Trans>}
-          htmlFor="max_upload_bytes"
-          description={settings.max_upload_bytes?.description}
-          source={settings.max_upload_bytes?.source}
-          onReset={
-            settings.max_upload_bytes?.source === "database"
-              ? // eslint-disable-next-line lingui/no-unlocalized-strings -- setting key
-                () => void handleReset("max_upload_bytes")
-              : undefined
-          }
-          resetDisabled={resetPending}
-        >
-          <UnitInput
-            id="max_upload_bytes"
-            min="0"
-            step="0.5"
-            value={maxUploadGb}
-            onChange={(e) => setMaxUploadGb(e.target.value)}
-            unit={<Trans>GB</Trans>}
-          />
-        </SettingRow>
-
-        <SettingRow
-          title={<Trans>Default space quota</Trans>}
-          htmlFor="default_space_quota_bytes"
-          description={
-            <>
-              {settings.default_space_quota_bytes?.description} <Trans>0 means unlimited.</Trans>
-            </>
-          }
-          source={settings.default_space_quota_bytes?.source}
-          onReset={
-            settings.default_space_quota_bytes?.source === "database"
-              ? // eslint-disable-next-line lingui/no-unlocalized-strings -- setting key
-                () => void handleReset("default_space_quota_bytes")
-              : undefined
-          }
-          resetDisabled={resetPending}
-        >
-          <UnitInput
-            id="default_space_quota_bytes"
-            min="0"
-            step="1"
-            value={defaultSpaceQuotaGb}
-            onChange={(e) => setDefaultSpaceQuotaGb(e.target.value)}
-            unit={<Trans>GB</Trans>}
-          />
-        </SettingRow>
-
-        {intRow(KEY.versionRetention, <Trans>Version history</Trans>, {
-          unit: <Trans>versions</Trans>,
-          hint: (
-            <Trans>
-              Versions kept per file; 0 keeps all. Saving a new version removes the oldest ones
-              beyond this number. The current version is always kept.
-            </Trans>
-          ),
-        })}
-      </SettingsSection>
-
-      <SettingsSection title={<Trans>Security & Auditing</Trans>}>
-        {intRow(KEY.auditRetention, <Trans>Security log retention</Trans>, {
-          unit: <Trans>days</Trans>,
-        })}
-        {intRow(KEY.readAuditRetention, <Trans>File access log retention</Trans>, {
-          unit: <Trans>days</Trans>,
-        })}
-        {intRow(KEY.alertThreshold, <Trans>Failed sign-in alert threshold</Trans>, {
-          unit: <Trans>sign-ins</Trans>,
-          hint: (
-            <Trans>
-              Failed sign-ins from one address. 0 turns alerts off. Alerts are emailed to
-              administrators when mail is configured.
-            </Trans>
-          ),
-        })}
-        {intRow(KEY.alertWindow, <Trans>Alert window</Trans>, {
-          unit: <Trans>minutes</Trans>,
-        })}
-      </SettingsSection>
-
-      <SettingsSection title={<Trans>Personal use</Trans>}>
-        <SettingRow
-          title={<Trans>Personal spaces</Trans>}
-          htmlFor="personal_spaces"
-          description={
-            <>
-              {settings.personal_spaces?.description}{" "}
-              {personalOptions.find((o) => o.value === personalSpaces)?.description}
-            </>
-          }
-          source={settings.personal_spaces?.source}
-          onReset={
-            settings.personal_spaces?.source === "database"
-              ? () => void resetPersonalSpaces()
-              : undefined
-          }
-          resetDisabled={resetPending}
-        >
-          <Select
-            value={personalSpaces}
-            items={personalOptions.map((o) => ({ value: o.value, label: o.label }))}
-            onValueChange={(v) => setPersonalSpaces((v as PersonalSpacesMode) ?? "off")}
+      <TabsContent value="general" className={PANEL_CLASS}>
+        <SettingsSection title={<Trans>General & Branding</Trans>}>
+          <SettingRow
+            title={<Trans>Instance display name</Trans>}
+            htmlFor="instance_name"
+            description={settings.instance_name?.description}
+            source={settings.instance_name?.source}
+            onReset={
+              settings.instance_name?.source === "database"
+                ? () => void handleReset(KEY.instanceName)
+                : undefined
+            }
+            resetDisabled={resetPending}
           >
-            <SelectTrigger id="personal_spaces" className="w-full sm:w-56">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {personalOptions.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </SettingRow>
+            <Input
+              id="instance_name"
+              className="w-full sm:w-56"
+              value={instanceName}
+              onChange={(e) => setInstanceName(e.target.value)}
+              maxLength={64}
+              placeholder={defaultInstanceName}
+            />
+          </SettingRow>
+        </SettingsSection>
+        <SettingsSection title={<Trans>Personal use</Trans>}>
+          <SettingRow
+            title={<Trans>Personal spaces</Trans>}
+            htmlFor="personal_spaces"
+            description={
+              <>
+                {settings.personal_spaces?.description}{" "}
+                {personalOptions.find((o) => o.value === personalSpaces)?.description}
+              </>
+            }
+            source={settings.personal_spaces?.source}
+            onReset={
+              settings.personal_spaces?.source === "database"
+                ? () => void resetPersonalSpaces()
+                : undefined
+            }
+            resetDisabled={resetPending}
+          >
+            <Select
+              value={personalSpaces}
+              items={personalOptions.map((o) => ({ value: o.value, label: o.label }))}
+              onValueChange={(v) => setPersonalSpaces((v as PersonalSpacesMode) ?? "off")}
+            >
+              <SelectTrigger id="personal_spaces" className="w-full sm:w-56">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {personalOptions.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </SettingRow>
 
-        <SettingRow
-          title={<Trans>Personal space quota</Trans>}
-          htmlFor="default_personal_quota_bytes"
-          description={
-            <>
-              {settings.default_personal_quota_bytes?.description}{" "}
+          <SettingRow
+            title={<Trans>Personal space quota</Trans>}
+            htmlFor="default_personal_quota_bytes"
+            description={
+              <>
+                {settings.default_personal_quota_bytes?.description}{" "}
+                <Trans>
+                  0 means unlimited. Offering personal spaces to everyone requires a quota above 0.
+                </Trans>
+              </>
+            }
+            source={settings.default_personal_quota_bytes?.source}
+            onReset={
+              settings.default_personal_quota_bytes?.source === "database"
+                ? () => void resetPersonalQuota()
+                : undefined
+            }
+            resetDisabled={resetPending}
+          >
+            <UnitInput
+              id="default_personal_quota_bytes"
+              min="0"
+              step="1"
+              value={personalQuotaGb}
+              onChange={(e) => setPersonalQuotaGb(e.target.value)}
+              unit={<Trans>GB</Trans>}
+            />
+          </SettingRow>
+
+          <ArchivedPersonalSpacesRow />
+        </SettingsSection>
+      </TabsContent>
+
+      <TabsContent value="storage" className={PANEL_CLASS}>
+        <SettingsSection title={<Trans>Storage & Uploads</Trans>}>
+          <SettingRow
+            title={<Trans>Maximum upload size</Trans>}
+            htmlFor="max_upload_bytes"
+            description={settings.max_upload_bytes?.description}
+            source={settings.max_upload_bytes?.source}
+            onReset={
+              settings.max_upload_bytes?.source === "database"
+                ? // eslint-disable-next-line lingui/no-unlocalized-strings -- setting key
+                  () => void handleReset("max_upload_bytes")
+                : undefined
+            }
+            resetDisabled={resetPending}
+          >
+            <UnitInput
+              id="max_upload_bytes"
+              min="0"
+              step="0.5"
+              value={maxUploadGb}
+              onChange={(e) => setMaxUploadGb(e.target.value)}
+              unit={<Trans>GB</Trans>}
+            />
+          </SettingRow>
+
+          <SettingRow
+            title={<Trans>Default space quota</Trans>}
+            htmlFor="default_space_quota_bytes"
+            description={
+              <>
+                {settings.default_space_quota_bytes?.description} <Trans>0 means unlimited.</Trans>
+              </>
+            }
+            source={settings.default_space_quota_bytes?.source}
+            onReset={
+              settings.default_space_quota_bytes?.source === "database"
+                ? // eslint-disable-next-line lingui/no-unlocalized-strings -- setting key
+                  () => void handleReset("default_space_quota_bytes")
+                : undefined
+            }
+            resetDisabled={resetPending}
+          >
+            <UnitInput
+              id="default_space_quota_bytes"
+              min="0"
+              step="1"
+              value={defaultSpaceQuotaGb}
+              onChange={(e) => setDefaultSpaceQuotaGb(e.target.value)}
+              unit={<Trans>GB</Trans>}
+            />
+          </SettingRow>
+
+          {intRow(KEY.versionRetention, <Trans>Version history</Trans>, {
+            unit: <Trans>versions</Trans>,
+            hint: (
               <Trans>
-                0 means unlimited. Offering personal spaces to everyone requires a quota above 0.
+                Versions kept per file; 0 keeps all. Saving a new version removes the oldest ones
+                beyond this number. The current version is always kept.
               </Trans>
-            </>
+            ),
+          })}
+        </SettingsSection>
+      </TabsContent>
+
+      <TabsContent value="security" className={PANEL_CLASS}>
+        <SettingsSection title={<Trans>Security & Auditing</Trans>}>
+          {intRow(KEY.auditRetention, <Trans>Security log retention</Trans>, {
+            unit: <Trans>days</Trans>,
+          })}
+          {intRow(KEY.readAuditRetention, <Trans>File access log retention</Trans>, {
+            unit: <Trans>days</Trans>,
+          })}
+          {intRow(KEY.alertThreshold, <Trans>Failed sign-in alert threshold</Trans>, {
+            unit: <Trans>sign-ins</Trans>,
+            hint: (
+              <Trans>
+                Failed sign-ins from one address. 0 turns alerts off. Alerts are emailed to
+                administrators when mail is configured.
+              </Trans>
+            ),
+          })}
+          {intRow(KEY.alertWindow, <Trans>Alert window</Trans>, {
+            unit: <Trans>minutes</Trans>,
+          })}
+        </SettingsSection>
+      </TabsContent>
+
+      <TabsContent value="sharing" className={PANEL_CLASS}>
+        <SettingsSection
+          title={<Trans>External sharing</Trans>}
+          description={
+            <Trans>
+              Lets people share files and folders by email with anyone, including people outside
+              their space or without an account. Each space admin still decides for their space.
+            </Trans>
           }
-          source={settings.default_personal_quota_bytes?.source}
-          onReset={
-            settings.default_personal_quota_bytes?.source === "database"
-              ? () => void resetPersonalQuota()
-              : undefined
-          }
-          resetDisabled={resetPending}
         >
-          <UnitInput
-            id="default_personal_quota_bytes"
-            min="0"
-            step="1"
-            value={personalQuotaGb}
-            onChange={(e) => setPersonalQuotaGb(e.target.value)}
-            unit={<Trans>GB</Trans>}
-          />
-        </SettingRow>
+          {boolRow(KEY.externalSharing, <Trans>Allow sharing outside a space</Trans>)}
+        </SettingsSection>
 
-        <ArchivedPersonalSpacesRow />
-      </SettingsSection>
+        <SettingsSection
+          title={<Trans>WebDAV</Trans>}
+          description={
+            <Trans>
+              Lets people mount their drive in Finder, File Explorer or rclone, signing in with a
+              personal token made for it. Each person still sees only what they can open.
+            </Trans>
+          }
+        >
+          {boolRow(KEY.webdavEnabled, <Trans>Let people mount their drive over WebDAV</Trans>)}
+        </SettingsSection>
 
-      <SettingsSection
-        title={<Trans>External sharing</Trans>}
-        description={
-          <Trans>
-            Lets people share files and folders by email with anyone, including people outside their
-            space or without an account. Each space admin still decides for their space.
-          </Trans>
-        }
-      >
-        {boolRow(KEY.externalSharing, <Trans>Allow sharing outside a space</Trans>)}
-      </SettingsSection>
-
-      <SettingsSection
-        title={<Trans>WebDAV</Trans>}
-        description={
-          <Trans>
-            Lets people mount their drive in Finder, File Explorer or rclone, signing in with a
-            personal token made for it. Each person still sees only what they can open.
-          </Trans>
-        }
-      >
-        {boolRow(KEY.webdavEnabled, <Trans>Let people mount their drive over WebDAV</Trans>)}
-      </SettingsSection>
-
-      <SettingsSection
-        title={<Trans>AI agents</Trans>}
-        description={
-          <Trans>
-            Lets people connect Claude, ChatGPT and other AI agents to their account. Public links
-            let an agent publish files that anyone with the link can open without signing in.
-          </Trans>
-        }
-      >
-        {boolRow(KEY.mcpEnabled, <Trans>Let people connect AI agents to their account</Trans>)}
-        {boolRow(
-          KEY.mcpPublicLinks,
-          <Trans>Let agents create public links</Trans>,
-          !bools.mcp_enabled,
-        )}
-        {boolRow(
-          KEY.mcpTokens,
-          <Trans>Let people create personal access tokens for agents</Trans>,
-          !bools.mcp_enabled,
-        )}
-        {boolRow(
-          KEY.mcpExternalShares,
-          <Trans>Let agents share with people outside a space</Trans>,
-          !bools.mcp_enabled,
-        )}
-      </SettingsSection>
+        <SettingsSection
+          title={<Trans>AI agents</Trans>}
+          description={
+            <Trans>
+              Lets people connect Claude, ChatGPT and other AI agents to their account. Public links
+              let an agent publish files that anyone with the link can open without signing in.
+            </Trans>
+          }
+        >
+          {boolRow(KEY.mcpEnabled, <Trans>Let people connect AI agents to their account</Trans>)}
+          {boolRow(
+            KEY.mcpPublicLinks,
+            <Trans>Let agents create public links</Trans>,
+            !bools.mcp_enabled,
+          )}
+          {boolRow(
+            KEY.mcpTokens,
+            <Trans>Let people create personal access tokens for agents</Trans>,
+            !bools.mcp_enabled,
+          )}
+          {boolRow(
+            KEY.mcpExternalShares,
+            <Trans>Let agents share with people outside a space</Trans>,
+            !bools.mcp_enabled,
+          )}
+        </SettingsSection>
+      </TabsContent>
 
       {/* Sticky so the way to save is always in reach of the field being
-          edited, and only present once there is something to save. */}
-      {isDirty && (
+          edited, and only present once there is something to save. It stays
+          on every tab, since a change made on another one is still pending —
+          except Mail, whose card has a Save of its own for its own form. */}
+      {isDirty && !onMailTab && (
         <div
           role="region"
           aria-label={t`Unsaved changes`}

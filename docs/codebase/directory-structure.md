@@ -107,7 +107,7 @@ pp-hub/
 │   │           ├── admin.index.tsx      # /admin → /admin/users
 │   │           ├── admin.users.tsx      # users: stat tiles, searchable table, ⋯ menu (admin flag, suspend)
 │   │           ├── admin.security.tsx   # the security log: filters (kind, file, dates), CSV export
-│   │           ├── admin.settings.tsx   # instance settings: grouped setting rows, sticky save bar, SMTP
+│   │           ├── admin.settings.tsx   # instance settings: tabs (`?tab=` general/storage/security/sharing/mail), grouped setting rows, sticky save bar, SMTP
 │   │           ├── s/$token.tsx         # anonymous share-link browser (no rail, no account)
 │   │           ├── edit/$nodeId.tsx     # full-page editor (new tab): block editor for markdown, else OnlyOffice
 │   │           ├── drive.tsx            # drive shell: SidebarProvider + AppSidebar + SidebarInset
