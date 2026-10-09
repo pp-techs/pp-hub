@@ -61,6 +61,7 @@ Each shipped milestone has its own file under [`milestones/`](milestones/) with 
 | M44 | Extension host                                         | ✅         | [detail](milestones/M44.md) |
 | M45 | Kanban core                                            | ✅         | [detail](milestones/M45.md) |
 | M46 | Kanban collaboration                                   | ✅         | [detail](milestones/M46.md) |
+| M47 | WebDAV access                                          | ✅         | [detail](milestones/M47.md) |
 
 ## Upcoming — M27 Onward
 
@@ -124,6 +125,12 @@ What it deliberately did not build, and so what comes next on this line: an
 **agent embedded in pp-hub**, over the same `internal/agenttools` registry;
 binary upload, which a tool call's JSON cannot carry; and file management
 (folders, rename, move, trash) as tools.
+
+M47 shipped the other half for agents with a shell: a WebDAV mount at
+`${PP_EXTERNAL_URL}/dav/` with its own personal token, so local tools work on
+space files as files ([detail](milestones/M47.md), design in
+[webdav.md](webdav.md)). What it deliberately did not build: delta sync,
+offline work, files-on-demand placeholders, sharing over WebDAV, a change feed.
 
 ### Phase E — Personal use
 

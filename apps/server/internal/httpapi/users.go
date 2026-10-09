@@ -41,6 +41,9 @@ type userProfileDTO struct {
 	MCPURL string `json:"mcp_url,omitempty"`
 	// MCPTokens says personal access tokens may be created (mcp_tokens).
 	MCPTokens bool `json:"mcp_tokens,omitempty"`
+	// WebDAVURL is where the drive mounts, present only while the instance
+	// allows WebDAV.
+	WebDAVURL string `json:"webdav_url,omitempty"`
 	// PersonalSpaceID is the account's personal space; absent when it has
 	// none (the instance does not provision one for them).
 	PersonalSpaceID string `json:"personal_space_id,omitempty"`
@@ -118,6 +121,7 @@ func (s *Server) handleGetMyProfile(w http.ResponseWriter, r *http.Request) {
 func (s *Server) profileExtras(r *http.Request, u *store.User, dto *userProfileDTO) {
 	dto.MCPURL = s.mcpConnectorURL()
 	dto.MCPTokens = s.mcpTokensAllowed()
+	dto.WebDAVURL = s.davURL()
 	dto.ExternalSharingEnabled = s.share.ExternalSharingEnabled()
 	if s.personal != nil {
 		if err := s.personal.Provision(r.Context(), *u); err != nil {

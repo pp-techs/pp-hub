@@ -1254,6 +1254,24 @@ The per-person rate limit on `/mcp/` (1200/min, burst 200) is keyed on the
 user rather than the address for the same reason: every Claude user arrives
 from those few addresses.
 
+### WebDAV (`/dav`)
+
+People can mount their drive at `${PP_EXTERNAL_URL}/dav/` (M47,
+[webdav.md](architecture/webdav.md)). It is off until an administrator turns
+on **Admin › Settings › WebDAV** (`webdav_enabled`); until then `/dav` answers
+404, and turning it off again does so at once. Each person then mints a
+WebDAV token in **Settings › Security › Mount as a drive**.
+
+**nginx.** `location /dav` and `/dav/` set `client_max_body_size 0`, turn
+request and response buffering off and set 3600 s timeouts: a WebDAV `PUT` is
+one request carrying the whole file, so the 64 MiB chunk ceiling that tus keeps
+browser uploads under does not apply. The Vite dev proxy forwards `/dav` too.
+A proxy in front of nginx must allow the same — no body limit (pp-hub's upload
+cap still applies), no buffering, long timeouts — and pass every WebDAV method
+(`PROPFIND`, `PROPPATCH`, `MKCOL`, `COPY`, `MOVE`, `LOCK`, `UNLOCK`). The
+generated Caddyfile's plain `reverse_proxy` already does. Windows Explorer
+sends Basic credentials only over HTTPS.
+
 ### Outbound HTTP for link previews
 
 A link bookmark in a block document (`POST /api/v1/nodes/{id}/unfurl`) makes
@@ -1378,6 +1396,8 @@ Another proxy works the same way. Mind its request-body limit on this hop:
 nginx needs a `client_max_body_size` above the largest upload chunk, 64 MiB
 (`0` is simplest; its 1 MB default answers 413 to every full-size chunk).
 Caddy has no default limit. For Traefik, see the read-timeout note below.
+If WebDAV is on, `/dav` needs no body limit at all and long timeouts — see
+[WebDAV](#webdav-dav).
 
 #### Dokploy (or a similar platform)
 

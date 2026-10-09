@@ -20,6 +20,7 @@ import { describeAgent } from "@/lib/user-agent";
 import { SectionLabel } from "@/components/section-label";
 import { LoadingStatus } from "@/components/loading";
 import { AgentAccessSection } from "./agent-access-section";
+import { WebDavSection } from "./webdav-section";
 
 /** Form factor -> icon. These are icon components, not labels: nothing to translate. */
 const FORM_ICONS = { desktop: Monitor, phone: Smartphone, tablet: Tablet } as const;
@@ -144,6 +145,7 @@ export function AccountSecurityPane() {
         )}
       </section>
       <AgentAccessSection />
+      <WebDavSection />
     </div>
   );
 }

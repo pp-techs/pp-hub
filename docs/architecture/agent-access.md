@@ -179,6 +179,13 @@ agents and pastes it into an `Authorization: Bearer` header:
   (cookie and same-origin) and **not** on the agent router — nor are the
   session routes — so no tool can mint the credential that would outlive the
   switches meant to stop it. `TestMcpPersonalTokens` asserts it.
+- **A purpose.** Since M47 a token is minted for one surface: `purpose`
+  `"mcp"` (the default) or `"dav"` on `POST /users/me/agent-tokens`
+  (`agent_tokens.purpose`, migration `0025`); the list returns both with their
+  purpose. The lookup filters on it, so a `dav` token presented here is 401 and
+  an `mcp` token is refused at `/dav`. A `dav` token needs `webdav_enabled`
+  rather than these switches, is minted in Settings › Security › Mount as a
+  drive, and audits as `dav:<token id>` — see [webdav.md](webdav.md).
 - **`mcp_tokens`** (`system_config`, default **on** — agent access as a whole
   is already the opt-in) turns minting and presenting tokens off together;
   existing tokens stay listed so they can be revoked.

@@ -14,40 +14,14 @@ import {
 } from "@workspace/ui/components/dialog";
 import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@workspace/ui/components/select";
-import { Skeleton } from "@workspace/ui/components/skeleton";
 import { Switch } from "@workspace/ui/components/switch";
 import { Textarea } from "@workspace/ui/components/textarea";
-import type { AgentToken, UserPreferences, UserProfile } from "@/lib/api";
+import type { UserPreferences, UserProfile } from "@/lib/api";
 import { updatePreferences } from "@/lib/api/users";
-import {
-  keys,
-  useAgentTokens,
-  useCreateAgentToken,
-  useMe,
-  useRevokeAgentToken,
-} from "@/lib/queries";
-import { useFormatters } from "@/lib/format";
+import { keys, useCreateAgentToken, useMe } from "@/lib/queries";
 import { useKeyedState } from "@/lib/use-keyed-state";
 import { SectionLabel } from "@/components/section-label";
-import { LoadingStatus } from "@/components/loading";
-
-/** Lifetimes offered for a new token; the server accepts 1–90 days. */
-const EXPIRY_DAYS = ["7", "30", "90"] as const;
-
-/** Writes `text` to the clipboard and says so either way. */
-function copyWithToast(text: string, done: string, failed: string) {
-  void navigator.clipboard.writeText(text).then(
-    () => toast.success(done),
-    () => toast.error(failed),
-  );
-}
+import { CopyField, CreateTokenForm, TokenList, copyWithToast } from "./personal-tokens";
 
 interface CreateTokenProps extends Record<string, unknown> {
   mcpUrl: string;
@@ -65,16 +39,13 @@ const CreateTokenDialog = createModal<CreateTokenProps>(
   ({ mcpUrl, openedAt, modal }) => {
     const { t } = useLingui();
     const create = useCreateAgentToken();
-    const [name, setName] = useKeyedState(openedAt, "");
-    const [days, setDays] = useKeyedState<number, string>(openedAt, "30");
     const [secret, setSecret] = useKeyedState<number, string | null>(openedAt, null);
 
-    const trimmed = name.trim();
     const close = () => modal.resolve(undefined);
 
-    const submit = () =>
+    const submit = (name: string, days: number) =>
       create.mutate(
-        { name: trimmed, expires_in_days: Number(days) },
+        { name, expires_in_days: days, purpose: "mcp" },
         {
           onSuccess: (created) => setSecret(created.token),
           onError: (e) => toast.error(t`Could not create the token`, { description: e.message }),
@@ -111,30 +82,13 @@ const CreateTokenDialog = createModal<CreateTokenProps>(
                   <Trans>It will not be shown again. Anyone holding it can act as you.</Trans>
                 </DialogDescription>
               </DialogHeader>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="agent-token-secret">
-                  <Trans>Token</Trans>
-                </Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="agent-token-secret"
-                    readOnly
-                    value={secret}
-                    className="font-mono"
-                    onFocus={(e) => e.currentTarget.select()}
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      copyWithToast(secret, t`Token copied`, t`Could not copy the token`)
-                    }
-                  >
-                    <Copy />
-                    <Trans>Copy</Trans>
-                  </Button>
-                </div>
-              </div>
+              <CopyField
+                id="agent-token-secret"
+                label={<Trans>Token</Trans>}
+                value={secret}
+                copied={t`Token copied`}
+                copyFailed={t`Could not copy the token`}
+              />
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between gap-2">
                   <Label htmlFor="agent-token-snippet">
@@ -167,64 +121,16 @@ const CreateTokenDialog = createModal<CreateTokenProps>(
               </DialogFooter>
             </>
           ) : (
-            <form
-              className="flex flex-col gap-4"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (trimmed) submit();
-              }}
-            >
-              <DialogHeader>
-                <DialogTitle>
-                  <Trans>Create a personal token</Trans>
-                </DialogTitle>
-                <DialogDescription>
-                  <Trans>Name it after the agent or machine that will use it.</Trans>
-                </DialogDescription>
-              </DialogHeader>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="agent-token-name">
-                  <Trans>Name</Trans>
-                </Label>
-                <Input
-                  id="agent-token-name"
-                  value={name}
-                  maxLength={100}
-                  placeholder={t`Claude Code on my laptop`}
-                  autoFocus
-                  onChange={(e) => setName(e.target.value)}
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="agent-token-expiry">
-                  <Trans>Expires after</Trans>
-                </Label>
-                <Select
-                  value={days}
-                  items={EXPIRY_DAYS.map((d) => ({ value: d, label: t`${d} days` }))}
-                  onValueChange={(v) => setDays((v as string | null) ?? "30")}
-                >
-                  <SelectTrigger id="agent-token-expiry" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {EXPIRY_DAYS.map((d) => (
-                      <SelectItem key={d} value={d}>
-                        <Trans>{d} days</Trans>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={close}>
-                  <Trans>Cancel</Trans>
-                </Button>
-                <Button type="submit" disabled={!trimmed || create.isPending}>
-                  <Trans>Create token</Trans>
-                </Button>
-              </DialogFooter>
-            </form>
+            <CreateTokenForm
+              idPrefix="agent-token"
+              openedAt={openedAt}
+              title={<Trans>Create a personal token</Trans>}
+              description={<Trans>Name it after the agent or machine that will use it.</Trans>}
+              placeholder={t`Claude Code on my laptop`}
+              pending={create.isPending}
+              onSubmit={submit}
+              onCancel={close}
+            />
           )}
         </DialogContent>
       </Dialog>
@@ -310,10 +216,7 @@ export function AgentAccessSection() {
 }
 
 function PersonalTokens({ mcpUrl, canCreate }: { mcpUrl: string; canCreate: boolean }) {
-  const { t } = useLingui();
   const qc = useQueryClient();
-  const { data: tokens, isLoading, isError } = useAgentTokens();
-  const revoke = useRevokeAgentToken();
 
   async function createToken() {
     await CreateTokenDialog.show({ mcpUrl, openedAt: Date.now() });
@@ -350,80 +253,7 @@ function PersonalTokens({ mcpUrl, canCreate }: { mcpUrl: string; canCreate: bool
           <Trans>An administrator has turned personal tokens off.</Trans>
         </p>
       )}
-
-      {isLoading && (
-        <LoadingStatus>
-          <ul className="border-border divide-border divide-y rounded-md border">
-            {[40, 55].map((width) => (
-              <li key={width} className="flex flex-col gap-1.5 px-3 py-2.5">
-                <Skeleton className="h-3.5" style={{ width: `${width}%` }} />
-                <Skeleton className="h-2.5" style={{ width: `${width + 20}%` }} />
-              </li>
-            ))}
-          </ul>
-        </LoadingStatus>
-      )}
-      {isError && (
-        <p className="text-destructive text-xs">
-          <Trans>Could not load your tokens.</Trans>
-        </p>
-      )}
-
-      {tokens && tokens.length > 0 && (
-        <ul className="border-border divide-border divide-y rounded-md border">
-          {tokens.map((token) => (
-            <TokenRow
-              key={token.id}
-              token={token}
-              busy={revoke.isPending && revoke.variables === token.id}
-              onRevoke={() =>
-                revoke.mutate(token.id, {
-                  onSuccess: () => toast.success(t`Token revoked`),
-                  onError: (e) =>
-                    toast.error(t`Could not revoke that token`, { description: e.message }),
-                })
-              }
-            />
-          ))}
-        </ul>
-      )}
+      <TokenList purpose="mcp" />
     </div>
-  );
-}
-
-function TokenRow({
-  token,
-  busy,
-  onRevoke,
-}: {
-  token: AgentToken;
-  busy: boolean;
-  onRevoke: () => void;
-}) {
-  const f = useFormatters();
-  const created = f.date(token.created_at);
-  const expires = f.date(token.expires_at);
-  const lastUsed = token.last_used_at ? f.relative(token.last_used_at) : null;
-
-  return (
-    <li className="flex items-center gap-3 px-3 py-2.5">
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="truncate text-xs font-medium">{token.name}</span>
-        <span className="text-muted-foreground truncate text-[10px]">
-          {lastUsed ? (
-            <Trans>
-              created {created} · expires {expires} · last used {lastUsed}
-            </Trans>
-          ) : (
-            <Trans>
-              created {created} · expires {expires} · never used
-            </Trans>
-          )}
-        </span>
-      </div>
-      <Button variant="ghost" size="sm" className="shrink-0" disabled={busy} onClick={onRevoke}>
-        <Trans>Revoke</Trans>
-      </Button>
-    </li>
   );
 }

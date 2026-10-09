@@ -50,6 +50,11 @@ const (
 	// KeyExternalSharingEnabled is the instance-wide gate on external grants
 	// and invitations; each space has its own switch beneath it.
 	KeyExternalSharingEnabled = "external_sharing_enabled"
+	// KeyWebDAVEnabled lets people mount their drive over WebDAV (/dav/)
+	// with a personal token of its own. Off by default: a mount writes
+	// through Finder, Explorer and rclone, whose save patterns an operator
+	// should choose to accept.
+	KeyWebDAVEnabled = "webdav_enabled"
 
 	DefaultTenantID = "default"
 )
@@ -323,6 +328,12 @@ func defaultDefs() map[string]SettingDef {
 			Description: "Let connected agents give access to people outside a space",
 			Default:     false,
 		},
+		KeyWebDAVEnabled: {
+			Key:         KeyWebDAVEnabled,
+			Type:        "boolean",
+			Description: "Let people mount their drive over WebDAV (Finder, Explorer, rclone)",
+			Default:     false,
+		},
 		KeyPersonalSpaces: {
 			Key:         KeyPersonalSpaces,
 			Type:        "string",
@@ -455,7 +466,7 @@ func (s *Service) coerceAndValidate(def SettingDef, raw json.RawMessage) (any, [
 		val = num
 	case KeySMTP:
 		return s.coerceSMTP(raw)
-	case KeyMCPEnabled, KeyMCPPublicLinks, KeyMCPTokens, KeyMCPExternalShares, KeyExternalSharingEnabled:
+	case KeyMCPEnabled, KeyMCPPublicLinks, KeyMCPTokens, KeyMCPExternalShares, KeyExternalSharingEnabled, KeyWebDAVEnabled:
 		var b bool
 		if err := json.Unmarshal(raw, &b); err != nil {
 			return nil, nil, fmt.Errorf("%s must be true or false: %w", def.Key, err)
@@ -732,6 +743,9 @@ func (s *Service) MCPExternalShares() bool { return s.cachedBool(KeyMCPExternalS
 func (s *Service) ExternalSharingEnabled() bool {
 	return s.cachedBool(KeyExternalSharingEnabled, false)
 }
+
+// WebDAVEnabled reports whether drives may be mounted over WebDAV.
+func (s *Service) WebDAVEnabled() bool { return s.cachedBool(KeyWebDAVEnabled, false) }
 
 // PersonalSpaces returns who gets a personal space at sign-in.
 func (s *Service) PersonalSpaces() string {

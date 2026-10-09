@@ -1,15 +1,16 @@
 -- name: CreateAgentToken :one
-INSERT INTO agent_tokens (user_id, name, token_hash, expires_at)
-VALUES ($1, $2, $3, $4)
+INSERT INTO agent_tokens (user_id, name, token_hash, expires_at, purpose)
+VALUES ($1, $2, $3, $4, $5)
 RETURNING *;
 
 -- Resolves a bearer token to its row and owner in one indexed read. Expiry is
--- filtered here, so an expired token is simply not found.
+-- filtered here, so an expired token is simply not found; so is the purpose,
+-- so a WebDAV token presented to /mcp/ (or the reverse) is not found either.
 -- name: GetAgentTokenByHash :one
 SELECT sqlc.embed(t), sqlc.embed(u)
 FROM agent_tokens t
 JOIN users u ON u.id = t.user_id
-WHERE t.token_hash = $1 AND t.expires_at > now();
+WHERE t.token_hash = $1 AND t.purpose = $2 AND t.expires_at > now();
 
 -- name: TouchAgentToken :exec
 UPDATE agent_tokens SET last_used_at = now() WHERE id = $1;

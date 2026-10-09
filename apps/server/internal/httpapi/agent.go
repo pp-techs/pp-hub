@@ -58,21 +58,15 @@ func (a agentAPI) Do(ctx context.Context, method, path string, body any) (res ag
 	// The outer request's context carries the request id, the trusted client
 	// address and the agent marker; ctx, the tool's, only adds cancellation
 	// for a call the client gave up on.
-	inner := context.WithValue(a.outer.Context(), sessionCtxKey, a.sess)
-	// The outer request's routing state would make the router resume
-	// matching where /mcp/ left off rather than route this path afresh.
-	inner = context.WithValue(inner, chi.RouteCtxKey, (*chi.Context)(nil))
-	inner, cancel := context.WithCancel(inner)
+	inner, cancel := context.WithCancel(a.outer.Context())
 	defer cancel()
 	stop := context.AfterFunc(ctx, cancel)
 	defer stop()
 
-	req, err := http.NewRequestWithContext(inner, method, "/api/v1"+path, reader)
+	req, err := innerRequest(inner, a.outer, a.sess, method, path, reader)
 	if err != nil {
 		return agenttools.Response{}, err
 	}
-	req.RemoteAddr = a.outer.RemoteAddr
-	req.Header.Set("User-Agent", a.outer.UserAgent())
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -81,7 +75,7 @@ func (a agentAPI) Do(ctx context.Context, method, path string, body any) (res ag
 	// MCP SDK's goroutine, outside the router's recoverer.
 	defer func() {
 		if p := recover(); p != nil {
-			slog.ErrorContext(inner, "agent call panicked", "method", method, "path", path, "panic", p)
+			slog.ErrorContext(req.Context(), "agent call panicked", "method", method, "path", path, "panic", p)
 			res, err = agenttools.Response{}, fmt.Errorf("internal error")
 		}
 	}()
@@ -91,6 +85,25 @@ func (a agentAPI) Do(ctx context.Context, method, path string, body any) (res ag
 		rec.status = http.StatusOK
 	}
 	return agenttools.Response{Status: rec.status, Body: rec.body.Bytes()}, nil
+}
+
+// innerRequest is a call to /api/v1 that the agent router answers in
+// process, as sess. It carries outer's provenance — address, user agent and,
+// through ctx (outer's context or one derived from it), the request id and
+// the agent marker — into the audit log.
+func innerRequest(ctx context.Context, outer *http.Request, sess *auth.Session, method, path string, body io.Reader) (*http.Request, error) {
+	inner := context.WithValue(ctx, sessionCtxKey, sess)
+	// The outer request's routing state would make the router resume
+	// matching where the outer route left off rather than route this path
+	// afresh.
+	inner = context.WithValue(inner, chi.RouteCtxKey, (*chi.Context)(nil))
+	req, err := http.NewRequestWithContext(inner, method, "/api/v1"+path, body)
+	if err != nil {
+		return nil, err
+	}
+	req.RemoteAddr = outer.RemoteAddr
+	req.Header.Set("User-Agent", outer.UserAgent())
+	return req, nil
 }
 
 // bufferedResponse is the http.ResponseWriter a dispatched call writes to.

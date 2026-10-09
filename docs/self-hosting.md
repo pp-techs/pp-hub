@@ -192,6 +192,14 @@ instead create a **personal token** in the same place (at most 90 days) and
 put it in an `Authorization: Bearer` header; administrators can turn personal
 tokens off on the same settings card.
 
+**Optional: mount the drive over WebDAV.** Switch on **Admin → Settings →
+WebDAV**; each person then creates a WebDAV token in **Settings → Security →
+Mount as a drive** and mounts `https://drive.example.com/dav/` in rclone,
+Finder or Explorer — for example so a coding agent on their laptop can work on
+the files. The generated `Caddyfile` needs no change; another proxy must not
+cap or buffer request bodies on `/dav` and needs long timeouts, see
+[deployment.md](deployment.md#webdav-dav).
+
 **Optional: personal spaces and sharing outside a space.** In **Admin →
 Settings → Personal use**, _Personal spaces_ gives each account a "My Drive"
 beside its organization spaces: **Members of an organization** for a company

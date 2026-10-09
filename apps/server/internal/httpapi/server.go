@@ -75,6 +75,12 @@ type Server struct {
 	// is the MCP endpoint's per-person rate limit (mcp.go).
 	agentRouter http.Handler
 	mcpLimit    *limiter
+	// dav is what the WebDAV surface remembers between requests; davLimit
+	// is its per-person limit and davAuthFail the per-address limit on
+	// refused credentials (dav.go).
+	dav         *davState
+	davLimit    *limiter
+	davAuthFail *limiter
 	// personal provisions personal spaces (sign-in does it too; the space
 	// list catches sessions that predate the setting). Nil in handler tests.
 	personal *personal.Service
@@ -246,6 +252,11 @@ func (s *Server) Router() http.Handler {
 	// the same-origin check nor the cookie lookup applies. mcpBearer
 	// authenticates it on every request. See mcp.go.
 	s.mcpRoutes(r)
+
+	// WebDAV (dav.go). Outside /api/v1 for the same reason: a token in the
+	// Authorization header on every request, never the cookie. It answers
+	// through the agent router mcpRoutes builds.
+	s.davRoutes(r)
 
 	r.Route("/wopi/files/{nodeID}", func(r chi.Router) {
 		r.Get("/", s.handleWopiCheckFileInfo)

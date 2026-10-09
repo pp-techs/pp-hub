@@ -124,6 +124,7 @@ const BOOL_SETTINGS = [
   "mcp_tokens",
   "mcp_external_shares",
   "external_sharing_enabled",
+  "webdav_enabled",
 ] as const;
 
 /** The keys the rows below are built from, named once instead of spelled at each use. */
@@ -138,6 +139,7 @@ const KEY = {
   mcpPublicLinks: "mcp_public_links",
   mcpTokens: "mcp_tokens",
   mcpExternalShares: "mcp_external_shares",
+  webdavEnabled: "webdav_enabled",
   instanceName: "instance_name",
 } as const;
 /* eslint-enable lingui/no-unlocalized-strings */
@@ -152,6 +154,7 @@ const BOOL_DEFAULTS: BoolSettingValues = {
   mcp_tokens: true,
   mcp_external_shares: false,
   external_sharing_enabled: false,
+  webdav_enabled: false,
 };
 
 /** Who is given a personal space; the server's `personal_spaces` values. */
@@ -750,6 +753,18 @@ function SettingsForm({ settings }: { settings: AdminSettingsMap }) {
         }
       >
         {boolRow(KEY.externalSharing, <Trans>Allow sharing outside a space</Trans>)}
+      </SettingsSection>
+
+      <SettingsSection
+        title={<Trans>WebDAV</Trans>}
+        description={
+          <Trans>
+            Lets people mount their drive in Finder, File Explorer or rclone, signing in with a
+            personal token made for it. Each person still sees only what they can open.
+          </Trans>
+        }
+      >
+        {boolRow(KEY.webdavEnabled, <Trans>Let people mount their drive over WebDAV</Trans>)}
       </SettingsSection>
 
       <SettingsSection

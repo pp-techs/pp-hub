@@ -20,7 +20,7 @@ import {
   getSpaceDepartures,
   completeDeparture,
 } from "@/lib/api/users";
-import type { SecurityEventFilters, SecurityEventPage } from "@/lib/api";
+import type { AgentTokenPurpose, SecurityEventFilters, SecurityEventPage } from "@/lib/api";
 import { keys } from "./keys";
 // ─── Profile ─────────────────────────────────────────────────────────────────
 
@@ -69,10 +69,15 @@ export function useRevokeOtherSessions() {
 
 // ─── Agent Tokens ────────────────────────────────────────────────────────────
 
-export function useAgentTokens() {
+/**
+ * The caller's tokens for one purpose. The server lists both purposes in one
+ * response, so both sections share one query and each keeps its own slice.
+ */
+export function useAgentTokens(purpose: AgentTokenPurpose) {
   return useQuery({
     queryKey: keys.agentTokens,
     queryFn: listAgentTokens,
+    select: (tokens) => tokens.filter((t) => t.purpose === purpose),
   });
 }
 
