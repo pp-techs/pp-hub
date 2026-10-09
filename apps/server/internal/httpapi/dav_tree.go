@@ -16,6 +16,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/net/webdav"
+	"golang.org/x/text/unicode/norm"
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/collab"
 	ppfs "github.com/nhatbui/pp-hub/apps/server/internal/fs"
@@ -115,10 +116,11 @@ func (v *davView) key(dir, name string) davNameKey {
 // forget drops memoised listings after a write changed what they hold.
 func (v *davView) forget() { v.lists = map[string][]*davEntry{} }
 
-// davClean is p as a namespace path: rooted, cleaned, no trailing slash.
+// davClean is p as a namespace path: rooted, cleaned, no trailing slash, in
+// Unicode NFC. Finder and macOS apps send names decomposed (NFD) whatever
+// the server showed; matching on NFC keeps "Bùi" one name in both forms.
 func davClean(p string) string {
-	p = path.Clean("/" + p)
-	return p
+	return norm.NFC.String(path.Clean("/" + p))
 }
 
 // resolve finds the entry at p.
@@ -147,8 +149,9 @@ func (v *davView) child(dir *davEntry, name string) (*davEntry, error) {
 	if err != nil {
 		return nil, err
 	}
+	name = norm.NFC.String(name)
 	for _, c := range list {
-		if c.name == name {
+		if c.name == name || norm.NFC.String(c.name) == name {
 			return c, nil
 		}
 	}
