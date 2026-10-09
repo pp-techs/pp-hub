@@ -1,5 +1,12 @@
 # @pp-hub/release
 
+## 0.18.2
+
+### Patch Changes
+
+- 1b0de36: **Fix: administration pages share one layout.** Instance settings and Apps were capped at a narrow width and centered, while Users and Security log used a wider cap. Every administration page now fills the page with the same padding, like the drive.
+- f98f4f7: **Fix: files on a WebDAV mount with accented names could not be opened from Finder.** Finder and macOS apps ask for a name like `Bùi Đức Nhật` in decomposed Unicode (NFD) while pp-hub stores and lists it composed (NFC), so listing a folder worked but opening a file in it failed with "can't be found". WebDAV paths now match in either form.
+
 ## 0.18.1
 
 ### Patch Changes

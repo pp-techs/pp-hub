@@ -11,6 +11,12 @@ Versions up to and including 0.14.1 predate this changelog; see the
 
 <!-- `bun run version-packages` adds each release's section from its changesets; edit it in the Version Packages PR. -->
 
+## [0.18.2] — 2026-10-09
+
+**Fix: administration pages share one layout.** Instance settings and Apps were capped at a narrow width and centered, while Users and Security log used a wider cap. Every administration page now fills the page with the same padding, like the drive.
+
+**Fix: files on a WebDAV mount with accented names could not be opened from Finder.** Finder and macOS apps ask for a name like `Bùi Đức Nhật` in decomposed Unicode (NFD) while pp-hub stores and lists it composed (NFC), so listing a folder worked but opening a file in it failed with "can't be found". WebDAV paths now match in either form.
+
 ## [0.18.1] — 2026-10-09
 
 **Instance settings are split into tabs.** `/admin/settings` no longer stacks every setting in one long page: General (name and personal spaces), Storage, Security, Sharing & agents and Mail each have their own tab, linkable as `?tab=`. Changes on several tabs are still saved together from the one "unsaved changes" bar; Mail keeps its own Save.
