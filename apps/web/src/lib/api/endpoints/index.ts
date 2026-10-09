@@ -340,10 +340,14 @@ export async function copyNode(nodeId: string, parentId?: string): Promise<Node>
   return res.json() as Promise<Node>;
 }
 
-/** Relocates a node. An undefined parent means the top level of the space. */
-export async function moveNode(nodeId: string, parentId?: string): Promise<void> {
+/**
+ * Relocates a node. An undefined parent means the top level of the space. With
+ * `index` the node is a sub-page placed at that position among the parent's
+ * sub-pages (counted without the node itself; the server clamps it).
+ */
+export async function moveNode(nodeId: string, parentId?: string, index?: number): Promise<void> {
   const res = await api.patch(`api/v1/nodes/${nodeId}/move`, {
-    json: { parent_id: parentId ?? "" },
+    json: { parent_id: parentId ?? "", ...(index !== undefined && { index }) },
   });
   if (!res.ok) throw new ApiError(res.status, await res.text());
 }

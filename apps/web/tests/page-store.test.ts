@@ -1,9 +1,20 @@
-import { expect, test, vi } from "vite-plus/test";
+import { beforeEach, expect, test, vi } from "vite-plus/test";
 import { QueryClient } from "@tanstack/react-query";
 import * as Y from "yjs";
+import { moveNode as moveNodeRequest } from "../src/lib/api/index.ts";
+import type * as Api from "../src/lib/api/index.ts";
 import { ROOM_META, createPageStore } from "../src/lib/collab/page-store.ts";
 import type { PageSummary } from "../src/lib/api/types.ts";
+import { keys } from "../src/lib/queries/keys.ts";
 import { seedPages } from "../src/lib/queries/pages.ts";
+
+vi.mock("../src/lib/api/index.ts", async (importOriginal) => ({
+  ...(await importOriginal<typeof Api>()),
+  moveNode: vi.fn(),
+}));
+
+const moveNode = vi.mocked(moveNodeRequest);
+beforeEach(() => moveNode.mockReset());
 
 const page = (id: string, title: string, extra: Partial<PageSummary> = {}): PageSummary => ({
   id,
@@ -111,4 +122,75 @@ test("the open page's icon and cover come from the room's meta map", async () =>
 
   unbind();
   expect(store.peek("a")?.icon).toBe("📄");
+});
+
+const children = (queryClient: QueryClient, parentId: string) =>
+  queryClient
+    .getQueryData<PageSummary[]>(keys.pageChildren("node", parentId))
+    ?.map((summary) => summary.id);
+
+/** A parent `p` with sub-pages a, b, c, and `d` under `a`, listed as the tree would have. */
+const seedTree = (queryClient: QueryClient) => {
+  const pages = [
+    page("p", "Parent", { has_children: true }),
+    page("a", "Alpha", { parent_id: "p", has_children: true }),
+    page("b", "Beta", { parent_id: "p" }),
+    page("c", "Gamma", { parent_id: "p" }),
+    page("d", "Delta", { parent_id: "a" }),
+  ];
+  seedPages(queryClient, "node", pages);
+  queryClient.setQueryData(keys.pageChildren("node", "p"), pages.slice(1, 4));
+  queryClient.setQueryData(keys.pageChildren("node", "a"), pages.slice(4));
+  queryClient.setQueryData(keys.pageChildren("node", "b"), []);
+};
+
+test("move shows the new order at once and sends the index", async () => {
+  const { queryClient, store } = setup();
+  seedTree(queryClient);
+  // What the tree shows when the request leaves, before the server has answered.
+  let atRequest: string[] | undefined;
+  moveNode.mockImplementationOnce(async () => {
+    atRequest = children(queryClient, "p");
+  });
+
+  await store.move("c", { parentId: "p", index: 0 });
+  expect(moveNode).toHaveBeenCalledWith("c", "p", 0);
+  expect(atRequest).toEqual(["c", "a", "b"]);
+  expect(children(queryClient, "p")).toEqual(["c", "a", "b"]);
+});
+
+test("move to another parent leaves the old list and joins the new one", async () => {
+  const { queryClient, store } = setup();
+  seedTree(queryClient);
+  moveNode.mockResolvedValueOnce(undefined);
+
+  await store.move("c", { parentId: "b", index: 0 });
+  expect(children(queryClient, "p")).toEqual(["a", "b"]);
+  expect(children(queryClient, "b")).toEqual(["c"]);
+  expect(store.peek("c")?.parentId).toBe("b");
+  expect(store.peek("b")).toMatchObject({ hasChildren: true });
+});
+
+test("a refused move puts the tree back", async () => {
+  const { queryClient, store } = setup();
+  seedTree(queryClient);
+  moveNode.mockRejectedValueOnce(new Error("no"));
+
+  await expect(store.move("c", { parentId: "b", index: 0 })).rejects.toThrow("no");
+  expect(children(queryClient, "p")).toEqual(["a", "b", "c"]);
+  expect(children(queryClient, "b")).toEqual([]);
+  expect(store.peek("c")?.parentId).toBe("p");
+});
+
+test("a page cannot move into itself or its own descendant, nor to the top level", async () => {
+  const { queryClient, store } = setup();
+  seedTree(queryClient);
+
+  await store.move("a", { parentId: "a", index: 0 });
+  await store.move("a", { parentId: "d", index: 0 });
+  expect(moveNode).not.toHaveBeenCalled();
+  expect(children(queryClient, "a")).toEqual(["d"]);
+
+  await expect(store.move("c", { parentId: null, index: 0 })).rejects.toThrow();
+  expect(moveNode).not.toHaveBeenCalled();
 });

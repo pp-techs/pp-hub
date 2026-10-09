@@ -375,6 +375,11 @@ type PageMetum struct {
 	Cover         pgtype.Text `json:"cover"`
 }
 
+type PageOrder struct {
+	NodeID   pgtype.UUID `json:"node_id"`
+	Position int32       `json:"position"`
+}
+
 type PageRef struct {
 	SourceID      pgtype.UUID `json:"source_id"`
 	TargetID      pgtype.UUID `json:"target_id"`

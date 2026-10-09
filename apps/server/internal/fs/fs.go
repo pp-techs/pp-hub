@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"mime"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -35,6 +36,9 @@ var (
 	// is always top level, or "which container owns this" stops having one
 	// answer.
 	ErrTeamRootFixed = errors.New("a team folder cannot be moved or nested")
+	// ErrNotPage refuses to place a node in the page tree that is not a
+	// document under a document.
+	ErrNotPage = errors.New("only a document under a document has a place in the page tree")
 )
 
 const (
@@ -540,6 +544,51 @@ func (s *Service) Move(ctx context.Context, nodeID, newParentID, actorID pgtype.
 	return s.inTx(ctx, func(s *Service) error { return s.move(ctx, nodeID, newParentID, actorID) })
 }
 
+// MovePage is Move for a sub-page, which also sets where it sits among the
+// live sub-pages of newParentID: index counts them with the page itself taken
+// out, and is clamped. It is one transaction, so a refused move leaves the
+// order as it was, and moving within one parent only reorders.
+//
+// Every live sibling gets a position, which makes the order total; pages
+// created later have none and sort after them.
+func (s *Service) MovePage(ctx context.Context, nodeID, newParentID, actorID pgtype.UUID, index int) error {
+	return s.inTx(ctx, func(s *Service) error {
+		if !newParentID.Valid {
+			return ErrNotPage
+		}
+		parent, err := s.get(ctx, newParentID)
+		if err != nil {
+			return err
+		}
+		parentKind, err := s.ChildOf(ctx, parent)
+		if err != nil {
+			return err
+		}
+		if !parentKind.Markdown {
+			return ErrNotPage
+		}
+		if err := s.move(ctx, nodeID, newParentID, actorID); err != nil {
+			return err
+		}
+		rows, err := s.q.ListChildPages(ctx, newParentID)
+		if err != nil {
+			return err
+		}
+		ids := make([]pgtype.UUID, 0, len(rows))
+		for _, r := range rows {
+			if r.ID != nodeID {
+				ids = append(ids, r.ID)
+			}
+		}
+		if len(ids) == len(rows) {
+			return ErrNotPage
+		}
+		at := min(max(index, 0), len(ids))
+		ids = slices.Insert(ids, at, nodeID)
+		return s.q.SetPageOrder(ctx, ids)
+	})
+}
+
 func (s *Service) move(ctx context.Context, nodeID, newParentID, actorID pgtype.UUID) error {
 	node, err := s.get(ctx, nodeID)
 	if err != nil {
@@ -572,8 +621,17 @@ func (s *Service) move(ctx context.Context, nodeID, newParentID, actorID pgtype.
 	if isUniqueViolation(err) {
 		return ErrNameConflict
 	}
-	if err != nil || node.TeamRootID == destTeam {
+	if err != nil {
 		return err
+	}
+	if node.ParentID != newParentID {
+		// The position was the old parent's: here the page sorts last until placed.
+		if err := s.q.ClearPageOrder(ctx, nodeID); err != nil {
+			return err
+		}
+	}
+	if node.TeamRootID == destTeam {
+		return nil
 	}
 	if err := s.q.SetSubtreeTeamRoot(ctx, store.SetSubtreeTeamRootParams{
 		RootID: nodeID, TeamRootID: destTeam,

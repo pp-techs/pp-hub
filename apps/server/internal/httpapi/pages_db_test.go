@@ -472,3 +472,81 @@ func TestSharePagesBoundedByLinkRoot(t *testing.T) {
 		t.Errorf("share pages above the root = %d, want 404", res.code)
 	}
 }
+
+// Moving a sub-page with an index sets its place among its siblings,
+// whether it changes parent or not, and a page created afterwards sorts last.
+func TestPagesMoveWithIndex(t *testing.T) {
+	f := newPagesFixture(t, "order")
+	rig := f.rig
+	doc := f.page(t, "Handbook", nil)
+	other := f.page(t, "Other", nil)
+	a := f.page(t, "A", &doc)
+	b := f.page(t, "B", &doc)
+	c := f.page(t, "C", &doc)
+	x := f.page(t, "X", &other)
+
+	order := func(parent store.Node) string {
+		t.Helper()
+		res := rig.do(t, f.owner, http.MethodGet, nodePath(parent, "/pages"), nil)
+		if res.code != http.StatusOK {
+			t.Fatalf("pages: %d %s", res.code, res.body)
+		}
+		return pageTitles(decodeJSON[[]pageMetaDTO](t, res))
+	}
+	move := func(n, parent store.Node, index int) int {
+		return rig.do(t, f.owner, http.MethodPatch, nodePath(n, "/move"),
+			map[string]any{"parent_id": uuidString(parent.ID), "index": index}).code
+	}
+
+	if got := order(doc); got != "A,B,C" {
+		t.Fatalf("default order = %s", got)
+	}
+	// Within one parent: index counts the siblings without the page itself.
+	if code := move(c, doc, 0); code != http.StatusOK {
+		t.Fatalf("reorder = %d", code)
+	}
+	if got := order(doc); got != "C,A,B" {
+		t.Errorf("after C to 0 = %s", got)
+	}
+	if code := move(c, doc, 99); code != http.StatusOK {
+		t.Fatalf("reorder past the end = %d", code)
+	}
+	if got := order(doc); got != "A,B,C" {
+		t.Errorf("after C to 99 (clamped) = %s", got)
+	}
+	// Across parents.
+	if code := move(x, doc, 1); code != http.StatusOK {
+		t.Fatalf("reparent = %d", code)
+	}
+	if got := order(doc); got != "A,X,B,C" {
+		t.Errorf("after X into Handbook at 1 = %s", got)
+	}
+	if got := order(other); got != "" {
+		t.Errorf("Other kept %q", got)
+	}
+	// A page created later has no position and sorts last.
+	f.page(t, "Newest", &doc)
+	if got := order(doc); got != "A,X,B,C,Newest" {
+		t.Errorf("after a new page = %s", got)
+	}
+	// A page moved out forgets its old position: here, last until placed.
+	if code := rig.do(t, f.owner, http.MethodPatch, nodePath(a, "/move"),
+		map[string]string{"parent_id": uuidString(other.ID)}).code; code != http.StatusOK {
+		t.Fatalf("plain move = %d", code)
+	}
+	if got := order(other); got != "A" {
+		t.Errorf("Other after A = %s", got)
+	}
+	// Only a document under a document has a place in the tree.
+	folder := mkNode(t, rig.q, f.space, pgtype.UUID{}, store.NodeKindDir, "Folder", f.owner)
+	if code := move(b, folder, 0); code != http.StatusBadRequest {
+		t.Errorf("index under a folder = %d, want 400", code)
+	}
+	if code := rig.do(t, f.owner, http.MethodPatch, nodePath(b, "/move"),
+		map[string]any{"parent_id": "", "index": 0}).code; code != http.StatusBadRequest {
+		t.Errorf("index at the top level = %d, want 400", code)
+	}
+	if got := order(doc); got != "X,B,C,Newest" {
+		t.Errorf("refused moves changed the order: %s", got)
+	}
+}
