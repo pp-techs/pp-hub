@@ -79,6 +79,10 @@ answers, and `POST` is not served.
   replaced. A second entry with the same name in one listing becomes
   `Report (1a2b3c4d).docx` (the first 8 hex digits of its id), ordered by
   creation, so a label stays the same between listings.
+- Names match in **Unicode NFC**: a path is normalized on arrival and
+  compared to each entry's name in NFC, so a client that sends `Bùi`
+  decomposed (Finder, other macOS apps) reaches the same entry the listing
+  showed. New names are stored composed.
 - Left out of every listing: extension nodes, the archive, the trash, and
   **files the person may view but not download**. Such a file cannot be read
   through a mount, and showing it would only produce errors.
