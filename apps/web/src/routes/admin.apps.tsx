@@ -30,7 +30,6 @@ function AdminAppsPage() {
 
   return (
     <AdminPage
-      narrow
       title={<Trans>Apps</Trans>}
       description={
         <Trans>
