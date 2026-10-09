@@ -1,6 +1,6 @@
 {
   "name": "@pp-hub/release",
-  "version": "0.18.2",
+  "version": "0.19.0",
   "private": true,
   "description": "Carries the pp-hub product version for Changesets; see CONTRIBUTING.md#releasing."
 }
