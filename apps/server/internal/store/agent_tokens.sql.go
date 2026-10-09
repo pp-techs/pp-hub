@@ -12,9 +12,9 @@ import (
 )
 
 const createAgentToken = `-- name: CreateAgentToken :one
-INSERT INTO agent_tokens (user_id, name, token_hash, expires_at)
-VALUES ($1, $2, $3, $4)
-RETURNING id, user_id, name, token_hash, created_at, last_used_at, expires_at
+INSERT INTO agent_tokens (user_id, name, token_hash, expires_at, purpose)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, user_id, name, token_hash, created_at, last_used_at, expires_at, purpose
 `
 
 type CreateAgentTokenParams struct {
@@ -22,6 +22,7 @@ type CreateAgentTokenParams struct {
 	Name      string             `json:"name"`
 	TokenHash []byte             `json:"token_hash"`
 	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
+	Purpose   string             `json:"purpose"`
 }
 
 func (q *Queries) CreateAgentToken(ctx context.Context, arg CreateAgentTokenParams) (AgentToken, error) {
@@ -30,6 +31,7 @@ func (q *Queries) CreateAgentToken(ctx context.Context, arg CreateAgentTokenPara
 		arg.Name,
 		arg.TokenHash,
 		arg.ExpiresAt,
+		arg.Purpose,
 	)
 	var i AgentToken
 	err := row.Scan(
@@ -40,6 +42,7 @@ func (q *Queries) CreateAgentToken(ctx context.Context, arg CreateAgentTokenPara
 		&i.CreatedAt,
 		&i.LastUsedAt,
 		&i.ExpiresAt,
+		&i.Purpose,
 	)
 	return i, err
 }
@@ -76,11 +79,16 @@ func (q *Queries) DeleteUserAgentToken(ctx context.Context, arg DeleteUserAgentT
 }
 
 const getAgentTokenByHash = `-- name: GetAgentTokenByHash :one
-SELECT t.id, t.user_id, t.name, t.token_hash, t.created_at, t.last_used_at, t.expires_at, u.id, u.tenant_id, u.oidc_sub, u.oidc_iss, u.email, u.name, u.display_name, u.avatar_url, u.bio, u.settings, u.is_admin, u.last_seen, u.email_hash, u.suspended_at, u.created_at, u.avatar_blob, u.avatar_mime, u.phone, u.gender, u.idp_picture, u.avatar_from_idp, u.email_verified
+SELECT t.id, t.user_id, t.name, t.token_hash, t.created_at, t.last_used_at, t.expires_at, t.purpose, u.id, u.tenant_id, u.oidc_sub, u.oidc_iss, u.email, u.name, u.display_name, u.avatar_url, u.bio, u.settings, u.is_admin, u.last_seen, u.email_hash, u.suspended_at, u.created_at, u.avatar_blob, u.avatar_mime, u.phone, u.gender, u.idp_picture, u.avatar_from_idp, u.email_verified
 FROM agent_tokens t
 JOIN users u ON u.id = t.user_id
-WHERE t.token_hash = $1 AND t.expires_at > now()
+WHERE t.token_hash = $1 AND t.purpose = $2 AND t.expires_at > now()
 `
+
+type GetAgentTokenByHashParams struct {
+	TokenHash []byte `json:"token_hash"`
+	Purpose   string `json:"purpose"`
+}
 
 type GetAgentTokenByHashRow struct {
 	AgentToken AgentToken `json:"agent_token"`
@@ -88,9 +96,10 @@ type GetAgentTokenByHashRow struct {
 }
 
 // Resolves a bearer token to its row and owner in one indexed read. Expiry is
-// filtered here, so an expired token is simply not found.
-func (q *Queries) GetAgentTokenByHash(ctx context.Context, tokenHash []byte) (GetAgentTokenByHashRow, error) {
-	row := q.db.QueryRow(ctx, getAgentTokenByHash, tokenHash)
+// filtered here, so an expired token is simply not found; so is the purpose,
+// so a WebDAV token presented to /mcp/ (or the reverse) is not found either.
+func (q *Queries) GetAgentTokenByHash(ctx context.Context, arg GetAgentTokenByHashParams) (GetAgentTokenByHashRow, error) {
+	row := q.db.QueryRow(ctx, getAgentTokenByHash, arg.TokenHash, arg.Purpose)
 	var i GetAgentTokenByHashRow
 	err := row.Scan(
 		&i.AgentToken.ID,
@@ -100,6 +109,7 @@ func (q *Queries) GetAgentTokenByHash(ctx context.Context, tokenHash []byte) (Ge
 		&i.AgentToken.CreatedAt,
 		&i.AgentToken.LastUsedAt,
 		&i.AgentToken.ExpiresAt,
+		&i.AgentToken.Purpose,
 		&i.User.ID,
 		&i.User.TenantID,
 		&i.User.OidcSub,
@@ -127,7 +137,7 @@ func (q *Queries) GetAgentTokenByHash(ctx context.Context, tokenHash []byte) (Ge
 }
 
 const listUserAgentTokens = `-- name: ListUserAgentTokens :many
-SELECT id, user_id, name, token_hash, created_at, last_used_at, expires_at FROM agent_tokens
+SELECT id, user_id, name, token_hash, created_at, last_used_at, expires_at, purpose FROM agent_tokens
 WHERE user_id = $1 AND expires_at > now()
 ORDER BY created_at DESC
 `
@@ -149,6 +159,7 @@ func (q *Queries) ListUserAgentTokens(ctx context.Context, userID pgtype.UUID) (
 			&i.CreatedAt,
 			&i.LastUsedAt,
 			&i.ExpiresAt,
+			&i.Purpose,
 		); err != nil {
 			return nil, err
 		}

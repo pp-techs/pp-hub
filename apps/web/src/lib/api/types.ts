@@ -15,14 +15,19 @@ export interface Session {
   current: boolean;
 }
 
+/** What a personal token opens: the MCP endpoint, or the WebDAV mount. */
+export type AgentTokenPurpose = "mcp" | "dav";
+
 /**
- * A personal access token an agent sends as `Authorization: Bearer …` in
- * place of a browser sign-in. The secret itself is never listed; it comes
- * back once, as `token`, from the create call.
+ * A personal access token an agent sends as `Authorization: Bearer …` (MCP)
+ * or a WebDAV client sends as the Basic password (`dav`), in place of a
+ * browser sign-in. The secret itself is never listed; it comes back once, as
+ * `token`, from the create call.
  */
 export interface AgentToken {
   id: string;
   name: string;
+  purpose: AgentTokenPurpose;
   created_at: string;
   last_used_at?: string;
   expires_at: string;
@@ -81,6 +86,11 @@ export interface UserProfile {
   mcp_url?: string;
   /** Whether this account may create personal access tokens. Absent means no. */
   mcp_tokens?: boolean;
+  /**
+   * The WebDAV address to mount the drive at (Finder, Explorer, rclone).
+   * Present only when the administrator has turned WebDAV on.
+   */
+  webdav_url?: string;
   /** The caller's personal space, absent when they have none. */
   personal_space_id?: string;
   /** Instance switch: may anyone share with people outside a space. */

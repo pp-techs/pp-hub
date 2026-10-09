@@ -203,6 +203,7 @@ type AgentToken struct {
 	CreatedAt  pgtype.Timestamptz `json:"created_at"`
 	LastUsedAt pgtype.Timestamptz `json:"last_used_at"`
 	ExpiresAt  pgtype.Timestamptz `json:"expires_at"`
+	Purpose    string             `json:"purpose"`
 }
 
 type Blob struct {

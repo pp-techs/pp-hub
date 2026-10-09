@@ -13,7 +13,7 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: src/components/settings/panes/agent-access-section.tsx:141
+#: src/components/settings/panes/agent-access-section.tsx:95
 msgid ".mcp.json"
 msgstr ".mcp.json"
 
@@ -149,7 +149,7 @@ msgstr "{count, plural, other {# trang con}}"
 msgid "{count, plural, one {Are you sure you want to move # item to trash?} other {Are you sure you want to move # items to trash?}}"
 msgstr "{count, plural, one {Bạn có chắc muốn chuyển # mục vào thùng rác không?} other {Bạn có chắc muốn chuyển # mục vào thùng rác không?}}"
 
-#: src/components/settings/panes/account-security.tsx:37
+#: src/components/settings/panes/account-security.tsx:38
 msgid "{count, plural, one {The other signed-in device will have to sign in again.} other {All # other signed-in devices will have to sign in again.}}"
 msgstr "{count, plural, one {Tất cả # thiết bị đã đăng nhập khác sẽ phải đăng nhập lại.} other {Tất cả # thiết bị đã đăng nhập khác sẽ phải đăng nhập lại.}}"
 
@@ -169,8 +169,8 @@ msgstr "{count, plural, other {# tệp trong số này đã có trong thư mục
 msgid "{count, plural, other {Move # items}}"
 msgstr "{count, plural, other {Di chuyển # mục}}"
 
-#: src/components/settings/panes/agent-access-section.tsx:204
-#: src/components/settings/panes/agent-access-section.tsx:213
+#: src/components/settings/panes/personal-tokens.tsx:143
+#: src/components/settings/panes/personal-tokens.tsx:152
 msgid "{d} days"
 msgstr "{d} ngày"
 
@@ -240,7 +240,7 @@ msgstr "{granted, plural, other {# người/nhóm được chia sẻ}}"
 msgid "{hidden, plural, other {and # more}}"
 msgstr "{hidden, plural, other {và # mục nữa}}"
 
-#: src/components/settings/panes/account-security.tsx:183
+#: src/components/settings/panes/account-security.tsx:185
 msgid "{ip} · last active {lastActive} · signed in {signedIn}"
 msgstr "{ip} · hoạt động gần nhất {lastActive} · đăng nhập {signedIn}"
 
@@ -349,7 +349,7 @@ msgstr "{shown} trên {total, plural, one {# thẻ} other {# thẻ}}"
 msgid "{shown} of {total} users"
 msgstr "{shown} / {total} người dùng"
 
-#: src/routes/admin.settings.tsx:313
+#: src/routes/admin.settings.tsx:316
 msgid "{size} · archived {archivedOn}"
 msgstr "{size} · lưu trữ ngày {archivedOn}"
 
@@ -511,15 +511,27 @@ msgstr "<0>{actor}</0> đã cập nhật <1>{nodeName}</1> trong <2>{spaceName}<
 msgid "<0>{actor}</0> uploaded <1>{nodeName}</1> in <2>{spaceName}</2>"
 msgstr "<0>{actor}</0> đã tải lên <1>{nodeName}</1> trong <2>{spaceName}</2>"
 
+#: src/components/settings/panes/webdav-section.tsx:86
+msgid "<0>Finder:</0> Go › Connect to Server, enter the server URL, then sign in."
+msgstr "<0>Finder:</0> Chọn Go › Connect to Server, nhập URL máy chủ rồi đăng nhập."
+
 #: src/components/upload-conflict-dialog.tsx:87
 msgid "<0>Keep both</0> uploads alongside, named “{kept}”. <1>Replace</1> adds a new version to the file that is already there, keeping its owner, its link and its history."
 msgstr "<0>Giữ cả hai</0> để lưu song song, với tên “{kept}”. <1>Thay thế</1> sẽ thêm một phiên bản mới vào tệp đã có, giữ nguyên chủ sở hữu, liên kết và lịch sử của tệp đó."
 
-#: src/routes/admin.settings.tsx:621
+#: src/components/settings/panes/webdav-section.tsx:78
+msgid "<0>rclone (recommended):</0> add a WebDAV remote with these details, then run <1>rclone nfsmount</1> on macOS (no macFUSE needed) or <2>rclone mount</2> with WinFsp on Windows. Add <3>--vfs-cache-mode full</3> to either."
+msgstr "<0>rclone (khuyên dùng):</0> thêm một remote WebDAV với các thông tin này, rồi chạy <1>rclone nfsmount</1> trên macOS (không cần macFUSE) hoặc <2>rclone mount</2> cùng WinFsp trên Windows. Thêm <3>--vfs-cache-mode full</3> cho cả hai."
+
+#: src/components/settings/panes/webdav-section.tsx:92
+msgid "<0>Windows Explorer:</0> Map network drive, enter the server URL. Works only over HTTPS, and files over about 50 MB fail unless the WebClient size limit is raised."
+msgstr "<0>Windows Explorer:</0> Chọn Map network drive, nhập URL máy chủ. Chỉ hoạt động qua HTTPS, và tệp lớn hơn khoảng 50 MB sẽ lỗi trừ khi nâng giới hạn kích thước của WebClient."
+
+#: src/routes/admin.settings.tsx:624
 msgid "0 means unlimited."
 msgstr "0 nghĩa là không giới hạn."
 
-#: src/routes/admin.settings.tsx:717
+#: src/routes/admin.settings.tsx:720
 msgid "0 means unlimited. Offering personal spaces to everyone requires a quota above 0."
 msgstr "0 nghĩa là không giới hạn. Cấp không gian cá nhân cho mọi người yêu cầu hạn mức lớn hơn 0."
 
@@ -700,7 +712,7 @@ msgstr "Thêm người vào nhóm này…"
 msgid "Add star"
 msgstr "Gắn sao"
 
-#: src/components/settings/panes/agent-access-section.tsx:261
+#: src/components/settings/panes/agent-access-section.tsx:167
 msgid "Add this URL as a custom connector in Claude or ChatGPT and sign in with your PP Hub account. The agent can do only what you can."
 msgstr "Thêm URL này làm trình kết nối tùy chỉnh trong Claude hoặc ChatGPT và đăng nhập bằng tài khoản PP Hub của bạn. Tác tử chỉ làm được những gì bạn làm được."
 
@@ -772,20 +784,20 @@ msgstr "Khối nâng cao"
 #~ msgid "Agent access (MCP)"
 #~ msgstr "Quyền truy cập của tác tử (MCP)"
 
-#: src/components/settings/panes/agent-access-section.tsx:250
-#: src/routes/admin.settings.tsx:756
+#: src/components/settings/panes/agent-access-section.tsx:156
+#: src/routes/admin.settings.tsx:771
 msgid "AI agents"
 msgstr "Tác tử AI"
 
-#: src/routes/admin.settings.tsx:424
+#: src/routes/admin.settings.tsx:427
 msgid "Alert threshold must be between 0 and 10000"
 msgstr "Ngưỡng cảnh báo phải nằm trong khoảng 0 đến 10000"
 
-#: src/routes/admin.settings.tsx:670
+#: src/routes/admin.settings.tsx:673
 msgid "Alert window"
 msgstr "Khoảng thời gian cảnh báo"
 
-#: src/routes/admin.settings.tsx:425
+#: src/routes/admin.settings.tsx:428
 msgid "Alert window must be between 1 and 1440 minutes"
 msgstr "Khoảng thời gian cảnh báo phải từ 1 đến 1440 phút"
 
@@ -815,7 +827,7 @@ msgstr "Cho phép tải xuống"
 msgid "Allow re-sharing"
 msgstr "Cho phép chia sẻ lại"
 
-#: src/routes/admin.settings.tsx:752
+#: src/routes/admin.settings.tsx:755
 msgid "Allow sharing outside a space"
 msgstr "Cho phép chia sẻ ra ngoài không gian"
 
@@ -835,11 +847,11 @@ msgstr "Đã tồn tại tài khoản với địa chỉ email này ở một nh
 msgid "An address that already has an account joins immediately. Any other address is emailed an invitation by the identity provider and appears here once they sign in."
 msgstr "Địa chỉ đã có tài khoản sẽ tham gia ngay. Địa chỉ khác sẽ nhận lời mời qua email từ nhà cung cấp danh tính và xuất hiện ở đây khi họ đăng nhập."
 
-#: src/components/settings/panes/agent-access-section.tsx:305
+#: src/components/settings/panes/agent-access-section.tsx:211
 msgid "An administrator has not turned on agent access."
 msgstr "Quản trị viên chưa bật quyền truy cập cho tác tử."
 
-#: src/components/settings/panes/agent-access-section.tsx:350
+#: src/components/settings/panes/agent-access-section.tsx:253
 msgid "An administrator has turned personal tokens off."
 msgstr "Quản trị viên đã tắt mã truy cập cá nhân."
 
@@ -902,7 +914,7 @@ msgstr "Ứng dụng bổ sung các loại mục mới vào kho tệp. Tắt m�
 msgid "Archive"
 msgstr "Kho lưu trữ tạm"
 
-#: src/routes/admin.settings.tsx:283
+#: src/routes/admin.settings.tsx:286
 msgid "Archived personal spaces"
 msgstr "Không gian cá nhân đã lưu trữ"
 
@@ -936,7 +948,7 @@ msgstr "Đã đạt giới hạn WIP"
 msgid "Audio"
 msgstr "Âm thanh"
 
-#: src/routes/admin.settings.tsx:422
+#: src/routes/admin.settings.tsx:425
 msgid "Audit retention must be between 1 and 3650 days"
 msgstr "Thời gian lưu giữ kiểm toán phải từ 1 đến 3650 ngày"
 
@@ -1048,8 +1060,8 @@ msgstr "Có thể xem + tải xuống"
 #: src/components/new-document-dialog.tsx:169
 #: src/components/new-ext-node-dialog.tsx:85
 #: src/components/nodes/embed-link-modal.tsx:116
-#: src/components/settings/panes/account-security.tsx:47
-#: src/components/settings/panes/agent-access-section.tsx:221
+#: src/components/settings/panes/account-security.tsx:48
+#: src/components/settings/panes/personal-tokens.tsx:160
 #: src/components/share-dialog.tsx:1002
 #: src/components/team-folder-dialog.tsx:87
 #: src/components/upload-conflict-dialog.tsx:120
@@ -1123,7 +1135,7 @@ msgstr "Danh sách kiểm tra có ô đánh dấu"
 msgid "Choose a destination folder in {spaceName}."
 msgstr "Chọn thư mục đích trong {spaceName}."
 
-#: src/components/settings/panes/agent-access-section.tsx:193
+#: src/components/settings/panes/agent-access-section.tsx:129
 msgid "Claude Code on my laptop"
 msgstr "Claude Code trên máy tính của tôi"
 
@@ -1156,7 +1168,7 @@ msgstr "Xóa định dạng"
 msgid "Clear selection"
 msgstr "Bỏ chọn"
 
-#: src/routes/admin.settings.tsx:1031
+#: src/routes/admin.settings.tsx:1046
 msgid "Cleared"
 msgstr "Đã xoá"
 
@@ -1301,11 +1313,11 @@ msgstr "Xác nhận"
 msgid "Connection lost"
 msgstr "Mất kết nối"
 
-#: src/components/settings/panes/agent-access-section.tsx:287
+#: src/components/settings/panes/agent-access-section.tsx:193
 msgid "Connector URL"
 msgstr "URL trình kết nối"
 
-#: src/components/settings/panes/agent-access-section.tsx:294
+#: src/components/settings/panes/agent-access-section.tsx:200
 msgid "Connector URL copied"
 msgstr "Đã sao chép URL trình kết nối"
 
@@ -1335,14 +1347,18 @@ msgstr "Đã sao chép thành “{copyName}”"
 
 #: src/components/block-handle.tsx:216
 #: src/components/node-actions.tsx:261
-#: src/components/settings/panes/agent-access-section.tsx:134
-#: src/components/settings/panes/agent-access-section.tsx:151
-#: src/components/settings/panes/agent-access-section.tsx:298
+#: src/components/settings/panes/agent-access-section.tsx:105
+#: src/components/settings/panes/agent-access-section.tsx:204
+#: src/components/settings/panes/personal-tokens.tsx:76
 #: src/components/share-dialog.tsx:965
 msgid "Copy"
 msgstr "Sao chép"
 
-#: src/components/settings/panes/agent-access-section.tsx:108
+#: src/components/settings/panes/webdav-section.tsx:47
+msgid "Copy your password now"
+msgstr "Sao chép mật khẩu của bạn ngay"
+
+#: src/components/settings/panes/agent-access-section.tsx:79
 msgid "Copy your token now"
 msgstr "Sao chép mã của bạn ngay"
 
@@ -1379,7 +1395,7 @@ msgstr "Không thể thay đổi trang"
 msgid "Could not copy “{nodeName}”"
 msgstr "Không thể sao chép “{nodeName}”"
 
-#: src/components/settings/panes/agent-access-section.tsx:294
+#: src/components/settings/panes/agent-access-section.tsx:200
 msgid "Could not copy the connector URL"
 msgstr "Không thể sao chép URL trình kết nối"
 
@@ -1387,13 +1403,26 @@ msgstr "Không thể sao chép URL trình kết nối"
 msgid "Could not copy the link"
 msgstr "Không thể sao chép liên kết"
 
-#: src/components/settings/panes/agent-access-section.tsx:147
+#: src/components/settings/panes/webdav-section.tsx:74
+msgid "Could not copy the password"
+msgstr "Không thể sao chép mật khẩu"
+
+#: src/components/settings/panes/webdav-section.tsx:60
+#: src/components/settings/panes/webdav-section.tsx:178
+msgid "Could not copy the server URL"
+msgstr "Không thể sao chép URL máy chủ"
+
+#: src/components/settings/panes/agent-access-section.tsx:101
 msgid "Could not copy the snippet"
 msgstr "Không thể sao chép đoạn cấu hình"
 
-#: src/components/settings/panes/agent-access-section.tsx:130
+#: src/components/settings/panes/agent-access-section.tsx:90
 msgid "Could not copy the token"
 msgstr "Không thể sao chép mã"
+
+#: src/components/settings/panes/webdav-section.tsx:67
+msgid "Could not copy the username"
+msgstr "Không thể sao chép tên người dùng"
 
 #: src/components/drive-write.tsx:221
 msgid "Could not create “{name}”"
@@ -1427,11 +1456,15 @@ msgstr "Không tạo được nhãn"
 msgid "Could not create the page"
 msgstr "Không thể tạo trang"
 
+#: src/components/settings/panes/webdav-section.tsx:121
+msgid "Could not create the password"
+msgstr "Không thể tạo mật khẩu"
+
 #: src/routes/drive.tsx:267
 msgid "Could not create the space"
 msgstr "Không thể tạo không gian"
 
-#: src/components/settings/panes/agent-access-section.tsx:80
+#: src/components/settings/panes/agent-access-section.tsx:51
 msgid "Could not create the token"
 msgstr "Không thể tạo mã"
 
@@ -1477,11 +1510,11 @@ msgstr "Không thể tải các mục."
 msgid "Could not load the access that comes from folders above this."
 msgstr "Không thể tải quyền truy cập đến từ các thư mục phía trên."
 
-#: src/components/settings/panes/account-security.tsx:123
+#: src/components/settings/panes/account-security.tsx:124
 msgid "Could not load your sessions."
 msgstr "Không thể tải các phiên của bạn."
 
-#: src/components/settings/panes/agent-access-section.tsx:368
+#: src/components/settings/panes/personal-tokens.tsx:192
 msgid "Could not load your tokens."
 msgstr "Không thể tải các mã của bạn."
 
@@ -1513,7 +1546,7 @@ msgstr "Không thể dán “{nodeName}”"
 msgid "Could not post the comment"
 msgstr "Không đăng được bình luận"
 
-#: src/routes/admin.settings.tsx:343
+#: src/routes/admin.settings.tsx:346
 msgid "Could not purge the personal space"
 msgstr "Không thể xóa vĩnh viễn không gian cá nhân"
 
@@ -1553,7 +1586,7 @@ msgstr "Không thể khôi phục trang con"
 msgid "Could not revoke"
 msgstr "Không thể thu hồi"
 
-#: src/components/settings/panes/agent-access-section.tsx:383
+#: src/components/settings/panes/personal-tokens.tsx:207
 msgid "Could not revoke that token"
 msgstr "Không thể thu hồi mã đó"
 
@@ -1570,7 +1603,7 @@ msgstr "Không lưu được thẻ"
 msgid "Could not save the comment"
 msgstr "Không thể lưu bình luận"
 
-#: src/components/settings/panes/agent-access-section.tsx:278
+#: src/components/settings/panes/agent-access-section.tsx:184
 msgid "Could not save your agent setting."
 msgstr "Không thể lưu cài đặt tác tử."
 
@@ -1587,11 +1620,11 @@ msgstr "Không thể gửi trả lời"
 msgid "Could not share"
 msgstr "Không thể chia sẻ"
 
-#: src/components/settings/panes/account-security.tsx:78
+#: src/components/settings/panes/account-security.tsx:79
 msgid "Could not sign out other devices"
 msgstr "Không thể đăng xuất các thiết bị khác"
 
-#: src/components/settings/panes/account-security.tsx:138
+#: src/components/settings/panes/account-security.tsx:139
 msgid "Could not sign out that device"
 msgstr "Không thể đăng xuất thiết bị đó"
 
@@ -1644,7 +1677,7 @@ msgstr "Tạo"
 msgid "Create a folder in {destination}."
 msgstr "Tạo thư mục trong {destination}."
 
-#: src/components/settings/panes/agent-access-section.tsx:179
+#: src/components/settings/panes/agent-access-section.tsx:127
 msgid "Create a personal token"
 msgstr "Tạo mã truy cập cá nhân"
 
@@ -1655,6 +1688,10 @@ msgstr "Tạo không gian"
 #: src/components/doc-editor/labels.ts:47
 msgid "Create a sub-page inside this page"
 msgstr "Tạo trang con trong trang này"
+
+#: src/components/settings/panes/webdav-section.tsx:109
+msgid "Create a WebDAV password"
+msgstr "Tạo mật khẩu WebDAV"
 
 #: src/components/group-list.tsx:397
 msgid "Create group"
@@ -1668,6 +1705,10 @@ msgstr "Tạo nhãn mới"
 msgid "Create new space"
 msgstr "Tạo không gian mới"
 
+#: src/components/settings/panes/webdav-section.tsx:170
+msgid "Create password"
+msgstr "Tạo mật khẩu"
+
 #: src/components/share-dialog.tsx:942
 msgid "Create public link"
 msgstr "Tạo liên kết công khai"
@@ -1676,8 +1717,8 @@ msgstr "Tạo liên kết công khai"
 msgid "Create space"
 msgstr "Tạo không gian"
 
-#: src/components/settings/panes/agent-access-section.tsx:224
-#: src/components/settings/panes/agent-access-section.tsx:344
+#: src/components/settings/panes/agent-access-section.tsx:247
+#: src/components/settings/panes/personal-tokens.tsx:163
 msgid "Create token"
 msgstr "Tạo mã"
 
@@ -1701,11 +1742,11 @@ msgstr "Đã tạo “{createdName}” trong {destination}"
 msgid "Created “{createdName}” in {label}"
 msgstr "Đã tạo “{createdName}” trong {label}"
 
-#: src/components/settings/panes/agent-access-section.tsx:414
+#: src/components/settings/panes/personal-tokens.tsx:238
 msgid "created {created} · expires {expires} · last used {lastUsed}"
 msgstr "tạo {created} · hết hạn {expires} · dùng lần cuối {lastUsed}"
 
-#: src/components/settings/panes/agent-access-section.tsx:418
+#: src/components/settings/panes/personal-tokens.tsx:242
 msgid "created {created} · expires {expires} · never used"
 msgstr "tạo {created} · hết hạn {expires} · chưa từng dùng"
 
@@ -1753,8 +1794,8 @@ msgstr "Tối"
 msgid "Database override"
 msgstr "Ghi đè cơ sở dữ liệu"
 
-#: src/routes/admin.settings.tsx:656
 #: src/routes/admin.settings.tsx:659
+#: src/routes/admin.settings.tsx:662
 msgid "days"
 msgstr "ngày"
 
@@ -1770,11 +1811,11 @@ msgstr "Danh sách mặc định"
 #~ msgid "Default quota for new spaces (GB, 0 = unlimited)"
 #~ msgstr "Hạn mức mặc định cho không gian mới (GB, 0 = không giới hạn)"
 
-#: src/routes/admin.settings.tsx:474
+#: src/routes/admin.settings.tsx:477
 msgid "Default quota must be a valid number (0 for unlimited)"
 msgstr "Hạn mức mặc định phải là số hợp lệ (0 là không giới hạn)"
 
-#: src/routes/admin.settings.tsx:617
+#: src/routes/admin.settings.tsx:620
 msgid "Default space quota"
 msgstr "Hạn mức không gian mặc định"
 
@@ -1919,7 +1960,7 @@ msgstr "Chi tiết"
 msgid "Device"
 msgstr "Thiết bị"
 
-#: src/components/settings/panes/account-security.tsx:136
+#: src/components/settings/panes/account-security.tsx:137
 msgid "Device signed out"
 msgstr "Đã đăng xuất thiết bị"
 
@@ -1934,8 +1975,8 @@ msgstr "Hướng"
 
 #: src/components/settings/panes/account-profile.tsx:204
 #: src/components/settings/panes/space-general.tsx:334
-#: src/routes/admin.settings.tsx:808
-#: src/routes/admin.settings.tsx:1086
+#: src/routes/admin.settings.tsx:823
+#: src/routes/admin.settings.tsx:1101
 msgid "Discard"
 msgstr "Huỷ bỏ"
 
@@ -1976,7 +2017,8 @@ msgid "Documents"
 msgstr "Tài liệu"
 
 #: ../../packages/ext-kanban/src/labels-dialog.tsx:230
-#: src/components/settings/panes/agent-access-section.tsx:165
+#: src/components/settings/panes/agent-access-section.tsx:119
+#: src/components/settings/panes/webdav-section.tsx:101
 msgid "Done"
 msgstr "Xong"
 
@@ -2044,7 +2086,7 @@ msgstr "Hạn chót"
 msgid "Duplicate"
 msgstr "Nhân bản"
 
-#: src/components/settings/panes/account-security.tsx:90
+#: src/components/settings/panes/account-security.tsx:91
 msgid "Each row is a live session. Signing one out takes effect immediately — the device is asked to sign in again the next time it reaches the server."
 msgstr "Mỗi dòng là một phiên đang hoạt động. Đăng xuất một phiên sẽ có hiệu lực ngay — thiết bị sẽ được yêu cầu đăng nhập lại trong lần kết nối tới máy chủ tiếp theo."
 
@@ -2151,7 +2193,7 @@ msgstr "Nhập tiêu đề cho thẻ này…"
 msgid "Enter a web address starting with http:// or https://."
 msgstr "Nhập địa chỉ web bắt đầu bằng http:// hoặc https://."
 
-#: src/routes/admin.settings.tsx:898
+#: src/routes/admin.settings.tsx:913
 msgid "Enter the password: saving here replaces the environment configuration."
 msgstr "Nhập mật khẩu: lưu tại đây sẽ thay thế cấu hình biến môi trường."
 
@@ -2171,7 +2213,7 @@ msgstr "Sự kiện"
 #~ msgid "Events"
 #~ msgstr "Sự kiện"
 
-#: src/routes/admin.settings.tsx:417
+#: src/routes/admin.settings.tsx:420
 msgid "Every account gets its own drive, including people who belong to no organization."
 msgstr "Mọi tài khoản đều có drive riêng, kể cả người không thuộc tổ chức nào."
 
@@ -2184,7 +2226,7 @@ msgid "Every user and space on this install"
 msgstr "Mọi người dùng và không gian trên bản cài đặt này"
 
 #: src/components/share-dialog.tsx:636
-#: src/routes/admin.settings.tsx:416
+#: src/routes/admin.settings.tsx:419
 msgid "Everyone"
 msgstr "Mọi người"
 
@@ -2200,11 +2242,11 @@ msgstr "Mọi người trong không gian này đều thuộc nhóm này, và nh�
 msgid "Everyone listed here reaches this team folder and everything inside it. Nobody reaches it otherwise, including space admins."
 msgstr "Mọi người trong danh sách này đều truy cập được thư mục nhóm này và mọi thứ bên trong. Ngoài ra không ai truy cập được, kể cả quản trị viên không gian."
 
-#: src/routes/admin.settings.tsx:411
+#: src/routes/admin.settings.tsx:414
 msgid "Everyone who belongs to at least one organization space gets their own drive."
 msgstr "Ai thuộc ít nhất một không gian tổ chức đều có drive riêng."
 
-#: src/routes/admin.settings.tsx:337
+#: src/routes/admin.settings.tsx:340
 msgid "Everything in {pendingOwner}'s personal space ({pendingSize}) is deleted permanently. This cannot be undone."
 msgstr "Mọi thứ trong không gian cá nhân của {pendingOwner} ({pendingSize}) sẽ bị xóa vĩnh viễn. Không thể hoàn tác."
 
@@ -2238,7 +2280,7 @@ msgstr "Mở rộng danh sách truyền tải"
 msgid "Expiration"
 msgstr "Hết hạn"
 
-#: src/components/settings/panes/agent-access-section.tsx:200
+#: src/components/settings/panes/personal-tokens.tsx:139
 msgid "Expires after"
 msgstr "Hết hạn sau"
 
@@ -2257,11 +2299,11 @@ msgstr "Xuất kèm hình ảnh (.zip)"
 msgid "External"
 msgstr "Bên ngoài"
 
-#: src/routes/admin.settings.tsx:744
+#: src/routes/admin.settings.tsx:747
 msgid "External sharing"
 msgstr "Chia sẻ ra bên ngoài"
 
-#: src/routes/admin.settings.tsx:661
+#: src/routes/admin.settings.tsx:664
 msgid "Failed sign-in alert threshold"
 msgstr "Ngưỡng cảnh báo đăng nhập thất bại"
 
@@ -2269,21 +2311,21 @@ msgstr "Ngưỡng cảnh báo đăng nhập thất bại"
 #~ msgid "Failed sign-ins from one address"
 #~ msgstr "Số lần đăng nhập thất bại từ một địa chỉ"
 
-#: src/routes/admin.settings.tsx:664
+#: src/routes/admin.settings.tsx:667
 msgid "Failed sign-ins from one address. 0 turns alerts off. Alerts are emailed to administrators when mail is configured."
 msgstr "Số lần đăng nhập thất bại từ một địa chỉ. 0 sẽ tắt cảnh báo. Cảnh báo được gửi email cho quản trị viên khi đã cấu hình thư."
 
-#: src/routes/admin.settings.tsx:507
-#: src/routes/admin.settings.tsx:876
+#: src/routes/admin.settings.tsx:510
+#: src/routes/admin.settings.tsx:891
 msgid "Failed to reset setting"
 msgstr "Không thể đặt lại cài đặt"
 
-#: src/routes/admin.settings.tsx:497
-#: src/routes/admin.settings.tsx:915
+#: src/routes/admin.settings.tsx:500
+#: src/routes/admin.settings.tsx:930
 msgid "Failed to save settings"
 msgstr "Không thể lưu cài đặt"
 
-#: src/routes/admin.settings.tsx:925
+#: src/routes/admin.settings.tsx:940
 msgid "Failed to send test email"
 msgstr "Không thể gửi email thử nghiệm"
 
@@ -2297,11 +2339,11 @@ msgstr "Nữ"
 msgid "File"
 msgstr "Tệp"
 
-#: src/routes/admin.settings.tsx:658
+#: src/routes/admin.settings.tsx:661
 msgid "File access log retention"
 msgstr "Thời gian lưu nhật ký truy cập tệp"
 
-#: src/routes/admin.settings.tsx:423
+#: src/routes/admin.settings.tsx:426
 msgid "File access retention must be between 1 and 3650 days"
 msgstr "Thời gian lưu nhật ký truy cập tệp phải từ 1 đến 3650 ngày"
 
@@ -2384,6 +2426,10 @@ msgstr "Lọc người dùng"
 msgid "Finance"
 msgstr "Tài chính"
 
+#: src/components/settings/panes/webdav-section.tsx:113
+msgid "Finder on my laptop"
+msgstr "Finder trên máy tính của tôi"
+
 #: src/components/doc-editor/labels.ts:38
 msgid "Flowcharts, sequences, and more"
 msgstr "Lưu đồ, sơ đồ tuần tự và nhiều hơn nữa"
@@ -2418,7 +2464,7 @@ msgstr "Thư mục được tải lên và giữ nguyên cấu trúc"
 msgid "Folders this group opens"
 msgstr "Thư mục nhóm này truy cập được"
 
-#: src/components/settings/panes/agent-access-section.tsx:331
+#: src/components/settings/panes/agent-access-section.tsx:234
 msgid "For agents that cannot sign in through a browser, such as Claude Code or Cursor via .mcp.json, or CI. A token acts as you and expires."
 msgstr "Dành cho tác tử không thể đăng nhập qua trình duyệt, như Claude Code hoặc Cursor qua .mcp.json, hay CI. Mã thay mặt bạn và có thời hạn."
 
@@ -2434,11 +2480,11 @@ msgstr "Phát hiện trong lần kiểm tra hằng giờ"
 msgid "From {viaName}"
 msgstr "Từ {viaName}"
 
-#: src/routes/admin.settings.tsx:998
+#: src/routes/admin.settings.tsx:1013
 msgid "From address"
 msgstr "Địa chỉ người gửi"
 
-#: src/routes/admin.settings.tsx:888
+#: src/routes/admin.settings.tsx:903
 msgid "From address is required when an SMTP host is set."
 msgstr "Cần có địa chỉ người gửi khi đã thiết lập máy chủ SMTP."
 
@@ -2450,9 +2496,9 @@ msgstr "Từ ngày"
 msgid "Gains access: {gaining}."
 msgstr "Được cấp quyền truy cập: {gaining}."
 
-#: src/routes/admin.settings.tsx:612
-#: src/routes/admin.settings.tsx:639
-#: src/routes/admin.settings.tsx:736
+#: src/routes/admin.settings.tsx:615
+#: src/routes/admin.settings.tsx:642
+#: src/routes/admin.settings.tsx:739
 msgid "GB"
 msgstr "GB"
 
@@ -2465,7 +2511,7 @@ msgstr "Giới tính"
 msgid "General"
 msgstr "Chung"
 
-#: src/routes/admin.settings.tsx:568
+#: src/routes/admin.settings.tsx:571
 msgid "General & Branding"
 msgstr "Chung & Thương hiệu"
 
@@ -2599,7 +2645,7 @@ msgstr "Ghi chú được làm nổi bật"
 msgid "Home"
 msgstr "Trang chủ"
 
-#: src/routes/admin.settings.tsx:950
+#: src/routes/admin.settings.tsx:965
 msgid "Host"
 msgstr "Máy chủ"
 
@@ -2627,7 +2673,7 @@ msgstr "Hình ảnh"
 msgid "Images"
 msgstr "Hình ảnh"
 
-#: src/routes/admin.settings.tsx:823
+#: src/routes/admin.settings.tsx:838
 msgid "Implicit TLS / SMTPS (port 465)"
 msgstr "TLS ngầm định / SMTPS (cổng 465)"
 
@@ -2672,11 +2718,11 @@ msgstr "Chèn hàng phía trên"
 msgid "Insert row below"
 msgstr "Chèn hàng phía dưới"
 
-#: src/routes/admin.settings.tsx:570
+#: src/routes/admin.settings.tsx:573
 msgid "Instance display name"
 msgstr "Tên hiển thị hệ thống"
 
-#: src/routes/admin.settings.tsx:437
+#: src/routes/admin.settings.tsx:440
 msgid "Instance name cannot be empty"
 msgstr "Tên hệ thống không được để trống"
 
@@ -2757,9 +2803,13 @@ msgstr "Mục này có thể đã bị xoá, hoặc bạn không còn quyền tr
 msgid "It may have expired, been revoked, or never existed. Ask whoever sent it for a new one."
 msgstr "Liên kết có thể đã hết hạn, bị thu hồi hoặc chưa từng tồn tại. Hãy yêu cầu người gửi cấp liên kết mới."
 
-#: src/components/settings/panes/agent-access-section.tsx:111
+#: src/components/settings/panes/agent-access-section.tsx:82
 msgid "It will not be shown again. Anyone holding it can act as you."
 msgstr "Mã sẽ không được hiển thị lại. Bất kỳ ai có mã đều có thể thay mặt bạn."
+
+#: src/components/settings/panes/webdav-section.tsx:50
+msgid "It will not be shown again. Anyone holding it can open your files as you."
+msgstr "Mật khẩu sẽ không được hiển thị lại. Bất kỳ ai có mật khẩu đều có thể mở tệp của bạn với tư cách là bạn."
 
 #: src/components/doc-editor/labels.ts:64
 msgid "Italic"
@@ -2817,7 +2867,7 @@ msgstr "Bảng Kanban"
 msgid "Keep both"
 msgstr "Giữ cả hai"
 
-#: src/routes/admin.settings.tsx:1049
+#: src/routes/admin.settings.tsx:1064
 msgid "Keep password"
 msgstr "Giữ mật khẩu"
 
@@ -2877,31 +2927,39 @@ msgstr "Để trống nếu không giới hạn. Không thể thay đổi sau kh
 msgid "Left"
 msgstr "Đã rời"
 
-#: src/routes/admin.settings.tsx:767
+#: src/routes/admin.settings.tsx:782
 msgid "Let agents create public links"
 msgstr "Cho phép tác tử tạo liên kết công khai"
 
-#: src/routes/admin.settings.tsx:777
+#: src/routes/admin.settings.tsx:792
 msgid "Let agents share with people outside a space"
 msgstr "Cho phép agent chia sẻ với người ngoài không gian"
 
-#: src/components/settings/panes/agent-access-section.tsx:259
+#: src/components/settings/panes/agent-access-section.tsx:165
 msgid "Let AI agents act as me"
 msgstr "Cho phép tác tử AI thay mặt tôi"
 
-#: src/routes/admin.settings.tsx:764
+#: src/routes/admin.settings.tsx:779
 msgid "Let people connect AI agents to their account"
 msgstr "Cho phép mọi người kết nối tác tử AI với tài khoản của họ"
 
-#: src/routes/admin.settings.tsx:772
+#: src/routes/admin.settings.tsx:787
 msgid "Let people create personal access tokens for agents"
 msgstr "Cho phép mọi người tạo mã truy cập cá nhân cho tác tử"
 
-#: src/routes/admin.settings.tsx:758
+#: src/routes/admin.settings.tsx:767
+msgid "Let people mount their drive over WebDAV"
+msgstr "Cho phép mọi người gắn ổ đĩa của họ qua WebDAV"
+
+#: src/routes/admin.settings.tsx:773
 msgid "Lets people connect Claude, ChatGPT and other AI agents to their account. Public links let an agent publish files that anyone with the link can open without signing in."
 msgstr "Cho phép mọi người kết nối Claude, ChatGPT và các tác tử AI khác với tài khoản của họ. Liên kết công khai cho phép tác tử xuất bản tệp mà bất kỳ ai có liên kết đều mở được mà không cần đăng nhập."
 
-#: src/routes/admin.settings.tsx:746
+#: src/routes/admin.settings.tsx:761
+msgid "Lets people mount their drive in Finder, File Explorer or rclone, signing in with a personal token made for it. Each person still sees only what they can open."
+msgstr "Cho phép mọi người gắn ổ đĩa của họ trong Finder, File Explorer hoặc rclone, đăng nhập bằng một mã truy cập cá nhân tạo riêng cho việc này. Mỗi người vẫn chỉ thấy những gì họ được phép mở."
+
+#: src/routes/admin.settings.tsx:749
 msgid "Lets people share files and folders by email with anyone, including people outside their space or without an account. Each space admin still decides for their space."
 msgstr "Cho phép chia sẻ tệp và thư mục qua email với bất kỳ ai, kể cả người ngoài không gian hoặc chưa có tài khoản. Quản trị viên của từng không gian vẫn quyết định cho không gian của mình."
 
@@ -3029,7 +3087,7 @@ msgstr "Chữ thường, số và dấu gạch ngang. Để trống nếu không
 msgid "Lowercase letters, numbers and dashes. Optional."
 msgstr "Chữ thường, số và dấu gạch ngang. Không bắt buộc."
 
-#: src/routes/admin.settings.tsx:933
+#: src/routes/admin.settings.tsx:948
 msgid "Mail"
 msgstr "Thư"
 
@@ -3090,11 +3148,11 @@ msgstr "Tiếp thị"
 #~ msgid "Maximum size (GB, 0 = unlimited)"
 #~ msgstr "Kích thước tối đa (GB, 0 = không giới hạn)"
 
-#: src/routes/admin.settings.tsx:594
+#: src/routes/admin.settings.tsx:597
 msgid "Maximum upload size"
 msgstr "Kích thước tải lên tối đa"
 
-#: src/routes/admin.settings.tsx:446
+#: src/routes/admin.settings.tsx:449
 msgid "Maximum upload size must be a valid number (0 for unlimited)"
 msgstr "Kích thước tải lên tối đa phải là số hợp lệ (0 là không giới hạn)"
 
@@ -3128,7 +3186,7 @@ msgstr "đã xoá thành viên"
 msgid "Members"
 msgstr "Thành viên"
 
-#: src/routes/admin.settings.tsx:410
+#: src/routes/admin.settings.tsx:413
 msgid "Members of an organization"
 msgstr "Thành viên của một tổ chức"
 
@@ -3148,7 +3206,7 @@ msgstr "Không gian làm việc tự lưu trữ tối giản: Drive, Office, kh�
 msgid "Minimal self-hosted workspace: drive, office, spaces. Nothing leaves the machine you run it on."
 msgstr "Không gian làm việc tự lưu trữ tối giản: Drive, Office, không gian. Không dữ liệu nào rời khỏi máy bạn chạy nó."
 
-#: src/routes/admin.settings.tsx:671
+#: src/routes/admin.settings.tsx:674
 msgid "minutes"
 msgstr "phút"
 
@@ -3178,6 +3236,10 @@ msgstr "Mã phông đơn cách"
 #: src/components/locale-provider.tsx:81
 msgid "More"
 msgstr "Thêm"
+
+#: src/components/settings/panes/webdav-section.tsx:155
+msgid "Mount as a drive (WebDAV)"
+msgstr "Gắn như một ổ đĩa (WebDAV)"
 
 #: src/components/move-dialog.tsx:130
 #: src/components/selection-bar.tsx:79
@@ -3234,7 +3296,7 @@ msgstr "Drive của tôi"
 #: src/components/node-list.tsx:105
 #: src/components/node-table.tsx:74
 #: src/components/settings/panes/account-general.tsx:44
-#: src/components/settings/panes/agent-access-section.tsx:187
+#: src/components/settings/panes/personal-tokens.tsx:126
 #: src/components/space-node-table.tsx:85
 #: src/components/team-folder-dialog.tsx:74
 #: src/components/trash-panel.tsx:282
@@ -3255,9 +3317,13 @@ msgstr "Tên (A–Z)"
 msgid "Name (Z–A)"
 msgstr "Tên (Z–A)"
 
-#: src/components/settings/panes/agent-access-section.tsx:182
+#: src/components/settings/panes/agent-access-section.tsx:128
 msgid "Name it after the agent or machine that will use it."
 msgstr "Đặt tên theo tác tử hoặc máy sẽ dùng mã này."
+
+#: src/components/settings/panes/webdav-section.tsx:111
+msgid "Name it after the computer or app that will mount the drive."
+msgstr "Đặt tên theo máy tính hoặc ứng dụng sẽ gắn ổ đĩa."
 
 #: src/components/group-list.tsx:344
 msgid "Name it after the people, not the folder — one group usually opens several."
@@ -3365,7 +3431,7 @@ msgstr "Tệp tiếp theo"
 msgid "No access"
 msgstr "Không có quyền"
 
-#: src/routes/admin.settings.tsx:301
+#: src/routes/admin.settings.tsx:304
 msgid "No archived personal spaces."
 msgstr "Không có không gian cá nhân nào đã lưu trữ."
 
@@ -3508,7 +3574,7 @@ msgstr "Chưa ai thấy được — quyền truy cập thư mục nhóm đượ
 #~ msgid "Nobody else reaches this — not even a space admin — unless a line here says so."
 #~ msgstr "Không ai khác truy cập được — kể cả quản trị viên không gian — trừ khi có một dòng ở đây cho phép."
 
-#: src/routes/admin.settings.tsx:405
+#: src/routes/admin.settings.tsx:408
 msgid "Nobody gets a personal space. Existing ones stay as they are."
 msgstr "Không ai được cấp không gian cá nhân. Các không gian đã có vẫn giữ nguyên."
 
@@ -3528,7 +3594,7 @@ msgstr "Không có người hoặc tài liệu nào phù hợp."
 msgid "Nobody reaches this — not even a space admin — unless a line here says so."
 msgstr "Không ai truy cập được mục này — kể cả quản trị viên không gian — trừ khi có một dòng ở đây cho phép."
 
-#: src/routes/admin.settings.tsx:824
+#: src/routes/admin.settings.tsx:839
 msgid "None — local relay only"
 msgstr "Không — chỉ chuyển tiếp cục bộ"
 
@@ -3542,7 +3608,7 @@ msgstr "Chưa liên kết với tổ chức Logto"
 
 #: src/components/settings/panes/account-profile.tsx:175
 #: src/components/settings/panes/account-profile.tsx:181
-#: src/routes/admin.settings.tsx:1033
+#: src/routes/admin.settings.tsx:1048
 msgid "Not set"
 msgstr "Chưa thiết lập"
 
@@ -3614,7 +3680,7 @@ msgstr "Thông báo, {count} chưa đọc"
 msgid "Numbered list"
 msgstr "Danh sách đánh số"
 
-#: src/routes/admin.settings.tsx:404
+#: src/routes/admin.settings.tsx:407
 msgid "Off"
 msgstr "Tắt"
 
@@ -3711,6 +3777,10 @@ msgstr "Mở liên kết"
 msgid "Open Shared from outside"
 msgstr "Mở Được chia sẻ từ bên ngoài"
 
+#: src/components/settings/panes/webdav-section.tsx:159
+msgid "Open your files in Finder, File Explorer or rclone. Sign in with your email and a password created here; each computer or app gets its own, and it expires."
+msgstr "Mở tệp của bạn trong Finder, File Explorer hoặc rclone. Đăng nhập bằng email của bạn và một mật khẩu tạo tại đây; mỗi máy tính hoặc ứng dụng có mật khẩu riêng, và mật khẩu sẽ hết hạn."
+
 #: src/routes/admin.security.tsx:87
 msgid "opened in editor"
 msgstr "đã mở trong trình soạn thảo"
@@ -3744,11 +3814,11 @@ msgstr "Vị trí gốc"
 msgid "Other"
 msgstr "Khác"
 
-#: src/routes/admin.settings.tsx:935
+#: src/routes/admin.settings.tsx:950
 msgid "Outgoing mail (SMTP)"
 msgstr "Thư gửi đi (SMTP)"
 
-#: src/routes/admin.settings.tsx:874
+#: src/routes/admin.settings.tsx:889
 msgid "Outgoing mail settings reset"
 msgstr "Đã đặt lại cài đặt thư gửi đi"
 
@@ -3807,9 +3877,14 @@ msgstr "Trang"
 msgid "Pages cannot be changed through a share link."
 msgstr "Không thể thay đổi trang qua liên kết chia sẻ."
 
-#: src/routes/admin.settings.tsx:1021
+#: src/components/settings/panes/webdav-section.tsx:71
+#: src/routes/admin.settings.tsx:1036
 msgid "Password"
 msgstr "Mật khẩu"
+
+#: src/components/settings/panes/webdav-section.tsx:73
+msgid "Password copied"
+msgstr "Đã sao chép mật khẩu"
 
 #: src/components/folder-actions.tsx:272
 msgid "Paste"
@@ -3878,31 +3953,31 @@ msgstr "Quyền"
 msgid "Person"
 msgstr "Người"
 
-#: src/routes/admin.settings.tsx:342
+#: src/routes/admin.settings.tsx:345
 msgid "Personal space purged"
 msgstr "Đã xóa vĩnh viễn không gian cá nhân"
 
-#: src/routes/admin.settings.tsx:712
+#: src/routes/admin.settings.tsx:715
 msgid "Personal space quota"
 msgstr "Hạn mức không gian cá nhân"
 
-#: src/routes/admin.settings.tsx:485
+#: src/routes/admin.settings.tsx:488
 msgid "Personal space quota must be a valid number (0 for unlimited)"
 msgstr "Hạn mức không gian cá nhân phải là số hợp lệ (0 là không giới hạn)"
 
-#: src/routes/admin.settings.tsx:677
+#: src/routes/admin.settings.tsx:680
 msgid "Personal spaces"
 msgstr "Không gian cá nhân"
 
-#: src/routes/admin.settings.tsx:286
+#: src/routes/admin.settings.tsx:289
 msgid "Personal spaces of deleted accounts. Nobody can open them; purge one to free its storage."
 msgstr "Không gian cá nhân của các tài khoản đã bị xóa. Không ai mở được chúng; hãy xóa vĩnh viễn để giải phóng dung lượng."
 
-#: src/components/settings/panes/agent-access-section.tsx:328
+#: src/components/settings/panes/agent-access-section.tsx:231
 msgid "Personal tokens"
 msgstr "Mã truy cập cá nhân"
 
-#: src/routes/admin.settings.tsx:675
+#: src/routes/admin.settings.tsx:678
 msgid "Personal use"
 msgstr "Sử dụng cá nhân"
 
@@ -3922,11 +3997,11 @@ msgstr "Văn bản thuần"
 msgid "Plan work on this board"
 msgstr "Lên kế hoạch công việc trên bảng này"
 
-#: src/routes/admin.settings.tsx:962
+#: src/routes/admin.settings.tsx:977
 msgid "Port"
 msgstr "Cổng"
 
-#: src/routes/admin.settings.tsx:892
+#: src/routes/admin.settings.tsx:907
 msgid "Port must be between 1 and 65535."
 msgstr "Cổng phải nằm trong khoảng từ 1 đến 65535."
 
@@ -3991,15 +4066,15 @@ msgstr "Liên kết công khai"
 msgid "Public links"
 msgstr "Liên kết công khai"
 
-#: src/routes/admin.settings.tsx:326
+#: src/routes/admin.settings.tsx:329
 msgid "Purge"
 msgstr "Xóa vĩnh viễn"
 
-#: src/routes/admin.settings.tsx:338
+#: src/routes/admin.settings.tsx:341
 msgid "Purge permanently"
 msgstr "Xóa vĩnh viễn"
 
-#: src/routes/admin.settings.tsx:336
+#: src/routes/admin.settings.tsx:339
 msgid "Purge this personal space?"
 msgstr "Xóa vĩnh viễn không gian cá nhân này?"
 
@@ -4110,7 +4185,7 @@ msgstr "Gỡ liên kết"
 msgid "Remove link {name}"
 msgstr "Gỡ liên kết {name}"
 
-#: src/routes/admin.settings.tsx:1049
+#: src/routes/admin.settings.tsx:1064
 msgid "Remove password"
 msgstr "Xoá mật khẩu"
 
@@ -4256,8 +4331,8 @@ msgstr "Thử lại"
 msgid "Retry upload"
 msgstr "Thử tải lên lại"
 
-#: src/components/settings/panes/account-security.tsx:190
-#: src/components/settings/panes/agent-access-section.tsx:425
+#: src/components/settings/panes/account-security.tsx:192
+#: src/components/settings/panes/personal-tokens.tsx:249
 msgid "Revoke"
 msgstr "Thu hồi"
 
@@ -4299,8 +4374,8 @@ msgstr "Lưu"
 
 #: src/components/settings/panes/account-profile.tsx:193
 #: src/components/settings/panes/space-general.tsx:331
-#: src/routes/admin.settings.tsx:812
-#: src/routes/admin.settings.tsx:1090
+#: src/routes/admin.settings.tsx:827
+#: src/routes/admin.settings.tsx:1105
 msgid "Save changes"
 msgstr "Lưu thay đổi"
 
@@ -4378,11 +4453,11 @@ msgstr "Đang tìm kiếm…"
 #~ msgstr "Giây; dùng 0 để không hết hạn."
 
 #: src/components/settings/panes.ts:82
-#: src/routes/admin.settings.tsx:976
+#: src/routes/admin.settings.tsx:991
 msgid "Security"
 msgstr "Bảo mật"
 
-#: src/routes/admin.settings.tsx:654
+#: src/routes/admin.settings.tsx:657
 msgid "Security & Auditing"
 msgstr "Bảo mật & Kiểm toán"
 
@@ -4401,7 +4476,7 @@ msgstr "Nhật ký bảo mật"
 msgid "security log exported"
 msgstr "đã xuất nhật ký bảo mật"
 
-#: src/routes/admin.settings.tsx:655
+#: src/routes/admin.settings.tsx:658
 msgid "Security log retention"
 msgstr "Lưu giữ nhật ký bảo mật"
 
@@ -4433,7 +4508,7 @@ msgstr "Chọn màu nhãn"
 msgid "Selection actions"
 msgstr "Hành động với mục đã chọn"
 
-#: src/routes/admin.settings.tsx:1065
+#: src/routes/admin.settings.tsx:1080
 msgid "Send test email"
 msgstr "Gửi email thử nghiệm"
 
@@ -4442,7 +4517,7 @@ msgstr "Gửi email thử nghiệm"
 #~ msgid "Sends to {0}. Save changes first."
 #~ msgstr "Gửi tới {0}. Hãy lưu thay đổi trước."
 
-#: src/routes/admin.settings.tsx:1068
+#: src/routes/admin.settings.tsx:1083
 msgid "Sends to {targetEmail}. Save changes first."
 msgstr "Gửi tới {targetEmail}. Hãy lưu thay đổi trước."
 
@@ -4459,6 +4534,8 @@ msgstr "Cung cấp bởi {PRODUCT_NAME} · tự lưu trữ"
 #~ msgstr "Cung cấp bởi pp-hub · tự lưu trữ"
 
 #: src/components/admin-sidebar.tsx:73
+#: src/components/settings/panes/webdav-section.tsx:57
+#: src/components/settings/panes/webdav-section.tsx:175
 msgid "Server"
 msgstr "Máy chủ"
 
@@ -4471,6 +4548,11 @@ msgstr "Quản trị viên máy chủ"
 #: src/routes/admin.users.tsx:109
 msgid "Server administration"
 msgstr "Quản trị máy chủ"
+
+#: src/components/settings/panes/webdav-section.tsx:59
+#: src/components/settings/panes/webdav-section.tsx:177
+msgid "Server URL copied"
+msgstr "Đã sao chép URL máy chủ"
 
 #: src/routes/admin.security.tsx:63
 msgid "session revoked"
@@ -4489,7 +4571,7 @@ msgstr "phiên đã bị thu hồi"
 msgid "Set link"
 msgstr "Đặt liên kết"
 
-#: src/routes/admin.settings.tsx:504
+#: src/routes/admin.settings.tsx:507
 msgid "Setting reverted to deployment default"
 msgstr "Cài đặt đã được hoàn về mặc định triển khai"
 
@@ -4499,8 +4581,8 @@ msgid "Settings"
 msgstr "Cài đặt"
 
 #: src/components/settings/panes/space-general.tsx:135
-#: src/routes/admin.settings.tsx:495
-#: src/routes/admin.settings.tsx:913
+#: src/routes/admin.settings.tsx:498
+#: src/routes/admin.settings.tsx:928
 msgid "Settings saved"
 msgstr "Đã lưu cài đặt"
 
@@ -4630,12 +4712,12 @@ msgstr "Đăng nhập vào {PRODUCT_NAME}"
 msgid "Sign out"
 msgstr "Đăng xuất"
 
-#: src/components/settings/panes/account-security.tsx:50
-#: src/components/settings/panes/account-security.tsx:102
+#: src/components/settings/panes/account-security.tsx:51
+#: src/components/settings/panes/account-security.tsx:103
 msgid "Sign out everywhere else"
 msgstr "Đăng xuất khỏi mọi nơi khác"
 
-#: src/components/settings/panes/account-security.tsx:34
+#: src/components/settings/panes/account-security.tsx:35
 msgid "Sign out everywhere else?"
 msgstr "Đăng xuất khỏi mọi nơi khác?"
 
@@ -4647,7 +4729,7 @@ msgstr "Đăng nhập thất bại. Thử lại."
 msgid "Sign-in was cancelled."
 msgstr "Đã huỷ đăng nhập."
 
-#: src/routes/admin.settings.tsx:662
+#: src/routes/admin.settings.tsx:665
 msgid "sign-ins"
 msgstr "lần đăng nhập"
 
@@ -4659,11 +4741,11 @@ msgstr "lần đăng nhập"
 msgid "Sign-ins, failures, access changes and file access across this install"
 msgstr "Đăng nhập, lỗi, thay đổi quyền truy cập và truy cập tệp trên toàn bộ hệ thống này"
 
-#: src/components/settings/panes/account-security.tsx:77
+#: src/components/settings/panes/account-security.tsx:78
 msgid "Signed out everywhere else"
 msgstr "Đã đăng xuất khỏi mọi nơi khác"
 
-#: src/components/settings/panes/account-security.tsx:86
+#: src/components/settings/panes/account-security.tsx:87
 msgid "Signed-in devices"
 msgstr "Thiết bị đã đăng nhập"
 
@@ -4699,7 +4781,7 @@ msgstr "Các ứng dụng nhỏ tích hợp sẵn trong hệ thống. Mọi ứn
 msgid "Small section title"
 msgstr "Tiêu đề phần nhỏ"
 
-#: src/components/settings/panes/agent-access-section.tsx:147
+#: src/components/settings/panes/agent-access-section.tsx:101
 msgid "Snippet copied"
 msgstr "Đã sao chép đoạn cấu hình"
 
@@ -4785,7 +4867,7 @@ msgstr "Đã gắn sao"
 msgid "Start from an empty page."
 msgstr "Bắt đầu từ một trang trống."
 
-#: src/routes/admin.settings.tsx:822
+#: src/routes/admin.settings.tsx:837
 msgid "STARTTLS (port 587)"
 msgstr "STARTTLS (cổng 587)"
 
@@ -4799,7 +4881,7 @@ msgstr "Trạng thái"
 msgid "Storage"
 msgstr "Lưu trữ"
 
-#: src/routes/admin.settings.tsx:592
+#: src/routes/admin.settings.tsx:595
 msgid "Storage & Uploads"
 msgstr "Lưu trữ & Tải lên"
 
@@ -4812,7 +4894,7 @@ msgstr "Hạn mức lưu trữ (GB)"
 msgid "Storage used"
 msgstr "Dung lượng đã dùng"
 
-#: src/routes/admin.settings.tsx:1032
+#: src/routes/admin.settings.tsx:1047
 msgid "Stored — leave blank to keep"
 msgstr "Đã lưu — để trống để giữ nguyên"
 
@@ -4877,7 +4959,7 @@ msgstr "Không tải được mẫu; tài liệu sẽ bắt đầu trống."
 #~ msgid "Test email sent to {0}"
 #~ msgstr "Đã gửi email thử nghiệm tới {0}"
 
-#: src/routes/admin.settings.tsx:923
+#: src/routes/admin.settings.tsx:938
 msgid "Test email sent to {to}"
 msgstr "Đã gửi email thử nghiệm tới {to}"
 
@@ -5046,11 +5128,11 @@ msgstr "Thẻ này đã được người khác thay đổi"
 #~ msgid "This checklist could not be opened"
 #~ msgstr "Không thể mở danh sách việc này"
 
-#: src/components/settings/panes/account-security.tsx:178
+#: src/components/settings/panes/account-security.tsx:180
 msgid "This device"
 msgstr "Thiết bị này"
 
-#: src/components/settings/panes/account-security.tsx:42
+#: src/components/settings/panes/account-security.tsx:43
 msgid "This device stays signed in."
 msgstr "Thiết bị này luôn ở trạng thái đăng nhập."
 
@@ -5212,15 +5294,15 @@ msgstr "Danh sách thu gọn"
 msgid "Toggle sidebar"
 msgstr "Bật/tắt thanh bên"
 
-#: src/components/settings/panes/agent-access-section.tsx:116
+#: src/components/settings/panes/agent-access-section.tsx:87
 msgid "Token"
 msgstr "Mã"
 
-#: src/components/settings/panes/agent-access-section.tsx:130
+#: src/components/settings/panes/agent-access-section.tsx:89
 msgid "Token copied"
 msgstr "Đã sao chép mã"
 
-#: src/components/settings/panes/agent-access-section.tsx:381
+#: src/components/settings/panes/personal-tokens.tsx:205
 msgid "Token revoked"
 msgstr "Đã thu hồi mã"
 
@@ -5304,7 +5386,7 @@ msgstr "Gõ để tìm kiếm"
 msgid "Unassigned"
 msgstr "Chưa giao"
 
-#: src/components/settings/panes/account-security.tsx:166
+#: src/components/settings/panes/account-security.tsx:168
 msgid "Unknown IP"
 msgstr "IP không xác định"
 
@@ -5319,7 +5401,7 @@ msgstr "Danh sách không thứ tự"
 
 #: src/components/settings/panes/account-profile.tsx:207
 #: src/components/settings/panes/space-general.tsx:337
-#: src/routes/admin.settings.tsx:787
+#: src/routes/admin.settings.tsx:802
 msgid "Unsaved changes"
 msgstr "Thay đổi chưa lưu"
 
@@ -5420,7 +5502,7 @@ msgstr "Đang tải lên…"
 msgid "URL slug"
 msgstr "Slug URL"
 
-#: src/routes/admin.settings.tsx:937
+#: src/routes/admin.settings.tsx:952
 msgid "Used to email people when a file or folder is shared with them. Leave the host empty to turn mail off."
 msgstr "Dùng để gửi email cho mọi người khi tệp hoặc thư mục được chia sẻ với họ. Để trống máy chủ để tắt thư."
 
@@ -5434,9 +5516,14 @@ msgstr "Được dùng khi liên kết không chỉ định cách hiển thị t
 msgid "User"
 msgstr "Người dùng"
 
-#: src/routes/admin.settings.tsx:1010
+#: src/components/settings/panes/webdav-section.tsx:64
+#: src/routes/admin.settings.tsx:1025
 msgid "Username"
 msgstr "Tên người dùng"
+
+#: src/components/settings/panes/webdav-section.tsx:66
+msgid "Username copied"
+msgstr "Đã sao chép tên người dùng"
 
 #: src/components/admin-sidebar.tsx:35
 #: src/routes/admin.users.tsx:118
@@ -5463,11 +5550,11 @@ msgstr "phiên bản {versionNo}"
 msgid "Version {versionNo}"
 msgstr "Phiên bản {versionNo}"
 
-#: src/routes/admin.settings.tsx:643
+#: src/routes/admin.settings.tsx:646
 msgid "Version history"
 msgstr "Lịch sử phiên bản"
 
-#: src/routes/admin.settings.tsx:644
+#: src/routes/admin.settings.tsx:647
 msgid "versions"
 msgstr "phiên bản"
 
@@ -5487,11 +5574,11 @@ msgstr "Các phiên bản là bất biến. Khôi phục sẽ đặt phiên bả
 #~ msgid "Versions kept per file (0 = keep all)"
 #~ msgstr "Số phiên bản giữ lại cho mỗi tệp (0 = giữ tất cả)"
 
-#: src/routes/admin.settings.tsx:426
+#: src/routes/admin.settings.tsx:429
 msgid "Versions kept per file must be between 0 and 10000"
 msgstr "Số phiên bản giữ lại cho mỗi tệp phải từ 0 đến 10000"
 
-#: src/routes/admin.settings.tsx:646
+#: src/routes/admin.settings.tsx:649
 msgid "Versions kept per file; 0 keeps all. Saving a new version removes the oldest ones beyond this number. The current version is always kept."
 msgstr "Số phiên bản giữ lại cho mỗi tệp; 0 là giữ tất cả. Lưu phiên bản mới sẽ xóa các phiên bản cũ nhất vượt quá số này. Phiên bản hiện tại luôn được giữ."
 
@@ -5535,6 +5622,10 @@ msgstr "Đường phân cách trực quan"
 #: src/components/transfer-tray.tsx:250
 msgid "Waiting"
 msgstr "Đang chờ"
+
+#: src/routes/admin.settings.tsx:759
+msgid "WebDAV"
+msgstr "WebDAV"
 
 #: src/routes/drive.tsx:188
 msgid "Welcome to pp-hub"
@@ -5652,7 +5743,7 @@ msgstr "Bạn không có quyền truy cập tệp này."
 msgid "You do not have access to this item"
 msgstr "Bạn không có quyền truy cập mục này"
 
-#: src/routes/admin.settings.tsx:791
+#: src/routes/admin.settings.tsx:806
 msgid "You have unsaved changes"
 msgstr "Bạn có thay đổi chưa lưu"
 

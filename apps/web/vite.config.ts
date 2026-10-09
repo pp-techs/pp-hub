@@ -5,7 +5,7 @@ import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import Icons from "unplugin-icons/vite";
-import { defineConfig } from "vite-plus";
+import { defaultAllowedOrigins, defineConfig } from "vite-plus";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 
@@ -30,6 +30,11 @@ export default defineConfig({
     },
   },
   server: {
+    // Vite's CORS middleware answers every OPTIONS itself, before the proxy.
+    // A WebDAV client (Finder, Explorer) opens with OPTIONS and needs the
+    // server's `DAV:` header and Basic challenge, so preflights continue to
+    // the proxy. Same origins as Vite's default.
+    cors: { origin: defaultAllowedOrigins, preflightContinue: true },
     proxy: {
       // `ws: true` carries the block editor's collab socket
       // (`/api/v1/collab/{room}`) through the same entry. The Origin header
@@ -46,6 +51,10 @@ export default defineConfig({
       // no same-origin check. Mirrored by locations in nginx.conf.
       "^/mcp(/|$)": "http://localhost:8080",
       "/.well-known/oauth-protected-resource": "http://localhost:8080",
+      // WebDAV mounts (Finder, Explorer, rclone): Basic auth with a personal
+      // token, outside /api like /mcp. The exact `/dav` matches too, so a URL
+      // pasted without its slash reaches the server. Mirrored in nginx.conf.
+      "^/dav(/|$)": "http://localhost:8080",
       // Share links. NOTE: a bare "/s" prefix entry breaks this core's
       // module middleware; the "^/s/" context form works.
       // Top-level browser navigations to /s/<token> (Accept: text/html)

@@ -131,3 +131,12 @@
 1. With `external_sharing_enabled` on the instance and "Share outside this space" on the space (always on for a personal one), the share dialog accepts a typed email.
 2. An account outside the space gets an external grant (view or edit, never re-share) and a mail linking to `/open/{id}`; an address with no account gets an invitation (202) that becomes a grant at its first verified sign-in. Fifty new outsiders per sender per day.
 3. The outsider finds it under **Shared from outside**, browses it by node, opens and co-edits documents, and mentions only the people the document was opened to. Either switch off ends their access at once.
+
+## Agents
+
+### UC-17: Work on space files through a mount
+
+1. An instance admin switches on **Admin › Settings › WebDAV** (`webdav_enabled`, off by default).
+2. A person mints a WebDAV token in **Settings › Security › Mount as a drive** and mounts `${PP_EXTERNAL_URL}/dav/` with rclone (or Finder, Explorer), the token as password.
+3. A coding agent on their laptop runs local tools (pandoc, python, a script) over the mounted files, with exactly the person's access.
+4. Each save is a new version of the same file; a save that raced someone else's lands beside it as a conflicted copy; a delete goes to the trash. See [webdav.md](../architecture/webdav.md).

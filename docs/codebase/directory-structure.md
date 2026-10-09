@@ -76,6 +76,8 @@ pp-hub/
 │   │       │   │   ├── settings-dirty.tsx       # a pane reports unsaved edits to the shell
 │   │       │   │   └── panes/                   # account-{general,profile,security}
 │   │       │   │                                #   space-{general,members,groups,danger}
+│   │       │   │                                #   account-security's sections: agent-access-section (MCP),
+│   │       │   │                                #   webdav-section (M47 mount), personal-tokens (shared token list, per purpose)
 │   │       │   ├── space-node-table.tsx  # flat listings within a space (Recent, Starred)
 │   │       │   ├── activity-feed.tsx     # the event timeline
 │   │       │   ├── storage-breakdown.tsx # usage by MIME family
@@ -151,9 +153,14 @@ pp-hub/
 │           │   ├── groups.go       # groups API + the folder-grant endpoints
 │           │   ├── webhooks.go     # POST /hooks/logto — HMAC over the raw body, then enqueue an org or user reconcile
 │           │   ├── mcp.go          # M41: /mcp/ (bearer-only, mcpBearer) + /.well-known/oauth-protected-resource
-│           │   ├── agent.go        # M41: agentAPI — tool calls dispatched in process through apiRoutes
+│           │   ├── agent.go        # M41: agentAPI — tool calls dispatched in process through apiRoutes (innerRequest, shared with /dav)
 │           │   ├── agent_text.go   # M41: GET/PUT /nodes/{id}/text and GET /nodes/{id}/file, mounted only on the agent router
-│           │   ├── agent_tokens.go # M41: personal access tokens (/users/me/agent-tokens), never on the agent router
+│           │   ├── agent_tokens.go # M41: personal access tokens (/users/me/agent-tokens; purpose mcp|dav since M47), never on the agent router
+│           │   ├── dav.go          # M47: /dav — davAuth (Basic/Bearer dav token), reads, DELETE, MKCOL
+│           │   ├── dav_tree.go     # M47: namespace, listings, x/net/webdav adapters (davFS, davFile, davInfo, davLocks)
+│           │   ├── dav_write.go    # M47: PUT, COPY, MOVE through the agent router; conflicted copies, safe saves
+│           │   ├── dav_state.go    # M47: in-memory davState — remembered reads, tombs, scratch, pages folders, locks
+│           │   ├── dav_names.go    # M47: labels and scratch-file names
 │           │   └── spaces_members.go # space members API (list/add/remove, set-admin) + the departure queue
 │           ├── store/              # ✅ sqlc queries, embedded migrations runner
 │           │   └── migrations/     # 0001_init.sql baseline, then one file per change:
@@ -166,7 +173,9 @@ pp-hub/
 │           │                       #    0014_markdown_mime.sql, 0015_comments_notifications.sql,
 │           │                       #    0016_content_search.sql, 0017_space_avatars.sql,
 │           │                       #    0018_agent_tokens.sql, 0019_personal_spaces.sql,
-│           │                       #    0020_invite_hardening.sql, 0021_pages.sql
+│           │                       #    0020_invite_hardening.sql, 0021_pages.sql,
+│           │                       #    0022_ext_node_kind.sql, 0023_extensions.sql,
+│           │                       #    0024_comment_subjects.sql, 0025_dav_tokens.sql
 │           ├── users/              # user service layer (profile)
 │           ├── orgsync/            # ✅ Logto sync: client.go (Management API), orgsync.go (membership reconciler, jobs, sweep),
 │           │                       #    accounts.go (accounts), spacesync.go (create, rename, Link to Logto)

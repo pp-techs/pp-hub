@@ -131,7 +131,7 @@ sessions(id, user_id,                           -- ON DELETE CASCADE from users
 
 `migrations/0018_agent_tokens.sql` (M41). Personal access tokens for agents that cannot sign in
 through a browser — a `.mcp.json`, CI, a script — presented as `Authorization: Bearer pph_…` to
-`/mcp/` only. See [agent-access.md](agent-access.md#personal-access-tokens).
+`/mcp/` or, with `purpose = 'dav'`, to `/dav`. See [agent-access.md](agent-access.md#personal-access-tokens).
 
 ```sql
 agent_tokens(id, user_id,                       -- ON DELETE CASCADE from users
@@ -146,6 +146,11 @@ agent_tokens(id, user_id,                       -- ON DELETE CASCADE from users
 Like `sessions`: only the hash is stored, lookup is one indexed read that filters
 `expires_at > now()` in SQL, revocation takes `(id, user_id)`, and `DeleteExpiredAgentTokens`
 runs on the same five-minute ticker.
+
+`migrations/0025_dav_tokens.sql` (M47) adds `purpose text NOT NULL DEFAULT 'mcp'` with
+`CHECK (purpose IN ('mcp', 'dav'))`: a `dav` token is presented to `/dav` (Basic password or
+Bearer) and nowhere else, an `mcp` token to `/mcp/` only — the lookup filters on purpose. See
+[webdav.md](webdav.md).
 
 ## Personal Spaces and External Sharing
 

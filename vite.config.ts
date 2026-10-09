@@ -77,6 +77,8 @@ export default defineConfig({
             "group",
             "value",
             "slug",
+            // An API enum: a personal token's `purpose: "mcp" | "dav"`.
+            "purpose",
             // Component behaviour tokens, not copy: a Button variant, a
             // Sidebar mode, a router preload strategy.
             "confirmVariant",

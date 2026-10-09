@@ -3,6 +3,7 @@ import { api, ApiError } from "./client";
 import type {
   AddMemberResult,
   AgentToken,
+  AgentTokenPurpose,
   CreatedAgentToken,
   AdminUser,
   SecurityEventFilters,
@@ -82,6 +83,8 @@ export async function listAgentTokens(): Promise<AgentToken[]> {
 export async function createAgentToken(body: {
   name: string;
   expires_in_days: number;
+  /** The server defaults to "mcp" when omitted. */
+  purpose?: AgentTokenPurpose;
 }): Promise<CreatedAgentToken> {
   const res = await api.post("api/v1/users/me/agent-tokens", { json: body });
   if (!res.ok) {

@@ -144,7 +144,7 @@ func (s *Server) mcpBearer(next http.Handler) http.Handler {
 				writeProblem(w, http.StatusForbidden, "Forbidden", "personal tokens for agents are turned off on this instance")
 				return
 			}
-			tok, err = s.auth.AuthenticateAgentToken(r.Context(), raw)
+			tok, err = s.auth.AuthenticateAgentToken(r.Context(), raw, auth.TokenPurposeMCP)
 		} else {
 			tok, err = s.auth.VerifyAccessToken(r.Context(), raw, s.mcpResource())
 		}

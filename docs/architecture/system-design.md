@@ -21,7 +21,8 @@ Alternatives considered and rejected:
 flowchart LR
     subgraph Clients
         Web[apps/web React SPA]
-        Future[Mobile/Desktop later]
+        DAV[WebDAV clients: Finder, Explorer, rclone]
+        Future[Mobile/Desktop sync later]
     end
 
     subgraph Server[apps/server - Go monolith]
@@ -41,6 +42,7 @@ flowchart LR
     IDP["Logto\n(OIDC)"]
 
     Web --> API
+    DAV -- /dav --> API
     Future -. later .-> API
     API --> AUTH
     API --> SP & FS & SH & WOPI
@@ -88,7 +90,8 @@ Every table carries `tenant_id` (single value `'default'` in MVP). No tenant rou
 
 ## Sync & Marketplace Readiness (post-MVP)
 
-- **Desktop/mobile sync**: the CAS blob interface hides chunking. A later rollsum-based chunk layer under `blob.Put` plus `chunkExists/chunkPut` endpoints enables delta sync without changing callers.
+- **WebDAV mount (M47)**: files can already be worked on from a desktop without a sync client — `/dav` serves the same nodes, versions and grants as a mount, nothing copied; see [webdav.md](webdav.md).
+- **Desktop/mobile sync**: still later. The CAS blob interface hides chunking. A later rollsum-based chunk layer under `blob.Put` plus `chunkExists/chunkPut` endpoints enables delta sync without changing callers.
 - **Marketplace/plugins**: designed as compile-time extensions behind a public `extsdk`, switched on per instance and per space — see [extensions.md](extensions.md) (M44–M46, kanban first).
 
 ## Deployment

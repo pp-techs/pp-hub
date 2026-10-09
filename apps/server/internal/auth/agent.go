@@ -79,10 +79,42 @@ func (s *Service) VerifyAccessToken(ctx context.Context, raw, audience string) (
 //
 // A coding agent configured from a file, a CI job or a script has no browser
 // to sign in with, so a person can mint a token here and paste it into an
-// Authorization header instead of going through Logto. It acts for its
-// creator on /mcp/ only, with exactly their access, and like a session only
-// its SHA-256 is stored. Unlike a session it does not slide: it dies on the
-// date chosen at creation, at most MaxAgentTokenTTL away.
+// Authorization header instead of going through Logto. A drive mounted over
+// WebDAV has no browser either, and gets a token of its own purpose. Either
+// acts for its creator on its own endpoint only (/mcp/ or /dav/), with exactly
+// their access, and like a session only its SHA-256 is stored. Unlike a
+// session it does not slide: it dies on the date chosen at creation, at most
+// MaxAgentTokenTTL away.
+
+// TokenPurpose is the one endpoint a personal token opens.
+type TokenPurpose string
+
+const (
+	// TokenPurposeMCP opens /mcp/, for agents.
+	TokenPurposeMCP TokenPurpose = "mcp"
+	// TokenPurposeDAV opens /dav/, for a mounted drive.
+	TokenPurposeDAV TokenPurpose = "dav"
+)
+
+// ParseTokenPurpose accepts the two purposes; empty means MCP, which is what
+// every token was before WebDAV existed.
+func ParseTokenPurpose(v string) (TokenPurpose, bool) {
+	switch TokenPurpose(v) {
+	case "", TokenPurposeMCP:
+		return TokenPurposeMCP, true
+	case TokenPurposeDAV:
+		return TokenPurposeDAV, true
+	}
+	return "", false
+}
+
+// clientPrefix is how the audit trail names a token of this purpose.
+func (p TokenPurpose) clientPrefix() string {
+	if p == TokenPurposeDAV {
+		return "dav:"
+	}
+	return "pat:"
+}
 
 // AgentTokenPrefix marks a personal access token, so the bearer middleware
 // can tell one from a Logto JWT without trying both, and a secret scanner can
@@ -111,9 +143,9 @@ func agentTokenHash(raw string) []byte {
 	return sum[:]
 }
 
-// CreateAgentToken mints a token for user, returning the row and the token —
-// which exists in plaintext only in this return value.
-func (s *Service) CreateAgentToken(r *http.Request, user store.User, name string, ttl time.Duration) (store.AgentToken, string, error) {
+// CreateAgentToken mints a token of purpose for user, returning the row and
+// the token — which exists in plaintext only in this return value.
+func (s *Service) CreateAgentToken(r *http.Request, user store.User, name string, ttl time.Duration, purpose TokenPurpose) (store.AgentToken, string, error) {
 	name = strings.TrimSpace(name)
 	if name == "" || len([]rune(name)) > 100 {
 		return store.AgentToken{}, "", fmt.Errorf("%w: a name of 1 to 100 characters is required", ErrBadAgentToken)
@@ -131,23 +163,25 @@ func (s *Service) CreateAgentToken(r *http.Request, user store.User, name string
 		Name:      name,
 		TokenHash: agentTokenHash(raw),
 		ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(ttl), Valid: true},
+		Purpose:   string(purpose),
 	})
 	if err != nil {
 		return store.AgentToken{}, "", err
 	}
 	s.audit.Record(r, audit.Event{
 		Kind: audit.KindAgentTokenCreated, UserID: user.ID, Subject: user.Email,
-		Detail: map[string]any{"token": tok.ID.String(), "name": tok.Name, "expires_at": tok.ExpiresAt.Time},
+		Detail: map[string]any{"token": tok.ID.String(), "name": tok.Name, "expires_at": tok.ExpiresAt.Time, "purpose": tok.Purpose},
 	})
 	return tok, raw, nil
 }
 
-// AuthenticateAgentToken resolves a personal access token to the account it
-// acts for. An unknown, revoked or expired token is ErrInvalidAccessToken,
-// the same answer a bad JWT gets. ClientID names the token ("pat:<id>"), so
-// the audit trail says which one acted.
-func (s *Service) AuthenticateAgentToken(ctx context.Context, raw string) (AgentToken, error) {
-	row, err := s.queries.GetAgentTokenByHash(ctx, agentTokenHash(raw))
+// AuthenticateAgentToken resolves a personal access token of purpose to the
+// account it acts for. An unknown, revoked or expired token — or one minted
+// for the other purpose — is ErrInvalidAccessToken, the same answer a bad JWT
+// gets. ClientID names the token ("pat:<id>", "dav:<id>"), so the audit trail
+// says which one acted.
+func (s *Service) AuthenticateAgentToken(ctx context.Context, raw string, purpose TokenPurpose) (AgentToken, error) {
+	row, err := s.queries.GetAgentTokenByHash(ctx, store.GetAgentTokenByHashParams{TokenHash: agentTokenHash(raw), Purpose: string(purpose)})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return AgentToken{}, fmt.Errorf("%w: unknown or expired personal token", ErrInvalidAccessToken)
 	}
@@ -159,7 +193,7 @@ func (s *Service) AuthenticateAgentToken(ctx context.Context, raw string) (Agent
 		// A failed touch is not a failed request: the token is valid now.
 		_ = s.queries.TouchAgentToken(ctx, t.ID)
 	}
-	return AgentToken{User: row.User, ClientID: "pat:" + t.ID.String(), Expiry: t.ExpiresAt.Time}, nil
+	return AgentToken{User: row.User, ClientID: purpose.clientPrefix() + t.ID.String(), Expiry: t.ExpiresAt.Time}, nil
 }
 
 // ListAgentTokens is the person's live tokens, newest first.
