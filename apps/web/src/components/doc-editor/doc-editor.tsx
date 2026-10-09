@@ -476,6 +476,7 @@ function DocSurface({
             rootId={treeRootId}
             activeId={documentId}
             expanded={treeExpanded}
+            editable={editable}
             onNavigate={onNavigate}
             onCreate={
               editable

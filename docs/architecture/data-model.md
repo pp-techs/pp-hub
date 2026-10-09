@@ -529,7 +529,15 @@ page_refs(source_id, target_id, kind, node_version_id,
   -- source_id → nodes ON DELETE CASCADE; target_id has no FK — a link may name
   -- a page that is gone or never existed, and must not block its purge.
 CREATE INDEX page_refs_target ON page_refs (target_id);  -- backlinks
+
+page_order(node_id PK, position)
+  -- Migration 0026. node_id → nodes ON DELETE CASCADE. A sub-page's place among
+  -- its siblings; no row sorts after every row, by created_at then name.
 ```
+
+- `fs.MovePage` writes `position` for every live sibling in one transaction
+  (`SetPageOrder`); `fs.move` clears it (`ClearPageOrder`) when the parent
+  changes. `ListChildPages` orders by `position NULLS LAST, created_at, name`.
 
 - Written by the `extract:text` job, from the same parse as `node_texts`:
   `UpsertPageMeta`, `DeletePageRefsForSource` and the batched `InsertPageRefs`

@@ -937,7 +937,8 @@ func (s *Server) handleRenameNode(w http.ResponseWriter, r *http.Request) {
 
 // handleMoveNode relocates a node. Beyond write access at both ends, a move
 // is bounded by authorizeMove, because in this model where a node hangs IS
-// who can reach it.
+// who can reach it. With `index` the node is a sub-page placed at that
+// position among its new parent's sub-pages (see fs.MovePage).
 func (s *Server) handleMoveNode(w http.ResponseWriter, r *http.Request) {
 	u, node, caps := s.requireMovableNode(w, r)
 	if u == nil {
@@ -945,6 +946,7 @@ func (s *Server) handleMoveNode(w http.ResponseWriter, r *http.Request) {
 	}
 	var body struct {
 		ParentID string `json:"parent_id"` // empty = space root
+		Index    *int   `json:"index"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid body")
@@ -963,7 +965,13 @@ func (s *Server) handleMoveNode(w http.ResponseWriter, r *http.Request) {
 	if !s.authorizeMove(w, r, u, node, caps, parentID) {
 		return
 	}
-	if err := s.fs.Move(r.Context(), node.ID, parentID, u.ID); err != nil {
+	var err error
+	if body.Index != nil {
+		err = s.fs.MovePage(r.Context(), node.ID, parentID, u.ID, *body.Index)
+	} else {
+		err = s.fs.Move(r.Context(), node.ID, parentID, u.ID)
+	}
+	if err != nil {
 		s.nodeError(w, r, err)
 		return
 	}
@@ -1387,7 +1395,7 @@ func (s *Server) nodeError(w http.ResponseWriter, r *http.Request, err error) {
 		writeProblem(w, http.StatusConflict, "Conflict", err.Error())
 	case errors.Is(err, fs.ErrQuotaExceeded):
 		writeProblem(w, http.StatusRequestEntityTooLarge, "Quota Exceeded", err.Error())
-	case errors.Is(err, fs.ErrNotFile), errors.Is(err, fs.ErrNotContainer):
+	case errors.Is(err, fs.ErrNotFile), errors.Is(err, fs.ErrNotContainer), errors.Is(err, fs.ErrNotPage):
 		writeProblem(w, http.StatusBadRequest, "Bad Request", err.Error())
 	default:
 		Error(w, r, err)

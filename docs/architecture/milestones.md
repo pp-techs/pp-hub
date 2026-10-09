@@ -149,9 +149,9 @@ tree (a `.md` whose parent is a `.md`, one `fs.CanContain` rule), `pageLink`
 chips with live titles and backlinks, a page tree, breadcrumb, icon and cover
 (frontmatter, live in the room), sub-pages through share links, recursive
 export, zip and copy, MCP and search. What it deliberately did not build:
-databases or collection views, drag-and-drop re-parenting in the page tree
-(Move takes a document as destination instead), realtime push of titles and
-tree changes (they refetch), and sub-pages that are not markdown.
+databases or collection views, realtime push of titles and
+tree changes (they refetch), and sub-pages that are not markdown. Reordering,
+re-parenting and trashing from the page tree followed with slash-editor 0.8.
 
 ### Phase G — Extensions
 

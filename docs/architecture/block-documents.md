@@ -33,7 +33,7 @@ previewed as a text snippet, and that was all.
 | Crash window                                       | Up to ~5 min of unflushed edits may be lost on a crash; graceful shutdown flushes                       |
 
 **Not built:** the AI block, databases or collection views, non-markdown
-sub-pages, drag-and-drop re-parenting in the page tree, realtime push of page
+sub-pages, realtime push of page
 titles, editing through a share link (a link renders the document read-only),
 offline editing, more than one collaboration instance, and email for comments
 or mentions (notifications are in-app only).
@@ -88,7 +88,7 @@ flowchart LR
 | `GET /s/{token}/document?node=<id>`           | The same tree through a public link, which always grants view and must cover the node                                                                        |
 | `GET /s/{token}/attachments/{hash}?node=<id>` | An attachment through a link, on the same terms                                                                                                              |
 | `GET /api/v1/nodes/{id}/page`                 | M43: `{page, ancestors}` — the page's `PageMeta` and its viewable document ancestors, root first. 404 unless viewable markdown                               |
-| `GET /api/v1/nodes/{id}/pages`                | M43: direct live sub-pages as `PageMeta[]`, by `created_at` then name. View on the parent; 404 otherwise                                                     |
+| `GET /api/v1/nodes/{id}/pages`                | M43: direct live sub-pages as `PageMeta[]`, by `page_order`, then `created_at`, then name. View on the parent; 404 otherwise                                 |
 | `GET /api/v1/nodes/{id}/backlinks`            | M43: live pages that link to or hold this one, filtered by what the caller can view; 404 unless viewable                                                     |
 | `GET /s/{token}/page?node=`, `/pages?node=`   | M43: the same through a public link, chain cut at the link root                                                                                              |
 
@@ -608,6 +608,23 @@ parent that can no longer hold it relocates the page to the space root. A
 co-editor who cannot trash the page gets a 403 toast and the page stays.
 Pasting a `subPage` into another document gives a `pageLink`: a page has one
 parent.
+
+**Reorder and re-parent in the tree.** A writer drags a row in the page tree
+(above or below another row to reorder, over its middle to make it a
+sub-page), presses Alt+↑/↓ to move it among its siblings, or trashes it from
+the row's button, with an Undo toast. They are `PageStore.move` and
+`setTrashed`, the optional methods slash-editor 0.8 adds, over
+`PATCH /nodes/{id}/move` with an optional `index` and the usual trash and
+restore routes. `index` counts the sub-pages of the new parent with the page
+itself taken out and is clamped; the move and the order are one transaction
+(`fs.MovePage`), and a move into a folder, the top level or a non-document
+with an `index` is a 400. Order lives in `page_order(node_id, position)`: a
+move writes a position for every live sibling, a page with none sorts after
+those that have one (by `created_at`, then name, as before), and a page that
+changes parent forgets its position. The tree moves the page in its cache at
+once and puts it back if the server refuses. The `subPage` blocks in the
+documents are not rewritten: the old parent's block still links to the page
+and the new parent has none, the same as with the Drive's Move dialog.
 
 **Export and copy.** The export zip and the folder zip share one planner:
 `<Doc>.md`, sub-pages under `<Doc>/<Sub>.md` recursively, one `assets/` per

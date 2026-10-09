@@ -543,6 +543,10 @@ msgstr ""
 msgid "A file with this name is already in this folder."
 msgstr ""
 
+#: src/lib/collab/page-store.ts:50
+msgid "A page can only be moved under another page."
+msgstr ""
+
 #: src/components/team-folder-dialog.tsx:56
 msgid "A top-level folder in {spaceName} that nobody owns personally: access to everything inside it is managed through Share, so removing someone really removes them, even from files they uploaded. It stays with the team when whoever created it leaves."
 msgstr ""
@@ -1141,7 +1145,7 @@ msgstr ""
 msgid "Close details"
 msgstr ""
 
-#: src/components/doc-editor/page-tree-panel.tsx:97
+#: src/components/doc-editor/page-tree-panel.tsx:206
 msgid "Close pages"
 msgstr ""
 
@@ -1161,7 +1165,7 @@ msgstr ""
 msgid "Code language"
 msgstr ""
 
-#: src/components/doc-editor/page-tree-panel.tsx:178
+#: src/components/doc-editor/page-tree-panel.tsx:351
 #: src/components/folder-tree.tsx:103
 #: src/components/move-dialog.tsx:267
 msgid "Collapse"
@@ -1481,6 +1485,15 @@ msgstr ""
 msgid "Could not move the card"
 msgstr ""
 
+#: src/components/doc-editor/page-tree-panel.tsx:112
+#: src/components/doc-editor/page-tree-panel.tsx:123
+msgid "Could not move the page"
+msgstr ""
+
+#: src/components/doc-editor/page-tree-panel.tsx:145
+msgid "Could not move the page to the trash"
+msgstr ""
+
 #: src/components/doc-editor/doc-editor.tsx:83
 msgid "Could not move the sub-page to the trash"
 msgstr ""
@@ -1525,6 +1538,10 @@ msgstr ""
 
 #: src/components/trash-panel.tsx:134
 msgid "Could not restore “{name}”"
+msgstr ""
+
+#: src/components/doc-editor/page-tree-panel.tsx:141
+msgid "Could not restore the page"
 msgstr ""
 
 #: src/components/doc-editor/doc-editor.tsx:84
@@ -2197,7 +2214,7 @@ msgstr ""
 msgid "Everywhere your access to this space begins. Open one to see what is inside."
 msgstr ""
 
-#: src/components/doc-editor/page-tree-panel.tsx:178
+#: src/components/doc-editor/page-tree-panel.tsx:351
 #: src/components/folder-tree.tsx:103
 #: src/components/move-dialog.tsx:267
 msgid "Expand"
@@ -3155,6 +3172,7 @@ msgstr ""
 msgid "Move to column…"
 msgstr ""
 
+#: src/components/doc-editor/page-tree-panel.tsx:370
 #: src/components/nav-apps.tsx:354
 #: src/components/nav-apps.tsx:356
 #: src/components/node-actions.tsx:280
@@ -3169,6 +3187,10 @@ msgstr ""
 
 #: src/components/drive-write.tsx:158
 msgid "Moved {done, plural, one {# item} other {# items}} to {destination}"
+msgstr ""
+
+#: src/components/doc-editor/page-tree-panel.tsx:137
+msgid "Moved to the trash"
 msgstr ""
 
 #: src/components/nav-space.tsx:152
@@ -3295,7 +3317,7 @@ msgstr ""
 msgid "New spreadsheet"
 msgstr ""
 
-#: src/components/doc-editor/page-tree-panel.tsx:93
+#: src/components/doc-editor/page-tree-panel.tsx:202
 msgid "New sub-page"
 msgstr ""
 
@@ -3577,7 +3599,7 @@ msgstr ""
 msgid "Office"
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:633
+#: src/components/doc-editor/doc-editor.tsx:634
 msgid "Offline"
 msgstr ""
 
@@ -3601,7 +3623,7 @@ msgstr ""
 msgid "Only an administrator can open server administration."
 msgstr ""
 
-#: src/lib/collab/page-store.ts:47
+#: src/lib/collab/page-store.ts:49
 msgid "Only the open page’s icon and cover can be changed."
 msgstr ""
 
@@ -3737,12 +3759,12 @@ msgstr ""
 
 #: src/components/doc-editor/doc-editor.tsx:240
 #: src/components/doc-editor/labels.ts:58
-#: src/components/doc-editor/page-tree-panel.tsx:84
-#: src/components/doc-editor/page-tree-panel.tsx:89
+#: src/components/doc-editor/page-tree-panel.tsx:193
+#: src/components/doc-editor/page-tree-panel.tsx:198
 msgid "Pages"
 msgstr ""
 
-#: src/lib/collab/page-store.ts:46
+#: src/lib/collab/page-store.ts:48
 msgid "Pages cannot be changed through a share link."
 msgstr ""
 
@@ -4213,7 +4235,7 @@ msgstr ""
 msgid "Save changes"
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:623
+#: src/components/doc-editor/doc-editor.tsx:624
 msgid "Saved"
 msgstr ""
 
@@ -4728,7 +4750,7 @@ msgstr ""
 msgid "Switch space"
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:628
+#: src/components/doc-editor/doc-editor.tsx:629
 msgid "Syncing…"
 msgstr ""
 
@@ -5167,6 +5189,10 @@ msgstr ""
 msgid "Unassigned"
 msgstr ""
 
+#: src/components/doc-editor/page-tree-panel.tsx:139
+msgid "Undo"
+msgstr ""
+
 #: src/components/settings/panes/account-security.tsx:168
 msgid "Unknown IP"
 msgstr ""
@@ -5188,7 +5214,7 @@ msgstr ""
 
 #: src/components/new-document-dialog.tsx:70
 #: src/components/nodes/page-node-views.tsx:14
-#: src/lib/collab/page-store.ts:45
+#: src/lib/collab/page-store.ts:47
 msgid "Untitled"
 msgstr ""
 

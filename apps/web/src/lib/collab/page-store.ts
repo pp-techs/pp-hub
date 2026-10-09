@@ -15,10 +15,12 @@ import {
   createDocument,
   deleteNode,
   isMarkdownFile,
+  moveNode,
   renameNode,
   restoreNode,
   searchNodes,
   shareAttachmentUrl,
+  type PageSummary,
 } from "@/lib/api";
 import { i18n } from "@/lib/i18n";
 import { keys } from "@/lib/queries/keys";
@@ -45,6 +47,7 @@ export const ROOM_META = "meta";
 const UNTITLED = msg`Untitled`;
 const READ_ONLY = msg`Pages cannot be changed through a share link.`;
 const NOT_OPEN = msg`Only the open page’s icon and cover can be changed.`;
+const NO_TOP_LEVEL = msg`A page can only be moved under another page.`;
 
 /* eslint-disable lingui/no-unlocalized-strings -- file extension, Y.Map keys, search filter */
 const MD_EXT = ".md";
@@ -56,6 +59,9 @@ const MARKDOWN = "markdown";
 
 /** How many pages the `@` menu lists. */
 const SEARCH_LIMIT = 6;
+
+/** How many parent links `isWithin` follows: the server's chain stops at the same depth. */
+const MAX_PAGE_DEPTH = 100;
 
 /**
  * slash-editor's `PageStore` over the TanStack Query cache, plus what pp-hub
@@ -76,6 +82,10 @@ export interface PpPageStore extends PageStore {
   trash(pageId: string): Promise<void>;
   /** Takes a page back out of the trash if it is there (undo, paste). */
   restore(pageId: string): Promise<void>;
+  /** `PageStore.setTrashed`, always present: trashes or restores each page. */
+  setTrashed(ids: readonly string[], trashed: boolean): Promise<void>;
+  /** `PageStore.move`, always present: re-parents and/or reorders a page. */
+  move(pageId: string, target: { parentId: string | null; index: number }): Promise<void>;
   /** Where the page's cover image is served, if it has one. */
   coverUrl(page: PageMeta): string | undefined;
   /**
@@ -221,6 +231,21 @@ export function createPageStore(queryClient: QueryClient, source: PageSource): P
   /** Out of the trash: the key is dropped, as `toPageMeta` would leave it out. */
   const setTrashed = (pageId: string, trashed: boolean) =>
     patch(pageId, ({ trashed: _trashed, ...page }) => (trashed ? { ...page, trashed } : page));
+
+  /** `pageId` itself or a page under it, by the cached parent links. */
+  const isWithin = (pageId: string | null | undefined, ancestorId: string) => {
+    for (let id = pageId, hops = 0; id && hops < MAX_PAGE_DEPTH; hops++) {
+      if (id === ancestorId) return true;
+      id = cached(id)?.parentId;
+    }
+    return false;
+  };
+
+  const childrenKey = (pageId: string) => keys.pageChildren(scope, pageId);
+
+  /** Edits a cached listing of sub-pages; an unloaded one has nothing to edit. */
+  const setChildren = (pageId: string, change: (pages: PageSummary[]) => PageSummary[]) =>
+    queryClient.setQueryData<PageSummary[]>(childrenKey(pageId), (pages) => pages && change(pages));
 
   /** Runs `step` after whatever is in flight for `pageId`, whether that settled or failed. */
   const enqueue = <T>(pageId: string, step: () => Promise<T>): Promise<T> => {
@@ -408,6 +433,49 @@ export function createPageStore(queryClient: QueryClient, source: PageSource): P
         if (!cached(pageId)?.trashed) return;
         await restoreNode(pageId);
         setTrashed(pageId, false);
+        invalidate(source.kind === "node" ? source.spaceId : undefined);
+      });
+    },
+
+    setTrashed(ids, trashed) {
+      return Promise.all(ids.map((id) => (trashed ? store.trash(id) : store.restore(id)))).then(
+        () => undefined,
+      );
+    },
+
+    async move(pageId, { parentId, index }) {
+      if (!canWrite) return readOnly();
+      if (!parentId) throw new Error(i18n._(NO_TOP_LEVEL));
+      // Into itself or a descendant: nothing to do, as the contract says.
+      if (isWithin(parentId, pageId)) return;
+      await enqueue(pageId, async () => {
+        const page = cached(pageId);
+        const fromId = page?.parentId ?? null;
+        const from = fromId
+          ? queryClient.getQueryData<PageSummary[]>(childrenKey(fromId))
+          : undefined;
+        const to = queryClient.getQueryData<PageSummary[]>(childrenKey(parentId));
+        const summary = from?.find((candidate) => candidate.id === pageId);
+        // The tree shows the page in its new place at once; the move catches
+        // up behind it and the tree is put back if it is refused.
+        if (fromId) setChildren(fromId, (pages) => pages.filter((p) => p.id !== pageId));
+        if (summary) {
+          setChildren(parentId, (pages) => {
+            const rest = pages.filter((p) => p.id !== pageId);
+            rest.splice(Math.max(index, 0), 0, { ...summary, parent_id: parentId });
+            return rest;
+          });
+        }
+        patch(pageId, (current) => ({ ...current, parentId }));
+        patch(parentId, (parent) => ({ ...parent, hasChildren: true }));
+        try {
+          await moveNode(pageId, parentId, index);
+        } catch (error) {
+          if (fromId && from) queryClient.setQueryData(childrenKey(fromId), from);
+          if (to) queryClient.setQueryData(childrenKey(parentId), to);
+          if (page) queryClient.setQueryData(keys.page(scope, pageId), page);
+          throw error;
+        }
         invalidate(source.kind === "node" ? source.spaceId : undefined);
       });
     },

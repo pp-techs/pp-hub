@@ -87,8 +87,8 @@ LEFT JOIN page_meta m ON m.node_id = n.id
 ORDER BY c.depth;
 
 -- name: ListChildPages :many
--- A page's live sub-pages in tree order (created_at, then name), each with
--- whether it has live sub-pages of its own.
+-- A page's live sub-pages in tree order (page_order, then created_at, then
+-- name), each with whether it has live sub-pages of its own.
 SELECT n.id, n.parent_id, n.name, m.icon, m.cover,
        EXISTS (
            SELECT 1 FROM nodes c
@@ -101,11 +101,12 @@ SELECT n.id, n.parent_id, n.name, m.icon, m.cover,
 FROM nodes n
 JOIN node_versions v ON v.id = n.current_version_id
 LEFT JOIN page_meta m ON m.node_id = n.id
+LEFT JOIN page_order o ON o.node_id = n.id
 WHERE n.parent_id = sqlc.arg('parent_id')::uuid
   AND n.deleted_at IS NULL
   AND n.kind = 'file'
   AND btrim(split_part(lower(v.mime), ';', 1)) = 'text/markdown'
-ORDER BY n.created_at, n.name;
+ORDER BY o.position NULLS LAST, n.created_at, n.name;
 
 -- name: CountChildPages :many
 -- How many live sub-pages each of @parent_ids holds, in one query for a
@@ -159,3 +160,14 @@ WHERE n.kind = 'file'
   AND btrim(split_part(lower(v.mime), ';', 1)) = 'text/markdown'
   AND NOT EXISTS (SELECT 1 FROM up WHERE up.origin = n.id AND up.trashed)
 ORDER BY n.name, n.id;
+
+-- name: SetPageOrder :exec
+-- Writes sibling positions: @node_ids[i] gets position i.
+INSERT INTO page_order (node_id, position)
+SELECT t.node_id, (t.ord - 1)::int
+FROM unnest(sqlc.arg('node_ids')::uuid[]) WITH ORDINALITY AS t(node_id, ord)
+ON CONFLICT (node_id) DO UPDATE SET position = EXCLUDED.position;
+
+-- name: ClearPageOrder :exec
+-- Forgets a page's position, as it leaves the parent that gave it one.
+DELETE FROM page_order WHERE node_id = $1;

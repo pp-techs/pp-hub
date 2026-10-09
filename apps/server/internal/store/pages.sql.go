@@ -11,6 +11,16 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const clearPageOrder = `-- name: ClearPageOrder :exec
+DELETE FROM page_order WHERE node_id = $1
+`
+
+// Forgets a page's position, as it leaves the parent that gave it one.
+func (q *Queries) ClearPageOrder(ctx context.Context, nodeID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, clearPageOrder, nodeID)
+	return err
+}
+
 const countChildPages = `-- name: CountChildPages :many
 SELECT n.parent_id::uuid AS parent_id, COUNT(*)::bigint AS pages
 FROM nodes n
@@ -203,11 +213,12 @@ SELECT n.id, n.parent_id, n.name, m.icon, m.cover,
 FROM nodes n
 JOIN node_versions v ON v.id = n.current_version_id
 LEFT JOIN page_meta m ON m.node_id = n.id
+LEFT JOIN page_order o ON o.node_id = n.id
 WHERE n.parent_id = $1::uuid
   AND n.deleted_at IS NULL
   AND n.kind = 'file'
   AND btrim(split_part(lower(v.mime), ';', 1)) = 'text/markdown'
-ORDER BY n.created_at, n.name
+ORDER BY o.position NULLS LAST, n.created_at, n.name
 `
 
 type ListChildPagesRow struct {
@@ -219,8 +230,8 @@ type ListChildPagesRow struct {
 	HasChildren bool        `json:"has_children"`
 }
 
-// A page's live sub-pages in tree order (created_at, then name), each with
-// whether it has live sub-pages of its own.
+// A page's live sub-pages in tree order (page_order, then created_at, then
+// name), each with whether it has live sub-pages of its own.
 func (q *Queries) ListChildPages(ctx context.Context, parentID pgtype.UUID) ([]ListChildPagesRow, error) {
 	rows, err := q.db.Query(ctx, listChildPages, parentID)
 	if err != nil {
@@ -372,6 +383,19 @@ func (q *Queries) ListPageChain(ctx context.Context, nodeID pgtype.UUID) ([]List
 		return nil, err
 	}
 	return items, nil
+}
+
+const setPageOrder = `-- name: SetPageOrder :exec
+INSERT INTO page_order (node_id, position)
+SELECT t.node_id, (t.ord - 1)::int
+FROM unnest($1::uuid[]) WITH ORDINALITY AS t(node_id, ord)
+ON CONFLICT (node_id) DO UPDATE SET position = EXCLUDED.position
+`
+
+// Writes sibling positions: @node_ids[i] gets position i.
+func (q *Queries) SetPageOrder(ctx context.Context, nodeIds []pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, setPageOrder, nodeIds)
+	return err
 }
 
 const upsertPageMeta = `-- name: UpsertPageMeta :execrows
