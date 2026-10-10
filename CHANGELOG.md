@@ -11,6 +11,12 @@ Versions up to and including 0.14.1 predate this changelog; see the
 
 <!-- `bun run version-packages` adds each release's section from its changesets; edit it in the Version Packages PR. -->
 
+## [0.19.1] — 2026-10-10
+
+Large drives stay fast. Folders with thousands of items render only the rows on screen, folder listings resolve access once per folder instead of once per item, and Home, Recent and the space list no longer slow down with history. Storage usage is now kept current by the database instead of being re-summed on every save, and it now drops when files are purged from Trash; the first start after upgrading recomputes every space's figure, which may lower it. Finished preview jobs older than 7 days are deleted automatically (failed jobs are kept). Thumbnails are no longer generated for images over about 67 megapixels or SVG files over 8 MiB.
+
+The first start after upgrading builds new database indexes; writes to the affected tables wait until that finishes.
+
 ## [0.19.0] — 2026-10-09
 
 **Reorder, re-parent and trash sub-pages from the page tree.** Drag a row above or below another to reorder it, or onto the middle of a row to make it a sub-page of it; Alt+↑/↓ moves it among its siblings from the keyboard, and a row's trash button removes it with an Undo toast. The order is kept per parent (`PATCH /nodes/{id}/move` takes an optional `index`); pages never moved keep their creation order. Includes slash-editor 0.8.0 and migration `0026_page_order.sql`, applied automatically.
