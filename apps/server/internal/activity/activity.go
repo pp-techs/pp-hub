@@ -109,6 +109,6 @@ func (s *Service) ForUser(ctx context.Context, userID pgtype.UUID, limit int32) 
 // Recent returns nodes the user themselves last touched, newest first. An
 // invalid spaceID spans every space the user belongs to; a set one scopes the
 // listing to that space.
-func (s *Service) Recent(ctx context.Context, userID, spaceID pgtype.UUID) ([]store.ListRecentNodesRow, error) {
-	return s.q.ListRecentNodes(ctx, store.ListRecentNodesParams{ActorID: userID, SpaceID: spaceID})
+func (s *Service) Recent(ctx context.Context, userID, spaceID pgtype.UUID, limit int32) ([]store.ListRecentNodesRow, error) {
+	return s.q.ListRecentNodes(ctx, store.ListRecentNodesParams{ActorID: userID, SpaceID: spaceID, Lim: limit})
 }

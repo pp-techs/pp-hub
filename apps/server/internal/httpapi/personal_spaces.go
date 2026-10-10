@@ -71,7 +71,7 @@ func (s *Server) handleListNodeChildren(w http.ResponseWriter, r *http.Request) 
 	for _, n := range children {
 		out = append(out, nodeToDTOMeta(n))
 	}
-	s.attachCaps(r.Context(), u.ID, out)
+	s.attachCaps(r.Context(), u.ID, pgtype.UUID{}, out)
 	s.attachChildPageCounts(r.Context(), out)
 	writeJSON(w, http.StatusOK, out)
 }
@@ -201,7 +201,7 @@ func (s *Server) listExternalShared(w http.ResponseWriter, r *http.Request, u *s
 		dto.SpaceName = name
 		out = append(out, dto)
 	}
-	s.attachCaps(r.Context(), u.ID, out)
+	s.attachCaps(r.Context(), u.ID, pgtype.UUID{}, out)
 	s.attachChildPageCounts(r.Context(), out)
 	writeJSON(w, http.StatusOK, out)
 }

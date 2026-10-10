@@ -184,6 +184,18 @@ Reaping is deliberately **not** filtered by the worker's kinds — a stranded
 `render:pdf` must be recoverable by a process that cannot render PDFs, or
 losing the only capable worker also loses the ability to notice.
 
+## Purging finished jobs
+
+A `done` row says nothing once its output row exists: every backfill
+anti-join reads only `pending`/`running` rows. The server's 5-minute sweep
+(`cmd/server`) calls `preview.PurgeDoneJobs`, which deletes `done` rows older
+than `DoneJobRetention` (7 days) in batches of 5000, so the first purge of a
+long-lived instance stays a series of short statements. `failed` rows are
+kept: admin stats, the metrics and the troubleshooting below read them and
+their `last_error`. Partial indexes (migration `0027`) serve the reaper
+(`jobs_running`), this purge (`jobs_done_created`) and the backfill
+anti-joins (`jobs_inflight_version`).
+
 ## Renderers
 
 Both external renderers spool to a temp file first — `pdftoppm` reads the
@@ -201,6 +213,14 @@ PNG encoding are defined exactly once.
 Every exec goes through `internal/preview/exec.go`: a 30s `CommandContext`
 deadline, a 16MB cap on captured output, a 512MB cap on spooled input, and a
 per-job temp dir removed on return.
+
+The in-process decoders refuse hostile input before allocating for it.
+`imageThumbnail` reads the header first (`image.DecodeConfig` through a tee,
+then decodes from the buffered head plus the rest) and refuses an image over
+`maxImagePixels` (64 Mi pixels, about 67 MP; decoding costs 4–8 bytes a
+pixel). `svgThumbnail` reads at most `maxSVGBytes` (8 MiB). A refusal is an
+ordinary render error, so the worker's retry policy applies, but each attempt
+costs only a header read or 8 MiB.
 
 ### SVG
 

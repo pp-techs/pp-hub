@@ -59,7 +59,7 @@ import {
   useToggleStar,
 } from "@/lib/queries";
 import { nextSelection } from "@/lib/selection";
-import { useMarqueeSelection } from "@/lib/use-marquee-selection";
+import { useMarqueeSelection, type MarqueeRect } from "@/lib/use-marquee-selection";
 import { useKeyedState } from "@/lib/use-keyed-state";
 import { useUiStore } from "@/lib/ui-store";
 import { useFormatters } from "@/lib/format";
@@ -155,7 +155,9 @@ function FolderView() {
   const rename = useRenameNode(spaceId);
   const { moveNodes } = useMoveNodes(spaceId);
   const copy = useCopyNode(spaceId);
+  const copyMutate = copy.mutate;
   const toggleStar = useToggleStar();
+  const toggleStarMutate = toggleStar.mutate;
   // One request for the whole starred set beats one per visible row.
   const starred = useStarred(spaceId, 200);
   // The share badge reads `node.shared` straight off each listing row now —
@@ -238,8 +240,11 @@ function FolderView() {
    * selected when the drag began.
    */
   const dragBase = useRef<Set<string>>(new Set());
+  /** The mounted listing's band hit test — it alone knows its row geometry. */
+  const hitTestRef = useRef<((band: MarqueeRect) => Set<string>) | null>(null);
   const marquee = useMarqueeSelection(listingRef, {
     enabled: true,
+    hitTest: (band) => hitTestRef.current?.(band) ?? new Set(),
     onStart: () => {
       dragBase.current = selectedIds;
     },
@@ -364,7 +369,7 @@ function FolderView() {
       onShowDetails: handleShowDetails,
       onCopy: (node: Node) => {
         const nodeName = node.name;
-        copy.mutate(
+        copyMutate(
           { nodeId: node.id, parentId: dir },
           {
             onSuccess: (made) => {
@@ -386,7 +391,7 @@ function FolderView() {
         );
       },
       onToggleStar: (node: Node, next: boolean) =>
-        toggleStar.mutate(
+        toggleStarMutate(
           { nodeId: node.id, starred: next },
           { onError: (e) => toast.error(e.message) },
         ),
@@ -397,11 +402,11 @@ function FolderView() {
     [
       handlePreview,
       handleShowDetails,
-      copy,
+      copyMutate,
       dir,
       setClipboard,
       spaceId,
-      toggleStar,
+      toggleStarMutate,
       handleRename,
       handleMove,
       handleDeleteRequest,
@@ -617,6 +622,8 @@ function FolderView() {
                   onClick={handleClick}
                   onDoubleClick={handleDoubleClick}
                   onMoveNodes={handleMoveNodes}
+                  scrollRef={listingRef}
+                  hitTestRef={hitTestRef}
                   {...nodeHandlers}
                 />
               ) : (
@@ -628,6 +635,8 @@ function FolderView() {
                   onClick={handleClick}
                   onDoubleClick={handleDoubleClick}
                   onMoveNodes={handleMoveNodes}
+                  scrollRef={listingRef}
+                  hitTestRef={hitTestRef}
                   {...nodeHandlers}
                 />
               )}

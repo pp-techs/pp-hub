@@ -303,8 +303,16 @@ export function useNodeActions(
   starred = false,
   canWriteHere = false,
 ): NodeAction[] {
-  const { onPreview, onShowDetails, onToggleStar, onRename, onMove, onCopy, onDeleteRequest } =
-    handlers;
+  const {
+    onPreview,
+    onShowDetails,
+    onToggleStar,
+    onRename,
+    onMove,
+    onCopy,
+    onClipboard,
+    onDeleteRequest,
+  } = handlers;
   return useMemo(
     () => nodeActions(node, handlers, openPanel, starred, canWriteHere),
     // The handlers bag is reassembled per render; the functions in it are the
@@ -318,6 +326,7 @@ export function useNodeActions(
       onRename,
       onMove,
       onCopy,
+      onClipboard,
       onDeleteRequest,
       openPanel,
       starred,

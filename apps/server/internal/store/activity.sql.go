@@ -81,7 +81,7 @@ func (q *Queries) ListMyActivity(ctx context.Context, arg ListMyActivityParams) 
 }
 
 const listRecentNodes = `-- name: ListRecentNodes :many
-SELECT DISTINCT ON (n.id)
+SELECT
   n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name,
   n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id, n.ext_kind,
   v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
@@ -90,25 +90,32 @@ SELECT DISTINCT ON (n.id)
   COALESCE(p.name, '')::text AS parent_name,
   a.kind AS last_action,
   a.created_at AS last_action_at
-FROM activity_events a
+FROM (
+    SELECT DISTINCT ON (e.node_id) e.node_id, e.kind, e.created_at
+    FROM activity_events e
+    WHERE e.actor_id = $1 AND e.node_id IS NOT NULL
+    ORDER BY e.node_id, e.created_at DESC
+) a
 JOIN nodes n ON n.id = a.node_id
 JOIN spaces s ON s.id = n.space_id
 LEFT JOIN node_versions v ON v.id = n.current_version_id
 LEFT JOIN users u ON u.id = n.created_by
 LEFT JOIN nodes p ON p.id = n.parent_id AND p.deleted_at IS NULL
-WHERE a.actor_id = $1 AND n.deleted_at IS NULL AND n.kind IN ('file', 'ext')
+WHERE n.deleted_at IS NULL AND n.kind IN ('file', 'ext')
   AND (EXISTS (SELECT 1 FROM space_members m WHERE m.space_id = n.space_id AND m.user_id = $1)
        OR EXISTS (
            SELECT 1 FROM shares xs JOIN nodes xn ON xn.id = xs.node_id
            WHERE xn.space_id = n.space_id AND xs.kind = 'direct' AND xs.is_external
              AND xs.grantee_user_id = $1))
   AND ($2::uuid IS NULL OR n.space_id = $2::uuid)
-ORDER BY n.id, a.created_at DESC
+ORDER BY a.created_at DESC, n.id
+LIMIT $3
 `
 
 type ListRecentNodesParams struct {
 	ActorID pgtype.UUID `json:"actor_id"`
 	SpaceID pgtype.UUID `json:"space_id"`
+	Lim     int32       `json:"lim"`
 }
 
 type ListRecentNodesRow struct {
@@ -140,13 +147,12 @@ type ListRecentNodesRow struct {
 	LastActionAt     pgtype.Timestamptz `json:"last_action_at"`
 }
 
-// "Recent" is the caller's own touches, most recently touched first, one row
-// per node. DISTINCT ON collapses repeated edits of the same file into its
-// latest, which is what "recent" means to a person. A null space_id spans
-// every space the caller belongs to or holds an external grant in; a set one
-// scopes the feed to it. Callers filter by capabilities afterwards.
+// The caller's most recently touched live files, newest first, at most @lim.
+// One row per node: DISTINCT ON collapses repeated edits of the same file into
+// its latest touch. (a null space_id spans every space; callers filter by
+// capabilities afterwards and over-fetch to cover what that drops.)
 func (q *Queries) ListRecentNodes(ctx context.Context, arg ListRecentNodesParams) ([]ListRecentNodesRow, error) {
-	rows, err := q.db.Query(ctx, listRecentNodes, arg.ActorID, arg.SpaceID)
+	rows, err := q.db.Query(ctx, listRecentNodes, arg.ActorID, arg.SpaceID, arg.Lim)
 	if err != nil {
 		return nil, err
 	}

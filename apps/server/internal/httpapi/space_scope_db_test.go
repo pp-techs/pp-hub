@@ -138,7 +138,7 @@ func TestSpaceFilterScopesRecentStarredAndShared(t *testing.T) {
 
 	recent := func(spaceID pgtype.UUID) []pgtype.UUID {
 		t.Helper()
-		rows, err := srv.activity.Recent(ctx, caller.ID, spaceID)
+		rows, err := srv.activity.Recent(ctx, caller.ID, spaceID, 100)
 		if err != nil {
 			t.Fatalf("recent: %v", err)
 		}

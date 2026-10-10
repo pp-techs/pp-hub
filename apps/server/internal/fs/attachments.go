@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"mime"
 	"path/filepath"
 	"strings"
@@ -146,9 +145,6 @@ func (s *Service) addAttachment(ctx context.Context, doc store.Node, att store.N
 	})
 	if err != nil {
 		return store.NodeAttachment{}, err
-	}
-	if err := s.RecountUsage(ctx, doc.SpaceID); err != nil {
-		slog.WarnContext(ctx, "usage recount failed", "space", doc.SpaceID, "err", err)
 	}
 	return out, nil
 }

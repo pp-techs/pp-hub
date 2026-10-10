@@ -347,9 +347,19 @@ func (s *Server) handleListSpaces(w http.ResponseWriter, r *http.Request) {
 		Error(w, r, err)
 		return
 	}
+	ids := make([]pgtype.UUID, 0, len(list))
+	for _, sp := range list {
+		ids = append(ids, sp.ID)
+	}
+	stats, err := s.spaces.AdminStats(r.Context(), u.ID, ids)
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
 	out := make([]spaceDTO, 0, len(list))
 	for _, sp := range list {
-		out = append(out, spaceToDTO(sp, s.spaces.IsAdmin(r.Context(), sp.ID, u.ID), s.adminCount(r, sp.ID)))
+		st := stats[sp.ID]
+		out = append(out, spaceToDTO(sp, st.IsAdmin, st.AdminCount))
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -442,8 +452,10 @@ func (s *Server) requireNodeCapsByID(w http.ResponseWriter, r *http.Request, nod
 	return u, node, caps
 }
 
-// attachCaps fills each DTO's Caps and Shared in one batched resolution.
-func (s *Server) attachCaps(ctx context.Context, userID pgtype.UUID, nodes []nodeDTO) {
+// attachCaps fills each DTO's Caps and Shared in one batched resolution. A
+// valid parentID says every node is its child, so the parent's ancestor chain
+// is resolved once rather than per node.
+func (s *Server) attachCaps(ctx context.Context, userID, parentID pgtype.UUID, nodes []nodeDTO) {
 	if len(nodes) == 0 {
 		return
 	}
@@ -454,7 +466,13 @@ func (s *Server) attachCaps(ctx context.Context, userID pgtype.UUID, nodes []nod
 			ids = append(ids, id)
 		}
 	}
-	res, err := s.share.AccessCaps(ctx, ids, userID)
+	var res map[pgtype.UUID]share.Resolved
+	var err error
+	if parentID.Valid {
+		res, err = s.share.ChildAccessCaps(ctx, parentID, ids, userID)
+	} else {
+		res, err = s.share.AccessCaps(ctx, ids, userID)
+	}
 	if err != nil {
 		return // presentation detail
 	}
@@ -514,7 +532,7 @@ func (s *Server) handleListChildren(w http.ResponseWriter, r *http.Request) {
 	for _, n := range children {
 		out = append(out, nodeToDTOMeta(n))
 	}
-	s.attachCaps(r.Context(), u.ID, out)
+	s.attachCaps(r.Context(), u.ID, parentID, out)
 	s.attachChildPageCounts(r.Context(), out)
 	writeJSON(w, http.StatusOK, out)
 }
@@ -1116,9 +1134,6 @@ func (s *Server) handleCopyNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.activity.Node(r.Context(), u.ID, copied, activity.KindCreated, map[string]any{"copied_from": node.Name})
-	if used, err := s.store.SumSpaceUsage(r.Context(), node.SpaceID); err == nil {
-		_ = s.store.UpdateSpaceUsedBytes(r.Context(), store.UpdateSpaceUsedBytesParams{ID: node.SpaceID, UsedBytes: used})
-	}
 	writeJSON(w, http.StatusCreated, nodeToDTO(copied, nil).withCaps(share.CapsOwner))
 }
 func (s *Server) handleDeleteNode(w http.ResponseWriter, r *http.Request) {
@@ -1131,9 +1146,6 @@ func (s *Server) handleDeleteNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.activity.Node(r.Context(), u.ID, node, activity.KindTrashed, nil)
-	if used, err := s.store.SumSpaceUsage(r.Context(), node.SpaceID); err == nil {
-		_ = s.store.UpdateSpaceUsedBytes(r.Context(), store.UpdateSpaceUsedBytesParams{ID: node.SpaceID, UsedBytes: used})
-	}
 	w.WriteHeader(http.StatusNoContent)
 }
 func (s *Server) handleGetNode(w http.ResponseWriter, r *http.Request) {
@@ -1216,9 +1228,6 @@ func (s *Server) handleRestoreVersion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.activity.Node(r.Context(), u.ID, node, activity.KindReverted, nil)
-	if used, err := s.store.SumSpaceUsage(r.Context(), node.SpaceID); err == nil {
-		_ = s.store.UpdateSpaceUsedBytes(r.Context(), store.UpdateSpaceUsedBytesParams{ID: node.SpaceID, UsedBytes: used})
-	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
@@ -1374,7 +1383,7 @@ func (s *Server) handleListShared(w http.ResponseWriter, r *http.Request) {
 	for _, n := range nodes {
 		out = append(out, nodeToDTOMeta(n))
 	}
-	s.attachCaps(r.Context(), u.ID, out)
+	s.attachCaps(r.Context(), u.ID, pgtype.UUID{}, out)
 	s.attachChildPageCounts(r.Context(), out)
 	writeJSON(w, http.StatusOK, out)
 }

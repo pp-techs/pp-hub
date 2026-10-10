@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -185,5 +186,55 @@ func TestClaimStampsRunAtSoBacklogIsNotReapedInstantly(t *testing.T) {
 	}
 	if n != 0 {
 		t.Errorf("reaped %d just-claimed jobs, want 0", n)
+	}
+}
+
+// Only finished rows past retention go: failed rows feed admin stats and
+// metrics, and pending or recent rows are still the queue.
+func TestPurgeDoneJobsKeepsUnfinishedAndRecentRows(t *testing.T) {
+	q, pool := testQueries(t)
+	ctx := context.Background()
+
+	set := func(status, age string) pgtype.UUID {
+		t.Helper()
+		j, err := q.EnqueueJob(ctx, store.EnqueueJobParams{Kind: KindRenderPDF, Payload: []byte(`{}`)})
+		if err != nil {
+			t.Fatalf("enqueue: %v", err)
+		}
+		if _, err := pool.Exec(ctx,
+			`UPDATE jobs SET status = $2::job_status, created_at = now() - $3::interval WHERE id = $1`,
+			j.ID, status, age); err != nil {
+			t.Fatalf("set job: %v", err)
+		}
+		return j.ID
+	}
+	doneOld := set("done", "8 days")
+	keep := []pgtype.UUID{
+		set("done", "0 seconds"),
+		set("failed", "8 days"),
+		set("pending", "8 days"),
+	}
+
+	n, err := PurgeDoneJobs(ctx, q, time.Now().Add(-DoneJobRetention))
+	if err != nil {
+		t.Fatalf("purge: %v", err)
+	}
+	if n != 1 {
+		t.Errorf("purged %d jobs, want 1", n)
+	}
+	exists := func(id pgtype.UUID) bool {
+		var ok bool
+		if err := pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM jobs WHERE id = $1)`, id).Scan(&ok); err != nil {
+			t.Fatalf("exists: %v", err)
+		}
+		return ok
+	}
+	if exists(doneOld) {
+		t.Error("the old finished job survived the purge")
+	}
+	for i, id := range keep {
+		if !exists(id) {
+			t.Errorf("job %d was purged; only old done rows may go", i)
+		}
 	}
 }

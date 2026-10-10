@@ -14,32 +14,18 @@ export interface MarqueeOptions {
   enabled?: boolean;
   /** A press landed on the background: remember the selection to add to. */
   onStart: () => void;
+  /**
+   * The ids the band covers. The band is in the container's content
+   * coordinates; the listing answers from its own row geometry, since a
+   * virtualized listing has most of its nodes unmounted.
+   */
+  hitTest: (band: MarqueeRect) => Set<string>;
   /** The ids the band covers; `additive` when ⌘/Ctrl/Shift is held. */
   onChange: (ids: Set<string>, additive: boolean) => void;
 }
 
 /** Pointer travel, in px, before a press counts as a drag rather than a click. */
 const THRESHOLD = 4;
-
-/** Which `[data-node-id]` boxes the band overlaps, in content coordinates. */
-function covered(container: HTMLElement, bounds: DOMRect, band: MarqueeRect): Set<string> {
-  const ids = new Set<string>();
-  const right = band.left + band.width;
-  const bottom = band.top + band.height;
-  const scrollLeft = container.scrollLeft;
-  const scrollTop = container.scrollTop;
-  const boundsLeft = bounds.left;
-  const boundsTop = bounds.top;
-
-  for (const el of container.querySelectorAll<HTMLElement>("[data-node-id]")) {
-    const box = el.getBoundingClientRect();
-    const left = box.left - boundsLeft + scrollLeft;
-    const top = box.top - boundsTop + scrollTop;
-    if (left < right && left + box.width > band.left && top < bottom && top + box.height > band.top)
-      ids.add(el.dataset.nodeId!);
-  }
-  return ids;
-}
 
 /**
  * Rubber-band selection over a scrolling listing.
@@ -51,7 +37,8 @@ function covered(container: HTMLElement, bounds: DOMRect, band: MarqueeRect): Se
  *
  * The band is kept in the container's content coordinates rather than the
  * viewport's, so scrolling mid-drag leaves it anchored to the nodes it was
- * drawn over instead of sliding with the wheel.
+ * drawn over instead of sliding with the wheel. Which nodes it covers is the
+ * listing's `hitTest` to answer, and only a change in that set is reported.
  */
 export function useMarqueeSelection(
   container: RefObject<HTMLElement | null>,
@@ -84,6 +71,9 @@ export function useMarqueeSelection(
       });
       const start = point(event);
       let dragged = false;
+      // What was last reported: a move that covers the same nodes changes
+      // nothing, so it must not cost the listing a re-render.
+      let last: Set<string> | null = null;
       latest.current.onStart();
 
       const move = (e: MouseEvent) => {
@@ -97,7 +87,11 @@ export function useMarqueeSelection(
         if (!dragged && Math.max(band.width, band.height) < THRESHOLD) return;
         dragged = true;
         setRect(band);
-        latest.current.onChange(covered(el, bounds, band), e.shiftKey || e.metaKey || e.ctrlKey);
+        const ids = latest.current.hitTest(band);
+        const prev = last;
+        if (prev && ids.size === prev.size && [...ids].every((id) => prev.has(id))) return;
+        last = ids;
+        latest.current.onChange(ids, e.shiftKey || e.metaKey || e.ctrlKey);
       };
       const up = (e: MouseEvent) => {
         cleanupRef.current = null;

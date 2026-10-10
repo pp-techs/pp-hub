@@ -453,6 +453,19 @@ pp-hub/
   fires for a created folder as well as a finished file — otherwise uploading a
   folder only ever names directories below the view you are looking at, and the
   new folder wouldn't appear in it until a reload.
+  The tray does not invalidate per event: `lib/upload-invalidation.ts`
+  collects the touched folders and trees and refetches them at most once per
+  `UPLOAD_REFRESH_MS` (a fixed window, so a long queue still refreshes every
+  second), and refetches `GET /spaces` (the storage meter) only once nothing
+  is still uploading.
+- **Folder listings are virtualized** (`@tanstack/react-virtual`, scrolled by
+  the route's `listingRef`). `NodeList` keeps spacer rows above and below the
+  rendered `<tr>`s; `NodeGrid` lays out label and card rows from
+  `lib/listing-geometry.ts`, whose constants mirror the Tailwind sizes
+  (`h-12` folder cards, `h-[198px]` file cards, `gap-3`, `gap-6`) — change
+  one and change the other. Off-screen rows are not in the DOM, so marquee
+  selection hit-tests geometry (`hitTestList`/`hitTestGrid`) instead of
+  measuring `[data-node-id]` boxes.
   The tus client's `PATCH` (`lib/api/tus.ts`) is the one request that uses
   `XMLHttpRequest` rather than the shared `ky` client, because `fetch`
   reports no upload progress. Before M30 that was `uploadFileWithProgress`,

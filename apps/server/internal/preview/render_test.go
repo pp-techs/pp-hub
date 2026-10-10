@@ -5,6 +5,7 @@ import (
 	"context"
 	"image"
 	"image/color"
+	"image/gif"
 	"image/png"
 	"os"
 	"os/exec"
@@ -92,6 +93,31 @@ func TestImageRendererDoesNotUpscale(t *testing.T) {
 	img := decodeThumb(t, out)
 	if img.Bounds().Dx() != 64 || img.Bounds().Dy() != 32 {
 		t.Errorf("got %v, want 64x32 unchanged", img.Bounds())
+	}
+}
+
+// A header claiming enormous dimensions must be refused before the pixel
+// buffer is allocated, so a tiny file cannot exhaust worker memory.
+func TestImageRendererRefusesHugeDimensions(t *testing.T) {
+	var buf bytes.Buffer
+	if err := gif.Encode(&buf, image.NewPaletted(image.Rect(0, 0, 1, 1), color.Palette{color.Black}), nil); err != nil {
+		t.Fatal(err)
+	}
+	b := buf.Bytes()
+	// Logical screen width/height, little-endian uint16 at bytes 6–9.
+	b[6], b[7], b[8], b[9] = 0x10, 0x27, 0x10, 0x27
+	_, err := (ImageRenderer{}).Render(t.Context(), bytes.NewReader(b), Payload{})
+	if err == nil || !strings.Contains(err.Error(), "pixel limit") {
+		t.Fatalf("want pixel limit error, got %v", err)
+	}
+}
+
+// An SVG source over maxSVGBytes is refused rather than read whole.
+func TestSVGRendererRefusesOversizeSource(t *testing.T) {
+	src := `<svg xmlns="http://www.w3.org/2000/svg">` + strings.Repeat(" ", maxSVGBytes) + `</svg>`
+	_, err := (SVGRenderer{}).Render(t.Context(), strings.NewReader(src), Payload{})
+	if err == nil || !strings.Contains(err.Error(), "byte limit") {
+		t.Fatalf("want byte limit error, got %v", err)
 	}
 }
 

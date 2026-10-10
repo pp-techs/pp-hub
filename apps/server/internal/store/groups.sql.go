@@ -288,14 +288,12 @@ WITH RECURSIVE entry(id) AS (
     SELECT DISTINCT s.node_id
     FROM shares s
     JOIN nodes gn ON gn.id = s.node_id
-    WHERE (s.expires_at IS NULL OR s.expires_at > now())
-      AND ( (s.kind = 'direct' AND s.grantee_user_id = $3)
+    WHERE gn.deleted_at IS NULL
+      AND (s.expires_at IS NULL OR s.expires_at > now())
+      AND ( (s.kind = 'direct' AND s.grantee_user_id = $1)
          OR (s.kind = 'group'  AND s.grantee_group_id IN (
-                SELECT gm.group_id FROM group_members gm WHERE gm.user_id = $3)) )
-      AND EXISTS (
-          SELECT 1 FROM space_members sm
-          WHERE sm.space_id = gn.space_id AND sm.user_id = $3
-      )
+                SELECT gm.group_id FROM group_members gm WHERE gm.user_id = $1)) )
+      AND EXISTS (SELECT 1 FROM space_members sm WHERE sm.space_id = gn.space_id AND sm.user_id = $1)
     UNION
     -- Owned, but only inside a space the caller still belongs to: leaving ends
     -- the reach, and a departed member's roots live in the archive now.
@@ -303,17 +301,33 @@ WITH RECURSIVE entry(id) AS (
     -- so a file inside a team folder is reached through the grant on that
     -- folder and must never surface as its own entry point.
     SELECT n.id FROM nodes n
-    WHERE $2::bool AND n.created_by = $3 AND n.team_root_id IS NULL
-      AND ($1::uuid IS NULL OR n.space_id = $1::uuid)
-      AND EXISTS (
-          SELECT 1 FROM space_members sm
-          WHERE sm.space_id = n.space_id AND sm.user_id = $3
+    WHERE $2::bool AND n.created_by = $1 AND n.team_root_id IS NULL
+      AND n.deleted_at IS NULL
+      AND ($3::uuid IS NULL OR n.space_id = $3::uuid)
+      AND EXISTS (SELECT 1 FROM space_members sm WHERE sm.space_id = n.space_id AND sm.user_id = $1)
+      -- Under a live parent the caller also owns outright, a node is never an
+      -- entry point: walking up reaches that parent, or the topmost owned folder
+      -- above it, which is in entry itself. Pruning here keeps entry and the
+      -- walk proportional to top-level items, not to everything ever created.
+      AND NOT EXISTS (
+          SELECT 1 FROM nodes p
+          WHERE p.id = n.parent_id AND p.deleted_at IS NULL
+            AND p.created_by = $1 AND p.team_root_id IS NULL
       )
 ),
+origin(id) AS (
+    -- Only rows that can be returned need their ancestors checked.
+    -- An app's nodes are listed under Apps in the sidebar, in the home view and
+    -- in "Shared with me" alike.
+    SELECT e.id FROM entry e JOIN nodes n ON n.id = e.id
+    WHERE n.kind <> 'ext'
+      AND ($3::uuid IS NULL OR n.space_id = $3::uuid)
+      AND ($2::bool OR n.created_by <> $1)
+),
 walk(origin, id) AS (
-    SELECT e.id, p.id
-    FROM entry e
-    JOIN nodes n ON n.id = e.id
+    SELECT o.id, p.id
+    FROM origin o
+    JOIN nodes n ON n.id = o.id
     JOIN nodes p ON p.id = n.parent_id
     WHERE p.deleted_at IS NULL
   UNION
@@ -328,32 +342,21 @@ SELECT
   n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id, n.ext_kind,
   v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
   u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email
-FROM entry e
-JOIN nodes n ON n.id = e.id
+FROM origin o
+JOIN nodes n ON n.id = o.id
 LEFT JOIN node_versions v ON v.id = n.current_version_id
 LEFT JOIN users u ON u.id = n.created_by
-WHERE n.deleted_at IS NULL
-  -- An app's nodes are listed under Apps in the sidebar, in the home view and
-  -- in "Shared with me" alike. (Shared from outside keeps them: a person who
-  -- is not a member has no Apps list to find them in.)
-  AND n.kind <> 'ext'
-  AND ($1::uuid IS NULL OR n.space_id = $1::uuid)
-  AND ($2::bool OR n.created_by <> $3)
-  -- Every walk row is already a strict ancestor — the base step starts at the
-  -- parent — so there is no depth to filter on here.
-  AND NOT EXISTS (
-      SELECT 1 FROM walk w
-      JOIN entry e2 ON e2.id = w.id
-      WHERE w.origin = e.id
-  )
+WHERE NOT EXISTS (
+    SELECT 1 FROM walk w JOIN entry e2 ON e2.id = w.id WHERE w.origin = o.id
+)
 ORDER BY n.kind, n.name
 LIMIT 200
 `
 
 type ListEntryPointsParams struct {
-	SpaceID      pgtype.UUID `json:"space_id"`
-	IncludeOwned bool        `json:"include_owned"`
 	UserID       pgtype.UUID `json:"user_id"`
+	IncludeOwned bool        `json:"include_owned"`
+	SpaceID      pgtype.UUID `json:"space_id"`
 }
 
 type ListEntryPointsRow struct {
@@ -389,10 +392,13 @@ type ListEntryPointsRow struct {
 //
 // A node sitting under another reachable node is excluded: it is found by
 // walking down from that ancestor, so listing it separately is noise.
+// Owned nodes under a live parent the caller also owns are pruned from entry
+// up front, so entry stays proportional to top-level items, and only rows
+// that can be returned (origin) have their ancestors walked.
 // WITH RECURSIVE must lead the statement; a nested one inside a plain CTE is
 // valid Postgres but sqlc cannot parse it.
-// Every strict LIVE ancestor of each entry, so the ones sitting underneath
-// another entry can be dropped.
+// Every strict LIVE ancestor of each origin, so the ones sitting underneath
+// an entry can be dropped.
 //
 // The climb stops at the first tombstone. A node whose folder was trashed is
 // no longer reachable by walking down to it, so suppressing it here would
@@ -401,13 +407,10 @@ type ListEntryPointsRow struct {
 // saw. Google Drive draws the same line: trashing a folder does not take
 // other people's access to what is inside it.
 //
-// The recursive step climbs to the *parent* of the row it joins. Selecting
-// `p.id` there instead re-emitted the same node forever: with UNION ALL the
-// CTE never terminated, so the first nested owned node made the root listing
-// and the folder tree spin until the client gave up. `UNION` is the belt to
-// that brace — a parent_id cycle can then only produce finitely many pairs.
+// The recursive step climbs to the *parent* of the row it joins; `UNION`
+// means a parent_id cycle can only produce finitely many pairs.
 func (q *Queries) ListEntryPoints(ctx context.Context, arg ListEntryPointsParams) ([]ListEntryPointsRow, error) {
-	rows, err := q.db.Query(ctx, listEntryPoints, arg.SpaceID, arg.IncludeOwned, arg.UserID)
+	rows, err := q.db.Query(ctx, listEntryPoints, arg.UserID, arg.IncludeOwned, arg.SpaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -938,6 +941,49 @@ func (q *Queries) ListNodePeople(ctx context.Context, arg ListNodePeopleParams) 
 			&i.DisplayName,
 			&i.AvatarUrl,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSpaceAdminStats = `-- name: ListSpaceAdminStats :many
+SELECT g.space_id,
+       BOOL_OR(gm.user_id = $1)::bool AS is_admin,
+       COUNT(*)::bigint AS admin_count
+FROM groups g
+JOIN group_members gm ON gm.group_id = g.id
+WHERE g.is_admin AND g.space_id = ANY($2::uuid[])
+GROUP BY g.space_id
+`
+
+type ListSpaceAdminStatsParams struct {
+	UserID   pgtype.UUID   `json:"user_id"`
+	SpaceIds []pgtype.UUID `json:"space_ids"`
+}
+
+type ListSpaceAdminStatsRow struct {
+	SpaceID    pgtype.UUID `json:"space_id"`
+	IsAdmin    bool        `json:"is_admin"`
+	AdminCount int64       `json:"admin_count"`
+}
+
+// IsSpaceAdmin and CountSpaceAdmins for many spaces in one pass, for the
+// space list. A space whose Admin group is empty has no row.
+func (q *Queries) ListSpaceAdminStats(ctx context.Context, arg ListSpaceAdminStatsParams) ([]ListSpaceAdminStatsRow, error) {
+	rows, err := q.db.Query(ctx, listSpaceAdminStats, arg.UserID, arg.SpaceIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListSpaceAdminStatsRow
+	for rows.Next() {
+		var i ListSpaceAdminStatsRow
+		if err := rows.Scan(&i.SpaceID, &i.IsAdmin, &i.AdminCount); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

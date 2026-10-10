@@ -62,6 +62,14 @@ UPDATE jobs SET status = 'pending', last_error = $2,
     run_at = now() + (INTERVAL '1 minute' * attempts)
 WHERE id = $1;
 
+-- name: DeleteDoneJobsBefore :execrows
+-- Finished jobs say nothing once their output row exists: every backfill
+-- anti-join reads only pending/running rows. Batched so a first purge of a
+-- long-lived instance stays a series of short statements.
+DELETE FROM jobs WHERE id IN (
+    SELECT j.id FROM jobs j WHERE j.status = 'done' AND j.created_at < @before LIMIT @lim
+);
+
 -- name: UpsertPreview :exec
 INSERT INTO previews (node_version_id, kind, blob_hash)
 VALUES ($1, $2, $3)

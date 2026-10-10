@@ -3,10 +3,15 @@ package httpapi
 import (
 	"bytes"
 	"context"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/nhatbui/pp-hub/apps/server/internal/auth"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 )
 
@@ -92,9 +97,6 @@ func TestUsageBreakdownAddsUpToTheMeter(t *testing.T) {
 	if err := srv.fs.Delete(ctx, gone.ID, owner.ID); err != nil {
 		t.Fatalf("trash: %v", err)
 	}
-	if err := srv.fs.RecountUsage(ctx, sp.ID); err != nil {
-		t.Fatalf("recount: %v", err)
-	}
 
 	rows, err := srv.fs.UsageByCategory(ctx, owner.ID, sp.ID)
 	if err != nil {
@@ -119,6 +121,78 @@ func TestUsageBreakdownAddsUpToTheMeter(t *testing.T) {
 	if sum != sp.UsedBytes {
 		t.Fatalf("breakdown sums to %d, meter says %d", sum, sp.UsedBytes)
 	}
+}
+
+// used_bytes is kept by triggers, not recounted by writers: after every write,
+// prune, copy and purge — a folder's cascade included — the stored figure must
+// equal a fresh sum and the bytes actually written.
+func TestUsedBytesFollowsWritesPrunesCopiesAndPurges(t *testing.T) {
+	srv, q, _ := uploadEnv(t)
+	ctx := context.Background()
+	sp, owner := memberSpace(t, srv, q, "usedbytes")
+	expect := func(step string, want int64) {
+		t.Helper()
+		got, err := q.GetSpace(ctx, sp.ID)
+		if err != nil {
+			t.Fatalf("%s: get space: %v", step, err)
+		}
+		sum, err := q.SumSpaceUsage(ctx, sp.ID)
+		if err != nil {
+			t.Fatalf("%s: sum: %v", step, err)
+		}
+		if got.UsedBytes != sum || got.UsedBytes != want {
+			t.Fatalf("%s: used_bytes = %d, sum = %d, want %d", step, got.UsedBytes, sum, want)
+		}
+	}
+	put := func(parent, node pgtype.UUID, name string, n int) store.Node {
+		t.Helper()
+		f, _, err := srv.fs.PutFile(ctx, sp.ID, parent, node, name, bytes.NewReader(randomBytes(t, n)), owner.ID)
+		if err != nil {
+			t.Fatalf("put %s: %v", name, err)
+		}
+		return f
+	}
+	purge := func(id pgtype.UUID) {
+		t.Helper()
+		if err := srv.fs.Delete(ctx, id, owner.ID); err != nil {
+			t.Fatalf("trash: %v", err)
+		}
+		if _, err := srv.fs.Purge(ctx, id); err != nil {
+			t.Fatalf("purge: %v", err)
+		}
+	}
+
+	file := put(pgtype.UUID{}, pgtype.UUID{}, "a.bin", 100)
+	expect("first version", 100)
+	put(pgtype.UUID{}, file.ID, "a.bin", 50)
+	expect("second version", 150)
+
+	srv.fs.SetVersionRetention(func() int { return 1 })
+	put(pgtype.UUID{}, file.ID, "a.bin", 30)
+	expect("pruned to the current version", 30)
+
+	r := chi.NewRouter()
+	r.Post("/api/v1/nodes/{nodeID}/copy", srv.handleCopyNode)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/nodes/"+uuidString(file.ID)+"/copy", strings.NewReader(`{}`))
+	req = req.WithContext(context.WithValue(req.Context(), sessionCtxKey, &auth.Session{ID: owner.ID, User: owner}))
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("copy: %d %s", rec.Code, rec.Body.String())
+	}
+	expect("copy", 60)
+
+	purge(file.ID)
+	expect("purge of the original", 30)
+
+	dir, err := srv.fs.Mkdir(ctx, sp.ID, pgtype.UUID{}, "box", owner.ID)
+	if err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	put(dir.ID, pgtype.UUID{}, "inner.bin", 20)
+	expect("file in folder", 50)
+	purge(dir.ID)
+	expect("purge of the folder", 30)
 }
 
 func versionNos(vs []store.NodeVersion) []int32 {

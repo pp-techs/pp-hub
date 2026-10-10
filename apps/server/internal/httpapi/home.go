@@ -3,7 +3,6 @@ package httpapi
 import (
 	"encoding/json"
 	"net/http"
-	"sort"
 	"strconv"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -134,6 +133,10 @@ func (s *Server) handleListActivity(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
+// recentOverfetch covers the rows the capability filter drops after SQL has
+// already applied the limit.
+const recentOverfetch = 4
+
 // handleListRecent answers GET /api/v1/recent[?space=] — files the caller
 // themselves last touched, newest first.
 func (s *Server) handleListRecent(w http.ResponseWriter, r *http.Request) {
@@ -142,7 +145,8 @@ func (s *Server) handleListRecent(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	rows, err := s.activity.Recent(r.Context(), u.ID, spaceID)
+	limit := feedLimit(r)
+	rows, err := s.activity.Recent(r.Context(), u.ID, spaceID, limit*recentOverfetch)
 	if err != nil {
 		Error(w, r, err)
 		return
@@ -164,11 +168,8 @@ func (s *Server) handleListRecent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// DISTINCT ON must order by the node id, so the rows arrive grouped rather
-	// than sorted by time. Re-sort here and trim to the requested page.
-	sortRecentByTime(rows)
-	limit := int(feedLimit(r))
-	if len(rows) > limit {
+	// Rows arrive newest first from SQL; trim to the requested page.
+	if len(rows) > int(limit) {
 		rows = rows[:limit]
 	}
 
@@ -349,14 +350,6 @@ func decodeDetail(raw []byte) map[string]any {
 		return nil
 	}
 	return out
-}
-
-// sortRecentByTime puts the most recently touched node first. The query has to
-// ORDER BY node id for DISTINCT ON, so the time ordering is applied here.
-func sortRecentByTime(rows []store.ListRecentNodesRow) {
-	sort.Slice(rows, func(i, j int) bool {
-		return rows[i].LastActionAt.Time.After(rows[j].LastActionAt.Time)
-	})
 }
 
 // nodeParts is the column set the search, starred and recent queries share.

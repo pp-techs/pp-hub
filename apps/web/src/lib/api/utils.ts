@@ -5,6 +5,47 @@ import type { Node } from "./types";
 // what differs is the decimal separator, which Intl.NumberFormat owns.
 const SIZE_UNITS = ["B", "KB", "MB", "GB", "TB", "PB"];
 
+// Building an Intl formatter costs far more than formatting with one, and a
+// listing formats a size and a date per row on every render — so each is
+// built once per locale and kept. Keyed by `locale ?? ""`; the constructor
+// still gets the caller's `locale`, so `undefined` keeps meaning "default".
+const sizeFormats = new Map<string, Intl.NumberFormat>();
+const dateFormats = new Map<string, { short: Intl.DateTimeFormat; long: Intl.DateTimeFormat }>();
+const relativeFormats = new Map<string, Intl.RelativeTimeFormat>();
+
+function sizeFormat(locale: string | undefined): Intl.NumberFormat {
+  const key = locale ?? "";
+  let fmt = sizeFormats.get(key);
+  if (!fmt) {
+    fmt = new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    sizeFormats.set(key, fmt);
+  }
+  return fmt;
+}
+
+function dateFormat(locale: string | undefined) {
+  const key = locale ?? "";
+  let fmt = dateFormats.get(key);
+  if (!fmt) {
+    fmt = {
+      short: new Intl.DateTimeFormat(locale, { month: "short", day: "numeric" }),
+      long: new Intl.DateTimeFormat(locale, { year: "numeric", month: "short", day: "numeric" }),
+    };
+    dateFormats.set(key, fmt);
+  }
+  return fmt;
+}
+
+function relativeFormat(locale: string | undefined): Intl.RelativeTimeFormat {
+  const key = locale ?? "";
+  let fmt = relativeFormats.get(key);
+  if (!fmt) {
+    fmt = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+    relativeFormats.set(key, fmt);
+  }
+  return fmt;
+}
+
 export function fmtSize(n: number, locale?: string): string {
   if (n < 1024) return `${n} B`;
   let value = n;
@@ -13,10 +54,7 @@ export function fmtSize(n: number, locale?: string): string {
     value /= 1024;
     unit += 1;
   }
-  const num = new Intl.NumberFormat(locale, {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
-  }).format(value);
+  const num = sizeFormat(locale).format(value);
   return `${num} ${SIZE_UNITS[unit]}`;
 }
 
@@ -272,7 +310,7 @@ export function fmtRelative(iso: string | undefined, locale?: string): string {
   const elapsed = (Date.now() - then) / 1000;
   if (elapsed >= 604800) return fmtDate(iso, locale);
 
-  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+  const rtf = relativeFormat(locale);
   // `numeric: "auto"` renders a zero offset as the locale's own word for it
   // ("now", "bây giờ"), so this branch needs no string of its own — which is
   // what keeps the transport layer free of translatable text.
@@ -288,10 +326,6 @@ export function fmtDate(iso: string | undefined, locale?: string): string {
   const d = new Date(iso);
   const now = new Date();
   const sameYear = d.getFullYear() === now.getFullYear();
-  return d.toLocaleDateString(
-    locale,
-    sameYear
-      ? { month: "short", day: "numeric" }
-      : { year: "numeric", month: "short", day: "numeric" },
-  );
+  const fmt = dateFormat(locale);
+  return (sameYear ? fmt.short : fmt.long).format(d);
 }

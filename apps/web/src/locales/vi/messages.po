@@ -41,11 +41,11 @@ msgstr "\"{deletingTitle}\" sẽ bị xoá với tất cả những người m�
 msgid "\"{labelName}\" will be removed from every card that has it."
 msgstr "\"{labelName}\" sẽ bị gỡ khỏi mọi thẻ đang dùng nhãn này."
 
-#: src/routes/drive/$spaceId/index.tsx:385
+#: src/routes/drive/$spaceId/index.tsx:390
 msgid "“{nodeName}” copied — paste it in another folder"
 msgstr "Đã sao chép “{nodeName}” — dán vào thư mục khác"
 
-#: src/routes/drive/$spaceId/index.tsx:384
+#: src/routes/drive/$spaceId/index.tsx:389
 msgid "“{nodeName}” cut — paste it in another folder"
 msgstr "Đã cắt “{nodeName}” — dán vào thư mục khác"
 
@@ -145,7 +145,7 @@ msgstr "{count, plural, one {# thẻ} other {# thẻ}}"
 msgid "{count, plural, one {# sub-page} other {# sub-pages}}"
 msgstr "{count, plural, other {# trang con}}"
 
-#: src/routes/drive/$spaceId/index.tsx:724
+#: src/routes/drive/$spaceId/index.tsx:733
 msgid "{count, plural, one {Are you sure you want to move # item to trash?} other {Are you sure you want to move # items to trash?}}"
 msgstr "{count, plural, one {Bạn có chắc muốn chuyển # mục vào thùng rác không?} other {Bạn có chắc muốn chuyển # mục vào thùng rác không?}}"
 
@@ -153,11 +153,11 @@ msgstr "{count, plural, one {Bạn có chắc muốn chuyển # mục vào thùn
 msgid "{count, plural, one {The other signed-in device will have to sign in again.} other {All # other signed-in devices will have to sign in again.}}"
 msgstr "{count, plural, one {Tất cả # thiết bị đã đăng nhập khác sẽ phải đăng nhập lại.} other {Tất cả # thiết bị đã đăng nhập khác sẽ phải đăng nhập lại.}}"
 
-#: src/routes/drive/$spaceId/index.tsx:757
+#: src/routes/drive/$spaceId/index.tsx:766
 msgid "{count, plural, one {These folders hold # item other people created. They lose access until you restore them.} other {These folders hold # items other people created. They lose access until you restore them.}}"
 msgstr "{count, plural, one {Các thư mục này chứa # mục do người khác tạo. Họ sẽ mất quyền truy cập cho đến khi bạn khôi phục.} other {Các thư mục này chứa # mục do người khác tạo. Họ sẽ mất quyền truy cập cho đến khi bạn khôi phục.}}"
 
-#: src/routes/drive/$spaceId/index.tsx:752
+#: src/routes/drive/$spaceId/index.tsx:761
 msgid "{count, plural, one {This folder holds # item other people created. They lose access until you restore it.} other {This folder holds # items other people created. They lose access until you restore it.}}"
 msgstr "{count, plural, one {Thư mục này chứa # mục do người khác tạo. Họ sẽ mất quyền truy cập cho đến khi bạn khôi phục.} other {Thư mục này chứa # mục do người khác tạo. Họ sẽ mất quyền truy cập cho đến khi bạn khôi phục.}}"
 
@@ -178,7 +178,7 @@ msgstr "{d} ngày"
 msgid "{days, plural, one {# day} other {# days}}"
 msgstr "{days, plural, one {# ngày} other {# ngày}}"
 
-#: src/components/transfer-tray.tsx:167
+#: src/components/transfer-tray.tsx:178
 msgid "{done, plural, one {Uploaded # file} other {Uploaded # files}}"
 msgstr "{done, plural, one {Đã tải lên # tệp} other {Đã tải lên # tệp}}"
 
@@ -186,7 +186,7 @@ msgstr "{done, plural, one {Đã tải lên # tệp} other {Đã tải lên # t�
 msgid "{done} of {total} done"
 msgstr "Đã xong {done}/{total}"
 
-#: src/components/transfer-tray.tsx:162
+#: src/components/transfer-tray.tsx:173
 msgid "{done} uploaded, {failed} failed"
 msgstr "Đã tải lên {done}, thất bại {failed}"
 
@@ -198,7 +198,7 @@ msgstr "Đã khôi phục {email}"
 msgid "{email} suspended"
 msgstr "Đã tạm khoá {email}"
 
-#: src/components/transfer-tray.tsx:121
+#: src/components/transfer-tray.tsx:132
 #: src/routes/admin.users.tsx:141
 msgid "{failed, plural, one {# failed} other {# failed}}"
 msgstr "{failed, plural, one {# thất bại} other {# thất bại}}"
@@ -256,12 +256,12 @@ msgstr "{label} — {size}"
 msgid "{listed} and {rest, plural, one {# more} other {# more}}"
 msgstr "{listed} và {rest, plural, one {# mục nữa} other {# mục nữa}}"
 
-#: src/components/transfer-tray.tsx:82
-#: src/components/transfer-tray.tsx:246
+#: src/components/transfer-tray.tsx:93
+#: src/components/transfer-tray.tsx:257
 msgid "{loadedSize} of {totalSize}"
 msgstr "{loadedSize} trên {totalSize}"
 
-#: src/components/transfer-tray.tsx:81
+#: src/components/transfer-tray.tsx:92
 msgid "{loadedSize} transferred"
 msgstr "Đã truyền {loadedSize}"
 
@@ -301,7 +301,7 @@ msgstr "{nodeName} đã bị người khác xoá"
 msgid "{owned, plural, one {This revokes every grant they gave other people, moves anything they created inside someone else’s folder to that folder’s owner, and files the # file they owned at the top level of this space into its Archive.} other {This revokes every grant they gave other people, moves anything they created inside someone else’s folder to that folder’s owner, and files the # files they owned at the top level of this space into its Archive.}}"
 msgstr "{owned, plural, one {Thao tác này thu hồi mọi quyền truy cập họ đã cấp cho người khác, chuyển những gì họ tạo bên trong thư mục của người khác cho chủ thư mục đó, và đưa # tệp họ sở hữu ở cấp cao nhất của không gian này vào Kho lưu trữ tạm.} other {Thao tác này thu hồi mọi quyền truy cập họ đã cấp cho người khác, chuyển những gì họ tạo bên trong thư mục của người khác cho chủ thư mục đó, và đưa # tệp họ sở hữu ở cấp cao nhất của không gian này vào Kho lưu trữ tạm.}}"
 
-#: src/components/transfer-tray.tsx:274
+#: src/components/transfer-tray.tsx:285
 msgid "{perSecond}/s"
 msgstr "{perSecond}/giây"
 
@@ -325,7 +325,7 @@ msgstr "{rescued, plural, one {# mục do người khác tạo đã được chu
 msgid "{revokeWho} loses access to this {nodeKind, select, dir {folder} other {file}}, but keeps the {revokeOwned, plural, one {# item} other {# items}} they created inside it — ownership is theirs, so those appear at their own top level."
 msgstr "{revokeWho} mất quyền truy cập vào {nodeKind, select, dir {thư mục} other {tệp}} này, nhưng vẫn giữ {revokeOwned, plural, one {# mục} other {# mục}} họ đã tạo bên trong — quyền sở hữu thuộc về họ, nên các mục đó xuất hiện ở cấp cao nhất của họ."
 
-#: src/components/node-grid.tsx:86
+#: src/components/node-grid.tsx:101
 msgid "{selected, plural, one {# selected} other {# selected}}"
 msgstr "{selected, plural, one {Đã chọn #} other {Đã chọn #}}"
 
@@ -612,7 +612,7 @@ msgstr "Tài khoản do quản trị viên cấp."
 msgid "Action"
 msgstr "Hành động"
 
-#: src/components/node-list.tsx:117
+#: src/components/node-list.tsx:212
 msgid "Actions"
 msgstr "Hành động"
 
@@ -625,8 +625,8 @@ msgid "Actions for {memberEmail}"
 msgstr "Thao tác cho {memberEmail}"
 
 #: src/components/nav-apps.tsx:294
-#: src/components/node-grid.tsx:359
-#: src/components/node-list.tsx:325
+#: src/components/node-grid.tsx:461
+#: src/components/node-list.tsx:415
 msgid "Actions for {nodeName}"
 msgstr "Thao tác với {nodeName}"
 
@@ -817,7 +817,7 @@ msgstr "tất cả đang hoạt động"
 msgid "All events"
 msgstr "Tất cả sự kiện"
 
-#: src/components/transfer-tray.tsx:123
+#: src/components/transfer-tray.tsx:134
 msgid "All transfers complete"
 msgstr "Đã hoàn tất mọi lượt truyền"
 
@@ -923,7 +923,7 @@ msgid "Archived personal spaces"
 msgstr "Không gian cá nhân đã lưu trữ"
 
 #: src/components/nav-apps.tsx:355
-#: src/routes/drive/$spaceId/index.tsx:723
+#: src/routes/drive/$spaceId/index.tsx:732
 msgid "Are you sure you want to move \"{nodeName}\" to trash?"
 msgstr "Bạn có chắc muốn chuyển \"{nodeName}\" vào thùng rác không?"
 
@@ -1072,7 +1072,7 @@ msgstr "Có thể xem + tải xuống"
 msgid "Cancel"
 msgstr "Huỷ"
 
-#: src/components/transfer-tray.tsx:219
+#: src/components/transfer-tray.tsx:230
 msgid "Cancel {fileName}"
 msgstr "Huỷ {fileName}"
 
@@ -1080,7 +1080,7 @@ msgstr "Huỷ {fileName}"
 msgid "Cancel the invitation for {invitee}"
 msgstr "Hủy lời mời gửi {invitee}"
 
-#: src/components/transfer-tray.tsx:252
+#: src/components/transfer-tray.tsx:263
 msgid "Cancelled"
 msgstr "Đã huỷ"
 
@@ -1147,7 +1147,7 @@ msgstr "Claude Code trên máy tính của tôi"
 msgid "Clear"
 msgstr "Xóa bộ lọc"
 
-#: src/components/transfer-tray.tsx:132
+#: src/components/transfer-tray.tsx:143
 msgid "Clear completed"
 msgstr "Xoá mục đã xong"
 
@@ -1202,7 +1202,7 @@ msgstr "Đóng danh sách trang"
 msgid "Close preview"
 msgstr "Đóng xem trước"
 
-#: src/components/transfer-tray.tsx:94
+#: src/components/transfer-tray.tsx:105
 msgid "Close transfers"
 msgstr "Đóng danh sách truyền"
 
@@ -1228,7 +1228,7 @@ msgstr "Thu gọn Drive của tôi"
 msgid "Collapse toggle"
 msgstr "Thu gọn khối"
 
-#: src/components/transfer-tray.tsx:88
+#: src/components/transfer-tray.tsx:99
 msgid "Collapse transfers"
 msgstr "Thu gọn danh sách truyền"
 
@@ -1345,7 +1345,7 @@ msgstr "Tiếp tục với nhà cung cấp danh tính do quản trị viên củ
 msgid "Copied {done, plural, one {# item} other {# items}} to {destination}"
 msgstr "Đã sao chép {done, plural, one {# mục} other {# mục}} vào {destination}"
 
-#: src/routes/drive/$spaceId/index.tsx:372
+#: src/routes/drive/$spaceId/index.tsx:377
 msgid "Copied as “{copyName}”"
 msgstr "Đã sao chép thành “{copyName}”"
 
@@ -1395,7 +1395,7 @@ msgstr "Không thể thay đổi quyền truy cập"
 msgid "Could not change the page"
 msgstr "Không thể thay đổi trang"
 
-#: src/routes/drive/$spaceId/index.tsx:375
+#: src/routes/drive/$spaceId/index.tsx:380
 msgid "Could not copy “{nodeName}”"
 msgstr "Không thể sao chép “{nodeName}”"
 
@@ -2198,7 +2198,7 @@ msgid "Enable"
 msgstr "Bật"
 
 #: src/components/nav-apps.tsx:329
-#: src/routes/drive/$spaceId/index.tsx:684
+#: src/routes/drive/$spaceId/index.tsx:693
 msgid "Enter a new name for this item."
 msgstr "Nhập tên mới cho mục này."
 
@@ -2289,7 +2289,7 @@ msgstr "Mở rộng Drive của tôi"
 msgid "Expand toggle"
 msgstr "Mở rộng khối"
 
-#: src/components/transfer-tray.tsx:88
+#: src/components/transfer-tray.tsx:99
 msgid "Expand transfers"
 msgstr "Mở rộng danh sách truyền tải"
 
@@ -2381,7 +2381,7 @@ msgid "File: {nodeName}"
 msgstr "Tệp: {nodeName}"
 
 #: src/components/command-palette.tsx:43
-#: src/components/node-grid.tsx:144
+#: src/components/node-grid.tsx:238
 #: src/routes/admin.users.tsx:125
 msgid "Files"
 msgstr "Tệp"
@@ -2451,7 +2451,7 @@ msgstr "Finder trên máy tính của tôi"
 msgid "Flowcharts, sequences, and more"
 msgstr "Lưu đồ, sơ đồ tuần tự và nhiều hơn nữa"
 
-#: src/components/node-grid.tsx:344
+#: src/components/node-grid.tsx:446
 #: src/components/preview-panel.tsx:382
 msgid "Folder"
 msgstr "Thư mục"
@@ -2469,7 +2469,7 @@ msgid "Folder name"
 msgstr "Tên thư mục"
 
 #: src/components/command-palette.tsx:44
-#: src/components/node-grid.tsx:137
+#: src/components/node-grid.tsx:232
 msgid "Folders"
 msgstr "Thư mục"
 
@@ -3230,7 +3230,7 @@ msgid "minutes"
 msgstr "phút"
 
 #: src/components/listing-controls.tsx:24
-#: src/components/node-list.tsx:108
+#: src/components/node-list.tsx:203
 #: src/components/node-table.tsx:78
 #: src/components/preview-modal.tsx:158
 #: src/components/preview-panel.tsx:406
@@ -3289,8 +3289,8 @@ msgstr "Chuyển đến cột…"
 #: src/components/nav-apps.tsx:354
 #: src/components/nav-apps.tsx:356
 #: src/components/node-actions.tsx:280
-#: src/routes/drive/$spaceId/index.tsx:720
 #: src/routes/drive/$spaceId/index.tsx:729
+#: src/routes/drive/$spaceId/index.tsx:738
 msgid "Move to trash"
 msgstr "Chuyển vào thùng rác"
 
@@ -3317,7 +3317,7 @@ msgstr "Drive của tôi"
 #: src/components/listing-controls.tsx:23
 #: src/components/new-document-dialog.tsx:121
 #: src/components/new-ext-node-dialog.tsx:66
-#: src/components/node-list.tsx:105
+#: src/components/node-list.tsx:200
 #: src/components/node-table.tsx:74
 #: src/components/settings/panes/account-general.tsx:44
 #: src/components/settings/panes/personal-tokens.tsx:126
@@ -3541,7 +3541,7 @@ msgstr "Không có kết quả cho “{queryText}”"
 msgid "No matching cards"
 msgstr "Không có thẻ phù hợp"
 
-#: src/routes/drive/$spaceId/index.tsx:596
+#: src/routes/drive/$spaceId/index.tsx:601
 msgid "No matching files or folders"
 msgstr "Không có tệp hoặc thư mục nào khớp"
 
@@ -3865,7 +3865,7 @@ msgstr "Quá hạn"
 msgid "Overview"
 msgstr "Tổng quan"
 
-#: src/components/node-list.tsx:114
+#: src/components/node-list.tsx:209
 #: src/components/node-table.tsx:84
 #: src/components/preview-modal.tsx:157
 #: src/components/preview-panel.tsx:403
@@ -3926,11 +3926,11 @@ msgstr "Dán bên dưới"
 #~ msgid "Pause queue"
 #~ msgstr "Tạm dừng hàng đợi"
 
-#: src/components/transfer-tray.tsx:128
+#: src/components/transfer-tray.tsx:139
 msgid "Pause uploads"
 msgstr "Tạm dừng tải lên"
 
-#: src/components/transfer-tray.tsx:250
+#: src/components/transfer-tray.tsx:261
 msgid "Paused"
 msgstr "Đã tạm dừng"
 
@@ -4245,7 +4245,7 @@ msgstr "Xoá “{spaceName}” và mọi thứ bên trong — mọi tệp, phiê
 #: src/components/nav-apps.tsx:326
 #: src/components/node-actions.tsx:222
 #: src/components/selection-bar.tsx:74
-#: src/routes/drive/$spaceId/index.tsx:681
+#: src/routes/drive/$spaceId/index.tsx:690
 msgid "Rename"
 msgstr "Đổi tên"
 
@@ -4336,7 +4336,7 @@ msgstr "Đã khôi phục phiên bản {versionNo}"
 #~ msgid "Resume queue"
 #~ msgstr "Tiếp tục hàng đợi"
 
-#: src/components/transfer-tray.tsx:128
+#: src/components/transfer-tray.tsx:139
 msgid "Resume uploads"
 msgstr "Tiếp tục tải lên"
 
@@ -4347,7 +4347,7 @@ msgstr "Tiếp tục tải lên"
 
 #: src/components/nav-apps.tsx:188
 #: src/components/nodes/uploadable-node-view.tsx:97
-#: src/components/transfer-tray.tsx:212
+#: src/components/transfer-tray.tsx:223
 msgid "Retry"
 msgstr "Thử lại"
 
@@ -4372,7 +4372,7 @@ msgstr "Thu hồi quyền quản trị"
 msgid "Revoking a group’s access leaves anything its members created in here — those items stay with whoever made them."
 msgstr "Thu hồi quyền truy cập của một nhóm vẫn giữ lại mọi thứ mà thành viên nhóm đã tạo ở đây — các mục đó thuộc về người đã tạo ra chúng."
 
-#: src/routes/drive/$spaceId/index.tsx:605
+#: src/routes/drive/$spaceId/index.tsx:610
 msgid "Right-click here, or use New, to add something."
 msgstr "Nhấp chuột phải vào đây, hoặc dùng Mới, để thêm nội dung."
 
@@ -4392,7 +4392,7 @@ msgstr "Các hàng và cột ô"
 #: ../../packages/ext-kanban/src/column-dialogs.tsx:99
 #: src/components/comments/comments-popover.tsx:622
 #: src/components/nav-apps.tsx:344
-#: src/routes/drive/$spaceId/index.tsx:708
+#: src/routes/drive/$spaceId/index.tsx:717
 msgid "Save"
 msgstr "Lưu"
 
@@ -4779,7 +4779,7 @@ msgid "Signed-in devices"
 msgstr "Thiết bị đã đăng nhập"
 
 #: src/components/listing-controls.tsx:25
-#: src/components/node-list.tsx:111
+#: src/components/node-list.tsx:206
 #: src/components/node-table.tsx:81
 #: src/components/preview-modal.tsx:156
 #: src/components/preview-panel.tsx:385
@@ -4964,7 +4964,7 @@ msgstr "Bảng"
 msgid "Target column"
 msgstr "Cột đích"
 
-#: src/components/node-list.tsx:316
+#: src/components/node-list.tsx:406
 msgid "Team"
 msgstr "Đội"
 
@@ -5190,7 +5190,7 @@ msgstr "Tệp này đã được chia sẻ với bạn"
 msgid "this folder"
 msgstr "thư mục này"
 
-#: src/routes/drive/$spaceId/index.tsx:598
+#: src/routes/drive/$spaceId/index.tsx:603
 #: src/routes/drive/shared.tsx:57
 #: src/routes/s/$token.tsx:569
 msgid "This folder is empty"
@@ -5257,7 +5257,7 @@ msgstr "Người này"
 #: src/components/drive-write.tsx:91
 #: src/components/drive-write.tsx:173
 #: src/routes/drive/$spaceId/home.tsx:64
-#: src/routes/drive/$spaceId/index.tsx:316
+#: src/routes/drive/$spaceId/index.tsx:321
 msgid "this space"
 msgstr "không gian này"
 
@@ -5361,7 +5361,7 @@ msgid "Trash retention (days)"
 msgstr "Thời gian giữ trong thùng rác (ngày)"
 
 #: src/components/trash-panel.tsx:257
-#: src/routes/drive/$spaceId/index.tsx:603
+#: src/routes/drive/$spaceId/index.tsx:608
 msgid "Try a different search."
 msgstr "Hãy thử tìm kiếm khác."
 
@@ -5494,7 +5494,7 @@ msgid "Upload cancelled"
 msgstr "Đã huỷ tải lên"
 
 #: src/components/nodes/uploadable-node-view.tsx:72
-#: src/components/transfer-tray.tsx:254
+#: src/components/transfer-tray.tsx:265
 #: src/lib/collab/attachments.ts:21
 #: src/lib/upload-store.ts:498
 msgid "Upload failed"
@@ -5524,7 +5524,7 @@ msgstr "Tải lên, sắp xếp và chia sẻ tệp, kèm lịch sử phiên b�
 msgid "Uploading {count, plural, one {# file} other {# files}} to {label}"
 msgstr "Đang tải {count, plural, one {# tệp} other {# tệp}} lên {label}"
 
-#: src/components/transfer-tray.tsx:155
+#: src/components/transfer-tray.tsx:166
 msgid "Uploading {current} of {total}"
 msgstr "Đang tải lên {current} trên {total}"
 
@@ -5653,7 +5653,7 @@ msgstr "chỉ xem"
 msgid "Visual separator"
 msgstr "Đường phân cách trực quan"
 
-#: src/components/transfer-tray.tsx:250
+#: src/components/transfer-tray.tsx:261
 msgid "Waiting"
 msgstr "Đang chờ"
 
