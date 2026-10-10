@@ -70,9 +70,6 @@ WHERE m.space_id = $1
 ORDER BY m.created_at;
 
 
--- name: UpdateSpaceUsedBytes :exec
-UPDATE spaces SET used_bytes = $2 WHERE id = $1;
-
 -- name: SetArchiveRoot :exec
 -- Where a departed member's content lands. Created at space creation, like
 -- the Everyone/Admin groups.

@@ -390,6 +390,11 @@ its owner. Three paths fill it, and between them they cover every
 authenticated node response:
 
 - `attachCaps` — folder listings and `GET /shared`, one batched `AccessCaps`.
+  A folder listing uses `share.ChildAccessCaps` instead: every child of one
+  folder inherits exactly that folder's ancestor chain, so it resolves the
+  parent once with `AccessCaps` and ORs in each child's own grants and
+  ownership (`NodeOwnAccessCaps`, no walk). The result equals `AccessCaps` on
+  the children.
 - `reachability.stamp` — the cross-space feeds (`/search`, `/recent`,
   `/starred`). These already resolved caps to filter themselves; the
   resolution is now handed to the DTO instead of being thrown away, so the
@@ -1062,5 +1067,6 @@ Per-space `quota_bytes` is enforced at upload (`fs.EnsureRoom`, **413** when a
 space would go over) — since M30 twice: against the declared length plus
 what other in-flight uploads have promised when the upload is created, and
 against the measured size once the bytes land. `used_bytes` counts every
-stored version, trash included, and is recounted after size-changing
-mutations. See the Quota section of [data-model.md](data-model.md).
+stored version, trash included, and is kept current by triggers on
+`node_versions`, `node_attachments` and `nodes`. See the Quota section of
+[data-model.md](data-model.md).

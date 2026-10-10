@@ -333,9 +333,6 @@ func (s *Service) putFile(
 		// longer than the policy asks for, and the next save retries it.
 		slog.WarnContext(ctx, "version prune failed", "node", node.ID, "err", err)
 	}
-	if err := s.RecountUsage(ctx, spaceID); err != nil {
-		slog.WarnContext(ctx, "usage recount failed", "space", spaceID, "err", err)
-	}
 	if s.onVersion != nil {
 		s.onVersion(ctx, ver, node.Name)
 	}
@@ -393,11 +390,7 @@ func (s *Service) EnsureRoom(ctx context.Context, spaceID pgtype.UUID, incoming 
 	if space.QuotaBytes <= 0 {
 		return nil
 	}
-	used, err := s.q.SumSpaceUsage(ctx, spaceID)
-	if err != nil {
-		return err
-	}
-	if used+incoming > space.QuotaBytes {
+	if space.UsedBytes+incoming > space.QuotaBytes {
 		return ErrQuotaExceeded
 	}
 	return nil
@@ -938,20 +931,6 @@ func (s *Service) StarredAmong(ctx context.Context, userID pgtype.UUID, nodeIDs 
 }
 
 // --- Quota ---
-
-// RecountUsage recomputes a space's used_bytes from every stored version,
-// trash included, and stores it. Called after anything that changes the total
-// rather than by a background job, so the rail's storage meter is right the
-// moment a user looks at it. The
-// query is a single indexed sum; at MVP scale this is cheaper than the
-// machinery a job would need.
-func (s *Service) RecountUsage(ctx context.Context, spaceID pgtype.UUID) error {
-	total, err := s.q.SumSpaceUsage(ctx, spaceID)
-	if err != nil {
-		return err
-	}
-	return s.q.UpdateSpaceUsedBytes(ctx, store.UpdateSpaceUsedBytesParams{ID: spaceID, UsedBytes: total})
-}
 
 // UsageByCategory breaks usage down by broad MIME family across the user's
 // spaces, or one space when spaceID is set.

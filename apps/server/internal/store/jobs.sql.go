@@ -79,6 +79,28 @@ func (q *Queries) CompleteJob(ctx context.Context, id pgtype.UUID) error {
 	return err
 }
 
+const deleteDoneJobsBefore = `-- name: DeleteDoneJobsBefore :execrows
+DELETE FROM jobs WHERE id IN (
+    SELECT j.id FROM jobs j WHERE j.status = 'done' AND j.created_at < $1 LIMIT $2
+)
+`
+
+type DeleteDoneJobsBeforeParams struct {
+	Before pgtype.Timestamptz `json:"before"`
+	Lim    int32              `json:"lim"`
+}
+
+// Finished jobs say nothing once their output row exists: every backfill
+// anti-join reads only pending/running rows. Batched so a first purge of a
+// long-lived instance stays a series of short statements.
+func (q *Queries) DeleteDoneJobsBefore(ctx context.Context, arg DeleteDoneJobsBeforeParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteDoneJobsBefore, arg.Before, arg.Lim)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const enqueueJob = `-- name: EnqueueJob :one
 INSERT INTO jobs (kind, payload)
 VALUES ($1, $2)

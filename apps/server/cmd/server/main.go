@@ -219,6 +219,11 @@ func run() error {
 				} else if n > 0 {
 					slog.InfoContext(ctx, "read notifications purged", "count", n)
 				}
+				if n, err := preview.PurgeDoneJobs(ctx, queries, time.Now().Add(-preview.DoneJobRetention)); err != nil {
+					slog.WarnContext(ctx, "job sweep", "err", err)
+				} else if n > 0 {
+					slog.InfoContext(ctx, "finished jobs purged", "count", n)
+				}
 				if _, err := shareSvc.PruneInvitationLog(ctx); err != nil {
 					slog.WarnContext(ctx, "invitation log sweep", "err", err)
 				}

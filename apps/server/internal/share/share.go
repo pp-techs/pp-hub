@@ -545,6 +545,40 @@ func (s *Service) AccessCaps(ctx context.Context, nodeIDs []pgtype.UUID, userID 
 	return out, nil
 }
 
+// ChildAccessCaps resolves children of one folder. Children of one folder
+// share its ancestor chain, so the chain is resolved once, for the parent, and
+// merged with each child's own grants and ownership. The result equals
+// AccessCaps(childIDs).
+func (s *Service) ChildAccessCaps(ctx context.Context, parentID pgtype.UUID, childIDs []pgtype.UUID, userID pgtype.UUID) (map[pgtype.UUID]Resolved, error) {
+	out := make(map[pgtype.UUID]Resolved, len(childIDs))
+	if len(childIDs) == 0 {
+		return out, nil
+	}
+	parent, err := s.AccessCaps(ctx, []pgtype.UUID{parentID}, userID)
+	if err != nil {
+		return out, err
+	}
+	p := parent[parentID]
+	rows, err := s.q.NodeOwnAccessCaps(ctx, store.NodeOwnAccessCapsParams{
+		NodeIds:         childIDs,
+		UserID:          userID,
+		ExternalEnabled: s.ExternalSharingEnabled(),
+	})
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return out, err
+	}
+	for _, row := range rows {
+		out[row.NodeID] = Resolved{
+			View:     p.View || row.View,
+			Download: p.Download || row.Download,
+			Share:    p.Share || row.Share,
+			Edit:     p.Edit || row.Edit,
+			Owner:    p.Owner || row.Owner,
+		}
+	}
+	return out, nil
+}
+
 // NodesWithShares reports which of the requested nodes carry at least one
 // live share row directly on them — direct, group or link, any grantee. Used
 // to badge a listing row "this is shared", which is a different question

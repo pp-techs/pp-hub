@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
 	"sort"
 	"strings"
 	"testing"
@@ -913,5 +914,74 @@ func depart(t *testing.T, ctx context.Context, sp *spaces.Service, spaceID, user
 	}
 	if err := sp.CompleteDeparture(ctx, spaceID, userID, actorID); err != nil {
 		t.Fatalf("complete departure: %v", err)
+	}
+}
+
+// ChildAccessCaps resolves the parent's chain once and merges each child's own
+// grants and ownership; it must answer exactly what the full per-node walk
+// does, for an owner and for a grantee alike.
+func TestChildAccessCapsMatchesFullResolution(t *testing.T) {
+	q, sp, sh := testEnv(t)
+	ctx := context.Background()
+
+	a := user(t, q, "childcaps-owner")
+	b := user(t, q, "childcaps-member")
+	space, err := sp.Create(ctx, fmt.Sprintf("childcaps-%d", os.Getpid()), a.ID)
+	if err != nil {
+		t.Fatalf("create space: %v", err)
+	}
+	t.Cleanup(func() { _ = q.DeleteSpace(ctx, space.ID) })
+	if err := sp.AddMember(ctx, space.ID, b.ID, false); err != nil {
+		t.Fatalf("add member: %v", err)
+	}
+
+	mk := func(name string, kind store.NodeKind, parent pgtype.UUID, by pgtype.UUID) store.Node {
+		t.Helper()
+		n, err := q.CreateNode(ctx, store.CreateNodeParams{
+			SpaceID: space.ID, ParentID: parent, Kind: kind, Name: name, CreatedBy: by,
+		})
+		if err != nil {
+			t.Fatalf("create %s: %v", name, err)
+		}
+		return n
+	}
+	f := mk("F", store.NodeKindDir, pgtype.UUID{}, a.ID)
+	g := mk("G", store.NodeKindDir, f.ID, a.ID)
+	c1 := mk("c1.txt", store.NodeKindFile, g.ID, a.ID)
+	c2 := mk("c2.txt", store.NodeKindFile, g.ID, b.ID)
+	c3 := mk("c3.txt", store.NodeKindFile, g.ID, a.ID)
+
+	everyone, err := q.GetEveryoneGroup(ctx, space.ID)
+	if err != nil {
+		t.Fatalf("everyone group: %v", err)
+	}
+	if _, err := q.UpsertGroupGrant(ctx, store.UpsertGroupGrantParams{
+		NodeID: f.ID, Level: store.ShareLevelView, GranteeGroupID: everyone.ID, CreatedBy: a.ID,
+	}); err != nil {
+		t.Fatalf("group grant: %v", err)
+	}
+	if _, err := q.CreateShare(ctx, store.CreateShareParams{
+		NodeID: c3.ID, Kind: store.ShareKindDirect, GranteeUserID: b.ID,
+		Level: store.ShareLevelEdit, CanDownload: true, CreatedBy: a.ID,
+	}); err != nil {
+		t.Fatalf("direct grant: %v", err)
+	}
+
+	children := []pgtype.UUID{c1.ID, c2.ID, c3.ID}
+	for _, who := range []store.User{b, a} {
+		got, err := sh.ChildAccessCaps(ctx, g.ID, children, who.ID)
+		if err != nil {
+			t.Fatalf("child caps: %v", err)
+		}
+		want, err := sh.AccessCaps(ctx, children, who.ID)
+		if err != nil {
+			t.Fatalf("access caps: %v", err)
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("%s: ChildAccessCaps = %+v, AccessCaps = %+v", who.Email, got, want)
+		}
+		if who.ID == b.ID && (!got[c1.ID].View || got[c1.ID].Edit || !got[c2.ID].Owner || !got[c3.ID].Edit) {
+			t.Fatalf("member caps lost inheritance or own grants: %+v", got)
+		}
 	}
 }

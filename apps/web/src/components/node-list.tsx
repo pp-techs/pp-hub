@@ -1,4 +1,14 @@
-import { Fragment, memo, useMemo, useRef, useState, type MouseEvent } from "react";
+import {
+  Fragment,
+  memo,
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+  type RefObject,
+} from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { MoreHorizontal } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
@@ -33,6 +43,8 @@ import { LoadingStatus } from "@/components/loading";
 import { LISTING_PADDING } from "@/components/surface";
 import { useUiStore } from "@/lib/ui-store";
 import { DRAG_DATA_TYPE, isValidMoveTarget, setDragGhost } from "@/lib/drag-drop";
+import { hitTestList } from "@/lib/listing-geometry";
+import type { MarqueeRect } from "@/lib/use-marquee-selection";
 
 interface NodeListProps extends NodeActionHandlers {
   /** Node ids the caller has starred, so each row can show its own state. */
@@ -45,12 +57,19 @@ interface NodeListProps extends NodeActionHandlers {
   onClick: (node: Node, event: MouseEvent) => void;
   onDoubleClick: (node: Node) => void;
   onMoveNodes?: (nodes: Node[], targetId: string) => Promise<void>;
+  /** The route's scroller: the virtualizer's scroll element. */
+  scrollRef: RefObject<HTMLDivElement | null>;
+  /** Receives this listing's marquee hit test, re-assigned every render. */
+  hitTestRef: RefObject<((band: MarqueeRect) => Set<string>) | null>;
 }
 
 /**
  * The dense listing: 36px rows, right-aligned numeric columns and an actions
  * cell that only shows on hover or selection. A click selects the row — there
  * is no checkbox gutter, so selection reads as the row's own wash.
+ *
+ * Only the rows near the viewport are mounted: spacer rows above and below
+ * stand in for the rest, so a folder of thousands costs what a screenful does.
  */
 export function NodeList({
   nodes,
@@ -60,13 +79,76 @@ export function NodeList({
   onClick,
   onDoubleClick,
   onMoveNodes,
+  scrollRef,
+  hitTestRef,
   ...handlers
 }: NodeListProps) {
-  const selectedNodes = useMemo(() => {
-    const map = new Map<string, Node>();
-    for (const n of nodes) if (selectedIds.has(n.id)) map.set(n.id, n);
-    return map;
-  }, [nodes, selectedIds]);
+  // Read at drag start rather than passed down as a fresh collection, so a
+  // selection change re-renders only the rows whose `selected` flipped.
+  const nodesRef = useRef(nodes);
+  nodesRef.current = nodes;
+  const selectedIdsRef = useRef(selectedIds);
+  selectedIdsRef.current = selectedIds;
+  const getSelectedNodes = useCallback(
+    () => nodesRef.current.filter((n) => selectedIdsRef.current.has(n.id)),
+    [],
+  );
+
+  const tbodyRef = useRef<HTMLTableSectionElement>(null);
+  // Where the rows start inside the scroller's content: the padding and the
+  // header above them.
+  const [scrollMargin, setScrollMargin] = useState(0);
+  useLayoutEffect(() => {
+    const tbody = tbodyRef.current;
+    const scroller = scrollRef.current;
+    if (!tbody || !scroller) return;
+    setScrollMargin(
+      tbody.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop,
+    );
+  }, []);
+  // 36px is the `h-9` rows' height; the first mounted row confirms it.
+  const [rowHeight, setRowHeight] = useState(36);
+
+  const getItemKey = useCallback((i: number) => nodes[i]!.id, [nodes]);
+  const virtualizer = useVirtualizer({
+    count: nodes.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => rowHeight,
+    overscan: 12,
+    scrollMargin,
+    getItemKey,
+  });
+  const items = virtualizer.getVirtualItems();
+
+  const firstKey = items[0]?.key;
+  useLayoutEffect(() => {
+    const row = tbodyRef.current?.querySelector<HTMLElement>("tr[data-node-id]");
+    if (!row) return;
+    const height = row.getBoundingClientRect().height;
+    if (height > 0 && height !== rowHeight) setRowHeight(height);
+  }, [firstKey, rowHeight]);
+  useLayoutEffect(() => {
+    virtualizer.measure();
+  }, [rowHeight, virtualizer]);
+
+  hitTestRef.current = (band) => {
+    const tbody = tbodyRef.current;
+    const scroller = scrollRef.current;
+    if (!tbody || !scroller) return new Set();
+    const box = tbody.getBoundingClientRect();
+    const bounds = scroller.getBoundingClientRect();
+    const top = box.top - bounds.top + scroller.scrollTop;
+    const left = box.left - bounds.left + scroller.scrollLeft;
+    return hitTestList(nodes, rowHeight, box.width, {
+      ...band,
+      left: band.left - left,
+      top: band.top - top,
+    });
+  };
+
+  const padTop = items.length > 0 ? items[0]!.start - scrollMargin : 0;
+  const padBottom =
+    items.length > 0 ? virtualizer.getTotalSize() - (items.at(-1)!.end - scrollMargin) : 0;
 
   // Rows sit inside ContextMenuTrigger's `display: contents` wrapper, so
   // `divide-y` on the tbody never reaches them; each row draws its own border.
@@ -74,22 +156,35 @@ export function NodeList({
     <div className={LISTING_PADDING}>
       <table className="w-full border-collapse text-left text-xs">
         <NodeListHead />
-        <tbody>
-          {nodes.map((n) => (
-            <NodeListRow
-              key={n.id}
-              node={n}
-              selected={selectedIds.has(n.id)}
-              starred={starredIds.has(n.id)}
-              shared={n.shared ?? false}
-              canWriteHere={canWriteHere}
-              onClick={onClick}
-              onDoubleClick={onDoubleClick}
-              onMoveNodes={onMoveNodes}
-              selectedNodes={selectedNodes}
-              {...handlers}
-            />
-          ))}
+        <tbody ref={tbodyRef}>
+          {padTop > 0 && (
+            <tr aria-hidden>
+              <td colSpan={5} style={{ height: padTop, padding: 0, border: 0 }} />
+            </tr>
+          )}
+          {items.map((item) => {
+            const n = nodes[item.index]!;
+            return (
+              <NodeListRow
+                key={n.id}
+                node={n}
+                selected={selectedIds.has(n.id)}
+                starred={starredIds.has(n.id)}
+                shared={n.shared ?? false}
+                canWriteHere={canWriteHere}
+                onClick={onClick}
+                onDoubleClick={onDoubleClick}
+                onMoveNodes={onMoveNodes}
+                getSelectedNodes={getSelectedNodes}
+                {...handlers}
+              />
+            );
+          })}
+          {padBottom > 0 && (
+            <tr aria-hidden>
+              <td colSpan={5} style={{ height: padBottom, padding: 0, border: 0 }} />
+            </tr>
+          )}
         </tbody>
       </table>
     </div>
@@ -166,7 +261,8 @@ interface NodeListRowProps extends NodeActionHandlers {
   onClick: (node: Node, event: MouseEvent) => void;
   onDoubleClick: (node: Node) => void;
   onMoveNodes?: (nodes: Node[], targetId: string) => Promise<void>;
-  selectedNodes: Map<string, Node>;
+  /** The selected rows, read when a drag starts. */
+  getSelectedNodes: () => Node[];
 }
 
 const NodeListRow = memo(function NodeListRow({
@@ -178,7 +274,7 @@ const NodeListRow = memo(function NodeListRow({
   onClick,
   onDoubleClick,
   onMoveNodes,
-  selectedNodes,
+  getSelectedNodes,
   ...handlers
 }: NodeListRowProps) {
   const openPanel = useUiStore((s) => s.openPanel);
@@ -199,14 +295,8 @@ const NodeListRow = memo(function NodeListRow({
       e.preventDefault();
       return;
     }
-    const isSelected = selectedNodes.has(node.id);
-    let nodesToDrag: Node[];
-    if (isSelected) {
-      const selectedList = [...selectedNodes.values()].filter(canRestructure);
-      nodesToDrag = selectedList.length > 0 ? selectedList : [node];
-    } else {
-      nodesToDrag = [node];
-    }
+    const selectedList = selected ? getSelectedNodes().filter(canRestructure) : [];
+    const nodesToDrag = selectedList.length > 0 ? selectedList : [node];
     e.dataTransfer.setData(DRAG_DATA_TYPE, JSON.stringify(nodesToDrag.map((n) => n.id)));
     // eslint-disable-next-line lingui/no-unlocalized-strings -- dataTransfer effectAllowed
     e.dataTransfer.effectAllowed = "move";
@@ -281,7 +371,7 @@ const NodeListRow = memo(function NodeListRow({
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           className={cn(
-            "group border-border hover:bg-muted/40 h-9 cursor-pointer border-b transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_36px] align-middle",
+            "group border-border hover:bg-muted/40 h-9 cursor-pointer border-b transition-colors align-middle",
             // Soft wash rather than a border, to match the grid's cards.
             selected && "bg-primary/10 hover:bg-primary/15",
             isDropTarget && "bg-primary/15 ring-2 ring-primary ring-inset",

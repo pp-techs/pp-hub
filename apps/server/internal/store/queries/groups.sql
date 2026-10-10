@@ -77,6 +77,17 @@ SELECT COUNT(*)::int FROM group_members gm
 JOIN groups g ON g.id = gm.group_id
 WHERE g.space_id = $1 AND g.is_admin;
 
+-- name: ListSpaceAdminStats :many
+-- IsSpaceAdmin and CountSpaceAdmins for many spaces in one pass, for the
+-- space list. A space whose Admin group is empty has no row.
+SELECT g.space_id,
+       BOOL_OR(gm.user_id = @user_id)::bool AS is_admin,
+       COUNT(*)::bigint AS admin_count
+FROM groups g
+JOIN group_members gm ON gm.group_id = g.id
+WHERE g.is_admin AND g.space_id = ANY(@space_ids::uuid[])
+GROUP BY g.space_id;
+
 -- ----------------------------------------------------------------- grants ---
 
 -- name: UpsertGroupGrant :one
@@ -168,6 +179,9 @@ ORDER BY n.kind, n.name;
 --
 -- A node sitting under another reachable node is excluded: it is found by
 -- walking down from that ancestor, so listing it separately is noise.
+-- Owned nodes under a live parent the caller also owns are pruned from entry
+-- up front, so entry stays proportional to top-level items, and only rows
+-- that can be returned (origin) have their ancestors walked.
 -- WITH RECURSIVE must lead the statement; a nested one inside a plain CTE is
 -- valid Postgres but sqlc cannot parse it.
 WITH RECURSIVE entry(id) AS (
@@ -178,14 +192,12 @@ WITH RECURSIVE entry(id) AS (
     SELECT DISTINCT s.node_id
     FROM shares s
     JOIN nodes gn ON gn.id = s.node_id
-    WHERE (s.expires_at IS NULL OR s.expires_at > now())
+    WHERE gn.deleted_at IS NULL
+      AND (s.expires_at IS NULL OR s.expires_at > now())
       AND ( (s.kind = 'direct' AND s.grantee_user_id = @user_id)
          OR (s.kind = 'group'  AND s.grantee_group_id IN (
                 SELECT gm.group_id FROM group_members gm WHERE gm.user_id = @user_id)) )
-      AND EXISTS (
-          SELECT 1 FROM space_members sm
-          WHERE sm.space_id = gn.space_id AND sm.user_id = @user_id
-      )
+      AND EXISTS (SELECT 1 FROM space_members sm WHERE sm.space_id = gn.space_id AND sm.user_id = @user_id)
     UNION
     -- Owned, but only inside a space the caller still belongs to: leaving ends
     -- the reach, and a departed member's roots live in the archive now.
@@ -194,14 +206,30 @@ WITH RECURSIVE entry(id) AS (
     -- folder and must never surface as its own entry point.
     SELECT n.id FROM nodes n
     WHERE @include_owned::bool AND n.created_by = @user_id AND n.team_root_id IS NULL
+      AND n.deleted_at IS NULL
       AND (sqlc.narg('space_id')::uuid IS NULL OR n.space_id = sqlc.narg('space_id')::uuid)
-      AND EXISTS (
-          SELECT 1 FROM space_members sm
-          WHERE sm.space_id = n.space_id AND sm.user_id = @user_id
+      AND EXISTS (SELECT 1 FROM space_members sm WHERE sm.space_id = n.space_id AND sm.user_id = @user_id)
+      -- Under a live parent the caller also owns outright, a node is never an
+      -- entry point: walking up reaches that parent, or the topmost owned folder
+      -- above it, which is in entry itself. Pruning here keeps entry and the
+      -- walk proportional to top-level items, not to everything ever created.
+      AND NOT EXISTS (
+          SELECT 1 FROM nodes p
+          WHERE p.id = n.parent_id AND p.deleted_at IS NULL
+            AND p.created_by = @user_id AND p.team_root_id IS NULL
       )
 ),
--- Every strict LIVE ancestor of each entry, so the ones sitting underneath
--- another entry can be dropped.
+origin(id) AS (
+    -- Only rows that can be returned need their ancestors checked.
+    -- An app's nodes are listed under Apps in the sidebar, in the home view and
+    -- in "Shared with me" alike.
+    SELECT e.id FROM entry e JOIN nodes n ON n.id = e.id
+    WHERE n.kind <> 'ext'
+      AND (sqlc.narg('space_id')::uuid IS NULL OR n.space_id = sqlc.narg('space_id')::uuid)
+      AND (@include_owned::bool OR n.created_by <> @user_id)
+),
+-- Every strict LIVE ancestor of each origin, so the ones sitting underneath
+-- an entry can be dropped.
 --
 -- The climb stops at the first tombstone. A node whose folder was trashed is
 -- no longer reachable by walking down to it, so suppressing it here would
@@ -210,15 +238,12 @@ WITH RECURSIVE entry(id) AS (
 -- saw. Google Drive draws the same line: trashing a folder does not take
 -- other people's access to what is inside it.
 --
--- The recursive step climbs to the *parent* of the row it joins. Selecting
--- `p.id` there instead re-emitted the same node forever: with UNION ALL the
--- CTE never terminated, so the first nested owned node made the root listing
--- and the folder tree spin until the client gave up. `UNION` is the belt to
--- that brace — a parent_id cycle can then only produce finitely many pairs.
+-- The recursive step climbs to the *parent* of the row it joins; `UNION`
+-- means a parent_id cycle can only produce finitely many pairs.
 walk(origin, id) AS (
-    SELECT e.id, p.id
-    FROM entry e
-    JOIN nodes n ON n.id = e.id
+    SELECT o.id, p.id
+    FROM origin o
+    JOIN nodes n ON n.id = o.id
     JOIN nodes p ON p.id = n.parent_id
     WHERE p.deleted_at IS NULL
   UNION
@@ -233,24 +258,13 @@ SELECT
   n.current_version_id, n.deleted_at, n.created_by, n.created_at, n.team_root_id, n.ext_kind,
   v.id AS v_id, v.blob_hash, v.size AS v_size, v.mime, v.version_no, v.created_by AS v_created_by, v.created_at AS v_created_at,
   u.id AS owner_uid, u.name AS owner_name, u.email AS owner_email
-FROM entry e
-JOIN nodes n ON n.id = e.id
+FROM origin o
+JOIN nodes n ON n.id = o.id
 LEFT JOIN node_versions v ON v.id = n.current_version_id
 LEFT JOIN users u ON u.id = n.created_by
-WHERE n.deleted_at IS NULL
-  -- An app's nodes are listed under Apps in the sidebar, in the home view and
-  -- in "Shared with me" alike. (Shared from outside keeps them: a person who
-  -- is not a member has no Apps list to find them in.)
-  AND n.kind <> 'ext'
-  AND (sqlc.narg('space_id')::uuid IS NULL OR n.space_id = sqlc.narg('space_id')::uuid)
-  AND (@include_owned::bool OR n.created_by <> @user_id)
-  -- Every walk row is already a strict ancestor — the base step starts at the
-  -- parent — so there is no depth to filter on here.
-  AND NOT EXISTS (
-      SELECT 1 FROM walk w
-      JOIN entry e2 ON e2.id = w.id
-      WHERE w.origin = e.id
-  )
+WHERE NOT EXISTS (
+    SELECT 1 FROM walk w JOIN entry e2 ON e2.id = w.id WHERE w.origin = o.id
+)
 ORDER BY n.kind, n.name
 LIMIT 200;
 

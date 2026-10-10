@@ -228,6 +228,29 @@ func (s *Service) IsAdmin(ctx context.Context, spaceID, userID pgtype.UUID) bool
 	return err == nil && ok
 }
 
+// AdminStat is one space's Admin-group facts for a caller.
+type AdminStat struct {
+	IsAdmin    bool
+	AdminCount int64
+}
+
+// AdminStats answers IsAdmin and the admin count for many spaces in one query.
+// A space missing from the map has an empty Admin group.
+func (s *Service) AdminStats(ctx context.Context, userID pgtype.UUID, spaceIDs []pgtype.UUID) (map[pgtype.UUID]AdminStat, error) {
+	out := make(map[pgtype.UUID]AdminStat, len(spaceIDs))
+	if len(spaceIDs) == 0 {
+		return out, nil
+	}
+	rows, err := s.q.ListSpaceAdminStats(ctx, store.ListSpaceAdminStatsParams{UserID: userID, SpaceIds: spaceIDs})
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		out[row.SpaceID] = AdminStat{IsAdmin: row.IsAdmin, AdminCount: row.AdminCount}
+	}
+	return out, nil
+}
+
 // RequireAdmin errors unless the user is in the space's Admin group.
 func (s *Service) RequireAdmin(ctx context.Context, spaceID, userID pgtype.UUID) error {
 	ok, err := s.q.IsSpaceAdmin(ctx, store.IsSpaceAdminParams{SpaceID: spaceID, UserID: userID})

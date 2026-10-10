@@ -504,17 +504,3 @@ func (q *Queries) SetSpaceAvatar(ctx context.Context, arg SetSpaceAvatarParams) 
 	)
 	return i, err
 }
-
-const updateSpaceUsedBytes = `-- name: UpdateSpaceUsedBytes :exec
-UPDATE spaces SET used_bytes = $2 WHERE id = $1
-`
-
-type UpdateSpaceUsedBytesParams struct {
-	ID        pgtype.UUID `json:"id"`
-	UsedBytes int64       `json:"used_bytes"`
-}
-
-func (q *Queries) UpdateSpaceUsedBytes(ctx context.Context, arg UpdateSpaceUsedBytesParams) error {
-	_, err := q.db.Exec(ctx, updateSpaceUsedBytes, arg.ID, arg.UsedBytes)
-	return err
-}

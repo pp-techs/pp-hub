@@ -130,6 +130,48 @@ LEFT JOIN grants g ON g.node_id = n.id
 LEFT JOIN owners o ON o.node_id = n.id
 WHERE n.id = ANY(@node_ids::uuid[]);
 
+-- name: NodeOwnAccessCaps :many
+-- NodeAccessCaps without the ancestor walk: the grants on each node itself
+-- and whether the caller created it outright. share.ChildAccessCaps merges
+-- this with the parent's NodeAccessCaps row — every child of one folder
+-- inherits exactly that folder's chain, so walking it once per child was
+-- the cost of a large listing.
+WITH seed AS (
+    SELECT n.id, n.space_id,
+           EXISTS (SELECT 1 FROM space_members sm WHERE sm.space_id = n.space_id AND sm.user_id = @user_id) AS member,
+           (n.created_by = @user_id AND n.team_root_id IS NULL) AS created_own,
+           (sp.external_sharing AND sp.archived_at IS NULL AND @external_enabled::bool) AS external_ok
+    FROM nodes n
+    JOIN spaces sp ON sp.id = n.space_id
+    WHERE n.id = ANY(@node_ids::uuid[])
+),
+grants AS (
+    SELECT seed.id AS node_id,
+           COUNT(*) > 0              AS view,
+           BOOL_OR(s.can_download)   AS download,
+           BOOL_OR(s.can_share)      AS share,
+           BOOL_OR(s.level = 'edit') AS edit
+    FROM seed
+    JOIN shares s ON s.node_id = seed.id
+    WHERE (seed.member OR seed.external_ok)
+      AND (s.expires_at IS NULL OR s.expires_at > now())
+      AND ( (s.kind = 'direct' AND s.grantee_user_id = @user_id
+             AND (seed.member OR (s.is_external AND EXISTS (
+                     SELECT 1 FROM space_members cm
+                     WHERE cm.space_id = seed.space_id AND cm.user_id = s.created_by))))
+         OR (seed.member AND s.kind = 'group' AND s.grantee_group_id IN (
+                SELECT gm.group_id FROM group_members gm WHERE gm.user_id = @user_id)) )
+    GROUP BY seed.id
+)
+SELECT seed.id AS node_id,
+       COALESCE(g.view, false)     AS view,
+       COALESCE(g.download, false) AS download,
+       COALESCE(g.share, false)    AS share,
+       COALESCE(g.edit, false)     AS edit,
+       (seed.member AND seed.created_own)::bool AS owner
+FROM seed
+LEFT JOIN grants g ON g.node_id = seed.id;
+
 -- name: GetDirectShare :one
 SELECT * FROM shares
 WHERE kind = 'direct' AND node_id = $1 AND grantee_user_id = $2

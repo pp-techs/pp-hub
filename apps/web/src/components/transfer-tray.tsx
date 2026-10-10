@@ -9,6 +9,7 @@ import { cn } from "@workspace/ui/lib/utils";
 import { useFormatters } from "@/lib/format";
 import { keys } from "@/lib/queries";
 import { onUploadSettled, useUploadStore, type Transfer } from "@/lib/upload-store";
+import { createUploadInvalidator } from "@/lib/upload-invalidation";
 
 /**
  * Upload queue, anchored bottom-right above everything.
@@ -31,16 +32,26 @@ export function TransferTray() {
 
   // Each finished file changes the listing it landed in, and the space's used
   // bytes. The store cannot reach the query client itself, so the refetch is
-  // driven from here.
-  useEffect(
-    () =>
-      onUploadSettled((spaceId, parentId) => {
-        void qc.invalidateQueries({ queryKey: keys.children(spaceId, parentId) });
-        void qc.invalidateQueries({ queryKey: ["tree", spaceId] });
-        void qc.invalidateQueries({ queryKey: keys.spaces });
-      }),
-    [qc],
-  );
+  // driven from here: listings refresh at most once per UPLOAD_REFRESH_MS, and
+  // the space's used bytes once the queue stops uploading.
+  useEffect(() => {
+    const invalidator = createUploadInvalidator({
+      invalidateFolder: (spaceId, parentId) =>
+        void qc.invalidateQueries({ queryKey: keys.children(spaceId, parentId) }),
+      invalidateTree: (spaceId) => void qc.invalidateQueries({ queryKey: ["tree", spaceId] }),
+      invalidateSpaces: () => void qc.invalidateQueries({ queryKey: keys.spaces }),
+      isBusy: () =>
+        useUploadStore
+          .getState()
+          // eslint-disable-next-line lingui/no-unlocalized-strings -- TransferStatus id
+          .transfers.some((t) => t.status === "uploading"),
+    });
+    const off = onUploadSettled(invalidator.notify);
+    return () => {
+      off();
+      invalidator.dispose();
+    };
+  }, [qc]);
 
   if (dismissed || transfers.length === 0) return null;
 

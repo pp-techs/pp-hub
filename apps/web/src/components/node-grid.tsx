@@ -1,5 +1,15 @@
-import { Fragment, memo, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  memo,
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import type { MouseEvent } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Plural, useLingui } from "@lingui/react/macro";
 import { MoreVertical } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
@@ -43,11 +53,12 @@ import { LoadingStatus } from "@/components/loading";
 import { LISTING_PADDING } from "@/components/surface";
 import { useUiStore } from "@/lib/ui-store";
 import { DRAG_DATA_TYPE, isValidMoveTarget, setDragGhost } from "@/lib/drag-drop";
+import { buildGridRows, gridColumns, hitTestGrid } from "@/lib/listing-geometry";
+import type { MarqueeRect } from "@/lib/use-marquee-selection";
 
 /**
- * Column count tracks the width of the grid itself, not the viewport, so
- * opening the details panel drops 5 columns to 4 without the route having to
- * tell the grid anything.
+ * The skeleton's columns track the width of the grid itself, not the
+ * viewport, the same breakpoints `gridColumns` computes for the real grid.
  */
 // eslint-disable-next-line lingui/no-unlocalized-strings -- Tailwind class names
 const GRID = "grid grid-cols-2 gap-3 @lg:grid-cols-3 @2xl:grid-cols-4 @4xl:grid-cols-5";
@@ -64,6 +75,10 @@ interface NodeGridProps extends NodeActionHandlers {
   onClick: (node: Node, event: MouseEvent) => void;
   onDoubleClick: (node: Node) => void;
   onMoveNodes?: (nodes: Node[], targetId: string) => Promise<void>;
+  /** The route's scroller: the virtualizer's scroll element. */
+  scrollRef: RefObject<HTMLDivElement | null>;
+  /** Receives this grid's marquee hit test, re-assigned every render. */
+  hitTestRef: RefObject<((band: MarqueeRect) => Set<string>) | null>;
 }
 
 /** Uppercase section heading with the count, as in the Stitch grid. */
@@ -77,7 +92,7 @@ function GroupLabel({
   selected: number;
 }) {
   return (
-    <div className="text-muted-foreground mb-2 flex items-center gap-1.5 text-[11px] font-medium tracking-wider uppercase">
+    <div className="text-muted-foreground mb-2 flex h-4 items-center gap-1.5 text-[11px] font-medium tracking-wider uppercase">
       <span>{label}</span>
       <span className="text-border">·</span>
       <span className="tabular-nums">{count}</span>
@@ -90,6 +105,11 @@ function GroupLabel({
   );
 }
 
+/**
+ * Folders then files, in as many columns as the grid's own width allows.
+ * Only the rows near the viewport are mounted, each placed from the computed
+ * layout, so a folder of thousands costs what a screenful does.
+ */
 export function NodeGrid({
   dirs,
   canWriteHere,
@@ -99,6 +119,8 @@ export function NodeGrid({
   onClick,
   onDoubleClick,
   onMoveNodes,
+  scrollRef,
+  hitTestRef,
   ...handlers
 }: NodeGridProps) {
   const { t } = useLingui();
@@ -107,12 +129,69 @@ export function NodeGrid({
     for (const n of nodes) if (selectedIds.has(n.id)) count++;
     return count;
   };
-  const selectedNodes = useMemo(() => {
-    const map = new Map<string, Node>();
-    for (const d of dirs) if (selectedIds.has(d.id)) map.set(d.id, d);
-    for (const f of files) if (selectedIds.has(f.id)) map.set(f.id, f);
-    return map;
-  }, [dirs, files, selectedIds]);
+
+  // Read at drag start rather than passed down as a fresh collection, so a
+  // selection change re-renders only the cards whose `selected` flipped.
+  const nodesRef = useRef<Node[]>([]);
+  nodesRef.current = [...dirs, ...files];
+  const selectedIdsRef = useRef(selectedIds);
+  selectedIdsRef.current = selectedIds;
+  const getSelectedNodes = useCallback(
+    () => nodesRef.current.filter((n) => selectedIdsRef.current.has(n.id)),
+    [],
+  );
+
+  const innerRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  // Where the rows start inside the scroller's content: the padding above them.
+  const [scrollMargin, setScrollMargin] = useState(0);
+  useLayoutEffect(() => {
+    const inner = innerRef.current;
+    if (!inner) return;
+    const measure = () => {
+      const scroller = scrollRef.current;
+      setWidth(inner.clientWidth);
+      if (scroller)
+        setScrollMargin(
+          inner.getBoundingClientRect().top -
+            scroller.getBoundingClientRect().top +
+            scroller.scrollTop,
+        );
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(inner);
+    return () => observer.disconnect();
+  }, [scrollRef]);
+
+  const cols = gridColumns(width);
+  const layout = useMemo(() => buildGridRows(dirs, files, cols), [dirs, files, cols]);
+  const virtualizer = useVirtualizer({
+    count: layout.rows.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: (i) => layout.rows[i]!.height,
+    overscan: 3,
+    scrollMargin,
+    getItemKey: (i) => layout.rows[i]!.key,
+  });
+  useLayoutEffect(() => {
+    virtualizer.measure();
+  }, [layout, virtualizer]);
+
+  hitTestRef.current = (band) => {
+    const inner = innerRef.current;
+    const scroller = scrollRef.current;
+    if (!inner || !scroller) return new Set();
+    const box = inner.getBoundingClientRect();
+    const bounds = scroller.getBoundingClientRect();
+    const top = box.top - bounds.top + scroller.scrollTop;
+    const left = box.left - bounds.left + scroller.scrollLeft;
+    return hitTestGrid(layout, cols, width, {
+      ...band,
+      left: band.left - left,
+      top: band.top - top,
+    });
+  };
 
   const card = (node: Node) => (
     <NodeCard
@@ -125,26 +204,54 @@ export function NodeGrid({
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       onMoveNodes={onMoveNodes}
-      selectedNodes={selectedNodes}
+      getSelectedNodes={getSelectedNodes}
       {...handlers}
     />
   );
 
   return (
-    <div className={cn("@container flex flex-col gap-6", LISTING_PADDING)}>
-      {dirs.length > 0 && (
-        <section>
-          <GroupLabel label={t`Folders`} count={dirs.length} selected={countSelected(dirs)} />
-          <div className={GRID}>{dirs.map(card)}</div>
-        </section>
-      )}
-
-      {files.length > 0 && (
-        <section>
-          <GroupLabel label={t`Files`} count={files.length} selected={countSelected(files)} />
-          <div className={GRID}>{files.map(card)}</div>
-        </section>
-      )}
+    <div className={LISTING_PADDING}>
+      <div ref={innerRef} className="relative" style={{ height: layout.total }}>
+        {virtualizer.getVirtualItems().map((item) => {
+          const row = layout.rows[item.index]!;
+          return (
+            <div
+              key={item.key}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: row.height,
+                transform: `translateY(${item.start - scrollMargin}px)`,
+              }}
+            >
+              {row.kind === "label" ? (
+                row.group === "dirs" ? (
+                  <GroupLabel
+                    label={t`Folders`}
+                    count={dirs.length}
+                    selected={countSelected(dirs)}
+                  />
+                ) : (
+                  <GroupLabel
+                    label={t`Files`}
+                    count={files.length}
+                    selected={countSelected(files)}
+                  />
+                )
+              ) : (
+                <div
+                  className="grid gap-3"
+                  style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+                >
+                  {row.nodes.map(card)}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -243,7 +350,8 @@ interface NodeCardProps extends NodeActionHandlers {
   onClick: (node: Node, event: MouseEvent) => void;
   onDoubleClick: (node: Node) => void;
   onMoveNodes?: (nodes: Node[], targetId: string) => Promise<void>;
-  selectedNodes: Map<string, Node>;
+  /** The selected cards, read when a drag starts. */
+  getSelectedNodes: () => Node[];
 }
 
 const NodeCard = memo(function NodeCard({
@@ -255,7 +363,7 @@ const NodeCard = memo(function NodeCard({
   onClick,
   onDoubleClick,
   onMoveNodes,
-  selectedNodes,
+  getSelectedNodes,
   ...handlers
 }: NodeCardProps) {
   const { t, i18n } = useLingui();
@@ -273,14 +381,8 @@ const NodeCard = memo(function NodeCard({
       e.preventDefault();
       return;
     }
-    const isSelected = selectedNodes.has(node.id);
-    let nodesToDrag: Node[];
-    if (isSelected) {
-      const selectedList = [...selectedNodes.values()].filter(canRestructure);
-      nodesToDrag = selectedList.length > 0 ? selectedList : [node];
-    } else {
-      nodesToDrag = [node];
-    }
+    const selectedList = selected ? getSelectedNodes().filter(canRestructure) : [];
+    const nodesToDrag = selectedList.length > 0 ? selectedList : [node];
     e.dataTransfer.setData(DRAG_DATA_TYPE, JSON.stringify(nodesToDrag.map((n) => n.id)));
     // eslint-disable-next-line lingui/no-unlocalized-strings -- dataTransfer effectAllowed
     e.dataTransfer.effectAllowed = "move";
@@ -413,10 +515,10 @@ const NodeCard = memo(function NodeCard({
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           className={cn(
-            "group bg-muted hover:bg-primary/10 dark:hover:bg-primary/20 cursor-pointer border border-transparent transition-colors [content-visibility:auto]",
+            "group bg-muted hover:bg-primary/10 dark:hover:bg-primary/20 cursor-pointer border border-transparent transition-colors",
             isDir
-              ? "flex h-12 items-center justify-between rounded-xl px-3.5 [contain-intrinsic-size:auto_48px]"
-              : "rounded-2xl p-2.5 [contain-intrinsic-size:auto_140px]",
+              ? "flex h-12 items-center justify-between rounded-xl px-3.5"
+              : "h-[198px] rounded-2xl p-2.5",
             // Selection is a soft wash, not an outline: a whole folder of
             // ticked cards should still read as a grid.
             selected &&
