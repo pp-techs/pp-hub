@@ -41,11 +41,11 @@ msgstr "\"{deletingTitle}\" will be deleted for everyone who can open this board
 msgid "\"{labelName}\" will be removed from every card that has it."
 msgstr "\"{labelName}\" will be removed from every card that has it."
 
-#: src/routes/drive/$spaceId/index.tsx:385
+#: src/routes/drive/$spaceId/index.tsx:390
 msgid "“{nodeName}” copied — paste it in another folder"
 msgstr "“{nodeName}” copied — paste it in another folder"
 
-#: src/routes/drive/$spaceId/index.tsx:384
+#: src/routes/drive/$spaceId/index.tsx:389
 msgid "“{nodeName}” cut — paste it in another folder"
 msgstr "“{nodeName}” cut — paste it in another folder"
 
@@ -145,7 +145,7 @@ msgstr "{count, plural, one {# card} other {# cards}}"
 msgid "{count, plural, one {# sub-page} other {# sub-pages}}"
 msgstr "{count, plural, one {# sub-page} other {# sub-pages}}"
 
-#: src/routes/drive/$spaceId/index.tsx:724
+#: src/routes/drive/$spaceId/index.tsx:733
 msgid "{count, plural, one {Are you sure you want to move # item to trash?} other {Are you sure you want to move # items to trash?}}"
 msgstr "{count, plural, one {Are you sure you want to move # item to trash?} other {Are you sure you want to move # items to trash?}}"
 
@@ -153,11 +153,11 @@ msgstr "{count, plural, one {Are you sure you want to move # item to trash?} oth
 msgid "{count, plural, one {The other signed-in device will have to sign in again.} other {All # other signed-in devices will have to sign in again.}}"
 msgstr "{count, plural, one {The other signed-in device will have to sign in again.} other {All # other signed-in devices will have to sign in again.}}"
 
-#: src/routes/drive/$spaceId/index.tsx:757
+#: src/routes/drive/$spaceId/index.tsx:766
 msgid "{count, plural, one {These folders hold # item other people created. They lose access until you restore them.} other {These folders hold # items other people created. They lose access until you restore them.}}"
 msgstr "{count, plural, one {These folders hold # item other people created. They lose access until you restore them.} other {These folders hold # items other people created. They lose access until you restore them.}}"
 
-#: src/routes/drive/$spaceId/index.tsx:752
+#: src/routes/drive/$spaceId/index.tsx:761
 msgid "{count, plural, one {This folder holds # item other people created. They lose access until you restore it.} other {This folder holds # items other people created. They lose access until you restore it.}}"
 msgstr "{count, plural, one {This folder holds # item other people created. They lose access until you restore it.} other {This folder holds # items other people created. They lose access until you restore it.}}"
 
@@ -178,7 +178,7 @@ msgstr "{d} days"
 msgid "{days, plural, one {# day} other {# days}}"
 msgstr "{days, plural, one {# day} other {# days}}"
 
-#: src/components/transfer-tray.tsx:167
+#: src/components/transfer-tray.tsx:178
 msgid "{done, plural, one {Uploaded # file} other {Uploaded # files}}"
 msgstr "{done, plural, one {Uploaded # file} other {Uploaded # files}}"
 
@@ -186,7 +186,7 @@ msgstr "{done, plural, one {Uploaded # file} other {Uploaded # files}}"
 msgid "{done} of {total} done"
 msgstr "{done} of {total} done"
 
-#: src/components/transfer-tray.tsx:162
+#: src/components/transfer-tray.tsx:173
 msgid "{done} uploaded, {failed} failed"
 msgstr "{done} uploaded, {failed} failed"
 
@@ -198,7 +198,7 @@ msgstr "{email} reinstated"
 msgid "{email} suspended"
 msgstr "{email} suspended"
 
-#: src/components/transfer-tray.tsx:121
+#: src/components/transfer-tray.tsx:132
 #: src/routes/admin.users.tsx:141
 msgid "{failed, plural, one {# failed} other {# failed}}"
 msgstr "{failed, plural, one {# failed} other {# failed}}"
@@ -256,12 +256,12 @@ msgstr "{label} — {size}"
 msgid "{listed} and {rest, plural, one {# more} other {# more}}"
 msgstr "{listed} and {rest, plural, one {# more} other {# more}}"
 
-#: src/components/transfer-tray.tsx:82
-#: src/components/transfer-tray.tsx:246
+#: src/components/transfer-tray.tsx:93
+#: src/components/transfer-tray.tsx:257
 msgid "{loadedSize} of {totalSize}"
 msgstr "{loadedSize} of {totalSize}"
 
-#: src/components/transfer-tray.tsx:81
+#: src/components/transfer-tray.tsx:92
 msgid "{loadedSize} transferred"
 msgstr "{loadedSize} transferred"
 
@@ -301,7 +301,7 @@ msgstr "{nodeName} was deleted by someone else"
 msgid "{owned, plural, one {This revokes every grant they gave other people, moves anything they created inside someone else’s folder to that folder’s owner, and files the # file they owned at the top level of this space into its Archive.} other {This revokes every grant they gave other people, moves anything they created inside someone else’s folder to that folder’s owner, and files the # files they owned at the top level of this space into its Archive.}}"
 msgstr "{owned, plural, one {This revokes every grant they gave other people, moves anything they created inside someone else’s folder to that folder’s owner, and files the # file they owned at the top level of this space into its Archive.} other {This revokes every grant they gave other people, moves anything they created inside someone else’s folder to that folder’s owner, and files the # files they owned at the top level of this space into its Archive.}}"
 
-#: src/components/transfer-tray.tsx:274
+#: src/components/transfer-tray.tsx:285
 msgid "{perSecond}/s"
 msgstr "{perSecond}/s"
 
@@ -325,7 +325,7 @@ msgstr "{rescued, plural, one {# item created by other people moved to their own
 msgid "{revokeWho} loses access to this {nodeKind, select, dir {folder} other {file}}, but keeps the {revokeOwned, plural, one {# item} other {# items}} they created inside it — ownership is theirs, so those appear at their own top level."
 msgstr "{revokeWho} loses access to this {nodeKind, select, dir {folder} other {file}}, but keeps the {revokeOwned, plural, one {# item} other {# items}} they created inside it — ownership is theirs, so those appear at their own top level."
 
-#: src/components/node-grid.tsx:86
+#: src/components/node-grid.tsx:101
 msgid "{selected, plural, one {# selected} other {# selected}}"
 msgstr "{selected, plural, one {# selected} other {# selected}}"
 
@@ -612,7 +612,7 @@ msgstr "Accounts are provisioned by an administrator."
 msgid "Action"
 msgstr "Action"
 
-#: src/components/node-list.tsx:117
+#: src/components/node-list.tsx:212
 msgid "Actions"
 msgstr "Actions"
 
@@ -625,8 +625,8 @@ msgid "Actions for {memberEmail}"
 msgstr "Actions for {memberEmail}"
 
 #: src/components/nav-apps.tsx:294
-#: src/components/node-grid.tsx:359
-#: src/components/node-list.tsx:325
+#: src/components/node-grid.tsx:461
+#: src/components/node-list.tsx:415
 msgid "Actions for {nodeName}"
 msgstr "Actions for {nodeName}"
 
@@ -817,7 +817,7 @@ msgstr "all active"
 msgid "All events"
 msgstr "All events"
 
-#: src/components/transfer-tray.tsx:123
+#: src/components/transfer-tray.tsx:134
 msgid "All transfers complete"
 msgstr "All transfers complete"
 
@@ -923,7 +923,7 @@ msgid "Archived personal spaces"
 msgstr "Archived personal spaces"
 
 #: src/components/nav-apps.tsx:355
-#: src/routes/drive/$spaceId/index.tsx:723
+#: src/routes/drive/$spaceId/index.tsx:732
 msgid "Are you sure you want to move \"{nodeName}\" to trash?"
 msgstr "Are you sure you want to move \"{nodeName}\" to trash?"
 
@@ -1072,7 +1072,7 @@ msgstr "Can view + download"
 msgid "Cancel"
 msgstr "Cancel"
 
-#: src/components/transfer-tray.tsx:219
+#: src/components/transfer-tray.tsx:230
 msgid "Cancel {fileName}"
 msgstr "Cancel {fileName}"
 
@@ -1080,7 +1080,7 @@ msgstr "Cancel {fileName}"
 msgid "Cancel the invitation for {invitee}"
 msgstr "Cancel the invitation for {invitee}"
 
-#: src/components/transfer-tray.tsx:252
+#: src/components/transfer-tray.tsx:263
 msgid "Cancelled"
 msgstr "Cancelled"
 
@@ -1147,7 +1147,7 @@ msgstr "Claude Code on my laptop"
 msgid "Clear"
 msgstr "Clear"
 
-#: src/components/transfer-tray.tsx:132
+#: src/components/transfer-tray.tsx:143
 msgid "Clear completed"
 msgstr "Clear completed"
 
@@ -1202,7 +1202,7 @@ msgstr "Close pages"
 msgid "Close preview"
 msgstr "Close preview"
 
-#: src/components/transfer-tray.tsx:94
+#: src/components/transfer-tray.tsx:105
 msgid "Close transfers"
 msgstr "Close transfers"
 
@@ -1228,7 +1228,7 @@ msgstr "Collapse My Drive"
 msgid "Collapse toggle"
 msgstr "Collapse toggle"
 
-#: src/components/transfer-tray.tsx:88
+#: src/components/transfer-tray.tsx:99
 msgid "Collapse transfers"
 msgstr "Collapse transfers"
 
@@ -1345,7 +1345,7 @@ msgstr "Continue with the identity provider your administrator configured."
 msgid "Copied {done, plural, one {# item} other {# items}} to {destination}"
 msgstr "Copied {done, plural, one {# item} other {# items}} to {destination}"
 
-#: src/routes/drive/$spaceId/index.tsx:372
+#: src/routes/drive/$spaceId/index.tsx:377
 msgid "Copied as “{copyName}”"
 msgstr "Copied as “{copyName}”"
 
@@ -1395,7 +1395,7 @@ msgstr "Could not change access"
 msgid "Could not change the page"
 msgstr "Could not change the page"
 
-#: src/routes/drive/$spaceId/index.tsx:375
+#: src/routes/drive/$spaceId/index.tsx:380
 msgid "Could not copy “{nodeName}”"
 msgstr "Could not copy “{nodeName}”"
 
@@ -2198,7 +2198,7 @@ msgid "Enable"
 msgstr "Enable"
 
 #: src/components/nav-apps.tsx:329
-#: src/routes/drive/$spaceId/index.tsx:684
+#: src/routes/drive/$spaceId/index.tsx:693
 msgid "Enter a new name for this item."
 msgstr "Enter a new name for this item."
 
@@ -2289,7 +2289,7 @@ msgstr "Expand My Drive"
 msgid "Expand toggle"
 msgstr "Expand toggle"
 
-#: src/components/transfer-tray.tsx:88
+#: src/components/transfer-tray.tsx:99
 msgid "Expand transfers"
 msgstr "Expand transfers"
 
@@ -2381,7 +2381,7 @@ msgid "File: {nodeName}"
 msgstr "File: {nodeName}"
 
 #: src/components/command-palette.tsx:43
-#: src/components/node-grid.tsx:144
+#: src/components/node-grid.tsx:238
 #: src/routes/admin.users.tsx:125
 msgid "Files"
 msgstr "Files"
@@ -2451,7 +2451,7 @@ msgstr "Finder on my laptop"
 msgid "Flowcharts, sequences, and more"
 msgstr "Flowcharts, sequences, and more"
 
-#: src/components/node-grid.tsx:344
+#: src/components/node-grid.tsx:446
 #: src/components/preview-panel.tsx:382
 msgid "Folder"
 msgstr "Folder"
@@ -2469,7 +2469,7 @@ msgid "Folder name"
 msgstr "Folder name"
 
 #: src/components/command-palette.tsx:44
-#: src/components/node-grid.tsx:137
+#: src/components/node-grid.tsx:232
 msgid "Folders"
 msgstr "Folders"
 
@@ -3230,7 +3230,7 @@ msgid "minutes"
 msgstr "minutes"
 
 #: src/components/listing-controls.tsx:24
-#: src/components/node-list.tsx:108
+#: src/components/node-list.tsx:203
 #: src/components/node-table.tsx:78
 #: src/components/preview-modal.tsx:158
 #: src/components/preview-panel.tsx:406
@@ -3289,8 +3289,8 @@ msgstr "Move to column…"
 #: src/components/nav-apps.tsx:354
 #: src/components/nav-apps.tsx:356
 #: src/components/node-actions.tsx:280
-#: src/routes/drive/$spaceId/index.tsx:720
 #: src/routes/drive/$spaceId/index.tsx:729
+#: src/routes/drive/$spaceId/index.tsx:738
 msgid "Move to trash"
 msgstr "Move to trash"
 
@@ -3317,7 +3317,7 @@ msgstr "My Drive"
 #: src/components/listing-controls.tsx:23
 #: src/components/new-document-dialog.tsx:121
 #: src/components/new-ext-node-dialog.tsx:66
-#: src/components/node-list.tsx:105
+#: src/components/node-list.tsx:200
 #: src/components/node-table.tsx:74
 #: src/components/settings/panes/account-general.tsx:44
 #: src/components/settings/panes/personal-tokens.tsx:126
@@ -3541,7 +3541,7 @@ msgstr "No matches for “{queryText}”"
 msgid "No matching cards"
 msgstr "No matching cards"
 
-#: src/routes/drive/$spaceId/index.tsx:596
+#: src/routes/drive/$spaceId/index.tsx:601
 msgid "No matching files or folders"
 msgstr "No matching files or folders"
 
@@ -3865,7 +3865,7 @@ msgstr "Overdue"
 msgid "Overview"
 msgstr "Overview"
 
-#: src/components/node-list.tsx:114
+#: src/components/node-list.tsx:209
 #: src/components/node-table.tsx:84
 #: src/components/preview-modal.tsx:157
 #: src/components/preview-panel.tsx:403
@@ -3926,11 +3926,11 @@ msgstr "Paste below"
 #~ msgid "Pause queue"
 #~ msgstr "Pause queue"
 
-#: src/components/transfer-tray.tsx:128
+#: src/components/transfer-tray.tsx:139
 msgid "Pause uploads"
 msgstr "Pause uploads"
 
-#: src/components/transfer-tray.tsx:250
+#: src/components/transfer-tray.tsx:261
 msgid "Paused"
 msgstr "Paused"
 
@@ -4245,7 +4245,7 @@ msgstr "Removes “{spaceName}” and everything in it — every file, version, 
 #: src/components/nav-apps.tsx:326
 #: src/components/node-actions.tsx:222
 #: src/components/selection-bar.tsx:74
-#: src/routes/drive/$spaceId/index.tsx:681
+#: src/routes/drive/$spaceId/index.tsx:690
 msgid "Rename"
 msgstr "Rename"
 
@@ -4336,7 +4336,7 @@ msgstr "Restored version {versionNo}"
 #~ msgid "Resume queue"
 #~ msgstr "Resume queue"
 
-#: src/components/transfer-tray.tsx:128
+#: src/components/transfer-tray.tsx:139
 msgid "Resume uploads"
 msgstr "Resume uploads"
 
@@ -4347,7 +4347,7 @@ msgstr "Resume uploads"
 
 #: src/components/nav-apps.tsx:188
 #: src/components/nodes/uploadable-node-view.tsx:97
-#: src/components/transfer-tray.tsx:212
+#: src/components/transfer-tray.tsx:223
 msgid "Retry"
 msgstr "Retry"
 
@@ -4372,7 +4372,7 @@ msgstr "Revoke admin"
 msgid "Revoking a group’s access leaves anything its members created in here — those items stay with whoever made them."
 msgstr "Revoking a group’s access leaves anything its members created in here — those items stay with whoever made them."
 
-#: src/routes/drive/$spaceId/index.tsx:605
+#: src/routes/drive/$spaceId/index.tsx:610
 msgid "Right-click here, or use New, to add something."
 msgstr "Right-click here, or use New, to add something."
 
@@ -4392,7 +4392,7 @@ msgstr "Rows and columns of cells"
 #: ../../packages/ext-kanban/src/column-dialogs.tsx:99
 #: src/components/comments/comments-popover.tsx:622
 #: src/components/nav-apps.tsx:344
-#: src/routes/drive/$spaceId/index.tsx:708
+#: src/routes/drive/$spaceId/index.tsx:717
 msgid "Save"
 msgstr "Save"
 
@@ -4779,7 +4779,7 @@ msgid "Signed-in devices"
 msgstr "Signed-in devices"
 
 #: src/components/listing-controls.tsx:25
-#: src/components/node-list.tsx:111
+#: src/components/node-list.tsx:206
 #: src/components/node-table.tsx:81
 #: src/components/preview-modal.tsx:156
 #: src/components/preview-panel.tsx:385
@@ -4964,7 +4964,7 @@ msgstr "Table"
 msgid "Target column"
 msgstr "Target column"
 
-#: src/components/node-list.tsx:316
+#: src/components/node-list.tsx:406
 msgid "Team"
 msgstr "Team"
 
@@ -5190,7 +5190,7 @@ msgstr "This file was shared with you"
 msgid "this folder"
 msgstr "this folder"
 
-#: src/routes/drive/$spaceId/index.tsx:598
+#: src/routes/drive/$spaceId/index.tsx:603
 #: src/routes/drive/shared.tsx:57
 #: src/routes/s/$token.tsx:569
 msgid "This folder is empty"
@@ -5257,7 +5257,7 @@ msgstr "This person"
 #: src/components/drive-write.tsx:91
 #: src/components/drive-write.tsx:173
 #: src/routes/drive/$spaceId/home.tsx:64
-#: src/routes/drive/$spaceId/index.tsx:316
+#: src/routes/drive/$spaceId/index.tsx:321
 msgid "this space"
 msgstr "this space"
 
@@ -5361,7 +5361,7 @@ msgid "Trash retention (days)"
 msgstr "Trash retention (days)"
 
 #: src/components/trash-panel.tsx:257
-#: src/routes/drive/$spaceId/index.tsx:603
+#: src/routes/drive/$spaceId/index.tsx:608
 msgid "Try a different search."
 msgstr "Try a different search."
 
@@ -5494,7 +5494,7 @@ msgid "Upload cancelled"
 msgstr "Upload cancelled"
 
 #: src/components/nodes/uploadable-node-view.tsx:72
-#: src/components/transfer-tray.tsx:254
+#: src/components/transfer-tray.tsx:265
 #: src/lib/collab/attachments.ts:21
 #: src/lib/upload-store.ts:498
 msgid "Upload failed"
@@ -5524,7 +5524,7 @@ msgstr "Upload, organise and share files, with their version history."
 msgid "Uploading {count, plural, one {# file} other {# files}} to {label}"
 msgstr "Uploading {count, plural, one {# file} other {# files}} to {label}"
 
-#: src/components/transfer-tray.tsx:155
+#: src/components/transfer-tray.tsx:166
 msgid "Uploading {current} of {total}"
 msgstr "Uploading {current} of {total}"
 
@@ -5653,7 +5653,7 @@ msgstr "view only"
 msgid "Visual separator"
 msgstr "Visual separator"
 
-#: src/components/transfer-tray.tsx:250
+#: src/components/transfer-tray.tsx:261
 msgid "Waiting"
 msgstr "Waiting"
 
