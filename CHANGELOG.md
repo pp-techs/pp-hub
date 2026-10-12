@@ -11,6 +11,14 @@ Versions up to and including 0.14.1 predate this changelog; see the
 
 <!-- `bun run version-packages` adds each release's section from its changesets; edit it in the Version Packages PR. -->
 
+## [0.20.0] — 2026-10-12
+
+Markdown documents now show files beside them by relative path, as a README in a repository does: `![](images/a.png)`, `[spec](../spec.pdf)`, and relative video or file blocks render from the drive, and relative links open the page or file they name. This covers documents written by agents through a WebDAV mount, `docs/` folders uploaded from a repository, and unpacked exports. The markdown keeps the path. A writer can **Embed in document** to keep the document's own copy of the file instead.
+
+Access change: readers of a document, share-link visitors included, now see the files it names inside the folder it sits in, when the author of the version being read can download those files. A document at the top of a space reaches nothing this way, and someone who can edit only that one document cannot use it to read the files around it.
+
+Document export brings those files into `assets/`.
+
 ## [0.19.1] — 2026-10-10
 
 Large drives stay fast. Folders with thousands of items render only the rows on screen, folder listings resolve access once per folder instead of once per item, and Home, Recent and the space list no longer slow down with history. Storage usage is now kept current by the database instead of being re-summed on every save, and it now drops when files are purged from Trash; the first start after upgrading recomputes every space's figure, which may lower it. Finished preview jobs older than 7 days are deleted automatically (failed jobs are kept). Thumbnails are no longer generated for images over about 67 megapixels or SVG files over 8 MiB.
