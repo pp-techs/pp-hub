@@ -11,6 +11,10 @@ Versions up to and including 0.14.1 predate this changelog; see the
 
 <!-- `bun run version-packages` adds each release's section from its changesets; edit it in the Version Packages PR. -->
 
+## [0.21.0] — 2026-10-12
+
+Folders can now be downloaded from the drive: **Download as .zip** appears in a folder's menu, in the selection bar, and beside folders in "Shared with me", for anyone who holds download on the folder. The archive is the one the server already streamed for `GET /nodes/{id}/download` on a folder.
+
 ## [0.20.0] — 2026-10-12
 
 Markdown documents now show files beside them by relative path, as a README in a repository does: `![](images/a.png)`, `[spec](../spec.pdf)`, and relative video or file blocks render from the drive, and relative links open the page or file they name. This covers documents written by agents through a WebDAV mount, `docs/` folders uploaded from a repository, and unpacked exports. The markdown keeps the path. A writer can **Embed in document** to keep the document's own copy of the file instead.
