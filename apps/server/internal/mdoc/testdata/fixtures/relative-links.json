@@ -1,0 +1,56 @@
+{
+  "name": "relative-links",
+  "input": "See [the spec](../Spec.md#scope) and [data](data/x.csv).\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "See "
+          },
+          {
+            "type": "text",
+            "text": "the spec",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "../Spec.md#scope",
+                  "title": null
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " and "
+          },
+          {
+            "type": "text",
+            "text": "data",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "data/x.csv",
+                  "title": null
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": "."
+          }
+        ]
+      }
+    ]
+  },
+  "output": "See [the spec](../Spec.md#scope) and [data](data/x.csv).",
+  "yupdate_b64": "AQsBAAcBB2NvbnRlbnQDCXBhcmFncmFwaAcAAQAGBAABAQRTZWUghgEFBGxpbmtseyJocmVmIjoiLi4vU3BlYy5tZCNzY29wZSIsInRhcmdldCI6Il9ibGFuayIsInJlbCI6Im5vb3BlbmVyIG5vcmVmZXJyZXIgbm9mb2xsb3ciLCJjbGFzcyI6bnVsbCwidGl0bGUiOm51bGx9hAEGCHRoZSBzcGVjhgEOBGxpbmsEbnVsbIQBDwUgYW5kIIYBFARsaW5rZnsiaHJlZiI6ImRhdGEveC5jc3YiLCJ0YXJnZXQiOiJfYmxhbmsiLCJyZWwiOiJub29wZW5lciBub3JlZmVycmVyIG5vZm9sbG93IiwiY2xhc3MiOm51bGwsInRpdGxlIjpudWxsfYQBFQRkYXRhhgEZBGxpbmsEbnVsbIQBGgEuAA==",
+  "expect_lossy": false
+}

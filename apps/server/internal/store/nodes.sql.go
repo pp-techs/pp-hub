@@ -244,6 +244,49 @@ func (q *Queries) GetCurrentVersion(ctx context.Context, id pgtype.UUID) (NodeVe
 	return i, err
 }
 
+const getLiveChildByName = `-- name: GetLiveChildByName :one
+SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, deleted_by, created_by, created_at, team_root_id, ext_kind FROM nodes
+WHERE space_id = $1
+  AND parent_id IS NOT DISTINCT FROM $2::uuid
+  AND deleted_at IS NULL
+  AND kind IN ('dir', 'file')
+  AND normalize(name, NFC) = $3::text
+ORDER BY (name = $3::text) DESC, created_at
+LIMIT 1
+`
+
+type GetLiveChildByNameParams struct {
+	SpaceID  pgtype.UUID `json:"space_id"`
+	ParentID pgtype.UUID `json:"parent_id"`
+	Name     string      `json:"name"`
+}
+
+// The live file or folder named @name directly under @parent_id (NULL: the
+// space's top level), for a document's relative reference. Names compare in
+// Unicode NFC, @name included: Finder writes names decomposed, a markdown
+// file usually spells them composed. The exact spelling wins when both forms
+// exist side by side.
+func (q *Queries) GetLiveChildByName(ctx context.Context, arg GetLiveChildByNameParams) (Node, error) {
+	row := q.db.QueryRow(ctx, getLiveChildByName, arg.SpaceID, arg.ParentID, arg.Name)
+	var i Node
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.SpaceID,
+		&i.ParentID,
+		&i.Kind,
+		&i.Name,
+		&i.CurrentVersionID,
+		&i.DeletedAt,
+		&i.DeletedBy,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.TeamRootID,
+		&i.ExtKind,
+	)
+	return i, err
+}
+
 const getNode = `-- name: GetNode :one
 SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, deleted_by, created_by, created_at, team_root_id, ext_kind FROM nodes WHERE id = $1 AND deleted_at IS NULL LIMIT 1
 `

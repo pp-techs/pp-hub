@@ -10,13 +10,8 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@workspace/ui/components/empty";
-import {
-  attachmentUrl,
-  openEditor,
-  shareAttachmentUrl,
-  type MarkdownDocument,
-  type Node,
-} from "@/lib/api";
+import { openEditor, type MarkdownDocument, type Node } from "@/lib/api";
+import { nodeDocumentFiles, shareDocumentFiles } from "@/lib/collab/document-files";
 import { usePageStore } from "@/lib/collab/page-store";
 import { useNodeDocument, useShareDocument } from "@/lib/queries";
 import type { ReadOnlyEditorProps } from "./read-only-editor";
@@ -36,11 +31,12 @@ const ReadOnlyEditor = lazy(() => import("./read-only-editor"));
  * No collab room is joined — this is a snapshot, so it can show a past
  * version, or a file behind a share link with no session at all.
  *
- * `attachmentUrl` maps an `attachment:<hash>` reference to where this viewer
- * may fetch it (the document's private route, or the share link's). The
- * editor's extensions are resolved once, so a caller showing a different
- * document remounts the view with a new `key` rather than swapping the
- * resolver; a new `doc` for the same document replaces the content in place.
+ * `files` says where this viewer may fetch what the document references —
+ * its attachments and the files beside it named by relative paths (the
+ * document's private routes, or the share link's) — and how a relative link
+ * opens. The editor's extensions are resolved once, so a caller showing a
+ * different document remounts the view with a new `key` rather than swapping
+ * them; a new `doc` for the same document replaces the content in place.
  *
  * `lossy` says the file holds markdown the block schema has no node for (raw
  * HTML, footnotes…). The render leaves that out, and the reader is told so
@@ -57,8 +53,8 @@ export function MarkdownDocumentView(props: ReadOnlyEditorProps) {
 /**
  * A signed-in reader's view of a markdown file: the current version, or
  * `versionId`. The server gates `/document` on the view capability, as it does
- * the file's bytes. A sub-page or page link opens in the editor, in a new
- * tab, as a document opened from the drive does.
+ * the file's bytes. A sub-page, page link or relative link to a page opens in
+ * the editor, in a new tab, as a document opened from the drive does.
  */
 export function NodeMarkdownView({
   node,
@@ -80,7 +76,7 @@ export function NodeMarkdownView({
       key={`${node.id}:${versionId ?? ""}`}
       doc={document.data.doc}
       lossy={document.data.lossy}
-      attachmentUrl={(hash) => attachmentUrl(node.id, hash)}
+      files={nodeDocumentFiles(node.id, { versionId, openPage: (id) => openEditor({ id }) })}
       className={className}
       outlineScrollRef={outlineScrollRef}
       pages={{ store: pageStore, pageId: node.id, onNavigate: (id) => openEditor({ id }) }}
@@ -90,7 +86,8 @@ export function NodeMarkdownView({
 
 /**
  * A markdown file inside a share link, rendered for an anonymous visitor. A
- * sub-page or page link inside the link's reach calls `onNavigatePage`.
+ * sub-page, page link or relative link to a page inside the link's reach
+ * calls `onNavigatePage`.
  */
 export function SharedMarkdownView({
   token,
@@ -114,7 +111,7 @@ export function SharedMarkdownView({
       key={nodeId}
       doc={document.data.doc}
       lossy={document.data.lossy}
-      attachmentUrl={(hash) => shareAttachmentUrl(token, nodeId, hash)}
+      files={shareDocumentFiles(token, nodeId, onNavigatePage)}
       className={className}
       outlineScrollRef={outlineScrollRef}
       pages={{ store: pageStore, pageId: nodeId, onNavigate: onNavigatePage }}
@@ -168,7 +165,7 @@ export function MarkdownThumbnail({ node, fallback }: { node: Node; fallback: Re
             key={node.id}
             doc={document.data.doc}
             lossy={document.data.lossy}
-            attachmentUrl={(hash) => attachmentUrl(node.id, hash)}
+            files={nodeDocumentFiles(node.id, { openPage: () => {} })}
             className="p-6"
             // Inert: nothing opens from a thumbnail, but sub-pages read by name.
             pages={{ store: pageStore, pageId: node.id, onNavigate: () => {} }}

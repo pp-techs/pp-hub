@@ -4,18 +4,28 @@ import { useEditorState, type NodeViewProps } from "@tiptap/react";
 import { useLingui } from "@lingui/react/macro";
 import { ImageIcon } from "lucide-react";
 import { useRef, useState, type PointerEvent } from "react";
-import { UploadableNodeView } from "@/components/nodes/uploadable-node-view";
+import type { RelativeEmbed } from "@/lib/api";
+import { isRelativeRef } from "@/lib/collab/document-files";
+import { UnresolvedReference, UploadableNodeView } from "@/components/nodes/uploadable-node-view";
 
 /** Narrowest an image can be dragged to, in CSS pixels. */
 const MIN_WIDTH = 80;
 
-export function ImageNodeView(props: NodeViewProps & { adapter?: UploadAdapter }) {
+export function ImageNodeView(
+  props: NodeViewProps & {
+    adapter?: UploadAdapter;
+    embed?: (path: string) => Promise<RelativeEmbed>;
+  },
+) {
   const { t } = useLingui();
   const src = useResolvedSrc(
     props.node.attrs.src as string | null,
     props.node,
     (props.extension.options as ImageOptions).resolveSrc,
   );
+  // A relative path that fails to load names nothing this reader can see.
+  const [failed, setFailed] = useState<string | null>(null);
+  const stored = props.node.attrs.src as string | null;
   return (
     <UploadableNodeView
       {...props}
@@ -23,13 +33,18 @@ export function ImageNodeView(props: NodeViewProps & { adapter?: UploadAdapter }
       icon={ImageIcon}
       emptyLabel={t`Add an image`}
       retry={(id, override) => props.editor.commands.retryImage(id, override)}
-      renderReady={() => (
-        <ResizableImage
-          {...props}
-          src={src ?? undefined}
-          alt={(props.node.attrs.alt as string | null) ?? ""}
-        />
-      )}
+      renderReady={() =>
+        isRelativeRef(stored) && failed === src ? (
+          <UnresolvedReference icon={ImageIcon} path={stored} />
+        ) : (
+          <ResizableImage
+            {...props}
+            src={src ?? undefined}
+            alt={(props.node.attrs.alt as string | null) ?? ""}
+            onError={() => setFailed(src)}
+          />
+        )
+      }
     />
   );
 }
@@ -48,7 +63,8 @@ function ResizableImage({
   updateAttributes,
   src,
   alt,
-}: NodeViewProps & { src: string | undefined; alt: string }) {
+  onError,
+}: NodeViewProps & { src: string | undefined; alt: string; onError: () => void }) {
   const { t } = useLingui();
   const imageRef = useRef<HTMLImageElement>(null);
   const [dragWidth, setDragWidth] = useState<number | null>(null);
@@ -93,6 +109,7 @@ function ResizableImage({
         src={src}
         alt={alt}
         draggable={false}
+        onError={onError}
         style={width ? { width } : undefined}
         className="block max-w-full rounded-md in-data-selected:ring-2 in-data-selected:ring-ring"
       />

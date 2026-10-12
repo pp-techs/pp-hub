@@ -1,0 +1,42 @@
+{
+  "name": "relative-media",
+  "input": "![a](images/a.png)\n\n![b](<../shared/Bùi đẹp.png>)\n\n<!-- slash:file {\"size\":3} -->\n[spec.pdf](./spec%20v2.pdf)\n\n<!-- slash:video {\"poster\":\"poster.png\"} -->\n[clip.mp4](media/clip.mp4)\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "image",
+        "attrs": {
+          "src": "images/a.png",
+          "alt": "a"
+        }
+      },
+      {
+        "type": "image",
+        "attrs": {
+          "src": "../shared/Bùi đẹp.png",
+          "alt": "b"
+        }
+      },
+      {
+        "type": "file",
+        "attrs": {
+          "size": 3,
+          "src": "./spec%20v2.pdf",
+          "name": "spec.pdf"
+        }
+      },
+      {
+        "type": "video",
+        "attrs": {
+          "poster": "poster.png",
+          "src": "media/clip.mp4"
+        }
+      }
+    ]
+  },
+  "output": "![a](images/a.png)\n\n![b](<../shared/Bùi đẹp.png>)\n\n<!-- slash:file {\"size\":3} -->\n[spec.pdf](./spec%20v2.pdf)\n\n<!-- slash:video {\"poster\":\"poster.png\"} -->\n[media/clip.mp4](media/clip.mp4)",
+  "yupdate_b64": "AREBAAcBB2NvbnRlbnQDBWltYWdlKAABAANzcmMBdwxpbWFnZXMvYS5wbmcoAAEAA2FsdAF3AWEoAAEABnN0YXR1cwF3BXJlYWR5hwEAAwVpbWFnZSgAAQQDc3JjAXcZLi4vc2hhcmVkL0LDuWkgxJHhurlwLnBuZygAAQQDYWx0AXcBYigAAQQGc3RhdHVzAXcFcmVhZHmHAQQDBGZpbGUoAAEIA3NyYwF3Dy4vc3BlYyUyMHYyLnBkZigAAQgEbmFtZQF3CHNwZWMucGRmKAABCARzaXplAX0DKAABCAZzdGF0dXMBdwVyZWFkeYcBCAMFdmlkZW8oAAENA3NyYwF3Dm1lZGlhL2NsaXAubXA0KAABDQZwb3N0ZXIBdwpwb3N0ZXIucG5nKAABDQZzdGF0dXMBdwVyZWFkeQA=",
+  "expect_lossy": false
+}

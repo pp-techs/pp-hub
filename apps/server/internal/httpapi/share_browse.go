@@ -78,19 +78,26 @@ const maxShareDepth = 100
 // response itself on any failure. `dir` (or `node`) selects a descendant;
 // absent means the share root.
 func (s *Server) shareScope(w http.ResponseWriter, r *http.Request, param string) (store.Share, store.Node, bool) {
+	sh, _, node, ok := s.shareScopeRoot(w, r, param)
+	return sh, node, ok
+}
+
+// shareScopeRoot is shareScope that also answers the link's own node, for a
+// route that must decide whether some other node is inside the link too.
+func (s *Server) shareScopeRoot(w http.ResponseWriter, r *http.Request, param string) (store.Share, store.Node, store.Node, bool) {
 	sh, root := s.resolveLinkNode(w, r)
 	if !sh.ID.Valid {
-		return sh, root, false
+		return sh, root, root, false
 	}
 
 	raw := r.URL.Query().Get(param)
 	if raw == "" {
-		return sh, root, true
+		return sh, root, root, true
 	}
 	var nodeID pgtype.UUID
 	if err := nodeID.Scan(raw); err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid node id")
-		return sh, root, false
+		return sh, root, root, false
 	}
 
 	node, err := s.resolveShareNode(r, root, nodeID)
@@ -98,9 +105,9 @@ func (s *Server) shareScope(w http.ResponseWriter, r *http.Request, param string
 		// Deliberately 404, not 403: confirming that a node exists but sits
 		// outside the share is itself more than the visitor should learn.
 		writeProblem(w, http.StatusNotFound, "Not Found", "not found in this share")
-		return sh, root, false
+		return sh, root, root, false
 	}
-	return sh, node, true
+	return sh, root, node, true
 }
 
 // handleShareChildren lists a folder inside the shared subtree.

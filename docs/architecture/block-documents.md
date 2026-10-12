@@ -19,18 +19,19 @@ previewed as a text snippet, and that was all.
 
 ## Decisions
 
-| Question                                           | Decision                                                                                                |
-| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Editor                                             | [slash-editor](https://slasheditor.dev) (Tiptap/ProseMirror, shadcn UI we own)                          |
-| What is stored                                     | A plain `.md` file node — CAS blob, `node_versions`, shares, trash, previews unchanged                  |
-| Collaboration                                      | Realtime Yjs from v1: remote carets and presence avatars                                                |
-| Sync server                                        | [reearth/ygo](https://github.com/reearth/ygo), a patched copy embedded in `apps/server`                 |
-| Markdown ↔ document                                | Go (`internal/mdoc`), held to slash-editor's JS serializer by golden fixtures                           |
-| Embedded images and files                          | Attachments owned by the document (`node_attachments`), not files in the folder listing                 |
-| Version cadence                                    | Coalesced: after 30 s quiet, at most every 5 min under continuous typing, and on server shutdown        |
-| Structure                                          | Sub-pages in the node tree: a `.md` whose parent is a `.md` ([M43](milestones/M43.md), [Pages](#pages)) |
-| Imported `.md` that would not survive a round trip | Opens read-only; **Edit** warns first                                                                   |
-| Crash window                                       | Up to ~5 min of unflushed edits may be lost on a crash; graceful shutdown flushes                       |
+| Question                                           | Decision                                                                                                                   |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Editor                                             | [slash-editor](https://slasheditor.dev) (Tiptap/ProseMirror, shadcn UI we own)                                             |
+| What is stored                                     | A plain `.md` file node — CAS blob, `node_versions`, shares, trash, previews unchanged                                     |
+| Collaboration                                      | Realtime Yjs from v1: remote carets and presence avatars                                                                   |
+| Sync server                                        | [reearth/ygo](https://github.com/reearth/ygo), a patched copy embedded in `apps/server`                                    |
+| Markdown ↔ document                                | Go (`internal/mdoc`), held to slash-editor's JS serializer by golden fixtures                                              |
+| Embedded images and files                          | Attachments owned by the document (`node_attachments`), not files in the folder listing                                    |
+| Files beside the document (`![](images/a.png)`)    | Relative paths kept as written, resolved against the node tree on every read ([Relative references](#relative-references)) |
+| Version cadence                                    | Coalesced: after 30 s quiet, at most every 5 min under continuous typing, and on server shutdown                           |
+| Structure                                          | Sub-pages in the node tree: a `.md` whose parent is a `.md` ([M43](milestones/M43.md), [Pages](#pages))                    |
+| Imported `.md` that would not survive a round trip | Opens read-only; **Edit** warns first                                                                                      |
+| Crash window                                       | Up to ~5 min of unflushed edits may be lost on a crash; graceful shutdown flushes                                          |
 
 **Not built:** the AI block, databases or collection views, non-markdown
 sub-pages, realtime push of page
@@ -74,23 +75,27 @@ flowchart LR
 
 ### API surface
 
-| Route                                         | What it does                                                                                                                                                 |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `GET /api/v1/nodes/{id}/collab`               | `{room, can_write, lossy}`. Needs `CapDownload` and a markdown file; 413 for a document over 16 MiB                                                          |
-| `GET /api/v1/collab/{room}`                   | The room's WebSocket (Hocuspocus protocol). Wrapped in `socketOrigin`; the room authorizes node, epoch and mode                                              |
-| `GET /api/v1/nodes/{id}/attachments/{hash}`   | An attachment's bytes, needing `CapView` on the document; images and video inline (with `Range`), anything else as a download                                |
-| `POST /api/v1/uploads` with `attach_to=<id>`  | The tus upload, addressed to a document; needs `CapEdit` on it. The commit answers the hash in `Upload-Attachment`                                           |
-| `POST /api/v1/spaces/{id}/documents`          | `kind=markdown` creates an `.md`, empty or from `"template": "<id>"` (M40); `parent_id` may be a document (a sub-page), and `name` defaults to `Untitled.md` |
-| `GET /api/v1/templates/markdown`              | `[{id, name, description}]` in `?locale=` or the caller's saved language (en, vi)                                                                            |
-| `GET /api/v1/nodes/{id}/document`             | `{doc, lossy, version}`: the current version, or `?version=<id>`, as a ProseMirror tree. `CapView`; 400 if not markdown; 404 for another node's version      |
-| `GET /api/v1/nodes/{id}/export`               | `application/zip`: the markdown with attachments rewritten to `assets/…`, and those files. `CapDownload`; audited as a download                              |
-| `POST /api/v1/nodes/{id}/unfurl`              | `{url}` → `{url, title, description, thumbnail?}` for a link bookmark. `CapEdit` on the document                                                             |
-| `GET /s/{token}/document?node=<id>`           | The same tree through a public link, which always grants view and must cover the node                                                                        |
-| `GET /s/{token}/attachments/{hash}?node=<id>` | An attachment through a link, on the same terms                                                                                                              |
-| `GET /api/v1/nodes/{id}/page`                 | M43: `{page, ancestors}` — the page's `PageMeta` and its viewable document ancestors, root first. 404 unless viewable markdown                               |
-| `GET /api/v1/nodes/{id}/pages`                | M43: direct live sub-pages as `PageMeta[]`, by `page_order`, then `created_at`, then name. View on the parent; 404 otherwise                                 |
-| `GET /api/v1/nodes/{id}/backlinks`            | M43: live pages that link to or hold this one, filtered by what the caller can view; 404 unless viewable                                                     |
-| `GET /s/{token}/page?node=`, `/pages?node=`   | M43: the same through a public link, chain cut at the link root                                                                                              |
+| Route                                                   | What it does                                                                                                                                                  |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/v1/nodes/{id}/collab`                         | `{room, can_write, lossy}`. Needs `CapDownload` and a markdown file; 413 for a document over 16 MiB                                                           |
+| `GET /api/v1/collab/{room}`                             | The room's WebSocket (Hocuspocus protocol). Wrapped in `socketOrigin`; the room authorizes node, epoch and mode                                               |
+| `GET /api/v1/nodes/{id}/attachments/{hash}`             | An attachment's bytes, needing `CapView` on the document; images and video inline (with `Range`), anything else as a download                                 |
+| `POST /api/v1/uploads` with `attach_to=<id>`            | The tus upload, addressed to a document; needs `CapEdit` on it. The commit answers the hash in `Upload-Attachment`                                            |
+| `POST /api/v1/spaces/{id}/documents`                    | `kind=markdown` creates an `.md`, empty or from `"template": "<id>"` (M40); `parent_id` may be a document (a sub-page), and `name` defaults to `Untitled.md`  |
+| `GET /api/v1/templates/markdown`                        | `[{id, name, description}]` in `?locale=` or the caller's saved language (en, vi)                                                                             |
+| `GET /api/v1/nodes/{id}/document`                       | `{doc, lossy, version}`: the current version, or `?version=<id>`, as a ProseMirror tree. `CapView`; 400 if not markdown; 404 for another node's version       |
+| `GET /api/v1/nodes/{id}/export`                         | `application/zip`: the markdown with attachments rewritten to `assets/…`, and those files. `CapDownload`; audited as a download                               |
+| `POST /api/v1/nodes/{id}/unfurl`                        | `{url}` → `{url, title, description, thumbnail?}` for a link bookmark. `CapEdit` on the document                                                              |
+| `GET /s/{token}/document?node=<id>`                     | The same tree through a public link, which always grants view and must cover the node                                                                         |
+| `GET /s/{token}/attachments/{hash}?node=<id>`           | An attachment through a link, on the same terms                                                                                                               |
+| `GET /api/v1/nodes/{id}/relative?path=[&version=]`      | The file a relative reference names, on the document's terms ([Relative references](#relative-references)); images and video inline, anything else a download |
+| `GET /api/v1/nodes/{id}/relative/meta?path=`            | `{id, kind, name, markdown}` of what a relative link names, only when the caller can view it themselves                                                       |
+| `POST /api/v1/nodes/{id}/relative/embed`                | `{path}` → `{src, name, mime, size}`: the file copied into the document's attachments. `CapEdit` on the document, the caller's own `CapDownload` on the file  |
+| `GET /s/{token}/relative?node=&path=`, `/relative/meta` | The same through a link; meta only for a node the link covers                                                                                                 |
+| `GET /api/v1/nodes/{id}/page`                           | M43: `{page, ancestors}` — the page's `PageMeta` and its viewable document ancestors, root first. 404 unless viewable markdown                                |
+| `GET /api/v1/nodes/{id}/pages`                          | M43: direct live sub-pages as `PageMeta[]`, by `page_order`, then `created_at`, then name. View on the parent; 404 otherwise                                  |
+| `GET /api/v1/nodes/{id}/backlinks`                      | M43: live pages that link to or hold this one, filtered by what the caller can view; 404 unless viewable                                                      |
+| `GET /s/{token}/page?node=`, `/pages?node=`             | M43: the same through a public link, chain cut at the link root                                                                                               |
 
 Comments and notifications have routes of their own, listed under
 [Comments](#comments).
@@ -279,7 +284,7 @@ the file.
 ### Golden fixtures
 
 `bun apps/web/scripts/mdoc-fixtures.ts`, run against the same
-`@slash-editor/core` as `apps/web` and the same `createMdocKit()`, writes 260
+`@slash-editor/core` as `apps/web` and the same `createMdocKit()`, writes 263
 fixtures to `internal/mdoc/testdata/fixtures/` — the input, its frontmatter,
 slash-editor's `parseMarkdown` JSON, its `serializeMarkdown` output, a Y
 update built by `@tiptap/y-tiptap`, and whether `Parse` must flag it lossy —
@@ -482,6 +487,66 @@ node_attachments(node_id, blob_hash, name, mime, size, created_by, created_at,
 A plain `.md` download keeps `attachment:` references that resolve nowhere
 else; [export](#export) is the way out with the images.
 
+## Relative references
+
+A document can name a file beside it by path, the way a README in a
+repository does: `![](images/a.png)`, `[spec](../spec.pdf)`, a video or file
+block whose `src` is `media/clip.mp4`. That is what an agent writes through a
+[WebDAV mount](webdav.md), what a repository's `docs/` folder uploaded as a
+folder holds, and what an unpacked [export](#export) links to. The markdown
+keeps the path as written — nothing rewrites it — and the server resolves it
+on every read, so the document shows the file as it is now.
+
+**Resolution** (`mdoc.RelativePath`, `fs.ResolveRelative`). A relative
+reference has no scheme or host and is not rooted; `?query` and `#fragment`
+are not part of the path. Segments are percent-decoded and compared in
+Unicode NFC (Finder writes names decomposed), `name/..` folds away, and a
+path naming a folder (`a/`, `.`, `..`) is not a file reference. The path
+starts at the document's parent — a folder, or the document a sub-page hangs
+under — and `..` climbs from there, which is exactly the export's layout,
+where a page's sub-pages sit in a folder beside it. Each segment is a live
+file or folder (`GetLiveChildByName`); anything else is a 404. At most 32
+segments and 1 KiB.
+
+**Who may have the bytes** (`relativeReadable`). Either the reader's own
+access to the file — view for an image or video shown in place, download for
+anything else, which only downloads — or **the document's reach**: the file
+lies under the document's nearest folder ancestor, and the author of the
+version being read (`node_versions.created_by`; `?version=` selects a past
+one) may download it. The author condition is what stops someone handed a
+single document with edit from naming its neighbours to read them — the rule
+write-back [adoption](#attachments) already follows. Consequences, all
+deliberate: a document at the top of a space reaches nothing on its own
+behalf; when the author of the current version leaves the space, readers who
+relied on the reach stop seeing the files; a link to the document shows what
+the document reaches, so an anonymous visitor sees the README's images
+without a link on the folder. Every refusal is a 404, as for a path naming
+nothing. A read through the reach is audited as a view of the file, with the
+document in its detail. The bytes are revalidated by blob hash
+(`Cache-Control: private, no-cache`), since the same path can hold a new
+version.
+
+**Links.** `relative/meta` answers what a relative link names only to a
+reader who may open it — the reach is for rendering, not navigation; through
+a link, only a node the link covers. The web opens a page in the editor (or
+the link's page view), any other node at `/open/<id>`, and a file inside a
+link in place.
+
+**Embedding.** A writer can turn a relative block into one of the document's
+own attachments (**Embed in document** on the block): `relative/embed` adds a
+`node_attachments` row for the file's current blob (`fs.AttachFile`, under the
+usual quota) and the editor points the block at `attachment:<hash>`. It makes
+a copy, so it takes the caller's own download on the file, never the reach.
+
+**Web.** `lib/collab/document-files.ts` is the one place a rendering says
+where references go: `DocumentFiles {attachment, relative, openRelative}`,
+built by `nodeDocumentFiles` (editor, preview, version preview, thumbnail) or
+`shareDocumentFiles`, and turned into the media nodes' `resolveSrc`. A click on
+a relative `<a>` is caught before the browser resolves it against the app's
+URL (in the editor, a plain click still edits the link; Ctrl/⌘-click or the
+popover's **Open link** opens it). A relative image or video that fails to
+load shows its path ("Cannot show …").
+
 ## Templates
 
 `internal/blockdoc/templates/<lang>/<id>.md`, embedded: meeting notes,
@@ -528,7 +593,14 @@ files under `assets/` — a document that still renders once it leaves pp-hub.
 Since M43 the document's sub-pages come with it, and the folder zip uses the
 same planner ([Pages](#pages)).
 A reference to an attachment the document does not hold is left as it is: it
-resolves nowhere, in pp-hub or out of it. Everything that can fail with a
+resolves nowhere, in pp-hub or out of it. A [relative
+reference](#relative-references) to a node in the archive is rewritten to that
+node's entry. In a document export, one to a file outside the archive is
+copied into the `assets/` beside the page when the caller could have it
+through the page — their own download, or the page's reach. The folder zip
+copies nothing from outside the folder: such a reference stays as written. A
+lossy page's relative references are rewritten only where the bytes hold a
+plain `](path)`. Everything that can fail with a
 status fails before the response is committed. It takes `CapDownload` and is
 audited as a download. The web offers it as **Export with images (.zip)** in
 node actions and the editor header's download menu.

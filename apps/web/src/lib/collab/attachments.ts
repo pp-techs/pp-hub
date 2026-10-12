@@ -1,5 +1,5 @@
 import { msg } from "@lingui/core/macro";
-import type { ResolveSrc, UploadAdapter, UploadResult } from "@slash-editor/core";
+import type { UploadAdapter, UploadResult } from "@slash-editor/core";
 import { ApiError, startResumableUpload } from "@/lib/api";
 import { i18n } from "@/lib/i18n";
 
@@ -57,21 +57,6 @@ export function attachmentAdapter(documentId: string): UploadAdapter<AttachmentR
       }
     },
   };
-}
-
-/** Turns an attachment hash into a URL: the document's own route, a share link's, … */
-export type AttachmentUrl = (hash: string) => string;
-
-/**
- * The `resolveSrc` of a rendering's media nodes: an `attachment:` reference
- * resolves through `attachmentUrl` — the editor's document, or the share link
- * or version a read-only view renders — and anything else (a link someone
- * typed into the markdown) is used as written. Display only: the stored
- * `src` stays `attachment:<hash>`.
- */
-export function attachmentResolver(attachmentUrl: AttachmentUrl): ResolveSrc {
-  return (src) =>
-    src.startsWith(ATTACHMENT_SCHEME) ? attachmentUrl(src.slice(ATTACHMENT_SCHEME.length)) : src;
 }
 
 /**

@@ -656,7 +656,7 @@ msgstr "Thêm bình luận"
 msgid "Add a comment… (@ to mention)"
 msgstr "Thêm bình luận… (@ để nhắc đến)"
 
-#: src/components/nodes/file-node-view.tsx:25
+#: src/components/nodes/file-node-view.tsx:31
 msgid "Add a file"
 msgstr "Thêm tệp"
 
@@ -664,11 +664,11 @@ msgstr "Thêm tệp"
 msgid "Add a more detailed description…"
 msgstr "Thêm mô tả chi tiết hơn…"
 
-#: src/components/nodes/video-node-view.tsx:24
+#: src/components/nodes/video-node-view.tsx:35
 msgid "Add a video"
 msgstr "Thêm video"
 
-#: src/components/nodes/image-node-view.tsx:24
+#: src/components/nodes/image-node-view.tsx:34
 msgid "Add an image"
 msgstr "Thêm hình ảnh"
 
@@ -859,7 +859,7 @@ msgstr "Quản trị viên chưa bật quyền truy cập cho tác tử."
 msgid "An administrator has turned personal tokens off."
 msgstr "Quản trị viên đã tắt mã truy cập cá nhân."
 
-#: src/components/doc-editor/doc-editor.tsx:377
+#: src/components/doc-editor/doc-editor.tsx:378
 msgid "Anonymous"
 msgstr "Ẩn danh"
 
@@ -1084,6 +1084,10 @@ msgstr "Hủy lời mời gửi {invitee}"
 msgid "Cancelled"
 msgstr "Đã huỷ"
 
+#: src/components/nodes/uploadable-node-view.tsx:182
+msgid "Cannot show {path}"
+msgstr "Không hiển thị được {path}"
+
 #: src/components/doc-editor/labels.ts:31
 msgid "Capture a quotation"
 msgstr "Ghi lại một trích dẫn"
@@ -1295,7 +1299,7 @@ msgstr "Chuỗi bình luận"
 #: src/components/comments/block-comments.tsx:201
 #: src/components/comments/comments-popover.tsx:191
 #: src/components/comments/comments-popover.tsx:287
-#: src/components/doc-editor/doc-editor.tsx:247
+#: src/components/doc-editor/doc-editor.tsx:248
 msgid "Comments"
 msgstr "Bình luận"
 
@@ -1456,7 +1460,7 @@ msgstr "Không thể tạo nhóm"
 msgid "Could not create the label"
 msgstr "Không tạo được nhãn"
 
-#: src/components/doc-editor/doc-editor.tsx:85
+#: src/components/doc-editor/doc-editor.tsx:86
 msgid "Could not create the page"
 msgstr "Không thể tạo trang"
 
@@ -1497,6 +1501,10 @@ msgstr "Không thể xóa bình luận"
 #: ../../packages/ext-kanban/src/queries.ts:255
 msgid "Could not delete the label"
 msgstr "Không xoá được nhãn"
+
+#: src/components/nodes/uploadable-node-view.tsx:68
+msgid "Could not embed the file"
+msgstr "Không nhúng được tệp"
 
 #: src/components/trash-panel.tsx:445
 msgid "Could not empty the trash"
@@ -1543,11 +1551,11 @@ msgstr "Không thể di chuyển trang"
 msgid "Could not move the page to the trash"
 msgstr "Không thể chuyển trang vào thùng rác"
 
-#: src/components/doc-editor/doc-editor.tsx:83
+#: src/components/doc-editor/doc-editor.tsx:84
 msgid "Could not move the sub-page to the trash"
 msgstr "Không thể chuyển trang con vào thùng rác"
 
-#: src/components/doc-editor/doc-editor.tsx:309
+#: src/components/doc-editor/doc-editor.tsx:310
 msgid "Could not open the document"
 msgstr "Không thể mở tài liệu"
 
@@ -1593,7 +1601,7 @@ msgstr "Không thể khôi phục “{name}”"
 msgid "Could not restore the page"
 msgstr "Không thể khôi phục trang"
 
-#: src/components/doc-editor/doc-editor.tsx:84
+#: src/components/doc-editor/doc-editor.tsx:85
 msgid "Could not restore the sub-page"
 msgstr "Không thể khôi phục trang con"
 
@@ -2113,7 +2121,7 @@ msgid "edit"
 msgstr "chỉnh sửa"
 
 #: src/components/comments/comments-popover.tsx:594
-#: src/components/doc-editor/doc-editor.tsx:234
+#: src/components/doc-editor/doc-editor.tsx:235
 #: src/components/node-actions.tsx:152
 msgid "Edit"
 msgstr "Chỉnh sửa"
@@ -2162,6 +2170,11 @@ msgstr "Nhúng"
 #: src/components/nodes/embed-node-view.tsx:91
 msgid "Embed a link"
 msgstr "Nhúng liên kết"
+
+#: src/components/nodes/uploadable-node-view.tsx:98
+#: src/components/nodes/uploadable-node-view.tsx:99
+msgid "Embed in document"
+msgstr "Nhúng vào tài liệu"
 
 #: src/components/doc-editor/labels.ts:46
 msgid "Emoji"
@@ -2999,7 +3012,7 @@ msgstr "Giới hạn"
 msgid "Link"
 msgstr "Liên kết"
 
-#: src/components/link-editor-popover.tsx:38
+#: src/components/link-editor-popover.tsx:55
 msgid "Link address"
 msgstr "Địa chỉ liên kết"
 
@@ -3724,7 +3737,7 @@ msgstr "Đang tắt. Không ai tạo hay mở được các mục của nó."
 msgid "Office"
 msgstr "Office"
 
-#: src/components/doc-editor/doc-editor.tsx:634
+#: src/components/doc-editor/doc-editor.tsx:645
 msgid "Offline"
 msgstr "Ngoại tuyến"
 
@@ -3793,7 +3806,7 @@ msgstr "Mở thẻ để đặt hạn, giao người, thêm nhãn và liên kế
 msgid "Open in new tab"
 msgstr "Mở trong tab mới"
 
-#: src/components/link-editor-popover.tsx:51
+#: src/components/link-editor-popover.tsx:68
 msgid "Open link"
 msgstr "Mở liên kết"
 
@@ -3890,7 +3903,7 @@ msgstr "Không tìm thấy trang."
 msgid "Page title"
 msgstr "Tiêu đề trang"
 
-#: src/components/doc-editor/doc-editor.tsx:240
+#: src/components/doc-editor/doc-editor.tsx:241
 #: src/components/doc-editor/labels.ts:58
 #: src/components/doc-editor/page-tree-panel.tsx:193
 #: src/components/doc-editor/page-tree-panel.tsx:198
@@ -3914,7 +3927,7 @@ msgstr "Đã sao chép mật khẩu"
 msgid "Paste"
 msgstr "Dán"
 
-#: src/components/link-editor-popover.tsx:37
+#: src/components/link-editor-popover.tsx:54
 msgid "Paste a link…"
 msgstr "Dán liên kết…"
 
@@ -4123,7 +4136,7 @@ msgstr "chia sẻ lại"
 msgid "read-only"
 msgstr "chỉ đọc"
 
-#: src/components/doc-editor/doc-editor.tsx:228
+#: src/components/doc-editor/doc-editor.tsx:229
 msgid "Read-only"
 msgstr "Chỉ đọc"
 
@@ -4201,7 +4214,7 @@ msgid "Remove icon"
 msgstr "Gỡ biểu tượng"
 
 #: ../../packages/ext-kanban/src/link-picker.tsx:59
-#: src/components/link-editor-popover.tsx:58
+#: src/components/link-editor-popover.tsx:74
 msgid "Remove link"
 msgstr "Gỡ liên kết"
 
@@ -4291,7 +4304,7 @@ msgstr "Do nhà cung cấp danh tính báo về"
 msgid "Reset"
 msgstr "Đặt lại"
 
-#: src/components/nodes/image-node-view.tsx:103
+#: src/components/nodes/image-node-view.tsx:120
 msgid "Resize image"
 msgstr "Đổi kích thước hình ảnh"
 
@@ -4346,12 +4359,12 @@ msgstr "Tiếp tục tải lên"
 #~ msgstr "Thời gian lưu giữ (ngày)"
 
 #: src/components/nav-apps.tsx:188
-#: src/components/nodes/uploadable-node-view.tsx:97
+#: src/components/nodes/uploadable-node-view.tsx:140
 #: src/components/transfer-tray.tsx:223
 msgid "Retry"
 msgstr "Thử lại"
 
-#: src/components/nodes/uploadable-node-view.tsx:57
+#: src/components/nodes/uploadable-node-view.tsx:86
 msgid "Retry upload"
 msgstr "Thử tải lên lại"
 
@@ -4403,7 +4416,7 @@ msgstr "Lưu"
 msgid "Save changes"
 msgstr "Lưu thay đổi"
 
-#: src/components/doc-editor/doc-editor.tsx:624
+#: src/components/doc-editor/doc-editor.tsx:635
 msgid "Saved"
 msgstr "Đã lưu"
 
@@ -4592,7 +4605,7 @@ msgstr "phiên đã bị thu hồi"
 msgid "sessions revoked"
 msgstr "phiên đã bị thu hồi"
 
-#: src/components/link-editor-popover.tsx:71
+#: src/components/link-editor-popover.tsx:87
 msgid "Set link"
 msgstr "Đặt liên kết"
 
@@ -4814,7 +4827,7 @@ msgstr "Tiêu đề phần nhỏ"
 msgid "Snippet copied"
 msgstr "Đã sao chép đoạn cấu hình"
 
-#: src/components/markdown-document-view/read-only-editor.tsx:116
+#: src/components/markdown-document-view/read-only-editor.tsx:123
 msgid "Some formatting in this file cannot be shown here. Download it to see all of it."
 msgstr "Một số định dạng trong tệp này không hiển thị được ở đây. Hãy tải xuống để xem đầy đủ."
 
@@ -4948,7 +4961,7 @@ msgstr "Đã tạm khoá"
 msgid "Switch space"
 msgstr "Chuyển không gian"
 
-#: src/components/doc-editor/doc-editor.tsx:629
+#: src/components/doc-editor/doc-editor.tsx:640
 msgid "Syncing…"
 msgstr "Đang đồng bộ…"
 
@@ -5057,8 +5070,8 @@ msgstr "liên kết công khai"
 msgid "The rest of the thread stays."
 msgstr "Phần còn lại của chuỗi bình luận vẫn được giữ."
 
-#: src/components/doc-editor/doc-editor.tsx:314
-#: src/components/markdown-document-view/index.tsx:207
+#: src/components/doc-editor/doc-editor.tsx:315
+#: src/components/markdown-document-view/index.tsx:204
 msgid "The server did not answer."
 msgstr "Máy chủ không phản hồi."
 
@@ -5166,11 +5179,11 @@ msgstr "Thiết bị này"
 msgid "This device stays signed in."
 msgstr "Thiết bị này luôn ở trạng thái đăng nhập."
 
-#: src/components/markdown-document-view/index.tsx:202
+#: src/components/markdown-document-view/index.tsx:199
 msgid "This document cannot be shown"
 msgstr "Không thể hiển thị tài liệu này"
 
-#: src/components/doc-editor/doc-editor.tsx:292
+#: src/components/doc-editor/doc-editor.tsx:293
 msgid "This document is not available"
 msgstr "Tài liệu này không khả dụng"
 
@@ -5244,6 +5257,10 @@ msgstr "Liên kết này không khả dụng"
 #: src/components/share-dialog.tsx:969
 msgid "This link is shown only once. Copy it now — it cannot be shown again after this dialog closes."
 msgstr "Liên kết này chỉ hiển thị một lần. Hãy sao chép ngay — sau khi đóng hộp thoại sẽ không thể hiển thị lại."
+
+#: src/lib/collab/document-files.ts:83
+msgid "This link leads nowhere you can open"
+msgstr "Liên kết này không dẫn tới nơi bạn mở được"
 
 #: src/components/settings/settings-modal.tsx:190
 msgid "This pane has changes that were never saved. Leaving now throws them away."
@@ -5366,7 +5383,7 @@ msgid "Try a different search."
 msgstr "Hãy thử tìm kiếm khác."
 
 #: ../../packages/ext-sdk/src/ext-unavailable.tsx:51
-#: src/components/doc-editor/doc-editor.tsx:320
+#: src/components/doc-editor/doc-editor.tsx:321
 msgid "Try again"
 msgstr "Thử lại"
 
@@ -5407,7 +5424,7 @@ msgstr "Nhập mã Mermaid ở trên"
 msgid "Type the space name to confirm"
 msgstr "Nhập tên không gian để xác nhận"
 
-#: src/components/doc-editor/doc-editor.tsx:82
+#: src/components/doc-editor/doc-editor.tsx:83
 msgid "Type to search"
 msgstr "Gõ để tìm kiếm"
 
@@ -5457,7 +5474,7 @@ msgstr "Danh sách việc chưa đặt tên"
 msgid "Untitled document"
 msgstr "Tài liệu không tên"
 
-#: src/components/nodes/file-node-view.tsx:12
+#: src/components/nodes/file-node-view.tsx:18
 msgid "Untitled file"
 msgstr "Tệp không tên"
 
@@ -5473,11 +5490,11 @@ msgstr "Bản trình chiếu không tên"
 msgid "Untitled spreadsheet"
 msgstr "Bảng tính không tên"
 
-#: src/components/link-editor-popover.tsx:71
+#: src/components/link-editor-popover.tsx:87
 msgid "Update"
 msgstr "Cập nhật"
 
-#: src/components/nodes/uploadable-node-view.tsx:108
+#: src/components/nodes/uploadable-node-view.tsx:151
 msgid "Upload"
 msgstr "Tải lên"
 
@@ -5493,7 +5510,7 @@ msgstr "Tải lên hình ảnh"
 msgid "Upload cancelled"
 msgstr "Đã huỷ tải lên"
 
-#: src/components/nodes/uploadable-node-view.tsx:72
+#: src/components/nodes/uploadable-node-view.tsx:115
 #: src/components/transfer-tray.tsx:265
 #: src/lib/collab/attachments.ts:21
 #: src/lib/upload-store.ts:498
@@ -5528,7 +5545,7 @@ msgstr "Đang tải {count, plural, one {# tệp} other {# tệp}} lên {label}"
 msgid "Uploading {current} of {total}"
 msgstr "Đang tải lên {current} trên {total}"
 
-#: src/components/nodes/uploadable-node-view.tsx:70
+#: src/components/nodes/uploadable-node-view.tsx:113
 msgid "Uploading…"
 msgstr "Đang tải lên…"
 
@@ -5835,7 +5852,7 @@ msgstr "Bạn đã tải lên"
 msgid "Your access"
 msgstr "Quyền của bạn"
 
-#: src/components/doc-editor/doc-editor.tsx:295
+#: src/components/doc-editor/doc-editor.tsx:296
 msgid "Your access may have been removed, or the file is no longer a markdown document."
 msgstr "Có thể quyền truy cập của bạn đã bị gỡ, hoặc tệp không còn là tài liệu markdown."
 

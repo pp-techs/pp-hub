@@ -38,8 +38,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@workspace/ui/components/tooltip";
-import { attachmentUrl, type Node } from "@/lib/api";
+import { embedRelative, type Node } from "@/lib/api";
 import { attachmentAdapter } from "@/lib/collab/attachments";
+import { nodeDocumentFiles, relativeLinkClick } from "@/lib/collab/document-files";
 import { createMdocKit } from "@/lib/collab/mdoc-kit";
 import { mentionItems } from "@/lib/collab/mentions";
 import { ROOM_META, usePageStore, type PpPageStore } from "@/lib/collab/page-store";
@@ -377,6 +378,11 @@ function DocSurface({
   const name = me.data?.display_name || me.data?.name || me.data?.email || t`Anonymous`;
   const color = presenceColor(me.data?.id ?? "");
   const adapter = useMemo(() => attachmentAdapter(documentId), [documentId]);
+  // Latched by the kit with the rest; `onNavigate` is stable.
+  const files = useMemo(
+    () => nodeDocumentFiles(documentId, { openPage: onNavigate }),
+    [documentId, onNavigate],
+  );
 
   // The room's `meta` map is the open page's live icon and cover.
   useEffect(
@@ -434,8 +440,8 @@ function DocSurface({
           hint: i18n._(SLASH_HINT),
         }),
         ...mdocNodeViews({
-          attachmentUrl: (hash) => attachmentUrl(documentId, hash),
-          editing: { documentId, adapter },
+          files,
+          editing: { documentId, adapter, embed: (path) => embedRelative(documentId, path) },
           mentionItems: mentionItems(queryClient, node.id),
           pages,
         }),
@@ -499,7 +505,12 @@ function DocSurface({
               adapter={adapter}
             />
           </div>
-          <div className="slash-content relative mx-auto w-full max-w-5xl px-4 pt-4 pb-10 md:pr-32 md:pl-20">
+          {/* A relative link (`[spec](../Spec.md)`) is the drive's path, not
+              this page's: opened through the document, never by the browser. */}
+          <div
+            className="slash-content relative mx-auto w-full max-w-5xl px-4 pt-4 pb-10 md:pr-32 md:pl-20"
+            onClickCapture={relativeLinkClick(files, () => editor.isEditable)}
+          >
             <EditorContent editor={editor} />
             {editable ? (
               <>
@@ -507,7 +518,7 @@ function DocSurface({
                 <MentionMenu editor={editor} />
                 <EmojiMenu editor={editor} />
                 <BubbleToolbar editor={editor} />
-                <LinkEditorPopover editor={editor} />
+                <LinkEditorPopover editor={editor} openRelative={files.openRelative} />
                 <TableControls editor={editor} />
                 {/* The handle sits in a gutter left of the text that a narrow
                   screen does not have; there, blocks move by cut and paste. */}

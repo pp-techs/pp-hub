@@ -656,7 +656,7 @@ msgstr "Add a comment"
 msgid "Add a comment… (@ to mention)"
 msgstr "Add a comment… (@ to mention)"
 
-#: src/components/nodes/file-node-view.tsx:25
+#: src/components/nodes/file-node-view.tsx:31
 msgid "Add a file"
 msgstr "Add a file"
 
@@ -664,11 +664,11 @@ msgstr "Add a file"
 msgid "Add a more detailed description…"
 msgstr "Add a more detailed description…"
 
-#: src/components/nodes/video-node-view.tsx:24
+#: src/components/nodes/video-node-view.tsx:35
 msgid "Add a video"
 msgstr "Add a video"
 
-#: src/components/nodes/image-node-view.tsx:24
+#: src/components/nodes/image-node-view.tsx:34
 msgid "Add an image"
 msgstr "Add an image"
 
@@ -859,7 +859,7 @@ msgstr "An administrator has not turned on agent access."
 msgid "An administrator has turned personal tokens off."
 msgstr "An administrator has turned personal tokens off."
 
-#: src/components/doc-editor/doc-editor.tsx:377
+#: src/components/doc-editor/doc-editor.tsx:378
 msgid "Anonymous"
 msgstr "Anonymous"
 
@@ -1084,6 +1084,10 @@ msgstr "Cancel the invitation for {invitee}"
 msgid "Cancelled"
 msgstr "Cancelled"
 
+#: src/components/nodes/uploadable-node-view.tsx:182
+msgid "Cannot show {path}"
+msgstr "Cannot show {path}"
+
 #: src/components/doc-editor/labels.ts:31
 msgid "Capture a quotation"
 msgstr "Capture a quotation"
@@ -1295,7 +1299,7 @@ msgstr "Comment thread"
 #: src/components/comments/block-comments.tsx:201
 #: src/components/comments/comments-popover.tsx:191
 #: src/components/comments/comments-popover.tsx:287
-#: src/components/doc-editor/doc-editor.tsx:247
+#: src/components/doc-editor/doc-editor.tsx:248
 msgid "Comments"
 msgstr "Comments"
 
@@ -1456,7 +1460,7 @@ msgstr "Could not create the group"
 msgid "Could not create the label"
 msgstr "Could not create the label"
 
-#: src/components/doc-editor/doc-editor.tsx:85
+#: src/components/doc-editor/doc-editor.tsx:86
 msgid "Could not create the page"
 msgstr "Could not create the page"
 
@@ -1497,6 +1501,10 @@ msgstr "Could not delete the comment"
 #: ../../packages/ext-kanban/src/queries.ts:255
 msgid "Could not delete the label"
 msgstr "Could not delete the label"
+
+#: src/components/nodes/uploadable-node-view.tsx:68
+msgid "Could not embed the file"
+msgstr "Could not embed the file"
 
 #: src/components/trash-panel.tsx:445
 msgid "Could not empty the trash"
@@ -1543,11 +1551,11 @@ msgstr "Could not move the page"
 msgid "Could not move the page to the trash"
 msgstr "Could not move the page to the trash"
 
-#: src/components/doc-editor/doc-editor.tsx:83
+#: src/components/doc-editor/doc-editor.tsx:84
 msgid "Could not move the sub-page to the trash"
 msgstr "Could not move the sub-page to the trash"
 
-#: src/components/doc-editor/doc-editor.tsx:309
+#: src/components/doc-editor/doc-editor.tsx:310
 msgid "Could not open the document"
 msgstr "Could not open the document"
 
@@ -1593,7 +1601,7 @@ msgstr "Could not restore “{name}”"
 msgid "Could not restore the page"
 msgstr "Could not restore the page"
 
-#: src/components/doc-editor/doc-editor.tsx:84
+#: src/components/doc-editor/doc-editor.tsx:85
 msgid "Could not restore the sub-page"
 msgstr "Could not restore the sub-page"
 
@@ -2113,7 +2121,7 @@ msgid "edit"
 msgstr "edit"
 
 #: src/components/comments/comments-popover.tsx:594
-#: src/components/doc-editor/doc-editor.tsx:234
+#: src/components/doc-editor/doc-editor.tsx:235
 #: src/components/node-actions.tsx:152
 msgid "Edit"
 msgstr "Edit"
@@ -2162,6 +2170,11 @@ msgstr "Embed"
 #: src/components/nodes/embed-node-view.tsx:91
 msgid "Embed a link"
 msgstr "Embed a link"
+
+#: src/components/nodes/uploadable-node-view.tsx:98
+#: src/components/nodes/uploadable-node-view.tsx:99
+msgid "Embed in document"
+msgstr "Embed in document"
 
 #: src/components/doc-editor/labels.ts:46
 msgid "Emoji"
@@ -2999,7 +3012,7 @@ msgstr "Limits"
 msgid "Link"
 msgstr "Link"
 
-#: src/components/link-editor-popover.tsx:38
+#: src/components/link-editor-popover.tsx:55
 msgid "Link address"
 msgstr "Link address"
 
@@ -3724,7 +3737,7 @@ msgstr "Off. Nobody can create or open its items."
 msgid "Office"
 msgstr "Office"
 
-#: src/components/doc-editor/doc-editor.tsx:634
+#: src/components/doc-editor/doc-editor.tsx:645
 msgid "Offline"
 msgstr "Offline"
 
@@ -3793,7 +3806,7 @@ msgstr "Open a card to set a due date, assign people, add labels and link drive 
 msgid "Open in new tab"
 msgstr "Open in new tab"
 
-#: src/components/link-editor-popover.tsx:51
+#: src/components/link-editor-popover.tsx:68
 msgid "Open link"
 msgstr "Open link"
 
@@ -3890,7 +3903,7 @@ msgstr "Page not found."
 msgid "Page title"
 msgstr "Page title"
 
-#: src/components/doc-editor/doc-editor.tsx:240
+#: src/components/doc-editor/doc-editor.tsx:241
 #: src/components/doc-editor/labels.ts:58
 #: src/components/doc-editor/page-tree-panel.tsx:193
 #: src/components/doc-editor/page-tree-panel.tsx:198
@@ -3914,7 +3927,7 @@ msgstr "Password copied"
 msgid "Paste"
 msgstr "Paste"
 
-#: src/components/link-editor-popover.tsx:37
+#: src/components/link-editor-popover.tsx:54
 msgid "Paste a link…"
 msgstr "Paste a link…"
 
@@ -4123,7 +4136,7 @@ msgstr "re-share"
 msgid "read-only"
 msgstr "read-only"
 
-#: src/components/doc-editor/doc-editor.tsx:228
+#: src/components/doc-editor/doc-editor.tsx:229
 msgid "Read-only"
 msgstr "Read-only"
 
@@ -4201,7 +4214,7 @@ msgid "Remove icon"
 msgstr "Remove icon"
 
 #: ../../packages/ext-kanban/src/link-picker.tsx:59
-#: src/components/link-editor-popover.tsx:58
+#: src/components/link-editor-popover.tsx:74
 msgid "Remove link"
 msgstr "Remove link"
 
@@ -4291,7 +4304,7 @@ msgstr "Reported by the identity provider"
 msgid "Reset"
 msgstr "Reset"
 
-#: src/components/nodes/image-node-view.tsx:103
+#: src/components/nodes/image-node-view.tsx:120
 msgid "Resize image"
 msgstr "Resize image"
 
@@ -4346,12 +4359,12 @@ msgstr "Resume uploads"
 #~ msgstr "Retention period (days)"
 
 #: src/components/nav-apps.tsx:188
-#: src/components/nodes/uploadable-node-view.tsx:97
+#: src/components/nodes/uploadable-node-view.tsx:140
 #: src/components/transfer-tray.tsx:223
 msgid "Retry"
 msgstr "Retry"
 
-#: src/components/nodes/uploadable-node-view.tsx:57
+#: src/components/nodes/uploadable-node-view.tsx:86
 msgid "Retry upload"
 msgstr "Retry upload"
 
@@ -4403,7 +4416,7 @@ msgstr "Save"
 msgid "Save changes"
 msgstr "Save changes"
 
-#: src/components/doc-editor/doc-editor.tsx:624
+#: src/components/doc-editor/doc-editor.tsx:635
 msgid "Saved"
 msgstr "Saved"
 
@@ -4592,7 +4605,7 @@ msgstr "session revoked"
 msgid "sessions revoked"
 msgstr "sessions revoked"
 
-#: src/components/link-editor-popover.tsx:71
+#: src/components/link-editor-popover.tsx:87
 msgid "Set link"
 msgstr "Set link"
 
@@ -4814,7 +4827,7 @@ msgstr "Small section title"
 msgid "Snippet copied"
 msgstr "Snippet copied"
 
-#: src/components/markdown-document-view/read-only-editor.tsx:116
+#: src/components/markdown-document-view/read-only-editor.tsx:123
 msgid "Some formatting in this file cannot be shown here. Download it to see all of it."
 msgstr "Some formatting in this file cannot be shown here. Download it to see all of it."
 
@@ -4948,7 +4961,7 @@ msgstr "Suspended"
 msgid "Switch space"
 msgstr "Switch space"
 
-#: src/components/doc-editor/doc-editor.tsx:629
+#: src/components/doc-editor/doc-editor.tsx:640
 msgid "Syncing…"
 msgstr "Syncing…"
 
@@ -5057,8 +5070,8 @@ msgstr "the public link"
 msgid "The rest of the thread stays."
 msgstr "The rest of the thread stays."
 
-#: src/components/doc-editor/doc-editor.tsx:314
-#: src/components/markdown-document-view/index.tsx:207
+#: src/components/doc-editor/doc-editor.tsx:315
+#: src/components/markdown-document-view/index.tsx:204
 msgid "The server did not answer."
 msgstr "The server did not answer."
 
@@ -5166,11 +5179,11 @@ msgstr "This device"
 msgid "This device stays signed in."
 msgstr "This device stays signed in."
 
-#: src/components/markdown-document-view/index.tsx:202
+#: src/components/markdown-document-view/index.tsx:199
 msgid "This document cannot be shown"
 msgstr "This document cannot be shown"
 
-#: src/components/doc-editor/doc-editor.tsx:292
+#: src/components/doc-editor/doc-editor.tsx:293
 msgid "This document is not available"
 msgstr "This document is not available"
 
@@ -5244,6 +5257,10 @@ msgstr "This link is not available"
 #: src/components/share-dialog.tsx:969
 msgid "This link is shown only once. Copy it now — it cannot be shown again after this dialog closes."
 msgstr "This link is shown only once. Copy it now — it cannot be shown again after this dialog closes."
+
+#: src/lib/collab/document-files.ts:83
+msgid "This link leads nowhere you can open"
+msgstr "This link leads nowhere you can open"
 
 #: src/components/settings/settings-modal.tsx:190
 msgid "This pane has changes that were never saved. Leaving now throws them away."
@@ -5366,7 +5383,7 @@ msgid "Try a different search."
 msgstr "Try a different search."
 
 #: ../../packages/ext-sdk/src/ext-unavailable.tsx:51
-#: src/components/doc-editor/doc-editor.tsx:320
+#: src/components/doc-editor/doc-editor.tsx:321
 msgid "Try again"
 msgstr "Try again"
 
@@ -5407,7 +5424,7 @@ msgstr "Type Mermaid source above"
 msgid "Type the space name to confirm"
 msgstr "Type the space name to confirm"
 
-#: src/components/doc-editor/doc-editor.tsx:82
+#: src/components/doc-editor/doc-editor.tsx:83
 msgid "Type to search"
 msgstr "Type to search"
 
@@ -5457,7 +5474,7 @@ msgstr "Untitled checklist"
 msgid "Untitled document"
 msgstr "Untitled document"
 
-#: src/components/nodes/file-node-view.tsx:12
+#: src/components/nodes/file-node-view.tsx:18
 msgid "Untitled file"
 msgstr "Untitled file"
 
@@ -5473,11 +5490,11 @@ msgstr "Untitled presentation"
 msgid "Untitled spreadsheet"
 msgstr "Untitled spreadsheet"
 
-#: src/components/link-editor-popover.tsx:71
+#: src/components/link-editor-popover.tsx:87
 msgid "Update"
 msgstr "Update"
 
-#: src/components/nodes/uploadable-node-view.tsx:108
+#: src/components/nodes/uploadable-node-view.tsx:151
 msgid "Upload"
 msgstr "Upload"
 
@@ -5493,7 +5510,7 @@ msgstr "Upload an image"
 msgid "Upload cancelled"
 msgstr "Upload cancelled"
 
-#: src/components/nodes/uploadable-node-view.tsx:72
+#: src/components/nodes/uploadable-node-view.tsx:115
 #: src/components/transfer-tray.tsx:265
 #: src/lib/collab/attachments.ts:21
 #: src/lib/upload-store.ts:498
@@ -5528,7 +5545,7 @@ msgstr "Uploading {count, plural, one {# file} other {# files}} to {label}"
 msgid "Uploading {current} of {total}"
 msgstr "Uploading {current} of {total}"
 
-#: src/components/nodes/uploadable-node-view.tsx:70
+#: src/components/nodes/uploadable-node-view.tsx:113
 msgid "Uploading…"
 msgstr "Uploading…"
 
@@ -5835,7 +5852,7 @@ msgstr "You uploaded"
 msgid "Your access"
 msgstr "Your access"
 
-#: src/components/doc-editor/doc-editor.tsx:295
+#: src/components/doc-editor/doc-editor.tsx:296
 msgid "Your access may have been removed, or the file is no longer a markdown document."
 msgstr "Your access may have been removed, or the file is no longer a markdown document."
 
