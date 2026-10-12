@@ -712,7 +712,7 @@ msgstr "Add people or groups…"
 msgid "Add someone to this group…"
 msgstr "Add someone to this group…"
 
-#: src/components/node-actions.tsx:201
+#: src/components/node-actions.tsx:215
 msgid "Add star"
 msgstr "Add star"
 
@@ -1172,7 +1172,7 @@ msgstr "Clear filters"
 msgid "Clear formatting"
 msgstr "Clear formatting"
 
-#: src/components/selection-bar.tsx:93
+#: src/components/selection-bar.tsx:98
 msgid "Clear selection"
 msgstr "Clear selection"
 
@@ -1354,7 +1354,7 @@ msgid "Copied as “{copyName}”"
 msgstr "Copied as “{copyName}”"
 
 #: src/components/block-handle.tsx:216
-#: src/components/node-actions.tsx:261
+#: src/components/node-actions.tsx:275
 #: src/components/settings/panes/agent-access-section.tsx:105
 #: src/components/settings/panes/agent-access-section.tsx:204
 #: src/components/settings/panes/personal-tokens.tsx:76
@@ -1803,7 +1803,7 @@ msgstr "Current"
 msgid "Current access"
 msgstr "Current access"
 
-#: src/components/node-actions.tsx:251
+#: src/components/node-actions.tsx:265
 msgid "Cut"
 msgstr "Cut"
 
@@ -1851,7 +1851,7 @@ msgstr "Default space quota"
 #: src/components/comments/comments-popover.tsx:510
 #: src/components/comments/comments-popover.tsx:600
 #: src/components/comments/thread-list.tsx:270
-#: src/components/selection-bar.tsx:88
+#: src/components/selection-bar.tsx:93
 msgid "Delete"
 msgstr "Delete"
 
@@ -2053,10 +2053,10 @@ msgstr "download"
 
 #: src/components/editor-header.tsx:130
 #: src/components/editor-header.tsx:155
-#: src/components/node-actions.tsx:161
+#: src/components/node-actions.tsx:162
 #: src/components/preview-modal.tsx:124
 #: src/components/preview-panel.tsx:350
-#: src/components/selection-bar.tsx:64
+#: src/components/selection-bar.tsx:69
 #: src/components/version-list.tsx:130
 #: src/routes/drive/shared.tsx:73
 #: src/routes/s/$token.tsx:232
@@ -2070,6 +2070,11 @@ msgstr "Download {nodeName}"
 #: src/routes/s/$token.tsx:232
 msgid "Download all"
 msgstr "Download all"
+
+#: src/components/node-actions.tsx:198
+#: src/components/selection-bar.tsx:69
+msgid "Download as .zip"
+msgstr "Download as .zip"
 
 #: src/components/preview-content.tsx:269
 #~ msgid "Downloads are off for this file, so it can only be opened by its owner."
@@ -2122,7 +2127,7 @@ msgstr "edit"
 
 #: src/components/comments/comments-popover.tsx:594
 #: src/components/doc-editor/doc-editor.tsx:235
-#: src/components/node-actions.tsx:152
+#: src/components/node-actions.tsx:153
 msgid "Edit"
 msgstr "Edit"
 
@@ -2320,7 +2325,7 @@ msgid "Export CSV"
 msgstr "Export CSV"
 
 #: src/components/editor-header.tsx:147
-#: src/components/node-actions.tsx:175
+#: src/components/node-actions.tsx:176
 msgid "Export with images (.zip)"
 msgstr "Export with images (.zip)"
 
@@ -2716,7 +2721,7 @@ msgstr "In trash"
 msgid "Included with edit"
 msgstr "Included with edit"
 
-#: src/components/node-actions.tsx:194
+#: src/components/node-actions.tsx:208
 msgid "Information"
 msgstr "Information"
 
@@ -3123,7 +3128,7 @@ msgstr "Lowercase letters, numbers and dashes. Optional."
 msgid "Mail"
 msgstr "Mail"
 
-#: src/components/node-actions.tsx:270
+#: src/components/node-actions.tsx:284
 msgid "Make a copy"
 msgstr "Make a copy"
 
@@ -3274,7 +3279,7 @@ msgid "Mount as a drive (WebDAV)"
 msgstr "Mount as a drive (WebDAV)"
 
 #: src/components/move-dialog.tsx:130
-#: src/components/selection-bar.tsx:79
+#: src/components/selection-bar.tsx:84
 msgid "Move"
 msgstr "Move"
 
@@ -3301,13 +3306,13 @@ msgstr "Move to column…"
 #: src/components/doc-editor/page-tree-panel.tsx:370
 #: src/components/nav-apps.tsx:354
 #: src/components/nav-apps.tsx:356
-#: src/components/node-actions.tsx:280
+#: src/components/node-actions.tsx:294
 #: src/routes/drive/$spaceId/index.tsx:729
 #: src/routes/drive/$spaceId/index.tsx:738
 msgid "Move to trash"
 msgstr "Move to trash"
 
-#: src/components/node-actions.tsx:233
+#: src/components/node-actions.tsx:247
 msgid "Move to…"
 msgstr "Move to…"
 
@@ -3784,8 +3789,8 @@ msgstr "open"
 #: ../../packages/ext-kanban/src/card-tile.tsx:94
 #: src/components/drive-write.tsx:214
 #: src/components/nav-apps.tsx:132
-#: src/components/node-actions.tsx:117
-#: src/components/node-actions.tsx:152
+#: src/components/node-actions.tsx:118
+#: src/components/node-actions.tsx:153
 #: src/components/preview-content.tsx:281
 #: src/components/preview-modal.tsx:115
 #: src/components/preview-panel.tsx:340
@@ -3801,7 +3806,7 @@ msgstr "Open {name}"
 msgid "Open a card to set a due date, assign people, add labels and link drive files."
 msgstr "Open a card to set a due date, assign people, add labels and link drive files."
 
-#: src/components/node-actions.tsx:138
+#: src/components/node-actions.tsx:139
 #: src/components/preview-content.tsx:151
 msgid "Open in new tab"
 msgstr "Open in new tab"
@@ -4052,7 +4057,7 @@ msgstr "Port must be between 1 and 65535."
 msgid "Press D anywhere outside a text field to flip between light and dark."
 msgstr "Press D anywhere outside a text field to flip between light and dark."
 
-#: src/components/node-actions.tsx:127
+#: src/components/node-actions.tsx:128
 #: src/components/preview-panel.tsx:340
 msgid "Preview"
 msgstr "Preview"
@@ -4230,7 +4235,7 @@ msgstr "Remove password"
 msgid "Remove space avatar"
 msgstr "Remove space avatar"
 
-#: src/components/node-actions.tsx:201
+#: src/components/node-actions.tsx:215
 msgid "Remove star"
 msgstr "Remove star"
 
@@ -4256,8 +4261,8 @@ msgstr "Removes “{spaceName}” and everything in it — every file, version, 
 
 #: ../../packages/ext-kanban/src/board-column.tsx:278
 #: src/components/nav-apps.tsx:326
-#: src/components/node-actions.tsx:222
-#: src/components/selection-bar.tsx:74
+#: src/components/node-actions.tsx:236
+#: src/components/selection-bar.tsx:79
 #: src/routes/drive/$spaceId/index.tsx:690
 msgid "Rename"
 msgstr "Rename"
@@ -4630,9 +4635,9 @@ msgid "Settings sections"
 msgstr "Settings sections"
 
 #: src/components/editor-header.tsx:111
-#: src/components/node-actions.tsx:211
+#: src/components/node-actions.tsx:225
 #: src/components/preview-panel.tsx:359
-#: src/components/selection-bar.tsx:69
+#: src/components/selection-bar.tsx:74
 #: src/components/share-dialog.tsx:574
 msgid "Share"
 msgstr "Share"
@@ -5610,7 +5615,7 @@ msgid "versions"
 msgstr "versions"
 
 #: src/components/editor-header.tsx:121
-#: src/components/node-actions.tsx:184
+#: src/components/node-actions.tsx:185
 #: src/components/preview-modal.tsx:149
 #: src/components/preview-panel.tsx:366
 #: src/components/preview-panel.tsx:410

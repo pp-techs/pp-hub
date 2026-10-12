@@ -712,7 +712,7 @@ msgstr "Thêm người hoặc nhóm…"
 msgid "Add someone to this group…"
 msgstr "Thêm người vào nhóm này…"
 
-#: src/components/node-actions.tsx:201
+#: src/components/node-actions.tsx:215
 msgid "Add star"
 msgstr "Gắn sao"
 
@@ -1172,7 +1172,7 @@ msgstr "Xóa bộ lọc"
 msgid "Clear formatting"
 msgstr "Xóa định dạng"
 
-#: src/components/selection-bar.tsx:93
+#: src/components/selection-bar.tsx:98
 msgid "Clear selection"
 msgstr "Bỏ chọn"
 
@@ -1354,7 +1354,7 @@ msgid "Copied as “{copyName}”"
 msgstr "Đã sao chép thành “{copyName}”"
 
 #: src/components/block-handle.tsx:216
-#: src/components/node-actions.tsx:261
+#: src/components/node-actions.tsx:275
 #: src/components/settings/panes/agent-access-section.tsx:105
 #: src/components/settings/panes/agent-access-section.tsx:204
 #: src/components/settings/panes/personal-tokens.tsx:76
@@ -1803,7 +1803,7 @@ msgstr "Hiện tại"
 msgid "Current access"
 msgstr "Quyền truy cập hiện tại"
 
-#: src/components/node-actions.tsx:251
+#: src/components/node-actions.tsx:265
 msgid "Cut"
 msgstr "Cắt"
 
@@ -1851,7 +1851,7 @@ msgstr "Hạn mức không gian mặc định"
 #: src/components/comments/comments-popover.tsx:510
 #: src/components/comments/comments-popover.tsx:600
 #: src/components/comments/thread-list.tsx:270
-#: src/components/selection-bar.tsx:88
+#: src/components/selection-bar.tsx:93
 msgid "Delete"
 msgstr "Xoá"
 
@@ -2053,10 +2053,10 @@ msgstr "tải xuống"
 
 #: src/components/editor-header.tsx:130
 #: src/components/editor-header.tsx:155
-#: src/components/node-actions.tsx:161
+#: src/components/node-actions.tsx:162
 #: src/components/preview-modal.tsx:124
 #: src/components/preview-panel.tsx:350
-#: src/components/selection-bar.tsx:64
+#: src/components/selection-bar.tsx:69
 #: src/components/version-list.tsx:130
 #: src/routes/drive/shared.tsx:73
 #: src/routes/s/$token.tsx:232
@@ -2070,6 +2070,11 @@ msgstr "Tải xuống {nodeName}"
 #: src/routes/s/$token.tsx:232
 msgid "Download all"
 msgstr "Tải xuống tất cả"
+
+#: src/components/node-actions.tsx:198
+#: src/components/selection-bar.tsx:69
+msgid "Download as .zip"
+msgstr "Tải xuống dạng .zip"
 
 #: src/components/preview-content.tsx:269
 #~ msgid "Downloads are off for this file, so it can only be opened by its owner."
@@ -2122,7 +2127,7 @@ msgstr "chỉnh sửa"
 
 #: src/components/comments/comments-popover.tsx:594
 #: src/components/doc-editor/doc-editor.tsx:235
-#: src/components/node-actions.tsx:152
+#: src/components/node-actions.tsx:153
 msgid "Edit"
 msgstr "Chỉnh sửa"
 
@@ -2320,7 +2325,7 @@ msgid "Export CSV"
 msgstr "Xuất CSV"
 
 #: src/components/editor-header.tsx:147
-#: src/components/node-actions.tsx:175
+#: src/components/node-actions.tsx:176
 msgid "Export with images (.zip)"
 msgstr "Xuất kèm hình ảnh (.zip)"
 
@@ -2716,7 +2721,7 @@ msgstr "Trong thùng rác"
 msgid "Included with edit"
 msgstr "Đã bao gồm khi có quyền chỉnh sửa"
 
-#: src/components/node-actions.tsx:194
+#: src/components/node-actions.tsx:208
 msgid "Information"
 msgstr "Thông tin"
 
@@ -3123,7 +3128,7 @@ msgstr "Chữ thường, số và dấu gạch ngang. Không bắt buộc."
 msgid "Mail"
 msgstr "Thư"
 
-#: src/components/node-actions.tsx:270
+#: src/components/node-actions.tsx:284
 msgid "Make a copy"
 msgstr "Tạo bản sao"
 
@@ -3274,7 +3279,7 @@ msgid "Mount as a drive (WebDAV)"
 msgstr "Gắn như một ổ đĩa (WebDAV)"
 
 #: src/components/move-dialog.tsx:130
-#: src/components/selection-bar.tsx:79
+#: src/components/selection-bar.tsx:84
 msgid "Move"
 msgstr "Di chuyển"
 
@@ -3301,13 +3306,13 @@ msgstr "Chuyển đến cột…"
 #: src/components/doc-editor/page-tree-panel.tsx:370
 #: src/components/nav-apps.tsx:354
 #: src/components/nav-apps.tsx:356
-#: src/components/node-actions.tsx:280
+#: src/components/node-actions.tsx:294
 #: src/routes/drive/$spaceId/index.tsx:729
 #: src/routes/drive/$spaceId/index.tsx:738
 msgid "Move to trash"
 msgstr "Chuyển vào thùng rác"
 
-#: src/components/node-actions.tsx:233
+#: src/components/node-actions.tsx:247
 msgid "Move to…"
 msgstr "Di chuyển đến…"
 
@@ -3784,8 +3789,8 @@ msgstr "mở"
 #: ../../packages/ext-kanban/src/card-tile.tsx:94
 #: src/components/drive-write.tsx:214
 #: src/components/nav-apps.tsx:132
-#: src/components/node-actions.tsx:117
-#: src/components/node-actions.tsx:152
+#: src/components/node-actions.tsx:118
+#: src/components/node-actions.tsx:153
 #: src/components/preview-content.tsx:281
 #: src/components/preview-modal.tsx:115
 #: src/components/preview-panel.tsx:340
@@ -3801,7 +3806,7 @@ msgstr "Mở {name}"
 msgid "Open a card to set a due date, assign people, add labels and link drive files."
 msgstr "Mở thẻ để đặt hạn, giao người, thêm nhãn và liên kết tệp trong drive."
 
-#: src/components/node-actions.tsx:138
+#: src/components/node-actions.tsx:139
 #: src/components/preview-content.tsx:151
 msgid "Open in new tab"
 msgstr "Mở trong tab mới"
@@ -4052,7 +4057,7 @@ msgstr "Cổng phải nằm trong khoảng từ 1 đến 65535."
 msgid "Press D anywhere outside a text field to flip between light and dark."
 msgstr "Nhấn D ở bất kỳ đâu ngoài ô nhập văn bản để chuyển giữa giao diện sáng và tối."
 
-#: src/components/node-actions.tsx:127
+#: src/components/node-actions.tsx:128
 #: src/components/preview-panel.tsx:340
 msgid "Preview"
 msgstr "Xem trước"
@@ -4230,7 +4235,7 @@ msgstr "Xoá mật khẩu"
 msgid "Remove space avatar"
 msgstr "Xóa ảnh đại diện không gian"
 
-#: src/components/node-actions.tsx:201
+#: src/components/node-actions.tsx:215
 msgid "Remove star"
 msgstr "Bỏ gắn sao"
 
@@ -4256,8 +4261,8 @@ msgstr "Xoá “{spaceName}” và mọi thứ bên trong — mọi tệp, phiê
 
 #: ../../packages/ext-kanban/src/board-column.tsx:278
 #: src/components/nav-apps.tsx:326
-#: src/components/node-actions.tsx:222
-#: src/components/selection-bar.tsx:74
+#: src/components/node-actions.tsx:236
+#: src/components/selection-bar.tsx:79
 #: src/routes/drive/$spaceId/index.tsx:690
 msgid "Rename"
 msgstr "Đổi tên"
@@ -4630,9 +4635,9 @@ msgid "Settings sections"
 msgstr "Mục cài đặt"
 
 #: src/components/editor-header.tsx:111
-#: src/components/node-actions.tsx:211
+#: src/components/node-actions.tsx:225
 #: src/components/preview-panel.tsx:359
-#: src/components/selection-bar.tsx:69
+#: src/components/selection-bar.tsx:74
 #: src/components/share-dialog.tsx:574
 msgid "Share"
 msgstr "Chia sẻ"
@@ -5610,7 +5615,7 @@ msgid "versions"
 msgstr "phiên bản"
 
 #: src/components/editor-header.tsx:121
-#: src/components/node-actions.tsx:184
+#: src/components/node-actions.tsx:185
 #: src/components/preview-modal.tsx:149
 #: src/components/preview-panel.tsx:366
 #: src/components/preview-panel.tsx:410

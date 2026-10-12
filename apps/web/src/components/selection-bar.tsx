@@ -1,5 +1,5 @@
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
-import { Download, FolderInput, Link2, Pencil, Trash2, X } from "lucide-react";
+import { Download, FolderDown, FolderInput, Link2, Pencil, Trash2, X } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { canRestructure, capsOf, commonCaps, type Node } from "@/lib/api";
 
@@ -59,9 +59,14 @@ export function SelectionBar({
       <span className="bg-border h-4 w-px" />
 
       <div className="flex items-center gap-1">
-        {only?.kind === "file" && onlyCaps.download && (
+        {(only?.kind === "file" || only?.kind === "dir") && onlyCaps.download && (
           <Button variant="ghost" size="sm" onClick={() => onDownload(only)}>
-            <Download data-icon="inline-start" /> <Trans>Download</Trans>
+            {only.kind === "dir" ? (
+              <FolderDown data-icon="inline-start" />
+            ) : (
+              <Download data-icon="inline-start" />
+            )}{" "}
+            {only.kind === "dir" ? <Trans>Download as .zip</Trans> : <Trans>Download</Trans>}
           </Button>
         )}
         {only && onlyCaps.share && (

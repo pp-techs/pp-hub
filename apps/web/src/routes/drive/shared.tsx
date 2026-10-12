@@ -66,7 +66,7 @@ function ExternalSharedPage() {
             dir ? undefined : { header: t`Space`, cell: (node) => node.space_name ?? "—" }
           }
           renderActions={(node) =>
-            node.kind === "file" && capsOf(node).download ? (
+            (node.kind === "file" || node.kind === "dir") && capsOf(node).download ? (
               <a
                 href={downloadUrl(node)}
                 download
