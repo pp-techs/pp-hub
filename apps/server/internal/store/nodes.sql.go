@@ -263,9 +263,9 @@ type GetLiveChildByNameParams struct {
 
 // The live file or folder named @name directly under @parent_id (NULL: the
 // space's top level), for a document's relative reference. Names compare in
-// Unicode NFC, @name included: Finder writes names decomposed, a markdown
-// file usually spells them composed. The exact spelling wins when both forms
-// exist side by side.
+// Unicode NFC (@name arrives in it): Finder writes names decomposed, a
+// markdown file usually spells them composed. The exact spelling wins when
+// both forms exist side by side.
 func (q *Queries) GetLiveChildByName(ctx context.Context, arg GetLiveChildByNameParams) (Node, error) {
 	row := q.db.QueryRow(ctx, getLiveChildByName, arg.SpaceID, arg.ParentID, arg.Name)
 	var i Node
