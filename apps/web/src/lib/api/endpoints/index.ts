@@ -24,6 +24,8 @@ import type {
   PageLineage,
   PageSummary,
   RecentNode,
+  RelativeEmbed,
+  RelativeNode,
   RestoreResult,
   SearchKind,
   SearchResult,
@@ -683,6 +685,51 @@ export function shareAttachmentUrl(token: string, docId: string, hash: string): 
 /** The document as a zip: the `.md` with its attachments under `assets/`. */
 export function exportDocumentUrl(nodeId: string): string {
   return `/api/v1/nodes/${nodeId}/export`;
+}
+
+/**
+ * Where a relative reference in a document (`images/a.png`, as written in
+ * the markdown) is served: the file beside the document, on the document's
+ * terms. `versionId` is the version being read, whose author decides how far
+ * the document reaches.
+ */
+export function relativeUrl(nodeId: string, path: string, versionId?: string): string {
+  const query = new URLSearchParams({ path });
+  if (versionId) query.set("version", versionId);
+  return `/api/v1/nodes/${nodeId}/relative?${query}`;
+}
+
+/** A relative reference of `docId` as a share-link visitor reaches it. */
+export function shareRelativeUrl(token: string, docId: string, path: string): string {
+  return `/s/${token}/relative?${new URLSearchParams({ node: docId, path })}`;
+}
+
+/** What a relative link in `nodeId` names, when the caller may open it. */
+export async function getRelativeNode(nodeId: string, path: string): Promise<RelativeNode> {
+  const res = await api.get(`api/v1/nodes/${nodeId}/relative/meta`, { searchParams: { path } });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<RelativeNode>;
+}
+
+/** What a relative link in `docId` names, when the link covers it. */
+export async function getShareRelativeNode(
+  token: string,
+  docId: string,
+  path: string,
+): Promise<RelativeNode> {
+  const res = await api.get(`s/${token}/relative/meta`, { searchParams: { node: docId, path } });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<RelativeNode>;
+}
+
+/**
+ * Copies the file a relative reference names into the document's
+ * attachments. Needs edit on the document and download on the file.
+ */
+export async function embedRelative(nodeId: string, path: string): Promise<RelativeEmbed> {
+  const res = await api.post(`api/v1/nodes/${nodeId}/relative/embed`, { json: { path } });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<RelativeEmbed>;
 }
 
 // ─── Pages (M43) ────────────────────────────────────────────────────────────

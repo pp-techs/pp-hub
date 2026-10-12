@@ -66,9 +66,11 @@ type Files interface {
 	ListAttachments(ctx context.Context, docID pgtype.UUID) ([]store.NodeAttachment, error)
 	OpenAttachment(ctx context.Context, docID pgtype.UUID, hash string) (store.NodeAttachment, io.ReadCloser, error)
 	// Tree and PageTitles serve an export: the pages it holds and the
-	// titles of those it links to elsewhere.
+	// titles of those it links to elsewhere. ResolveRelative finds the
+	// file a page's relative reference names.
 	Tree(ctx context.Context, root store.Node) (*fs.TreeNode, error)
 	PageTitles(ctx context.Context, space pgtype.UUID, ids []string) (map[string]string, error)
+	ResolveRelative(ctx context.Context, doc store.Node, segs []string) (store.Node, error)
 }
 
 // Service reads and exports block documents. Authorization is the caller's.

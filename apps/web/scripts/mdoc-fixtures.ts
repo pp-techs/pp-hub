@@ -293,6 +293,13 @@ const cases: Case[] = [
     input: '<!-- slash:image {"width":320} -->\n![pic](attachment:0123abcd)\n',
   },
   { name: "image-spaces-url", input: "![a](<https://example.com/a b.png>)\n" },
+  // Relative references: a file beside the document, kept as written
+  {
+    name: "relative-media",
+    input:
+      '![a](images/a.png)\n\n![b](<../shared/Bùi đẹp.png>)\n\n<!-- slash:file {"size":3} -->\n[spec.pdf](./spec%20v2.pdf)\n\n<!-- slash:video {"poster":"poster.png"} -->\n[clip.mp4](media/clip.mp4)\n',
+  },
+  { name: "relative-links", input: "See [the spec](../Spec.md#scope) and [data](data/x.csv).\n" },
   {
     name: "file",
     input:

@@ -8,6 +8,7 @@ import { cn } from "@workspace/ui/lib/utils";
 import type { PageStore } from "@slash-editor/core";
 import type { DocumentNodeJSON } from "@/lib/api";
 import { createMdocKit, emptyPageStore } from "@/lib/collab/mdoc-kit";
+import { relativeLinkClick, type DocumentFiles } from "@/lib/collab/document-files";
 import { labelToggleButton } from "@/components/doc-editor/labels";
 import { OutlinePanel } from "@/components/doc-editor/outline-panel";
 import {
@@ -27,7 +28,8 @@ export interface ReadOnlyPages {
 
 export interface ReadOnlyEditorProps {
   doc: DocumentNodeJSON;
-  attachmentUrl: (hash: string) => string;
+  /** Where the document's attachments and relative files are fetched, and relative links open. */
+  files: DocumentFiles;
   lossy?: boolean;
   className?: string;
   /**
@@ -51,7 +53,7 @@ export interface ReadOnlyEditorProps {
  */
 export default function ReadOnlyEditor({
   doc,
-  attachmentUrl,
+  files,
   lossy = false,
   className,
   outlineScrollRef,
@@ -77,7 +79,7 @@ export default function ReadOnlyEditor({
       toggle: {
         renderToggleButton: ({ element, isOpen }) => labelToggleButton(i18n, element, isOpen),
       },
-      extend: mdocNodeViews({ attachmentUrl }),
+      extend: mdocNodeViews({ files }),
       // Nothing here edits, so no sub-page is ever reported detached: a
       // refetch replacing the content would otherwise read as deleting
       // every block.
@@ -109,7 +111,12 @@ export default function ReadOnlyEditor({
   return (
     <TooltipProvider>
       <div className="flex gap-2 lg:gap-10">
-        <div className={cn("slash-content min-w-0 flex-1", DOCUMENT_COLUMN, className)}>
+        {/* A relative link (`[spec](../Spec.md)`) is the drive's path, not
+            this page's: the browser must not resolve it against the URL. */}
+        <div
+          className={cn("slash-content min-w-0 flex-1", DOCUMENT_COLUMN, className)}
+          onClickCapture={relativeLinkClick(files, () => false)}
+        >
           {lossy ? (
             <p className="text-muted-foreground mb-4 flex items-center gap-1.5 text-xs">
               <Info className="size-3.5 shrink-0" />

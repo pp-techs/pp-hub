@@ -78,6 +78,21 @@ WHERE id = $1 AND deleted_at IS NULL;
 -- name: GetNodeParent :one
 SELECT parent_id FROM nodes WHERE id = $1 AND deleted_at IS NULL LIMIT 1;
 
+-- name: GetLiveChildByName :one
+-- The live file or folder named @name directly under @parent_id (NULL: the
+-- space's top level), for a document's relative reference. Names compare in
+-- Unicode NFC (@name arrives in it): Finder writes names decomposed, a
+-- markdown file usually spells them composed. The exact spelling wins when
+-- both forms exist side by side.
+SELECT * FROM nodes
+WHERE space_id = @space_id
+  AND parent_id IS NOT DISTINCT FROM sqlc.narg('parent_id')::uuid
+  AND deleted_at IS NULL
+  AND kind IN ('dir', 'file')
+  AND normalize(name, NFC) = @name::text
+ORDER BY (name = @name::text) DESC, created_at
+LIMIT 1;
+
 -- name: AddVersion :one
 INSERT INTO node_versions (node_id, blob_hash, size, mime, version_no, created_by)
 VALUES ($1, $2, $3, $4,

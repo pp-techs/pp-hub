@@ -3,10 +3,16 @@ import { useResolvedSrc } from "@slash-editor/react";
 import type { NodeViewProps } from "@tiptap/react";
 import { useLingui } from "@lingui/react/macro";
 import { PaperclipIcon } from "lucide-react";
+import type { RelativeEmbed } from "@/lib/api";
 import { UploadableNodeView } from "@/components/nodes/uploadable-node-view";
 import { useFormatters } from "@/lib/format";
 
-export function FileNodeView(props: NodeViewProps & { adapter?: UploadAdapter }) {
+export function FileNodeView(
+  props: NodeViewProps & {
+    adapter?: UploadAdapter;
+    embed?: (path: string) => Promise<RelativeEmbed>;
+  },
+) {
   const { t } = useLingui();
   const f = useFormatters();
   const name = (props.node.attrs.name as string | null) ?? t`Untitled file`;
@@ -24,6 +30,8 @@ export function FileNodeView(props: NodeViewProps & { adapter?: UploadAdapter })
       icon={PaperclipIcon}
       emptyLabel={t`Add a file`}
       retry={(id, override) => props.editor.commands.retryFile(id, override)}
+      // The card shows what it holds; the embedded copy says it now.
+      embedAttrs={({ src, size: bytes, mime }) => ({ src, size: bytes, mime })}
       renderReady={() => (
         <a
           href={href ?? undefined}

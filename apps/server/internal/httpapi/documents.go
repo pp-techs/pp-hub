@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -115,7 +116,21 @@ func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
 	if u == nil {
 		return
 	}
-	exp, err := blockdoc.New(s.fs).PrepareExport(r.Context(), node, s.externalURL)
+	// A file a page's relative reference names comes along when the caller
+	// could have it through the page (relativeReadable), as a download: their
+	// own download on it, or the page's reach.
+	reach := func(ctx context.Context, page, target store.Node) (bool, error) {
+		ver, err := s.store.GetCurrentVersion(ctx, page.ID)
+		if err != nil {
+			return false, err
+		}
+		own, err := s.share.EffectiveCapsForNode(ctx, target, u.ID)
+		if err != nil {
+			return false, err
+		}
+		return s.relativeReadable(ctx, page, target, false, own, ver.CreatedBy)
+	}
+	exp, err := blockdoc.New(s.fs).PrepareExport(r.Context(), node, s.externalURL, reach)
 	if err != nil {
 		s.documentError(w, r, err)
 		return

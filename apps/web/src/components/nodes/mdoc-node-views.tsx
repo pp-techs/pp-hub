@@ -22,12 +22,9 @@ import { MentionNodeView } from "@/components/nodes/mention-node-view";
 import { PageLinkNodeView, SubPageNodeView } from "@/components/nodes/page-node-views";
 import { MermaidNodeView } from "@/components/nodes/mermaid-node-view";
 import { VideoNodeView } from "@/components/nodes/video-node-view";
-import {
-  altFromFileName,
-  attachmentResolver,
-  type AttachmentResult,
-  type AttachmentUrl,
-} from "@/lib/collab/attachments";
+import type { RelativeEmbed } from "@/lib/api";
+import { altFromFileName, type AttachmentResult } from "@/lib/collab/attachments";
+import { documentFilesResolver, type DocumentFiles } from "@/lib/collab/document-files";
 import { mdocLowlight, type MdocKitOptions } from "@/lib/collab/mdoc-kit";
 
 /**
@@ -46,14 +43,19 @@ export const MDOC_NODE_VIEW_KIT_OPTIONS = {
 } as const satisfies MdocKitOptions;
 
 export interface MdocNodeViewsOptions {
-  /** Where an `attachment:<hash>` reference is served for this rendering. */
-  attachmentUrl: AttachmentUrl;
+  /** Where this rendering fetches the document's attachments and relative files. */
+  files: DocumentFiles;
   /**
-   * Editing only: the document uploads and link cards are made for. Without
-   * it the views offer no upload or link picker, whatever the editor's
+   * Editing only: the document uploads and link cards are made for, and how
+   * a relative reference becomes one of its attachments. Without it the
+   * views offer no upload, link picker or embedding, whatever the editor's
    * `isEditable` says.
    */
-  editing?: { documentId: string; adapter: UploadAdapter<AttachmentResult> };
+  editing?: {
+    documentId: string;
+    adapter: UploadAdapter<AttachmentResult>;
+    embed: (path: string) => Promise<RelativeEmbed>;
+  };
   /** Editing only: the `@` suggestions. A rendering without them still shows mentions. */
   mentionItems?: MentionOptions["items"];
   /**
@@ -79,22 +81,23 @@ export const PAGE_NODE_VIEWS: NonNullable<PagesOptions["nodeViews"]> = {
  * pp-hub's node views for the v1 block set — code block, image, file, video,
  * embed, mermaid and mention — as the kit's own nodes extended with React views, so
  * the schema stays exactly `createMdocKit`'s. Each media node's `resolveSrc`
- * maps `attachment:<hash>` through `attachmentUrl`; the views read it from
- * their extension's options. The page nodes' views travel separately, as
- * `PAGE_NODE_VIEWS`.
+ * maps `attachment:<hash>` and relative paths through `files`; the views read
+ * it from their extension's options. The page nodes' views travel separately,
+ * as `PAGE_NODE_VIEWS`.
  *
  * An upload records what it was: an image takes its file name as alt text
  * (the markdown's `![…]`, and what a screen reader says), a file its name,
  * size and type, so the block shows them before anyone opens it.
  */
 export function mdocNodeViews({
-  attachmentUrl,
+  files,
   editing,
   mentionItems,
   pages,
 }: MdocNodeViewsOptions): AnyExtension[] {
   const adapter = editing?.adapter;
-  const resolveSrc = attachmentResolver(attachmentUrl);
+  const embed = editing?.embed;
+  const resolveSrc = documentFilesResolver(files);
   const items = mentionItems ?? (() => []);
   return [
     CodeBlock.extend({ addNodeView: () => ReactNodeViewRenderer(CodeBlockNodeView) }).configure({
@@ -102,7 +105,9 @@ export function mdocNodeViews({
     }),
     Image.extend({
       addNodeView: () =>
-        ReactNodeViewRenderer((props) => <ImageNodeView {...props} adapter={adapter} />),
+        ReactNodeViewRenderer((props) => (
+          <ImageNodeView {...props} adapter={adapter} embed={embed} />
+        )),
     }).configure({
       resolveSrc,
       toAttrs: (result: UploadResult) => ({
@@ -112,7 +117,9 @@ export function mdocNodeViews({
     }),
     FileNode.extend({
       addNodeView: () =>
-        ReactNodeViewRenderer((props) => <FileNodeView {...props} adapter={adapter} />),
+        ReactNodeViewRenderer((props) => (
+          <FileNodeView {...props} adapter={adapter} embed={embed} />
+        )),
     }).configure({
       resolveSrc,
       toAttrs: (result: UploadResult) => {
@@ -122,7 +129,9 @@ export function mdocNodeViews({
     }),
     Video.extend({
       addNodeView: () =>
-        ReactNodeViewRenderer((props) => <VideoNodeView {...props} adapter={adapter} />),
+        ReactNodeViewRenderer((props) => (
+          <VideoNodeView {...props} adapter={adapter} embed={embed} />
+        )),
     }).configure({ resolveSrc }),
     Embed.extend({
       addNodeView: () =>

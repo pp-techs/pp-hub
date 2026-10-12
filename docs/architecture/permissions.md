@@ -220,12 +220,12 @@ weaker rule of its own.
 Node-addressed routes go through `requireNodeCaps(w, r, need share.Cap)`, which
 resolves the node and demands one capability:
 
-| Capability    | Routes                                                                                                                                                                                                                                                        |
-| :------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `CapView`     | `GET /nodes/{id}`, `/children`, `/tree`, `/preview?kind=thumbnail`, versions, star, `/content`, `/preview?kind=text`, `/document`, `/attachments/{hash}`, `/comments` and `POST /nodes/{id}/comment-threads`, `POST /nodes/{id}/edit-session`, content search |
-| `CapDownload` | `GET /nodes/{id}/download` (file or streamed zip), `/export`, copy source, `GET /nodes/{id}/collab`                                                                                                                                                           |
-| `CapEdit`     | rename, move (plus [the move rules](#moving-changes-who-can-reach-it)), delete, upload-into, version restore, trash restore/purge, WOPI save, tus upload with `attach_to`, `POST /nodes/{id}/unfurl`                                                          |
-| `CapShare`    | list/create/revoke shares, list/upsert/revoke group grants, `GET /nodes/{id}/inherited-access` — each change also bounded by [Monotonicity](#monotonicity)                                                                                                    |
+| Capability    | Routes                                                                                                                                                                                                                                                                                                                                  |
+| :------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CapView`     | `GET /nodes/{id}`, `/children`, `/tree`, `/preview?kind=thumbnail`, versions, star, `/content`, `/preview?kind=text`, `/document`, `/attachments/{hash}`, `/relative` and `/relative/meta` (on the document, then the rules below), `/comments` and `POST /nodes/{id}/comment-threads`, `POST /nodes/{id}/edit-session`, content search |
+| `CapDownload` | `GET /nodes/{id}/download` (file or streamed zip), `/export`, copy source, `GET /nodes/{id}/collab`                                                                                                                                                                                                                                     |
+| `CapEdit`     | rename, move (plus [the move rules](#moving-changes-who-can-reach-it)), delete, upload-into, version restore, trash restore/purge, WOPI save, tus upload with `attach_to`, `POST /nodes/{id}/unfurl`, `POST /nodes/{id}/relative/embed` (plus the caller's own `CapDownload` on the file)                                               |
+| `CapShare`    | list/create/revoke shares, list/upsert/revoke group grants, `GET /nodes/{id}/inherited-access` — each change also bounded by [Monotonicity](#monotonicity)                                                                                                                                                                              |
 
 Creating into a folder goes through `requireParentWrite`:
 
@@ -313,24 +313,26 @@ or an image can be told to save it, so `can_download` is the difference between
 offering a save and not — not a wall around the bytes. Deriving a separate
 render to make them unsaveable is a different design and is not this one.
 
-| Path                                                                          | Demands                      | Why                                                                 |
-| :---------------------------------------------------------------------------- | :--------------------------- | :------------------------------------------------------------------ |
-| `GET /nodes/{id}/download`                                                    | `CapDownload`                | The file, or a folder streamed as a zip                             |
-| `GET /nodes/{id}/content`                                                     | `CapView`                    | The same bytes, `inline` for the allowlisted MIME types             |
-| `GET /nodes/{id}/preview?kind=thumbnail`                                      | `CapView`                    | 256px PNG the worker rendered; genuinely derived                    |
-| `GET /nodes/{id}/preview?kind=text`                                           | `CapView`                    | A 4 KiB prefix of the source — a read, like the file itself         |
-| `GET /s/{token}/content`, `/document`, `/attachments/{hash}`, `/edit-session` | the link (always view)       | Inline render, anonymous                                            |
-| `GET /s/{token}/download`, `/node-download`, `/download-all`                  | the link's `can_download`    | Attachment, anonymous                                               |
-| `GET /wopi/files/{id}/contents`                                               | token rank ≥ 1 (= `CapView`) | The Document Server fetching the document to render it in view mode |
-| `POST /nodes/{id}/edit-session`                                               | `CapView`                    | Minting a read-only or edit session for OnlyOffice                  |
-| `GET /nodes/{id}/collab`, `GET /collab/{room}`                                | `CapDownload`                | A block document's room: sync hands the whole document over         |
-| `GET /nodes/{id}/attachments/{hash}`                                          | `CapView` on the document    | An image, video or file dropped into a block document               |
-| `GET /nodes/{id}/document`                                                    | `CapView`                    | A block document's whole tree, for the read-only view               |
-| `GET /nodes/{id}/export`                                                      | `CapDownload`                | The markdown and every attachment as a zip; audited as a download   |
-| `GET /nodes/{id}/page`, `/pages`, `/backlinks`                                | `CapView`, else 404          | Page metadata for the tree, breadcrumb and "Linked from" (M43)      |
-| `GET /s/{token}/page`, `/pages`                                               | the link (always view)       | The same through a link, anonymous; chain cut at the link root      |
+| Path                                                                          | Demands                                                                         | Why                                                                 |
+| :---------------------------------------------------------------------------- | :------------------------------------------------------------------------------ | :------------------------------------------------------------------ |
+| `GET /nodes/{id}/download`                                                    | `CapDownload`                                                                   | The file, or a folder streamed as a zip                             |
+| `GET /nodes/{id}/content`                                                     | `CapView`                                                                       | The same bytes, `inline` for the allowlisted MIME types             |
+| `GET /nodes/{id}/preview?kind=thumbnail`                                      | `CapView`                                                                       | 256px PNG the worker rendered; genuinely derived                    |
+| `GET /nodes/{id}/preview?kind=text`                                           | `CapView`                                                                       | A 4 KiB prefix of the source — a read, like the file itself         |
+| `GET /s/{token}/content`, `/document`, `/attachments/{hash}`, `/edit-session` | the link (always view)                                                          | Inline render, anonymous                                            |
+| `GET /s/{token}/download`, `/node-download`, `/download-all`                  | the link's `can_download`                                                       | Attachment, anonymous                                               |
+| `GET /wopi/files/{id}/contents`                                               | token rank ≥ 1 (= `CapView`)                                                    | The Document Server fetching the document to render it in view mode |
+| `POST /nodes/{id}/edit-session`                                               | `CapView`                                                                       | Minting a read-only or edit session for OnlyOffice                  |
+| `GET /nodes/{id}/collab`, `GET /collab/{room}`                                | `CapDownload`                                                                   | A block document's room: sync hands the whole document over         |
+| `GET /nodes/{id}/attachments/{hash}`                                          | `CapView` on the document                                                       | An image, video or file dropped into a block document               |
+| `GET /nodes/{id}/relative?path=`                                              | `CapView` on the document, then the file's own access or the document's reach   | A file beside a block document, named by a relative path            |
+| `GET /s/{token}/relative?node=&path=`                                         | the link covers the document, then the link on the file or the document's reach | The same, anonymous                                                 |
+| `GET /nodes/{id}/document`                                                    | `CapView`                                                                       | A block document's whole tree, for the read-only view               |
+| `GET /nodes/{id}/export`                                                      | `CapDownload`                                                                   | The markdown and every attachment as a zip; audited as a download   |
+| `GET /nodes/{id}/page`, `/pages`, `/backlinks`                                | `CapView`, else 404                                                             | Page metadata for the tree, breadcrumb and "Linked from" (M43)      |
+| `GET /s/{token}/page`, `/pages`                                               | the link (always view)                                                          | The same through a link, anonymous; chain cut at the link root      |
 
-Four notes on the table:
+Six notes on the table:
 
 - **A machine token is not a person.** `wopi.SystemSubject` — the preview
   worker's conversion fetch — has no subject to resolve a capability for, so
@@ -358,6 +360,19 @@ Four notes on the table:
   creation and again at commit, and reading one takes `CapView` on it; a
   hash the document does not hold is 404 even if another document holds it.
   See [block-documents.md](block-documents.md).
+- **A document's reach (relative references).** A block document that names
+  a file beside it by a relative path (`![](images/a.png)`) shows it to its
+  readers on the document's behalf, the one place a grant on one node lets
+  bytes of another out. It is bounded twice: the file must lie under the
+  document's nearest folder ancestor, and the author of the version being
+  read must be able to download it — so an editor handed a single document
+  cannot name its neighbours to read them, and a document at the top of a
+  space reaches nothing. Otherwise the reader's own access applies (view for
+  an image or video shown in place, download for anything else); a link
+  counts as view on what it covers. Opening what a relative link names
+  (`/relative/meta`) and embedding a file as an attachment (`/relative/embed`)
+  never use the reach. Every refusal is 404. See
+  [block-documents.md](block-documents.md#relative-references).
 - **Comments and notifications (M29).** Taking part in a document's
   discussion takes `CapView` on it — reading threads, opening one,
   replying — because whoever can read the document can read every word it

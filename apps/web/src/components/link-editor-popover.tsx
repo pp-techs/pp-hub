@@ -10,10 +10,27 @@ import {
   InputGroupInput,
 } from "@workspace/ui/components/input-group";
 import { Popover, PopoverContent } from "@workspace/ui/components/popover";
+import { isRelativeRef } from "@/lib/collab/document-files";
 
-export function LinkEditorPopover({ editor }: { editor: Editor }) {
+/**
+ * The editor's link popover. A relative link (`../Spec.md`) names a file in
+ * the drive beside the document, so opening one goes through `openRelative`
+ * rather than the browser.
+ */
+export function LinkEditorPopover({
+  editor,
+  openRelative,
+}: {
+  editor: Editor;
+  openRelative: (path: string) => void;
+}) {
   const { t } = useLingui();
   const link = useLinkEditor(editor);
+  const open = () => {
+    if (isRelativeRef(link.href)) openRelative(link.href);
+    // eslint-disable-next-line lingui/no-unlocalized-strings -- window target and features
+    else window.open(link.href, "_blank", "noopener,noreferrer");
+  };
 
   return (
     <Popover
@@ -50,8 +67,7 @@ export function LinkEditorPopover({ editor }: { editor: Editor }) {
                 size="icon-xs"
                 aria-label={t`Open link`}
                 disabled={!link.href}
-                // eslint-disable-next-line lingui/no-unlocalized-strings -- window target and features
-                onClick={() => window.open(link.href, "_blank", "noopener,noreferrer")}
+                onClick={open}
               >
                 <ExternalLinkIcon />
               </InputGroupButton>

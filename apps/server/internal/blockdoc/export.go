@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"path"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -34,10 +35,13 @@ import (
 // Each page is written as its markdown with every attachment it references
 // and holds (its cover included) pointing into the assets/ beside it, and a
 // page link pointing at the page's .md when that page is in the archive, at
-// its address in pp-hub otherwise. Names are unique within a directory,
-// case-insensitively, a page's folder included. Any other file is copied as
-// it is. Everything that can fail with a status to report fails while
-// preparing; WriteZip runs once the response is committed.
+// its address in pp-hub otherwise. A relative reference (`![](images/a.png)`)
+// to a file or folder in the archive points at its entry; one to a file
+// outside it is copied into the assets/ beside the page when the export's
+// Reach allows, and stays as written otherwise. Names are unique within a
+// directory, case-insensitively, a page's folder included. Any other file is
+// copied as it is. Everything that can fail with a status to report fails
+// while preparing; WriteZip runs once the response is committed.
 type Export struct {
 	// Name is the archive's file name, `<document base>.zip` for a
 	// document export.
@@ -46,15 +50,23 @@ type Export struct {
 	files Files
 	// external is pp-hub's address, for links to pages outside the archive.
 	external string
+	reach    Reach
 	root     []*exportItem
 	// pages maps every page's id to its markdown's entry, titles to its
 	// title.
 	pages  map[string]string
 	titles map[string]string
+	// entries maps every node in the archive to its entry, for relative
+	// references.
+	entries map[pgtype.UUID]string
 	// first is the document export's own page, prepared up front so that
 	// what fails reading it is still a status.
 	first *exportPage
 }
+
+// Reach decides whether a page's relative reference to target, a file
+// outside the archive, may be copied into it. nil copies nothing.
+type Reach func(ctx context.Context, page, target store.Node) (bool, error)
 
 // exportItem is one node's place in the archive.
 type exportItem struct {
@@ -80,20 +92,25 @@ type exportPage struct {
 	assets   []exportAsset
 }
 
+// exportAsset is an entry under assets/: one of the page's attachments
+// (hash), or a file a relative reference named (file).
 type exportAsset struct {
 	hash string
+	file pgtype.UUID
 	path string // the entry
 }
 
 // PrepareExport plans doc's archive — doc and its sub-pages — and reads doc
 // itself: ErrNotMarkdown and ErrTooLarge are doc's. A reference to an
 // attachment a page does not hold stays as it is: it resolves nowhere, in
-// pp-hub or out of it. external is pp-hub's address (PP_EXTERNAL_URL).
-func (s *Service) PrepareExport(ctx context.Context, doc store.Node, external string) (*Export, error) {
+// pp-hub or out of it. external is pp-hub's address (PP_EXTERNAL_URL); reach
+// decides which files outside the archive its relative references bring in.
+func (s *Service) PrepareExport(ctx context.Context, doc store.Node, external string, reach Reach) (*Export, error) {
 	e, err := s.plan(ctx, doc, external, true)
 	if err != nil {
 		return nil, err
 	}
+	e.reach = reach
 	item := e.root[0]
 	if e.first, err = e.preparePage(ctx, item); err != nil {
 		return nil, err
@@ -121,6 +138,7 @@ func (s *Service) plan(ctx context.Context, root store.Node, external string, se
 		external: strings.TrimRight(external, "/"),
 		pages:    map[string]string{},
 		titles:   map[string]string{},
+		entries:  map[pgtype.UUID]string{},
 	}
 	top := tree.Children
 	if self {
@@ -164,6 +182,7 @@ func (e *Export) layout(dir string, nodes []*fs.TreeNode) []*exportItem {
 			}
 			it.path = path.Join(dir, uniqueName(name, taken))
 		}
+		e.entries[n.Node.ID] = it.path
 		items = append(items, it)
 	}
 	if len(pages) > 0 {
@@ -255,9 +274,13 @@ func (e *Export) preparePage(ctx context.Context, it *exportItem) (*exportPage, 
 		hrefs[id] = e.external + "/edit/" + id
 		outside = append(outside, id)
 	}
+	rel, err := e.relativeLinks(ctx, it, p, parsed.Doc)
+	if err != nil {
+		return nil, err
+	}
 
 	switch {
-	case len(links) == 0 && len(refs) == 0:
+	case len(links) == 0 && len(refs) == 0 && len(rel) == 0:
 		p.markdown = src
 	case parsed.Lossy:
 		// Rendering a lossy document writes what the block set can hold and
@@ -271,6 +294,10 @@ func (e *Export) preparePage(ctx context.Context, it *exportItem) (*exportPage, 
 		}
 		for id, href := range hrefs {
 			out = bytes.ReplaceAll(out, []byte("](/edit/"+id+")"), []byte("]("+href+")"))
+		}
+		// Best effort: a relative reference written as a plain `](path)`.
+		for ref, link := range rel {
+			out = bytes.ReplaceAll(out, []byte("]("+ref+")"), []byte("]("+link+")"))
 		}
 		p.markdown = out
 	default:
@@ -295,6 +322,10 @@ func (e *Export) preparePage(ctx context.Context, it *exportItem) (*exportPage, 
 			}
 			return mdoc.AttachmentScheme + hash
 		})
+		doc = mdoc.MapRelative(doc, func(ref string) (string, bool) {
+			link, ok := rel[ref]
+			return link, ok
+		})
 		fm := parsed.Frontmatter
 		if hash, ok := strings.CutPrefix(cover, mdoc.AttachmentScheme); ok && links[hash] != "" {
 			fm = mdoc.SetFrontmatterMeta(fm, icon, links[hash])
@@ -305,6 +336,53 @@ func (e *Export) preparePage(ctx context.Context, it *exportItem) (*exportPage, 
 		})
 	}
 	return p, nil
+}
+
+// relativeLinks maps the page's relative references to where they lead in the
+// archive: a node in it to its entry; a file outside it, when the export's
+// reach allows, to a copy added to p's assets. A reference that resolves to
+// nothing, or to what the archive does not carry, is absent and stays as it
+// is. A `#fragment` stays on the link (a heading in a linked page).
+func (e *Export) relativeLinks(ctx context.Context, it *exportItem, p *exportPage, doc mdoc.Node) (map[string]string, error) {
+	out := map[string]string{}
+	copied := map[pgtype.UUID]string{}
+	dir := path.Dir(it.path)
+	for _, ref := range mdoc.RelativeRefs(doc) {
+		segs, _ := mdoc.RelativePath(ref)
+		target, err := e.files.ResolveRelative(ctx, it.node, segs)
+		if errors.Is(err, fs.ErrNotFound) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		fragment := ""
+		if i := strings.IndexByte(ref, '#'); i >= 0 {
+			fragment = ref[i:]
+		}
+		link, ok := "", false
+		if entry, in := e.entries[target.ID]; in {
+			link, ok = relativeLink(dir, entry), true
+		} else if link, ok = copied[target.ID]; !ok && target.Kind == store.NodeKindFile && e.reach != nil {
+			if ok, err = e.reach(ctx, it.node, target); err != nil {
+				return nil, err
+			}
+			if ok {
+				name := cleanName(target.Name)
+				if name == "" {
+					name = "file"
+				}
+				file := uniqueName(name, it.assets.taken)
+				p.assets = append(p.assets, exportAsset{file: target.ID, path: path.Join(it.assets.path, file)})
+				link = escapeLink(it.assets.name) + "/" + escapeLink(file)
+				copied[target.ID] = link
+			}
+		}
+		if ok && link+fragment != ref {
+			out[ref] = link + fragment
+		}
+	}
+	return out, nil
 }
 
 // relativeLink is the link from a markdown in dir to the entry target, each
@@ -407,18 +485,32 @@ func (e *Export) writeFile(ctx context.Context, zw *zip.Writer, it *exportItem) 
 }
 
 func (e *Export) writeAsset(ctx context.Context, zw *zip.Writer, doc pgtype.UUID, a exportAsset) error {
-	att, rc, err := e.files.OpenAttachment(ctx, doc, a.hash)
-	if err != nil {
-		return fmt.Errorf("attachment %s: %w", a.hash[:12], err)
+	var (
+		mimeType string
+		modified time.Time
+		rc       io.ReadCloser
+	)
+	if a.file.Valid {
+		_, ver, r, err := e.files.OpenFile(ctx, a.file)
+		if err != nil {
+			return fmt.Errorf("%s: %w", a.path, err)
+		}
+		mimeType, modified, rc = ver.Mime, ver.CreatedAt.Time, r
+	} else {
+		att, r, err := e.files.OpenAttachment(ctx, doc, a.hash)
+		if err != nil {
+			return fmt.Errorf("attachment %s: %w", a.hash[:12], err)
+		}
+		mimeType, modified, rc = att.Mime, att.CreatedAt.Time, r
 	}
 	defer rc.Close()
 	// Images and videos are compressed already; deflating them again costs
 	// CPU for nothing.
 	method := zip.Deflate
-	if t := strings.ToLower(att.Mime); strings.HasPrefix(t, "image/") || strings.HasPrefix(t, "video/") {
+	if t := strings.ToLower(mimeType); strings.HasPrefix(t, "image/") || strings.HasPrefix(t, "video/") {
 		method = zip.Store
 	}
-	entry, err := zw.CreateHeader(&zip.FileHeader{Name: a.path, Method: method, Modified: att.CreatedAt.Time})
+	entry, err := zw.CreateHeader(&zip.FileHeader{Name: a.path, Method: method, Modified: modified})
 	if err != nil {
 		return err
 	}

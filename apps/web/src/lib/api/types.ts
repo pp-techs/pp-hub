@@ -849,6 +849,29 @@ export interface UnfurledLink {
 }
 
 /**
+ * `GET /nodes/{id}/relative/meta`: what a relative link in a block document
+ * (`[spec](../Spec.md)`) names, answered only when the reader may open it.
+ */
+export interface RelativeNode {
+  id: string;
+  kind: "dir" | "file";
+  name: string;
+  /** A block document, opened as a page rather than as a file. */
+  markdown: boolean;
+}
+
+/**
+ * `POST /nodes/{id}/relative/embed`: a relative reference copied into the
+ * document's attachments. `src` is the `attachment:<hash>` the block now keeps.
+ */
+export interface RelativeEmbed {
+  src: string;
+  name: string;
+  mime: string;
+  size: number;
+}
+
+/**
  * An extension this build of the server carries. `instance` is the admin's
  * switch, `space` the space admin's; `enabled` is the effective answer for the
  * space the list was asked for (the instance switch when none was).

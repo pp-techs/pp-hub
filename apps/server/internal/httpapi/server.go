@@ -281,6 +281,10 @@ func (s *Server) Router() http.Handler {
 		// link's download flag is not consulted.
 		r.Get("/document", s.handleShareDocument)
 		r.Get("/attachments/{hash}", s.handleShareAttachment)
+		// A document's relative references (`![](images/a.png)`): the
+		// file's bytes on the document's terms, and what a link names.
+		r.Get("/relative", s.handleShareRelative)
+		r.Get("/relative/meta", s.handleShareRelativeMeta)
 		// Pages (M43) through the link: read-only, ancestors bounded by
 		// the link's root.
 		r.Get("/page", s.handleSharePage)
@@ -416,6 +420,9 @@ func (s *Server) apiRoutes(r chi.Router, agent bool) {
 		r.Post("/edit-session", s.handleEditSession)
 		r.Get("/collab", s.handleCollabSession)
 		r.Get("/attachments/{hash}", s.handleAttachment)
+		r.Get("/relative", s.handleRelative)
+		r.Get("/relative/meta", s.handleRelativeMeta)
+		r.Post("/relative/embed", s.handleRelativeEmbed)
 		r.Get("/document", s.handleDocument)
 		r.Get("/export", s.handleExport)
 		// Pages (M43): the page tree, breadcrumb and backlinks.

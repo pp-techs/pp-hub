@@ -119,6 +119,14 @@ var clientRoutes = []string{
 	"GET /s/{token}/document",
 	"GET /s/{token}/attachments/{hash}",
 
+	// Relative references in block documents: the file's bytes, what a
+	// link names, and embedding it as an attachment.
+	"GET /api/v1/nodes/{nodeID}/relative",
+	"GET /api/v1/nodes/{nodeID}/relative/meta",
+	"POST /api/v1/nodes/{nodeID}/relative/embed",
+	"GET /s/{token}/relative",
+	"GET /s/{token}/relative/meta",
+
 	// Pages (M43): the page tree, breadcrumb and backlinks, signed in and
 	// through a link.
 	"GET /api/v1/nodes/{nodeID}/page",
@@ -374,6 +382,7 @@ func TestShareDocumentRoutesArePublic(t *testing.T) {
 	want := map[string]bool{
 		"GET /s/{token}/document": false, "GET /s/{token}/attachments/{hash}": false,
 		"GET /s/{token}/page": false, "GET /s/{token}/pages": false,
+		"GET /s/{token}/relative": false, "GET /s/{token}/relative/meta": false,
 	}
 	err := chi.Walk(
 		(&Server{}).Router().(chi.Routes),
