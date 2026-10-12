@@ -6,6 +6,7 @@ import {
   ExternalLink,
   Eye,
   FileArchive,
+  FolderDown,
   FolderInput,
   History,
   Info,
@@ -186,6 +187,19 @@ export function nodeActions(
       group: "open",
       // eslint-disable-next-line lingui/no-unlocalized-strings -- panel id
       run: () => openPanel("versions", node),
+    });
+  }
+
+  // A folder downloads as a zip of everything under it; the server streams it
+  // (`/download` on a dir) and audits it as a folder download.
+  if (node.kind === "dir" && caps.download) {
+    actions.push({
+      key: "download",
+      label: msg`Download as .zip`,
+      icon: FolderDown,
+      group: "open",
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- window.open target
+      run: () => window.open(downloadUrl(node), "_blank"),
     });
   }
 

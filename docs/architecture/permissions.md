@@ -124,6 +124,8 @@ and being worked around. It is a UX distinction that the UI keeps consistent,
 not an encryption boundary, and nothing here tries to make the bytes
 unsaveable by deriving a separate render.
 
+The UI offers the folder zip as **Download as .zip** (row menu, selection bar, "Shared with me") whenever the folder's own caps include download.
+
 `can_download` also gates **copying**. `POST /nodes/{id}/copy` authorises the
 source with `CapDownload` and the destination with `requireParentWrite`, so a
 reader may work from somebody else's file in their own folder — a copy is a
