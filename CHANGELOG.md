@@ -11,6 +11,12 @@ Versions up to and including 0.14.1 predate this changelog; see the
 
 <!-- `bun run version-packages` adds each release's section from its changesets; edit it in the Version Packages PR. -->
 
+## [0.22.0] — 2026-10-13
+
+Mermaid diagrams are no longer all grey: nodes, actors, notes and loop boxes now take a tinted fill and a coloured border from the brand colour, and pie charts, timelines and other multi-series diagrams use a full colour palette, in both light and dark mode.
+
+Text and code files now preview in full: plain text, logs, JSON, YAML, config and source files (Go, TypeScript, Python, and many more) open in the preview with syntax colouring and line numbers, instead of showing nothing or only the first 4 KB. Large files show their first 256 KB with a note.
+
 ## [0.21.1] — 2026-10-13
 
 Trashing a folder no longer drops the items you put inside it onto your top level; they stay in the trash with the folder and come back when you restore it. Work a colleague added to your folder still appears on their own top level.

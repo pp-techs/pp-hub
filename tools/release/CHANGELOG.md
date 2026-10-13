@@ -1,5 +1,15 @@
 # @pp-hub/release
 
+## 0.22.0
+
+### Minor Changes
+
+- 662e889: Text and code files now preview in full: plain text, logs, JSON, YAML, config and source files (Go, TypeScript, Python, and many more) open in the preview with syntax colouring and line numbers, instead of showing nothing or only the first 4 KB. Large files show their first 256 KB with a note.
+
+### Patch Changes
+
+- 662e889: Mermaid diagrams are no longer all grey: nodes, actors, notes and loop boxes now take a tinted fill and a coloured border from the brand colour, and pie charts, timelines and other multi-series diagrams use a full colour palette, in both light and dark mode.
+
 ## 0.21.1
 
 ### Patch Changes
