@@ -3583,7 +3583,7 @@ msgstr "Không có ai khớp với các bộ lọc này."
 msgid "No open comments."
 msgstr "Không có bình luận đang mở."
 
-#: src/components/preview-content.tsx:288
+#: src/components/preview-content.tsx:453
 msgid "No preview available — use Download to view this file."
 msgstr "Không có bản xem trước — dùng Tải xuống để xem tệp này."
 
@@ -3791,7 +3791,7 @@ msgstr "mở"
 #: src/components/nav-apps.tsx:132
 #: src/components/node-actions.tsx:118
 #: src/components/node-actions.tsx:153
-#: src/components/preview-content.tsx:281
+#: src/components/preview-content.tsx:446
 #: src/components/preview-modal.tsx:115
 #: src/components/preview-panel.tsx:340
 #: src/components/share-dialog.tsx:785
@@ -3807,7 +3807,7 @@ msgid "Open a card to set a due date, assign people, add labels and link drive f
 msgstr "Mở thẻ để đặt hạn, giao người, thêm nhãn và liên kết tệp trong drive."
 
 #: src/components/node-actions.tsx:139
-#: src/components/preview-content.tsx:151
+#: src/components/preview-content.tsx:155
 msgid "Open in new tab"
 msgstr "Mở trong tab mới"
 
@@ -3952,7 +3952,7 @@ msgstr "Tạm dừng tải lên"
 msgid "Paused"
 msgstr "Đã tạm dừng"
 
-#: src/components/preview-content.tsx:143
+#: src/components/preview-content.tsx:147
 msgid "PDF preview of {name}"
 msgstr "Bản xem trước PDF của {name}"
 
@@ -4068,7 +4068,7 @@ msgstr "Xem trước"
 msgid "Preview {nodeName}"
 msgstr "Xem trước {nodeName}"
 
-#: src/components/preview-content.tsx:77
+#: src/components/preview-content.tsx:81
 msgid "Preview not available yet — it is generated shortly after upload."
 msgstr "Bản xem trước chưa sẵn sàng — nó được tạo ngay sau khi tải lên."
 
@@ -4722,6 +4722,10 @@ msgstr "Xem cũ hơn"
 msgid "Showing {shown} of {total}"
 msgstr "Hiển thị {shown} trên {total}"
 
+#: src/components/preview-content.tsx:336
+msgid "Showing the first {shown} of {total} — use Download for the rest."
+msgstr "Đang hiển thị {shown} đầu tiên trong {total} — dùng Tải xuống để xem phần còn lại."
+
 #: src/components/settings/panes/space-general.tsx:163
 msgid "Shown in the switcher and every breadcrumb."
 msgstr "Hiển thị trong bộ chuyển đổi và mọi đường dẫn."
@@ -5160,7 +5164,7 @@ msgstr "Ứng dụng này đã bị tắt"
 msgid "This board has no columns yet"
 msgstr "Bảng này chưa có cột nào"
 
-#: src/components/preview-content.tsx:147
+#: src/components/preview-content.tsx:151
 msgid "This browser can't display PDFs inline."
 msgstr "Trình duyệt này không thể hiển thị PDF trực tiếp."
 
@@ -5196,7 +5200,11 @@ msgstr "Tài liệu này không khả dụng"
 msgid "This file contains formatting the block editor cannot keep, such as raw HTML or footnotes. Saving rewrites the file without it. The original stays in version history, and you can restore it from there."
 msgstr "Tệp này chứa định dạng mà trình soạn thảo khối không giữ được, chẳng hạn HTML thô hoặc chú thích cuối trang. Khi lưu, tệp sẽ được ghi lại mà không có phần đó. Bản gốc vẫn nằm trong lịch sử phiên bản và bạn có thể khôi phục từ đó."
 
-#: src/components/preview-content.tsx:277
+#: src/components/preview-content.tsx:307
+msgid "This file is not text, so it cannot be previewed."
+msgstr "Tệp này không phải văn bản nên không thể xem trước."
+
+#: src/components/preview-content.tsx:442
 msgid "This file opens in the office editor."
 msgstr "Tệp này mở trong trình soạn thảo Office."
 
@@ -5291,7 +5299,7 @@ msgstr "Không gian này không có quản trị viên"
 msgid "This space is not linked to an organization yet, so nobody can be added to it. An instance administrator has to link it first — there is nothing to fix from this screen."
 msgstr "Không gian này chưa được liên kết với tổ chức nào nên không thể thêm ai vào. Quản trị viên máy chủ phải liên kết trước — không có gì để khắc phục từ màn hình này."
 
-#: src/components/preview-content.tsx:166
+#: src/components/preview-content.tsx:170
 msgid "This video can't be played here — use Download."
 msgstr "Không thể phát video này tại đây — hãy dùng Tải xuống."
 
@@ -5791,7 +5799,7 @@ msgstr "Bạn đã tạo"
 msgid "You deleted"
 msgstr "Bạn đã xoá"
 
-#: src/components/preview-content.tsx:268
+#: src/components/preview-content.tsx:433
 msgid "You do not have access to this file."
 msgstr "Bạn không có quyền truy cập tệp này."
 

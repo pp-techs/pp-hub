@@ -3466,7 +3466,7 @@ msgstr ""
 msgid "No open comments."
 msgstr ""
 
-#: src/components/preview-content.tsx:288
+#: src/components/preview-content.tsx:453
 msgid "No preview available — use Download to view this file."
 msgstr ""
 
@@ -3658,7 +3658,7 @@ msgstr ""
 #: src/components/nav-apps.tsx:132
 #: src/components/node-actions.tsx:118
 #: src/components/node-actions.tsx:153
-#: src/components/preview-content.tsx:281
+#: src/components/preview-content.tsx:446
 #: src/components/preview-modal.tsx:115
 #: src/components/preview-panel.tsx:340
 #: src/components/share-dialog.tsx:785
@@ -3674,7 +3674,7 @@ msgid "Open a card to set a due date, assign people, add labels and link drive f
 msgstr ""
 
 #: src/components/node-actions.tsx:139
-#: src/components/preview-content.tsx:151
+#: src/components/preview-content.tsx:155
 msgid "Open in new tab"
 msgstr ""
 
@@ -3815,7 +3815,7 @@ msgstr ""
 msgid "Paused"
 msgstr ""
 
-#: src/components/preview-content.tsx:143
+#: src/components/preview-content.tsx:147
 msgid "PDF preview of {name}"
 msgstr ""
 
@@ -3925,7 +3925,7 @@ msgstr ""
 msgid "Preview {nodeName}"
 msgstr ""
 
-#: src/components/preview-content.tsx:77
+#: src/components/preview-content.tsx:81
 msgid "Preview not available yet — it is generated shortly after upload."
 msgstr ""
 
@@ -4532,6 +4532,10 @@ msgstr ""
 msgid "Showing {shown} of {total}"
 msgstr ""
 
+#: src/components/preview-content.tsx:336
+msgid "Showing the first {shown} of {total} — use Download for the rest."
+msgstr ""
+
 #: src/components/settings/panes/space-general.tsx:163
 msgid "Shown in the switcher and every breadcrumb."
 msgstr ""
@@ -4941,7 +4945,7 @@ msgstr ""
 msgid "This board has no columns yet"
 msgstr ""
 
-#: src/components/preview-content.tsx:147
+#: src/components/preview-content.tsx:151
 msgid "This browser can't display PDFs inline."
 msgstr ""
 
@@ -4973,7 +4977,11 @@ msgstr ""
 msgid "This file contains formatting the block editor cannot keep, such as raw HTML or footnotes. Saving rewrites the file without it. The original stays in version history, and you can restore it from there."
 msgstr ""
 
-#: src/components/preview-content.tsx:277
+#: src/components/preview-content.tsx:307
+msgid "This file is not text, so it cannot be previewed."
+msgstr ""
+
+#: src/components/preview-content.tsx:442
 msgid "This file opens in the office editor."
 msgstr ""
 
@@ -5064,7 +5072,7 @@ msgstr ""
 msgid "This space is not linked to an organization yet, so nobody can be added to it. An instance administrator has to link it first — there is nothing to fix from this screen."
 msgstr ""
 
-#: src/components/preview-content.tsx:166
+#: src/components/preview-content.tsx:170
 msgid "This video can't be played here — use Download."
 msgstr ""
 
@@ -5536,7 +5544,7 @@ msgstr ""
 msgid "You deleted"
 msgstr ""
 
-#: src/components/preview-content.tsx:268
+#: src/components/preview-content.tsx:433
 msgid "You do not have access to this file."
 msgstr ""
 

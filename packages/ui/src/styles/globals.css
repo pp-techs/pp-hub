@@ -206,8 +206,11 @@
   .slash-content pre {
     @apply bg-muted my-2 overflow-x-auto rounded-md p-3 font-mono text-xs leading-relaxed;
   }
-  /* Code highlighting: lowlight tags tokens with `hljs-*`; this is the theme. */
-  .slash-content {
+  /*
+   * Code highlighting: lowlight tags tokens with `hljs-*`; this is the theme.
+   * `.code-preview` is the file previewer's code surface, which shares it.
+   */
+  :is(.slash-content, .code-preview) {
     --hljs-comment: oklch(0.55 0.02 260);
     --hljs-keyword: oklch(0.55 0.2 20);
     --hljs-string: oklch(0.45 0.12 250);
@@ -216,7 +219,7 @@
     --hljs-type: oklch(0.5 0.13 150);
     --hljs-variable: oklch(0.55 0.16 50);
   }
-  .dark .slash-content {
+  .dark :is(.slash-content, .code-preview) {
     --hljs-comment: oklch(0.65 0.02 260);
     --hljs-keyword: oklch(0.72 0.17 20);
     --hljs-string: oklch(0.78 0.1 250);
@@ -225,56 +228,56 @@
     --hljs-type: oklch(0.78 0.13 150);
     --hljs-variable: oklch(0.8 0.13 60);
   }
-  .slash-content .hljs-comment,
-  .slash-content .hljs-quote {
+  :is(.slash-content, .code-preview) .hljs-comment,
+  :is(.slash-content, .code-preview) .hljs-quote {
     color: var(--hljs-comment);
     font-style: italic;
   }
-  .slash-content .hljs-keyword,
-  .slash-content .hljs-selector-tag,
-  .slash-content .hljs-doctag,
-  .slash-content .hljs-meta .hljs-keyword {
+  :is(.slash-content, .code-preview) .hljs-keyword,
+  :is(.slash-content, .code-preview) .hljs-selector-tag,
+  :is(.slash-content, .code-preview) .hljs-doctag,
+  :is(.slash-content, .code-preview) .hljs-meta .hljs-keyword {
     color: var(--hljs-keyword);
   }
-  .slash-content .hljs-string,
-  .slash-content .hljs-regexp,
-  .slash-content .hljs-meta .hljs-string,
-  .slash-content .hljs-addition {
+  :is(.slash-content, .code-preview) .hljs-string,
+  :is(.slash-content, .code-preview) .hljs-regexp,
+  :is(.slash-content, .code-preview) .hljs-meta .hljs-string,
+  :is(.slash-content, .code-preview) .hljs-addition {
     color: var(--hljs-string);
   }
-  .slash-content .hljs-number,
-  .slash-content .hljs-literal,
-  .slash-content .hljs-symbol,
-  .slash-content .hljs-bullet {
+  :is(.slash-content, .code-preview) .hljs-number,
+  :is(.slash-content, .code-preview) .hljs-literal,
+  :is(.slash-content, .code-preview) .hljs-symbol,
+  :is(.slash-content, .code-preview) .hljs-bullet {
     color: var(--hljs-number);
   }
-  .slash-content .hljs-title,
-  .slash-content .hljs-section,
-  .slash-content .hljs-name,
-  .slash-content .hljs-selector-id,
-  .slash-content .hljs-selector-class {
+  :is(.slash-content, .code-preview) .hljs-title,
+  :is(.slash-content, .code-preview) .hljs-section,
+  :is(.slash-content, .code-preview) .hljs-name,
+  :is(.slash-content, .code-preview) .hljs-selector-id,
+  :is(.slash-content, .code-preview) .hljs-selector-class {
     color: var(--hljs-title);
   }
-  .slash-content .hljs-type,
-  .slash-content .hljs-built_in,
-  .slash-content .hljs-class .hljs-title {
+  :is(.slash-content, .code-preview) .hljs-type,
+  :is(.slash-content, .code-preview) .hljs-built_in,
+  :is(.slash-content, .code-preview) .hljs-class .hljs-title {
     color: var(--hljs-type);
   }
-  .slash-content .hljs-attr,
-  .slash-content .hljs-attribute,
-  .slash-content .hljs-variable,
-  .slash-content .hljs-template-variable,
-  .slash-content .hljs-params,
-  .slash-content .hljs-property {
+  :is(.slash-content, .code-preview) .hljs-attr,
+  :is(.slash-content, .code-preview) .hljs-attribute,
+  :is(.slash-content, .code-preview) .hljs-variable,
+  :is(.slash-content, .code-preview) .hljs-template-variable,
+  :is(.slash-content, .code-preview) .hljs-params,
+  :is(.slash-content, .code-preview) .hljs-property {
     color: var(--hljs-variable);
   }
-  .slash-content .hljs-deletion {
+  :is(.slash-content, .code-preview) .hljs-deletion {
     color: var(--hljs-keyword);
   }
-  .slash-content .hljs-emphasis {
+  :is(.slash-content, .code-preview) .hljs-emphasis {
     font-style: italic;
   }
-  .slash-content .hljs-strong {
+  :is(.slash-content, .code-preview) .hljs-strong {
     font-weight: 600;
   }
   .slash-content hr {

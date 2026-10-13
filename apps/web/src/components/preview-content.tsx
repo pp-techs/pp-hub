@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
 import { ExternalLink } from "lucide-react";
@@ -6,16 +6,20 @@ import { Button } from "@workspace/ui/components/button";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { LoadingStatus } from "@/components/loading";
 import { NodeMarkdownView } from "@/components/markdown-document-view";
+import { mdocLowlight } from "@/lib/collab/mdoc-kit";
+import { useFormatters } from "@/lib/format";
 import type { Node } from "@/lib/api";
 import {
   capsOf,
   contentUrl,
   isMarkdownFile,
   isOfficeFile,
+  isTextFile,
   openEditor,
   openInTab,
   previewKind,
   previewUrl,
+  textLanguage,
 } from "@/lib/api";
 
 // ── Fetching ──────────────────────────────────────────────────────────────────
@@ -180,6 +184,164 @@ function VideoPreview({ node }: { node: Node }) {
   );
 }
 
+// ── Code preview ──────────────────────────────────────────────────────────────
+
+/**
+ * How much of a file the viewer reads. Past it the file is cut and says so: a
+ * megabyte of log is not something to lay out and colour for a preview, and
+ * the rest is one Download away.
+ */
+const CODE_PREVIEW_MAX_BYTES = 256 * 1024;
+
+type CodeState =
+  | { status: "loading" }
+  | { status: "failed" }
+  | { status: "binary" }
+  | { status: "ready"; text: string };
+
+/**
+ * Reads at most `limit` bytes of a file's own bytes and decodes them. The
+ * `Range` header lets the server stop early; a backend that cannot seek
+ * answers 200 with everything, so the stream is also cut client-side.
+ */
+async function readCode(url: string, limit: number, signal: AbortSignal): Promise<CodeState> {
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- HTTP Range header value
+  const res = await fetch(url, { headers: { Range: `bytes=0-${limit - 1}` }, signal });
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- developer-facing Error text
+  if (!res.ok || !res.body) throw new Error(`content ${res.status}`);
+  const reader = res.body.getReader();
+  const chunks: Uint8Array<ArrayBuffer>[] = [];
+  let got = 0;
+  while (got < limit) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value as Uint8Array<ArrayBuffer>);
+    got += value.length;
+  }
+  void reader.cancel();
+  const bytes = new Uint8Array(await new Blob(chunks).slice(0, limit).arrayBuffer());
+  // A NUL in the first page of bytes is how a binary announces itself; text
+  // in any encoding the viewer can decode has none.
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- union discriminator
+  if (bytes.subarray(0, 8192).includes(0)) return { status: "binary" };
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- union discriminator
+  return { status: "ready", text: new TextDecoder().decode(bytes) };
+}
+
+function useCode(url: string): CodeState {
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- union discriminator
+  const [state, setState] = useState<CodeState>({ status: "loading" });
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    // eslint-disable-next-line lingui/no-unlocalized-strings -- union discriminator
+    setState({ status: "loading" });
+    readCode(url, CODE_PREVIEW_MAX_BYTES, ctrl.signal)
+      .then(setState)
+      .catch(() => {
+        // eslint-disable-next-line lingui/no-unlocalized-strings -- union discriminator
+        if (!ctrl.signal.aborted) setState({ status: "failed" });
+      });
+    return () => ctrl.abort();
+  }, [url]);
+
+  return state;
+}
+
+/** The part of lowlight's tree (hast) the viewer reads: text, and elements that carry classes. */
+interface HighlightNode {
+  type: string;
+  value?: string;
+  properties?: { className?: unknown };
+  children?: HighlightNode[];
+}
+
+/** Lowlight's tree as React: elements are `<span class="hljs-…">`, the rest is text. */
+function HighlightTree({ nodes }: { nodes: HighlightNode[] }) {
+  return nodes.map((n, i) => {
+    // eslint-disable-next-line lingui/no-unlocalized-strings -- hast node type
+    if (n.type === "text") return n.value;
+    // eslint-disable-next-line lingui/no-unlocalized-strings -- hast node type
+    if (n.type !== "element") return null;
+    const cls = n.properties?.className;
+    return (
+      // eslint-disable-next-line react/no-array-index-key -- a static tree, never reordered
+      <span key={i} className={Array.isArray(cls) ? cls.join(" ") : undefined}>
+        <HighlightTree nodes={n.children ?? []} />
+      </span>
+    );
+  });
+}
+
+/**
+ * Text and source code, read from `/content` — the file's own bytes, the same
+ * read right as an image or PDF — in full rather than the 4 KiB `?kind=text`
+ * snippet. Coloured when highlight.js has the language, with a line-number
+ * gutter; lines never wrap, so the gutter stays aligned and the viewer
+ * scrolls sideways instead.
+ */
+function CodePreview({ node }: { node: Node }) {
+  const { i18n } = useLingui();
+  const f = useFormatters();
+  const state = useCode(contentUrl(node));
+  const language = textLanguage(node);
+
+  const ready = state.status === "ready" ? state.text : null;
+  const lines = useMemo(() => {
+    if (ready === null) return null;
+    // eslint-disable-next-line lingui/no-unlocalized-strings -- newline
+    const count = ready.split("\n").length - (ready.endsWith("\n") ? 1 : 0);
+    return Array.from({ length: Math.max(count, 1) }, (_, i) => i + 1).join("\n");
+  }, [ready]);
+  const code = useMemo(() => {
+    if (ready === null || !language || !mdocLowlight.registered(language)) return ready;
+    return <HighlightTree nodes={mdocLowlight.highlight(language, ready).children} />;
+  }, [ready, language]);
+
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- union discriminator
+  if (state.status === "failed") return <Message>{i18n._(NOT_READY)}</Message>;
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- union discriminator
+  if (state.status === "binary") {
+    return (
+      <Message>
+        <Trans>This file is not text, so it cannot be previewed.</Trans>
+      </Message>
+    );
+  }
+  if (lines === null) {
+    return (
+      <LoadingStatus className="h-full p-4">
+        <Skeleton className="h-full min-h-40 w-full" />
+      </LoadingStatus>
+    );
+  }
+  const truncated = (node.size ?? 0) > CODE_PREVIEW_MAX_BYTES;
+  const shown = f.size(CODE_PREVIEW_MAX_BYTES);
+  const total = f.size(node.size ?? 0);
+  return (
+    <div className="code-preview flex min-h-full flex-col">
+      <div className="flex flex-1 font-mono text-xs leading-relaxed">
+        <pre
+          aria-hidden
+          className="bg-background text-muted-foreground border-border sticky left-0 shrink-0 border-r px-3 py-3 text-right select-none"
+        >
+          {lines}
+        </pre>
+        <pre className="flex-1 px-3 py-3 whitespace-pre">
+          <code>{code}</code>
+        </pre>
+      </div>
+      {truncated && (
+        <p className="bg-background text-muted-foreground border-border sticky bottom-0 left-0 border-t px-3 py-1.5 text-xs">
+          <Trans>
+            Showing the first {shown} of {total} — use Download for the rest.
+          </Trans>
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ── Text preview ──────────────────────────────────────────────────────────────
 
 function TextPreview({ url }: { url: string }) {
@@ -241,6 +403,9 @@ function PreviewBody({ node }: { node: Node }) {
   // alike — which is not enough to choose between <img>, <object> and <video>.
   // What the browser can render inline is a property of the MIME type.
   if (canRead) {
+    // Text goes first and by name: the stored MIME says `.ts` is video/mp2t
+    // and `.go` is an opaque download, neither of which is what is in the file.
+    if (isTextFile(node)) return <CodePreview node={node} />;
     if (mime === "application/pdf") return <PdfPreview node={node} />;
     // eslint-disable-next-line lingui/no-unlocalized-strings -- MIME type prefix
     if (mime.startsWith("video/")) return <VideoPreview node={node} />;

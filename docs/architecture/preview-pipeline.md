@@ -392,8 +392,22 @@ same read path as `/download` (`serveBlob` in
 `PreviewBody` dispatches on **MIME**, not on preview kind. Since images, PDFs
 and video all store one `thumbnail`, the preview kind can no longer distinguish
 `<img>` from `<object>` from `<video>` — and "what can the browser render
-inline" was always a property of the MIME type anyway. Only `text` reads the
-generated blob outright; a 4KB head is all the viewer shows.
+inline" was always a property of the MIME type anyway.
+
+**Text and source code** are the exception to "MIME decides", and they do not use
+the `text` artifact. `isTextFile` (`apps/web/src/lib/api/utils.ts`) decides by
+file extension first, then by MIME (`text/*`, `application/json`, `xml`,
+`javascript`, …): the stored MIME comes from the host's `mime.types`, which
+calls `.go` or `.py` `application/octet-stream` and `.ts` `video/mp2t`, so the
+text check runs before the PDF and video branches. `CodePreview` reads the file
+itself from `/content` (`CapView`) with `Range: bytes=0-262143` — the first
+256 KiB, cut client-side too for a backend that cannot seek — and shows it with
+a line-number gutter, no wrapping, and highlight.js colours from the editor's
+lowlight instance (`mdocLowlight`; theme in `globals.css`, shared with the block
+editor via `.code-preview`). A longer file says how much is shown; a NUL byte in
+the first 8 KiB reads as binary and is not shown. Markdown renders as a
+document instead. `.rtf` is the one remaining reader of the 4 KB `text`
+artifact. The share page does not preview text files.
 
 Images are the case worth spelling out: `ImagePreview` points at `/content` and
 falls back to the 256px thumbnail only if those bytes fail to load.

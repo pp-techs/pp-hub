@@ -3583,7 +3583,7 @@ msgstr "No one matches these filters."
 msgid "No open comments."
 msgstr "No open comments."
 
-#: src/components/preview-content.tsx:288
+#: src/components/preview-content.tsx:453
 msgid "No preview available — use Download to view this file."
 msgstr "No preview available — use Download to view this file."
 
@@ -3791,7 +3791,7 @@ msgstr "open"
 #: src/components/nav-apps.tsx:132
 #: src/components/node-actions.tsx:118
 #: src/components/node-actions.tsx:153
-#: src/components/preview-content.tsx:281
+#: src/components/preview-content.tsx:446
 #: src/components/preview-modal.tsx:115
 #: src/components/preview-panel.tsx:340
 #: src/components/share-dialog.tsx:785
@@ -3807,7 +3807,7 @@ msgid "Open a card to set a due date, assign people, add labels and link drive f
 msgstr "Open a card to set a due date, assign people, add labels and link drive files."
 
 #: src/components/node-actions.tsx:139
-#: src/components/preview-content.tsx:151
+#: src/components/preview-content.tsx:155
 msgid "Open in new tab"
 msgstr "Open in new tab"
 
@@ -3952,7 +3952,7 @@ msgstr "Pause uploads"
 msgid "Paused"
 msgstr "Paused"
 
-#: src/components/preview-content.tsx:143
+#: src/components/preview-content.tsx:147
 msgid "PDF preview of {name}"
 msgstr "PDF preview of {name}"
 
@@ -4068,7 +4068,7 @@ msgstr "Preview"
 msgid "Preview {nodeName}"
 msgstr "Preview {nodeName}"
 
-#: src/components/preview-content.tsx:77
+#: src/components/preview-content.tsx:81
 msgid "Preview not available yet — it is generated shortly after upload."
 msgstr "Preview not available yet — it is generated shortly after upload."
 
@@ -4722,6 +4722,10 @@ msgstr "Show older"
 msgid "Showing {shown} of {total}"
 msgstr "Showing {shown} of {total}"
 
+#: src/components/preview-content.tsx:336
+msgid "Showing the first {shown} of {total} — use Download for the rest."
+msgstr "Showing the first {shown} of {total} — use Download for the rest."
+
 #: src/components/settings/panes/space-general.tsx:163
 msgid "Shown in the switcher and every breadcrumb."
 msgstr "Shown in the switcher and every breadcrumb."
@@ -5160,7 +5164,7 @@ msgstr "This app is turned off"
 msgid "This board has no columns yet"
 msgstr "This board has no columns yet"
 
-#: src/components/preview-content.tsx:147
+#: src/components/preview-content.tsx:151
 msgid "This browser can't display PDFs inline."
 msgstr "This browser can't display PDFs inline."
 
@@ -5196,7 +5200,11 @@ msgstr "This document is not available"
 msgid "This file contains formatting the block editor cannot keep, such as raw HTML or footnotes. Saving rewrites the file without it. The original stays in version history, and you can restore it from there."
 msgstr "This file contains formatting the block editor cannot keep, such as raw HTML or footnotes. Saving rewrites the file without it. The original stays in version history, and you can restore it from there."
 
-#: src/components/preview-content.tsx:277
+#: src/components/preview-content.tsx:307
+msgid "This file is not text, so it cannot be previewed."
+msgstr "This file is not text, so it cannot be previewed."
+
+#: src/components/preview-content.tsx:442
 msgid "This file opens in the office editor."
 msgstr "This file opens in the office editor."
 
@@ -5291,7 +5299,7 @@ msgstr "This space has no administrator"
 msgid "This space is not linked to an organization yet, so nobody can be added to it. An instance administrator has to link it first — there is nothing to fix from this screen."
 msgstr "This space is not linked to an organization yet, so nobody can be added to it. An instance administrator has to link it first — there is nothing to fix from this screen."
 
-#: src/components/preview-content.tsx:166
+#: src/components/preview-content.tsx:170
 msgid "This video can't be played here — use Download."
 msgstr "This video can't be played here — use Download."
 
@@ -5791,7 +5799,7 @@ msgstr "You created"
 msgid "You deleted"
 msgstr "You deleted"
 
-#: src/components/preview-content.tsx:268
+#: src/components/preview-content.tsx:433
 msgid "You do not have access to this file."
 msgstr "You do not have access to this file."
 

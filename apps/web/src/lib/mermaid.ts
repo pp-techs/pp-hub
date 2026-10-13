@@ -4,43 +4,24 @@ import { useSyncExternalStore } from "react";
 
 type ThemeVariables = Record<string, string | boolean>;
 
-/** Mermaid theme variable → shadcn token it takes its colour from. */
+/** Mermaid theme variable → shadcn token it takes its colour from (text, lines, surfaces). */
 const TOKEN_VARIABLES: Record<string, string> = {
   background: "--card",
   textColor: "--foreground",
-  primaryColor: "--secondary",
-  primaryTextColor: "--secondary-foreground",
-  primaryBorderColor: "--ring",
-  secondaryColor: "--accent",
-  secondaryTextColor: "--accent-foreground",
-  secondaryBorderColor: "--ring",
-  tertiaryColor: "--muted",
+  primaryTextColor: "--foreground",
+  secondaryTextColor: "--foreground",
   tertiaryTextColor: "--foreground",
-  tertiaryBorderColor: "--border",
-  mainBkg: "--secondary",
-  nodeBorder: "--ring",
-  nodeTextColor: "--secondary-foreground",
+  nodeTextColor: "--foreground",
   lineColor: "--muted-foreground",
-  clusterBkg: "--muted",
   clusterBorder: "--border",
   titleColor: "--foreground",
   edgeLabelBackground: "--card",
-  noteBkgColor: "--accent",
-  noteTextColor: "--accent-foreground",
-  noteBorderColor: "--border",
-  actorBkg: "--secondary",
-  actorBorder: "--ring",
-  actorTextColor: "--secondary-foreground",
+  noteTextColor: "--foreground",
+  actorTextColor: "--foreground",
   signalColor: "--foreground",
   signalTextColor: "--foreground",
-  labelBoxBkgColor: "--secondary",
-  labelBoxBorderColor: "--ring",
-  labelTextColor: "--secondary-foreground",
-  pie1: "--chart-1",
-  pie2: "--chart-2",
-  pie3: "--chart-3",
-  pie4: "--chart-4",
-  pie5: "--chart-5",
+  labelTextColor: "--foreground",
+  loopTextColor: "--foreground",
   pieStrokeColor: "--card",
   pieOuterStrokeColor: "--border",
   pieTitleTextColor: "--foreground",
@@ -48,6 +29,55 @@ const TOKEN_VARIABLES: Record<string, string> = {
   errorBkgColor: "--destructive",
   errorTextColor: "--foreground",
 };
+
+/** OKLCH hues of the categorical palette; the first slot is the brand colour itself. */
+const ACCENT_HUES = [150, 70, 20, 300, 190, 100, 340, 220, 40, 270, 130];
+
+/** Fill strength of a tinted surface, % of the accent over the card. */
+const FILL_PERCENT = 14;
+
+const tint = (color: string, percent: number) =>
+  `color-mix(in srgb, ${color} ${percent}%, transparent)`;
+
+/**
+ * The shadcn neutrals alone render every diagram grey. The colourful part of
+ * the palette comes from the brand (`--primary`) and a ring of fixed hues, so
+ * nodes get a tinted fill with a saturated border, as on GitHub.
+ */
+function accentVariables(brand: string, dark: boolean): Record<string, string> {
+  const lightness = dark ? 0.72 : 0.6;
+  const chroma = dark ? 0.12 : 0.15;
+  const accents = [brand, ...ACCENT_HUES.map((hue) => `oklch(${lightness} ${chroma} ${hue})`)];
+  const [, green = brand, amber = brand] = accents;
+  const variables: Record<string, string> = {
+    primaryColor: tint(brand, FILL_PERCENT),
+    primaryBorderColor: brand,
+    secondaryColor: tint(green, FILL_PERCENT),
+    secondaryBorderColor: green,
+    tertiaryColor: tint(amber, FILL_PERCENT),
+    tertiaryBorderColor: amber,
+    mainBkg: tint(brand, FILL_PERCENT),
+    nodeBorder: brand,
+    clusterBkg: tint(amber, FILL_PERCENT / 2),
+    noteBkgColor: tint(amber, FILL_PERCENT * 1.5),
+    noteBorderColor: amber,
+    actorBkg: tint(brand, FILL_PERCENT),
+    actorBorder: brand,
+    actorLineColor: tint(brand, 60),
+    labelBoxBkgColor: tint(brand, FILL_PERCENT),
+    labelBoxBorderColor: brand,
+    activationBkgColor: tint(brand, FILL_PERCENT * 2),
+    activationBorderColor: brand,
+  };
+
+  // Pie slices and every other categorical diagram (timeline, journey, git, …).
+  accents.forEach((accent, index) => {
+    variables[`pie${index + 1}`] = accent;
+    variables[`cScale${index}`] = accent;
+  });
+
+  return variables;
+}
 
 let canvas: CanvasRenderingContext2D | null = null;
 
@@ -77,15 +107,21 @@ function readThemeVariables(element: HTMLElement): ThemeVariables {
   const style = getComputedStyle(element);
   // The node view sits on `bg-card`; translucent tokens are composited over it.
   const background = toHex(style.getPropertyValue("--card").trim(), "#ffffff");
+  const dark = Number.parseInt(background.slice(1, 3), 16) < 128;
   const variables: ThemeVariables = {
     fontFamily: style.fontFamily,
-    darkMode: Number.parseInt(background.slice(1, 3), 16) < 128,
+    darkMode: dark,
     // Mermaid's default is a light-grey glow, which reads as a halo in dark mode.
     dropShadow: "drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1))",
   };
 
   for (const [name, token] of Object.entries(TOKEN_VARIABLES)) {
     variables[name] = toHex(style.getPropertyValue(token).trim(), background);
+  }
+
+  const brand = style.getPropertyValue("--primary").trim();
+  for (const [name, color] of Object.entries(accentVariables(brand, dark))) {
+    variables[name] = toHex(color, background);
   }
 
   return variables;

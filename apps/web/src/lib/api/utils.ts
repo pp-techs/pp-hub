@@ -102,6 +102,135 @@ export function isMarkdownFile(node: Node): boolean {
   return mime === "text/markdown" || node.name.toLowerCase().endsWith(".md");
 }
 
+/**
+ * Source and plain-text extensions the previewer shows as text, with the
+ * highlight.js language to colour them in (`null`: shown plain). Decided by
+ * name, not by MIME: the server's type comes from the host's mime.types, which
+ * calls `.go` or `.py` application/octet-stream on a slim container and `.ts`
+ * video/mp2t on a full one. Only extensions that are text in practice belong
+ * here — `.svg` stays an image.
+ */
+const TEXT_EXTENSIONS: Record<string, string | null> = {
+  ".txt": null,
+  ".log": null,
+  ".env": null,
+  ".gitignore": null,
+  ".dockerignore": null,
+  ".editorconfig": null,
+  ".csv": null,
+  ".tsv": null,
+  ".js": "javascript",
+  ".mjs": "javascript",
+  ".cjs": "javascript",
+  ".jsx": "javascript",
+  ".ts": "typescript",
+  ".mts": "typescript",
+  ".cts": "typescript",
+  ".tsx": "typescript",
+  ".json": "json",
+  ".jsonc": "json",
+  ".json5": "json",
+  ".yaml": "yaml",
+  ".yml": "yaml",
+  ".toml": "ini",
+  ".ini": "ini",
+  ".cfg": "ini",
+  ".conf": "ini",
+  ".properties": "ini",
+  ".xml": "xml",
+  ".html": "xml",
+  ".htm": "xml",
+  ".xhtml": "xml",
+  ".vue": "xml",
+  ".svelte": "xml",
+  ".css": "css",
+  ".scss": "scss",
+  ".sass": "scss",
+  ".less": "less",
+  ".py": "python",
+  ".go": "go",
+  ".rs": "rust",
+  ".java": "java",
+  ".kt": "kotlin",
+  ".kts": "kotlin",
+  ".swift": "swift",
+  ".c": "c",
+  ".h": "c",
+  ".cc": "cpp",
+  ".cpp": "cpp",
+  ".cxx": "cpp",
+  ".hpp": "cpp",
+  ".m": "objectivec",
+  ".cs": "csharp",
+  ".vb": "vbnet",
+  ".php": "php",
+  ".rb": "ruby",
+  ".pl": "perl",
+  ".lua": "lua",
+  ".r": "r",
+  ".sql": "sql",
+  ".graphql": "graphql",
+  ".gql": "graphql",
+  ".sh": "bash",
+  ".bash": "bash",
+  ".zsh": "bash",
+  ".diff": "diff",
+  ".patch": "diff",
+  ".mk": "makefile",
+};
+
+/** Extensionless files that are text, by lower-cased name. */
+const TEXT_NAMES: Record<string, string | null> = {
+  makefile: "makefile",
+  dockerfile: "bash",
+  license: null,
+  readme: null,
+  changelog: null,
+};
+
+/** Structured-text types the server stores as `application/*`. */
+const TEXT_MIMES: Record<string, string | null> = {
+  "application/json": "json",
+  "application/xml": "xml",
+  "application/javascript": "javascript",
+  "application/x-javascript": "javascript",
+  "application/typescript": "typescript",
+  "application/x-yaml": "yaml",
+  "application/yaml": "yaml",
+  "application/toml": "ini",
+  "application/sql": "sql",
+  "application/x-sh": "bash",
+  "application/x-httpd-php": "php",
+};
+
+/** Where a text file's language comes from: its name first, then its MIME. */
+function textEntry(node: Node): { language: string | null } | null {
+  if (node.kind !== "file") return null;
+  const name = node.name.toLowerCase();
+  const ext = name.match(/\.[^.]+$/)?.[0];
+  if (ext && ext in TEXT_EXTENSIONS) return { language: TEXT_EXTENSIONS[ext]! };
+  if (!ext && name in TEXT_NAMES) return { language: TEXT_NAMES[name]! };
+  const mime = node.mime?.split(";")[0]?.trim().toLowerCase();
+  if (!mime) return null;
+  if (mime in TEXT_MIMES) return { language: TEXT_MIMES[mime]! };
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- MIME type prefix
+  if (mime.startsWith("text/")) return { language: null };
+  return null;
+}
+
+/**
+ * A file the previewer shows as text — plain text, config, source code — read
+ * from `/content`. Markdown is not one: it renders as a document.
+ */
+export function isTextFile(node: Node): boolean {
+  return !isMarkdownFile(node) && textEntry(node) !== null;
+}
+
+/** The highlight.js language to colour a text file in, or null for plain. */
+export function textLanguage(node: Node): string | null {
+  return textEntry(node)?.language ?? null;
+}
+
 /** Open the editor for a node — OnlyOffice or the block editor, by type — in a new browser tab. */
 export function openEditor(node: Pick<Node, "id">): void {
   window.open(`/edit/${node.id}`, "_blank");
@@ -246,7 +375,7 @@ export function opensInEditor(node: Node): boolean {
  */
 export function canPreview(node: Node): boolean {
   if (node.kind !== "file") return false;
-  return canOpenInTab(node) || previewKind(node.mime) !== null;
+  return canOpenInTab(node) || previewKind(node.mime) !== null || isTextFile(node);
 }
 
 export type SortField = "name" | "modified" | "size";
