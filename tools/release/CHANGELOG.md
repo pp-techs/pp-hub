@@ -1,5 +1,31 @@
 # @pp-hub/release
 
+## 0.23.0
+
+### Minor Changes
+
+- ddf66ba: OnlyOffice Document Server updated from 9.4.0 to 10.0.0.1. 10.0 refuses to call a WOPI host that no `ipfilter` rule names (`allow: *` no longer counts), so without one the editor shows only "Access forbidden". `compose.prod.yml` now writes that rule itself; nothing to do if you use it as shipped. **If you run your own compose (for example a Dokploy copy)** you must (a) bump the image to `onlyoffice/documentserver:10.0.0.1` and (b) give the `onlyoffice` service this entrypoint, whose rule names the host of `PP_WOPI_SERVER_URL` (`server` here; change it if you renamed the service):
+
+  ```yaml
+  entrypoint:
+    - sh
+    - -c
+    - |
+      cat > /etc/onlyoffice/documentserver/local-production-linux.json <<'EOF'
+      {"services":{"CoAuthoring":{"ipfilter":{"rules":[
+        {"address":"server","allowed":true},
+        {"address":"*","allowed":false}
+      ]}}}}
+      EOF
+      exec /app/ds/run-document-server.sh
+  ```
+
+  The Document Server can now only be asked to fetch from the named host. After an unclean disconnect an edit is still saved only 5–10 minutes later, as before.
+
+  Developers: `host.docker.internal` is refused by OnlyOffice 10 on OrbStack, so the dev stack gains a `wopi-proxy` service. Re-run `docker compose -f deploy/compose/compose.dev.yml --profile worker up -d`, and set `PP_WOPI_SERVER_URL=http://wopi-proxy:8081` in `apps/server/.env` and `deploy/compose/.env`. If you set `PP_SESSION_KEY` in `apps/server/.env`, set the same value in `deploy/compose/.env`.
+
+- ddf66ba: **Breaking for operators:** the nginx `web` container and the `ghcr.io/pp-techs/pp-hub/web` image are gone. The `server` image now serves the built SPA itself on the same listener as the API (new `PP_WEB_DIR`, preset to `/srv/web` in the image; unset keeps the API-only development mode), with the security headers, CSP, gzip and cache headers nginx used to add. Re-point your Dokploy/Traefik/Caddy domain from `web:80` to `server:8080`, and use `server` instead of `web` in `docker compose logs`/`restart`. WOPI moved to its own listener, `PP_WOPI_ADDR` (default `:8081`), which is not on the public port: set `PP_WOPI_SERVER_URL` to `http://server:8081` in any hand-written environment (`compose.prod.yml` already does). `PP_ONLYOFFICE_URL` is now read only by `server`. Docker builds of `server` and `worker` use the repository root as build context (`docker build -f apps/server/Dockerfile --target server .`).
+
 ## 0.22.0
 
 ### Minor Changes
