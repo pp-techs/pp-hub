@@ -490,6 +490,10 @@ first tombstone, and your file surfaces at your top level instead. Drive draws
 the same line: trashing a folder does not remove other people's access to what
 is inside it.
 
+The exception is a tombstone the caller owns: the owned-parent prune ignores
+`deleted_at`, so what you put in a folder you then trash goes into the trash
+with it and returns on restore, instead of spilling onto your home.
+
 Personal folders are gone. There is no `personal_folders` table, no
 `spaces.personal_root_id`, and no "My files" carve-out — ownership does that
 job for every node, not just one mapped folder per member.

@@ -485,6 +485,48 @@ func TestTrashedFolderNeitherHidesNorDestroysAColleaguesFile(t *testing.T) {
 	}
 }
 
+// What the folder's owner put inside a folder goes into the trash with it:
+// trashing Folder1 must not drop its contents onto the owner's home.
+func TestTrashedFolderTakesItsOwnersContentsWithIt(t *testing.T) {
+	q, sp, _ := testEnv(t)
+	ctx := context.Background()
+
+	host := user(t, q, "trash-own")
+	space, err := sp.Create(ctx, fmt.Sprintf("trash-own-%d", os.Getpid()), host.ID)
+	if err != nil {
+		t.Fatalf("create space: %v", err)
+	}
+	t.Cleanup(func() { _ = q.DeleteSpace(ctx, space.ID) })
+
+	folder, err := q.CreateNode(ctx, store.CreateNodeParams{
+		SpaceID: space.ID, Kind: store.NodeKindDir, Name: "Folder1", CreatedBy: host.ID,
+	})
+	if err != nil {
+		t.Fatalf("folder: %v", err)
+	}
+	child, err := q.CreateNode(ctx, store.CreateNodeParams{
+		SpaceID: space.ID, ParentID: folder.ID, Kind: store.NodeKindDir, Name: "Child", CreatedBy: host.ID,
+	})
+	if err != nil {
+		t.Fatalf("child: %v", err)
+	}
+	if err := q.SoftDeleteNode(ctx, store.SoftDeleteNodeParams{ID: folder.ID, DeletedBy: host.ID}); err != nil {
+		t.Fatalf("trash the folder: %v", err)
+	}
+
+	entries, err := q.ListEntryPoints(ctx, store.ListEntryPointsParams{
+		UserID: host.ID, IncludeOwned: true, SpaceID: space.ID,
+	})
+	if err != nil {
+		t.Fatalf("entry points: %v", err)
+	}
+	for _, e := range entries {
+		if e.ID == child.ID {
+			t.Error("the owner's own subfolder surfaced at their top level after they trashed its parent")
+		}
+	}
+}
+
 // Uploading a name somebody already used creates a new file for the uploader.
 //
 // It used to commit a new version of the existing node instead, which handed
