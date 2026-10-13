@@ -115,14 +115,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: web
-            context: .
-            dockerfile: apps/web/Dockerfile
           - name: server
-            context: apps/server
+            context: .
             dockerfile: apps/server/Dockerfile
           - name: worker
-            context: apps/server
+            context: .
             dockerfile: apps/server/Dockerfile
     steps:
       - name: Checkout

@@ -28,64 +28,51 @@
 # Domains tab — Dokploy injects the Traefik labels and network itself.
 # Two domains are needed:
 #
-#   web         → port 80    e.g. drive.example.com
+#   server      → port 8080  e.g. drive.example.com
 #   onlyoffice  → port 80    e.g. office.example.com
+#
+# Never assign a domain to server's port 8081: that is the WOPI listener, for
+# the Document Server alone (see docs/deployment.md).
 #
 # OnlyOffice needs its own hostname because the browser loads the editor from
 # it directly, in an iframe. See docs/deployment.md.
 
 services:
-  # The public entry point: serves the SPA and proxies the API on one origin.
+  # The public entry point: serves the SPA and the API on one origin.
   # Same-origin is required — the session cookie is host-only with
-  # SameSite=Lax, so a split hostname means nobody can log in.
-  web:
-    image: "ghcr.io/pp-techs/pp-hub/web:${PP_IMAGE_TAG:?set in .env - a released tag, e.g. 0.1.0}"
-    restart: unless-stopped
-    environment:
-      # Named in the Content-Security-Policy's frame-src and form-action, and
-      # filled by envsubst at startup: the editor handoff is a real
-      # cross-origin form POST into an iframe, so 'self' alone would leave
-      # the frame blank.
-      PP_ONLYOFFICE_URL: "${PP_ONLYOFFICE_URL:?set in .env}"
-    expose:
-      - "80"
-    # PLAIN VPS (no Traefik): publish and point your own proxy here.
-    # ports:
-    #   - "127.0.0.1:8090:80"
-    #
-    # Start order only, deliberately NOT condition: service_healthy. The server
-    # blocks on OIDC discovery for up to two minutes before it reports healthy,
-    # so gating on that means an IdP hiccup at deploy time takes the whole
-    # site down — static bundle included. nginx resolves the API lazily, so it
-    # comes up regardless and answers 502 until the server is back.
-    depends_on:
-      - server
-    networks: [edge]
-    # This container terminates every public request, so it gets the same
-    # treatment the worker already had. nginx's master runs as `nginx` in
-    # this image (see apps/web/Dockerfile), which is why ALL can be dropped
-    # except the one capability a :80 bind needs.
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    cap_add:
-      - NET_BIND_SERVICE
-
+  # SameSite=Lax, so a split hostname means nobody can log in. The server
+  # serves the bundle itself (PP_WEB_DIR is set in the image).
   server:
     image: "ghcr.io/pp-techs/pp-hub/server:${PP_IMAGE_TAG:?set in .env - a released tag, e.g. 0.1.0}"
     restart: unless-stopped
     expose:
       - "8080"
+      # WOPI — the Document Server's and the worker's callback surface,
+      # authorized by a token in the URL. Reachable on the compose networks
+      # only: never publish it, never give it a domain.
+      - "8081"
       # Prometheus /metrics — internal only, never published or proxied.
       # Scrape it by attaching a Prometheus to the `edge` network.
       - "9091"
+    # PLAIN VPS (no Traefik): publish 8080 and point your own proxy at it.
+    # Publish nothing else.
+    # ports:
+    #   - "127.0.0.1:8090:8080"
+    #
+    # This container terminates every public request, so it gets the same
+    # treatment the worker already had. Nothing here binds a port below 1024,
+    # so no capability needs to come back.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     environment:
       PP_ADDR: ":8080"
+      PP_WOPI_ADDR: ":8081"
       PP_METRICS_ADDR: "${PP_METRICS_ADDR:-:9091}"
       PP_LOG_LEVEL: "${PP_LOG_LEVEL:-info}"
       PP_LOG_FORMAT: "${PP_LOG_FORMAT:-json}"
-      # The public URL of `web`. This is the OIDC redirect base and the
+      # The public URL of this server. This is the OIDC redirect base and the
       # post-logout target, so it must be the address users actually type.
       PP_EXTERNAL_URL: "${PP_EXTERNAL_URL:?set in .env}"
       PP_DATABASE_URL: postgres://pphub:${POSTGRES_PASSWORD:?set in .env}@postgres:5432/pphub?sslmode=disable
@@ -106,8 +93,9 @@ services:
       # Browser-facing OnlyOffice URL — goes into the editor iframe src.
       PP_ONLYOFFICE_URL: "${PP_ONLYOFFICE_URL:?set in .env}"
       # How OnlyOffice reaches this server. Inside the compose network that is
-      # the service name, so WOPI never leaves the host.
-      PP_WOPI_SERVER_URL: http://server:8080
+      # the service name, so WOPI never leaves the host. Port 8081, not the
+      # public 8080: /wopi is not served there.
+      PP_WOPI_SERVER_URL: http://server:8081
 
       # Whoever signs in with this address becomes an instance admin, on
       # every sign-in. Without it a fresh install has no administrator and no
@@ -133,8 +121,8 @@ services:
       # Whose X-Forwarded-For to believe. The per-IP rate limits and the
       # address recorded on a session are only worth anything if the caller
       # cannot choose it, so nothing is trusted unless it is named here. The
-      # default is the `web` container's own network; add Traefik's or your
-      # proxy's range if it adds another hop.
+      # default covers Docker's own bridge networks, which is where Traefik or
+      # a proxy on this host sits; add its range if it lives outside them.
       PP_TRUSTED_PROXIES: "${PP_TRUSTED_PROXIES:-172.16.0.0/12}"
 
       PP_BLOB_BACKEND: "${PP_BLOB_BACKEND:-local}"
@@ -193,7 +181,7 @@ services:
       # those jobs — check its logs if office thumbnails never appear.
       PP_SESSION_KEY: "${PP_SESSION_KEY:?set in .env - generate with openssl rand -base64 32}"
       PP_ONLYOFFICE_INTERNAL_URL: http://onlyoffice
-      PP_WOPI_SERVER_URL: http://server:8080
+      PP_WOPI_SERVER_URL: http://server:8081
       # MUST equal the Document Server's JWT_SECRET: the worker is the only
       # process that calls its conversion API, and an unsigned request comes
       # back as {"error":-8}.
@@ -250,8 +238,10 @@ services:
   onlyoffice:
     # Pinned: `latest` has shipped WOPI-breaking changes before, and the editor
     # is the one service whose upgrade is not a restart — it migrates its own
-    # cache. 9.4.0 is the build this stack is verified against.
-    image: onlyoffice/documentserver:9.4.0
+    # cache. 10.0.0.1 is the build this stack is verified against. 10.0 made
+    # one thing mandatory that 9.x did not need: an ipfilter rule that NAMES the
+    # WOPI host (see the entrypoint below).
+    image: onlyoffice/documentserver:10.0.0.1
     restart: unless-stopped
     expose:
       - "80"
@@ -283,6 +273,31 @@ services:
       # Server's fetcher the one address worth stealing. (The dev stack does
       # set it, because host.docker.internal lands in that range.)
       - ALLOW_PRIVATE_IP_ADDRESS=true
+    # Written before the image's own entrypoint runs, as a file beside
+    # local.json rather than over it: the entrypoint rewrites local.json from
+    # the variables above, and node-config reads local-production-linux.json
+    # after it. In the compose file and not a mounted one, because a "docker
+    # raw" Dokploy application has nothing but this file on the server.
+    #
+    # Since 10.0 the Document Server refuses to call a WOPI host that no rule
+    # names — `* allowed` no longer counts, it answers 403 "Access forbidden"
+    # and the editor frame shows only that. The rules are also applied to
+    # every URL it is handed to fetch (the worker's conversion source, a
+    # callback), so naming `server` and refusing the rest is the point: it
+    # can no longer be asked to fetch anything but this deployment's API.
+    # The name is the compose service, which is what PP_WOPI_SERVER_URL
+    # carries; rename the service and this must follow.
+    entrypoint:
+      - sh
+      - -c
+      - |
+        cat > /etc/onlyoffice/documentserver/local-production-linux.json <<'EOF'
+        {"services":{"CoAuthoring":{"ipfilter":{"rules":[
+          {"address":"server","allowed":true},
+          {"address":"*","allowed":false}
+        ]}}}}
+        EOF
+        exec /app/ds/run-document-server.sh
     volumes:
       - onlyoffice_data:/var/www/onlyoffice/Data
       - onlyoffice_logs:/var/log/onlyoffice
@@ -293,8 +308,9 @@ services:
       timeout: 5s
       retries: 10
       start_period: 60s
-    # Only `office`. It talks to `server:8080` and nothing else needs to be
-    # reachable from a third-party container that fetches URLs on request.
+    # Only `office`. It talks to `server` (WOPI on :8081) and nothing else
+    # needs to be reachable from a third-party container that fetches URLs on
+    # request.
     networks: [office]
 
   # --profile s3
@@ -372,7 +388,7 @@ services:
 # only access control is a shared JWT secret, and it runs with
 # ALLOW_PRIVATE_IP_ADDRESS=true because its own fetcher has to reach `server`
 # at a private address. On one flat network that combination also let it open
-# connections to postgres:5432 and seaweedfs:8333. It needs `server:8080` and
+# connections to postgres:5432 and seaweedfs:8333. It needs `server` and
 # nothing else, so now that is all it can reach. The JWT gate is what stops
 # it being driven at all; this is what bounds the damage the day that gate
 # fails.

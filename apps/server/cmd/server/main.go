@@ -245,6 +245,16 @@ func run() error {
 	// bound: starting clears the locks a previous process's rooms left.
 	collabHub := collab.New(fsSvc, shareSvc, queries, metrics.Collab,
 		collab.Config{Origin: httpapi.OriginOf(cfg.ExternalURL)})
+	// The single-page app, served on the API's own origin. Unset, the server
+	// is API-only and something else (Vite in development) serves the bundle.
+	var web *httpapi.WebApp
+	if cfg.WebDir != "" {
+		web, err = httpapi.NewWebApp(cfg.WebDir, cfg.OnlyOfficeURL, cfg.ExternalURL)
+		if err != nil {
+			return err
+		}
+		slog.InfoContext(ctx, "serving web app", "dir", cfg.WebDir)
+	}
 	api := httpapi.NewServer(httpapi.Deps{
 		Auth:            authSvc,
 		Spaces:          spacesSvc,
@@ -271,11 +281,24 @@ func run() error {
 		Notifications:   notificationsSvc,
 		Metrics:         metrics.HTTP,
 		Ext:             extHost,
+		Web:             web,
 	})
 	srv := &http.Server{
 		Addr:              cfg.Addr,
 		Handler:           api.Router(),
 		ReadHeaderTimeout: 10 * time.Second,
+	}
+	// WOPI has a listener of its own: nothing on the public one answers
+	// /wopi, because those routes are authorized by a token in the URL and
+	// exempt from the origin check and the rate limit. See Server.WopiRouter.
+	wopiSrv := &http.Server{
+		Addr:              cfg.WopiAddr,
+		Handler:           api.WopiRouter(),
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+	wopiLn, err := net.Listen("tcp", cfg.WopiAddr)
+	if err != nil {
+		return fmt.Errorf("wopi listener: %w", err)
 	}
 
 	// The listener first, the hub after it. Starting the hub releases every
@@ -286,12 +309,19 @@ func run() error {
 	// rooms would lose their locks to a process that then exits.
 	ln, err := listenThenStart(cfg.Addr, func() error { return collabHub.Start(ctx) })
 	if err != nil {
+		_ = wopiLn.Close()
 		return err
 	}
-	errCh := make(chan error, 1)
+	errCh := make(chan error, 2)
 	go func() {
 		slog.InfoContext(ctx, "listening", "addr", ln.Addr().String(), "external", cfg.ExternalURL)
 		if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			errCh <- err
+		}
+	}()
+	go func() {
+		slog.InfoContext(ctx, "wopi listening", "addr", wopiLn.Addr().String())
+		if err := wopiSrv.Serve(wopiLn); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- err
 		}
 	}()
@@ -316,7 +346,7 @@ func run() error {
 		srv.RegisterOnShutdown(notificationsSvc.Shutdown)
 		// Likewise an extension's live streams.
 		srv.RegisterOnShutdown(extHost.Close)
-		err := srv.Shutdown(shutdownCtx)
+		err := errors.Join(srv.Shutdown(shutdownCtx), wopiSrv.Shutdown(shutdownCtx))
 		return errors.Join(err, <-roomsClosed)
 	}
 }

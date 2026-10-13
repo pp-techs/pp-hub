@@ -57,7 +57,7 @@ to `main`:
 2. Merging the PR is the release. The workflow sees a version without a git tag,
    re-runs every CI check on that commit, prepares the release notes, then waits
    for approval on the `production-release` environment.
-3. Once approved, it builds and pushes `ghcr.io/pp-techs/pp-hub/{web,server,worker}`
+3. Once approved, it builds and pushes `ghcr.io/pp-techs/pp-hub/{server,worker}`
    as `:X.Y.Z`, `:X.Y` and `:latest` (a prerelease `X.Y.Z-rc.1` gets only its own tag),
    then tags `vX.Y.Z` and creates the GitHub Release from the changelog section.
    The tag is created last, so a tag always means the images exist.

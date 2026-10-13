@@ -68,11 +68,9 @@ URL; the refresh token rotated on use.
 ```mermaid
 sequenceDiagram
   participant C as Claude / ChatGPT
-  participant N as nginx
   participant S as pp-hub /mcp/
   participant L as Logto (CIMD)
-  C->>N: POST /mcp/ (no token)
-  N->>S: proxy
+  C->>S: POST /mcp/ (no token)
   S-->>C: 401 WWW-Authenticate: Bearer resource_metadata=".../.well-known/oauth-protected-resource/mcp"
   C->>S: GET /.well-known/oauth-protected-resource/mcp
   C->>L: authorize (client_id = CIMD URL, PKCE S256, resource = <pp-hub>/mcp/)

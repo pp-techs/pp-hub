@@ -27,7 +27,7 @@ the truth.
 
 ## WOPI Host Endpoints
 
-Mounted under `/wopi`:
+Mounted under `/wopi` on a **separate listener** (`PP_WOPI_ADDR`, default `:8081`; `Server.WopiRouter()`):
 
 | Endpoint                                                              | Purpose                                                                                                               |
 | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
@@ -36,16 +36,17 @@ Mounted under `/wopi`:
 | `POST /wopi/files/{id}/contents`                                      | `PutFile` — writes new blob, appends `node_version` (which counts the blob reference); **rank 3**                     |
 | `POST /wopi/files/{id}` (`X-WOPI-Override: LOCK/UNLOCK/REFRESH_LOCK`) | Lock management against `file_locks`; **rank 3**                                                                      |
 
-Those routes are **not** published by the `web` container. `PP_WOPI_SERVER_URL` is
-`http://server:8080` in compose, and that value is what becomes the `WOPISrc` the Document
-Server fetches, so the browser never calls `/wopi/` and nginx no longer proxies it.
-Publishing it turned the access token from a credential that mattered only inside the network
-into an internet-wide bearer token — on the one route group exempt from both the same-origin
-check and the rate limiter, because the Document Server sends no `Origin` and is authorized by
-the signed token instead. A deployment that runs OnlyOffice outside the compose network must
-set `PP_WOPI_SERVER_URL` to a public URL **and** re-add a `location /wopi/` in
-`apps/web/nginx.conf`, ideally restricted to the Document Server's address. See
-[deployment.md](../deployment.md).
+The public listener (`:8080`, which also serves the SPA) has **no `/wopi` route**
+(`TestWopiIsNotOnThePublicRouter`). `PP_WOPI_SERVER_URL` is `http://server:8081` in compose, and
+that value is what becomes the `WOPISrc` the Document Server fetches, so the browser never calls
+`/wopi/`. Port 8081 is `expose`d on the compose networks only — not `EXPOSE`d in the image, never
+published, never given a domain. Serving it publicly turned the access token from a credential
+that mattered only inside the network into an internet-wide bearer token — on the one route group
+exempt from both the same-origin check and the rate limiter, because the Document Server sends no
+`Origin` and is authorized by the signed token instead. A deployment that runs OnlyOffice outside
+the compose network must publish or route **8081** (not 8080) to the Document Server, restricted
+to its address, and set `PP_WOPI_SERVER_URL` to that URL (the worker uses it too). See
+[deployment.md](../deployment.md#the-wopi-listener).
 
 ## WOPI Access Token
 
@@ -54,11 +55,12 @@ set `PP_WOPI_SERVER_URL` to a public URL **and** re-add a `location /wopi/` in
 - Issued by the server when the web app opens an editor.
 - OnlyOffice's callbacks authenticate with this token — no session cookies cross the service boundary.
 
-## Editor URL (OnlyOffice 9.x)
+## Editor URL (OnlyOffice 9.x and 10)
 
 - Compose sets `WOPI_ENABLED=true`; OnlyOffice serves `/hosting/discovery` and the editor at `/hosting/wopi/{documentType}/{mode}` (`word|cell|slide`, mapped from the file extension; `edit` or `view`, see below).
 - The browser loads the editor by **POSTing a form** into an iframe with `access_token` and `access_token_ttl` in the body — 9.x does not accept the token as a query param on this route.
-- `PP_WOPI_SERVER_URL` must be reachable **from the OnlyOffice container** — on macOS/Windows Docker Desktop use `http://host.docker.internal:8080`, not `localhost`.
+- `PP_WOPI_SERVER_URL` must be reachable **from the OnlyOffice container** and, since 10.0, **named by an ipfilter rule** (`* allowed` no longer counts; without one the frame shows only "Access forbidden"). Compose writes that rule in the `onlyoffice` entrypoint: `server` in production, `wopi-proxy` in development. Development cannot point at `host.docker.internal` — OrbStack resolves it to `0.250.250.254`, which OnlyOffice 10 refuses outright for WOPI — so `wopi-proxy` (socat) forwards to the host server's WOPI listener. See [deployment.md](../deployment.md#onlyoffice-10-name-the-wopi-host).
+- Saving: a clean close writes back within seconds; after an unclean disconnect the Document Server holds the session for `expire.presence` = 300 s and `documentsCron` runs every 2 minutes, so `PutFile` (a new version) arrives roughly 5–10 minutes later.
 
 ## Read-Only Sessions
 
@@ -162,7 +164,7 @@ JWT should take the dependency instead.
 **JWT does not apply to WOPI.** The editor launch, `CheckFileInfo`, `GetFile`,
 `PutFile` and the lock operations are authorized by the WOPI access token
 described above, not by a JWT, and turning `JWT_ENABLED` on leaves all of them
-working — verified against 9.4.0. The historical claim that enabling JWT
+working — verified against 10.0.0.1. The historical claim that enabling JWT
 "breaks the WOPI integration" was only ever true of the unsigned conversion
 call.
 

@@ -57,51 +57,57 @@ stale value there does not degrade gracefully, it refuses every write with
 403 `cross-origin request refused`. `/wopi/*` is exempt by design, because the
 Document Server sends no `Origin` and presents a signed token instead.
 
-The Go server serves **only** `/healthz`, `/auth/*`, `/api/v1/*`, `/hooks/*`,
-`/wopi/*` and `/s/*` — it has no static file handler. So something has to serve the bundle
-and proxy the API on one hostname. That is what the `web` container is:
-nginx with the built SPA and a proxy to `server:8080`
-(`apps/web/Dockerfile`, `apps/web/nginx.conf`).
+The `server` image serves the built SPA itself. Set `PP_WEB_DIR` (the image
+sets it to `/srv/web`) and the Go server serves the bundle on the same
+listener as the API (`PP_ADDR`, `:8080`): static files, a fallback to
+`index.html` for client-side routes, and the `/s/<token>` split below. Unset,
+it is API-only — that is development, where Vite serves the bundle and proxies
+the API (`apps/web/vite.config.ts`). The server refuses to start if
+`PP_WEB_DIR` has no `index.html`. There is no proxy inside the stack, so there
+is nothing to keep in step with the dev proxy; the SPA and API share an origin
+because one process answers both (`internal/httpapi/web.go`).
 
-`/wopi/*` is the one group nginx does **not** proxy: the Document Server
-reaches it over the compose network, so publishing it would put a bearer token
-on the public internet for nothing. See
-[`/wopi/` is not published](#wopi-is-not-published).
+An unmatched path under `/api`, `/auth`, `/hooks`, `/mcp`, `/dav`, `/wopi` or
+`/s` is a 404, never the SPA shell, so a mistyped API URL answers with an
+error and not with HTML that parses as a broken JSON response.
+
+`/wopi/*` is not on that listener at all: it has its own, `PP_WOPI_ADDR`
+(default `:8081`), which the Document Server reaches over the compose network.
+Serving it on the public port would put a bearer token on the public internet
+for nothing. See [The WOPI listener](#the-wopi-listener).
 
 ```
                     ┌──────────────────────────────────────┐
- drive.example.com ─┤ web (nginx)                   [edge] │
-                    │   /              → SPA bundle        │
-                    │   /api /auth /s  → server:8080       │
-                    │   /hooks         → server:8080       │
-                    │   /wopi          → not proxied       │
+ drive.example.com ─┤ your proxy / Traefik          [edge] │  TLS only
                     └───────────────────┬──────────────────┘
-                                        │ edge
+                                        │ edge → server:8080
                           ┌─────────────▼─────────────┐   ┌──────────────────┐
                           │ server  [edge data office]├───┤ postgres  [data] │
-                          └─────────────┬─────────────┘   └────────┬─────────┘
-                                        │ office                   │ data
+                          │  :8080  SPA + API         │   └────────┬─────────┘
+                          │  :8081  WOPI only         │            │ data
+                          └─────────────┬─────────────┘            │
+                                        │ office                   │
                           ┌─────────────▼─────────────┐            │
                           │ worker (optional)         ├────────────┘
                           │            [data office]  │
                           └─────────────┬─────────────┘
                                         │ conversion (office)
  office.example.com ──────────► onlyoffice                    [office]
-                                        │ WOPI → server:8080  (office)
+                                        │ WOPI → server:8081  (office)
 ```
 
 The bracketed names are compose networks, not decoration: `onlyoffice` is on
-`office` only, so it can reach `server:8080` and nothing else. See [Network
+`office` only, so it can reach `server:8081` and nothing else. See [Network
 segments](#network-segments).
 
-`nginx.conf` mirrors the dev proxy in `apps/web/vite.config.ts`. **Change one,
-change the other.**
+Response headers, caching and compression for the bundle are done in Go too;
+see [Response headers and the CSP](#response-headers-and-the-csp).
 
 ### Why OnlyOffice needs its own hostname
 
 `PP_ONLYOFFICE_URL` goes into the editor `iframe` the browser loads, so it has
 to be a public address — an internal service name will not do. Give it a second
-domain. It is not proxied through `web` because serving Document Server under a
+domain. It is not served through `server` because serving Document Server under a
 sub-path is fragile.
 
 ### The `/s/<token>` collision
@@ -115,8 +121,8 @@ the SPA has a page at the same URL. They are told apart by `Accept`:
 | `GET /s/<token>` with anything else       | API          |
 | `GET /s/<token>/download`, `/children`, … | API (always) |
 
-Any reverse proxy you put in front must preserve this, or share links break for
-anonymous visitors.
+Any reverse proxy you put in front must pass both through unchanged (it does
+not need to know the difference), or share links break for anonymous visitors.
 
 ## Production
 
@@ -131,8 +137,8 @@ missing variable rather than booting a half-configured stack.
 
 ### Releases
 
-`up -d`, not `up -d --build`. The three application images are published to
-`ghcr.io/pp-techs/pp-hub/{web,server,worker}` by the release flow
+`up -d`, not `up -d --build`. The two application images are published to
+`ghcr.io/pp-techs/pp-hub/{server,worker}` by the release flow
 (`release.yml`, described in [CONTRIBUTING.md](../CONTRIBUTING.md#releasing)),
 and `PP_IMAGE_TAG` names the one this stack runs. A release is cut by merging
 the "Version Packages" PR: after a reviewer approves the `production-release`
@@ -171,11 +177,10 @@ docker compose -f deploy/compose/compose.prod.yml \
   --env-file deploy/compose/.env.prod up -d --build
 ```
 
-The web image is deployment-agnostic, which is what makes one tag correct
+The server image is deployment-agnostic, which is what makes one tag correct
 everywhere: the SPA reads nothing from `import.meta.env`, and the single
-environment-specific value in `nginx.conf` (`PP_ONLYOFFICE_URL`, named in the
-CSP) is substituted by envsubst when the container starts. There is no
-per-environment build.
+environment-specific value in the CSP (`PP_ONLYOFFICE_URL`) is read by the
+server at startup. There is no per-environment build.
 
 Generate the master secret once and keep it:
 
@@ -260,9 +265,10 @@ not parse is a **startup error**, not a silent default: an operator who typed
 `5GB` meaning a ceiling should not be handed "no ceiling" for the trouble.
 This serves as the initial deployment default and can also be adjusted dynamically
 at runtime without container restarts by an administrator in **Admin > Settings** (`/admin/settings`).
-Note that `client_max_body_size 0` in `nginx.conf` is intentional — the edge
-streams the body through and the app answers 413 with a sentence, instead of
-nginx rejecting it with a bare page long before the app can say why.
+Nothing in front of the server limits the body either: the app streams it
+through and answers 413 with a sentence, instead of a proxy rejecting it with
+a bare page long before the app can say why. Keep any proxy you add equally
+permissive.
 
 **`PP_BLOB_SCRUB_BYTES_PER_DAY`** — default `100G`; same syntax as
 `PP_MAX_UPLOAD_BYTES`; `0` disables it. How much stored content the hourly
@@ -326,6 +332,15 @@ collaboration rooms — `pphub_collab_rooms` (resident, idle ones included),
 memory for a retry; alert on a rising count) — and Go/process metrics. The
 worker has no metrics port.
 
+**`PP_WEB_DIR`** — directory holding the built SPA (`index.html` and `assets/`);
+the `server` image sets it to `/srv/web`. Set, the server serves the bundle on
+`PP_ADDR` next to the API; unset, it is API-only (development). A directory
+without `index.html` is a startup error.
+
+**`PP_WOPI_ADDR`** — default `:8081`. The listener that serves only
+`/wopi/files/{nodeID}…`, for the Document Server; the public router has no
+WOPI route. See [The WOPI listener](#the-wopi-listener).
+
 **`PP_TRUSTED_PROXIES`** — a comma-separated list of CIDRs (a bare address is
 accepted as its own `/32`), empty by default, `172.16.0.0/12` in the compose
 file. This is the one where **both** a missing value and an over-broad value
@@ -345,8 +360,9 @@ are harmful, in opposite ways:
   deprecated `RealIP` had, and the reason it is gone.
 
 Name the hops you actually have and nothing more. On the compose stack that is
-the `web` container's network; add Traefik's or your own proxy's range if it
-adds another hop. Empty is **correct** for a server reached directly, and
+the proxy directly in front of `server` (Traefik, Caddy — the default range
+covers the compose networks it reaches you from); add another range only if a
+further hop sits in front of that. Empty is **correct** for a server reached directly, and
 means "believe the TCP peer". The list is validated at startup, so a typo is a
 sentence (`PP_TRUSTED_PROXIES: "10.0.0" is neither an address nor a CIDR`)
 rather than a panic out of chi.
@@ -473,19 +489,18 @@ organization in Logto; the next sign-in does not recreate the space.
 
 ### Response headers and the CSP
 
-`nginx.conf` sends, on every response and with `always` so they survive the
-502s the config is designed to return while the API restarts:
+The server sends, on every response:
 
-| Header                      | Value                                 |
-| --------------------------- | ------------------------------------- |
-| `Content-Security-Policy`   | see below                             |
-| `X-Frame-Options`           | `DENY`                                |
-| `Referrer-Policy`           | `strict-origin-when-cross-origin`     |
-| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` |
-| `X-Content-Type-Options`    | `nosniff`                             |
+| Header                      | Value                                                                          |
+| --------------------------- | ------------------------------------------------------------------------------ |
+| `Content-Security-Policy`   | see below                                                                      |
+| `X-Frame-Options`           | `DENY`                                                                         |
+| `Referrer-Policy`           | `strict-origin-when-cross-origin`                                              |
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains`, only if `PP_EXTERNAL_URL` is `https://` |
+| `X-Content-Type-Options`    | `nosniff`                                                                      |
 
-plus `server_tokens off`, so no version number appears on responses or error
-pages. HSTS assumes you terminate TLS in front of this container, which the
+HSTS is withheld on an `http://` deployment, where it means nothing; on
+`https://` it assumes you terminate TLS in front of the server, which the
 `https://` requirement on `PP_EXTERNAL_URL` already assumes.
 
 The policy itself:
@@ -493,17 +508,18 @@ The policy itself:
 ```
 default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';
 img-src 'self' data: blob:; media-src 'self' blob:; object-src 'self';
-frame-src 'self' ${PP_ONLYOFFICE_URL}; form-action 'self' ${PP_ONLYOFFICE_URL};
+frame-src 'self' <PP_ONLYOFFICE_URL>; form-action 'self' <PP_ONLYOFFICE_URL>;
 frame-ancestors 'none'; base-uri 'none';
-connect-src 'self' wss://$http_host ws://$http_host
+connect-src 'self' wss://<Host> ws://<Host>
 ```
 
 `connect-src` names the block editor's collaboration socket explicitly. CSP3
 lets `'self'` cover a `wss:` URL on the same host, but older WebKit does not
-match a `ws(s)` URL against `'self'`. `$http_host` is nginx's own variable —
-the host the browser asked for, so always this deployment — and survives the
-`PP_` envsubst filter; an https page cannot open a `ws:` socket anyway (mixed
-content), so that entry costs it nothing.
+match a `ws(s)` URL against `'self'`. `<Host>` is the request's `Host` header,
+so always this deployment — but a `Host` is the caller's to choose, so one
+that is not a plain `host[:port]` is dropped, never spliced into the policy.
+An https page cannot open a `ws:` socket anyway (mixed content), so that
+entry costs it nothing.
 
 Two directives are **deliberately looser than every guide recommends, and
 tightening them breaks the app**:
@@ -512,7 +528,7 @@ tightening them breaks the app**:
   pointed at `/api/v1/nodes/{id}/content`. With `'none'` the browser blocks it
   and renders the fallback children instead — so it fails as a silent UI
   regression, not an error anybody sees in a log.
-- **`form-action` and `frame-src` name `${PP_ONLYOFFICE_URL}`.** The editor
+- **`form-action` and `frame-src` name `PP_ONLYOFFICE_URL`.** The editor
   handoff is a real cross-origin form POST into an iframe: 9.x will not accept
   the access token as a query parameter on that route, so the browser submits
   a form to the Document Server's origin. With `'self'` alone the editor frame
@@ -529,46 +545,32 @@ script and the SPA uses `dangerouslySetInnerHTML` nowhere.
 `frame-ancestors 'none'` is safe because pp-hub is always the framer and never
 the framed — nothing reads `window.parent` or listens for `postMessage`.
 
-**The template mechanics.** `nginx.conf` is not a finished config: the CSP has
-to name the Document Server's origin, and hardcoding it would break the first
-deployment that moves the editor. The Dockerfile copies it to
-`/etc/nginx/templates/default.conf.template`, which the official nginx image
-runs `envsubst` over at container start, and sets
-`NGINX_ENVSUBST_FILTER=PP_` so substitution is restricted to `PP_*` — without
-that filter, nginx's own `$host`, `$remote_addr`, `$uri` and friends would be
-eaten and the config would not even load. `compose.prod.yml` therefore passes
-`PP_ONLYOFFICE_URL` to the `web` service as well as to `server`; if you run
-the image by hand, it must be in that container's environment or the CSP ships
-with an empty `frame-src` entry and the editor frame goes blank.
+**Mechanics.** All of it is Go (`internal/httpapi/web.go`), on every
+response — API responses included, so a failed or proxied-through request
+carries them too. The CSP is built per request, with no template and no
+build-time substitution: `PP_ONLYOFFICE_URL` is read once at startup and named
+in `frame-src` and `form-action`, so it has to be in the **`server`**
+container's environment (it is no longer passed anywhere else); unset, the CSP
+ships with an empty entry and the editor frame goes blank. Hashed
+`/assets/*` get `Cache-Control: public, max-age=31536000, immutable` and
+`index.html` gets `no-cache, must-revalidate`, so a deploy is visible
+immediately without ever re-fetching an asset; text types are gzipped (the
+entry chunk is 378 KB raw against 116 KB gzipped).
 
-The headers are **repeated** inside `location /assets/` and
-`location = /index.html`. That is not an accident and must not be
-"simplified": nginx does not merge `add_header` across levels — a `location`
-that declares any `add_header` of its own discards every inherited one, and
-both of those locations declare a `Cache-Control`. Without the repetition the
-bundle and the HTML entry point, the two responses a CSP is actually for,
-would ship bare. If you add a `location` with its own `add_header`, copy the
-block.
-
-The access log is a custom `log_format` with a `map` that rewrites
-`/s/<token>` to `/s/REDACTED` before the line is written, because a share
-token is the entire authorization for anonymous access to a file and only its
-SHA-256 is stored in the database. The Go side does the same for its own log
-and for the WOPI `access_token` query parameter.
+The access log redacts `/s/<token>` to `/s/REDACTED` before the line is
+written, because a share token is the entire authorization for anonymous
+access to a file and only its SHA-256 is stored in the database. The same
+goes for the WOPI `access_token` query parameter.
 
 ### Block document collaboration
 
 The block editor (M39, [block-documents.md](architecture/block-documents.md))
-keeps a WebSocket open to `GET /api/v1/collab/{room}`, and nginx gives it a
-location of its own: `location /api/v1/collab/` passes `Upgrade` and
-`Connection` (a `map` turns an empty `Upgrade` into `close`), sets a 1 h
-`proxy_read_timeout`/`proxy_send_timeout` instead of the upload location's ten
-minutes, and turns buffering off. The server pings every socket every 15 s, so
-an hour of silence is a dead peer. Because nginx inherits `proxy_set_header`
-only into a location that sets none of its own, that location repeats every
-server-level header, the cleared client-address headers included — keep them
-in step if you change one. A proxy in front of nginx must pass WebSocket
-upgrades on this path too.
+keeps a WebSocket open to `GET /api/v1/collab/{room}`, served by `server`
+directly on `PP_ADDR`: no proxy hop, no special timeout (the `http.Server` has
+only a 10 s `ReadHeaderTimeout`). The server pings every socket every 15 s, so
+silence is a dead peer. A proxy you put in front must pass WebSocket upgrades
+(`Upgrade` and `Connection`) on this path and allow an idle read timeout of
+at least a few minutes — an hour is comfortable — without buffering.
 
 The socket is refused (403) unless its `Origin` is `PP_EXTERNAL_URL`'s
 origin exactly, and a missing `Origin` is refused as well.
@@ -586,619 +588,17 @@ to ~5 min of edits are at risk only on a crash, not a deploy.
 ### Notification stream
 
 In-app notifications (M29) arrive over Server-Sent Events at
-`GET /api/v1/notifications/stream`, and nginx gives it an exact-match
-location: `location = /api/v1/notifications/stream` with `proxy_buffering off`
-and `proxy_cache off` — buffered, each event would sit in nginx until the
-buffer filled, i.e. forever — and a 1 h read/send timeout. The server writes a
-heartbeat comment every 25 s, so an hour of silence is a dead client. The
-location sets no `proxy_set_header`, so the server-level headers are
-inherited. A proxy or CDN in front of nginx must not buffer this path either;
-the client reconnects with backoff and refetches the list, so a proxy that
-cuts idle responses costs only a reconnect.
+`GET /api/v1/notifications/stream`. The server writes a heartbeat comment
+every 25 s, so a long silence is a dead client, and it has no `WriteTimeout`
+to cut the stream. Nothing in the stack buffers it. A proxy or CDN you put in
+front must not buffer this path — each event would sit in it until its buffer
+filled, i.e. forever — and needs a read timeout above the heartbeat (an hour
+is plenty); the client reconnects with backoff and refetches the list, so a
+proxy that cuts idle responses costs only a reconnect.
 
 **Extension streams (M44).** An app's live view — a kanban board — is the same
-kind of stream at `GET /api/v1/ext/<id>/…/events`, and nginx matches it with a
-regex location (`~ ^/api/v1/ext/[^/]+/.+/events# Deployment
-
-Three compose files, three env files, one convention. For a step-by-step
-install, read [self-hosting.md](self-hosting.md) first; this page is the
-reference behind it.
-
-| Path                               | Committed?  | What it is                                     |
-| ---------------------------------- | ----------- | ---------------------------------------------- |
-| `apps/server/.env.example`         | yes         | Template for the host-run Go server            |
-| `apps/server/.env`                 | no, ignored | Your local values — **source it**              |
-| `deploy/compose/.env.dev.example`  | yes         | Template for `compose.dev.yml` overrides       |
-| `deploy/compose/.env`              | no, ignored | Dev overrides — compose auto-reads it          |
-| `deploy/compose/.env.prod.example` | yes         | Template for production                        |
-| `deploy/compose/.env.prod`         | no, ignored | Production values — pass with **`--env-file`** |
-
-`*.example` files are committed; the copies you fill in are not.
-
-**Production must be started with `--env-file deploy/compose/.env.prod`.** Both
-compose files live in the same directory, and compose auto-loads `.env` from
-there — which is the _development_ file. Without the flag a production stack
-silently inherits `PP_DEV_INSECURE=1` and development S3 credentials. Passing
-`--env-file` replaces that default lookup entirely, which is why the dev and
-prod files are named differently instead of both being `.env`.
-
-They are separate files because they hold genuinely different values: the dev
-server runs on your host and talks to `localhost:5432`, while the production
-server runs in compose and talks to `postgres:5432`. One file could never serve
-both.
-
-Three compose files, for three different jobs:
-
-| File                               | What it runs                                     | Use it when                                 |
-| ---------------------------------- | ------------------------------------------------ | ------------------------------------------- |
-| `deploy/compose/compose.prod.yml`  | pp-hub, from the published images                | Deploying to a server                       |
-| `deploy/compose/compose.logto.yml` | Self-hosted Logto and its own Postgres           | Running Logto next to pp-hub                |
-| `deploy/compose/compose.dev.yml`   | Only the things the app talks to — no app images | Developing, running Go and Vite from source |
-
-## The one constraint that shapes everything
-
-**The SPA and the API must be served from the same origin.** This is not a
-preference:
-
-- the session cookie is host-only (no `Domain`), `HttpOnly`, `SameSite=Lax`
-  and `Secure` whenever `PP_EXTERNAL_URL` is `https://`
-  (`internal/auth/auth.go`), and
-- the API client sets `credentials: "same-origin"`
-  (`apps/web/src/lib/api/client.ts`).
-
-Put the bundle on `app.example.com` and the API on `api.example.com` and the
-cookie is never sent: every request is a 401 and nobody can log in.
-
-It is also a rule the server enforces, not only a consequence of the cookie:
-every mutation under `/api/v1`, plus `POST /auth/logout`, is refused unless
-its `Origin` (or the origin of its `Referer`) equals `PP_EXTERNAL_URL`. So
-that variable must be the address users actually type, scheme included — a
-stale value there does not degrade gracefully, it refuses every write with
-403 `cross-origin request refused`. `/wopi/*` is exempt by design, because the
-Document Server sends no `Origin` and presents a signed token instead.
-
-The Go server serves **only** `/healthz`, `/auth/*`, `/api/v1/*`, `/hooks/*`,
-`/wopi/*` and `/s/*` — it has no static file handler. So something has to serve the bundle
-and proxy the API on one hostname. That is what the `web` container is:
-nginx with the built SPA and a proxy to `server:8080`
-(`apps/web/Dockerfile`, `apps/web/nginx.conf`).
-
-`/wopi/*` is the one group nginx does **not** proxy: the Document Server
-reaches it over the compose network, so publishing it would put a bearer token
-on the public internet for nothing. See
-[`/wopi/` is not published](#wopi-is-not-published).
-
-```
-                    ┌──────────────────────────────────────┐
- drive.example.com ─┤ web (nginx)                   [edge] │
-                    │   /              → SPA bundle        │
-                    │   /api /auth /s  → server:8080       │
-                    │   /hooks         → server:8080       │
-                    │   /wopi          → not proxied       │
-                    └───────────────────┬──────────────────┘
-                                        │ edge
-                          ┌─────────────▼─────────────┐   ┌──────────────────┐
-                          │ server  [edge data office]├───┤ postgres  [data] │
-                          └─────────────┬─────────────┘   └────────┬─────────┘
-                                        │ office                   │ data
-                          ┌─────────────▼─────────────┐            │
-                          │ worker (optional)         ├────────────┘
-                          │            [data office]  │
-                          └─────────────┬─────────────┘
-                                        │ conversion (office)
- office.example.com ──────────► onlyoffice                    [office]
-                                        │ WOPI → server:8080  (office)
-```
-
-The bracketed names are compose networks, not decoration: `onlyoffice` is on
-`office` only, so it can reach `server:8080` and nothing else. See [Network
-segments](#network-segments).
-
-`nginx.conf` mirrors the dev proxy in `apps/web/vite.config.ts`. **Change one,
-change the other.**
-
-### Why OnlyOffice needs its own hostname
-
-`PP_ONLYOFFICE_URL` goes into the editor `iframe` the browser loads, so it has
-to be a public address — an internal service name will not do. Give it a second
-domain. It is not proxied through `web` because serving Document Server under a
-sub-path is fragile.
-
-### The `/s/<token>` collision
-
-One path, two meanings: the server answers it as JSON (`handleShareInfo`) and
-the SPA has a page at the same URL. They are told apart by `Accept`:
-
-| Request                                   | Goes to      |
-| ----------------------------------------- | ------------ |
-| `GET /s/<token>` with `Accept: text/html` | SPA          |
-| `GET /s/<token>` with anything else       | API          |
-| `GET /s/<token>/download`, `/children`, … | API (always) |
-
-Any reverse proxy you put in front must preserve this, or share links break for
-anonymous visitors.
-
-## Production
-
-```bash
-cp deploy/compose/.env.prod.example deploy/compose/.env.prod   # then fill it in
-docker compose -f deploy/compose/compose.prod.yml \
-  --env-file deploy/compose/.env.prod up -d
-```
-
-Required values have no defaults — compose refuses to start and names the
-missing variable rather than booting a half-configured stack.
-
-### Releases
-
-`up -d`, not `up -d --build`. The three application images are published to
-`ghcr.io/pp-techs/pp-hub/{web,server,worker}` by the release flow
-(`release.yml`, described in [CONTRIBUTING.md](../CONTRIBUTING.md#releasing)),
-and `PP_IMAGE_TAG` names the one this stack runs. A release is cut by merging
-the "Version Packages" PR: after a reviewer approves the `production-release`
-environment, version `0.1.0` publishes `:0.1.0`, `:0.1`, `:latest` and
-`:sha-<short>`, then the git tag `v0.1.0` and its GitHub Release (the image tag
-drops the `v`; the git tag is created last, so a tag means the images exist).
-A prerelease (`0.2.0-rc.1`) gets its own tag only, not `:0.2` or `:latest`.
-Every push to `main` publishes `:edge` and
-`:sha-<short>` (`edge.yml`). Release tags are never pushed by hand — nothing
-listens for them.
-
-| Action        | What you do                                      |
-| ------------- | ------------------------------------------------ |
-| Deploy        | set `PP_IMAGE_TAG=0.2.0`, re-run `up -d`         |
-| Roll back     | set it back to `0.1.0`, re-run `up -d`           |
-| Build locally | add `-f compose.build.yml`, then `up -d --build` |
-
-`PP_IMAGE_TAG` has no default: pin a released version. `:latest` is published
-on every release for consumers who want the moving target, but `latest` is
-not a version — it cannot be rolled back to, two hosts pulling it can run
-different code, and nothing on the box can then say what is deployed. The
-variable being required, and pinned to a version, is what makes "which commit
-is in production" a question with an answer.
-
-Building on the deployment host is the thing this replaces. It puts a bun
-install, a Vite build and two Go builds on a box sized for serving, makes
-every deploy's output depend on the machine that ran it, and turns a rollback
-into a rebuild — minutes of downtime to return to code that was already
-working. `compose.prod.yml` therefore has no `build:` at all; building a tag
-that does not exist yet is the `compose.build.yml` override, which only
-resolves from a full checkout:
-
-```bash
-docker compose -f deploy/compose/compose.prod.yml \
-  -f deploy/compose/compose.build.yml \
-  --env-file deploy/compose/.env.prod up -d --build
-```
-
-The web image is deployment-agnostic, which is what makes one tag correct
-everywhere: the SPA reads nothing from `import.meta.env`, and the single
-environment-specific value in `nginx.conf` (`PP_ONLYOFFICE_URL`, named in the
-CSP) is substituted by envsubst when the container starts. There is no
-per-environment build.
-
-Generate the master secret once and keep it:
-
-```bash
-openssl rand -base64 32
-```
-
-`PP_SESSION_KEY` no longer signs sessions — those are rows in the `sessions`
-table, so **rotating it does not sign anybody out**. The variable keeps its
-historical name deliberately: it is written into every existing deployment's
-env file, and renaming it would fall back to an ephemeral key silently and
-break office previews at runtime rather than at startup. What it is now is the
-master secret every signer derives a purpose-bound subkey from
-(`config.DeriveKey`, HKDF-SHA256). Today the only consumer is the WOPI access
-token, so rotating it invalidates the tokens currently in flight — an open
-editor session and any conversion job mid-retry — and nothing else.
-
-It still has to be **set, and identical in the server and the worker**. The
-worker signs office-conversion tokens the _server_ verifies, so a mismatch
-means office thumbnails silently never appear; left unset, each process
-generates its own key at startup and the worker declines to register the
-office renderer rather than failing every job with an opaque token error.
-
-`PP_EXTERNAL_URL` must be `https://` in production. The `Secure` flag on every
-cookie the server sets is derived from its scheme — there is no separate
-switch — so an `http://` value ships session cookies a browser will happily
-send over plain HTTP, and one accidental downgrade exposes a live session to
-anyone on the path. The server says so at startup:
-`PP_EXTERNAL_URL is not https: session cookies will be sent without the Secure flag`.
-If that line is in your production logs, the deployment is misconfigured; it is
-also the OIDC redirect base, so the scheme has to match what you registered
-with the provider anyway.
-
-Register with Logto, on the sign-in application behind `PP_OIDC_CLIENT_ID`:
-
-- redirect URI: `https://drive.example.com/auth/callback`
-- post-logout redirect: `https://drive.example.com`
-
-That is the login half. Logto is the only identity provider pp-hub supports,
-and the server refuses to start without the rest of the same tenant — an M2M
-application, an organization template, an email connector, a webhook and two
-consent scopes — all of it in
-[Logto: identity and membership](#logto-identity-and-membership).
-
-### The security and limit variables
-
-Four variables added with the M21 security pass. None is required; each has a
-default, and each has a way of being wrong that is worth understanding before
-it bites.
-
-**`PP_BOOTSTRAP_ADMIN_EMAIL`** — strongly recommended on a fresh install, and
-empty by default. Whoever signs in with this address becomes an instance
-admin, **on every sign-in**. `users.is_admin` defaults to false and its only
-writer is an admin-only endpoint, so without this the first administrator can
-only be made with `UPDATE users SET is_admin = true` in psql. Two
-consequences:
-
-- It requires a **verified** email claim. The IdP must assert
-  `email_verified` for the address, or the promotion is refused with
-  `refusing admin promotion for an unverified email` in the log and a
-  `login_failed` row in the security log. This is not pedantry: the variable is
-  a standing authorization rule keyed on a claim, and an IdP that lets users
-  edit their own address would otherwise let any of them take the instance.
-- Because it re-promotes on every sign-in, **that account cannot be demoted
-  while the variable is set** — the demotion sticks until their next login.
-  That is deliberate (it is also the recovery path for an install whose last
-  admin was demoted by accident), but unset the variable once a second admin
-  exists, or the console will keep undoing you.
-
-**`PP_MAX_UPLOAD_BYTES`** — default `5G`; accepts plain bytes or a `K`/`M`/`G`/`T`
-suffix; `0` disables the ceiling. This is the only thing bounding a single
-upload. Since M30 an upload is a tus session, and the ceiling is checked
-against the `Upload-Length` it declares when it is created — a file that is
-too big is refused with 413 before a byte is sent — and then enforced on every
-chunk, which is never allowed to write past that declared length. A space's
-`quota_bytes` is checked at creation too, and again _after_ the bytes have
-landed, since only the measured size is trustworthy; it defaults to `0`,
-meaning unlimited, so with no ceiling one authenticated caller can fill the
-volume. Set too low, large legitimate uploads fail with 413 and a clear
-message; set to `0`, you are back to the original problem. A value that will
-not parse is a **startup error**, not a silent default: an operator who typed
-`5GB` meaning a ceiling should not be handed "no ceiling" for the trouble.
-This serves as the initial deployment default and can also be adjusted dynamically
-at runtime without container restarts by an administrator in **Admin > Settings** (`/admin/settings`).
-Note that `client_max_body_size 0` in `nginx.conf` is intentional — the edge
-streams the body through and the app answers 413 with a sentence, instead of
-nginx rejecting it with a bare page long before the app can say why.
-
-**`PP_BLOB_SCRUB_BYTES_PER_DAY`** — default `100G`; same syntax as
-`PP_MAX_UPLOAD_BYTES`; `0` disables it. How much stored content the hourly
-scrub re-hashes per day, least recently verified first — 100G cycles 5 TB in
-about 50 days. Nothing else ever reads a blob nobody opens, so without it
-disk rot or a torn write surfaces only when somebody needs the file. Damage
-is logged, marked on the blob and exported as `pphub_blobs_damaged`; alert on
-it being non-zero. On an S3 backend every scrubbed byte is a download, so size
-the budget against the provider's egress terms. See
-[storage.md](architecture/storage.md#scrub).
-
-**`PP_AUDIT_RETENTION_DAYS`** — default `365`. How long `security_events` rows
-live; the five-minute sweep in `cmd/server` purges anything older. One row is
-written on every sign-in and every failed attempt, so setting it very high on
-a busy instance grows a table nobody can page through, and setting it very low
-throws away the history an incident needs — a compromise noticed in March
-wants the failed sign-ins from February. Unparseable values fall back to the
-default and say so rather than refusing to start, because a retention window
-is a policy knob. Can also be overridden at runtime via **Admin > Settings** (`/admin/settings`).
-
-Four related knobs have no environment variable and live only in
-**Admin > Settings**: `read_audit_retention_days` (default `90`) — how long
-file access events (downloads, views, editor opens) are kept, separately from
-the rest of the log because they are most of it —
-`alert_failed_login_threshold` (`10`, `0` turns alerts off) with
-`alert_failed_login_window_minutes` (`15`), which decide when a run of failed
-sign-ins from one address raises a security alert, emails the instance
-admins and increments `pphub_security_alerts_total{rule}` on the metrics
-listener, and `version_retention_count` (`100`, `0` keeps every version,
-at most `10000`) — how many versions of each file are kept, current
-included. Older ones are deleted when a file gets a new version, and GC then
-reclaims their bytes; lowering it applies to each file on its next save, not
-retroactively. Every stored version counts against a space's quota, so this
-is the knob that keeps edit-heavy documents from filling it.
-
-**`PP_LOG_LEVEL`** / **`PP_LOG_FORMAT`** — defaults `info` / `text` in the
-binary; `compose.prod.yml` sets `json`. Both the server and the worker read
-them. Every record logged while serving a request carries `request_id`, the
-same value returned to the caller as `X-Request-Id` and stored on the
-`security_events` rows that request wrote — ask a user for that header and grep
-for it. The access log is one `"http request"` record per request (redacted
-path, chi route pattern, status, duration, client address, `user_id` once
-signed in); `/healthz` and `/readyz` log at `debug` so the compose probes do
-not flood `info`. An unknown value warns and falls back to the default.
-
-**`PP_METRICS_ADDR`** — default `:9091`; `off` disables it. The server's
-Prometheus endpoint, `GET /metrics`, on its own listener so a proxy mistake
-cannot make it public. `compose.prod.yml` only `expose`s it on the internal
-networks; to scrape it, attach your Prometheus container to the `edge` network
-and target `server:9091`. Series are prefixed `pphub_`: HTTP requests by
-method/route/status and latency, the Postgres pool, `pphub_jobs{kind,status}`
-with the oldest job's age (a growing `render:*` backlog means no worker),
-referenced vs. unreferenced (awaiting GC) blobs and bytes,
-`pphub_blobs_damaged` (blobs the scrub found missing or not matching their
-hash — alert on > 0), `pphub_blob_disk_free_bytes` and
-`pphub_blob_disk_size_bytes` for the filesystem holding `PP_BLOB_ROOT` (alert
-before it fills: uploads are what fail first), the block editor's
-collaboration rooms — `pphub_collab_rooms` (resident, idle ones included),
-`pphub_collab_peers`, `pphub_collab_flush_duration_seconds` and
-`pphub_collab_flush_failures_total` (write-backs that failed and are held in
-memory for a retry; alert on a rising count) — and Go/process metrics. The
-worker has no metrics port.
-
-**`PP_TRUSTED_PROXIES`** — a comma-separated list of CIDRs (a bare address is
-accepted as its own `/32`), empty by default, `172.16.0.0/12` in the compose
-file. This is the one where **both** a missing value and an over-broad value
-are harmful, in opposite ways:
-
-- **Unset behind a proxy**: no forwarded header is believed, so every request
-  appears to come from the proxy's address. The per-IP rate limits then share
-  one bucket across the whole internet — one caller can spend the instance's
-  entire budget and lock everybody else out of sign-in — and every session row
-  and security event records the proxy's address instead of the user's, which
-  makes the audit log useless for the question it exists to answer.
-- **Set too broadly** (`0.0.0.0/0`, or a range wider than your actual hops):
-  the server believes `X-Forwarded-For` from anybody, which hands the caller
-  their own identity back. Rate-limit buckets become resettable at will by
-  appending a header, and the address shown on somebody's Sessions tab becomes
-  whatever an attacker chose. That is precisely the behaviour chi's
-  deprecated `RealIP` had, and the reason it is gone.
-
-Name the hops you actually have and nothing more. On the compose stack that is
-the `web` container's network; add Traefik's or your own proxy's range if it
-adds another hop. Empty is **correct** for a server reached directly, and
-means "believe the TCP peer". The list is validated at startup, so a typo is a
-sentence (`PP_TRUSTED_PROXIES: "10.0.0" is neither an address nor a CIDR`)
-rather than a panic out of chi.
-
-The rate limits themselves are not configurable, and are worth knowing:
-`/auth/login`, `/auth/callback`, `/auth/logout` at 30/min with a burst of 10;
-`/s/{token}` at 60/min burst 20; `/api/v1` at 1200/min burst 200. An exhausted
-bucket answers 429 with `Retry-After`. **The buckets live in the process**, so
-`N` `server` replicas allow `N` times those rates — scaling out scales the
-limit with you. That is a deliberate trade against making Redis a dependency
-of a deployment that otherwise does not need it, and it is stated here rather
-than hidden because an operator running replicas should know.
-
-### Logto: identity and membership
-
-Space membership is a projection of a Logto organization, so Logto is not only
-the login provider — it is where "who works here" is decided, where the
-companies themselves are created, renamed and linked, and where the invitation
-email comes from. It is also mandatory: there is no other provider and no mode
-without it. Five things must exist in the Logto tenant before any of it works,
-and each one fails in its own way if it is missing. See
-[logto-org-sync.md](architecture/logto-org-sync.md) for the design; this is
-the checklist. **`deploy/logto/pp-logto-setup.sh` creates all five** (plus
-the sign-in application, the SMTP connector and email sign-up, and — for
-[agent access](#agent-access-mcp) — the `pp-hub MCP` API resource and CIMD)
-through the Management API from one bootstrap machine-to-machine app,
-idempotently, and writes the resulting values into an env file — see
-[self-hosting.md](self-hosting.md#3-configure-logto-for-pp-hub).
-
-1. **A machine-to-machine application**, granted the **Logto Management API**
-   role that carries the `all` permission. This is what reads an
-   organization's name and member list and writes organizations, membership,
-   roles, suspensions and invitations back. Its id and secret are
-   `PP_LOGTO_M2M_CLIENT_ID` / `PP_LOGTO_M2M_CLIENT_SECRET` — **required**: the
-   server refuses to start without them — and pp-hub exchanges them for a token
-   with `client_credentials` against `PP_LOGTO_API_RESOURCE`. Without the `all`
-   permission the exchange succeeds and every call answers 403, so the symptom
-   is membership that never converges rather than a startup error.
-2. **An organization template with the roles `admin` and `member`.** The
-   template is tenant-wide — every organization shares one role set — and the
-   `admin` role is the one pp-hub maps onto a space's automatic `Admin` group.
-   Rename it and set `PP_LOGTO_ORG_ROLE_ADMIN` to match, or nobody is an admin
-   anywhere.
-3. **An email connector, with the `OrganizationInvitation` template filled
-   in.** Adding a member by an address that has no account upstream creates a
-   Logto organization invitation, and Logto sends it. pp-hub mints no token and
-   has no fallback to copy and paste: without the connector, the invitation
-   call fails and `POST /spaces/{id}/members` answers **502** with Logto's
-   refusal for an address that has no upstream account. The template **must render `{{link}}`** —
-   pp-hub fills it with `{PP_EXTERNAL_URL}/auth/login?login_hint=<address>`,
-   and the invitation is accepted when the invitee first signs in with that
-   address verified. Email sign-up must therefore be enabled in the sign-in
-   experience, with email verification on, or the invitee has no way to
-   create the account the invitation is waiting for.
-4. **A webhook subscribed to `Organization.Membership.Updated`,
-   `Organization.Data.Updated`, `Organization.Deleted`, `User.Data.Updated`,
-   `User.SuspensionStatus.Updated` and `User.Deleted`**, pointing at
-   `POST {PP_EXTERNAL_URL}/hooks/logto`. Copy its signing key into
-   `PP_LOGTO_WEBHOOK_KEY`; the handler verifies an HMAC-SHA256 of the raw body
-   against `logto-signature-sha-256` and drops anything that does not match —
-   including every delivery, if the key is unset.
-   The endpoint is deliberately **outside `/api/v1`** — that group is
-   authenticated and same-origin-checked by a router test, and an
-   unauthenticated endpoint inside it would mean loosening the test that
-   protects the whole API. A lost delivery is not a correctness problem: the
-   hourly reconcile and the next sign-in both converge the same way.
-   **Logto refuses to deliver to private or special-use addresses** (its
-   delivery log reads `hostname resolves to a special-use IP address`), so the
-   URL must resolve to a public IP from inside the Logto container. A
-   deployment whose pp-hub domain resolves to a LAN address, and every local
-   development setup, runs without webhooks: changes made in Logto then arrive
-   at the next sign-in or on the hourly sweep.
-5. **Two user-consent scopes on the sign-in application** (the one behind
-   `PP_OIDC_CLIENT_ID`): `urn:logto:scope:organizations` and
-   `urn:logto:scope:organization_roles`. pp-hub always requests them; they put
-   `organizations` and `organization_roles` in the ID token, which is how a
-   returning user's membership is corrected at sign-in. Omit them and sign-in
-   still works, but the token carries no `organizations` claim: the server
-   logs `ID token carries no organizations claim` and skips the sign-in
-   reconcile — the path that heals a lost webhook — rather than reading the
-   absence as "left every organization".
-
-`PP_LOGTO_ENDPOINT` and both credentials are required, and the endpoint must be
-an absolute URL; anything less is a startup error naming the missing variable,
-because every membership, space and suspension write goes through the
-Management API and there is no degraded mode to fall back to. The worker never
-talks to Logto and does not need them. `PP_LOGTO_WEBHOOK_KEY` alone may be
-missing: the server warns at startup that `/hooks/logto` refuses every
-delivery, and changes made in Logto are then picked up only at the next
-sign-in or on the hourly sweep.
-
-| Variable                     | Required             | What it is                                                                                                                                               |
-| ---------------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PP_LOGTO_ENDPOINT`          | **yes** (server)     | The Logto **base** URL — `https://<tenant>.logto.app`, not the OIDC issuer, and **no `/oidc` suffix**. Must be absolute                                  |
-| `PP_LOGTO_M2M_CLIENT_ID`     | **yes** (server)     | The M2M application's id                                                                                                                                 |
-| `PP_LOGTO_M2M_CLIENT_SECRET` | **yes** (server)     | Its secret                                                                                                                                               |
-| `PP_LOGTO_API_RESOURCE`      | no — default below   | Management API resource indicator: `https://<tenant-id>.logto.app/api` on Cloud, `https://default.logto.app/api` (the default) on OSS                    |
-| `PP_LOGTO_WEBHOOK_KEY`       | no                   | The webhook's signing key. Unset, every delivery is refused and a warning says so; membership then converges at the next sign-in and on the hourly sweep |
-| `PP_LOGTO_ORG_ROLE_ADMIN`    | no — default `admin` | Which organization role means admin                                                                                                                      |
-
-Two of these are easy to get subtly wrong, and both fail at the first API call
-rather than at startup:
-
-- **`PP_LOGTO_ENDPOINT` is not `PP_OIDC_ISSUER`.** The issuer ends in `/oidc`;
-  this one must not. They point at the same host in the ordinary deployment
-  and are still different values.
-- **`PP_LOGTO_API_RESOURCE` is an identifier, not an address pp-hub fetches.**
-  On Cloud it contains the **tenant id**, which is not the vanity subdomain in
-  your console URL; on self-hosted OSS it is the literal
-  `https://default.logto.app/api` regardless of where Logto actually runs.
-  A wrong value produces a token the Management API rejects.
-
-A space and an organization are linked by `spaces.idp_org_id`. Every space
-created in pp-hub creates its organization first, and an organization's first
-member to sign in brings its space into existence, so on a fresh install the
-link is never made by hand. A space that mirrors nothing — one created before
-the sync, or one whose organization was deleted in Logto, which unlinks rather
-than empties it — shows an alert on its People pane, and membership writes
-there answer **422**. An instance admin fixes it with **Link to Logto** on that
-alert: it previews which members can be pushed into a new organization and
-which have no Logto account and will lose access, creates the organization,
-and pushes the members in a background job. Deleting a space keeps its
-organization in Logto; the next sign-in does not recreate the space.
-
-### Response headers and the CSP
-
-`nginx.conf` sends, on every response and with `always` so they survive the
-502s the config is designed to return while the API restarts:
-
-| Header                      | Value                                 |
-| --------------------------- | ------------------------------------- |
-| `Content-Security-Policy`   | see below                             |
-| `X-Frame-Options`           | `DENY`                                |
-| `Referrer-Policy`           | `strict-origin-when-cross-origin`     |
-| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` |
-| `X-Content-Type-Options`    | `nosniff`                             |
-
-plus `server_tokens off`, so no version number appears on responses or error
-pages. HSTS assumes you terminate TLS in front of this container, which the
-`https://` requirement on `PP_EXTERNAL_URL` already assumes.
-
-The policy itself:
-
-```
-default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';
-img-src 'self' data: blob:; media-src 'self' blob:; object-src 'self';
-frame-src 'self' ${PP_ONLYOFFICE_URL}; form-action 'self' ${PP_ONLYOFFICE_URL};
-frame-ancestors 'none'; base-uri 'none';
-connect-src 'self' wss://$http_host ws://$http_host
-```
-
-`connect-src` names the block editor's collaboration socket explicitly. CSP3
-lets `'self'` cover a `wss:` URL on the same host, but older WebKit does not
-match a `ws(s)` URL against `'self'`. `$http_host` is nginx's own variable —
-the host the browser asked for, so always this deployment — and survives the
-`PP_` envsubst filter; an https page cannot open a `ws:` socket anyway (mixed
-content), so that entry costs it nothing.
-
-Two directives are **deliberately looser than every guide recommends, and
-tightening them breaks the app**:
-
-- **`object-src 'self'`, not `'none'`.** The PDF viewer is an `<object>`
-  pointed at `/api/v1/nodes/{id}/content`. With `'none'` the browser blocks it
-  and renders the fallback children instead — so it fails as a silent UI
-  regression, not an error anybody sees in a log.
-- **`form-action` and `frame-src` name `${PP_ONLYOFFICE_URL}`.** The editor
-  handoff is a real cross-origin form POST into an iframe: 9.x will not accept
-  the access token as a query parameter on that route, so the browser submits
-  a form to the Document Server's origin. With `'self'` alone the editor frame
-  is simply blank.
-
-One more is looser than it should be, for a reason worth fixing later:
-**`style-src 'unsafe-inline'`** covers a handful of React `style` props
-(progress meters, tree indentation) plus sonner's runtime `<style>` injection.
-It is the only directive here that needs changes in `apps/web` to tighten,
-rather than a configuration decision.
-
-`script-src` needs no nonce: the built `index.html` carries zero inline
-script and the SPA uses `dangerouslySetInnerHTML` nowhere.
-`frame-ancestors 'none'` is safe because pp-hub is always the framer and never
-the framed — nothing reads `window.parent` or listens for `postMessage`.
-
-**The template mechanics.** `nginx.conf` is not a finished config: the CSP has
-to name the Document Server's origin, and hardcoding it would break the first
-deployment that moves the editor. The Dockerfile copies it to
-`/etc/nginx/templates/default.conf.template`, which the official nginx image
-runs `envsubst` over at container start, and sets
-`NGINX_ENVSUBST_FILTER=PP_` so substitution is restricted to `PP_*` — without
-that filter, nginx's own `$host`, `$remote_addr`, `$uri` and friends would be
-eaten and the config would not even load. `compose.prod.yml` therefore passes
-`PP_ONLYOFFICE_URL` to the `web` service as well as to `server`; if you run
-the image by hand, it must be in that container's environment or the CSP ships
-with an empty `frame-src` entry and the editor frame goes blank.
-
-The headers are **repeated** inside `location /assets/` and
-`location = /index.html`. That is not an accident and must not be
-"simplified": nginx does not merge `add_header` across levels — a `location`
-that declares any `add_header` of its own discards every inherited one, and
-both of those locations declare a `Cache-Control`. Without the repetition the
-bundle and the HTML entry point, the two responses a CSP is actually for,
-would ship bare. If you add a `location` with its own `add_header`, copy the
-block.
-
-The access log is a custom `log_format` with a `map` that rewrites
-`/s/<token>` to `/s/REDACTED` before the line is written, because a share
-token is the entire authorization for anonymous access to a file and only its
-SHA-256 is stored in the database. The Go side does the same for its own log
-and for the WOPI `access_token` query parameter.
-
-### Block document collaboration
-
-The block editor (M39, [block-documents.md](architecture/block-documents.md))
-keeps a WebSocket open to `GET /api/v1/collab/{room}`, and nginx gives it a
-location of its own: `location /api/v1/collab/` passes `Upgrade` and
-`Connection` (a `map` turns an empty `Upgrade` into `close`), sets a 1 h
-`proxy_read_timeout`/`proxy_send_timeout` instead of the upload location's ten
-minutes, and turns buffering off. The server pings every socket every 15 s, so
-an hour of silence is a dead peer. Because nginx inherits `proxy_set_header`
-only into a location that sets none of its own, that location repeats every
-server-level header, the cleared client-address headers included — keep them
-in step if you change one. A proxy in front of nginx must pass WebSocket
-upgrades on this path too.
-
-The socket is refused (403) unless its `Origin` is `PP_EXTERNAL_URL`'s
-origin exactly, and a missing `Origin` is refused as well.
-
-**One `server` instance hosts every room.** A room's live document, its epoch
-and the file lock it holds belong to the process; at startup the server clears
-every `collab:` lock a previous process left, which is only safe because no
-other instance can be holding one — and it does so only once its listener is
-bound, so a second copy started by mistake fails on the port before it can
-strip the running one's rooms of their locks. Several instances would need
-ygo's cluster relay and are out of scope, like the rate limiter. On `SIGTERM`
-the server stops accepting, then writes every room back before exiting, so up
-to ~5 min of edits are at risk only on a crash, not a deploy.
-
-### Notification stream
-
-In-app notifications (M29) arrive over Server-Sent Events at
-`GET /api/v1/notifications/stream`, and nginx gives it an exact-match
-location: `location = /api/v1/notifications/stream` with `proxy_buffering off`
-and `proxy_cache off` — buffered, each event would sit in nginx until the
-buffer filled, i.e. forever — and a 1 h read/send timeout. The server writes a
-heartbeat comment every 25 s, so an hour of silence is a dead client. The
-location sets no `proxy_set_header`, so the server-level headers are
-inherited. A proxy or CDN in front of nginx must not buffer this path either;
-the client reconnects with backoff and refetches the list, so a proxy that
-cuts idle responses costs only a reconnect.
-
-, which outranks the `/api/`
-prefix) carrying the same settings. A proxy in front of nginx must not buffer
-these either. Each open board holds one connection, in addition to the
+kind of stream at `GET /api/v1/ext/<id>/…/events`, and a proxy in front must
+not buffer these either. Each open board holds one connection, in addition to the
 notification stream, so over HTTP/1.1 — where a browser allows six per origin
 — several tabs can starve ordinary requests: terminate TLS with HTTP/2.
 
@@ -1223,13 +623,12 @@ resource and Logto's external issuer. An unauthenticated call gets 401 with
 off until an administrator turns on **Admin › Settings › Agent access (MCP)**
 (`mcp_enabled`); until then both paths answer 404.
 
-**nginx.** `location /mcp/` turns `proxy_buffering` and `proxy_cache` off and
-sets 300 s read/send timeouts — a tool call is one request whose answer must
-not sit in a buffer — and sets no `proxy_set_header`, so it inherits the
-server-level headers. `location = /mcp` covers the URL without the slash, and
-`location /.well-known/oauth-protected-resource` sends discovery to the API
-instead of the SPA. The Vite dev proxy forwards the same paths to `:8080`. A
-proxy in front of nginx must pass all three.
+**No proxy in the stack.** A tool call is one request whose answer must not
+sit in a buffer; with nothing between the client and the server it does not.
+`/mcp`, `/mcp/` and `/.well-known/oauth-protected-resource` are API routes,
+never the SPA shell. The Vite dev proxy forwards the same paths to `:8080`. A
+proxy you put in front must pass all three, not buffer responses, and allow
+calls of several minutes.
 
 **Logto.** Agents identify themselves with Client ID Metadata Documents
 (CIMD, Logto ≥ 1.43) instead of a pre-registered app, and present Logto JWT
@@ -1262,12 +661,12 @@ on **Admin › Settings › WebDAV** (`webdav_enabled`); until then `/dav` answe
 404, and turning it off again does so at once. Each person then mints a
 WebDAV token in **Settings › Security › Mount as a drive**.
 
-**nginx.** `location /dav` and `/dav/` set `client_max_body_size 0`, turn
-request and response buffering off and set 3600 s timeouts: a WebDAV `PUT` is
-one request carrying the whole file, so the 64 MiB chunk ceiling that tus keeps
-browser uploads under does not apply. The Vite dev proxy forwards `/dav` too.
-A proxy in front of nginx must allow the same — no body limit (pp-hub's upload
-cap still applies), no buffering, long timeouts — and pass every WebDAV method
+**No proxy in the stack.** The server answers `/dav` itself, with no body
+limit and no buffering and no `WriteTimeout`: a WebDAV `PUT` is one request
+carrying the whole file, so the 64 MiB chunk ceiling that tus keeps browser
+uploads under does not apply (pp-hub's upload cap still does). The Vite dev
+proxy forwards `/dav` too. A proxy you put in front must allow the same — no
+body limit, no buffering, long timeouts — and pass every WebDAV method
 (`PROPFIND`, `PROPPATCH`, `MKCOL`, `COPY`, `MOVE`, `LOCK`, `UNLOCK`). The
 generated Caddyfile's plain `reverse_proxy` already does. Windows Explorer
 sends Basic credentials only over HTTPS.
@@ -1290,7 +689,6 @@ work.
 
 | Service          | Networks                 |
 | ---------------- | ------------------------ |
-| `web`            | `edge`                   |
 | `server`         | `edge`, `data`, `office` |
 | `worker`         | `data`, `office`         |
 | `postgres`       | `data`                   |
@@ -1304,40 +702,90 @@ everything else has business talking to. The segment that matters is
 access control is a shared JWT secret, and it runs with
 `ALLOW_PRIVATE_IP_ADDRESS=true` because its own fetcher has to reach `server`
 at a private address. On one flat network that combination also let it open
-connections to `postgres:5432` and `seaweedfs:8333`. It needs `server:8080`
+connections to `postgres:5432` and `seaweedfs:8333`. It needs `server:8081`
 and nothing else, so now that is all it can reach. The JWT gate is what stops
 it being driven at all; the segmentation is what bounds the damage the day
 that gate fails.
 
-`web` also runs hardened, because it terminates every public request:
-`no-new-privileges:true`, `cap_drop: ALL` with only `NET_BIND_SERVICE` added
-back, and nginx's master process running as the `nginx` user rather than root
-(the stock image drops only its workers). The unprivileged image variant is
-not used because it changes the listen port and the whole topology assumes 80.
+`server` also runs hardened, because it terminates every public request:
+`no-new-privileges:true` and `cap_drop: ALL`. It needs no `NET_BIND_SERVICE`
+since it listens on 8080.
 
-### `/wopi/` is not published
+### The WOPI listener
 
-nginx deliberately has **no `location /wopi/`**. `PP_WOPI_SERVER_URL` is
-`http://server:8080` inside compose, and that value is what becomes the
-`WOPISrc` the Document Server fetches, so the browser never calls that path
-and no deployment in this repository needs it reachable from outside.
+WOPI is served on its **own listener**, `PP_WOPI_ADDR` (default `:8081`):
+`Server.WopiRouter()` answers only `/wopi/files/{nodeID}…`, and the public
+router has **no `/wopi` route** (`TestWopiIsNotOnThePublicRouter`).
+`PP_WOPI_SERVER_URL` is `http://server:8081` inside compose, and that value is
+what becomes the `WOPISrc` the Document Server fetches, so the browser never
+calls that path and no deployment in this repository needs it reachable from
+outside. The worker uses the same URL for its conversion tokens.
 
-Publishing it anyway turned the WOPI access token from a credential that only
-mattered inside the network into an internet-wide bearer token — on the one
-route group exempt from both the same-origin check and the rate limiter,
-because the Document Server sends no `Origin` header and is authorized by the
-signed token instead.
+Port 8081 is `expose`d in compose, so it exists on the compose networks only.
+It is deliberately **not** `EXPOSE`d in the image (`docker run -P` would
+publish it), never published to the host, and never given a Traefik/Dokploy
+domain.
+
+Serving it on the public port turned the WOPI access token from a credential
+that only mattered inside the network into an internet-wide bearer token — on
+the one route group exempt from both the same-origin check and the rate
+limiter, because the Document Server sends no `Origin` header and is
+authorized by the signed token instead. A separate port makes the exposure
+something you must do on purpose rather than something a proxy rule can do by
+accident.
 
 **If you run OnlyOffice outside this network** — its own host, a managed
-Document Server, a second compose stack — then it cannot reach `server:8080`,
-and you must do two things together: set `PP_WOPI_SERVER_URL` to a URL that is
-publicly reachable, and re-add a `location /wopi/ { proxy_pass $api; }` in
-`apps/web/nginx.conf`. Restrict it to the Document Server's address
-(`allow`/`deny`, or your proxy's equivalent) — the token binds one node, one
+Document Server, a second compose stack — then it cannot reach `server:8081`,
+and you must do two things together: publish or route **8081** (not 8080) to
+the Document Server, restricted to its address — the token binds one node, one
 subject and one rank re-resolved against live access, so a replay gains
-nothing a session would not, but there is no reason to leave the route open to
-the internet either. Doing one without the other gives an editor that opens
-and then fails on `CheckFileInfo`.
+nothing a session would not, but there is no reason to leave the listener open
+to the internet either — and set `PP_WOPI_SERVER_URL` (server and worker) to
+that URL. Doing one without the other gives an editor that opens and then
+fails on `CheckFileInfo`.
+
+### OnlyOffice 10: name the WOPI host
+
+Since 10.0 the Document Server refuses to call a WOPI host that no
+`services.CoAuthoring.ipfilter.rules` entry **names**; the stock
+`[{"address":"*","allowed":true}]` no longer counts (changelog: "`ipfilter`
+rules are now required for WOPI; the `allow: *` rule is not enough, the host
+must be specified explicitly"). Without a naming rule the editor frame shows
+only "Access forbidden" (403), and the Document Server log says
+`wopi egress refuses <host>: address <ip> is not named by
+services.CoAuthoring.ipfilter.rules, add a rule for it` followed by `WOPI
+destination refused`.
+
+Both compose files therefore give the `onlyoffice` service an `entrypoint`
+that writes `/etc/onlyoffice/documentserver/local-production-linux.json` and
+then `exec`s `/app/ds/run-document-server.sh`. Production allows `server` and
+refuses `*`; development allows `wopi-proxy` and `host.docker.internal` and
+refuses `*`. It is a file _beside_ `local.json` because the image's entrypoint
+rewrites `local.json` from environment variables, while node-config reads
+`local-production-linux.json` after it. It is written inline rather than
+mounted because a "docker raw" Dokploy application has only the compose file on
+the server.
+
+The rules apply to every URL the Document Server is handed — the file
+download, the `callbackUrl`, the WOPI action — so it can no longer be asked to
+fetch anything but the named hosts, which is a gain over 9.x. The name must
+equal the host in `PP_WOPI_SERVER_URL`: rename the `server` service and the
+rule has to follow.
+
+**Running OnlyOffice outside this compose** needs the same rule file, written by
+you, naming the host of your `PP_WOPI_SERVER_URL`; without it the editor is
+403 however the network is arranged. The other 10.0 changes need nothing: JWT
+is on by default (we already enable it), `/converter` no longer accepts the
+editor-config token (the worker signs its own), and `checksumVerification` only
+acts if the integrator sends the headers, which we do not.
+
+A note on saving: after an **unclean** disconnect (tab killed, network cut) the
+Document Server keeps the session for `expire.presence` = 300 s and runs
+`documentsCron` every 2 minutes, so the edit reaches `PutFile` — and becomes a
+new version — roughly 5–10 minutes later. A clean close saves within seconds.
+The same minute-after-start `docservice` restart described under
+[Development](#development) applies in production; the healthcheck
+`start_period` covers it.
 
 ### One issuer or two
 
@@ -1380,7 +828,7 @@ organization reconciles fill in phone numbers regardless of this flag.
 
 Both production stacks — pp-hub (`compose.prod.yml`) and Logto
 (`compose.logto.yml`) — publish **no host ports**; they `expose` only.
-Something in front terminates HTTPS and routes the four domains: `web:80`,
+Something in front terminates HTTPS and routes the four domains: `server:8080`,
 `onlyoffice:80`, `logto:3001` and `logto:3002`. Any of these works, and
 `deploy/pp-generate.sh` produces the files for the first one directly.
 
@@ -1394,8 +842,10 @@ pphub.ports.yml`) — see [self-hosting.md](self-hosting.md).
 
 Another proxy works the same way. Mind its request-body limit on this hop:
 nginx needs a `client_max_body_size` above the largest upload chunk, 64 MiB
-(`0` is simplest; its 1 MB default answers 413 to every full-size chunk).
-Caddy has no default limit. For Traefik, see the read-timeout note below.
+(`0` is simplest; its 1 MB default answers 413 to every full-size chunk), and
+`proxy_buffering off` for the SSE and streaming paths with `Upgrade`/`Connection`
+passed for the collab WebSocket. Caddy has no default limit and flushes streams.
+For Traefik, see the read-timeout note below.
 If WebDAV is on, `/dav` needs no body limit at all and long timeouts — see
 [WebDAV](#webdav-dav).
 
@@ -1419,14 +869,14 @@ are written: binding 80/443 would collide with Dokploy's Traefik.
    reads that variable from the env file. Without it, `PP_BLOB_BACKEND=s3`
    starts a server pointing at an endpoint nothing is serving.
 4. GHCR is private by default: add a registry credential for
-   `ghcr.io/pp-techs` (a PAT with `read:packages`), or make the three
+   `ghcr.io/pp-techs` (a PAT with `read:packages`), or make the two
    packages public. Without it the pull fails with `denied` and Dokploy
    reports a deploy error with no obvious cause.
 5. In the Domains tab add two domains:
 
    | Service      | Container port | Example domain       |
    | ------------ | -------------- | -------------------- |
-   | `web`        | 80             | `drive.example.com`  |
+   | `server`     | 8080           | `drive.example.com`  |
    | `onlyoffice` | 80             | `office.example.com` |
 
 6. Deploy, then run the backfill once (below).
@@ -1484,17 +934,18 @@ entryPoints:
     # …keep the existing http/http3/tls settings
 ```
 
-`0s` is not an open door for slow-body clients: the `web` container's nginx
-still drops a body that stalls for 60 s (`client_body_timeout`), and
-`PP_MAX_UPLOAD_BYTES` still caps an upload's size. A finite value works too
+`0s` is not an open door for slow-body clients: nothing behind Traefik
+drops a body that stalls (the server's only timeout is a 10 s header read), so
+a stalled client holds a connection until it gives up, and
+`PP_MAX_UPLOAD_BYTES` is what caps an upload's size. A finite value works too
 if it comfortably exceeds the slowest expected chunk.
 
 Behind Cloudflare's proxy (orange cloud) a cut-off request shows up as a `499`
 with `Server: cloudflare` and a 21-byte body (`Client Closed Request` —
 Traefik's text, relayed). The 499 itself says Cloudflare reaches the origin
-over plain HTTP, i.e. SSL/TLS mode **Flexible**, on the `web` entry point. The
-`web` container's access log records the same request as `400 0`, the
-truncated body. Cloudflare also caps a request body at 100 MB on Free/Pro
+over plain HTTP, i.e. SSL/TLS mode **Flexible**, on the `web` entry point
+(Traefik's own name for port 80). The `server` access log records a
+truncated body for the same request. Cloudflare also caps a request body at 100 MB on Free/Pro
 plans and answers `413` above that regardless of `PP_MAX_UPLOAD_BYTES` —
 which, since M30, no upload request reaches: the largest chunk the client
 sends is 64 MiB, so a file of any size up to the ceiling passes through.
@@ -1511,18 +962,18 @@ tcp:
     pphub-https:
       entryPoints: [websecure]
       rule: "HostSNI(`drive.example.com`)"
-      service: pphub-web
+      service: pphub-server
       tls:
         certResolver: letsencrypt
   services:
-    pphub-web:
+    pphub-server:
       loadBalancer:
         servers:
-          - address: "<web container name>:80" # docker ps | grep web
+          - address: "<server container name>:8080" # docker ps | grep server
 ```
 
-Traefik then only terminates TLS and pipes bytes to the `web` container, whose
-nginx applies its own limits. It needs TLS on the hop into Traefik:
+Traefik then only terminates TLS and pipes bytes to `server`, which enforces
+no read limit of its own beyond its header timeout. It needs TLS on the hop into Traefik:
 Cloudflare's SSL/TLS mode must be **Full (strict)**, because on a plain-HTTP
 entry point a TCP router can only match ``HostSNI(`*`)``, which would capture
 every app on port 80. Keep the domain in Dokploy's Domains tab so port 80 still
@@ -1637,6 +1088,33 @@ host server using `http://localhost:8333` and the worker
 `PP_S3_ENDPOINT_INTERNAL=http://seaweedfs:8333`. Switching backends does not
 move existing blobs.
 
+**The Document Server reaches the host server through `wopi-proxy`.**
+`compose.dev.yml` runs a small `alpine/socat` service that listens on `:8081`
+on the compose network and forwards to `host.docker.internal:8081` — the WOPI
+listener (`PP_WOPI_ADDR`) of the server you run on the host — so
+`PP_WOPI_SERVER_URL` is `http://wopi-proxy:8081` in both `apps/server/.env` and
+`deploy/compose/.env`, never `host.docker.internal`. The detour exists because
+OnlyOffice 10 will not name that address: on OrbStack `host.docker.internal`
+resolves to `0.250.250.254`, which it refuses outright for WOPI ("address …
+is never a permitted destination"), and no ipfilter rule or
+`ALLOW_META_IP_ADDRESS` can allow it. A compose container has an ordinary
+private address, which a rule can name (see [OnlyOffice 10: name the WOPI
+host](#onlyoffice-10-name-the-wopi-host)); the dev rules allow `wopi-proxy` and
+`host.docker.internal` and refuse `*`. After pulling this change re-run the
+`up -d` above so the proxy and the new entrypoint exist.
+
+**Pair `PP_SESSION_KEY` across the two env files.** The host server's
+`PP_SESSION_KEY` wins over `PP_DEV_INSECURE`, so if you set one in
+`apps/server/.env` the worker needs the same value in `deploy/compose/.env`
+(`compose.dev.yml` passes it through, default empty). Otherwise the worker's
+office-conversion tokens are rejected with 401 by `/wopi`, thumbnails never
+appear, and the job fails with `-4 could not download the source`.
+
+A freshly started Document Server restarts `docservice` once, about a minute
+after the container comes up; opening the editor in that window shows
+"Connection is lost". The compose healthcheck's `start_period` is 60 s for the
+same reason — wait for `healthy`.
+
 ## Operational notes
 
 **Startup order.** `cmd/server` owns migrations and applies them before it
@@ -1681,10 +1159,10 @@ hour of the dump. The blob store is content-addressed and never rewrites a
 file, so an incremental copy that only adds new names is enough.
 
 **The server blocks on OIDC discovery** for up to two minutes at startup, then
-exits and is restarted. `web` therefore depends on `server` for _start order
-only_, never `condition: service_healthy` — otherwise an IdP outage takes the
-whole site down, static bundle included. nginx resolves the API through
-Docker's DNS per-request, so it stays up and returns 502 until the API is back.
+exits and is restarted. Since `server` also serves the bundle, an IdP outage
+at startup takes the whole site down, static bundle included, until discovery
+succeeds; nothing may wait on `condition: service_healthy` for it, or the rest
+of the stack would stall behind it too.
 
 **Storage.** `PP_BLOB_BACKEND=local` keeps blobs in a volume, which pins the
 stack to one host. `s3` is what allows more than one `server` replica — for
@@ -1735,42 +1213,43 @@ _conversion_ call used to be unsigned, so turning JWT on did break office
 thumbnails. WOPI was never affected — the editor launch, `CheckFileInfo`,
 `GetFile`, `PutFile` and the locks are authorized by the WOPI access token,
 not by a JWT, and they work unchanged with `JWT_ENABLED=true` (verified
-against 9.4.0).
+against 10.0.0.1).
 
 **`ALLOW_PRIVATE_IP_ADDRESS` must stay enabled** in both compose files.
 OnlyOffice's `request-filtering-agent` refuses to fetch from anything it
 classifies as a private/link-local/meta address by default, and the WOPI host
-it has to reach is exactly that: `host.docker.internal` in development
-(OrbStack resolves it to `0.250.250.254`, which is why development _also_ sets
-`ALLOW_META_IP_ADDRESS`) and `http://server:8080` in production, whose
-container IP sits in `172.16.0.0/12`. Without it, every conversion fails with
-the unhelpful `{"error":-4}`; the real reason
+it has to reach is exactly that: `http://server:8081` in production, whose
+container IP sits in `172.16.0.0/12`, and `http://wopi-proxy:8081` in
+development, a compose container for the same reason. Without it, every
+conversion fails with the unhelpful `{"error":-4}`; the real reason
 (`DNS lookup … is not allowed. Because, It is meta IP address.`) appears only
 in `docker logs <onlyoffice container>`, never in the API or the job's
-`last_error`.
+`last_error`. Since 10.0 this flag is necessary but no longer sufficient: the
+host must also be named by an ipfilter rule ([OnlyOffice 10: name the WOPI
+host](#onlyoffice-10-name-the-wopi-host)).
 
 **Production deliberately does not set `ALLOW_META_IP_ADDRESS`.** The range it
 opens contains `169.254.169.254`, the cloud metadata endpoint, and nothing in
 the production topology is reachable there — it is a private-range hop, not a
 link-local one. Setting it would hand the Document Server's fetcher the one
-address on the network worth stealing, for no gain. The signature above is
-what keeps the remaining private-range allowance from being an open door; the
-two go together and neither is sufficient alone.
+address on the network worth stealing, for no gain. Development sets it for one
+reason only: the live conversion test fetches from `host.docker.internal`
+(`PP_TEST_CALLBACK_HOST`), which OrbStack puts in that range. The signature
+above is what keeps the remaining private-range allowance from being an open
+door; the two go together and neither is sufficient alone.
 
-**The web image compresses and caches deliberately.** nginx ships `#gzip on;`
-commented out, so `nginx.conf` enables it — the entry chunk is 378 KB raw
-against 116 KB gzipped. Hashed assets get
-`Cache-Control: public, max-age=31536000, immutable` and `index.html` gets
-`no-cache`, so a deploy is visible immediately without ever re-fetching an
-unchanged chunk.
+**The server compresses and caches the bundle deliberately.** Text types are
+gzipped in Go — the entry chunk is 378 KB raw against 116 KB gzipped. Hashed
+assets get `Cache-Control: public, max-age=31536000, immutable` and
+`index.html` gets `no-cache, must-revalidate`, so a deploy is visible
+immediately without ever re-fetching an unchanged chunk.
 
-**Images.** Three, from two Dockerfiles:
+**Images.** Two, from one Dockerfile:
 
-| Image    | Dockerfile                      | Base                | Size   |
-| -------- | ------------------------------- | ------------------- | ------ |
-| `server` | `apps/server/Dockerfile:server` | `alpine:3.21`       | 35 MB  |
-| `worker` | `apps/server/Dockerfile:worker` | `alpine:3.21`       | 207 MB |
-| `web`    | `apps/web/Dockerfile`           | `nginx:1.27-alpine` | 80 MB  |
+| Image    | Dockerfile                      | Base          | Size   |
+| -------- | ------------------------------- | ------------- | ------ |
+| `server` | `apps/server/Dockerfile:server` | `alpine:3.21` | 60 MB  |
+| `worker` | `apps/server/Dockerfile:worker` | `alpine:3.21` | 207 MB |
 
 The Go compile stages are split per binary, so `--target server` never links
 the worker. Both share one `deps` stage and use BuildKit cache mounts for the
@@ -1789,22 +1268,27 @@ outbound TLS. The worker image is the large one purely because of
 `poppler-utils` and `ffmpeg` — the reason those live there and not next to the
 API is containment, not size.
 
-`apps/web/Dockerfile` builds from the **repo root**, because the app imports
-`@workspace/ui` and the whole bun workspace has to be present. `.dockerignore`
-excludes the agent scratch directories (`.claude`, `.agents`, `.plans`, …) for
-cache reasons more than size: they change constantly, and `COPY . .` would
-otherwise invalidate the Vite build layer on every change.
+The `server` Dockerfile builds from the **repo root** — for both `server` and
+`worker` (`docker build -f apps/server/Dockerfile --target server .`) —
+because its `build-web` stage (bun + Vite) imports `@workspace/ui` and the
+whole bun workspace has to be present. `--target server` copies that stage's
+`dist` to `/srv/web` and sets `ENV PP_WEB_DIR=/srv/web`; `--target worker`
+never carries it. The Go stages copy only `apps/server`, so a web-only change
+does not rebuild them.
 
-**There are two `.dockerignore` files, and there have to be.** Docker reads
-that file from the root of the _build context_, and the `server` and `worker`
-images build with `context: ../../apps/server` — so the root one governs only
-the web image. Without `apps/server/.dockerignore`, `COPY . .` in the server
-Dockerfile was pulling `apps/server/.env` (which holds
-`PP_OIDC_CLIENT_SECRET` and `PP_SESSION_KEY`) and `apps/server/data/blobs`
-(which on a developer machine is real user file content) into the builder
-stage. Neither reaches the final image — the runtime stages copy only the
-compiled binary — but both are retained in the local build cache and exported
-wholesale by any CI that pushes with `--cache-to`. Keep the two files in step.
+**The root `.dockerignore` is the only one, and it matters.** Docker reads
+that file from the root of the _build context_, which is now the repo root for
+every image. It excludes `**/.env*` (except the `*.example` templates),
+`apps/server/data`, `**/dist` and `node_modules`, so `COPY . .` cannot pull
+`apps/server/.env` (which holds `PP_OIDC_CLIENT_SECRET` and `PP_SESSION_KEY`)
+or `apps/server/data/blobs` (which on a developer machine is real user file
+content) into a builder stage. Neither would reach the final image — the
+runtime stages copy only the compiled binary and the bundle — but both would
+be retained in the local build cache and exported wholesale by any CI that
+pushes with `--cache-to`. It also excludes the agent scratch directories
+(`.claude`, `.agents`, `.plans`, …) for cache reasons more than size: they
+change constantly, and would otherwise invalidate the Vite build layer on
+every change.
 
 **Resources.** Document Server wants 2–4 GB RAM and is by far the heaviest
 service. The worker is bursty — it spawns `pdftoppm`/`ffmpeg` per job with a

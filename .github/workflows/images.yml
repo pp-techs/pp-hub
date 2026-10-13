@@ -1,4 +1,5 @@
-# Build and push the three deployable images (web, server, worker).
+# Build and push the two deployable images (server, worker). The server image
+# carries the web app.
 #
 # Production must never build on the VPS: a deploy that compiles is a deploy
 # whose output depends on the machine it ran on, and a rollback becomes a
@@ -45,22 +46,20 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # The web image carries no build-time configuration: the SPA reads
-          # nothing from import.meta.env, and the one deployment-specific
-          # value in nginx.conf (PP_ONLYOFFICE_URL, named in the CSP) is
-          # substituted by the official image's envsubst at startup. So one
-          # image is correct for every deployment, which is what makes a
-          # tagged release meaningful rather than per-environment.
-          - name: web
-            context: .
-            dockerfile: apps/web/Dockerfile
-            target: web
+          # The server image carries the web app. It takes no build-time
+          # configuration: the SPA reads nothing from import.meta.env, and the
+          # one deployment-specific value in its security headers
+          # (PP_ONLYOFFICE_URL, named in the CSP) is read by the server at
+          # startup. So one image is correct for every deployment, which is
+          # what makes a tagged release meaningful rather than
+          # per-environment. The context is the repo root because the web
+          # build needs the bun workspace.
           - name: server
-            context: apps/server
+            context: .
             dockerfile: apps/server/Dockerfile
             target: server
           - name: worker
-            context: apps/server
+            context: .
             dockerfile: apps/server/Dockerfile
             target: worker
 

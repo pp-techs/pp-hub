@@ -276,10 +276,9 @@ registered.
 
 Core migrations are additive. Kanban ships in the image **disabled**; an
 instance admin turns it on (Admin › Apps), and a space admin can turn it off
-for a space (Settings › Apps). Operators with their own nginx must give
+for a space (Settings › Apps). Operators who put a proxy in front must give
 `/api/v1/ext/<id>/…/events` the notification stream's treatment (no
-buffering, long read timeout); the shipped `nginx.conf` has a regex location
-for it.
+buffering, long read timeout); the server itself needs nothing.
 
 ## What the second extension showed
 
