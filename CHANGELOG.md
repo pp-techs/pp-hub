@@ -11,6 +11,10 @@ Versions up to and including 0.14.1 predate this changelog; see the
 
 <!-- `bun run version-packages` adds each release's section from its changesets; edit it in the Version Packages PR. -->
 
+## [0.21.1] — 2026-10-13
+
+Trashing a folder no longer drops the items you put inside it onto your top level; they stay in the trash with the folder and come back when you restore it. Work a colleague added to your folder still appears on their own top level.
+
 ## [0.21.0] — 2026-10-12
 
 Folders can now be downloaded from the drive: **Download as .zip** appears in a folder's menu, in the selection bar, and beside folders in "Shared with me", for anyone who holds download on the folder. The archive is the one the server already streamed for `GET /nodes/{id}/download` on a folder.
