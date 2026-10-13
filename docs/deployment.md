@@ -787,6 +787,29 @@ The same minute-after-start `docservice` restart described under
 [Development](#development) applies in production; the healthcheck
 `start_period` covers it.
 
+### OnlyOffice's AI plugin
+
+Off by default, switched on with `PP_ONLYOFFICE_AI=true` (production `.env.prod`,
+development `deploy/compose/.env`). The 9.x image installed the plugin on first
+start; 10.0.0.1 dropped `ai` from its default plugin list
+(`sdkjs-plugins/plugin-list-default.json`), so with no switch the editor has no
+AI tab at all. There is no environment variable in the image for it:
+`aiSettings.enable` is already `true` and only controls whether an installed
+plugin is offered. The compose entrypoint adds `ai` back to that list when
+`ENABLE_AI_PLUGIN` is `true`, and the image's own plugin manager then fetches it
+— from `onlyoffice.github.io`, so the Document Server needs outbound access on
+its first start (and the plugin lives in the container, so it is fetched again
+when the container is recreated).
+
+It is opt-in because every use sends document text to the provider a user
+configures (AI tab → Settings → Edit AI models, with their own API key); for an
+instance that promises nothing leaves the machine that is a deliberate decision.
+The editor's calls to the provider go through the Document Server's `/ai-proxy`,
+so it also needs outbound access to the provider. Not verified: whether the
+`ipfilter` rules above ever apply to `/ai-proxy` (the server config reference
+says it uses the ordinary external-request filtering, which they are not), and
+a real provider round trip.
+
 ### One issuer or two
 
 `PP_OIDC_ISSUER` is the issuer **this process** can reach: discovery, token,

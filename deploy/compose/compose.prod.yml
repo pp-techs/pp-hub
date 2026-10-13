@@ -273,6 +273,13 @@ services:
       # Server's fetcher the one address worth stealing. (The dev stack does
       # set it, because host.docker.internal lands in that range.)
       - ALLOW_PRIVATE_IP_ADDRESS=true
+      # The AI plugin (chat, summarise, translate, ... against a provider you
+      # configure with your own API key). Off: it sends document text to a
+      # third party, which is a decision for the operator, not a default. 9.x
+      # installed it on first start; 10.0.0.1 dropped it from the default
+      # plugin list, so it is added back below when this is "true". The first
+      # start then needs to reach onlyoffice.github.io to fetch it.
+      - ENABLE_AI_PLUGIN=${PP_ONLYOFFICE_AI:-false}
     # Written before the image's own entrypoint runs, as a file beside
     # local.json rather than over it: the entrypoint rewrites local.json from
     # the variables above, and node-config reads local-production-linux.json
@@ -297,6 +304,9 @@ services:
           {"address":"*","allowed":false}
         ]}}}}
         EOF
+        if [ "$$ENABLE_AI_PLUGIN" = "true" ] && ! grep -q '"ai"' /var/www/onlyoffice/documentserver/sdkjs-plugins/plugin-list-default.json; then
+          sed -i 's/^\[/[\n\t"ai",/' /var/www/onlyoffice/documentserver/sdkjs-plugins/plugin-list-default.json
+        fi
         exec /app/ds/run-document-server.sh
     volumes:
       - onlyoffice_data:/var/www/onlyoffice/Data
