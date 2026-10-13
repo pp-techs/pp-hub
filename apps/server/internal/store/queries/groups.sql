@@ -209,13 +209,17 @@ WITH RECURSIVE entry(id) AS (
       AND n.deleted_at IS NULL
       AND (sqlc.narg('space_id')::uuid IS NULL OR n.space_id = sqlc.narg('space_id')::uuid)
       AND EXISTS (SELECT 1 FROM space_members sm WHERE sm.space_id = n.space_id AND sm.user_id = @user_id)
-      -- Under a live parent the caller also owns outright, a node is never an
+      -- Under a parent the caller also owns outright, a node is never an
       -- entry point: walking up reaches that parent, or the topmost owned folder
       -- above it, which is in entry itself. Pruning here keeps entry and the
       -- walk proportional to top-level items, not to everything ever created.
+      -- A trashed parent counts too: a folder the caller trashed takes the
+      -- caller's own contents into the trash with it, and they come back with
+      -- a restore. Only a tombstone somebody else owns lets the caller's work
+      -- surface here, so a colleague's trashing never hides it.
       AND NOT EXISTS (
           SELECT 1 FROM nodes p
-          WHERE p.id = n.parent_id AND p.deleted_at IS NULL
+          WHERE p.id = n.parent_id
             AND p.created_by = @user_id AND p.team_root_id IS NULL
       )
 ),
