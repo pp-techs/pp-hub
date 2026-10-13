@@ -17,18 +17,14 @@
 # tag that is not published (`PP_IMAGE_TAG=dev`) unless you mean to.
 
 services:
-  web:
-    build:
-      context: ../..
-      dockerfile: apps/web/Dockerfile
-      target: web
-
   server:
     build:
-      context: ../../apps/server
+      context: ../..
+      dockerfile: apps/server/Dockerfile
       target: server
 
   worker:
     build:
-      context: ../../apps/server
+      context: ../..
+      dockerfile: apps/server/Dockerfile
       target: worker

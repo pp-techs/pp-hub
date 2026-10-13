@@ -87,6 +87,9 @@ type Server struct {
 	// ext is the extension host (M44); nil when a build carries none, in
 	// which case no extension route exists and every extension listing is empty.
 	ext *exthost.Registry
+	// web serves the single-page app next to the API; nil leaves the server
+	// API-only (development, handler tests).
+	web *WebApp
 }
 
 // Deps is what the HTTP edge needs. A struct rather than a parameter list
@@ -127,6 +130,9 @@ type Deps struct {
 	Metrics *obs.HTTPMetrics
 	// Ext is the extension host; nil serves a build with no extensions.
 	Ext *exthost.Registry
+	// Web serves the built single-page app on the API's origin; nil serves
+	// the API only.
+	Web *WebApp
 }
 
 func NewServer(d Deps) *Server {
@@ -160,6 +166,7 @@ func NewServer(d Deps) *Server {
 		notifications:  d.Notifications,
 		metrics:        d.Metrics,
 		ext:            d.Ext,
+		web:            d.Web,
 	}
 	if d.Ext != nil {
 		s.useExt(d.Ext)
@@ -202,6 +209,13 @@ func (s *Server) Router() http.Handler {
 		r.Use(middleware.ClientIPFromXFF(s.trustedProxies...))
 	}
 	r.Use(s.observe, recoverer)
+	if s.web != nil {
+		r.Use(s.web.Secure, s.web.shareLanding)
+		// Whatever no route below claims is the app: a file from the bundle,
+		// or index.html for a client-side route. The handler itself refuses
+		// paths the API owns, so a mistyped API call is a 404, not HTML.
+		r.NotFound(s.web.Handler().ServeHTTP)
+	}
 
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -258,13 +272,6 @@ func (s *Server) Router() http.Handler {
 	// through the agent router mcpRoutes builds.
 	s.davRoutes(r)
 
-	r.Route("/wopi/files/{nodeID}", func(r chi.Router) {
-		r.Get("/", s.handleWopiCheckFileInfo)
-		r.Get("/contents", s.handleWopiGetFile)
-		r.Post("/contents", s.handleWopiPutFile)
-		r.Post("/", s.handleWopiLockOps)
-	})
-
 	r.Route("/s/{token}", func(r chi.Router) {
 		// A share token is a bearer secret in a URL. Without a limit, it is
 		// also an oracle: unlimited guesses against a namespace, from
@@ -290,6 +297,30 @@ func (s *Server) Router() http.Handler {
 		r.Get("/page", s.handleSharePage)
 		r.Get("/pages", s.handleSharePages)
 		r.Get("/edit-session", s.handleShareEditSession)
+	})
+	return r
+}
+
+// WopiRouter is the WOPI surface: the routes the Document Server (and the
+// worker's office conversion) call back into. It is a router of its own,
+// served on its own listener (Config.WopiAddr), and is not reachable through
+// Router.
+//
+// That is the point. These routes are authorized by a signed access token
+// carried in the URL, and they are exempt from the same-origin check (the
+// Document Server sends no Origin) and from the rate limiter. Behind the
+// public listener they would turn a credential that only matters inside the
+// compose network into an internet-wide bearer token. Keeping them on a port
+// nothing publishes makes that a property of the topology instead of a rule
+// every reverse proxy has to remember.
+func (s *Server) WopiRouter() http.Handler {
+	r := chi.NewRouter()
+	r.Use(middleware.RequestID, s.observe, recoverer)
+	r.Route("/wopi/files/{nodeID}", func(r chi.Router) {
+		r.Get("/", s.handleWopiCheckFileInfo)
+		r.Get("/contents", s.handleWopiGetFile)
+		r.Post("/contents", s.handleWopiPutFile)
+		r.Post("/", s.handleWopiLockOps)
 	})
 	return r
 }

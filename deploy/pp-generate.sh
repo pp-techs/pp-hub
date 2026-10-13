@@ -107,9 +107,9 @@ EOF
 cat >"$OUT_DIR/pphub.ports.yml" <<'EOF'
 # Publishes pp-hub on loopback for a reverse proxy on this host (see Caddyfile).
 services:
-  web:
+  server:
     ports:
-      - "127.0.0.1:8090:80"
+      - "127.0.0.1:8090:8080"
   onlyoffice:
     ports:
       - "127.0.0.1:9980:80"
@@ -149,7 +149,7 @@ Point all four names at the server:
 
 | Name | Used for | Service → port |
 | --- | --- | --- |
-| $PP_DOMAIN | pp-hub | \`web\` → 80 |
+| $PP_DOMAIN | pp-hub | \`server\` → 8080 |
 | $OFFICE_DOMAIN | document editor | \`onlyoffice\` → 80 |
 | $AUTH_DOMAIN | sign-in (Logto) | \`logto\` → 3001 |
 | $AUTH_ADMIN_DOMAIN | Logto console | \`logto\` → 3002 |

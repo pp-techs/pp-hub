@@ -287,16 +287,40 @@ func TestEveryAPIMutationChecksOrigin(t *testing.T) {
 func TestWopiIsExemptFromOriginChecks(t *testing.T) {
 	guard := reflect.ValueOf((&Server{}).sameOrigin).Pointer()
 
+	seen := 0
 	err := chi.Walk(
-		(&Server{}).Router().(chi.Routes),
+		(&Server{}).WopiRouter().(chi.Routes),
 		func(method, route string, _ http.Handler, middlewares ...func(http.Handler) http.Handler) error {
 			if !strings.HasPrefix(route, "/wopi/") {
 				return nil
 			}
+			seen++
 			for _, mw := range middlewares {
 				if reflect.ValueOf(mw).Pointer() == guard {
 					t.Errorf("%s %s would refuse the Document Server's own saves", method, route)
 				}
+			}
+			return nil
+		},
+	)
+	if err != nil {
+		t.Fatalf("walk routes: %v", err)
+	}
+	if seen == 0 {
+		t.Fatal("WopiRouter has no /wopi/ routes")
+	}
+}
+
+// /wopi is authorized by a token in the URL and exempt from the origin check
+// and the rate limit, so it must be reachable only on its own listener. A
+// route for it on the public router would make that token an internet-wide
+// bearer credential.
+func TestWopiIsNotOnThePublicRouter(t *testing.T) {
+	err := chi.Walk(
+		(&Server{}).Router().(chi.Routes),
+		func(method, route string, _ http.Handler, _ ...func(http.Handler) http.Handler) error {
+			if strings.HasPrefix(route, "/wopi") {
+				t.Errorf("%s %s is served on the public listener", method, route)
 			}
 			return nil
 		},

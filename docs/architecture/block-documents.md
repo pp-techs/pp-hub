@@ -850,15 +850,15 @@ in [M29](milestones/M29.md) and [data-model.md](data-model.md#comments-and-notif
 
 ## Deployment
 
-- nginx proxies `/api/v1/collab/` in a location of its own, passing
-  `Upgrade`/`Connection` with a 1 h read/send timeout and buffering off; the
-  server pings every 15 s, so a silent hour is a dead peer.
+- The server serves `/api/v1/collab/` itself (no proxy hop, no write timeout);
+  it pings every 15 s, so a silent hour is a dead peer. A proxy in front must pass
+  `Upgrade`/`Connection` and not buffer.
 - CSP `connect-src` names the socket origin (`wss://` and `ws://` of the
   requested host): CSP3 lets `'self'` cover it, older WebKit does not.
 - Metrics: `pphub_collab_rooms`, `pphub_collab_peers`,
   `pphub_collab_flush_duration_seconds`, `pphub_collab_flush_failures_total`.
-- nginx proxies `/api/v1/notifications/stream` (Server-Sent Events) unbuffered
-  with a 1 h timeout; the server writes a heartbeat every 25 s.
+- `/api/v1/notifications/stream` (Server-Sent Events) is served directly, with a
+  heartbeat every 25 s; a proxy in front must not buffer it.
 - **Outbound HTTP.** Link bookmarks make the server fetch public web pages; an
   install with no egress simply gets bookmarks without a title or image.
 - One server instance hosts every room and every notification stream. Several

@@ -45,7 +45,7 @@ two compose files paste in as they are.
 
   | Name                     | For                 | Service → port    |
   | ------------------------ | ------------------- | ----------------- |
-  | `drive.example.com`      | pp-hub              | `web` → 80        |
+  | `drive.example.com`      | pp-hub              | `server` → 8080   |
   | `office.example.com`     | document editor     | `onlyoffice` → 80 |
   | `auth.example.com`       | sign-in             | `logto` → 3001    |
   | `auth-admin.example.com` | Logto admin console | `logto` → 3002    |
@@ -216,6 +216,12 @@ See [personal-spaces.md](architecture/personal-spaces.md).
 
 **Upgrading pp-hub.** Change `PP_IMAGE_TAG` in `pphub.env` and run the same
 `up -d`. Database migrations run on start. Rolling back is changing it back.
+
+Coming from a release that had a `web` service: it is gone, `server` now serves
+the bundle. On a platform (Dokploy, Coolify) re-point the `drive.example.com`
+domain from `web:80` to `server:8080`, and use `server` in
+`docker compose logs`/`restart`. A hand-written `PP_WOPI_SERVER_URL` must
+become `http://server:8081`.
 
 **Upgrading Logto.** Change `LOGTO_IMAGE_TAG` in `logto.env` and run its
 `up -d`; its schema is migrated on start. Re-run `pp-logto-setup.sh`

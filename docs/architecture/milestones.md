@@ -171,9 +171,9 @@ catalogs.
 Named in P1's "Smaller, but on the list" and assigned to no milestone. Recorded
 so they are found rather than rediscovered:
 
-- **`style-src 'unsafe-inline'`** is the one CSP directive in the nginx template
+- **`style-src 'unsafe-inline'`** is the one CSP directive in the server-built policy
   that is looser than it should be rather than looser on purpose. Removing it
-  takes changes in `apps/web`, not an edit at the edge.
+  takes changes in `apps/web`, not a deployment edit.
 - **No antivirus or content scanning.** Uploaded bytes go straight into the CAS
   with no scan hook, no sniffing (the type is guessed from the extension) and no
   extension blocklist.

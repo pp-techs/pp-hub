@@ -73,7 +73,7 @@ if ! dc run --rm --no-deps --user root -T -v "$DIR_ABS:/backup" --entrypoint sh 
 fi
 
 # 2. Stop writers.
-dc stop web server worker
+dc stop server worker
 
 # 3. Restore Postgres. No --exit-on-error: --clean against a not-yet-populated
 # schema legitimately emits "does not exist" notices for objects that were
@@ -93,7 +93,7 @@ else
 fi
 
 # 5. Bring services back up and wait for readiness.
-dc up -d server worker web
+dc up -d server worker
 
 READY=0
 ELAPSED=0

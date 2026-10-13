@@ -239,11 +239,10 @@ person's files. It assumes one server process, like the collaboration rooms.
 
 ## Operations
 
-- **Proxy.** `apps/web/nginx.conf` proxies `/dav` and `/dav/` to the server
-  with `client_max_body_size 0`, request and response buffering off and
-  3600 s timeouts. A `PUT` is one request, so the limit that tus avoids for
+- **Proxy.** The server answers `/dav` directly: no body limit, no
+  buffering, no write timeout. A `PUT` is one request, so the limit that tus avoids for
   browser uploads (M30) applies here. A proxy placed in front must allow the
-  same. The Vite dev proxy forwards `/dav` too, and its CORS middleware lets
+  same (no body limit, no buffering, long timeouts). The Vite dev proxy forwards `/dav` too, and its CORS middleware lets
   `OPTIONS` continue to the proxy (`preflightContinue`): otherwise Vite
   answers it itself, without the `DAV:` header and Basic challenge, and Finder
   cannot connect to `http://localhost:5173/dav/`.

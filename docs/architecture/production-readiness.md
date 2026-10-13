@@ -63,12 +63,17 @@ should know why.
   `PP_ONLYOFFICE_JWT_SECRET`, and `preview.signOnlyOfficeJWT` signs every
   conversion request — body `token` claim **and** `Authorization: Bearer`, because
   the docs disagree about which endpoints honour which. Unsigned requests come
-  back `-8` with no fetch attempted, verified against a live 9.4.0.
+  back `-8` with no fetch attempted, verified against a live 10.0.0.1.
 - **`ALLOW_PRIVATE_IP_ADDRESS=true` stays, and it is load-bearing**: the WOPI host
   sits at a container address. It is tolerable only because of the line above.
   **`ALLOW_META_IP_ADDRESS` is gone from production** — that range contains
   `169.254.169.254` and nothing in this topology lives there — and only
-  development still sets it, because `host.docker.internal` resolves into it.
+  development still sets it, only for the live conversion test that fetches
+  from `host.docker.internal`.
+- **OnlyOffice 10 needs a rule naming the WOPI host.** The `onlyoffice`
+  entrypoint writes an ipfilter rule file allowing `server` and refusing `*`,
+  which also means the Document Server can only be asked to fetch from that
+  host.
 - **A WOPI token is a ceiling, not an authority.** `wopiClaims` re-resolves on
   every request (node, `users.suspended_at`, `EffectiveCapsForNode`) and clamps
   the token's rank, refusing at rank 0. A revoked edit grant downgrades an open
@@ -128,9 +133,9 @@ items closed alongside M22–M24 have no milestone of their own and stay under
 ### Still open from this register
 
 - **No write or idle timeout on the HTTP server** — only
-  `ReadHeaderTimeout: 10s` (`cmd/server/main.go`). `nginx.conf`'s long
-  `proxy_*_timeout` values exist because a multi-gigabyte upload and an OnlyOffice
-  conversion both need them, so a blanket handler timeout is not a one-line
+  `ReadHeaderTimeout: 10s` (`cmd/server/main.go`). Long uploads and OnlyOffice
+  conversions need long requests, and the stack has no proxy to impose limits
+  now, so a blanket handler timeout is not a one-line
   change. No milestone carries it; it belongs to whoever next touches the
   server's lifecycle.
 - **No per-user quota and no per-space ceiling** beyond `quota_bytes`. The
@@ -384,18 +389,19 @@ cover them.
   the `server` and `worker` services are given in `compose.prod.yml`).
   Share tokens and session tokens _are_ stored hashed. Unscheduled.
 - **Security headers shipped in M21, with two deliberate exceptions and one
-  still to fix.** `apps/web/nginx.conf` now sends CSP, `X-Frame-Options:
-DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, HSTS and
-  `X-Content-Type-Options: nosniff`, all with `always` so they survive the
-  502s the config is designed to return, plus `server_tokens off`. Two CSP
+  still to fix.** The server (`internal/httpapi/web.go`; M21 originally set
+  them in nginx) now sends CSP, `X-Frame-Options: DENY`,
+  `Referrer-Policy: strict-origin-when-cross-origin`, HSTS (only when
+  `PP_EXTERNAL_URL` is https) and `X-Content-Type-Options: nosniff` on every
+  response. Two CSP
   directives are looser than the standard advice on purpose — `object-src
 'self'` because the PDF viewer is an `<object>`, and `form-action` /
   `frame-src` naming the Document Server's origin because the
   editor handoff is a real cross-origin form POST. The third is not
-  deliberate: `style-src 'self' 'unsafe-inline'`, repeated on all three
-  `add_header` blocks in that file, is there for a handful of React `style`
+  deliberate: `style-src 'self' 'unsafe-inline'`
+  is there for a handful of React `style`
   props and sonner's runtime `<style>` injection, so tightening it is an
-  `apps/web` change rather than an nginx one — which is exactly why it is
+  `apps/web` change rather than a deployment one — which is exactly why it is
   still here and unscheduled. See [deployment.md](../deployment.md).
 - **No metrics or structured logging — closed in M25; tracing and error
   tracking deliberately left out.** `log/slog` ran on the default text

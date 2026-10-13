@@ -14,7 +14,7 @@
 #
 # Profiles keep the heavy optional pieces out of the default `up`:
 #
-#   (default)          postgres + onlyoffice
+#   (default)          postgres + onlyoffice + wopi-proxy
 #   --profile worker   + preview worker (PDF/video/office thumbnails)
 #   --profile s3       + SeaweedFS, for developing against the S3 blob backend
 #   --profile idp      + self-hosted Logto, instead of Logto Cloud
@@ -44,10 +44,28 @@ services:
       timeout: 5s
       retries: 10
 
+  # The Document Server's WOPI callbacks reach your host-run Go server through
+  # this forwarder, not through host.docker.internal.
+  #
+  # OnlyOffice 10 refuses to call a WOPI host unless an ipfilter rule names it
+  # (see the onlyoffice service), and it refuses outright — no rule can allow
+  # it — the address host.docker.internal resolves to on OrbStack
+  # (0.250.250.254). A container on this network has an ordinary private
+  # address and a stable name, so that is what OnlyOffice and the worker are
+  # given as PP_WOPI_SERVER_URL; the forwarder hands the bytes on to the
+  # server's WOPI listener (PP_WOPI_ADDR, :8081) on your machine.
+  wopi-proxy:
+    image: alpine/socat:1.8.0.3
+    container_name: pphub-wopi-proxy
+    restart: unless-stopped
+    command: ["TCP-LISTEN:8081,fork,reuseaddr", "TCP:host.docker.internal:8081"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
   onlyoffice:
     # Same pin as compose.prod.yml: developing against a different editor
     # build than production ships is how WOPI regressions get missed.
-    image: onlyoffice/documentserver:9.4.0
+    image: onlyoffice/documentserver:10.0.0.1
     container_name: pphub-onlyoffice
     restart: unless-stopped
     environment:
@@ -64,13 +82,32 @@ services:
       - ONLYOFFICE_HTTPS_ENABLED=false
       - WOPI_ENABLED=true
       # host.docker.internal resolves to a link-local-ish gateway address
-      # (OrbStack: 0.250.250.254). OnlyOffice's request-filtering-agent
-      # blocks that as a "meta" IP by default, so the conversion API and the
-      # editor iframe can never fetch /wopi/... from the host-run server
-      # without these — fails with {"error":-4} and no other explanation.
+      # (OrbStack: 0.250.250.254). The request-filtering-agent blocks that as
+      # a "meta" IP by default, which only matters for the one thing still
+      # fetched from the host directly: the live conversion test
+      # (PP_TEST_CALLBACK_HOST=host.docker.internal). WOPI no longer goes there.
       # Both are only reachable behind the signature above.
       - ALLOW_META_IP_ADDRESS=true
       - ALLOW_PRIVATE_IP_ADDRESS=true
+    # Written before the image's own entrypoint runs, as a file beside
+    # local.json rather than over it: the entrypoint rewrites local.json from
+    # the variables above, and node-config reads local-production-linux.json
+    # after it. Rules are evaluated for every URL the editor is handed (file
+    # download, callback, WOPI action). Since 10.0 the WOPI host must be NAMED
+    # by a rule — `* allowed` no longer counts — so each host the server is
+    # known by is listed, and everything else is refused.
+    entrypoint:
+      - sh
+      - -c
+      - |
+        cat > /etc/onlyoffice/documentserver/local-production-linux.json <<'EOF'
+        {"services":{"CoAuthoring":{"ipfilter":{"rules":[
+          {"address":"wopi-proxy","allowed":true},
+          {"address":"host.docker.internal","allowed":true},
+          {"address":"*","allowed":false}
+        ]}}}}
+        EOF
+        exec /app/ds/run-document-server.sh
     volumes:
       - onlyoffice_data:/var/www/onlyoffice/Data
       - onlyoffice_logs:/var/log/onlyoffice
@@ -98,7 +135,8 @@ services:
   worker:
     profiles: ["worker"]
     build:
-      context: ../../apps/server
+      context: ../..
+      dockerfile: apps/server/Dockerfile
       target: worker
     container_name: pphub-worker
     restart: unless-stopped
@@ -106,13 +144,18 @@ services:
       PP_DATABASE_URL: postgres://pphub:pphub@postgres:5432/pphub?sslmode=disable
       PP_BLOB_ROOT: /data/blobs
       PP_ONLYOFFICE_INTERNAL_URL: http://onlyoffice
-      # Your host-run server, as OnlyOffice must reach it.
-      PP_WOPI_SERVER_URL: ${PP_WOPI_SERVER_URL:-http://host.docker.internal:8080}
+      # Your host-run server's WOPI listener, through the forwarder (see
+      # wopi-proxy): the name OnlyOffice's ipfilter allows.
+      PP_WOPI_SERVER_URL: ${PP_WOPI_SERVER_URL:-http://wopi-proxy:8081}
       # Must match the onlyoffice service's JWT_SECRET above, and the value in
       # apps/server/.env. An unsigned conversion request answers {"error":-8}.
       PP_ONLYOFFICE_JWT_SECRET: ${PP_ONLYOFFICE_JWT_SECRET:-pphub-dev-onlyoffice-jwt-secret}
       # Must match the server's key. PP_DEV_INSECURE=1 gives both processes the
-      # same fixed development key, which is what apps/server/.env sets.
+      # same fixed development key — unless the server has a PP_SESSION_KEY of
+      # its own, which wins over it. Then set the same PP_SESSION_KEY in this
+      # directory's .env, or the worker's conversion tokens verify against a
+      # different key and every office thumbnail fails with a 401 from /wopi.
+      PP_SESSION_KEY: ${PP_SESSION_KEY:-}
       PP_DEV_INSECURE: ${PP_DEV_INSECURE:-1}
       # The worker reads and writes the same blobs as the server, so it has to
       # use the same backend. With `--profile s3` set PP_BLOB_BACKEND=s3 in

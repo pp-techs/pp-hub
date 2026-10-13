@@ -19,9 +19,21 @@ import (
 
 type Config struct {
 	Addr string
+	// WopiAddr is the listener that carries /wopi/* and nothing else. The
+	// Document Server (and the worker's office conversion) call it over the
+	// compose network; it is a port of its own so that the public listener
+	// never has a route that a bearer token in a URL could be replayed
+	// against from the internet. Never publish it.
+	WopiAddr string
+	// WebDir is the directory holding the built single-page app. Set, the
+	// server serves it (with the SPA fallback and the security headers) next
+	// to the API on Addr, which is how the production image runs. Empty
+	// leaves the server API-only, which is what development wants: Vite
+	// serves the bundle and proxies the API.
+	WebDir string
 	// MetricsAddr is the address of the internal Prometheus listener; empty
-	// disables it. Never proxied by nginx — a separate port so /metrics
-	// cannot become public by a routing mistake.
+	// disables it. A separate port so /metrics cannot become public by a
+	// routing mistake.
 	MetricsAddr string
 	DatabaseURL string
 	// OIDCIssuer is where *this process* fetches the discovery document and
@@ -131,6 +143,8 @@ func Load() (*Config, error) {
 	logtoResource := env("PP_LOGTO_API_RESOURCE", "https://default.logto.app/api")
 	c := &Config{
 		Addr:             env("PP_ADDR", ":8080"),
+		WopiAddr:         env("PP_WOPI_ADDR", ":8081"),
+		WebDir:           strings.TrimSpace(os.Getenv("PP_WEB_DIR")),
 		DatabaseURL:      env("PP_DATABASE_URL", "postgres://pphub:pphub@localhost:5432/pphub?sslmode=disable"),
 		OIDCIssuer:       env("PP_OIDC_ISSUER", "http://localhost:9080"),
 		OIDCIssuerExt:    os.Getenv("PP_OIDC_ISSUER_EXTERNAL"),
@@ -152,7 +166,7 @@ func Load() (*Config, error) {
 		},
 		OnlyOfficeURL:    env("PP_ONLYOFFICE_URL", "http://localhost:9980"),
 		OnlyOfficeIntURL: os.Getenv("PP_ONLYOFFICE_INTERNAL_URL"),
-		WopiServerURL:    env("PP_WOPI_SERVER_URL", "http://localhost:8080"),
+		WopiServerURL:    env("PP_WOPI_SERVER_URL", "http://localhost:8081"),
 
 		OnlyOfficeJWTSecret:  []byte(os.Getenv("PP_ONLYOFFICE_JWT_SECRET")),
 		MaxUploadBytes:       maxUpload,

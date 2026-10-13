@@ -285,7 +285,9 @@ Three consequences worth knowing:
 - **Two URLs, two directions.** `PP_ONLYOFFICE_INTERNAL_URL` is OnlyOffice as
   the worker reaches it (container network, not the browser-facing
   `PP_ONLYOFFICE_URL`). `PP_WOPI_SERVER_URL` is the API server as _OnlyOffice_
-  reaches it — the same address the WOPI editor already needs.
+  reaches it — the same address the WOPI editor already needs (`http://server:8081`
+  in production, `http://wopi-proxy:8081` in development), and the host OnlyOffice
+  10's ipfilter rule must name.
 - **The cache key is the blob hash.** Content-addressed, so the same document
   converts once ever, however many times it is enqueued.
 

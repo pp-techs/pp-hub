@@ -6,8 +6,6 @@ Monorepo managed with bun workspaces + Vite+ (`vp`). Workspaces: `packages/*`, `
 pp-hub/
 ├── apps/
 │   ├── web/                        # React SPA
-│   │   ├── Dockerfile              # Vite build → nginx; the public entry point in prod
-│   │   ├── nginx.conf              # serves the bundle, proxies the API on one origin (+ the collab WebSocket and the unbuffered notification-stream locations)
 │   │   ├── scripts/mdoc-fixtures.ts # writes the Go mdoc golden fixtures from slash-editor itself
 │   │   ├── tests/mdoc-go-updates.test.ts # slash-editor must read the Go-built room seeds back
 │   │   └── src/
@@ -120,7 +118,7 @@ pp-hub/
 │       ├── ext/kanban/             # M45/M46: the kanban board — pp-app.json, handlers.go, position.go (fractional index), migrations/ (schema ext_kanban)
 │       ├── ext/checklist/          # the second app, written against extsdk alone — pp-app.json, handlers.go, migrations/ (schema ext_checklist)
 │       ├── cmd/worker/             # optional preview worker (pdftoppm/ffmpeg); --backfill (previews + text extraction)
-│       ├── Dockerfile              # targets: worker (poppler+ffmpeg), server (slim, default); copies third_party/
+│       ├── Dockerfile              # build context = repo root; build-web (bun/vite) stage; targets: worker (poppler+ffmpeg), server (slim, default; ships the SPA at /srv/web); copies third_party/
 │       ├── third_party/ygo/        # reearth/ygo v1.50.0, patched (PATCHES.md); go.mod `replace`s onto it
 │       ├── .env.example            # → .env (git-ignored), sourced for local dev
 │       └── internal/
@@ -133,7 +131,7 @@ pp-hub/
 │           ├── auth/               # ✅ OIDC (PKCE + nonce) + DB-backed sessions (go-oidc)
 │           ├── gc/                 # ✅ blob reclaim + trash retention sweeps
 │           ├── config/             # ✅ env config; DeriveKey issues purpose-bound subkeys
-│           ├── httpapi/            # ✅ chi routes (/healthz, /auth/*, /api/v1/*, /wopi/*, /s/*, /hooks/logto)
+│           ├── httpapi/            # ✅ chi routes (/healthz, /auth/*, /api/v1/*, /wopi/*, /s/*, /hooks/logto; web.go serves the SPA when PP_WEB_DIR is set; WopiRouter on its own :8081 listener)
 │           │   ├── server.go       # the router, and the middleware that makes it safe by group
 │           │   ├── csrf.go         # sameOrigin: every mutation, before authentication; socketOrigin: the collab upgrade
 │           │   ├── collab.go       # GET /nodes/{id}/collab, the /collab/{room} socket, /nodes/{id}/attachments/{hash}
@@ -235,7 +233,7 @@ pp-hub/
 ├── .github/
 │   ├── workflows/ci.yml            # web check/test/build, server vet/test/sqlc, image build smoke; also called by release
 │   ├── workflows/release.yml       # plan → Version Packages PR | CI → approve → images → tag + GitHub Release
-│   ├── workflows/images.yml        # reusable: build + push web/server/worker images for a version or :edge
+│   ├── workflows/images.yml        # reusable: build + push server/worker images for a version or :edge
 │   ├── workflows/edge.yml          # push to main → :edge images
 │   └── workflows/i18n.yml          # message catalogs must match the source
 ├── scripts/version-packages.ts     # the Version Packages PR's commit: version, CHANGELOG, lockfile
