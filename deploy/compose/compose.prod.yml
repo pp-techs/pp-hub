@@ -297,6 +297,14 @@ services:
           {"address":"*","allowed":false}
         ]}}}}
         EOF
+        # The AI plugin. 9.x installed it on first start; 10.0.0.1 dropped it from
+        # the default plugin list (and from the in-editor Plugin Manager, so a
+        # user cannot add it either). The image's plugin manager installs what
+        # that list names, so name it again — it fetches the plugin from
+        # onlyoffice.github.io on first start; offline, the start still succeeds
+        # without it. The guard keeps a plain `docker restart` from listing it twice.
+        grep -q '"ai"' /var/www/onlyoffice/documentserver/sdkjs-plugins/plugin-list-default.json ||
+          sed -i 's/^\[/[\n\t"ai",/' /var/www/onlyoffice/documentserver/sdkjs-plugins/plugin-list-default.json
         exec /app/ds/run-document-server.sh
     volumes:
       - onlyoffice_data:/var/www/onlyoffice/Data
