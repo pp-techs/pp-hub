@@ -89,11 +89,6 @@ services:
       # Both are only reachable behind the signature above.
       - ALLOW_META_IP_ADDRESS=true
       - ALLOW_PRIVATE_IP_ADDRESS=true
-      # The AI plugin, on unless PP_ONLYOFFICE_AI=false in this directory's
-      # .env. 9.x installed it on first start; 10.0.0.1 dropped it from the
-      # default plugin list, so the entrypoint below adds it back. The first
-      # start needs to reach onlyoffice.github.io to fetch it.
-      - ENABLE_AI_PLUGIN=${PP_ONLYOFFICE_AI:-true}
     # Written before the image's own entrypoint runs, as a file beside
     # local.json rather than over it: the entrypoint rewrites local.json from
     # the variables above, and node-config reads local-production-linux.json
@@ -112,9 +107,10 @@ services:
           {"address":"*","allowed":false}
         ]}}}}
         EOF
-        if [ "$$ENABLE_AI_PLUGIN" = "true" ] && ! grep -q '"ai"' /var/www/onlyoffice/documentserver/sdkjs-plugins/plugin-list-default.json; then
+        # The AI plugin: 10.0.0.1 dropped it from the default plugin list (see
+        # compose.prod.yml), so name it again. Needs onlyoffice.github.io on first start.
+        grep -q '"ai"' /var/www/onlyoffice/documentserver/sdkjs-plugins/plugin-list-default.json ||
           sed -i 's/^\[/[\n\t"ai",/' /var/www/onlyoffice/documentserver/sdkjs-plugins/plugin-list-default.json
-        fi
         exec /app/ds/run-document-server.sh
     volumes:
       - onlyoffice_data:/var/www/onlyoffice/Data
