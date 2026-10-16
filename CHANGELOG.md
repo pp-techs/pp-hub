@@ -11,6 +11,14 @@ Versions up to and including 0.14.1 predate this changelog; see the
 
 <!-- `bun run version-packages` adds each release's section from its changesets; edit it in the Version Packages PR. -->
 
+## [0.24.0] — 2026-10-16
+
+OnlyOffice's AI plugin is not in the 10.0.0.1 image's default plugin list or in its in-editor Plugin Manager, so the editor had no AI tab and users could not add one. The `onlyoffice` service now installs it on start (needs outbound access to `onlyoffice.github.io` on first start); nothing is sent to an AI provider until a user sets one up with their own API key in the AI tab. A hand-written compose needs the `grep … sed …` step from the `entrypoint` in `compose.prod.yml`.
+
+Files now open inside the drive instead of in a new browser tab. A document, spreadsheet, presentation, board, PDF, image, video or text file opens under the same sidebar, and the header's breadcrumb shows its folder path. The header keeps only navigation: the sidebar toggle, the breadcrumb, search and notifications. A document bar under it shows every open file as a tab, alongside the open file's own controls: outline, comments, Share, Versions and Download. The list of open files is kept per space across reloads. Switching tabs brings a recently opened file back without reloading it. Ctrl/⌘-click on a tab still opens it in a separate browser tab, and a middle click closes it. Up to five recently shown files are kept loaded, at most two of them office files. An office file that has been out of sight for ten minutes is unloaded so the file is no longer locked. Old `/edit/…` links keep working.
+
+PDFs now open in OnlyOffice, the same way documents, spreadsheets and presentations do: as a tab inside the drive. In the editor you can comment on a PDF and fill its forms, and with edit access you can also edit it; saving creates a new version. While a PDF is open in the editor it is locked, the same as an office file. The quick preview in the drive still uses the browser's own PDF viewer. A share link opens a PDF in OnlyOffice too, read-only; without download access, printing and export are turned off.
+
 ## [0.23.0] — 2026-10-13
 
 OnlyOffice Document Server updated from 9.4.0 to 10.0.0.1. 10.0 refuses to call a WOPI host that no `ipfilter` rule names (`allow: *` no longer counts), so without one the editor shows only "Access forbidden". `compose.prod.yml` now writes that rule itself; nothing to do if you use it as shipped. **If you run your own compose (for example a Dokploy copy)** you must (a) bump the image to `onlyoffice/documentserver:10.0.0.1` and (b) give the `onlyoffice` service this entrypoint, whose rule names the host of `PP_WOPI_SERVER_URL` (`server` here; change it if you renamed the service):
