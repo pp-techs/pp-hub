@@ -23,7 +23,7 @@ WEBLATE_DEBUG=0
 WEBLATE_LOGLEVEL=INFO
 WEBLATE_ALLOWED_HOSTS=*
 
-# Closed by default. This instance has push access to a private repository, so
+# Closed by default. This instance has push access to the repository, so
 # anyone who can register can eventually land a commit in it. Invite
 # translators from the admin UI instead.
 WEBLATE_REGISTRATION_OPEN=0

@@ -86,8 +86,8 @@ jobs:
         with:
           persist-credentials: false
           # `changeset version` reads git history to attribute changesets; a
-          # shallow clone makes it fetch more, and with no persisted
-          # credentials that fetch fails on a private repository.
+          # shallow clone would make it fetch more, so take the history here
+          # rather than rely on credentials we deliberately do not persist.
           fetch-depth: 0
 
       - name: Set up Bun

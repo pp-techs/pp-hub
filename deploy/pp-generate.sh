@@ -195,8 +195,8 @@ afterwards.
 
 ## 3. Start pp-hub
 
-The images are on ghcr.io/pp-techs/pp-hub; log in first unless they are
-public (\`docker login ghcr.io\` with a token that has \`read:packages\`).
+The images are public on ghcr.io/pp-techs/pp-hub. From a private mirror, log
+in first (\`docker login ghcr.io\` with a token that has \`read:packages\`).
 
 \`\`\`sh
 docker compose -p pphub -f pphub.compose.yml -f pphub.ports.yml --env-file pphub.env up -d

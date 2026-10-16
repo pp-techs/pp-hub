@@ -55,8 +55,8 @@ two compose files paste in as they are.
   join.
 - This repository, with `sh`, `openssl`, `curl` and `jq` wherever you run the
   scripts — the server or your own machine.
-- Access to the images at `ghcr.io/pp-techs/pp-hub` — a GitHub token with
-  `read:packages`, unless the packages are public.
+- Network access to the images at `ghcr.io/pp-techs/pp-hub`, which are public.
+  Pulling from a private mirror needs a GitHub token with `read:packages`.
 
 ## 1. Generate the files
 
@@ -149,9 +149,8 @@ port is upgraded with STARTTLS. Set `SMTP_SECURE=true` to force the former.
 
 ## 4. Start pp-hub
 
-Unless the packages are public, log in to the registry first:
-`docker login ghcr.io` with a token that has `read:packages`. Then, from
-`deploy/out/`:
+From `deploy/out/` (the images are public; pulling from a private mirror needs
+`docker login ghcr.io` with a token that has `read:packages` first):
 
 ```sh
 docker compose -p pphub -f pphub.compose.yml -f pphub.ports.yml --env-file pphub.env up -d
@@ -160,7 +159,7 @@ docker compose -p pphub -f pphub.compose.yml -f pphub.ports.yml --env-file pphub
 Caddy from step 2 already routes the two pp-hub domains. On a platform: a
 second compose app from `pphub.compose.yml` with the filled-in `pphub.env`,
 the two pp-hub domains routed as in the table, and a registry credential for
-`ghcr.io` if the images are private.
+`ghcr.io` only if you pull from a private mirror.
 
 The server refuses to start if a required value is missing and names it in
 its log, so a typo shows up here rather than later.
@@ -247,7 +246,7 @@ service, on the same schedule.
 | Every save answers 403 `cross-origin request refused`             | Same: `PP_EXTERNAL_URL` must be exactly the address people type, `https://` included                                                                                                                            |
 | Invite answers 502 `connector.invalid_config` or no email arrives | SMTP settings; re-run the setup script with corrected `SMTP_*`, then send a test from the Logto console (**Connectors → SMTP**)                                                                                 |
 | Changes in the Logto console take up to an hour to show           | The webhook is not delivered. Logto refuses private or special-use addresses, so `drive.example.com` must resolve to a public IP from the Logto container. Delivery logs: Logto console → **Webhooks → pp-hub** |
-| Image pull fails with `denied`                                    | Not logged in to `ghcr.io`, or the platform has no registry credential for it                                                                                                                                   |
+| Image pull fails with `denied`                                    | `PP_IMAGE_TAG` names a tag that was never published, or you pull from a private mirror without `docker login ghcr.io`                                                                                           |
 | Uploads fail on a proxy other than Caddy                          | Its request-body limit is below 64 MiB, the largest upload chunk; see [deployment.md](deployment.md#a-reverse-proxy-on-the-same-host)                                                                           |
 | Claude or ChatGPT says it couldn't reach the MCP server           | **Agent access** is off in Admin → Settings (both `/mcp/` and `/.well-known/oauth-protected-resource` then answer 404), or the proxy in front does not pass those two paths to pp-hub                           |
 | Connecting an agent fails at the Logto sign-in                    | CIMD is not enabled — re-run the setup script and read its warnings (a 422 means one of the `SSRF_*` variables is set on Logto) — or Logto is not reachable from the internet, or cannot fetch outbound HTTPS   |

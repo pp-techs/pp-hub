@@ -2,6 +2,15 @@
   "name": "pp-hub",
   "version": "0.24.1",
   "private": true,
+  "homepage": "https://github.com/pp-techs/pp-hub#readme",
+  "bugs": {
+    "url": "https://github.com/pp-techs/pp-hub/issues"
+  },
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pp-techs/pp-hub.git"
+  },
   "workspaces": [
     "packages/*",
     "apps/*",

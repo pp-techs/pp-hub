@@ -1,0 +1,48 @@
+name: Bug report
+description: Something does not work as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A security problem (someone can open what they should not, bypass sign-in, …)
+        goes to a [private advisory](https://github.com/pp-techs/pp-hub/security/advisories/new), not here.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. Sign in as …\n2. Share … with …\n3. …"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: "`PP_IMAGE_TAG` of your stack (0.24.0, edge, sha-…), or the commit if you run from source."
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Drive (files, folders, sharing)
+        - Editor (documents, OnlyOffice)
+        - Sign-in / accounts (Logto)
+        - Admin / settings
+        - Deployment / upgrade
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: "`docker compose logs server` around the time it happened. Remove secrets, tokens and personal data first."
+      render: shell

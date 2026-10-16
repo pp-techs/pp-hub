@@ -71,14 +71,39 @@ for staging; do not pin production to them.
 
 ### Repository settings the flow relies on
 
-- Environment **`production-release`** with required reviewers: a second human
-  gate before images are pushed. Required reviewers need a GitHub plan that
-  supports them (not available on a free private repository); without them the
-  environment still exists and the job passes at once, so merging the Version
-  Packages PR is the only gate. Add the reviewers when the plan allows.
+- Environment **`production-release`** with required reviewers: the human gate
+  before images are pushed. Required reviewers are available on a public
+  repository on every plan. Without them the environment still exists and the
+  job passes at once, so merging the Version Packages PR would be the only gate.
 - Actions → General → _Allow GitHub Actions to create and approve pull requests_
   (the Version Packages PR is opened with `GITHUB_TOKEN`). That PR is therefore
   created without CI running on it; the release workflow re-runs CI on the merged
   commit before shipping. If `main` requires status checks, either use a
   maintainer override for that PR or switch the workflow to a PAT or GitHub App token.
 - Workflow permissions default to read-only; each job asks for what it needs.
+- Actions → General → _Fork pull request workflows_: require approval for
+  **all outside collaborators**, so a first-time contributor's workflow does not
+  run until a maintainer has read the diff. Workflows from forks run with a
+  read-only token and no secrets either way, which is why nothing that publishes
+  (`release.yml`, `edge.yml`) is triggered by `pull_request`.
+- A ruleset on `main`: pull request required, the `CI` and `i18n` checks
+  required, no force pushes. `.github/CODEOWNERS` covers the files that can
+  change what is published (workflows, changesets, scripts).
+- Code security: Dependabot alerts and security updates (version updates are in
+  `dependabot.yml`), secret scanning with push protection, and private
+  vulnerability reporting, which [SECURITY.md](SECURITY.md) points reporters to.
+- Packages: `ghcr.io/pp-techs/pp-hub/{server,worker}` are created private by the
+  first push. Set each to **public** in its package settings once, so a
+  deployment can pull without a token.
+
+## Security
+
+Report a vulnerability privately, as [SECURITY.md](SECURITY.md) describes; do
+not open an issue or a pull request that discloses it.
+
+## License
+
+pp-hub is licensed under the [GNU Affero General Public License v3.0](LICENSE).
+By opening a pull request you agree that your contribution is licensed under
+the same terms. Run a modified pp-hub as a service for other people, and the
+AGPL requires you to offer them its source.

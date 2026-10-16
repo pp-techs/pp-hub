@@ -891,10 +891,12 @@ are written: binding 80/443 would collide with Dokploy's Traefik.
    Dokploy's deploy command is fixed and carries no `--profile`, and compose
    reads that variable from the env file. Without it, `PP_BLOB_BACKEND=s3`
    starts a server pointing at an endpoint nothing is serving.
-4. GHCR is private by default: add a registry credential for
-   `ghcr.io/pp-techs` (a PAT with `read:packages`), or make the two
-   packages public. Without it the pull fails with `denied` and Dokploy
-   reports a deploy error with no obvious cause.
+4. The images are public, so no registry credential is needed. If a pull
+   fails with `denied` (Dokploy reports a deploy error with no obvious
+   cause), the packages are still private — set them to public (see
+   [CONTRIBUTING.md](../CONTRIBUTING.md#repository-settings-the-flow-relies-on))
+   or add a registry credential for `ghcr.io/pp-techs` (a PAT with
+   `read:packages`).
 5. In the Domains tab add two domains:
 
    | Service      | Container port | Example domain       |

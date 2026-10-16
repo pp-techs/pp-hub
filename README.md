@@ -72,3 +72,14 @@ the first sign-in to become the instance administrator.
 
 Start at [docs/SUMMARY.md](docs/SUMMARY.md): architecture, data model,
 permissions, the Logto integration, code standards and the roadmap.
+
+## Contributing and security
+
+Pull requests are welcome; [CONTRIBUTING.md](CONTRIBUTING.md) has the workflow
+and how releases are cut. Report a vulnerability privately, as
+[SECURITY.md](SECURITY.md) describes.
+
+## License
+
+[GNU Affero General Public License v3.0](LICENSE). If you run a modified
+pp-hub as a service for other people, you must offer them its source.

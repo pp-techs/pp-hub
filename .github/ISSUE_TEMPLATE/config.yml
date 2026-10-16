@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/pp-techs/pp-hub/security/advisories/new
+    about: Report access-control, authentication or data-exposure problems privately, not as an issue.
+  - name: Self-hosting help
+    url: https://github.com/pp-techs/pp-hub/blob/main/docs/self-hosting.md
+    about: Setup and troubleshooting are covered in the self-hosting guide.
