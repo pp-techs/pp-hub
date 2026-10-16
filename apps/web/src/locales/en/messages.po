@@ -145,7 +145,7 @@ msgstr "{count, plural, one {# card} other {# cards}}"
 msgid "{count, plural, one {# sub-page} other {# sub-pages}}"
 msgstr "{count, plural, one {# sub-page} other {# sub-pages}}"
 
-#: src/routes/drive/$spaceId/index.tsx:724
+#: src/routes/drive/$spaceId/index.tsx:728
 msgid "{count, plural, one {Are you sure you want to move # item to trash?} other {Are you sure you want to move # items to trash?}}"
 msgstr "{count, plural, one {Are you sure you want to move # item to trash?} other {Are you sure you want to move # items to trash?}}"
 
@@ -153,11 +153,11 @@ msgstr "{count, plural, one {Are you sure you want to move # item to trash?} oth
 msgid "{count, plural, one {The other signed-in device will have to sign in again.} other {All # other signed-in devices will have to sign in again.}}"
 msgstr "{count, plural, one {The other signed-in device will have to sign in again.} other {All # other signed-in devices will have to sign in again.}}"
 
-#: src/routes/drive/$spaceId/index.tsx:757
+#: src/routes/drive/$spaceId/index.tsx:761
 msgid "{count, plural, one {These folders hold # item other people created. They lose access until you restore them.} other {These folders hold # items other people created. They lose access until you restore them.}}"
 msgstr "{count, plural, one {These folders hold # item other people created. They lose access until you restore them.} other {These folders hold # items other people created. They lose access until you restore them.}}"
 
-#: src/routes/drive/$spaceId/index.tsx:752
+#: src/routes/drive/$spaceId/index.tsx:756
 msgid "{count, plural, one {This folder holds # item other people created. They lose access until you restore it.} other {This folder holds # items other people created. They lose access until you restore it.}}"
 msgstr "{count, plural, one {This folder holds # item other people created. They lose access until you restore it.} other {This folder holds # items other people created. They lose access until you restore it.}}"
 
@@ -712,7 +712,7 @@ msgstr "Add people or groups…"
 msgid "Add someone to this group…"
 msgstr "Add someone to this group…"
 
-#: src/components/node-actions.tsx:214
+#: src/components/node-actions.tsx:217
 msgid "Add star"
 msgstr "Add star"
 
@@ -923,7 +923,7 @@ msgid "Archived personal spaces"
 msgstr "Archived personal spaces"
 
 #: src/components/nav-apps.tsx:345
-#: src/routes/drive/$spaceId/index.tsx:723
+#: src/routes/drive/$spaceId/index.tsx:727
 msgid "Are you sure you want to move \"{nodeName}\" to trash?"
 msgstr "Are you sure you want to move \"{nodeName}\" to trash?"
 
@@ -1357,7 +1357,7 @@ msgid "Copied as “{copyName}”"
 msgstr "Copied as “{copyName}”"
 
 #: src/components/block-handle.tsx:216
-#: src/components/node-actions.tsx:274
+#: src/components/node-actions.tsx:277
 #: src/components/settings/panes/agent-access-section.tsx:105
 #: src/components/settings/panes/agent-access-section.tsx:204
 #: src/components/settings/panes/personal-tokens.tsx:76
@@ -1806,7 +1806,7 @@ msgstr "Current"
 msgid "Current access"
 msgstr "Current access"
 
-#: src/components/node-actions.tsx:264
+#: src/components/node-actions.tsx:267
 msgid "Cut"
 msgstr "Cut"
 
@@ -2056,7 +2056,7 @@ msgstr "download"
 
 #: src/components/editor-header.tsx:132
 #: src/components/editor-header.tsx:157
-#: src/components/node-actions.tsx:161
+#: src/components/node-actions.tsx:164
 #: src/components/preview-modal.tsx:137
 #: src/components/preview-panel.tsx:350
 #: src/components/selection-bar.tsx:69
@@ -2074,7 +2074,7 @@ msgstr "Download {nodeName}"
 msgid "Download all"
 msgstr "Download all"
 
-#: src/components/node-actions.tsx:197
+#: src/components/node-actions.tsx:200
 #: src/components/selection-bar.tsx:69
 msgid "Download as .zip"
 msgstr "Download as .zip"
@@ -2130,7 +2130,7 @@ msgstr "edit"
 
 #: src/components/comments/comments-popover.tsx:594
 #: src/components/doc-editor/doc-editor.tsx:235
-#: src/components/node-actions.tsx:152
+#: src/components/node-actions.tsx:154
 msgid "Edit"
 msgstr "Edit"
 
@@ -2219,7 +2219,7 @@ msgid "Enable"
 msgstr "Enable"
 
 #: src/components/nav-apps.tsx:319
-#: src/routes/drive/$spaceId/index.tsx:686
+#: src/routes/drive/$spaceId/index.tsx:690
 msgid "Enter a new name for this item."
 msgstr "Enter a new name for this item."
 
@@ -2328,7 +2328,7 @@ msgid "Export CSV"
 msgstr "Export CSV"
 
 #: src/components/editor-header.tsx:149
-#: src/components/node-actions.tsx:175
+#: src/components/node-actions.tsx:178
 msgid "Export with images (.zip)"
 msgstr "Export with images (.zip)"
 
@@ -2724,7 +2724,7 @@ msgstr "In trash"
 msgid "Included with edit"
 msgstr "Included with edit"
 
-#: src/components/node-actions.tsx:207
+#: src/components/node-actions.tsx:210
 msgid "Information"
 msgstr "Information"
 
@@ -3131,7 +3131,7 @@ msgstr "Lowercase letters, numbers and dashes. Optional."
 msgid "Mail"
 msgstr "Mail"
 
-#: src/components/node-actions.tsx:283
+#: src/components/node-actions.tsx:286
 msgid "Make a copy"
 msgstr "Make a copy"
 
@@ -3309,13 +3309,13 @@ msgstr "Move to column…"
 #: src/components/doc-editor/page-tree-panel.tsx:370
 #: src/components/nav-apps.tsx:344
 #: src/components/nav-apps.tsx:346
-#: src/components/node-actions.tsx:293
-#: src/routes/drive/$spaceId/index.tsx:720
-#: src/routes/drive/$spaceId/index.tsx:729
+#: src/components/node-actions.tsx:296
+#: src/routes/drive/$spaceId/index.tsx:724
+#: src/routes/drive/$spaceId/index.tsx:733
 msgid "Move to trash"
 msgstr "Move to trash"
 
-#: src/components/node-actions.tsx:246
+#: src/components/node-actions.tsx:249
 msgid "Move to…"
 msgstr "Move to…"
 
@@ -3562,7 +3562,7 @@ msgstr "No matches for “{queryText}”"
 msgid "No matching cards"
 msgstr "No matching cards"
 
-#: src/routes/drive/$spaceId/index.tsx:594
+#: src/routes/drive/$spaceId/index.tsx:598
 msgid "No matching files or folders"
 msgstr "No matching files or folders"
 
@@ -3791,8 +3791,8 @@ msgstr "open"
 
 #: ../../packages/ext-kanban/src/card-tile.tsx:94
 #: src/components/node-actions.tsx:117
-#: src/components/node-actions.tsx:138
-#: src/components/node-actions.tsx:152
+#: src/components/node-actions.tsx:140
+#: src/components/node-actions.tsx:154
 #: src/components/preview-content.tsx:462
 #: src/components/preview-modal.tsx:128
 #: src/components/preview-panel.tsx:340
@@ -4242,7 +4242,7 @@ msgstr "Remove password"
 msgid "Remove space avatar"
 msgstr "Remove space avatar"
 
-#: src/components/node-actions.tsx:214
+#: src/components/node-actions.tsx:217
 msgid "Remove star"
 msgstr "Remove star"
 
@@ -4268,9 +4268,9 @@ msgstr "Removes “{spaceName}” and everything in it — every file, version, 
 
 #: ../../packages/ext-kanban/src/board-column.tsx:278
 #: src/components/nav-apps.tsx:316
-#: src/components/node-actions.tsx:235
+#: src/components/node-actions.tsx:238
 #: src/components/selection-bar.tsx:79
-#: src/routes/drive/$spaceId/index.tsx:683
+#: src/routes/drive/$spaceId/index.tsx:687
 msgid "Rename"
 msgstr "Rename"
 
@@ -4397,7 +4397,7 @@ msgstr "Revoke admin"
 msgid "Revoking a group’s access leaves anything its members created in here — those items stay with whoever made them."
 msgstr "Revoking a group’s access leaves anything its members created in here — those items stay with whoever made them."
 
-#: src/routes/drive/$spaceId/index.tsx:603
+#: src/routes/drive/$spaceId/index.tsx:607
 msgid "Right-click here, or use New, to add something."
 msgstr "Right-click here, or use New, to add something."
 
@@ -4417,7 +4417,7 @@ msgstr "Rows and columns of cells"
 #: ../../packages/ext-kanban/src/column-dialogs.tsx:99
 #: src/components/comments/comments-popover.tsx:622
 #: src/components/nav-apps.tsx:334
-#: src/routes/drive/$spaceId/index.tsx:710
+#: src/routes/drive/$spaceId/index.tsx:714
 msgid "Save"
 msgstr "Save"
 
@@ -4642,7 +4642,7 @@ msgid "Settings sections"
 msgstr "Settings sections"
 
 #: src/components/editor-header.tsx:113
-#: src/components/node-actions.tsx:224
+#: src/components/node-actions.tsx:227
 #: src/components/preview-panel.tsx:359
 #: src/components/selection-bar.tsx:74
 #: src/components/share-dialog.tsx:574
@@ -5223,7 +5223,7 @@ msgstr "This file was shared with you"
 msgid "this folder"
 msgstr "this folder"
 
-#: src/routes/drive/$spaceId/index.tsx:596
+#: src/routes/drive/$spaceId/index.tsx:600
 #: src/routes/drive/shared.tsx:57
 #: src/routes/s/$token.tsx:569
 msgid "This folder is empty"
@@ -5398,7 +5398,7 @@ msgid "Trash retention (days)"
 msgstr "Trash retention (days)"
 
 #: src/components/trash-panel.tsx:257
-#: src/routes/drive/$spaceId/index.tsx:601
+#: src/routes/drive/$spaceId/index.tsx:605
 msgid "Try a different search."
 msgstr "Try a different search."
 
@@ -5630,7 +5630,7 @@ msgid "versions"
 msgstr "versions"
 
 #: src/components/editor-header.tsx:123
-#: src/components/node-actions.tsx:184
+#: src/components/node-actions.tsx:187
 #: src/components/preview-modal.tsx:162
 #: src/components/preview-panel.tsx:366
 #: src/components/preview-panel.tsx:410
