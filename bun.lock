@@ -169,7 +169,7 @@
     },
     "tools/release": {
       "name": "@pp-hub/release",
-      "version": "0.24.1",
+      "version": "0.25.0",
     },
   },
   "overrides": {

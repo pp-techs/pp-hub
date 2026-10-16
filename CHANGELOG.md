@@ -11,6 +11,10 @@ Versions up to and including 0.14.1 predate this changelog; see the
 
 <!-- `bun run version-packages` adds each release's section from its changesets; edit it in the Version Packages PR. -->
 
+## [0.25.0] — 2026-10-16
+
+**Breaking for operators:** the container images are renamed so they are recognisable outside this repository: `ghcr.io/pp-techs/pp-hub/server` is now `ghcr.io/pp-techs/pp-hub-server`, and `ghcr.io/pp-techs/pp-hub/worker` is now `ghcr.io/pp-techs/pp-hub-worker`. `deploy/compose/compose.prod.yml` already uses the new names, so a stack deployed from it needs nothing beyond pulling the new release. A hand-written compose file or platform application that names the old images must be edited, and `PP_IMAGE_TAG` has to be a release from this one on; the old packages are no longer updated.
+
 ## [0.24.1] — 2026-10-16
 
 A file or folder shared with you no longer appears at the root of your own drive; it is listed under "Shared with me". Team folders you have access to stay at the root, and WebDAV listings are unchanged.
