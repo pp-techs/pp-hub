@@ -1,5 +1,11 @@
 # @pp-hub/release
 
+## 0.24.1
+
+### Patch Changes
+
+- c16ec20: A file or folder shared with you no longer appears at the root of your own drive; it is listed under "Shared with me". Team folders you have access to stay at the root, and WebDAV listings are unchanged.
+
 ## 0.24.0
 
 ### Minor Changes

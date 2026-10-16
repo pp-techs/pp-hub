@@ -11,6 +11,10 @@ Versions up to and including 0.14.1 predate this changelog; see the
 
 <!-- `bun run version-packages` adds each release's section from its changesets; edit it in the Version Packages PR. -->
 
+## [0.24.1] — 2026-10-16
+
+A file or folder shared with you no longer appears at the root of your own drive; it is listed under "Shared with me". Team folders you have access to stay at the root, and WebDAV listings are unchanged.
+
 ## [0.24.0] — 2026-10-16
 
 OnlyOffice's AI plugin is not in the 10.0.0.1 image's default plugin list or in its in-editor Plugin Manager, so the editor had no AI tab and users could not add one. The `onlyoffice` service now installs it on start (needs outbound access to `onlyoffice.github.io` on first start); nothing is sent to an AI provider until a user sets one up with their own API key in the AI tab. A hand-written compose needs the `grep … sed …` step from the `entrypoint` in `compose.prod.yml`.
