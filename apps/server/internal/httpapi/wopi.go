@@ -364,7 +364,9 @@ func (s *Server) handleEditSession(w http.ResponseWriter, r *http.Request) {
 }
 
 // isOfficeNode reports whether a file can be opened by OnlyOffice, checking
-// both the stored MIME type and standard office file extensions.
+// both the stored MIME type and standard office file extensions. PDFs are
+// among them: Document Server's PDF editor views, annotates and fills them
+// (`/hosting/wopi/pdf/{view,edit}` in its discovery).
 func isOfficeNode(node store.Node, mime string) bool {
 	if isOfficeMime(mime) {
 		return true
@@ -373,7 +375,8 @@ func isOfficeNode(node store.Node, mime string) bool {
 	switch ext {
 	case ".docx", ".doc", ".odt", ".rtf", ".epub",
 		".xlsx", ".xls", ".ods", ".csv",
-		".pptx", ".ppt", ".odp":
+		".pptx", ".ppt", ".odp",
+		".pdf":
 		return true
 	}
 	return false
@@ -394,7 +397,8 @@ func isOfficeMime(mime string) bool {
 		"text/csv",
 		"application/vnd.openxmlformats-officedocument.presentationml.presentation",
 		"application/vnd.ms-powerpoint",
-		"application/vnd.oasis.opendocument.presentation":
+		"application/vnd.oasis.opendocument.presentation",
+		"application/pdf":
 		// Deliberately not "application/octet-stream". That is what
 		// fs.PutFile stores whenever Go's MIME table does not recognise the
 		// extension, so allowing it turned this allowlist into "any file
@@ -406,13 +410,15 @@ func isOfficeMime(mime string) bool {
 }
 
 // wopiDocumentType maps a file name to the OnlyOffice WOPI document type
-// (word/cell/slide).
+// (word/cell/slide/pdf).
 func wopiDocumentType(name string) string {
 	switch strings.ToLower(path.Ext(name)) {
 	case ".xlsx", ".xls", ".xlsm", ".xlt", ".xltx", ".xltm", ".ods", ".fods", ".ots", ".csv":
 		return "cell"
 	case ".pptx", ".ppt", ".odp", ".fodp", ".otp", ".ppsx", ".pps", ".ppsm", ".pot", ".potx", ".potm":
 		return "slide"
+	case ".pdf":
+		return "pdf"
 	default:
 		return "word"
 	}

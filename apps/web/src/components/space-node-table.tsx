@@ -16,7 +16,8 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@workspace/ui/components/empty";
-import { opensInEditor, openEditor, type SearchResult } from "@/lib/api";
+import { opensInEditor, type SearchResult } from "@/lib/api";
+import { openFile } from "@/lib/open-file";
 import { useFormatters } from "@/lib/format";
 import { PreviewModal } from "@/components/preview-modal";
 import { ExtOffBadge } from "@/components/ext-off-badge";
@@ -59,7 +60,7 @@ export function SpaceNodeTable({
         search: { dir: node.id },
       });
     } else if (opensInEditor(node)) {
-      openEditor(node);
+      openFile(node);
     } else {
       void PreviewModal.show({ node, siblings: nodes });
     }

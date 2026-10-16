@@ -6,19 +6,23 @@ import { buttonVariants } from "@workspace/ui/components/button";
 import { ApiError, opensInEditor } from "@/lib/api";
 import { fetchSpaces, nodeOptions, requireAuth } from "@/lib/queries";
 import { pageTitle } from "@/lib/i18n";
+import { fileLocation, validateFileSearch } from "@/lib/open-file";
 
 /**
  * The address mailed to people a node is shared with. It resolves to wherever
  * that node is best opened for this account: inside their own space when they
  * are a member of it, through the outside-shares browser when not, straight
- * into the editor for a file the editor opens.
+ * into the editor for a file the editor opens. `?thread=`/`?subject=` ride
+ * along to the editor (old `/edit/$nodeId` links come through here).
  */
 export const Route = createFileRoute("/open/$nodeId")({
   head: () => ({ meta: [{ title: pageTitle(msg`Opening`) }] }),
+  validateSearch: validateFileSearch,
   beforeLoad: async ({ context, location }) => {
     await requireAuth(context.queryClient, location.href);
   },
-  loader: async ({ context: { queryClient }, params: { nodeId } }) => {
+  loaderDeps: ({ search }) => search,
+  loader: async ({ context: { queryClient }, params: { nodeId }, deps: search }) => {
     const [node, spaces] = await Promise.all([
       queryClient.fetchQuery(nodeOptions(nodeId)).catch((err: unknown) => {
         if (err instanceof ApiError && (err.status === 403 || err.status === 404)) return null;
@@ -30,7 +34,7 @@ export const Route = createFileRoute("/open/$nodeId")({
     if (!node) return;
 
     if (opensInEditor(node)) {
-      throw redirect({ to: "/edit/$nodeId", params: { nodeId: node.id }, search: {} });
+      throw redirect({ ...fileLocation(node, spaces), search });
     }
     if (spaces.some((s) => s.id === node.space_id)) {
       throw redirect({

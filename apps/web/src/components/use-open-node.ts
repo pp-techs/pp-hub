@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { opensInEditor, openEditor, type Node } from "@/lib/api";
+import { opensInEditor, type Node } from "@/lib/api";
+import { openFile } from "@/lib/open-file";
 import { useSpaces } from "@/lib/queries";
 import { PreviewModal } from "@/components/preview-modal";
 
@@ -26,7 +27,7 @@ export function useOpenNode(): (node: Node, siblings: Node[]) => void {
           void navigate({ to: "/drive/shared", search: { dir: node.id } });
         }
       } else if (opensInEditor(node)) {
-        openEditor(node);
+        openFile(node);
       } else {
         void PreviewModal.show({ node, siblings });
       }

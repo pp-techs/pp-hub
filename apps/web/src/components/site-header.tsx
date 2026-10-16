@@ -17,7 +17,7 @@ import type { Node } from "@/lib/api";
 import { useMoveNodes, useNode, useNodePath } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
 import { isValidMoveTarget } from "@/lib/drag-drop";
-import { HeaderSlot } from "@/components/header-slot";
+import { HeaderLeadSlot, HeaderSlot } from "@/components/header-slot";
 import { NavSearch } from "@/components/nav-search";
 import { NotificationsBell } from "@/components/notifications-bell";
 
@@ -41,8 +41,10 @@ const MAX_DEPTH = 8;
 
 export function SiteHeader() {
   const location = useLocation();
-  const { spaceId } = useParams({ strict: false }) as { spaceId?: string };
-  const cachedDirs = useUiStore((s) => s.dirs);
+  const { spaceId, nodeId } = useParams({ strict: false }) as {
+    spaceId?: string;
+    nodeId?: string;
+  };
   const { dir } = useSearch({ strict: false }) as { dir?: string };
 
   const sections = location.pathname
@@ -61,17 +63,23 @@ export function SiteHeader() {
           self-stretch defaults that fight explicit sizing. */}
       <div className="bg-border mx-1 h-4 w-px lg:mx-2" />
 
-      <Breadcrumb className="min-w-0">
-        <BreadcrumbList className="gap-1 sm:gap-1.5">
-          {onExternal ? (
-            <ExternalBreadcrumb dir={dir} />
-          ) : onListing ? (
-            <ListingBreadcrumb spaceId={spaceId} dir={dir} cachedDirs={cachedDirs} />
-          ) : (
-            <SectionBreadcrumb sections={sections} />
-          )}
-        </BreadcrumbList>
-      </Breadcrumb>
+      {/* Only the file routes carry `nodeId`; an open file's editor draws
+          its own trail (sub-pages, the version line) into the lead slot. */}
+      {nodeId ? (
+        <HeaderLeadSlot />
+      ) : (
+        <Breadcrumb className="min-w-0">
+          <BreadcrumbList className="gap-1 sm:gap-1.5">
+            {onExternal ? (
+              <ExternalBreadcrumb dir={dir} />
+            ) : onListing ? (
+              <ListingBreadcrumb spaceId={spaceId} dir={dir} />
+            ) : (
+              <SectionBreadcrumb sections={sections} />
+            )}
+          </BreadcrumbList>
+        </Breadcrumb>
+      )}
 
       <div className="ml-auto flex shrink-0 items-center gap-1 lg:gap-2">
         <NavSearch />
@@ -109,16 +117,24 @@ function SectionBreadcrumb({ sections }: { sections: MessageDescriptor[] }) {
 /**
  * Breadcrumb on `/drive/shared`: the page itself, then the trail the server
  * resolves from the topmost folder the caller may view — walking `parent_id`
- * would run into ancestors an outside grantee cannot open.
+ * would run into ancestors an outside grantee cannot open. `linkLast` when
+ * something follows the trail (an open file's name), so every crumb leads
+ * somewhere.
  */
-function ExternalBreadcrumb({ dir }: { dir?: string }) {
+export function ExternalBreadcrumb({
+  dir,
+  linkLast = false,
+}: {
+  dir?: string;
+  linkLast?: boolean;
+}) {
   const { t } = useLingui();
   const path = useNodePath(dir ?? null);
   const trail = dir ? (path.data ?? []) : [];
   return (
     <>
       <BreadcrumbItem className="min-w-0">
-        {trail.length === 0 ? (
+        {trail.length === 0 && !linkLast ? (
           <BreadcrumbPage className="truncate font-medium">{t`Shared from outside`}</BreadcrumbPage>
         ) : (
           <BreadcrumbLink
@@ -133,7 +149,7 @@ function ExternalBreadcrumb({ dir }: { dir?: string }) {
         <Fragment key={seg.id}>
           <BreadcrumbSeparator />
           <BreadcrumbItem className="min-w-0">
-            {i === trail.length - 1 ? (
+            {i === trail.length - 1 && !linkLast ? (
               <BreadcrumbPage className="truncate font-medium">{seg.name}</BreadcrumbPage>
             ) : (
               <BreadcrumbLink
@@ -154,18 +170,20 @@ function ExternalBreadcrumb({ dir }: { dir?: string }) {
  * Breadcrumb on the listing route: `My Drive` + the folder trail up to `?dir=`.
  * Every segment not yet in the `dirs` cache is fetched on demand via `useNode`,
  * so a direct link (`?dir=deep-folder`) still resolves the full trail even if
- * none of its ancestors have been opened in this session.
+ * none of its ancestors have been opened in this session. `linkLast` when an
+ * open file's name follows the trail.
  */
-function ListingBreadcrumb({
+export function ListingBreadcrumb({
   spaceId,
   dir,
-  cachedDirs,
+  linkLast = false,
 }: {
   spaceId?: string;
   dir?: string;
-  cachedDirs: Record<string, { name: string; parent?: string }>;
+  linkLast?: boolean;
 }) {
   const { t } = useLingui();
+  const cachedDirs = useUiStore((s) => s.dirs);
   // Fixed slots keep the hook order stable. Each level's id is its child's
   // parent — from the fetched node when there is one, otherwise from the
   // `dirs` store the listing fills in. The store is what lets the trail paint
@@ -225,7 +243,7 @@ function ListingBreadcrumb({
   return (
     <>
       {crumbs.map((crumb, i) => {
-        const isLast = i === crumbs.length - 1;
+        const isLast = i === crumbs.length - 1 && !linkLast;
         return (
           <Fragment key={crumb.key}>
             {i > 0 && <BreadcrumbSeparator />}

@@ -62,6 +62,7 @@ Each shipped milestone has its own file under [`milestones/`](milestones/) with 
 | M45 | Kanban core                                            | ✅         | [detail](milestones/M45.md) |
 | M46 | Kanban collaboration                                   | ✅         | [detail](milestones/M46.md) |
 | M47 | WebDAV access                                          | ✅         | [detail](milestones/M47.md) |
+| M48 | Open files in the shell, as tabs                       | ✅         | [detail](milestones/M48.md) |
 
 ## Upcoming — M27 Onward
 

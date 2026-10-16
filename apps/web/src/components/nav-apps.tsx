@@ -1,5 +1,6 @@
 import { Fragment, useMemo, useState } from "react";
 import type { FormEvent } from "react";
+import { Link, useParams } from "@tanstack/react-router";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { ChevronRight, MoreHorizontal, Plus, Puzzle } from "lucide-react";
 import { toast } from "sonner";
@@ -40,7 +41,8 @@ import { extIconOf } from "@/components/ext-icon-tile";
 import { NewExtNodeDialog } from "@/components/new-ext-node-dialog";
 import { nodeActions, type NodeActionHandlers } from "@/components/node-actions";
 import { extKindOf } from "@/ext/registry";
-import { openEditor, type Extension, type Node } from "@/lib/api";
+import type { Extension, Node } from "@/lib/api";
+import { openFile } from "@/lib/open-file";
 import { sidebarApps } from "@/lib/ext-apps";
 import { extensionName } from "@/lib/ext-name";
 import { groupActions } from "@/lib/group-actions";
@@ -109,35 +111,17 @@ function NavApp({ spaceId, ext }: { spaceId: string; ext: Extension }) {
     if (!extKind) return;
     void NewExtNodeDialog.show({ extKind }).then((nodeName) => {
       if (!nodeName) return;
-      // Open the tab inside the Create click's user activation, then point it
-      // at the editor once the node exists — avoids the popup blocker on
-      // Safari/WebKit, which blocks an async window.open.
-      // eslint-disable-next-line lingui/no-unlocalized-strings -- target window
-      const tab = window.open("", "_blank");
-      if (tab) tab.opener = null;
       create.mutate(
         { extKind, name: nodeName },
         {
           onSuccess: (made) => {
             setExpanded(true);
-            if (tab) {
-              // eslint-disable-next-line lingui/no-unlocalized-strings -- editor URL
-              tab.location.href = `/edit/${made.id}`;
-            } else {
-              openEditor(made);
-            }
+            openFile(made);
             const createdName = made.name;
-            toast.success(t`Created “${createdName}”`, {
-              action: {
-                label: t`Open`,
-                onClick: () => openEditor(made),
-              },
-            });
+            toast.success(t`Created “${createdName}”`);
           },
-          onError: (e) => {
-            tab?.close();
-            toast.error(t`Could not create “${nodeName}”`, { description: e.message });
-          },
+          onError: (e) =>
+            toast.error(t`Could not create “${nodeName}”`, { description: e.message }),
         },
       );
     });
@@ -235,6 +219,7 @@ function AppNode({ spaceId, node }: { spaceId: string; node: Node }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const isStarred = (starred.data ?? []).some((n) => n.id === node.id);
+  const { nodeId: openId } = useParams({ strict: false }) as { nodeId?: string };
   const Icon = extKindOf(node.ext_kind)?.icon ?? Puzzle;
   const nodeName = node.name;
 
@@ -278,8 +263,13 @@ function AppNode({ spaceId, node }: { spaceId: string; node: Node }) {
     <SidebarMenuSubItem>
       <SidebarMenuSubButton
         className="pr-7"
-        // eslint-disable-next-line lingui/no-unlocalized-strings -- anchor attributes
-        render={<a href={`/edit/${node.id}`} target="_blank" rel="noopener noreferrer" />}
+        isActive={openId === node.id}
+        render={
+          <Link
+            to="/drive/$spaceId/file/$nodeId"
+            params={{ spaceId: node.space_id, nodeId: node.id }}
+          />
+        }
       >
         <Icon />
         <span className="truncate">{node.name}</span>

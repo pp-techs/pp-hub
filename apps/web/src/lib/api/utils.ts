@@ -58,6 +58,8 @@ export function fmtSize(n: number, locale?: string): string {
   return `${num} ${SIZE_UNITS[unit]}`;
 }
 
+// What OnlyOffice opens — PDFs included: its PDF editor views, annotates and
+// fills them. Mirrors isOfficeNode in apps/server/internal/httpapi/wopi.go.
 const OFFICE_EXTS = new Set([
   ".docx",
   ".xlsx",
@@ -71,6 +73,7 @@ const OFFICE_EXTS = new Set([
   ".odp",
   ".rtf",
   ".epub",
+  ".pdf",
 ]);
 const OFFICE_MIMES = new Set([
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -79,6 +82,7 @@ const OFFICE_MIMES = new Set([
   "application/msword",
   "application/vnd.ms-excel",
   "application/vnd.ms-powerpoint",
+  "application/pdf",
 ]);
 
 /** Check by filename (e.g. "report.docx") or MIME type (e.g. "application/vnd...") */
@@ -231,11 +235,6 @@ export function textLanguage(node: Node): string | null {
   return textEntry(node)?.language ?? null;
 }
 
-/** Open the editor for a node — OnlyOffice or the block editor, by type — in a new browser tab. */
-export function openEditor(node: Pick<Node, "id">): void {
-  window.open(`/edit/${node.id}`, "_blank");
-}
-
 /**
  * URL for the file's own bytes, served inline so the browser renders them
  * (PDF viewer, <img>, <video>) instead of downloading. Distinct from
@@ -247,7 +246,7 @@ export function contentUrl(node: Node): string {
 
 /**
  * MIME types the server is willing to serve inline. Anything absent here is
- * forced to a download, so linking it as "open in a tab" would be a lie.
+ * forced to a download, so offering to open it full size would be a lie.
  *
  * Mirrors inlineMimes in apps/server/internal/httpapi/drive.go.
  */
@@ -267,15 +266,10 @@ const INLINE_MIMES = new Set([
   "text/plain",
 ]);
 
-/** File types the browser can display straight from `/content`. */
+/** File types the browser can display straight from `/content` — what the viewer opens full size. */
 export function canOpenInTab(node: Node): boolean {
   if (node.kind !== "file" || !node.mime) return false;
   return INLINE_MIMES.has(node.mime.split(";")[0]!.trim());
-}
-
-/** Open the file itself in a new browser tab (PDFs, images, video). */
-export function openInTab(node: Node): void {
-  window.open(contentUrl(node), "_blank", "noopener,noreferrer");
 }
 
 export type PreviewKind = "thumbnail" | "text";

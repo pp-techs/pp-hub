@@ -5,6 +5,7 @@ import {
   redirect,
   useLocation,
   useNavigate,
+  useParams,
 } from "@tanstack/react-router";
 import { FolderPlus, Plus, Users } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -40,6 +41,8 @@ import { HeaderSlotProvider } from "@/components/header-slot";
 import { SiteHeader } from "@/components/site-header";
 import { TransferTray } from "@/components/transfer-tray";
 import { CommandPalette } from "@/components/command-palette";
+import { NodePanels } from "@/components/node-panels";
+import { FileTabBar, FileTabsHost, FileTabsProvider } from "@/components/file-tabs";
 import { SettingsHashBridge } from "@/components/settings/settings-hash-bridge";
 import { SidebarInset, SidebarProvider } from "@workspace/ui/components/sidebar";
 import { pageTitle } from "@/lib/i18n";
@@ -77,11 +80,14 @@ export const Route = createFileRoute("/drive")({
 
 function DriveLayout() {
   const spaces = useSpaces();
-  // The external-shares browser lives outside any space, so it shows even
-  // for somebody who belongs to none.
-  const onExternal = useLocation({ select: (l) => /^\/drive\/shared\/?$/.test(l.pathname) });
+  // The external-shares browser — and a file opened from it — lives outside
+  // any space, so it shows even for somebody who belongs to none.
+  const onExternal = useLocation({ select: (l) => /^\/drive\/shared(\/|$)/.test(l.pathname) });
   const showLanding = spaces.data?.length === 0 && !onExternal;
   const spaceId = useActiveSpaceId();
+  // Only the file routes carry `nodeId`.
+  const { nodeId } = useParams({ strict: false });
+  const onFile = nodeId !== undefined;
   const setPaletteOpen = useUiStore((s) => s.setPaletteOpen);
 
   // Bound once for the whole drive, so ⌘K works from the listing, a panel or
@@ -98,49 +104,58 @@ function DriveLayout() {
   }, [setPaletteOpen]);
 
   return (
-    // `HeaderSlotProvider` and `DriveWriteProvider` wrap the provider, never
-    // sit between it and `SidebarInset`: the inset's margin/rounding is
-    // `peer-data-[variant=inset]`, which only matches while the inset is a
-    // direct sibling of the sidebar.
+    // `HeaderSlotProvider`, `FileTabsProvider` and `DriveWriteProvider` wrap
+    // the provider, never sit between it and `SidebarInset`: the inset's
+    // margin/rounding is `peer-data-[variant=inset]`, which only matches
+    // while the inset is a direct sibling of the sidebar.
     <HeaderSlotProvider>
-      <DriveWriteProvider>
-        {/* `SidebarProvider` is only `min-h-svh`; the drive clamps to the
+      <FileTabsProvider>
+        <DriveWriteProvider>
+          {/* `SidebarProvider` is only `min-h-svh`; the drive clamps to the
             viewport and scrolls inside the listing, so the shell pins the
             height here. Miss this and the listing grows the page instead of
             its own scroller — which is also what the marquee band measures
             against. */}
-        <SidebarProvider
-          className="h-svh overflow-hidden"
-          style={
-            {
-              "--sidebar-width": "calc(var(--spacing) * 72)",
-              "--header-height": "calc(var(--spacing) * 12)",
-            } as CSSProperties
-          }
-        >
-          <AppSidebar variant="inset" spaceId={spaceId} />
+          <SidebarProvider
+            className="h-svh overflow-hidden"
+            style={
+              {
+                "--sidebar-width": "calc(var(--spacing) * 64)",
+                "--header-height": "calc(var(--spacing) * 12)",
+              } as CSSProperties
+            }
+          >
+            <AppSidebar variant="inset" spaceId={spaceId} />
 
-          <SidebarInset className="min-h-0 overflow-hidden">
-            <SiteHeader />
-            {/* Always render both to keep hooks order stable */}
-            <div className={showLanding ? "flex flex-1 flex-col" : "hidden"}>
-              <LandingPage />
-            </div>
-            <div className={showLanding ? "hidden" : "flex min-h-0 flex-1 flex-col"}>
-              <Outlet />
-            </div>
-          </SidebarInset>
+            <SidebarInset className="min-h-0 overflow-hidden">
+              {/* Navigation first, always on top; the open files' bar under it. */}
+              <SiteHeader />
+              <FileTabBar />
+              {/* Always render both to keep hooks order stable */}
+              <div className={showLanding ? "flex flex-1 flex-col" : "hidden"}>
+                <LandingPage />
+              </div>
+              {/* A file route renders nothing of its own: the open files are
+                drawn — and kept — by the tab host beside it. */}
+              <div className={showLanding || onFile ? "hidden" : "flex min-h-0 flex-1 flex-col"}>
+                <Outlet />
+              </div>
+              <FileTabsHost />
+            </SidebarInset>
 
-          <NewSpaceDialog />
-          {/* Mounted by the shell so uploads survive navigating between folders. */}
-          <TransferTray />
-          <CommandPalette />
-          {/* Renders nothing: it only turns `#settings/<pane>` into an open
+            <NewSpaceDialog />
+            {/* Mounted by the shell so uploads survive navigating between folders. */}
+            <TransferTray />
+            <CommandPalette />
+            {/* Versions — opened from the listing, Recent or an open file. */}
+            <NodePanels />
+            {/* Renders nothing: it only turns `#settings/<pane>` into an open
               settings dialog. It lives here rather than at the root because
               the fragment means nothing on the login page or a share link. */}
-          <SettingsHashBridge />
-        </SidebarProvider>
-      </DriveWriteProvider>
+            <SettingsHashBridge />
+          </SidebarProvider>
+        </DriveWriteProvider>
+      </FileTabsProvider>
     </HeaderSlotProvider>
   );
 }

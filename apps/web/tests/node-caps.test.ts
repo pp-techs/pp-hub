@@ -54,9 +54,15 @@ test("without download, nothing that saves the bytes is offered", () => {
   expect(menu).not.toContain("download");
   expect(menu).not.toContain("copy");
   // Reading is view's, not download's: `/content` takes view, so opening the
-  // bytes in a tab stays available and only saving them away is gated.
-  expect(menu).toContain("open-tab");
+  // file full size stays available and only saving it away is gated.
+  expect(menu).toContain("open");
   expect(menu).toContain("preview"); // the derived preview is still theirs
+});
+
+test("a PDF opens in OnlyOffice, through one Open — not a second viewer entry", () => {
+  const pdf = keys(file(CAPS.noDownload, { name: "scan.pdf", mime: "application/pdf" }));
+  expect(pdf).toContain("edit");
+  expect(pdf).not.toContain("open");
 });
 
 test("export with images is a markdown download, so it needs both", () => {

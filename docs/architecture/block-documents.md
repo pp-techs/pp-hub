@@ -55,9 +55,14 @@ flowchart LR
   B -- "tus upload, attach_to" --> A[node_attachments → CAS]
 ```
 
-1. `/edit/$nodeId` picks the editor by type: a markdown document (stored MIME
-   `text/markdown`, or a `.md` name) opens the block editor, anything else
-   OnlyOffice.
+1. An open file is drawn by `components/file-view.tsx` inside the drive shell,
+   at `/drive/$spaceId/file/$nodeId` (or `/drive/shared/file/$nodeId` for a
+   file shared from outside the caller's spaces), and picks the editor by
+   type: a markdown document (stored MIME `text/markdown`, or a `.md` name)
+   opens the block editor, an office file OnlyOffice, anything else the
+   viewer. `/edit/$nodeId` — the href page links are stored with — redirects
+   there through `/open/$nodeId`. See
+   [Open files](../code-standard/frontend-conventions.md#open-files).
 2. The client asks `GET /api/v1/nodes/{id}/collab` for the room — named
    `<nodeId>.<epoch>` — and connects to it. The first peer to join makes the
    server take the file's lock, load the current version, `mdoc.Parse` it and
@@ -793,8 +798,8 @@ hovering any other text block (in an editable document) shows an add-comment
 button there that comments the whole block (`block-comments.tsx`); and the
 editor header's Comments button floats every thread of the document, resolved
 and detached ones too (`comments-popover.tsx`) — there is no comments panel.
-A thread just created opens on its block. `/edit/<id>?thread=`
-opens the document on a thread, which is where a notification leads.
+A thread just created opens on its block. `?thread=` on a file's address
+(`/open/<id>?thread=` from a notification) opens the document on a thread.
 
 Notifications themselves — the bell, the list, the SSE stream — are described
 in [M29](milestones/M29.md) and [data-model.md](data-model.md#comments-and-notifications).
@@ -807,7 +812,7 @@ in [M29](milestones/M29.md) and [data-model.md](data-model.md#comments-and-notif
   link editor, presence avatars, media and mermaid node views — and are ours
   to style.
 - `components/doc-editor/doc-editor.tsx` mounts `createMdocKit` with
-  `collaboration: { document, provider, user }`. `/edit/$nodeId` branches on
+  `collaboration: { document, provider, user }`. `file-view.tsx` branches on
   type; the header carries presence avatars, a Saved/Syncing/Offline state
   from the provider (which the SyncStatus patch makes truthful) and a
   Read-only badge; the lossy warning is a better-modal dialog
@@ -835,7 +840,7 @@ in [M29](milestones/M29.md) and [data-model.md](data-model.md#comments-and-notif
   the padding shrinks, the block handle is hidden and side panels overlay the
   document below `md`.
 - A markdown document's versions are written by the server with no event to
-  the page, so `routes/edit/$nodeId.tsx` refetches the node every 30 s and the
+  the page, so `components/file-view.tsx` refetches the node every 30 s and the
   header's version number does not go stale.
 - `lib/collab/use-collab-room.ts` owns the connection. Read-only comes from
   `can_write`, not from the provider. On every close it re-reads `/collab`: a

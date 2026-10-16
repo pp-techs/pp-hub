@@ -18,13 +18,8 @@ import {
 import { InputGroupAddon } from "@workspace/ui/components/input-group";
 import { ToggleGroup, ToggleGroupItem } from "@workspace/ui/components/toggle-group";
 import { cn } from "@workspace/ui/lib/utils";
-import {
-  opensInEditor,
-  openEditor,
-  type SearchKind,
-  type SearchResult,
-  type Space,
-} from "@/lib/api";
+import { opensInEditor, type SearchKind, type SearchResult, type Space } from "@/lib/api";
+import { openFile } from "@/lib/open-file";
 import { MIN_QUERY_LENGTH, useNodeSearch, useSpaces } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
 import { useSpaceLabel } from "@/lib/use-space-label";
@@ -84,7 +79,7 @@ export function CommandPalette() {
         search: { dir: node.id },
       });
     } else if (opensInEditor(node)) {
-      openEditor(node);
+      openFile(node);
     } else {
       void PreviewModal.show({ node });
     }

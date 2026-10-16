@@ -17,7 +17,8 @@ import {
 import { NewDocumentDialog } from "@/components/new-document-dialog";
 import { TeamFolderDialog } from "@/components/team-folder-dialog";
 import { useUploadWithConflicts } from "@/components/upload-conflict-dialog";
-import { openEditor, type DocumentKind, type Node } from "@/lib/api";
+import type { DocumentKind, Node } from "@/lib/api";
+import { openFile } from "@/lib/open-file";
 import { collectInputFiles } from "@/lib/drop-items";
 import {
   useCopyNode,
@@ -193,33 +194,15 @@ export function DriveWriteProvider({ children }: { children: ReactNode }) {
       void NewDocumentDialog.show({ kind, destination: label }).then((choice) => {
         if (!choice) return;
         const { name, template } = choice;
-        // Open tab immediately inside the Create click's user activation,
-        // avoiding popup blockers on Safari/WebKit that block async window.open.
-        // eslint-disable-next-line lingui/no-unlocalized-strings -- target window
-        const tab = window.open("", "_blank");
-        if (tab) tab.opener = null;
         mkdoc.mutate(
           { kind, name, template },
           {
             onSuccess: (made) => {
-              if (tab) {
-                // eslint-disable-next-line lingui/no-unlocalized-strings -- editor URL
-                tab.location.href = `/edit/${made.id}`;
-              } else {
-                openEditor(made);
-              }
+              openFile(made);
               const createdName = made.name;
-              toast.success(t`Created “${createdName}” in ${label}`, {
-                action: {
-                  label: t`Open`,
-                  onClick: () => openEditor(made),
-                },
-              });
+              toast.success(t`Created “${createdName}” in ${label}`);
             },
-            onError: (e) => {
-              tab?.close();
-              toast.error(t`Could not create “${name}”`, { description: e.message });
-            },
+            onError: (e) => toast.error(t`Could not create “${name}”`, { description: e.message }),
           },
         );
       });

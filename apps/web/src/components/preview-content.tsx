@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, SquarePen } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { LoadingStatus } from "@/components/loading";
@@ -15,12 +15,11 @@ import {
   isMarkdownFile,
   isOfficeFile,
   isTextFile,
-  openEditor,
-  openInTab,
   previewKind,
   previewUrl,
   textLanguage,
 } from "@/lib/api";
+import { openFile } from "@/lib/open-file";
 
 // ── Fetching ──────────────────────────────────────────────────────────────────
 
@@ -150,7 +149,13 @@ function PdfPreview({ node }: { node: Node }) {
         <span>
           <Trans>This browser can&apos;t display PDFs inline.</Trans>
         </span>
-        <Button variant="outline" size="sm" className="gap-1" onClick={() => openInTab(node)}>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1"
+          // eslint-disable-next-line lingui/no-unlocalized-strings -- window.open target and features
+          onClick={() => window.open(contentUrl(node), "_blank", "noopener,noreferrer")}
+        >
           <ExternalLink className="size-3.5" />
           <Trans>Open in new tab</Trans>
         </Button>
@@ -180,6 +185,15 @@ function VideoPreview({ node }: { node: Node }) {
         src={contentUrl(node)}
         onError={() => setFailed(true)}
       />
+    </Stage>
+  );
+}
+
+/** Plays an audio file from `/content`, which answers Range requests so it seeks. */
+function AudioPreview({ node }: { node: Node }) {
+  return (
+    <Stage>
+      <audio controls preload="metadata" className="w-full max-w-xl" src={contentUrl(node)} />
     </Stage>
   );
 }
@@ -409,6 +423,8 @@ function PreviewBody({ node }: { node: Node }) {
     if (mime === "application/pdf") return <PdfPreview node={node} />;
     // eslint-disable-next-line lingui/no-unlocalized-strings -- MIME type prefix
     if (mime.startsWith("video/")) return <VideoPreview node={node} />;
+    // eslint-disable-next-line lingui/no-unlocalized-strings -- MIME type prefix
+    if (mime.startsWith("audio/")) return <AudioPreview node={node} />;
   }
   // A markdown document reads as what it is, laid out the way the editor
   // shows it, rather than as its source text. Same capability as the bytes.
@@ -441,8 +457,8 @@ function PreviewBody({ node }: { node: Node }) {
         <span>
           <Trans>This file opens in the office editor.</Trans>
         </span>
-        <Button variant="outline" size="sm" className="gap-1" onClick={() => openEditor(node)}>
-          <ExternalLink className="size-3.5" />
+        <Button variant="outline" size="sm" className="gap-1" onClick={() => openFile(node)}>
+          <SquarePen className="size-3.5" />
           <Trans>Open</Trans>
         </Button>
       </Message>

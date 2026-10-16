@@ -6,6 +6,7 @@ import "@workspace/ui/globals.css";
 import { setUnauthorizedHandler } from "@/lib/api";
 import { appExtHost } from "@/ext/host";
 import { queryClient } from "@/lib/query-client";
+import { bindRouter } from "@/lib/open-file";
 import { activateLocale, detectLocale } from "@/lib/i18n";
 import { ThemeProvider } from "@/components/theme-provider";
 import { routeTree } from "./routeTree.gen";
@@ -20,6 +21,8 @@ const router = createRouter({
   defaultPreload: "intent",
   context: { queryClient },
 });
+// Files open as navigations from menus and toasts that have no router hook.
+bindRouter(router);
 
 /**
  * One place where a dead session becomes a sign-in screen.

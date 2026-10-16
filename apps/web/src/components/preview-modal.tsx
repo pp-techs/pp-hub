@@ -1,10 +1,13 @@
+import { useEffect, useRef } from "react";
+import { useLocation } from "@tanstack/react-router";
 import { createModal } from "@buiducnhat/better-modal";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { ChevronLeft, ChevronRight, Download, ExternalLink, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Maximize2, X } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@workspace/ui/components/dialog";
 import { Button } from "@workspace/ui/components/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs";
-import { canOpenInTab, capsOf, openInTab, type Node } from "@/lib/api";
+import { canOpenInTab, capsOf, type Node } from "@/lib/api";
+import { openFile } from "@/lib/open-file";
 import { useFormatters } from "@/lib/format";
 import { PreviewContent } from "@/components/preview-content";
 import { VersionList } from "@/components/version-list";
@@ -24,6 +27,16 @@ type Props = {
 export const PreviewModal = createModal<Props, void>("preview", ({ node, siblings, modal }) => {
   const { t } = useLingui();
   const f = useFormatters();
+  // Anything opened from here — a file full size, an office file's editor, a
+  // page linked from a document — opens in the shell behind the dialog, so
+  // the dialog steps aside once the page changes.
+  const pathname = useLocation({ select: (l) => l.pathname });
+  const seenPath = useRef(pathname);
+  useEffect(() => {
+    if (seenPath.current === pathname) return;
+    seenPath.current = pathname;
+    modal.resolve(undefined);
+  }, [pathname, modal]);
   const files = siblings?.filter((n) => n.kind === "file") ?? [];
   const startIndex = Math.max(
     0,
@@ -111,8 +124,8 @@ export const PreviewModal = createModal<Props, void>("preview", ({ node, sibling
 
           <div className="ml-auto flex shrink-0 items-center gap-1">
             {canOpenInTab(current) && capsOf(current).view && (
-              <Button variant="ghost" size="sm" onClick={() => openInTab(current)}>
-                <ExternalLink data-icon="inline-start" /> <Trans>Open</Trans>
+              <Button variant="ghost" size="sm" onClick={() => openFile(current)}>
+                <Maximize2 data-icon="inline-start" /> <Trans>Open</Trans>
               </Button>
             )}
             {capsOf(current).download && (

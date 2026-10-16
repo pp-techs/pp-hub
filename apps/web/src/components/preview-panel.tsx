@@ -8,7 +8,6 @@ import { cn } from "@workspace/ui/lib/utils";
 import {
   canPreview,
   capsOf,
-  openEditor,
   isMarkdownFile,
   opensInEditor,
   hasThumbnail,
@@ -17,6 +16,7 @@ import {
   type Node,
   type Space,
 } from "@/lib/api";
+import { openFile } from "@/lib/open-file";
 import { useFormatters } from "@/lib/format";
 import { useGrants, useShares, useSpace, useSpaceMembers, useVersions } from "@/lib/queries";
 import { useSettingsNavigation } from "@/lib/use-settings-hash";
@@ -340,7 +340,7 @@ function NodeDetails({ node }: { node: Node }) {
           label={opensInEditor(node) ? t`Open` : t`Preview`}
           disabled={!sharable || (!canPreview(node) && !opensInEditor(node))}
           onClick={() => {
-            if (opensInEditor(node)) openEditor(node);
+            if (opensInEditor(node)) openFile(node);
             else void PreviewModal.show({ node });
           }}
         />

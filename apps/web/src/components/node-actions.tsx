@@ -3,7 +3,7 @@ import {
   ClipboardCopy,
   Copy,
   Download,
-  ExternalLink,
+  Maximize2,
   Eye,
   FileArchive,
   FolderDown,
@@ -27,11 +27,10 @@ import {
   capsOf,
   exportDocumentUrl,
   isMarkdownFile,
-  openEditor,
-  openInTab,
   opensInEditor,
   type Node,
 } from "@/lib/api";
+import { openFile } from "@/lib/open-file";
 import type { OpenPanel } from "@/lib/ui-store";
 import { ShareDialog } from "@/components/share-dialog";
 
@@ -118,7 +117,7 @@ export function nodeActions(
       label: msg`Open`,
       icon: SquarePen,
       group: "open",
-      run: () => openEditor(node),
+      run: () => openFile(node),
     });
   }
 
@@ -132,15 +131,17 @@ export function nodeActions(
       shortcut: "Space",
       run: () => handlers.onPreview(node),
     });
-    // Opening the bytes in a tab is reading them: `/content` takes view.
-    if (canOpenInTab(node) && caps.view) {
+    // Shown full size in the shell's viewer, from `/content`, which takes view
+    // — unless an editor opens it (a PDF opens in OnlyOffice), which is then
+    // the one way in.
+    if (canOpenInTab(node) && caps.view && !opensInEditor(node)) {
       actions.push({
-        key: "open-tab",
-        label: msg`Open in new tab`,
-        icon: ExternalLink,
+        key: "open",
+        label: msg`Open`,
+        icon: Maximize2,
         group: "open",
         shortcut: "⌘↵",
-        run: () => openInTab(node),
+        run: () => openFile(node),
       });
     }
     if (opensInEditor(node)) {
@@ -153,7 +154,8 @@ export function nodeActions(
         label: caps.edit ? msg`Edit` : msg`Open`,
         icon: SquarePen,
         group: "open",
-        run: () => openEditor(node),
+        shortcut: "⌘↵",
+        run: () => openFile(node),
       });
     }
     if (caps.download) {

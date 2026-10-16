@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useLocation, useNavigate } from "@tanstack/react-router";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Bell, CheckCheck, Circle, Loader2, Puzzle } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
@@ -7,6 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@workspace/ui/component
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { cn } from "@workspace/ui/lib/utils";
 import type { AppNotification } from "@/lib/api";
+import { openFile } from "@/lib/open-file";
 import { extensionById } from "@/ext/registry";
 import { extNotificationIcon, extNotificationMessage } from "@/lib/ext-notification";
 import { useFormatters } from "@/lib/format";
@@ -19,33 +19,18 @@ import {
 import { LoadingStatus } from "@/components/loading";
 import { SocialAvatar } from "@/components/comments/social-avatar";
 
-/** Where a notification leads: its node, opened on its subject and thread when it has them. */
-function notificationHref(item: AppNotification): string {
-  // eslint-disable-next-line lingui/no-unlocalized-strings -- URL path
-  const base = `/edit/${item.node.id}`;
-  const params = new URLSearchParams();
-  // eslint-disable-next-line lingui/no-unlocalized-strings -- URL query keys
-  if (item.subject) params.set("subject", item.subject);
-  // eslint-disable-next-line lingui/no-unlocalized-strings -- URL query keys
-  if (item.thread_id) params.set("thread", item.thread_id);
-  const query = params.toString();
-  return query ? `${base}?${query}` : base;
-}
-
 /**
  * The inbox: a bell with the unread count, opening the newest notifications.
- * Mounted once per page (the drive header or the editor header), and it holds
- * the page's live stream so the badge moves without a refresh.
+ * Mounted once, in the drive header, and it holds the page's live stream so
+ * the badge moves without a refresh.
  *
- * Opening one marks it read and goes to the document with the thread
- * focused: in the same tab from the editor, in a new tab from the drive —
- * the way every document opens from the drive.
+ * Opening one marks it read and goes to its node through `/open/$nodeId`,
+ * which knows what each kind opens in — a file in the shell, on its subject
+ * and with its thread focused; a shared folder in its listing.
  */
 export function NotificationsBell() {
   const { t } = useLingui();
   const [open, setOpen] = useState(false);
-  const navigate = useNavigate();
-  const pathname = useLocation({ select: (location) => location.pathname });
   useNotificationStream();
   const unread = useUnreadNotificationCount();
   const list = useNotifications(open);
@@ -57,17 +42,7 @@ export function NotificationsBell() {
   const openItem = (item: AppNotification) => {
     if (!item.read_at) markRead.mutate([item.id]);
     setOpen(false);
-    // eslint-disable-next-line lingui/no-unlocalized-strings -- URL path
-    if (pathname.startsWith("/edit/")) {
-      void navigate({
-        to: "/edit/$nodeId",
-        params: { nodeId: item.node.id },
-        search: { thread: item.thread_id, subject: item.subject },
-      });
-    } else {
-      // eslint-disable-next-line lingui/no-unlocalized-strings -- window target
-      window.open(notificationHref(item), "_blank");
-    }
+    openFile({ id: item.node.id }, { thread: item.thread_id, subject: item.subject });
   };
 
   return (

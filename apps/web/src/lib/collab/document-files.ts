@@ -14,6 +14,7 @@ import {
 } from "@/lib/api";
 import { ATTACHMENT_SCHEME } from "@/lib/collab/attachments";
 import { i18n } from "@/lib/i18n";
+import { openFile } from "@/lib/open-file";
 
 /**
  * Where one rendering of a markdown document — the editor, a read-only view,
@@ -95,7 +96,7 @@ function openWith(
 /**
  * A signed-in rendering of `nodeId`. `versionId` is the version shown, whose
  * author decides how far the document reaches. A linked page opens through
- * `openPage`; any other file or folder at `/open/<id>`, in a new tab.
+ * `openPage`; any other file or folder through `/open/<id>`, in the shell.
  */
 export function nodeDocumentFiles(
   nodeId: string,
@@ -106,9 +107,7 @@ export function nodeDocumentFiles(
     relative: (path) => relativeUrl(nodeId, path, versionId),
     openRelative: openWith(
       (path) => getRelativeNode(nodeId, path),
-      (node) =>
-        // eslint-disable-next-line lingui/no-unlocalized-strings -- app route and window target
-        node.markdown ? openPage(node.id) : void window.open(`/open/${node.id}`, "_blank"),
+      (node) => (node.markdown ? openPage(node.id) : openFile({ id: node.id })),
     ),
   };
 }

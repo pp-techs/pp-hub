@@ -4,7 +4,7 @@ Web app (`apps/web`): React 19 + TanStack Router (file-based routes via `@tansta
 
 Three layers, one direction only — components never call `api` directly:
 
-1. **`api/`** — transport. `client.ts` is a single ky instance (same-origin cookies, `throwHttpErrors: false`, 401 → `ApiError`); `types.ts` hand-typed interfaces matching the server; `endpoints/index.ts` one typed async function per API call; `utils.ts` shared helpers (`fmtSize`, `isOfficeFile`, `previewKind`, `openEditor` — opens the `/edit/{nodeId}` full-page editor in a new tab). `index.ts` re-exports everything — import from `@/lib/api`.
+1. **`api/`** — transport. `client.ts` is a single ky instance (same-origin cookies, `throwHttpErrors: false`, 401 → `ApiError`); `types.ts` hand-typed interfaces matching the server; `endpoints/index.ts` one typed async function per API call; `utils.ts` shared helpers (`fmtSize`, `isOfficeFile`, `previewKind`, `opensInEditor`). `index.ts` re-exports everything — import from `@/lib/api`. Opening a file is navigation, not transport: `lib/open-file.ts` (`openFile`, see [Open files](#open-files)).
 2. **`queries/`** — TanStack Query hooks, one file per resource (`auth.ts`, `spaces.ts`, `nodes.ts`, `shares.ts`). `keys.ts` is the single source of truth for cache keys. Route guards (`requireAuth`, `fetchMe`) live in `queries/auth.ts` and take the `QueryClient`.
 3. **`ui-store.ts`** — zustand for ephemeral UI state only (selection, panels); never server state.
 
@@ -49,7 +49,7 @@ Three layers, one direction only — components never call `api` directly:
 
 - **The shell is the shadcn dashboard shell.** `routes/drive.tsx` = `SidebarProvider`
   → `app-sidebar` (`variant="inset"`, `collapsible="offcanvas"`) + `SidebarInset`
-  → `site-header` + `<Outlet/>`. `--sidebar-width: 18rem`, `--header-height: 3rem`.
+  → `site-header` + `<Outlet/>`. `--sidebar-width: 16rem`, `--header-height: 3rem`.
 - **A rail row is a `SidebarMenuButton`**, a tree row a `SidebarMenuSubButton`.
   `railRow()` is gone; do not reintroduce a parallel row helper.
   Skip the `tooltip` prop — with `offcanvas` the sidebar never reaches the
@@ -64,7 +64,15 @@ Three layers, one direction only — components never call `api` directly:
 - **There is exactly one header.** A surface never renders a header row; it
   puts its controls in the shell's header through `HeaderActions`
   (`header-slot.tsx`). Titles come from the pathname via `SECTIONS` in
-  `site-header.tsx` — add a segment there, not a prop.
+  `site-header.tsx` — add a segment there, not a prop. An open file is the
+  one surface whose breadcrumb only it can draw (a sub-page's trail), so on
+  a file route the header swaps its breadcrumb for
+  `HeaderLeadSlot` and `EditorHeader` fills it through `HeaderLead`. The
+  header is navigation only: a file's own controls (version line, presence,
+  outline, comments, Share, Versions, Download) go to the document bar under
+  it through `DocActions`, never to `HeaderActions`. These portals render
+  only inside an on-screen subtree (`OnScreen`): files kept mounted out of
+  sight must not fill the header.
 - **Page rhythm lives in `surface.tsx`.** Every surface except the folder
   listing renders inside `<Surface>`; size sections with container queries
   (`@xl/main`, `@4xl/main`), not viewport breakpoints, because the details
@@ -95,6 +103,37 @@ Three layers, one direction only — components never call `api` directly:
   with the Tiptap marks.
 - **`packages/ui` is shadcn's base-ui variant** (style `base-mira`,
   `@base-ui/react`). Composition uses `render={<El/>}`, never `asChild`.
+
+## Open files
+
+- **A file opens in the shell, never in a new browser tab.** `openFile(node)`
+  (`lib/open-file.ts`) is the one way in — menus, toasts, the palette,
+  notifications and the New menu all call it; it navigates to
+  `/drive/$spaceId/file/$nodeId`, or `/drive/shared/file/$nodeId` for a file
+  shared from outside the caller's spaces, and goes through `/open/$nodeId`
+  when the node's space is unknown. It reaches the router through the
+  instance `main.tsx` binds (`bindRouter`), because most callers are not
+  components. `/edit/$nodeId` stays as a redirect: it is the href page links
+  are stored with, and it is in bookmarks and old notification links.
+- **Open files are tabs.** `components/file-tabs.tsx`: the URL names the file
+  on screen, the tab list is `ui-store.fileTabs` per space (persisted). A
+  file route renders nothing; `FileTabsHost` draws every open file and keeps
+  the five most recently shown mounted (`lib/file-tabs.ts`: `LIVE_TABS`), of
+  which at most two office files — an OnlyOffice frame holds the file's WOPI
+  lock, so one left out of sight for ten minutes is let go. A tab restored
+  from storage loads when it is first shown.
+- **Which tab a navigation lands in.** A file already open is focused. A page
+  link followed inside a document (`openFile(…, { sameTab: true })`) and the
+  browser's back/forward retarget the tab on screen; anything else opens a
+  tab next to it. The pure rules (`showNode`, `closeTab`, `liveTabs`) are
+  tested in `tests/file-tabs.test.ts`.
+- **Slots render in tab order, never recency order.** Moving an iframe in the
+  DOM reloads it, and React moves a keyed child whose position among its
+  siblings changes. A slot's `key` is stable while its node changes (page
+  links), so `FileView` can hold the page on screen while the next one loads.
+- **Never `scrollIntoView` inside the shell.** It scrolls every
+  `overflow: hidden` ancestor too — the shell pins the viewport with those —
+  and it stalls rendering in headless Chromium. Scroll the one container.
 
 ## Loading States
 
