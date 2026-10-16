@@ -36,14 +36,8 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@workspace/ui/components/empty";
-import {
-  opensInEditor,
-  openEditor,
-  type Node,
-  type NodeView,
-  type SortField,
-  type SortOrder,
-} from "@/lib/api";
+import { opensInEditor, type Node, type NodeView, type SortField, type SortOrder } from "@/lib/api";
+import { openFile } from "@/lib/open-file";
 import {
   childrenOptions,
   nodeOptions,
@@ -67,7 +61,6 @@ import { groupActions } from "@/lib/group-actions";
 import { pageTitle } from "@/lib/i18n";
 import { useDocumentTitle } from "@/lib/use-page-head";
 import { useSpaceLabel } from "@/lib/use-space-label";
-import { NodePanels } from "@/components/node-panels";
 import { PreviewModal } from "@/components/preview-modal";
 import { DetailsPanel, type DetailsSubject } from "@/components/preview-panel";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -267,7 +260,7 @@ function FolderView() {
           search: { dir: node.id, sort, order, view },
         });
       } else if (opensInEditor(node)) {
-        openEditor(node);
+        openFile(node);
       } else {
         void PreviewModal.show({ node, siblings: sortedFiles });
       }
@@ -515,7 +508,7 @@ function FolderView() {
         event.key === " " && !mod
           ? "preview"
           : event.key === "Enter" && mod
-            ? "open-tab"
+            ? "open"
             : event.key.toLowerCase() === "s" && mod && event.shiftKey
               ? "share"
               : event.key === "F2" && !mod
@@ -523,7 +516,11 @@ function FolderView() {
                 : null;
       /* eslint-enable lingui/no-unlocalized-strings */
       if (!wanted) return;
-      const action = actionsFor(single).find((a) => a.key === wanted);
+      // ⌘↵ opens the file: full size in the viewer, or — for what an editor
+      // opens (documents, sheets, PDFs) — through its Edit/Open action.
+      const action = actionsFor(single).find(
+        (a) => a.key === wanted || (wanted === "open" && a.key === "edit"),
+      );
       if (!action) return;
       event.preventDefault();
       action.run();
@@ -720,8 +717,6 @@ function FolderView() {
           </form>
         </DialogContent>
       </Dialog>
-
-      <NodePanels />
 
       <ConfirmDialog
         open={!!confirmNodes}

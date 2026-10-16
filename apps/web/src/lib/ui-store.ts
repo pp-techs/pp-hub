@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 import type { Node, NodeView, SortField, SortOrder } from "@/lib/api";
 import type { ClipboardState } from "@/lib/write-target";
 import type { DraggingNodes } from "@/lib/drag-drop";
+import type { FileTab } from "@/lib/file-tabs";
 
 export type PanelKind = "versions";
 
@@ -81,6 +82,14 @@ interface UiState {
    */
   docPanels: DocPanels;
   setDocPanel: (panel: keyof DocPanels, open: boolean) => void;
+  /**
+   * The open-file tabs, per space id (or `shared` for files shared from
+   * outside any of the caller's spaces). Persisted so a reload — or the next
+   * day — comes back to the same files; only the list is kept, each file
+   * loads when its tab is shown.
+   */
+  fileTabs: Record<string, FileTab[]>;
+  setFileTabs: (scope: string, tabs: FileTab[]) => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -122,6 +131,8 @@ export const useUiStore = create<UiState>()(
       setDraggingNodes: (val) => set({ draggingNodes: val }),
       docPanels: { pages: true },
       setDocPanel: (panel, open) => set((s) => ({ docPanels: { ...s.docPanels, [panel]: open } })),
+      fileTabs: {},
+      setFileTabs: (scope, tabs) => set((s) => ({ fileTabs: { ...s.fileTabs, [scope]: tabs } })),
     }),
     {
       name: "pp-hub-ui",
@@ -130,6 +141,7 @@ export const useUiStore = create<UiState>()(
         lastSpaceId: s.lastSpaceId,
         listingPrefs: s.listingPrefs,
         docPanels: s.docPanels,
+        fileTabs: s.fileTabs,
       }),
     },
   ),

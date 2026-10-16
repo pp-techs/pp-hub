@@ -10,7 +10,8 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@workspace/ui/components/empty";
-import { openEditor, type MarkdownDocument, type Node } from "@/lib/api";
+import type { MarkdownDocument, Node } from "@/lib/api";
+import { openFile } from "@/lib/open-file";
 import { nodeDocumentFiles, shareDocumentFiles } from "@/lib/collab/document-files";
 import { usePageStore } from "@/lib/collab/page-store";
 import { useNodeDocument, useShareDocument } from "@/lib/queries";
@@ -76,10 +77,17 @@ export function NodeMarkdownView({
       key={`${node.id}:${versionId ?? ""}`}
       doc={document.data.doc}
       lossy={document.data.lossy}
-      files={nodeDocumentFiles(node.id, { versionId, openPage: (id) => openEditor({ id }) })}
+      files={nodeDocumentFiles(node.id, {
+        versionId,
+        openPage: (id) => openFile({ id, space_id: node.space_id }),
+      })}
       className={className}
       outlineScrollRef={outlineScrollRef}
-      pages={{ store: pageStore, pageId: node.id, onNavigate: (id) => openEditor({ id }) }}
+      pages={{
+        store: pageStore,
+        pageId: node.id,
+        onNavigate: (id) => openFile({ id, space_id: node.space_id }),
+      }}
     />
   );
 }

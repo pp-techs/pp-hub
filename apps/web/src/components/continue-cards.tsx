@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Trans } from "@lingui/react/macro";
-import { opensInEditor, openEditor, type ActivityKind, type RecentNode } from "@/lib/api";
+import { opensInEditor, type ActivityKind, type RecentNode } from "@/lib/api";
+import { openFile } from "@/lib/open-file";
 import { useFormatters } from "@/lib/format";
 import { PreviewModal } from "@/components/preview-modal";
 import { Card, CardContent } from "@workspace/ui/components/card";
@@ -108,7 +109,7 @@ export function ContinueCards({ nodes }: { nodes: RecentNode[] }) {
         search: { dir: node.id },
       });
     } else if (opensInEditor(node)) {
-      openEditor(node);
+      openFile(node);
     } else {
       void PreviewModal.show({ node, siblings: nodes });
     }

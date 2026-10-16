@@ -48,7 +48,7 @@
 
 ### UC-6: Edit a document in browser
 
-1. User clicks Edit on a .docx/.xlsx/.pptx in the Drive UI → the editor opens full-page in a new tab at `/edit/{nodeId}`.
+1. User clicks Edit on a .docx/.xlsx/.pptx in the Drive UI → the editor opens in a tab of the drive shell at `/drive/{spaceId}/file/{nodeId}`, under the same rail and navigation header; the files a person has open stay open as tabs in the document bar under the header.
 2. Server issues a short-lived HMAC-signed WOPI access token (`user_id`, `node_id`, and whether the caller resolved to `edit`) and returns the OnlyOffice 9.x action URL; the SPA POSTs it (with `access_token`/`access_token_ttl`) into the editor iframe.
 3. OnlyOffice calls WOPI host endpoints: `CheckFileInfo`, `GetFile` (streams current version blob), `Lock/Unlock/RefreshLock`.
 4. On save, OnlyOffice `PutFile`s the new content → server writes a new blob and appends a new `node_version`.
@@ -91,7 +91,7 @@
 ### UC-11: Write a document together
 
 1. **New → Document** creates a `.md` file in the current folder, blank or from a template (meeting notes, outline, project spec, runbook, weekly report — in English or Vietnamese).
-2. `/edit/<id>` opens it in the block editor; everyone with edit access types into the same document live, with presence avatars and remote carets. Readers who may download it follow along read-only.
+2. It opens in the block editor in a tab of the drive shell; everyone with edit access types into the same document live, with presence avatars and remote carets. Readers who may download it follow along read-only.
 3. Images, videos and files dropped in become attachments of the document; an embed block turns a URL into a bookmark with the page’s title and image, fetched by the server.
 4. The room writes ordinary versions; a version can be previewed rendered and restored.
 5. **Export with images (.zip)** takes the markdown out with its assets; a share link that allows download shows the document rendered, read-only.

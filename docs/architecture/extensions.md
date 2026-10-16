@@ -46,7 +46,7 @@ flowchart LR
   SDK[extsdk<br/>public package, outside internal/] --> Host
   K[ext/kanban] -- "Register(sdk.Host)" --> SDK
   subgraph Web[apps/web]
-    WH[ext registry] --> ED["/edit/$nodeId → editor by kind"]
+    WH[ext registry] --> ED["file-view (open file tab) → editor by kind"]
     WH --> NEW[New menu entries]
   end
   KW[web package of ext/kanban] --> WH
@@ -131,7 +131,7 @@ interface ExtManifest {
     icon: LucideIcon | IconComponent;
     newLabel: MessageDescriptor; // the New-menu entry
     defaultName: MessageDescriptor;
-    // opened by /edit/$nodeId; `subject` is ?subject=card:<id> from a notification
+    // opened as a file in the drive shell; `subject` is ?subject=card:<id> from a notification
     editor: LazyExoticComponent<ComponentType<{ nodeId: string; subject?: string }>>;
   }[];
   // how the bell words this extension's notifications, by verb
@@ -139,9 +139,10 @@ interface ExtManifest {
 }
 ```
 
-`/edit/$nodeId` chooses the editor by kind: a markdown document opens the
-block editor, an extension node opens the editor its extension registered,
-anything else opens OnlyOffice. `NodeIcon`, the New menu and `node-actions`
+An open file (`components/file-view.tsx`, a tab in the drive shell) chooses
+the editor by kind: a markdown document opens the block editor, an extension
+node opens the editor its extension registered, an office file OnlyOffice,
+anything else the viewer. `NodeIcon`, the New menu and `node-actions`
 consult the same registry; actions that need bytes (download, open with
 OnlyOffice, versions) are hidden on extension nodes.
 

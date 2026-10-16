@@ -1,9 +1,13 @@
 import type { ReactNode } from "react";
-import { Link } from "@tanstack/react-router";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { ArrowLeft, Download, FileArchive, FileText, History, Link2 } from "lucide-react";
+import { Download, FileArchive, FileText, History, Link2 } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { Skeleton } from "@workspace/ui/components/skeleton";
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbSeparator,
+} from "@workspace/ui/components/breadcrumb";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,18 +19,23 @@ import { useSpaces } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
 import { useFormatters } from "@/lib/format";
 import { NodeIcon } from "@/components/node-icon";
-import { NotificationsBell } from "@/components/notifications-bell";
 import { ShareDialog } from "@/components/share-dialog";
+import { DocActions, HeaderLead } from "@/components/header-slot";
+import { ExternalBreadcrumb, ListingBreadcrumb } from "@/components/site-header";
 
 /**
- * The chrome above either editor — OnlyOffice's iframe or the block editor.
- * What it carries is what the editor itself cannot know: where the file
- * lives, and the pp-hub actions (share, version history, download) that
- * operate on the node. `status` ends the subtitle line; `children` sit
- * before the actions (presence, save state, badges). `trail` (a sub-page's
- * parent documents) sits before the file's name, and `driveDir` is the
- * folder "Back to Drive" opens when it is not the node's parent — a
- * sub-page's parent is a document, which the listing cannot open.
+ * An open file's part of the shell's chrome — over OnlyOffice's iframe, the
+ * block editor, an app's editor or the viewer. What it carries is what the
+ * editor itself cannot know: where the file lives, and the pp-hub actions
+ * (share, version history, download) that operate on the node. Where it
+ * lives (folder trail, `trail`, name) takes the navigation header's
+ * breadcrumb; everything about the file itself goes to the document bar
+ * under it, beside the open-file tabs: the version line (`status` ends it),
+ * then `children` (presence, save state, badges, the panel toggles), then
+ * the actions. `trail` (a sub-page's parent documents) sits before the
+ * file's name, and `driveDir` is the folder the trail ends in when it is not
+ * the node's parent — a sub-page's parent is a document, which the listing
+ * cannot open.
  */
 export function EditorHeader({
   nodeId,
@@ -51,7 +60,7 @@ export function EditorHeader({
   // `version {0}`: the placeholder name is all a translator gets.
   const version = node?.version;
   // Somebody reached through an outside share has no way into the space;
-  // their way back is the outside-shares browser.
+  // their trail runs through the outside-shares browser.
   const spaces = useSpaces();
   const outsider =
     node !== undefined && spaces.isSuccess && !spaces.data.some((s) => s.id === node.space_id);
@@ -60,34 +69,35 @@ export function EditorHeader({
   const dir = driveDir === undefined ? node?.parent_id : (driveDir ?? undefined);
 
   return (
-    <header className="border-border flex h-12 shrink-0 items-center gap-2 border-b px-3">
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        aria-label={t`Back to Drive`}
-        render={
-          !node ? (
-            <Link to="/drive" />
-          ) : outsider ? (
-            <Link to="/drive/shared" search={{ dir }} />
-          ) : (
-            <Link to="/drive/$spaceId" params={{ spaceId: node.space_id }} search={{ dir }} />
-          )
-        }
-      >
-        <ArrowLeft />
-      </Button>
+    <>
+      <HeaderLead>
+        {node && spaces.isSuccess ? (
+          // No room for the folders on a narrow screen; the rail has them.
+          <Breadcrumb className="hidden min-w-0 shrink md:block">
+            <BreadcrumbList className="flex-nowrap gap-1 sm:gap-1.5">
+              {outsider ? (
+                <ExternalBreadcrumb dir={dir} linkLast />
+              ) : (
+                <ListingBreadcrumb spaceId={node.space_id} dir={dir} linkLast />
+              )}
+              <BreadcrumbSeparator />
+            </BreadcrumbList>
+          </Breadcrumb>
+        ) : null}
+        {trail}
+        {node ? (
+          <span className="text-foreground flex min-w-0 shrink-[2] items-center gap-1.5 text-sm font-medium">
+            <NodeIcon node={node} className="size-4 shrink-0" />
+            <span className="truncate">{node.name}</span>
+          </span>
+        ) : (
+          <Skeleton className="h-4 w-40" />
+        )}
+      </HeaderLead>
 
-      {trail}
-      {node ? (
-        <NodeIcon node={node} className="size-4 shrink-0" />
-      ) : (
-        <Skeleton className="size-4 shrink-0" />
-      )}
-      {node ? (
-        <div className="flex min-w-0 flex-col">
-          <span className="truncate text-sm font-medium">{node.name}</span>
-          <span className="text-muted-foreground truncate text-[10px] tabular-nums">
+      <DocActions>
+        {node ? (
+          <span className="text-muted-foreground mr-1 hidden truncate text-xs tabular-nums xl:inline">
             {[
               version ? t`version ${version}` : null,
               node.size != null ? f.size(node.size) : null,
@@ -96,15 +106,7 @@ export function EditorHeader({
               .filter(Boolean)
               .join(" · ")}
           </span>
-        </div>
-      ) : (
-        <div className="flex min-w-0 flex-col gap-1">
-          <Skeleton className="h-4 w-40" />
-          <Skeleton className="h-2.5 w-28" />
-        </div>
-      )}
-
-      <div className="ml-auto flex shrink-0 items-center gap-1">
+        ) : null}
         {children}
         {node && capsOf(node).share && (
           <Button variant="outline" size="sm" onClick={() => void ShareDialog.show({ node })}>
@@ -153,13 +155,13 @@ export function EditorHeader({
             variant="ghost"
             size="icon-sm"
             aria-label={t`Download`}
+            // eslint-disable-next-line lingui/no-unlocalized-strings -- API route path
             render={<a href={`/api/v1/nodes/${nodeId}/download`} />}
           >
             <Download />
           </Button>
         ) : null}
-        <NotificationsBell />
-      </div>
-    </header>
+      </DocActions>
+    </>
   );
 }

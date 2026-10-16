@@ -9,10 +9,15 @@ OnlyOffice Document Server renders and edits the following formats natively via 
 | Word processing | `.docx`, `.doc`, `.odt`, `.rtf`, `.epub` | `application/rtf`, `application/epub+zip` registered via `mime.AddExtensionType` |
 | Spreadsheets    | `.xlsx`, `.xls`, `.csv`, `.ods`          | —                                                                                |
 | Presentations   | `.pptx`, `.ppt`, `.odp`                  | —                                                                                |
+| PDF             | `.pdf`                                   | `application/pdf` (WOPI app `pdf`)                                               |
 
-PDF goes through the preview pipeline rather than OnlyOffice — Community edition does not
-support PDF editing. `.epub` and `.rtf` open in the editor and have no inline preview; see
-[preview-pipeline.md](preview-pipeline.md).
+A PDF opens in OnlyOffice's PDF editor like any office file — view, comment, fill
+forms and, with edit access, edit (`/hosting/wopi/pdf/{view,edit}` in the Document
+Server's discovery, verified against 10.0). Saving writes a new version through `PutFile`,
+and an open PDF holds the file lock like a `.docx`. The quick preview in the drive (the
+preview modal and the details panel) still shows the browser's own viewer from `/content`,
+and thumbnails still come from the preview pipeline. `.epub` and `.rtf` open in the editor
+and have no inline preview; see [preview-pipeline.md](preview-pipeline.md).
 
 The backend `handleEditSession` validates the file's MIME type via `isOfficeMime` before
 returning an editor URL — only the MIME types in the list above pass.

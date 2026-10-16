@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
@@ -39,6 +38,7 @@ import {
   TooltipTrigger,
 } from "@workspace/ui/components/tooltip";
 import { embedRelative, type Node } from "@/lib/api";
+import { openFile } from "@/lib/open-file";
 import { attachmentAdapter } from "@/lib/collab/attachments";
 import { nodeDocumentFiles, relativeLinkClick } from "@/lib/collab/document-files";
 import { createMdocKit } from "@/lib/collab/mdoc-kit";
@@ -128,7 +128,6 @@ export function DocEditor({
   onSettled?: () => void;
 }) {
   const { t } = useLingui();
-  const navigate = useNavigate();
   const { room, retry } = useCollabRoom(node.id);
   const commentStore = useCommentStore(node.id);
   // eslint-disable-next-line lingui/no-unlocalized-strings -- source discriminant
@@ -161,10 +160,11 @@ export function DocEditor({
     }
     setThreadPanel({ comments: next.comments, focusThreadId: next.focusThreadId });
   };
-  // The editor latches its page options once, so this must not change.
+  // The editor latches its page options once, so this must not change. A
+  // page followed from here replaces this one in its tab.
   const openPage = useCallback(
-    (pageId: string) => void navigate({ to: "/edit/$nodeId", params: { nodeId: pageId } }),
-    [navigate],
+    (pageId: string) => openFile({ id: pageId, space_id: node.space_id }, {}, { sameTab: true }),
+    [node.space_id],
   );
   // One listing names every sub-page block's page, before each block asks
   // for its own.

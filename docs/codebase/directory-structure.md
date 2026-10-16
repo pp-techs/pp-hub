@@ -98,7 +98,10 @@ pp-hub/
 │   │       │   ├── admin-sidebar.tsx     # the /admin rail: nav (ADMIN_NAV), back to Drive, signed-in user
 │   │       │   ├── admin-page.tsx        # AdminPage: title + description + actions frame for every admin page
 │   │       │   ├── admin-settings-ui.tsx # SettingsSection / SettingRow / UnitInput / SourceBadge for instance settings
-│   │       │   └── ...                  # folder-tree, preview, nav, etc. (edit is a route, not a panel)
+│   │       │   ├── file-tabs.tsx         # open files as tabs: FileTabsProvider, FileTabBar (the document bar under the header), FileTabsHost (keeps recent files mounted)
+│   │       │   ├── file-view.tsx         # one open file: block editor / OnlyOffice / app editor / viewer, by type
+│   │       │   ├── editor-header.tsx     # an open file's breadcrumb (header lead) and controls (document bar), by portal
+│   │       │   └── ...                  # folder-tree, preview, nav, etc.
 │   │       └── routes/             # TanStack Router file-based routes
 │   │           ├── login.tsx            # OIDC hand-off; ?redirect= survives the round trip
 │   │           ├── admin.tsx            # server-administration shell: layout route, admin gate, AdminSidebar + SidebarInset
@@ -107,10 +110,13 @@ pp-hub/
 │   │           ├── admin.security.tsx   # the security log: filters (kind, file, dates), CSV export
 │   │           ├── admin.settings.tsx   # instance settings: tabs (`?tab=` general/storage/security/sharing/mail), grouped setting rows, sticky save bar, SMTP
 │   │           ├── s/$token.tsx         # anonymous share-link browser (no rail, no account)
-│   │           ├── edit/$nodeId.tsx     # full-page editor (new tab): block editor for markdown, else OnlyOffice
-│   │           ├── drive.tsx            # drive shell: SidebarProvider + AppSidebar + SidebarInset
+│   │           ├── edit/$nodeId.tsx     # legacy address (stored page links, bookmarks) → /open/$nodeId
+│   │           ├── open.$nodeId.tsx     # resolves a node to where it opens: a file tab, or its folder
+│   │           ├── drive.tsx            # drive shell: SidebarProvider + AppSidebar + SidebarInset (tab strip, header, Outlet, tab host)
+│   │           ├── drive/shared_.file.$nodeId.tsx # a file shared from outside, open in the shell (drawn by the tab host)
 │   │           └── drive/$spaceId/      # route.tsx (space guard) + index.tsx (listing)
 │   │                                    #   + home / recent / starred / shared / trash
+│   │                                    #   + file.$nodeId.tsx (an open file; drawn by the tab host)
 │   └── server/                     # Go backend — own go.mod
 │       ├── cmd/server/             # entry point: OIDC wait, http.Server; owns migrations; binds before collab Start (listenThenStart)
 │       │                           #   extensions.go: the apps compiled into this build (M44)
@@ -282,7 +288,7 @@ pp-hub/
   that must be public is registered outside the group, never exempted inside
   it.
 - **Drive shell layout.** `routes/drive.tsx` is the shadcn dashboard shell:
-  `SidebarProvider` (`--sidebar-width: 18rem`, `--header-height: 3rem`) holding
+  `SidebarProvider` (`--sidebar-width: 16rem`, `--header-height: 3rem`) holding
   `app-sidebar` (`variant="inset"`, `collapsible="offcanvas"`) beside a
   `SidebarInset`. The rail is `space-switcher` in `SidebarHeader`, then
   `nav-create` + `nav-space` in `SidebarContent`, then `storage-meter` +
