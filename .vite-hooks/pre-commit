@@ -1,1 +1,10 @@
 vp staged
+
+# The message catalogs record the source line of every message, so any web
+# change can move them — not only a changed string — and i18n.yml fails a
+# pull request whose catalogs drifted. Re-extract and stage them whenever a
+# web source is in the commit.
+if git diff --cached --name-only | grep -qE '^apps/web/(src/|lingui\.config\.ts$|package\.json$)'; then
+  vp run web#i18n:extract >/dev/null || exit 1
+  git add apps/web/src/locales
+fi
