@@ -543,11 +543,12 @@ func (s *Server) handleListChildren(w http.ResponseWriter, r *http.Request) {
 // everything under it. Only when the parent is unreachable does the listing
 // narrow to the children they own or hold a grant on directly.
 //
-// A nil parent is the space's top level: entry points — the caller's own items
-// plus the places shared with them. Nobody, admin included, sees the whole tree.
+// A nil parent is the space's top level: the caller's own items and the team
+// folders they hold a grant on. Everything else shared with them is under
+// "Shared with me". Nobody, admin included, sees the whole tree.
 func (s *Server) listVisibleChildren(r *http.Request, spaceID, parentID pgtype.UUID, u *store.User) ([]store.NodeWithMeta, error) {
 	if !parentID.Valid {
-		return s.fs.EntryPointsWithMeta(r.Context(), u.ID, spaceID, true)
+		return s.fs.EntryPointsWithMeta(r.Context(), u.ID, spaceID, true, false)
 	}
 	parent, err := s.fs.Get(r.Context(), parentID)
 	if err != nil {

@@ -948,17 +948,21 @@ func (s *Service) Search(ctx context.Context, arg store.SearchNodesParams) ([]st
 // the listing to that space. includeOwned is always false here, so own items
 // are excluded — your own folder is not something shared with you.
 func (s *Service) ListShared(ctx context.Context, userID, spaceID pgtype.UUID) ([]store.NodeWithMeta, error) {
-	return s.EntryPointsWithMeta(ctx, userID, spaceID, false)
+	return s.EntryPointsWithMeta(ctx, userID, spaceID, false, false)
 }
 
 // EntryPointsWithMeta returns the topmost nodes the caller can reach. includeOwned
 // adds their own created items (nodes where created_by = user). A zero spaceID
 // spans every space; a set one scopes to that space — the member's top level.
-func (s *Service) EntryPointsWithMeta(ctx context.Context, userID, spaceID pgtype.UUID, includeOwned bool) ([]store.NodeWithMeta, error) {
+// With includeOwned, includeGranted decides whether what others shared (other
+// than team folders) is listed there too: the web drive leaves it to "Shared
+// with me"; WebDAV, with no such list per space, wants it.
+func (s *Service) EntryPointsWithMeta(ctx context.Context, userID, spaceID pgtype.UUID, includeOwned, includeGranted bool) ([]store.NodeWithMeta, error) {
 	rows, err := s.q.ListEntryPoints(ctx, store.ListEntryPointsParams{
-		UserID:       userID,
-		SpaceID:      spaceID,
-		IncludeOwned: includeOwned,
+		UserID:         userID,
+		SpaceID:        spaceID,
+		IncludeOwned:   includeOwned,
+		IncludeGranted: includeGranted,
 	})
 	if err != nil {
 		return nil, err

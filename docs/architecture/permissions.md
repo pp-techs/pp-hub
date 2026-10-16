@@ -480,6 +480,13 @@ reachable means _owned_ (`include_owned = true`, the space-scoped home view) or
 _granted_. A node sitting under another reachable node is dropped — it is found
 by walking down.
 
+The web home view lists what the caller **owns, plus team folders** they hold a
+grant on. Anything else somebody shared — a file from inside a colleague's
+folder, say — is **not** at the root of the grantee's drive: its folder is the
+colleague's, so it lives under "Shared with me". WebDAV passes
+`include_granted` and keeps every reachable entry in a space's root, since it
+has no per-space "Shared with me" to send the client to.
+
 "Shared with me" is the same query with `include_owned = false`, and it also
 drops rows the caller owns: your own file is not something shared with you.
 

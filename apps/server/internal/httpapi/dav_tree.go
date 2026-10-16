@@ -185,7 +185,7 @@ func (v *davView) list(dir *davEntry) ([]*davEntry, error) {
 		out, err = v.listRoot()
 	case davSpace:
 		var rows []store.NodeWithMeta
-		if rows, err = v.s.fs.EntryPointsWithMeta(v.ctx, v.u.ID, dir.space.ID, true); err == nil {
+		if rows, err = v.s.fs.EntryPointsWithMeta(v.ctx, v.u.ID, dir.space.ID, true, true); err == nil {
 			out, err = v.nodeEntries(dir, rows, false)
 		}
 	case davShared:

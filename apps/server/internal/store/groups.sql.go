@@ -327,6 +327,15 @@ origin(id) AS (
     WHERE n.kind <> 'ext'
       AND ($3::uuid IS NULL OR n.space_id = $3::uuid)
       AND ($2::bool OR n.created_by <> $1)
+      -- The web home view is what the caller owns plus team folders: a team
+      -- folder is the company's, so its grant is how a member finds it.
+      -- Anything else somebody granted lives under "Shared with me" — the
+      -- folder around it is theirs, and the grantee must not meet the file at
+      -- the root of their own drive. WebDAV has no such list per space, so it
+      -- passes @include_granted and gets every reachable entry. Granted rows
+      -- stay in entry either way, so what sits under one is still dropped.
+      AND (NOT $2::bool OR $4::bool
+           OR n.created_by = $1 OR n.team_root_id = n.id)
 ),
 walk(origin, id) AS (
     SELECT o.id, p.id
@@ -358,9 +367,10 @@ LIMIT 200
 `
 
 type ListEntryPointsParams struct {
-	UserID       pgtype.UUID `json:"user_id"`
-	IncludeOwned bool        `json:"include_owned"`
-	SpaceID      pgtype.UUID `json:"space_id"`
+	UserID         pgtype.UUID `json:"user_id"`
+	IncludeOwned   bool        `json:"include_owned"`
+	SpaceID        pgtype.UUID `json:"space_id"`
+	IncludeGranted bool        `json:"include_granted"`
 }
 
 type ListEntryPointsRow struct {
@@ -390,9 +400,10 @@ type ListEntryPointsRow struct {
 
 // The topmost nodes the caller can reach — the places their access starts.
 // Reachable means granted (directly or via a group) or owned outright
-// (created_by, only when @include_owned — a space's home view). "Shared with
-// me" passes include_owned = false and also drops granted rows the caller
-// owns: your own file is not something shared with you.
+// (created_by, only when @include_owned — a space's home view). The home view
+// lists granted rows only when they are team folders; every other grant is
+// "Shared with me", which passes include_owned = false and also drops granted
+// rows the caller owns: your own file is not something shared with you.
 //
 // A node sitting under another reachable node is excluded: it is found by
 // walking down from that ancestor, so listing it separately is noise.
@@ -414,7 +425,12 @@ type ListEntryPointsRow struct {
 // The recursive step climbs to the *parent* of the row it joins; `UNION`
 // means a parent_id cycle can only produce finitely many pairs.
 func (q *Queries) ListEntryPoints(ctx context.Context, arg ListEntryPointsParams) ([]ListEntryPointsRow, error) {
-	rows, err := q.db.Query(ctx, listEntryPoints, arg.UserID, arg.IncludeOwned, arg.SpaceID)
+	rows, err := q.db.Query(ctx, listEntryPoints,
+		arg.UserID,
+		arg.IncludeOwned,
+		arg.SpaceID,
+		arg.IncludeGranted,
+	)
 	if err != nil {
 		return nil, err
 	}

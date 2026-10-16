@@ -86,7 +86,7 @@ export function EditorHeader({
         ) : null}
         {trail}
         {node ? (
-          <span className="text-foreground flex min-w-0 shrink-[2] items-center gap-1.5 text-sm font-medium">
+          <span className="text-foreground flex min-w-0 shrink-[2] items-center gap-1.5 text-xs/relaxed font-medium">
             <NodeIcon node={node} className="size-4 shrink-0" />
             <span className="truncate">{node.name}</span>
           </span>

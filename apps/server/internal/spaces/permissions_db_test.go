@@ -768,6 +768,82 @@ func TestTeamFolderContentHasNoPersonalOwner(t *testing.T) {
 	}
 }
 
+// A file shared from inside somebody else's folder is "Shared with me", not
+// part of the grantee's own drive: it used to surface at their top level as if
+// they had put it there. A team folder is the exception — its grant is how a
+// member finds the company's folder at all.
+func TestGrantedNodesStayOutOfTheHomeView(t *testing.T) {
+	q, sp, _ := testEnv(t)
+	ctx := context.Background()
+
+	host := user(t, q, "home-host")
+	guest := user(t, q, "home-guest")
+
+	space, err := sp.Create(ctx, fmt.Sprintf("home-%d", os.Getpid()), host.ID)
+	if err != nil {
+		t.Fatalf("create space: %v", err)
+	}
+	t.Cleanup(func() { _ = q.DeleteSpace(ctx, space.ID) })
+	if err := sp.AddMember(ctx, space.ID, guest.ID, false); err != nil {
+		t.Fatalf("add member: %v", err)
+	}
+	blobs, err := blob.NewLocalStore(t.TempDir(), q.BlobClaims())
+	if err != nil {
+		t.Fatalf("blobs: %v", err)
+	}
+	files := fs.NewService(q, blobs)
+
+	folder, err := q.CreateNode(ctx, store.CreateNodeParams{
+		SpaceID: space.ID, Kind: store.NodeKindDir, Name: "Folder1", CreatedBy: host.ID,
+	})
+	if err != nil {
+		t.Fatalf("folder: %v", err)
+	}
+	file, _, err := files.PutFile(ctx, space.ID, folder.ID, pgtype.UUID{},
+		"x.txt", strings.NewReader("x"), host.ID)
+	if err != nil {
+		t.Fatalf("upload: %v", err)
+	}
+	team, err := files.CreateTeamFolder(ctx, space.ID, "Marketing", host.ID)
+	if err != nil {
+		t.Fatalf("team folder: %v", err)
+	}
+	for _, id := range []pgtype.UUID{file.ID, team.ID} {
+		if _, err := q.CreateShare(ctx, store.CreateShareParams{
+			NodeID: id, Kind: store.ShareKindDirect, GranteeUserID: guest.ID,
+			Level: store.ShareLevelView, CreatedBy: host.ID,
+		}); err != nil {
+			t.Fatalf("share: %v", err)
+		}
+	}
+
+	ids := func(includeOwned bool) map[pgtype.UUID]bool {
+		rows, err := q.ListEntryPoints(ctx, store.ListEntryPointsParams{
+			UserID: guest.ID, IncludeOwned: includeOwned, SpaceID: space.ID,
+		})
+		if err != nil {
+			t.Fatalf("entry points: %v", err)
+		}
+		out := map[pgtype.UUID]bool{}
+		for _, r := range rows {
+			out[r.ID] = true
+		}
+		return out
+	}
+
+	home := ids(true)
+	if home[file.ID] {
+		t.Error("a file shared from inside another member's folder surfaced at the grantee's top level")
+	}
+	if !home[team.ID] {
+		t.Error("a team folder the member holds a grant on must stay at their top level")
+	}
+	shared := ids(false)
+	if !shared[file.ID] || !shared[team.ID] {
+		t.Errorf("both grants belong in Shared with me, got file=%v team=%v", shared[file.ID], shared[team.ID])
+	}
+}
+
 // Moving content out of a team folder is an export: it leaves the container
 // and needs a personal owner, which is the mover. Drive transfers ownership
 // the same way when an item leaves a shared drive.

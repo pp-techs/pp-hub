@@ -173,9 +173,10 @@ ORDER BY n.kind, n.name;
 -- name: ListEntryPoints :many
 -- The topmost nodes the caller can reach — the places their access starts.
 -- Reachable means granted (directly or via a group) or owned outright
--- (created_by, only when @include_owned — a space's home view). "Shared with
--- me" passes include_owned = false and also drops granted rows the caller
--- owns: your own file is not something shared with you.
+-- (created_by, only when @include_owned — a space's home view). The home view
+-- lists granted rows only when they are team folders; every other grant is
+-- "Shared with me", which passes include_owned = false and also drops granted
+-- rows the caller owns: your own file is not something shared with you.
 --
 -- A node sitting under another reachable node is excluded: it is found by
 -- walking down from that ancestor, so listing it separately is noise.
@@ -231,6 +232,15 @@ origin(id) AS (
     WHERE n.kind <> 'ext'
       AND (sqlc.narg('space_id')::uuid IS NULL OR n.space_id = sqlc.narg('space_id')::uuid)
       AND (@include_owned::bool OR n.created_by <> @user_id)
+      -- The web home view is what the caller owns plus team folders: a team
+      -- folder is the company's, so its grant is how a member finds it.
+      -- Anything else somebody granted lives under "Shared with me" — the
+      -- folder around it is theirs, and the grantee must not meet the file at
+      -- the root of their own drive. WebDAV has no such list per space, so it
+      -- passes @include_granted and gets every reachable entry. Granted rows
+      -- stay in entry either way, so what sits under one is still dropped.
+      AND (NOT @include_owned::bool OR @include_granted::bool
+           OR n.created_by = @user_id OR n.team_root_id = n.id)
 ),
 -- Every strict LIVE ancestor of each origin, so the ones sitting underneath
 -- an entry can be dropped.
