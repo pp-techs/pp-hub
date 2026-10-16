@@ -195,7 +195,7 @@ afterwards.
 
 ## 3. Start pp-hub
 
-The images are public on ghcr.io/pp-techs/pp-hub. From a private mirror, log
+The images are public on ghcr.io/pp-techs (pp-hub-server, pp-hub-worker). From a private mirror, log
 in first (\`docker login ghcr.io\` with a token that has \`read:packages\`).
 
 \`\`\`sh

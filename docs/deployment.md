@@ -138,7 +138,7 @@ missing variable rather than booting a half-configured stack.
 ### Releases
 
 `up -d`, not `up -d --build`. The two application images are published to
-`ghcr.io/pp-techs/pp-hub/{server,worker}` by the release flow
+`ghcr.io/pp-techs/pp-hub-{server,worker}` by the release flow
 (`release.yml`, described in [CONTRIBUTING.md](../CONTRIBUTING.md#releasing)),
 and `PP_IMAGE_TAG` names the one this stack runs. A release is cut by merging
 the "Version Packages" PR: after a reviewer approves the `production-release`

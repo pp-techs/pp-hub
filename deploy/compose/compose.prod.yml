@@ -43,7 +43,7 @@ services:
   # SameSite=Lax, so a split hostname means nobody can log in. The server
   # serves the bundle itself (PP_WEB_DIR is set in the image).
   server:
-    image: "ghcr.io/pp-techs/pp-hub/server:${PP_IMAGE_TAG:?set in .env - a released tag, e.g. 0.1.0}"
+    image: "ghcr.io/pp-techs/pp-hub-server:${PP_IMAGE_TAG:?set in .env - a released tag, e.g. 0.1.0}"
     restart: unless-stopped
     expose:
       - "8080"
@@ -162,7 +162,7 @@ services:
   # After first deploy, sweep files that predate it:
   #   docker compose -f compose.prod.yml run --rm worker --backfill
   worker:
-    image: "ghcr.io/pp-techs/pp-hub/worker:${PP_IMAGE_TAG:?set in .env - a released tag, e.g. 0.1.0}"
+    image: "ghcr.io/pp-techs/pp-hub-worker:${PP_IMAGE_TAG:?set in .env - a released tag, e.g. 0.1.0}"
     restart: unless-stopped
     environment:
       PP_DATABASE_URL: postgres://pphub:${POSTGRES_PASSWORD:?set in .env}@postgres:5432/pphub?sslmode=disable

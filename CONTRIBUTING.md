@@ -57,7 +57,7 @@ to `main`:
 2. Merging the PR is the release. The workflow sees a version without a git tag,
    re-runs every CI check on that commit, prepares the release notes, then waits
    for approval on the `production-release` environment.
-3. Once approved, it builds and pushes `ghcr.io/pp-techs/pp-hub/{server,worker}`
+3. Once approved, it builds and pushes `ghcr.io/pp-techs/pp-hub-{server,worker}`
    as `:X.Y.Z`, `:X.Y` and `:latest` (a prerelease `X.Y.Z-rc.1` gets only its own tag),
    then tags `vX.Y.Z` and creates the GitHub Release from the changelog section.
    The tag is created last, so a tag always means the images exist.
@@ -92,7 +92,7 @@ for staging; do not pin production to them.
 - Code security: Dependabot alerts and security updates (version updates are in
   `dependabot.yml`), secret scanning with push protection, and private
   vulnerability reporting, which [SECURITY.md](SECURITY.md) points reporters to.
-- Packages: `ghcr.io/pp-techs/pp-hub/{server,worker}` are created private by the
+- Packages: `ghcr.io/pp-techs/pp-hub-{server,worker}` are created private by the
   first push. Set each to **public** in its package settings once, so a
   deployment can pull without a token.
 

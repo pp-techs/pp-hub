@@ -103,7 +103,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.name }}
+          images: ${{ env.REGISTRY }}/${{ github.repository }}-${{ matrix.name }}
           # Tags are chosen above; `latest=false` stops the action adding its own.
           flavor: latest=false
           tags: ${{ steps.tags.outputs.list }}
@@ -121,5 +121,5 @@ jobs:
           # Registry-backed cache, not gha: the three images share the bun
           # install and the Go module download, and the gha cache is scoped
           # per branch so a release would start cold every time.
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.name }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.name }}:buildcache,mode=max
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ github.repository }}-${{ matrix.name }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ github.repository }}-${{ matrix.name }}:buildcache,mode=max

@@ -55,7 +55,7 @@ two compose files paste in as they are.
   join.
 - This repository, with `sh`, `openssl`, `curl` and `jq` wherever you run the
   scripts — the server or your own machine.
-- Network access to the images at `ghcr.io/pp-techs/pp-hub`, which are public.
+- Network access to the images at `ghcr.io/pp-techs/pp-hub-server` and `pp-hub-worker`, which are public.
   Pulling from a private mirror needs a GitHub token with `read:packages`.
 
 ## 1. Generate the files
