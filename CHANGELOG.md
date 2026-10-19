@@ -11,6 +11,10 @@ Versions up to and including 0.14.1 predate this changelog; see the
 
 <!-- `bun run version-packages` adds each release's section from its changesets; edit it in the Version Packages PR. -->
 
+## [0.27.0] — 2026-10-19
+
+Each release now attaches a desktop app (macOS arm64 and x64 `.dmg`, Windows x64 `.msi`) built with Pake around your deployment's URL. Set the repository variable `DESKTOP_APP_URL` to the address users open pp-hub at; the build fails until it is set. The apps are unsigned, so macOS and Windows warn on first launch.
+
 ## [0.26.0] — 2026-10-19
 
 Search now looks inside PDFs and office documents (`.docx`, `.xlsx`, `.pptx`, `.doc`, `.xls`, `.ppt` and the OpenDocument formats), accents ignored, as it already did for markdown and plain text. The text is read by the worker, so it needs `cmd/worker` running with OnlyOffice reachable and `PP_SESSION_KEY` matching the server's, as for office thumbnails; the server queues every existing file at its next start and the worker drains them, so no operator step is needed beyond having a worker. Without one those files stay matched by name only. Scanned PDFs are not OCR'd.
