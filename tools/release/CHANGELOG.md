@@ -1,5 +1,12 @@
 # @pp-hub/release
 
+## 0.26.0
+
+### Minor Changes
+
+- 3a574a5: Search now looks inside PDFs and office documents (`.docx`, `.xlsx`, `.pptx`, `.doc`, `.xls`, `.ppt` and the OpenDocument formats), accents ignored, as it already did for markdown and plain text. The text is read by the worker, so it needs `cmd/worker` running with OnlyOffice reachable and `PP_SESSION_KEY` matching the server's, as for office thumbnails; the server queues every existing file at its next start and the worker drains them, so no operator step is needed beyond having a worker. Without one those files stay matched by name only. Scanned PDFs are not OCR'd.
+- 35334d8: The Share dialog of a file or folder now has a **Copy link** button. The link is the same `/open/<id>` address the share mails carry: it opens the item for anyone who already has access (in the editor, or in the folder's listing) and shows "no access" to anyone else — it grants nothing on its own, unlike a public link.
+
 ## 0.25.0
 
 ### Minor Changes
