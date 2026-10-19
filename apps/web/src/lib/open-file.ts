@@ -47,6 +47,17 @@ export function fileLocation(node: Pick<Node, "id" | "space_id">, spaces: Pick<S
 }
 
 /**
+ * The absolute address of a node — `/open/$nodeId`, the one the share mails
+ * carry. It resolves per account, so the same link opens a file in the editor,
+ * a folder in its listing, or the no-access page for someone it was not
+ * shared with.
+ */
+export function nodeLink(nodeId: string): string {
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- URL path
+  return new URL(`/open/${encodeURIComponent(nodeId)}`, location.origin).href;
+}
+
+/**
  * A file opens in a tab of its own (or the tab it is already open in), but a
  * page link followed inside a document stays in that document's tab. The
  * navigation cannot carry that, so it is left here for the tab host to take
