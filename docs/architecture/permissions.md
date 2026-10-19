@@ -465,6 +465,12 @@ changed on the folder they come from. A control the caller does not hold is
 left out: levels and flags beyond the caller's caps, and edit/revoke on a grant
 wider than theirs.
 
+The dialog's footer has **Copy link**: the absolute `/open/<id>` address
+(`nodeLink`, `lib/open-file.ts`), the same one share mails carry. It grants
+nothing — it opens the item for an account that already reaches it and shows
+the no-access page to anyone else — which is what separates it from the public
+link, whose secret is shown once.
+
 Grantees are offered from the space — `GET /spaces/{id}/groups` and
 `GET /spaces/{id}/members`, both member-readable — and from nowhere else.
 There is no tenant-wide user directory to search: `GET /users/search` existed

@@ -73,6 +73,7 @@ import {
   useUpsertGrant,
 } from "@/lib/queries";
 import { useKeyedState } from "@/lib/use-keyed-state";
+import { nodeLink } from "@/lib/open-file";
 import { GranteePicker, type Grantee } from "@/components/grantee-picker";
 import { LoadingStatus } from "@/components/loading";
 
@@ -974,6 +975,26 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
               </div>
             )}
           </section>
+        </div>
+
+        <div className="flex items-center justify-between gap-3 border-t p-4">
+          <p className="text-muted-foreground text-xs">
+            <Trans>Opens for people who already have access.</Trans>
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0"
+            onClick={() =>
+              void navigator.clipboard.writeText(nodeLink(node.id)).then(
+                () => toast.success(t`Link copied`),
+                () => toast.error(t`Could not copy the link`),
+              )
+            }
+          >
+            <Link2 data-icon="inline-start" />
+            <Trans>Copy link</Trans>
+          </Button>
         </div>
 
         {/* Inline rather than a nested better-modal: this confirmation belongs
