@@ -69,15 +69,16 @@ func (e *extractEnv) put(t *testing.T, fileID pgtype.UUID, name, body string) (s
 	return n, v
 }
 
-// drainAll runs the claim loop until no extraction job is left pending.
+// drainAll runs the claim loop until no extraction job is left pending — of
+// any extract: kind, so a test that registers more extractors waits for them.
 func (e *extractEnv) drainAll(t *testing.T) {
 	t.Helper()
 	ctx := context.Background()
 	for range 50 {
 		var pending int
 		if err := e.pool.QueryRow(ctx,
-			`SELECT count(*) FROM jobs WHERE kind = $1 AND status = 'pending' AND run_at <= now()`,
-			KindExtractText).Scan(&pending); err != nil {
+			`SELECT count(*) FROM jobs WHERE kind LIKE 'extract:%' AND status = 'pending' AND run_at <= now()`,
+		).Scan(&pending); err != nil {
 			t.Fatalf("count pending: %v", err)
 		}
 		if pending == 0 {

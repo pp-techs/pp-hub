@@ -1,6 +1,7 @@
 package preview
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -19,10 +20,11 @@ import (
 //
 // An extraction job kind is a routing key exactly like a render kind: a
 // process claims only the kinds it registered an Extractor for. Markdown and
-// plain text are pure Go and run in cmd/server. Office documents will need
-// their own kind (their extractor has to live in cmd/worker, beside the
-// converter), added to extractKindForMime with its Extractor registered there;
-// storage, backfill and search need no change.
+// plain text are pure Go and run in cmd/server. PDF and office documents run
+// poppler and OnlyOffice, so their extractors (extract_pdf.go,
+// extract_office.go) are registered in cmd/worker, beside the renderers that
+// need the same things; until one exists their jobs wait, and storage,
+// backfill and search are the same for every kind.
 //
 // The same job indexes a block document's page projections (M43): its
 // page_meta (frontmatter icon and cover) and page_refs (sub-page blocks and
@@ -56,11 +58,19 @@ type PageIndex struct {
 }
 
 // extractableMimes maps each base MIME type that has searchable text to the
-// job kind that extracts it.
-var extractableMimes = map[string]string{
-	"text/markdown": KindExtractText,
-	"text/plain":    KindExtractText,
-}
+// job kind that extracts it. Every office type that gets a thumbnail is
+// indexed, so the two lists cannot drift apart.
+var extractableMimes = func() map[string]string {
+	m := map[string]string{
+		"text/markdown":   KindExtractText,
+		"text/plain":      KindExtractText,
+		"application/pdf": KindExtractPDF,
+	}
+	for mime := range officeMimes {
+		m[mime] = KindExtractOffice
+	}
+	return m
+}()
 
 // extractKindForMime maps a MIME type to its extraction job kind, or "" when
 // the type's content is not indexed.
@@ -117,13 +127,17 @@ func (w *Worker) extract(ctx context.Context, e Extractor, p Payload, versionID 
 	if err := nodeID.Scan(p.NodeID); err != nil {
 		return fmt.Errorf("bad node id: %w", err)
 	}
-	rc, err := w.blobs.Get(ctx, p.BlobHash)
-	if err != nil {
-		return fmt.Errorf("get blob: %w", err)
+	var src io.Reader = bytes.NewReader(nil)
+	if sf, ok := e.(selfFetching); !ok || !sf.FetchesOwnSource() {
+		rc, err := w.blobs.Get(ctx, p.BlobHash)
+		if err != nil {
+			return fmt.Errorf("get blob: %w", err)
+		}
+		defer rc.Close()
+		src = rc
 	}
-	defer rc.Close()
 
-	ex, err := e.Extract(ctx, rc, p)
+	ex, err := e.Extract(ctx, src, p)
 	if err != nil {
 		return err
 	}

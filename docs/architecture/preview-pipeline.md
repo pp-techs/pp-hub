@@ -40,7 +40,9 @@ jobs.kind = how to render        │  previews.kind = what was produced
   render:video   ─┤              │
   render:office  ─┘              │
   snippet:text   ────────────────────> text        (first 4KB, verbatim)
-  extract:text   ────────────────────> node_texts row (M27, not a preview)
+  extract:text   ─┐
+  extract:pdf    ─┼──────────────────> node_texts row (M27, not a preview)
+  extract:office ─┘
 ```
 
 - A **job kind** is a routing key. It decides which process may claim the work,
@@ -107,9 +109,34 @@ only the kinds it registered an `Extractor` for.
   cannot overwrite newer text, and search joins on
   `nodes.current_version_id`, so a row that has not caught up is not matched
   rather than served stale.
-- **Office documents are not extracted yet.** They will need their own kind,
-  registered in `cmd/worker` beside the converter and added to the MIME map;
-  storage, backfill and search need no change.
+- **`extract:pdf`** covers `application/pdf` (`internal/preview/extract_pdf.go`):
+  `pdftotext -enc UTF-8 -nopgbrk` over the spooled file, in reading order. Like
+  `pdftoppm` it parses hostile bytes in C, so it runs in `cmd/worker`, and the
+  constructor returns `nil` without poppler. A PDF with no text layer — a scan
+  — stores an empty text: it is indexed, with nothing to match. A corrupt PDF
+  fails like any job. No OCR.
+- **`extract:office`** covers every type `render:office` thumbnails
+  (`extractableMimes` is built from `officeMimes`, so the two cannot drift;
+  `internal/preview/extract_office.go`). OnlyOffice converts the document to
+  PDF exactly as for a thumbnail — same `officeConverter`, same cache key, so
+  whichever job runs second is a cache hit — and `pdftotext` reads it. A PDF is
+  read rather than OnlyOffice's own text output so one path serves documents,
+  spreadsheets, slides and the legacy binary formats alike; a spreadsheet is
+  therefore read as it prints, and cells outside the print area or on hidden
+  sheets are not indexed. It registers only where `NewOfficeRenderer` could —
+  OnlyOffice, the WOPI address, a shared `PP_SESSION_KEY` — plus `pdftotext`,
+  and it fetches its own source (`FetchesOwnSource`), so the dispatcher does
+  not open the blob. A restored version is re-indexed without a file name, so
+  the converter's file type falls back to the MIME type.
+- `pdftotext` output is read through `runText` (`extract_pdf.go`): up to 1 MiB,
+  then the child is stopped and what was read stands — the index keeps 256 KiB
+  after normalising, so the tail of a long document would be dropped anyway. The
+  deadline is 60 s, longer than a render's 30 s, and one that expires before
+  the cap or the end of the output is an error.
+- Until a process that registered `extract:pdf` or `extract:office` runs, those
+  jobs stay `pending` and those files are matched by name only, as before M27's
+  second half; the first worker to start drains them. Nothing else — storage,
+  backfill, search — differs by kind.
 
 ## Where rendering happens
 
@@ -364,9 +391,11 @@ _current_ versions are considered — `handlePreview` serves
 blobs no endpoint can reach. Safe to re-run.
 
 Text extraction has its own sweep, `preview.BackfillText`, which `--backfill`
-also runs — and which `cmd/server` runs by itself at every startup, because its
-extractors live there: a drive upgraded to content search becomes searchable
-without an operator step. It skips files already indexed or queued.
+also runs — and which `cmd/server` runs by itself at every startup, so a drive
+upgraded to content search becomes searchable without an operator step: markdown
+and plain text as soon as the server is up, PDFs and office documents as soon
+as a worker with their extractors has drained the jobs the sweep queued. It
+skips files already indexed or queued.
 `preview.BackfillPages` follows it in the same goroutine for markdown versions
 with no `page_meta` row, skipping those `extract:text` already has queued.
 

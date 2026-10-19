@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -57,7 +58,11 @@ func minimalDocx(t *testing.T) []byte {
 //
 //	PP_TEST_ONLYOFFICE_URL=http://localhost:9980 \
 //	PP_TEST_CALLBACK_HOST=host.docker.internal \
+//	PP_TEST_ONLYOFFICE_JWT_SECRET=<the Document Server's JWT_SECRET> \
 //	go test ./internal/preview/ -run RealOnlyOffice
+//
+// The secret is needed whenever the Document Server runs with JWT_ENABLED=true,
+// which both compose stacks do.
 func TestOfficeAgainstRealOnlyOffice(t *testing.T) {
 	ooURL := os.Getenv("PP_TEST_ONLYOFFICE_URL")
 	callbackHost := os.Getenv("PP_TEST_CALLBACK_HOST")
@@ -83,8 +88,8 @@ func TestOfficeAgainstRealOnlyOffice(t *testing.T) {
 	port := ln.Addr().(*net.TCPAddr).Port
 	srcURL := fmt.Sprintf("http://%s:%d/test.docx", callbackHost, port)
 
-	r := &OfficeRenderer{
-		cfg: OfficeConfig{ConvertURL: ooURL},
+	r := &officeConverter{
+		cfg: OfficeConfig{ConvertURL: ooURL, JWTSecret: []byte(os.Getenv("PP_TEST_ONLYOFFICE_JWT_SECRET"))},
 		cli: &http.Client{Timeout: convertTimeout},
 	}
 	payload := Payload{Name: "test.docx", BlobHash: "pphublivetest0001"}
@@ -101,15 +106,26 @@ func TestOfficeAgainstRealOnlyOffice(t *testing.T) {
 		t.Fatalf("converted output is not a PDF (first bytes: %q)", pdfBytes[:min(8, len(pdfBytes))])
 	}
 
-	// Rasterize too, when poppler is present — that is the rest of the chain.
-	pdf := NewPDFRenderer()
-	if pdf == nil {
+	// Rasterize and read the text too, when poppler is present — that is the
+	// rest of both chains.
+	if pdf := NewPDFRenderer(); pdf != nil {
+		thumb, err := pdf.Render(t.Context(), bytes.NewReader(pdfBytes), payload)
+		if err != nil {
+			t.Fatalf("rasterize converted pdf: %v", err)
+		}
+		decodeThumb(t, thumb)
+	} else {
 		t.Logf("converted %d bytes of PDF; skipping rasterization (%s not installed)", len(pdfBytes), pdfBinary)
-		return
 	}
-	thumb, err := pdf.Render(t.Context(), bytes.NewReader(pdfBytes), payload)
-	if err != nil {
-		t.Fatalf("rasterize converted pdf: %v", err)
+	if hasBinary(pdfTextBinary) {
+		text, err := pdfText(t.Context(), bytes.NewReader(pdfBytes))
+		if err != nil {
+			t.Fatalf("read converted pdf text: %v", err)
+		}
+		if !strings.Contains(text, "pp-hub office thumbnail test") {
+			t.Errorf("converted pdf text = %q, want the document's sentence", text)
+		}
+	} else {
+		t.Logf("skipping text extraction (%s not installed)", pdfTextBinary)
 	}
-	decodeThumb(t, thumb)
 }

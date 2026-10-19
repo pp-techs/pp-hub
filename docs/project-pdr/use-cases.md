@@ -114,8 +114,8 @@
 
 ### UC-13: Find a file by what it says
 
-1. The ⌘K palette matches names across every space the user belongs to, and — for markdown and plain-text files — their contents, accent-insensitively.
-2. A content match shows a snippet with the matched words highlighted; name matches rank first. Results are filtered to what the user can reach, as for name search. Office documents and PDFs are matched by name only.
+1. The ⌘K palette matches names across every space the user belongs to, and — for markdown, plain-text, PDF and office files — their contents, accent-insensitively.
+2. A content match shows a snippet with the matched words highlighted; name matches rank first. Results are filtered to what the user can reach, as for name search. Images and scanned PDFs are matched by name only, and PDF and office text is searchable only while a worker runs.
 
 ## Personal Use
 

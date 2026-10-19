@@ -431,7 +431,7 @@ jobs(id, kind, payload, status, run_at, attempts)        -- kind routes to a wor
 node_texts(node_id PK, node_version_id, content, folded,  -- M27 content search (0016)
            tsv GENERATED (to_tsvector('simple', folded)), extracted_at)
   -- One row per file: the text of its *current* version, written by the
-  -- extract:text job. content is NFC-normalised, capped, valid UTF-8 (what
+  -- extract:text, extract:pdf or extract:office job. content is NFC-normalised, capped, valid UTF-8 (what
   -- snippets are cut from); folded is content lower-cased without diacritics,
   -- rune for rune (textsearch.Fold), so a hit's position in folded is its
   -- position in content. GIN on tsv, GIN trigram on folded. Both FKs cascade.

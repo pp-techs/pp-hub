@@ -41,7 +41,7 @@ Each shipped milestone has its own file under [`milestones/`](milestones/) with 
 | M24 | The REST/WOPI write collision                          | ✅         | [detail](milestones/M24.md) |
 | M25 | Observability                                          | ✅         | [detail](milestones/M25.md) |
 | M26 | Audit completeness                                     | ✅         | [detail](milestones/M26.md) |
-| M27 | Content-indexed search                                 | 🟡 partial | below                       |
+| M27 | Content-indexed search                                 | ✅         | [detail](milestones/M27.md) |
 | M28 | Directory sync                                         | 🔜 planned | below                       |
 | M29 | Comments and notifications                             | ✅         | [detail](milestones/M29.md) |
 | M30 | Resumable upload and honest accounting                 | ✅         | [detail](milestones/M30.md) |
@@ -64,9 +64,9 @@ Each shipped milestone has its own file under [`milestones/`](milestones/) with 
 | M47 | WebDAV access                                          | ✅         | [detail](milestones/M47.md) |
 | M48 | Open files in the shell, as tabs                       | ✅         | [detail](milestones/M48.md) |
 
-## Upcoming — M27 Onward
+## Upcoming — M28 Onward
 
-Everything above shipped except M27's office half and M28, including
+Everything above shipped except M28, including
 the P0 register in full as of M24. None of the below is scheduled; the numbering is
 the order the dependencies suggest, which is also
 [production-readiness.md](production-readiness.md)'s phasing. Each entry names
@@ -76,26 +76,6 @@ there is one place to check whether a gap is still real.
 ### Phase B — The multi-department layer
 
 Additive to patterns that already exist.
-
-#### M27 — Content-Indexed Search 🟡 markdown and plain text shipped
-
-P1, "Search only matches file names". **Shipped for markdown and plain text**
-(migration `0016_content_search.sql`): an `extract:text` job on the preview
-queue, enqueued by the version hook (and on restore) for `text/markdown` —
-through `mdoc.PlainText`, so snippets carry no markdown syntax — and
-`text/plain`, writes one `node_texts` row per file from its current version,
-folded for accent-insensitive Vietnamese by `internal/textsearch`; `cmd/server`
-backfills existing files at startup. `GET /api/v1/search` merges the two
-matches — every name hit above every content-only hit, `ts_rank` within
-content — and each item says `match: "name" | "content"` with a `snippet` and
-`snippet_highlights` (rune offsets); the palette shows them.
-[preview-pipeline.md](preview-pipeline.md#text-extraction) has the detail.
-
-**What remains is office documents** (and any other format — PDF text is not
-extracted either). The
-registry is ready for them: an extractor needs its own job kind, registered in
-`cmd/worker` beside the OnlyOffice converter and added to the MIME map, and
-storage, backfill and search need no change.
 
 #### M28 — Directory Sync 🔜 planned
 
@@ -213,5 +193,5 @@ so they are found rather than rediscovered:
   and driven through `docker compose run`/`exec`.
 - [production-readiness.md](production-readiness.md) holds everything that stood
   between M21 and an internal rollout: the P0 register, now fully closed; the P1
-  gaps against Google Drive still open — content search for office documents
-  (M27) and IdP group sync (M28) — and the phases both documents follow.
+  gaps against Google Drive still open — IdP group sync (M28) — and the phases
+  both documents follow.

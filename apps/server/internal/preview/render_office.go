@@ -59,9 +59,44 @@ type OfficeConfig struct {
 //	worker <────────────── {fileUrl: …pdf} ───────────────────────────┘
 //	   └── GET fileUrl → PDF bytes → pdftoppm → imageThumbnail
 type OfficeRenderer struct {
-	cfg OfficeConfig
+	*officeConverter
 	pdf Renderer
+}
+
+// officeConverter is the OnlyOffice half of both office jobs: it turns a
+// stored document into a PDF. The thumbnail renderer rasterizes the result,
+// the text extractor (extract_office.go) reads its text — and because the
+// conversion cache key is the blob hash, whichever runs second is a cache hit
+// inside OnlyOffice.
+type officeConverter struct {
+	cfg OfficeConfig
 	cli *http.Client
+}
+
+// usable reports whether the configuration can reach OnlyOffice and mint the
+// source URL it fetches from.
+func (c OfficeConfig) usable() bool {
+	return c.ConvertURL != "" && c.SourceBaseURL != "" && len(c.WopiKey) > 0
+}
+
+func newOfficeConverter(cfg OfficeConfig) *officeConverter {
+	return &officeConverter{cfg: cfg, cli: &http.Client{Timeout: convertTimeout}}
+}
+
+// toPDF converts the document a job names and returns the PDF's bytes.
+func (r *officeConverter) toPDF(ctx context.Context, p Payload) ([]byte, error) {
+	if p.NodeID == "" {
+		return nil, fmt.Errorf("office: job payload has no node id")
+	}
+	srcURL, err := r.sourceURL(p.NodeID)
+	if err != nil {
+		return nil, err
+	}
+	pdfURL, err := r.convert(ctx, srcURL, p)
+	if err != nil {
+		return nil, err
+	}
+	return r.download(ctx, pdfURL)
 }
 
 // NewOfficeRenderer returns a renderer, or nil when it cannot work: office
@@ -70,18 +105,14 @@ type OfficeRenderer struct {
 // Returning nil leaves render:office jobs pending for a worker that has all
 // four, rather than failing them here.
 func NewOfficeRenderer(cfg OfficeConfig) Renderer {
-	if cfg.ConvertURL == "" || cfg.SourceBaseURL == "" || len(cfg.WopiKey) == 0 {
+	if !cfg.usable() {
 		return nil
 	}
 	pdf := NewPDFRenderer()
 	if pdf == nil {
 		return nil
 	}
-	return &OfficeRenderer{
-		cfg: cfg,
-		pdf: pdf,
-		cli: &http.Client{Timeout: convertTimeout},
-	}
+	return &OfficeRenderer{officeConverter: newOfficeConverter(cfg), pdf: pdf}
 }
 
 func (r *OfficeRenderer) Kind() string { return KindRenderOffice }
@@ -94,18 +125,7 @@ func (r *OfficeRenderer) FetchesOwnSource() bool { return true }
 // Render ignores src — OnlyOffice fetches the bytes itself, and
 // FetchesOwnSource stops the dispatcher from opening the blob at all.
 func (r *OfficeRenderer) Render(ctx context.Context, _ io.Reader, p Payload) ([]byte, error) {
-	if p.NodeID == "" {
-		return nil, fmt.Errorf("office: job payload has no node id")
-	}
-	srcURL, err := r.sourceURL(p.NodeID)
-	if err != nil {
-		return nil, err
-	}
-	pdfURL, err := r.convert(ctx, srcURL, p)
-	if err != nil {
-		return nil, err
-	}
-	pdfBytes, err := r.download(ctx, pdfURL)
+	pdfBytes, err := r.toPDF(ctx, p)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +133,7 @@ func (r *OfficeRenderer) Render(ctx context.Context, _ io.Reader, p Payload) ([]
 }
 
 // sourceURL builds the tokenized URL OnlyOffice fetches the document from.
-func (r *OfficeRenderer) sourceURL(nodeID string) (string, error) {
+func (r *officeConverter) sourceURL(nodeID string) (string, error) {
 	var nid pgtype.UUID
 	if err := nid.Scan(nodeID); err != nil {
 		return "", fmt.Errorf("office: bad node id %q: %w", nodeID, err)
@@ -151,13 +171,13 @@ type convertResponse struct {
 	Error      int    `json:"error"`
 }
 
-func (r *OfficeRenderer) convert(ctx context.Context, srcURL string, p Payload) (string, error) {
+func (r *officeConverter) convert(ctx context.Context, srcURL string, p Payload) (string, error) {
 	payload := convertRequest{
 		// Synchronous: the worker already runs off the request path, so
 		// polling an async job would add a state machine for nothing.
 		Async:      false,
 		URL:        srcURL,
-		FileType:   strings.TrimPrefix(strings.ToLower(path.Ext(p.Name)), "."),
+		FileType:   officeFileType(p),
 		OutputType: "pdf",
 		// The blob hash is a perfect cache key — content-addressed, so the
 		// same document converted twice is a cache hit inside OnlyOffice.
@@ -223,7 +243,7 @@ func (r *OfficeRenderer) convert(ctx context.Context, srcURL string, p Payload) 
 	return out.FileURL, nil
 }
 
-func (r *OfficeRenderer) download(ctx context.Context, fileURL string) ([]byte, error) {
+func (r *officeConverter) download(ctx context.Context, fileURL string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fileURL, nil)
 	if err != nil {
 		return nil, err
@@ -244,6 +264,30 @@ func (r *OfficeRenderer) download(ctx context.Context, fileURL string) ([]byte, 
 		return nil, fmt.Errorf("office: converted pdf was empty")
 	}
 	return data, nil
+}
+
+// officeFileExt is the extension OnlyOffice needs to know which parser to
+// run, for a job that carries no file name (a restored version is re-indexed
+// from its version row alone).
+var officeFileExt = map[string]string{
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+	"application/msword":                                                        "doc",
+	"application/vnd.oasis.opendocument.text":                                   "odt",
+	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":         "xlsx",
+	"application/vnd.ms-excel":                                                  "xls",
+	"application/vnd.oasis.opendocument.spreadsheet":                            "ods",
+	"application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
+	"application/vnd.ms-powerpoint":                                             "ppt",
+	"application/vnd.oasis.opendocument.presentation":                           "odp",
+}
+
+// officeFileType is the job's file extension, from its name when it has one
+// and from its MIME type when it does not.
+func officeFileType(p Payload) string {
+	if ext := strings.TrimPrefix(strings.ToLower(path.Ext(p.Name)), "."); ext != "" {
+		return ext
+	}
+	return officeFileExt[baseMime(p.Mime)]
 }
 
 // convertKey builds OnlyOffice's document cache key. It must be at most 128
