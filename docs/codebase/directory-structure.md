@@ -211,7 +211,8 @@ pp-hub/
 │           ├── share/              # grants — user, group, link — and the caps they resolve to
 │           ├── wopi/               # WOPI host endpoints; access tokens signed with a derived subkey
 │           └── preview/            # renderers + job loop; jobs.kind routes, previews.kind is the artifact;
-│                                   #    extract.go = extract:text for content search, backfill.go
+│                                   #    extract.go = extract:text for content search, extract_pdf.go / extract_office.go
+│                                   #    = extract:pdf and extract:office (cmd/worker), backfill.go
 ├── packages/
 │   ├── ui/                         # @workspace/ui — shadcn/ui preset (base-ui) + design tokens (globals.css)
 │   │   ├── src/components/         # primitives; `sidebar.tsx` owns the drive shell's geometry

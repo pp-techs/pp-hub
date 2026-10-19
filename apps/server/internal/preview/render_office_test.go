@@ -50,7 +50,7 @@ func TestNewOfficeRendererDeclinesWhenUnconfigured(t *testing.T) {
 // The URL handed to OnlyOffice must carry a token the API server will accept,
 // and must not grant more than reading.
 func TestOfficeSourceURLIsSignedAndReadOnly(t *testing.T) {
-	r := &OfficeRenderer{cfg: OfficeConfig{
+	r := &officeConverter{cfg: OfficeConfig{
 		SourceBaseURL: "http://server:8080/",
 		WopiKey:       testKey,
 	}}
@@ -91,7 +91,7 @@ func TestOfficeSourceURLIsSignedAndReadOnly(t *testing.T) {
 // an operator hits when the worker and server disagree on PP_SESSION_KEY, and
 // it is why the worker refuses to register the renderer in that case.
 func TestOfficeTokenFailsUnderAKeyMismatch(t *testing.T) {
-	r := &OfficeRenderer{cfg: OfficeConfig{
+	r := &officeConverter{cfg: OfficeConfig{
 		SourceBaseURL: "http://server:8080",
 		WopiKey:       testKey,
 	}}
@@ -108,9 +108,9 @@ func TestOfficeTokenFailsUnderAKeyMismatch(t *testing.T) {
 	}
 }
 
-func TestOfficeRenderRejectsPayloadWithoutNodeID(t *testing.T) {
-	r := &OfficeRenderer{cfg: OfficeConfig{SourceBaseURL: "http://s", WopiKey: testKey}}
-	if _, err := r.Render(t.Context(), strings.NewReader(""), Payload{}); err == nil {
+func TestOfficeConversionRejectsPayloadWithoutNodeID(t *testing.T) {
+	r := &officeConverter{cfg: OfficeConfig{SourceBaseURL: "http://s", WopiKey: testKey}}
+	if _, err := r.toPDF(t.Context(), Payload{}); err == nil {
 		t.Error("expected an error when the payload carries no node id")
 	}
 }
@@ -124,7 +124,7 @@ func TestOfficeConvertSurfacesBodyErrors(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	r := &OfficeRenderer{cfg: OfficeConfig{ConvertURL: srv.URL}, cli: srv.Client()}
+	r := &officeConverter{cfg: OfficeConfig{ConvertURL: srv.URL}, cli: srv.Client()}
 	_, err := r.convert(t.Context(), "http://src", Payload{Name: "a.docx"})
 	if err == nil {
 		t.Fatal("expected an error for error code -4")
@@ -145,7 +145,7 @@ func TestOfficeConvertRequestShape(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	r := &OfficeRenderer{cfg: OfficeConfig{ConvertURL: srv.URL}, cli: srv.Client()}
+	r := &officeConverter{cfg: OfficeConfig{ConvertURL: srv.URL}, cli: srv.Client()}
 	url, err := r.convert(t.Context(), "http://src", Payload{Name: "Q3 Report.docx", BlobHash: "abc123"})
 	if err != nil {
 		t.Fatalf("convert: %v", err)
@@ -179,9 +179,28 @@ func TestOfficeConvertRejectsIncompleteResponse(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	r := &OfficeRenderer{cfg: OfficeConfig{ConvertURL: srv.URL}, cli: srv.Client()}
+	r := &officeConverter{cfg: OfficeConfig{ConvertURL: srv.URL}, cli: srv.Client()}
 	if _, err := r.convert(t.Context(), "http://src", Payload{Name: "a.docx"}); err == nil {
 		t.Error("expected an error when endConvert is false")
+	}
+}
+
+// A job with no file name — a restored version is re-indexed from its row
+// alone — still tells OnlyOffice which parser to run, from the MIME type.
+func TestOfficeFileTypeFallsBackToMime(t *testing.T) {
+	cases := []struct {
+		p    Payload
+		want string
+	}{
+		{Payload{Name: "Q3 Report.DOCX"}, "docx"},
+		{Payload{Mime: "application/vnd.ms-excel; charset=binary"}, "xls"},
+		{Payload{Name: "noext", Mime: "application/vnd.oasis.opendocument.presentation"}, "odp"},
+		{Payload{Mime: "application/octet-stream"}, ""},
+	}
+	for _, c := range cases {
+		if got := officeFileType(c.p); got != c.want {
+			t.Errorf("officeFileType(%+v) = %q, want %q", c.p, got, c.want)
+		}
 	}
 }
 

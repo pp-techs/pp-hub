@@ -13,8 +13,8 @@ target deployment: **one company, 20–100 users, several departments,
 self-hosted, no compliance auditor yet**.
 
 It is the evidence, not the plan. [milestones.md](milestones.md) holds the
-plan: every remaining gap below is carried by a named milestone, **M27 and
-M28** (M29, M30 and M31 now closed), and each heading here says which.
+plan: every remaining gap below is carried by a named milestone, **M28**
+(M27, M29, M30 and M31 now closed), and each heading here says which.
 Nothing there is scheduled — the numbers are an order the dependencies
 suggest, and the phasing at the end explains that order. What stays here is
 the reason each item is (or was) on the list and the `file:line` that lets a
@@ -31,9 +31,8 @@ model (M15) is stricter by default than Google Drive's, WOPI co-editing is
 real, and versioning, trash retention, blob GC, quota and search all work.
 What was missing is the layer above that: content search, richer audit,
 directory sync, comments, and honest storage accounting. Audit (M26),
-comments (M29) and accounting (M30) are closed and content search is half
-done (M27, markdown and plain text); office-document search and directory
-sync remain.
+comments (M29), accounting (M30) and content search (M27) are closed;
+directory sync remains.
 
 ## P0 — blocks an internal rollout
 
@@ -149,19 +148,22 @@ Ordered by what a 20–100 person, multi-department deployment feels first. Each
 heading names the milestone that carries it; the phasing at the end places
 that milestone in a phase.
 
-### Search only matches file names — M27, partially closed
+### Search only matches file names — closed in M27
 
-**Markdown and plain-text files are content-searched since M27's first half**
-(migration `0016_content_search.sql`): an `extract:text` job writes each
-file's current text into `node_texts`, folded so Vietnamese matches without
-accents, and `GET /api/v1/search` merges content hits with name hits — every
-name hit first — returning `match`, `snippet` and `snippet_highlights`.
-Existing files are backfilled by `cmd/server` at startup. Access filtering is
-unchanged. See [preview-pipeline.md](preview-pipeline.md#text-extraction).
+**Markdown, plain-text, PDF and office files are content-searched since M27**
+(migration `0016_content_search.sql`): an extraction job writes each file's
+current text into `node_texts`, folded so Vietnamese matches without accents,
+and `GET /api/v1/search` merges content hits with name hits — every name hit
+first — returning `match`, `snippet` and `snippet_highlights`. Existing files
+are backfilled by `cmd/server` at startup. Access filtering is unchanged. See
+[preview-pipeline.md](preview-pipeline.md#text-extraction) and
+[M27](milestones/M27.md).
 
-**Still open: office documents and PDFs** — the files a company actually
-keeps its contracts in — are matched by name only, as are images (no OCR).
-That was the original gap: `pg_trgm` and one GIN index on `nodes.name`
+**What is still matched by name only:** images and scanned PDFs (no OCR), and
+formats with no extractor (`.rtf`, `.csv`, `.epub`, archives). Office and PDF
+text arrives only while a `cmd/worker` runs — it needs poppler and OnlyOffice —
+so an install without one matches those files by name, as it did before. The
+original gap was `pg_trgm` and one GIN index on `nodes.name`
 (`nodes_name_trgm`, partial on `deleted_at IS NULL`), a prefix match ranked
 over a mid-string one, trigram similarity as the fallback.
 
@@ -170,10 +172,10 @@ store this is the difference between "find the contract" and "remember which
 folder the contract is in" — and the second one stops working at about the
 point a second department joins.
 
-The office half is now an addition to a working path: the extraction registry
-routes by job kind, office documents already pass through OnlyOffice
-conversion in `cmd/worker`, and an office extractor registered there needs no
-change to storage, backfill or search.
+The office half was an addition to a working path, and stayed one: the
+extraction registry routes by job kind, office documents already passed through
+OnlyOffice conversion in `cmd/worker`, and the extractor registered there
+needed no change to storage, backfill or search.
 
 ### `activity_events` is a feed, not an audit log — closed in M21 and M26
 
@@ -490,7 +492,7 @@ Restating so these are not rediscovered as gaps:
 
 Nothing below is scheduled; it is the order the dependencies suggest. What has
 changed is that each phase now has named milestones carrying it, and those
-live in [milestones.md](milestones.md) under `## Upcoming — M27 Onward`. The
+live in [milestones.md](milestones.md) under `## Upcoming — M28 Onward`. The
 division is deliberate: that document is the plan, this one is the evidence,
 and a milestone that cannot point back to a section here has not been argued
 for.
@@ -523,8 +525,8 @@ out of it by decision and have no milestone.
 `security_events` now records intentional reads as well as access changes,
 filters by node and date, exports as CSV, and alerts on bursts of failed
 sign-ins; see the audit-log section above. Then **M27 — content-indexed
-search** as a new preview-pipeline job kind — **markdown and plain text done**,
-office documents open — then **M28 — directory sync**, which is the
+search** as new preview-pipeline job kinds — **done** for markdown, plain
+text, PDFs and office documents — then **M28 — directory sync**, which is the
 pre-provisioning and IdP-group-sync half of "Identity is managed by hand".
 These are what changes when the user count crosses a couple of departments,
 and each one is additive to a pattern that already exists.
@@ -552,8 +554,8 @@ that has been restored from, a locked file that a REST upload cannot silently
 overwrite, a
 `/readyz` that actually fails when a dependency has, and an avatar upload
 that survives a reload — provided everyone understands that search finds
-office documents and PDFs by name only (markdown and plain text by content)
-and that comments exist only on block documents. A company-wide
-rollout across several departments needs the rest of Phase B as well, M27's
-office-document search above all; the audit half — "who read this", the question that
+images and scans by name only, that PDF and office text is indexed only while
+a worker runs, and that comments exist only on block documents. A company-wide
+rollout across several departments needs the rest of Phase B as well, M28's
+directory sync above all; the audit half — "who read this", the question that
 gets asked within the first week rather than the first month — M26 answered.

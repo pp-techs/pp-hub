@@ -305,8 +305,8 @@ here" from "off for me", and `mcp_tokens` while personal tokens may be minted.
 ## Non-goals
 
 Binary upload or write-back (`download_file` is read-only); file management
-(folders, rename, move, trash); text from office documents or PDFs (M27's office
-half); admin operations; the embedded agent (next, over the same registry); a
+(folders, rename, move, trash); text from office documents or PDFs (indexed for search since M27, but not
+returned by a tool); admin operations; the embedded agent (next, over the same registry); a
 CLI.
 
 ## Risks

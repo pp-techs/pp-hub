@@ -78,12 +78,12 @@ type Renderer interface {
 	Render(ctx context.Context, src io.Reader, p Payload) ([]byte, error)
 }
 
-// selfFetching is implemented by a Renderer that reads the original file
-// itself. The dispatcher then skips opening the blob for it.
+// selfFetching is implemented by a Renderer or Extractor that reads the
+// original file itself. The dispatcher then skips opening the blob for it.
 //
-// Only the office renderer does this, and it matters: OnlyOffice fetches the
-// document by URL, so opening the blob here would pull the whole file —
-// across the network, on an S3 backend — purely to discard it.
+// Only the office renderer and office extractor do this, and it matters:
+// OnlyOffice fetches the document by URL, so opening the blob here would pull
+// the whole file — across the network, on an S3 backend — purely to discard it.
 type selfFetching interface {
 	FetchesOwnSource() bool
 }

@@ -67,21 +67,29 @@ func run() error {
 	// advertises exactly what it can actually run. A worker image built
 	// without ffmpeg claims no render:video job rather than failing it five
 	// times and parking it in 'failed' forever.
+	officeCfg := preview.OfficeConfig{
+		ConvertURL:    deps.Cfg.OnlyOfficeIntURL,
+		SourceBaseURL: deps.Cfg.WopiServerURL,
+		WopiKey:       officeSigningKey(deps.Cfg),
+		JWTSecret:     deps.Cfg.OnlyOfficeJWTSecret,
+	}
 	renderers := nonNil(
 		preview.NewPDFRenderer(),
 		preview.NewVideoRenderer(),
-		preview.NewOfficeRenderer(preview.OfficeConfig{
-			ConvertURL:    deps.Cfg.OnlyOfficeIntURL,
-			SourceBaseURL: deps.Cfg.WopiServerURL,
-			WopiKey:       officeSigningKey(deps.Cfg),
-			JWTSecret:     deps.Cfg.OnlyOfficeJWTSecret,
-		}),
+		preview.NewOfficeRenderer(officeCfg),
 	)
-	if len(renderers) == 0 {
+	// Content search reads PDFs and office documents here for the same reason
+	// they are rendered here: poppler and OnlyOffice. Markdown and plain text
+	// are extracted by the API server.
+	extractors := nonNil(
+		preview.NewPDFTextExtractor(),
+		preview.NewOfficeTextExtractor(officeCfg),
+	)
+	if len(renderers) == 0 && len(extractors) == 0 {
 		return errNoRenderers
 	}
 
-	w := preview.NewWorker(deps.Queries, deps.Blobs, renderers...)
+	w := preview.NewWorker(deps.Queries, deps.Blobs, renderers...).WithExtractors(extractors...)
 	go healthBeacon(ctx, deps.Pool, deps.Blobs)
 	slog.InfoContext(ctx, "worker starting", "kinds", w.Kinds())
 	w.Run(ctx)
@@ -110,18 +118,19 @@ func (errNoRenderersType) Error() string {
 // and restarting, which is exactly what the operator needs to do.
 func officeSigningKey(cfg *config.Config) []byte {
 	if !cfg.SecretKeyShared {
-		slog.Warn("office thumbnails disabled: PP_SESSION_KEY must be set to the same value as the API server",
-			"effect", "render:office jobs stay pending until it is")
+		slog.Warn("office thumbnails and text extraction disabled: PP_SESSION_KEY must be set to the same value as the API server",
+			"effect", "render:office and extract:office jobs stay pending until it is")
 		return nil
 	}
 	return cfg.DeriveKey(wopi.KeyPurpose)
 }
 
-func nonNil(rs ...preview.Renderer) []preview.Renderer {
-	out := make([]preview.Renderer, 0, len(rs))
-	for _, r := range rs {
-		if r != nil {
-			out = append(out, r)
+func nonNil[T comparable](xs ...T) []T {
+	var none T
+	out := make([]T, 0, len(xs))
+	for _, x := range xs {
+		if x != none {
+			out = append(out, x)
 		}
 	}
 	return out
