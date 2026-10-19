@@ -93,6 +93,23 @@ func (q *Queries) GetPendingShareOnNode(ctx context.Context, arg GetPendingShare
 	return i, err
 }
 
+const hasLivePendingShareFor = `-- name: HasLivePendingShareFor :one
+SELECT EXISTS (
+  SELECT 1 FROM pending_shares
+  WHERE email_norm = $1 AND level = 'view'
+    AND (expires_at IS NULL OR expires_at > now())
+)::boolean AS live
+`
+
+// Whether an address has a view invitation that has not expired: one of the
+// two reasons a guest code is sent to it.
+func (q *Queries) HasLivePendingShareFor(ctx context.Context, emailNorm string) (bool, error) {
+	row := q.db.QueryRow(ctx, hasLivePendingShareFor, emailNorm)
+	var live bool
+	err := row.Scan(&live)
+	return live, err
+}
+
 const insertAdoptedShare = `-- name: InsertAdoptedShare :one
 INSERT INTO shares (node_id, kind, grantee_user_id, level, can_download, can_share, expires_at, created_by, is_external)
 VALUES ($1, 'direct', $2, $3, $4, false, $5, $6, $7)
@@ -211,6 +228,7 @@ const takePendingShares = `-- name: TakePendingShares :many
 WITH taken AS (
     DELETE FROM pending_shares p
     WHERE p.email_norm = $1
+      AND (NOT $2::bool OR p.level = 'view')
     RETURNING p.id, p.tenant_id, p.node_id, p.email_norm, p.level, p.can_download, p.created_by, p.created_at, p.expires_at
 )
 SELECT t.id, t.node_id, t.level, t.can_download, t.created_by, t.expires_at,
@@ -218,6 +236,11 @@ SELECT t.id, t.node_id, t.level, t.can_download, t.created_by, t.expires_at,
 FROM taken t
 JOIN nodes n ON n.id = t.node_id
 `
+
+type TakePendingSharesParams struct {
+	EmailNorm string `json:"email_norm"`
+	ViewOnly  bool   `json:"view_only"`
+}
 
 type TakePendingSharesRow struct {
 	ID          pgtype.UUID        `json:"id"`
@@ -233,9 +256,11 @@ type TakePendingSharesRow struct {
 // Deletes every invitation for an address — expired ones included — and
 // returns them with the node they name, for adoption at a verified sign-in.
 // The caller decides which become grants: only those whose inviter can still
-// give them.
-func (q *Queries) TakePendingShares(ctx context.Context, emailNorm string) ([]TakePendingSharesRow, error) {
-	rows, err := q.db.Query(ctx, takePendingShares, emailNorm)
+// give them. view_only takes only the view invitations and leaves the rest
+// waiting: a guest can hold nothing wider, and an edit invitation is for the
+// address's own sign-in.
+func (q *Queries) TakePendingShares(ctx context.Context, arg TakePendingSharesParams) ([]TakePendingSharesRow, error) {
+	rows, err := q.db.Query(ctx, takePendingShares, arg.EmailNorm, arg.ViewOnly)
 	if err != nil {
 		return nil, err
 	}

@@ -95,6 +95,11 @@ export interface UserProfile {
   personal_space_id?: string;
   /** Instance switch: may anyone share with people outside a space. */
   external_sharing_enabled: boolean;
+  /**
+   * A guest opens things with a one-time code mailed to their address: no
+   * account, no space of their own, and only reading and commenting.
+   */
+  kind: "member" | "guest";
 }
 
 export interface SpaceMember {
@@ -550,6 +555,8 @@ export interface Share {
   grantee_owned?: number;
   /** Direct share to someone outside the node's space. */
   is_external?: boolean;
+  /** The grantee is a guest: they open it with a one-time code, view only. */
+  grantee_guest?: boolean;
 }
 
 /**

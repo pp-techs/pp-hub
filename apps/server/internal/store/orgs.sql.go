@@ -214,7 +214,7 @@ func (q *Queries) ListPendingDepartures(ctx context.Context, spaceID pgtype.UUID
 }
 
 const listSpaceMemberAccounts = `-- name: ListSpaceMemberAccounts :many
-SELECT u.id, u.tenant_id, u.oidc_sub, u.oidc_iss, u.email, u.name, u.display_name, u.avatar_url, u.bio, u.settings, u.is_admin, u.last_seen, u.email_hash, u.suspended_at, u.created_at, u.avatar_blob, u.avatar_mime, u.phone, u.gender, u.idp_picture, u.avatar_from_idp, u.email_verified FROM space_members m JOIN users u ON u.id = m.user_id
+SELECT u.id, u.tenant_id, u.oidc_sub, u.oidc_iss, u.email, u.name, u.display_name, u.avatar_url, u.bio, u.settings, u.is_admin, u.last_seen, u.email_hash, u.suspended_at, u.created_at, u.avatar_blob, u.avatar_mime, u.phone, u.gender, u.idp_picture, u.avatar_from_idp, u.email_verified, u.kind FROM space_members m JOIN users u ON u.id = m.user_id
 WHERE m.space_id = $1
 ORDER BY u.email
 `
@@ -253,6 +253,7 @@ func (q *Queries) ListSpaceMemberAccounts(ctx context.Context, spaceID pgtype.UU
 			&i.IdpPicture,
 			&i.AvatarFromIdp,
 			&i.EmailVerified,
+			&i.Kind,
 		); err != nil {
 			return nil, err
 		}

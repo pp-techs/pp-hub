@@ -786,6 +786,30 @@ export async function logout(): Promise<{ end_session_url: string }> {
   return res.json() as Promise<{ end_session_url: string }>;
 }
 
+// ─── Guest sign-in (a one-time code, no account) ─────────────────────────────
+
+/** Whether this instance admits guests: the sign-in page offers a code only then. */
+export async function getGuestConfig(): Promise<{ enabled: boolean }> {
+  const res = await api.get("auth/guest");
+  if (!res.ok) return { enabled: false };
+  return res.json() as Promise<{ enabled: boolean }>;
+}
+
+/**
+ * Asks for a code. The server answers 204 whether or not one was sent, so the
+ * form cannot be used to learn who was shared with.
+ */
+export async function requestGuestCode(email: string): Promise<void> {
+  const res = await api.post("auth/guest/code", { json: { email } });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+}
+
+/** Checks the code; on success the server has set the guest's session cookie. */
+export async function verifyGuestCode(email: string, code: string): Promise<void> {
+  const res = await api.post("auth/guest/verify", { json: { email, code } });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+}
+
 // ─── Tree / Trash / Shared (Sidebar) ─────────────────────────────────────────
 
 export async function getTree(spaceId: string, parentId?: string): Promise<TreeNode[]> {

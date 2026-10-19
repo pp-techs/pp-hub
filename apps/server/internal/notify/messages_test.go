@@ -94,3 +94,29 @@ func TestInviteCarriesNoSenderLinks(t *testing.T) {
 		}
 	}
 }
+
+// A guest invitation must not send the reader to create an account — the
+// whole point is that they need none — and must not drop the guards the
+// ordinary invitation has.
+func TestGuestInviteSaysNoAccountIsNeeded(t *testing.T) {
+	d := msgData{
+		GranterName: "Ann", GranterEmail: "ann@example.com", NodeName: "Plan",
+		Instance: "pp-hub", Level: store.ShareLevelView, Link: "https://hub.example/open/1", Guest: true,
+	}
+	for _, locale := range []string{"en", "vi"} {
+		subject, body := renderInvite(locale, d)
+		if strings.Contains(body, "create an account") || strings.Contains(body, "tạo tài khoản bằng") {
+			t.Errorf("%s: a guest invitation asks for an account:\n%s", locale, body)
+		}
+		if !strings.Contains(body, d.Link) {
+			t.Errorf("%s: the link is missing:\n%s", locale, body)
+		}
+		if strings.Contains(subject, "Ann") || strings.Contains(subject, "Plan") {
+			t.Errorf("%s: the subject carries sender text: %q", locale, subject)
+		}
+	}
+	d.Guest = false
+	if _, body := renderInvite("en", d); !strings.Contains(body, "create an account") {
+		t.Errorf("an ordinary invitation lost its account instruction:\n%s", body)
+	}
+}

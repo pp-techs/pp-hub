@@ -281,6 +281,16 @@ type GroupMember struct {
 	AddedAt pgtype.Timestamptz `json:"added_at"`
 }
 
+type GuestOtp struct {
+	EmailNorm   string             `json:"email_norm"`
+	CodeHash    []byte             `json:"code_hash"`
+	Attempts    int32              `json:"attempts"`
+	Sends       int32              `json:"sends"`
+	WindowStart pgtype.Timestamptz `json:"window_start"`
+	ExpiresAt   pgtype.Timestamptz `json:"expires_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
 type InvitationLog struct {
 	ID        int64              `json:"id"`
 	CreatedBy pgtype.UUID        `json:"created_by"`
@@ -533,4 +543,5 @@ type User struct {
 	IdpPicture    pgtype.Text        `json:"idp_picture"`
 	AvatarFromIdp bool               `json:"avatar_from_idp"`
 	EmailVerified bool               `json:"email_verified"`
+	Kind          string             `json:"kind"`
 }

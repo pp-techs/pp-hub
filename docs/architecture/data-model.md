@@ -183,6 +183,14 @@ vouched for `users.email`; sharing by email matches verified addresses only) and
 `invitation_log(created_by, recipient, mailed, created_at)` behind the per-sender budget and the
 per-address mail cap, pruned after 48 hours by the five-minute sweep.
 
+`migrations/0029_guest_access.sql` (M49, [guest-access.md](guest-access.md)) adds `users.kind`
+(`member` | `guest`, default `member`) with `users_guest_ck` — a guest has `oidc_iss = ''` (and
+`oidc_sub = 'guest:<id>'`), an address and `email_verified` — and
+`guest_otps(email_norm PK, code_hash, attempts, sends, window_start, expires_at, created_at)`,
+one live one-time code per address (SHA-256 of `email:code`), pruned by the five-minute sweep.
+`ListUsers`, `CountUsers` and `AdminStats` count `kind = 'member'` only; `AdoptUserIdentity`
+sets `kind = 'member'`, which is how a guest becomes a member at a verified sign-in.
+
 ## Security Events
 
 `migrations/0003_security_events.sql`, plus `0008_read_audit.sql` for `node_id`. The audit

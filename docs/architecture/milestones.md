@@ -63,6 +63,7 @@ Each shipped milestone has its own file under [`milestones/`](milestones/) with 
 | M46 | Kanban collaboration                                   | ✅         | [detail](milestones/M46.md) |
 | M47 | WebDAV access                                          | ✅         | [detail](milestones/M47.md) |
 | M48 | Open files in the shell, as tabs                       | ✅         | [detail](milestones/M48.md) |
+| M49 | Guest access                                           | ✅         | [detail](milestones/M49.md) |
 
 ## Upcoming — M28 Onward
 
@@ -120,6 +121,11 @@ across spaces including addresses with no account — [detail](milestones/M42.md
 design in [personal-spaces.md](personal-spaces.md)). What it deliberately did
 not build: billing and plans, cross-space move/copy, external grants to
 groups, and re-sharing by an outsider.
+
+M49 added guests: somebody with no account opens a view-only share by proving
+their address with an emailed code, and may comment ([detail](milestones/M49.md),
+design in [guest-access.md](guest-access.md)). What it deliberately did not
+build: editing or re-sharing for a guest, mail to a guest, purging guest rows.
 
 ### Phase F — Pages
 

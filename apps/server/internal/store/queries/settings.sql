@@ -13,7 +13,7 @@ UPDATE users SET suspended_at = $2 WHERE id = $1;
 
 -- name: AdminStats :one
 SELECT
-  (SELECT COUNT(*) FROM users)::bigint  AS users,
+  (SELECT COUNT(*) FROM users WHERE kind = 'member')::bigint  AS users,
   (SELECT COUNT(*) FROM users WHERE suspended_at IS NOT NULL)::bigint AS suspended_users,
   (SELECT COUNT(*) FROM spaces)::bigint AS spaces,
   (SELECT COUNT(*) FROM nodes WHERE deleted_at IS NULL AND kind = 'file')::bigint AS files,

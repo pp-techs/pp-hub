@@ -19,6 +19,8 @@ type msgData struct {
 	Level        store.ShareLevel
 	CanDownload  bool
 	Link         string
+	// Guest: the invitation can be opened with a one-time code, no account.
+	Guest bool
 }
 
 func localeOf(tag string) string {
@@ -167,18 +169,22 @@ func renderInviteEN(d msgData) (subject, body string) {
 	if d.SpaceName != "" {
 		where = " in " + d.SpaceName
 	}
+	how := "To open it, create an account with this email address and verify it: " + d.Link
+	if d.Guest {
+		how = "To open it, go to " + d.Link + " and enter this email address; we will send you a one-time code. No account is needed."
+	}
 	subject = fmt.Sprintf(`A %s was shared with you on %s`, itemType, d.Instance)
 	body = fmt.Sprintf(`%s (%s) shared the %s "%s"%s on %s with this address.
 
 Access: %s
 
-To open it, create an account with this email address and verify it: %s
+%s
 
 --
 You received this because %s typed this address into %s. If you do not know them, ignore this email.`,
 		d.GranterName, d.GranterEmail, itemType, d.NodeName, where, d.Instance,
 		access,
-		d.Link,
+		how,
 		d.GranterEmail, d.Instance,
 	)
 	return subject, body
@@ -199,18 +205,22 @@ func renderInviteVI(d msgData) (subject, body string) {
 	if d.SpaceName != "" {
 		where = " trong " + d.SpaceName
 	}
+	how := "Để mở, hãy tạo tài khoản bằng chính địa chỉ email này và xác minh nó: " + d.Link
+	if d.Guest {
+		how = "Để mở, hãy truy cập " + d.Link + " và nhập chính địa chỉ email này; chúng tôi sẽ gửi cho bạn một mã dùng một lần. Không cần tạo tài khoản."
+	}
 	subject = fmt.Sprintf(`Có %s được chia sẻ với bạn trên %s`, itemType, d.Instance)
 	body = fmt.Sprintf(`%s (%s) đã chia sẻ %s "%s"%s trên %s với địa chỉ email này.
 
 Quyền: %s
 
-Để mở, hãy tạo tài khoản bằng chính địa chỉ email này và xác minh nó: %s
+%s
 
 --
 Bạn nhận được email này vì %s đã nhập địa chỉ này trên %s. Nếu bạn không biết người này, hãy bỏ qua email.`,
 		d.GranterName, d.GranterEmail, itemType, d.NodeName, where, d.Instance,
 		access,
-		d.Link,
+		how,
 		d.GranterEmail, d.Instance,
 	)
 	return subject, body

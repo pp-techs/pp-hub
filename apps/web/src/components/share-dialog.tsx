@@ -725,7 +725,7 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
                             {s.kind === "link" ? <Trans>Anyone with the link</Trans> : grantee}
                             {s.is_external && (
                               <Badge variant="outline" className="font-normal">
-                                <Trans>External</Trans>
+                                {s.grantee_guest ? <Trans>Guest</Trans> : <Trans>External</Trans>}
                               </Badge>
                             )}
                           </p>

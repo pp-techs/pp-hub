@@ -327,6 +327,13 @@ func (s *Server) handleCreateSpace(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleListSpaces(w http.ResponseWriter, r *http.Request) {
 	u := caller(r)
+	// A guest belongs to no space, and has no identity at the provider to
+	// reconcile: the answer is the empty list, which is what the shell reads
+	// as "only what was shared with me".
+	if u.Kind == "guest" {
+		writeJSON(w, http.StatusOK, []spaceDTO{})
+		return
+	}
 	// Membership comes from Logto. Sign-in and webhooks converge it, but an
 	// organization created or joined since the session began must not wait
 	// for a sign-out: ask Logto directly (throttled per account). A failure

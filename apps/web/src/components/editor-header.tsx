@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
 import { capsOf, exportDocumentUrl, isMarkdownFile, type Node } from "@/lib/api";
-import { useSpaces } from "@/lib/queries";
+import { useMe, useSpaces } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
 import { useFormatters } from "@/lib/format";
 import { NodeIcon } from "@/components/node-icon";
@@ -62,6 +62,8 @@ export function EditorHeader({
   // Somebody reached through an outside share has no way into the space;
   // their trail runs through the outside-shares browser.
   const spaces = useSpaces();
+  // Version history is not a guest's to read.
+  const guest = useMe().data?.kind === "guest";
   const outsider =
     node !== undefined && spaces.isSuccess && !spaces.data.some((s) => s.id === node.space_id);
   // An extension node has no versions and no bytes to download.
@@ -113,7 +115,7 @@ export function EditorHeader({
             <Link2 data-icon="inline-start" /> <Trans>Share</Trans>
           </Button>
         )}
-        {hasBytes && (
+        {hasBytes && !guest && (
           <Button
             variant="ghost"
             size="sm"

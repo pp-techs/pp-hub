@@ -227,6 +227,9 @@ func run() error {
 				if _, err := shareSvc.PruneInvitationLog(ctx); err != nil {
 					slog.WarnContext(ctx, "invitation log sweep", "err", err)
 				}
+				if _, err := queries.PruneGuestOTPs(ctx); err != nil {
+					slog.WarnContext(ctx, "guest code sweep", "err", err)
+				}
 			}
 		}
 	}()

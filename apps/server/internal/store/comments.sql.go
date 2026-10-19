@@ -226,7 +226,7 @@ func (q *Queries) ListCommentThreads(ctx context.Context, arg ListCommentThreads
 }
 
 const listNodeComments = `-- name: ListNodeComments :many
-SELECT c.id, c.thread_id, c.author_id, c.body, c.created_at, c.edited_at, u.id, u.tenant_id, u.oidc_sub, u.oidc_iss, u.email, u.name, u.display_name, u.avatar_url, u.bio, u.settings, u.is_admin, u.last_seen, u.email_hash, u.suspended_at, u.created_at, u.avatar_blob, u.avatar_mime, u.phone, u.gender, u.idp_picture, u.avatar_from_idp, u.email_verified
+SELECT c.id, c.thread_id, c.author_id, c.body, c.created_at, c.edited_at, u.id, u.tenant_id, u.oidc_sub, u.oidc_iss, u.email, u.name, u.display_name, u.avatar_url, u.bio, u.settings, u.is_admin, u.last_seen, u.email_hash, u.suspended_at, u.created_at, u.avatar_blob, u.avatar_mime, u.phone, u.gender, u.idp_picture, u.avatar_from_idp, u.email_verified, u.kind
 FROM comments c
 JOIN comment_threads t ON t.id = c.thread_id
 JOIN users u ON u.id = c.author_id
@@ -283,6 +283,7 @@ func (q *Queries) ListNodeComments(ctx context.Context, arg ListNodeCommentsPara
 			&i.User.IdpPicture,
 			&i.User.AvatarFromIdp,
 			&i.User.EmailVerified,
+			&i.User.Kind,
 		); err != nil {
 			return nil, err
 		}
@@ -295,7 +296,7 @@ func (q *Queries) ListNodeComments(ctx context.Context, arg ListNodeCommentsPara
 }
 
 const listThreadComments = `-- name: ListThreadComments :many
-SELECT c.id, c.thread_id, c.author_id, c.body, c.created_at, c.edited_at, u.id, u.tenant_id, u.oidc_sub, u.oidc_iss, u.email, u.name, u.display_name, u.avatar_url, u.bio, u.settings, u.is_admin, u.last_seen, u.email_hash, u.suspended_at, u.created_at, u.avatar_blob, u.avatar_mime, u.phone, u.gender, u.idp_picture, u.avatar_from_idp, u.email_verified
+SELECT c.id, c.thread_id, c.author_id, c.body, c.created_at, c.edited_at, u.id, u.tenant_id, u.oidc_sub, u.oidc_iss, u.email, u.name, u.display_name, u.avatar_url, u.bio, u.settings, u.is_admin, u.last_seen, u.email_hash, u.suspended_at, u.created_at, u.avatar_blob, u.avatar_mime, u.phone, u.gender, u.idp_picture, u.avatar_from_idp, u.email_verified, u.kind
 FROM comments c
 JOIN users u ON u.id = c.author_id
 WHERE c.thread_id = $1
@@ -345,6 +346,7 @@ func (q *Queries) ListThreadComments(ctx context.Context, threadID pgtype.UUID) 
 			&i.User.IdpPicture,
 			&i.User.AvatarFromIdp,
 			&i.User.EmailVerified,
+			&i.User.Kind,
 		); err != nil {
 			return nil, err
 		}
@@ -384,7 +386,7 @@ func (q *Queries) ListThreadParticipants(ctx context.Context, threadID pgtype.UU
 }
 
 const listUsersByIDs = `-- name: ListUsersByIDs :many
-SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp, email_verified FROM users WHERE id = ANY($1::uuid[])
+SELECT id, tenant_id, oidc_sub, oidc_iss, email, name, display_name, avatar_url, bio, settings, is_admin, last_seen, email_hash, suspended_at, created_at, avatar_blob, avatar_mime, phone, gender, idp_picture, avatar_from_idp, email_verified, kind FROM users WHERE id = ANY($1::uuid[])
 `
 
 func (q *Queries) ListUsersByIDs(ctx context.Context, ids []pgtype.UUID) ([]User, error) {
@@ -419,6 +421,7 @@ func (q *Queries) ListUsersByIDs(ctx context.Context, ids []pgtype.UUID) ([]User
 			&i.IdpPicture,
 			&i.AvatarFromIdp,
 			&i.EmailVerified,
+			&i.Kind,
 		); err != nil {
 			return nil, err
 		}

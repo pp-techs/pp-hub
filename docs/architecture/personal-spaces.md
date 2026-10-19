@@ -33,7 +33,8 @@ and admin is never readership.
 - Billing, plans, upgrades. Personal quota is a default number only.
 - Moving or copying content between spaces.
 - External grants to groups, and re-sharing by an external grantee
-  (`can_share` is always false on an external grant).
+  (`can_share` is always false on an external grant). Opening a share without
+  an account is [guest-access.md](guest-access.md) (M49).
 - A second identity provider. Logto stays the only one.
 
 ## Decisions

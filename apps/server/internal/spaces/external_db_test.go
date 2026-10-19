@@ -244,7 +244,7 @@ func TestAdoptPendingShares(t *testing.T) {
 		t.Fatalf("expired invite: %v", err)
 	}
 
-	rows, err := f.sh.AdoptPending(ctx, f.outsider, email)
+	rows, err := f.sh.AdoptPending(ctx, f.outsider, email, false)
 	if err != nil {
 		t.Fatalf("adopt: %v", err)
 	}
@@ -257,7 +257,7 @@ func TestAdoptPendingShares(t *testing.T) {
 	if got := caps(t, f.sh, f.sibling, f.outsider.ID); got.View {
 		t.Errorf("an expired invitation must not be adopted, got %+v", got)
 	}
-	if again, err := f.sh.AdoptPending(ctx, f.outsider, email); err != nil || len(again) != 0 {
+	if again, err := f.sh.AdoptPending(ctx, f.outsider, email, false); err != nil || len(again) != 0 {
 		t.Errorf("adoption must happen once: %v %+v", err, again)
 	}
 	if _, err := f.sh.GetPending(ctx, f.sibling.ID, expired.ID); !errors.Is(err, share.ErrNotFound) {
@@ -282,7 +282,7 @@ func TestAdoptionDropsADepartedInvitersInvitation(t *testing.T) {
 	if err := f.sp.RevokeMembership(ctx, f.space.ID, inviter.ID); err != nil {
 		t.Fatalf("revoke membership: %v", err)
 	}
-	rows, err := f.sh.AdoptPending(ctx, f.outsider, email)
+	rows, err := f.sh.AdoptPending(ctx, f.outsider, email, false)
 	if err != nil || len(rows) != 0 {
 		t.Fatalf("a departed inviter's invitation must not be adopted: %v %+v", err, rows)
 	}

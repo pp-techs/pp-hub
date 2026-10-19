@@ -42,7 +42,7 @@ func (s *Service) OnSignIn(r *http.Request, user store.User, verifiedEmail strin
 	// Adopt first: an invitation into somebody's folder is the reason this
 	// person signed up, and it must not wait on provisioning.
 	if verifiedEmail != "" {
-		s.adopt(r, user, verifiedEmail)
+		s.Adopt(r, user, verifiedEmail, false)
 	}
 	if err := s.Provision(ctx, user); err != nil {
 		slog.ErrorContext(ctx, "personal space at sign-in", "module", "personal", "user", user.Email, "err", err)
@@ -54,6 +54,11 @@ func (s *Service) OnSignIn(r *http.Request, user store.User, verifiedEmail strin
 // organization, so the open email sign-up Logto needs for invitees does not
 // hand storage to anybody who finds the instance.
 func (s *Service) Provision(ctx context.Context, user store.User) error {
+	// A guest holds access to what was shared with them and nothing of their
+	// own: no space, whatever the instance setting says.
+	if user.Kind == "guest" {
+		return nil
+	}
 	switch s.policy.PersonalSpaces() {
 	case sysconfig.PersonalSpacesEveryone:
 	case sysconfig.PersonalSpacesMembers:
@@ -77,9 +82,11 @@ func (s *Service) Provision(ctx context.Context, user store.User) error {
 	return nil
 }
 
-func (s *Service) adopt(r *http.Request, user store.User, email string) {
+// Adopt turns the invitations waiting for a verified address into grants and
+// audits each one. viewOnly is the guest's call: see share.AdoptPending.
+func (s *Service) Adopt(r *http.Request, user store.User, email string, viewOnly bool) {
 	ctx := r.Context()
-	rows, err := s.share.AdoptPending(ctx, user, share.NormalizeEmail(email))
+	rows, err := s.share.AdoptPending(ctx, user, share.NormalizeEmail(email), viewOnly)
 	if err != nil {
 		slog.ErrorContext(ctx, "adopt pending shares", "module", "personal", "user", user.Email, "err", err)
 		return
