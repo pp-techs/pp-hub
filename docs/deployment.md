@@ -150,6 +150,16 @@ Every push to `main` publishes `:edge` and
 `:sha-<short>` (`edge.yml`). Release tags are never pushed by hand — nothing
 listens for them.
 
+The release also carries a desktop app: `desktop.yml`, dispatched by
+`release.yml` once the release exists, wraps your deployment in a Pake window
+and attaches `PP-Hub_X.Y.Z_{macos-arm64,macos-x64}.dmg` and
+`PP-Hub_X.Y.Z_windows-x64.msi` to it. The server is self-hosted, so the URL it
+opens is the repository variable `DESKTOP_APP_URL` (Settings → Secrets and
+variables → Actions → Variables); the job fails while it is unset. The apps
+are unsigned, so macOS Gatekeeper and Windows SmartScreen warn on first launch.
+A failed build does not affect the images; re-run it, or dispatch `Desktop`
+with the tag.
+
 | Action        | What you do                                      |
 | ------------- | ------------------------------------------------ |
 | Deploy        | set `PP_IMAGE_TAG=0.2.0`, re-run `up -d`         |

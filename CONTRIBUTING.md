@@ -61,6 +61,10 @@ to `main`:
    as `:X.Y.Z`, `:X.Y` and `:latest` (a prerelease `X.Y.Z-rc.1` gets only its own tag),
    then tags `vX.Y.Z` and creates the GitHub Release from the changelog section.
    The tag is created last, so a tag always means the images exist.
+   Last, `release.yml` dispatches `desktop.yml`, which builds the Pake desktop
+   apps and attaches them to that release (see
+   [docs/deployment.md](docs/deployment.md#releases)). It is not a gate: a
+   failure leaves the images and the release untouched, and it can be re-run.
 
 A failed run is retried by re-running the failed jobs. Never bump versions or
 push release tags by hand: nothing listens for a tag. To deploy, set

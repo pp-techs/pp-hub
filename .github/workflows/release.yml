@@ -194,6 +194,7 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: write # tag + GitHub Release
+      actions: write # dispatch desktop.yml
     env:
       VERSION: ${{ needs.plan.outputs.version }}
     steps:
@@ -220,3 +221,11 @@ jobs:
             --title "$tag" \
             --notes-file "$RUNNER_TEMP/release/notes.md" \
             "${prerelease[@]}"
+
+      # A release created with the workflow token does not fire
+      # `release: published`; a dispatch is exempt. Not a gate: the server
+      # images are already out, and desktop.yml can be re-run on its own.
+      - name: Build desktop apps
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run desktop.yml --repo "$GITHUB_REPOSITORY" --ref "v$VERSION" -f tag="v$VERSION"

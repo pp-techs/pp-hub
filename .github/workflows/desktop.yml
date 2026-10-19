@@ -1,0 +1,108 @@
+name: Desktop
+
+# Desktop app (CONTRIBUTING.md#releasing). A thin Pake shell around the
+# deployment's own URL, built per platform and attached to the GitHub Release
+# vX.Y.Z. Separate from `release.yml` so a desktop failure can never block the
+# server release: re-run the failed jobs, or dispatch it again.
+#
+# `release.yml` dispatches this after it creates the release: a release created
+# with the workflow token does not fire `release: published`, so that trigger
+# only covers releases published by hand. The app is unsigned (ad-hoc on macOS,
+# nothing on Windows): Gatekeeper and SmartScreen warn on first launch.
+#
+# The server is self-hosted, so the URL it wraps is the repository variable
+# DESKTOP_APP_URL (Settings → Secrets and variables → Actions → Variables).
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to build and attach to, e.g. v0.26.0
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: desktop-${{ inputs.tag || github.event.release.tag_name }}
+  cancel-in-progress: false
+
+env:
+  PAKE_VERSION: 3.15.7
+  TAG: ${{ inputs.tag || github.event.release.tag_name }}
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    permissions:
+      contents: write # attach to the GitHub Release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS arm64
+            runner: macos-latest
+            targets: apple
+            ext: dmg
+            suffix: macos-arm64
+          - name: macOS x64
+            runner: macos-15-intel
+            targets: intel
+            ext: dmg
+            suffix: macos-x64
+          - name: Windows x64
+            runner: windows-latest
+            targets: x64
+            ext: msi
+            suffix: windows-x64
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+
+      - name: Install Pake
+        run: npm install -g "pake-cli@$PAKE_VERSION"
+
+      - name: Build
+        env:
+          APP_URL: ${{ vars.DESKTOP_APP_URL }}
+        run: |
+          if [ -z "$APP_URL" ]; then
+            echo "::error::Set the repository variable DESKTOP_APP_URL to the address users open pp-hub at"
+            exit 1
+          fi
+          # Pake derives the bundle version from this; MSI needs a numeric one,
+          # so a prerelease X.Y.Z-rc.1 is built as X.Y.Z.
+          version="${TAG#v}"
+          mkdir "$RUNNER_TEMP/out"
+          cd "$RUNNER_TEMP/out"
+          pake "$APP_URL" \
+            --name "PP Hub" \
+            --icon "$GITHUB_WORKSPACE/apps/web/public/android-chrome-512x512.png" \
+            --app-version "${version%%-*}" \
+            --enable-find \
+            --targets "${{ matrix.targets }}"
+          shopt -s nullglob
+          files=(*.${{ matrix.ext }})
+          if [ "${#files[@]}" -ne 1 ]; then
+            echo "::error::expected one .${{ matrix.ext }}, found ${#files[@]}"
+            ls -la
+            exit 1
+          fi
+          mv "${files[0]}" "PP-Hub_${version}_${{ matrix.suffix }}.${{ matrix.ext }}"
+
+      - name: Attach to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "$TAG" "$RUNNER_TEMP"/out/PP-Hub_*.${{ matrix.ext }} \
+            --repo "$GITHUB_REPOSITORY" --clobber
