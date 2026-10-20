@@ -35,7 +35,8 @@ SELECT * FROM users WHERE oidc_iss = $1;
 -- short of hand-editing Postgres.
 -- name: AdoptUserIdentity :one
 -- Both callers adopt by an address the identity provider verified.
-UPDATE users SET oidc_iss = $2, oidc_sub = $3, email = $4, name = $5, email_verified = true, last_seen = now()
+UPDATE users SET oidc_iss = $2, oidc_sub = $3, email = $4, name = $5, email_verified = true,
+  kind = 'member', last_seen = now()
 WHERE id = $1
 RETURNING *;
 
@@ -136,13 +137,14 @@ ORDER BY
 LIMIT @max_rows;
 
 -- name: ListUsers :many
+-- The admin console lists accounts; a guest is not one (guest-access.md).
 SELECT * FROM users
-WHERE tenant_id = $1
+WHERE tenant_id = $1 AND kind = 'member'
 ORDER BY created_at DESC
 LIMIT $2 OFFSET $3;
 
 -- name: CountUsers :one
-SELECT COUNT(*) FROM users WHERE tenant_id = $1;
+SELECT COUNT(*) FROM users WHERE tenant_id = $1 AND kind = 'member';
 
 -- name: SetUserAdmin :exec
 UPDATE users SET is_admin = $2 WHERE id = $1;
@@ -167,3 +169,29 @@ ORDER BY m.created_at;
 -- name: IsSpaceMember :one
 SELECT EXISTS(SELECT 1 FROM space_members WHERE space_id = $1 AND user_id = $2);
 
+
+-- name: CreateGuestUser :one
+-- A guest: an address somebody proved with a one-time code. No identity
+-- provider is involved, so the issuer is empty and the subject is made from
+-- the row's own id.
+WITH new_id AS (SELECT gen_random_uuid() AS id)
+INSERT INTO users (id, oidc_sub, oidc_iss, email, name, email_verified, kind)
+SELECT id, 'guest:' || id::text, '', @email::text, '', true, 'guest' FROM new_id
+RETURNING *;
+
+-- name: GetGuestByEmailNorm :one
+-- The guest, if any, who holds an address. Compared without case: a later
+-- sign-in may spell it differently from the lower-cased form a guest is
+-- stored under.
+SELECT * FROM users
+WHERE kind = 'guest' AND lower(email) = @email_norm::text
+LIMIT 1;
+
+-- name: AccountExistsForEmailNorm :one
+-- Whether a real account (any verification state) already uses an address. A
+-- guest is never made for one: the address would collide with it, or collect
+-- what was meant for its owner.
+SELECT EXISTS (
+  SELECT 1 FROM users
+  WHERE kind = 'member' AND lower(email) = @email_norm::text
+)::boolean AS taken;

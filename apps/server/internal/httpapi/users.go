@@ -50,6 +50,9 @@ type userProfileDTO struct {
 	// ExternalSharingEnabled is the instance switch on sharing with people
 	// outside a space; each space has its own beneath it.
 	ExternalSharingEnabled bool `json:"external_sharing_enabled"`
+	// Kind is "member" or "guest": a guest opens things with a one-time code,
+	// has no space of their own and sees a smaller app (guest-access.md).
+	Kind string `json:"kind"`
 }
 
 type updateProfileRequest struct {
@@ -119,6 +122,7 @@ func (s *Server) handleGetMyProfile(w http.ResponseWriter, r *http.Request) {
 // profileExtras fills the profile fields that come from instance settings and
 // the space table rather than from the account row.
 func (s *Server) profileExtras(r *http.Request, u *store.User, dto *userProfileDTO) {
+	dto.Kind = u.Kind
 	dto.MCPURL = s.mcpConnectorURL()
 	dto.MCPTokens = s.mcpTokensAllowed()
 	dto.WebDAVURL = s.davURL()

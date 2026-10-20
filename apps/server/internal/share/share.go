@@ -402,14 +402,18 @@ type Adopted struct {
 // offered. Anything else — a departed or demoted inviter, an expiry passed —
 // is dropped. A grant becomes external unless the user is already a member of
 // the node's space, and a grant the user already holds is kept.
-func (s *Service) AdoptPending(ctx context.Context, user store.User, emailNorm string) ([]Adopted, error) {
+//
+// viewOnly takes only the view invitations and leaves the others waiting —
+// the call a guest session makes, because a guest can hold nothing wider and
+// an edit invitation is for the address's own sign-in.
+func (s *Service) AdoptPending(ctx context.Context, user store.User, emailNorm string, viewOnly bool) ([]Adopted, error) {
 	if emailNorm == "" {
 		return nil, nil
 	}
 	var out []Adopted
 	err := s.q.InTx(ctx, func(q *store.Queries) error {
 		tx := &Service{q: q, externalEnabled: s.externalEnabled}
-		rows, err := q.TakePendingShares(ctx, emailNorm)
+		rows, err := q.TakePendingShares(ctx, store.TakePendingSharesParams{EmailNorm: emailNorm, ViewOnly: viewOnly})
 		if err != nil {
 			return err
 		}

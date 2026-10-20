@@ -911,6 +911,16 @@ purpose:
   parent names in search, Starred and Recent stop at the topmost node the
   outsider can open: never the roster, nor who holds or what is called anything
   above their share.
+- **Guests (M49).** With `guest_access` on, an address that holds a view
+  invitation, or a guest who holds a grant, can prove the address with an
+  emailed code and open it with no account ([guest-access.md](guest-access.md)).
+  A guest is a `users` row of `kind = 'guest'` holding the same external direct
+  grant — the resolver is unchanged — at **view** only (an edit share to one is
+  422; an edit invitation is not adopted at a guest verification). Comments take
+  `CapView`, so a guest comments on what they can open. Their session is
+  confined by an allowlist in the `authenticated` middleware, not by the
+  resolver: every route not listed answers 403, and `guest_access` or
+  `external_sharing_enabled` off ends every guest session at once.
 
 ## Agents (MCP)
 

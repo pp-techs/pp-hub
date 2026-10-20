@@ -43,6 +43,7 @@ export function NavUser() {
   const space = useSpace(useActiveSpaceId());
   const { openSettings } = useSettingsNavigation();
   const { t } = useLingui();
+  const guest = me.data?.kind === "guest";
 
   const name = me.data?.display_name || me.data?.name || t`User`;
 
@@ -99,13 +100,19 @@ export function NavUser() {
                 </div>
               </DropdownMenuLabel>
             </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => openSettings("general")}>
-              <Settings /> <Trans>Settings</Trans>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => openSettings("profile")}>
-              <User /> <Trans>Profile</Trans>
-            </DropdownMenuItem>
+            {!guest && <DropdownMenuSeparator />}
+            {/* A guest has no settings to change: every pane reads an
+                account, a space or the instance, and none is theirs. */}
+            {!guest && (
+              <>
+                <DropdownMenuItem onClick={() => openSettings("general")}>
+                  <Settings /> <Trans>Settings</Trans>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => openSettings("profile")}>
+                  <User /> <Trans>Profile</Trans>
+                </DropdownMenuItem>
+              </>
+            )}
             {space?.is_admin && (
               <>
                 <DropdownMenuSeparator />

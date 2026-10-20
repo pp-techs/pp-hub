@@ -502,6 +502,20 @@ func (s *Service) resolveMember(ctx context.Context, m Member) (store.User, erro
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return store.User{}, err
 	}
+	// The address may be a guest's: somebody who proved it with a code and
+	// was shared things. Their row becomes the member, keeping its grants and
+	// comments, rather than a second account beside it.
+	if m.Email != "" {
+		guest, gerr := s.q.GetGuestByEmailNorm(ctx, strings.ToLower(strings.TrimSpace(m.Email)))
+		if gerr == nil {
+			return s.q.AdoptUserIdentity(ctx, store.AdoptUserIdentityParams{
+				ID: guest.ID, OidcIss: s.issuer, OidcSub: m.ID, Email: m.Email, Name: m.Name,
+			})
+		}
+		if !errors.Is(gerr, pgx.ErrNoRows) {
+			return store.User{}, gerr
+		}
+	}
 	// Logto's primaryEmail is verified by construction.
 	user, err = s.q.CreateUser(ctx, store.CreateUserParams{
 		OidcSub: m.ID, OidcIss: s.issuer, Email: m.Email, Name: m.Name, EmailVerified: m.Email != "",

@@ -45,10 +45,13 @@ DELETE FROM invitation_log WHERE created_at < @before::timestamptz;
 -- Deletes every invitation for an address — expired ones included — and
 -- returns them with the node they name, for adoption at a verified sign-in.
 -- The caller decides which become grants: only those whose inviter can still
--- give them.
+-- give them. view_only takes only the view invitations and leaves the rest
+-- waiting: a guest can hold nothing wider, and an edit invitation is for the
+-- address's own sign-in.
 WITH taken AS (
     DELETE FROM pending_shares p
     WHERE p.email_norm = @email_norm
+      AND (NOT @view_only::bool OR p.level = 'view')
     RETURNING p.*
 )
 SELECT t.id, t.node_id, t.level, t.can_download, t.created_by, t.expires_at,
@@ -63,3 +66,12 @@ INSERT INTO shares (node_id, kind, grantee_user_id, level, can_download, can_sha
 VALUES (@node_id, 'direct', @grantee_user_id, @level, @can_download, false, @expires_at, @created_by, @is_external)
 ON CONFLICT (node_id, grantee_user_id) WHERE kind = 'direct' DO NOTHING
 RETURNING *;
+
+-- name: HasLivePendingShareFor :one
+-- Whether an address has a view invitation that has not expired: one of the
+-- two reasons a guest code is sent to it.
+SELECT EXISTS (
+  SELECT 1 FROM pending_shares
+  WHERE email_norm = @email_norm AND level = 'view'
+    AND (expires_at IS NULL OR expires_at > now())
+)::boolean AS live;

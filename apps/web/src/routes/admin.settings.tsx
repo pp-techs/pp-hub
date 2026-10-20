@@ -176,6 +176,7 @@ const BOOL_SETTINGS = [
   "mcp_tokens",
   "mcp_external_shares",
   "external_sharing_enabled",
+  "guest_access",
   "webdav_enabled",
 ] as const;
 
@@ -187,6 +188,7 @@ const KEY = {
   alertThreshold: "alert_failed_login_threshold",
   alertWindow: "alert_failed_login_window_minutes",
   externalSharing: "external_sharing_enabled",
+  guestAccess: "guest_access",
   mcpEnabled: "mcp_enabled",
   mcpPublicLinks: "mcp_public_links",
   mcpTokens: "mcp_tokens",
@@ -206,6 +208,7 @@ const BOOL_DEFAULTS: BoolSettingValues = {
   mcp_tokens: true,
   mcp_external_shares: false,
   external_sharing_enabled: false,
+  guest_access: false,
   webdav_enabled: false,
 };
 
@@ -807,10 +810,17 @@ function SettingsForm({ settings, onMailTab }: { settings: AdminSettingsMap; onM
             <Trans>
               Lets people share files and folders by email with anyone, including people outside
               their space or without an account. Each space admin still decides for their space.
+              Guest access lets somebody without an account open a view-only share by proving their
+              address with a code mailed to it; it needs outgoing mail set up, and only view and
+              comment are possible.
             </Trans>
           }
         >
           {boolRow(KEY.externalSharing, <Trans>Allow sharing outside a space</Trans>)}
+          {boolRow(
+            KEY.guestAccess,
+            <Trans>Let people without an account open what was shared</Trans>,
+          )}
         </SettingsSection>
 
         <SettingsSection

@@ -55,6 +55,11 @@ const (
 	// through Finder, Explorer and rclone, whose save patterns an operator
 	// should choose to accept.
 	KeyWebDAVEnabled = "webdav_enabled"
+	// KeyGuestAccess lets somebody with no account open what was shared with
+	// their email address by proving the address with a one-time code, as a
+	// guest who can view and comment (docs/architecture/guest-access.md). Off by
+	// default; it also needs external sharing, on the instance and the space.
+	KeyGuestAccess = "guest_access"
 
 	DefaultTenantID = "default"
 )
@@ -369,6 +374,12 @@ func defaultDefs() map[string]SettingDef {
 			Description: "Let people give access to someone outside a space by email",
 			Default:     false,
 		},
+		KeyGuestAccess: {
+			Key:         KeyGuestAccess,
+			Type:        "boolean",
+			Description: "Let people outside the instance open what was shared with their email by proving it with a one-time code",
+			Default:     false,
+		},
 	}
 }
 
@@ -466,7 +477,7 @@ func (s *Service) coerceAndValidate(def SettingDef, raw json.RawMessage) (any, [
 		val = num
 	case KeySMTP:
 		return s.coerceSMTP(raw)
-	case KeyMCPEnabled, KeyMCPPublicLinks, KeyMCPTokens, KeyMCPExternalShares, KeyExternalSharingEnabled, KeyWebDAVEnabled:
+	case KeyMCPEnabled, KeyMCPPublicLinks, KeyMCPTokens, KeyMCPExternalShares, KeyExternalSharingEnabled, KeyWebDAVEnabled, KeyGuestAccess:
 		var b bool
 		if err := json.Unmarshal(raw, &b); err != nil {
 			return nil, nil, fmt.Errorf("%s must be true or false: %w", def.Key, err)
@@ -743,6 +754,9 @@ func (s *Service) MCPExternalShares() bool { return s.cachedBool(KeyMCPExternalS
 func (s *Service) ExternalSharingEnabled() bool {
 	return s.cachedBool(KeyExternalSharingEnabled, false)
 }
+
+// GuestAccess reports whether guest sessions are honoured at all.
+func (s *Service) GuestAccess() bool { return s.cachedBool(KeyGuestAccess, false) }
 
 // WebDAVEnabled reports whether drives may be mounted over WebDAV.
 func (s *Service) WebDAVEnabled() bool { return s.cachedBool(KeyWebDAVEnabled, false) }

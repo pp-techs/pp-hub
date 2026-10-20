@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"strings"
 	"time"
@@ -44,6 +45,9 @@ type Invite struct {
 	Level       store.ShareLevel
 	CanDownload bool
 	Email       string
+	// Guest: the address can open it with a one-time code instead of an
+	// account (guest access is on and the invitation is view-only).
+	Guest bool
 }
 
 type emailJob struct {
@@ -164,6 +168,7 @@ func (n *Notifier) Invited(ctx context.Context, inv Invite) {
 		Level:        inv.Level,
 		CanDownload:  inv.CanDownload,
 		Link:         n.externalURL + "/open/" + uuidString(inv.Node.ID),
+		Guest:        inv.Guest,
 	})
 	payload, err := json.Marshal(emailJob{To: inv.Email, Subject: subject, Body: body})
 	if err != nil {
@@ -317,4 +322,35 @@ func (n *Notifier) drain(ctx context.Context) {
 
 		_ = n.q.CompleteJob(ctx, job.ID)
 	}
+}
+
+// GuestCode mails a one-time sign-in code to an address, at once and not
+// through the job queue: somebody is waiting on it with a form open. The
+// returned error is for the caller to log, never to show — whether a code
+// was sent must not be visible to the person asking.
+//
+// The message is in both languages because nothing is known of the reader
+// yet, and it carries no sender-chosen text.
+func (n *Notifier) GuestCode(ctx context.Context, to, code string, ttl time.Duration) error {
+	if n == nil || n.mail == nil || !n.mail.Enabled() {
+		return mail.ErrDisabled
+	}
+	instance := n.instance()
+	minutes := int(ttl / time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	return n.mail.Send(ctx, mail.Message{
+		To:      to,
+		Subject: fmt.Sprintf("%s: your code is %s / mã xác minh %s", instance, code, code),
+		Body: fmt.Sprintf(`Your %[1]s code is: %[2]s
+
+It works for %[3]d minutes. Enter it where you asked for it to open what was shared with this address. If you did not ask, ignore this email: nobody can open anything without the code.
+
+--
+
+Mã xác minh %[1]s của bạn là: %[2]s
+
+Mã có hiệu lực trong %[3]d phút. Hãy nhập mã vào nơi bạn đã yêu cầu để mở nội dung được chia sẻ với địa chỉ này. Nếu bạn không yêu cầu, hãy bỏ qua email này: không ai mở được gì nếu thiếu mã.`,
+			instance, code, minutes),
+	})
 }

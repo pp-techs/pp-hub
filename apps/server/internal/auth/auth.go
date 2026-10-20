@@ -54,6 +54,11 @@ const (
 	sessionIdleTTL      = 30 * 24 * time.Hour
 	sessionRefreshAfter = time.Hour
 
+	// A guest's session is short, and slides the same way. Somebody who
+	// proved an address once has not been through an identity provider, so
+	// the proof is allowed to go stale sooner.
+	guestIdleTTL = 7 * 24 * time.Hour
+
 	// The login handshake is a round trip through the IdP, not a coffee break.
 	txTTL = 10 * time.Minute
 )
@@ -601,6 +606,13 @@ func (s *Service) resolveUser(r *http.Request, idToken *oidc.IDToken, claims idC
 
 	if claims.Email != "" && bool(claims.EmailVerified) {
 		existing, err := s.queries.GetUserByEmail(ctx, claims.Email)
+		if errors.Is(err, pgx.ErrNoRows) {
+			// A guest is stored under the lower-cased address, and the
+			// provider may spell it otherwise. Re-pointing the guest row,
+			// rather than making a second account, keeps its grants and its
+			// comments with the person they were for.
+			existing, err = s.queries.GetGuestByEmailNorm(ctx, strings.ToLower(strings.TrimSpace(claims.Email)))
+		}
 		switch {
 		case err == nil:
 			slog.WarnContext(ctx, "oidc identity adopted by an existing account",
@@ -652,6 +664,24 @@ func (s *Service) resolveUser(r *http.Request, idToken *oidc.IDToken, claims idC
 // --- sessions ---
 
 func (s *Service) issueSession(ctx context.Context, w http.ResponseWriter, r *http.Request, userID pgtype.UUID) error {
+	return s.issueSessionFor(ctx, w, r, userID, sessionIdleTTL)
+}
+
+// IssueGuestSession signs a guest in once their one-time code has been
+// checked. The idle window is short and slides with use (guestIdleTTL).
+func (s *Service) IssueGuestSession(ctx context.Context, w http.ResponseWriter, r *http.Request, userID pgtype.UUID) error {
+	return s.issueSessionFor(ctx, w, r, userID, guestIdleTTL)
+}
+
+// idleTTLFor is how long a session of this account lives unused.
+func idleTTLFor(u store.User) time.Duration {
+	if u.Kind == "guest" {
+		return guestIdleTTL
+	}
+	return sessionIdleTTL
+}
+
+func (s *Service) issueSessionFor(ctx context.Context, w http.ResponseWriter, r *http.Request, userID pgtype.UUID, ttl time.Duration) error {
 	token, err := randomToken()
 	if err != nil {
 		return err
@@ -662,11 +692,11 @@ func (s *Service) issueSession(ctx context.Context, w http.ResponseWriter, r *ht
 		TokenHash: sum[:],
 		UserAgent: truncate(r.UserAgent(), maxUserAgent),
 		Ip:        audit.ClientIP(r),
-		ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(sessionIdleTTL), Valid: true},
+		ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(ttl), Valid: true},
 	}); err != nil {
 		return err
 	}
-	http.SetCookie(w, s.cookie(sessionCookie, token, int(sessionIdleTTL.Seconds())))
+	http.SetCookie(w, s.cookie(sessionCookie, token, int(ttl.Seconds())))
 	return nil
 }
 
@@ -698,7 +728,8 @@ func (s *Service) Authenticate(w http.ResponseWriter, r *http.Request) *Session 
 		return nil
 	}
 	if now.Sub(row.Session.LastUsedAt.Time) > sessionRefreshAfter {
-		expires := now.Add(sessionIdleTTL)
+		ttl := idleTTLFor(row.User)
+		expires := now.Add(ttl)
 		if err := s.queries.TouchSession(r.Context(), store.TouchSessionParams{
 			ID:        row.Session.ID,
 			ExpiresAt: pgtype.Timestamptz{Time: expires, Valid: true},
@@ -707,7 +738,7 @@ func (s *Service) Authenticate(w http.ResponseWriter, r *http.Request) *Session 
 			// right now and the next request will try again.
 			slog.ErrorContext(r.Context(), "touch session", "err", err)
 		} else {
-			http.SetCookie(w, s.cookie(sessionCookie, c.Value, int(sessionIdleTTL.Seconds())))
+			http.SetCookie(w, s.cookie(sessionCookie, c.Value, int(ttl.Seconds())))
 		}
 	}
 	return &Session{ID: row.Session.ID, User: row.User}
@@ -720,18 +751,24 @@ func (s *Service) Authenticate(w http.ResponseWriter, r *http.Request) *Session 
 // followed by "sign in" was a silent SSO re-entry — on a shared machine, as
 // the previous person.
 func (s *Service) HandleLogout(w http.ResponseWriter, r *http.Request) {
+	endSession := s.EndSessionURL()
 	if sess := s.Authenticate(w, r); sess != nil {
 		s.audit.Record(r, audit.Event{
 			Kind:    audit.KindLogout,
 			UserID:  sess.User.ID,
 			Subject: sess.User.Email,
 		})
+		// A guest never signed in at the provider, so there is no provider
+		// session to end.
+		if sess.User.Kind == "guest" {
+			endSession = ""
+		}
 	}
 	s.revokeCookieSession(r)
 	s.clearCookie(w, sessionCookie)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(map[string]string{"end_session_url": s.EndSessionURL()})
+	_ = json.NewEncoder(w).Encode(map[string]string{"end_session_url": endSession})
 }
 
 // revokeCookieSession drops whatever session the request's cookie names, if

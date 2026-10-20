@@ -132,6 +132,13 @@
 2. An account outside the space gets an external grant (view or edit, never re-share) and a mail linking to `/open/{id}`; an address with no account gets an invitation (202) that becomes a grant at its first verified sign-in. Fifty new outsiders per sender per day.
 3. The outsider finds it under **Shared from outside**, browses it by node, opens and co-edits documents, and mentions only the people the document was opened to. Either switch off ends their access at once.
 
+### UC-18: Open a share without an account
+
+1. An instance admin switches on **Admin › Settings › Sharing › guest access** (`guest_access`, off by default; it needs external sharing on and outgoing mail configured).
+2. Somebody shares a file or folder by email at **view** level with an address that has no account; the address gets the usual invitation mail, which says to enter the address and wait for a code.
+3. The recipient opens `/open/{id}`, enters the address on the sign-in page, receives a six-digit code (ten minutes, five tries), and is signed in as a guest for seven days of activity.
+4. They read what was shared with them and comment on it; they see no spaces, search, settings or history. Signing in later with the same address through the identity provider turns the guest into an ordinary account, keeping what it was shared and wrote.
+
 ## Agents
 
 ### UC-17: Work on space files through a mount

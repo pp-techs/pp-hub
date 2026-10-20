@@ -57,6 +57,11 @@ export const Route = createFileRoute("/drive")({
     const spacesPromise = fetchSpaces(queryClient);
     spacesPromise.catch(() => {});
     const me = await requireAuth(queryClient, location.href);
+    // A guest has no space to land in: what was shared with them is the
+    // whole of their drive.
+    if (me.kind === "guest" && /^\/drive\/?$/.test(location.pathname)) {
+      throw redirect({ to: "/drive/shared", search: { dir: undefined } });
+    }
     if (/^\/drive\/?$/.test(location.pathname)) {
       const spaces = await spacesPromise;
       if (spaces.length > 0) {
@@ -89,10 +94,13 @@ function DriveLayout() {
   const { nodeId } = useParams({ strict: false });
   const onFile = nodeId !== undefined;
   const setPaletteOpen = useUiStore((s) => s.setPaletteOpen);
+  // A guest has nothing to search: the palette's endpoints are closed to them.
+  const guest = useMe().data?.kind === "guest";
 
   // Bound once for the whole drive, so ⌘K works from the listing, a panel or
   // the rail. The palette itself only handles keys while it is open.
   useEffect(() => {
+    if (guest) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
@@ -101,7 +109,7 @@ function DriveLayout() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [setPaletteOpen]);
+  }, [guest, setPaletteOpen]);
 
   return (
     // `HeaderSlotProvider`, `FileTabsProvider` and `DriveWriteProvider` wrap
@@ -146,7 +154,7 @@ function DriveLayout() {
             <NewSpaceDialog />
             {/* Mounted by the shell so uploads survive navigating between folders. */}
             <TransferTray />
-            <CommandPalette />
+            {!guest && <CommandPalette />}
             {/* Versions — opened from the listing, Recent or an open file. */}
             <NodePanels />
             {/* Renders nothing: it only turns `#settings/<pane>` into an open

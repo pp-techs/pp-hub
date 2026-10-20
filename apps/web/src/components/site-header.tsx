@@ -14,7 +14,7 @@ import {
 import { cn } from "@workspace/ui/lib/utils";
 import { SidebarTrigger } from "@workspace/ui/components/sidebar";
 import type { Node } from "@/lib/api";
-import { useMoveNodes, useNode, useNodePath } from "@/lib/queries";
+import { useMe, useMoveNodes, useNode, useNodePath } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
 import { isValidMoveTarget } from "@/lib/drag-drop";
 import { HeaderLeadSlot, HeaderSlot } from "@/components/header-slot";
@@ -46,6 +46,8 @@ export function SiteHeader() {
     nodeId?: string;
   };
   const { dir } = useSearch({ strict: false }) as { dir?: string };
+  // A guest cannot search: the palette's endpoints are closed to them.
+  const guest = useMe().data?.kind === "guest";
 
   const sections = location.pathname
     .split("/")
@@ -82,7 +84,7 @@ export function SiteHeader() {
       )}
 
       <div className="ml-auto flex shrink-0 items-center gap-1 lg:gap-2">
-        <NavSearch />
+        {!guest && <NavSearch />}
         <HeaderSlot />
         <NotificationsBell />
       </div>

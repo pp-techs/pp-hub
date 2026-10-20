@@ -42,6 +42,9 @@ type shareDTO struct {
 	GranteeOwned int64 `json:"grantee_owned,omitempty"`
 	// IsExternal marks a direct share to someone outside the node's space.
 	IsExternal bool `json:"is_external,omitempty"`
+	// GranteeGuest marks a grantee who opens things with a one-time code
+	// rather than an account (guest-access.md).
+	GranteeGuest bool `json:"grantee_guest,omitempty"`
 }
 
 // withGrantee names a direct share's grantee on the DTO.
@@ -49,6 +52,7 @@ func (d shareDTO) withGrantee(u store.User) shareDTO {
 	d.GranteeID = u.ID.String()
 	d.GranteeName = displayName(u)
 	d.Grantee = u.Email
+	d.GranteeGuest = u.Kind == "guest"
 	return d
 }
 
@@ -240,6 +244,14 @@ func (s *Server) shareByEmail(
 		writeProblem(w, http.StatusBadRequest, "Bad Request", share.ErrSelfShare.Error())
 		return
 	}
+	// A guest can hold nothing wider than view (guest-access.md): the session
+	// cannot edit, and a grant it could never use would only mislead the
+	// owner, so it is refused rather than quietly narrowed.
+	if found && grantee.Kind == "guest" && want.Level != store.ShareLevelView {
+		writeProblem(w, http.StatusUnprocessableEntity, "Unprocessable",
+			"that address opens things as a guest, who can only view and comment — share with view access")
+		return
+	}
 	if found && s.isMember(ctx, node.SpaceID, grantee.ID) {
 		s.upsertDirectShare(w, r, u, node, callerCaps, grantee, want, expires, false)
 		return
@@ -339,6 +351,7 @@ func (s *Server) invite(
 		if mailed {
 			s.notify.Invited(ctx, notify.Invite{
 				Granter: *u, Node: node, Level: p.Level, CanDownload: p.CanDownload, Email: email,
+				Guest: s.guest.Enabled() && p.Level == store.ShareLevelView,
 			})
 		}
 	}

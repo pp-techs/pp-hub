@@ -19,6 +19,7 @@ import { fetchMe } from "@/lib/queries";
 import { safePath } from "@/lib/safe-path";
 import { PRODUCT_NAME, pageTitle } from "@/lib/i18n";
 import { BrandMark } from "@/components/brand-mark";
+import { GuestSignIn } from "@/components/guest-sign-in";
 
 /**
  * Why a sign-in attempt came back here.
@@ -167,6 +168,7 @@ function LoginPage() {
               <LogIn data-icon="inline-start" />
               <Trans>Continue with SSO</Trans>
             </Button>
+            <GuestSignIn redirectTo={target} />
           </CardContent>
           <CardFooter className="text-muted-foreground gap-2 text-[10px]">
             <Lock className="size-3 shrink-0" />

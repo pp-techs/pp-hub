@@ -67,8 +67,14 @@ const (
 	KindPendingShareCreated Kind = "pending_share_created"
 	KindPendingShareAdopted Kind = "pending_share_adopted"
 	KindPendingShareRevoked Kind = "pending_share_revoked"
-	KindMemberAdded         Kind = "member_added"
-	KindMemberRemoved       Kind = "member_removed"
+	// Guest access (guest-access.md). A code is asked for, a guest proves an
+	// address with it (a session starts), or a code is refused. The subject
+	// is the address: a guest has no account until the first success.
+	KindGuestCodeRequested Kind = "guest_code_requested"
+	KindGuestVerified      Kind = "guest_verified"
+	KindGuestVerifyFailed  Kind = "guest_verify_failed"
+	KindMemberAdded        Kind = "member_added"
+	KindMemberRemoved      Kind = "member_removed"
 	// An address the identity provider was asked to invite into the space's
 	// organization. It has no user_id: the point of an invitation is that
 	// there may be no account to point at yet.

@@ -16,6 +16,7 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/exthost"
 	"github.com/nhatbui/pp-hub/apps/server/internal/fs"
 	"github.com/nhatbui/pp-hub/apps/server/internal/groups"
+	"github.com/nhatbui/pp-hub/apps/server/internal/guest"
 	"github.com/nhatbui/pp-hub/apps/server/internal/mail"
 	"github.com/nhatbui/pp-hub/apps/server/internal/notifications"
 	"github.com/nhatbui/pp-hub/apps/server/internal/notify"
@@ -84,6 +85,9 @@ type Server struct {
 	// personal provisions personal spaces (sign-in does it too; the space
 	// list catches sessions that predate the setting). Nil in handler tests.
 	personal *personal.Service
+	// guest turns a one-time code into a guest session (guest.go). Nil in
+	// handler tests that do not exercise it, which leaves guests off.
+	guest *guest.Service
 	// ext is the extension host (M44); nil when a build carries none, in
 	// which case no extension route exists and every extension listing is empty.
 	ext *exthost.Registry
@@ -175,6 +179,7 @@ func NewServer(d Deps) *Server {
 		s.sysconfig = sysconfig.NewService(d.Store, nil)
 	}
 	s.personal = personal.New(d.Store, d.Spaces, d.Share, s.sysconfig, s.audit)
+	s.guest = guest.New(d.Store, s.sysconfig, d.Notifier)
 	return s
 }
 
@@ -231,10 +236,21 @@ func (s *Server) Router() http.Handler {
 	loginLimit := newLimiter(30, 10)
 	shareLimit := newLimiter(60, 20)
 	apiLimit := newLimiter(1200, 200)
+	// Guest codes are mail to an address somebody else chose, so the
+	// per-IP bucket is small; the per-address allowance in internal/guest
+	// is the real bound.
+	guestCodeLimit := newLimiter(1, 10)
+	guestVerifyLimit := newLimiter(10, 20)
 
 	r.With(loginLimit.middleware).Get("/auth/login", s.auth.HandleLogin)
 	r.With(loginLimit.middleware).Get("/auth/callback", s.auth.HandleCallback)
 	r.With(loginLimit.middleware, s.sameOrigin).Post("/auth/logout", s.auth.HandleLogout)
+	// A guest proves an address with a one-time code (guest.go). Outside
+	// /api/v1 because the caller has no session yet; same-origin like the
+	// other cookie-setting POST.
+	r.With(guestCodeLimit.middleware, s.sameOrigin).Post("/auth/guest/code", s.handleGuestCode)
+	r.With(guestVerifyLimit.middleware, s.sameOrigin).Post("/auth/guest/verify", s.handleGuestVerify)
+	r.With(loginLimit.middleware).Get("/auth/guest", s.handleGuestConfig)
 
 	r.Route("/api/v1", func(r chi.Router) {
 		// Everything below this line is authenticated.
@@ -532,6 +548,20 @@ func (s *Server) authenticated(next http.Handler) http.Handler {
 		if sess.User.SuspendedAt.Valid {
 			writeProblem(w, http.StatusForbidden, "Forbidden", "this account is suspended")
 			return
+		}
+		// A guest session reaches a short list of read-and-comment routes
+		// and nothing else (guest_routes.go). It is a list of what is
+		// allowed, not of what is refused, so a route added later is closed
+		// to guests until somebody opens it on purpose.
+		if sess.User.Kind == "guest" {
+			if !s.guest.Enabled() {
+				writeProblem(w, http.StatusForbidden, "Forbidden", "guest access is turned off")
+				return
+			}
+			if !guestMayCall(r) {
+				writeProblem(w, http.StatusForbidden, "Forbidden", "a guest cannot do this")
+				return
+			}
 		}
 		if rl, ok := r.Context().Value(logCtxKey).(*requestLog); ok {
 			rl.userID = sess.User.ID.String()
