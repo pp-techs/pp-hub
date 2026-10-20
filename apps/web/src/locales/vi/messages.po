@@ -285,7 +285,7 @@ msgstr "{n, plural, one {# đã tạm khoá} other {# đã tạm khoá}}"
 msgid "{n, plural, one {Paste # item} other {Paste # items}}"
 msgstr "{n, plural, one {Dán # mục} other {Dán # mục}}"
 
-#: src/components/share-dialog.tsx:685
+#: src/components/share-dialog.tsx:687
 msgid "{name} no longer has access"
 msgstr "{name} không còn quyền truy cập"
 
@@ -321,7 +321,7 @@ msgstr "{purged, plural, one {Đã xoá vĩnh viễn # mục} other {Đã xoá v
 msgid "{rescued, plural, one {# item created by other people moved to their owner’s top level instead.} other {# items created by other people moved to their owner’s top level instead.}}"
 msgstr "{rescued, plural, one {# mục do người khác tạo đã được chuyển lên cấp cao nhất của chủ sở hữu.} other {# mục do người khác tạo đã được chuyển lên cấp cao nhất của chủ sở hữu.}}"
 
-#: src/components/share-dialog.tsx:1013
+#: src/components/share-dialog.tsx:1015
 msgid "{revokeWho} loses access to this {nodeKind, select, dir {folder} other {file}}, but keeps the {revokeOwned, plural, one {# item} other {# items}} they created inside it — ownership is theirs, so those appear at their own top level."
 msgstr "{revokeWho} mất quyền truy cập vào {nodeKind, select, dir {thư mục} other {tệp}} này, nhưng vẫn giữ {revokeOwned, plural, one {# mục} other {# mục}} họ đã tạo bên trong — quyền sở hữu thuộc về họ, nên các mục đó xuất hiện ở cấp cao nhất của họ."
 
@@ -563,11 +563,11 @@ msgstr "Trang chỉ có thể được chuyển vào bên dưới một trang kh
 msgid "A top-level folder in {spaceName} that nobody owns personally: access to everything inside it is managed through Share, so removing someone really removes them, even from files they uploaded. It stays with the team when whoever created it leaves."
 msgstr "Một thư mục cấp cao nhất trong {spaceName} không thuộc sở hữu cá nhân của ai: quyền truy cập mọi thứ bên trong được quản lý qua Chia sẻ, nên khi gỡ một người thì họ thực sự bị gỡ, kể cả khỏi các tệp do họ tải lên. Thư mục vẫn thuộc về nhóm khi người tạo ra nó rời đi."
 
-#: src/components/share-dialog.tsx:900
+#: src/components/share-dialog.tsx:902
 msgid "Access"
 msgstr "Quyền truy cập"
 
-#: src/components/share-dialog.tsx:847
+#: src/components/share-dialog.tsx:849
 msgid "Access from the folders above. Change these on the folder they come from."
 msgstr "Quyền truy cập từ các thư mục phía trên. Hãy thay đổi chúng tại thư mục gốc của quyền đó."
 
@@ -772,7 +772,7 @@ msgstr "đã thu hồi quyền quản trị"
 msgid "Administration"
 msgstr "Quản trị"
 
-#: src/components/share-dialog.tsx:643
+#: src/components/share-dialog.tsx:645
 msgid "Admins"
 msgstr "Quản trị viên"
 
@@ -822,12 +822,12 @@ msgid "All transfers complete"
 msgstr "Đã hoàn tất mọi lượt truyền"
 
 #: src/components/share-dialog.tsx:558
-#: src/components/share-dialog.tsx:909
+#: src/components/share-dialog.tsx:911
 msgid "Allow download"
 msgstr "Cho phép tải xuống"
 
 #: src/components/share-dialog.tsx:563
-#: src/components/share-dialog.tsx:1130
+#: src/components/share-dialog.tsx:1132
 msgid "Allow re-sharing"
 msgstr "Cho phép chia sẻ lại"
 
@@ -871,13 +871,13 @@ msgstr "Mọi ngày"
 msgid "Anyone"
 msgstr "Bất kỳ ai"
 
-#: src/components/share-dialog.tsx:887
+#: src/components/share-dialog.tsx:889
 msgid "Anyone holding the link can view this item without signing in. A link never carries editing, and nobody can re-share it onward — download is the one choice it offers."
 msgstr "Bất kỳ ai có liên kết đều có thể xem mục này mà không cần đăng nhập. Liên kết không bao giờ kèm quyền chỉnh sửa và không ai có thể chia sẻ lại — tải xuống là lựa chọn duy nhất mà nó cung cấp."
 
 #: src/components/preview-panel.tsx:299
-#: src/components/share-dialog.tsx:725
-#: src/components/share-dialog.tsx:1163
+#: src/components/share-dialog.tsx:727
+#: src/components/share-dialog.tsx:1167
 msgid "Anyone with the link"
 msgstr "Bất kỳ ai có liên kết"
 
@@ -1029,7 +1029,7 @@ msgid "Can download"
 msgstr "Có thể tải xuống"
 
 #: src/components/share-dialog.tsx:524
-#: src/components/share-dialog.tsx:1115
+#: src/components/share-dialog.tsx:1117
 msgid "Can edit"
 msgstr "Có thể chỉnh sửa"
 
@@ -1038,11 +1038,11 @@ msgid "Can share"
 msgstr "Có thể chia sẻ"
 
 #: src/components/share-dialog.tsx:521
-#: src/components/share-dialog.tsx:1106
+#: src/components/share-dialog.tsx:1108
 msgid "Can view"
 msgstr "Có thể xem"
 
-#: src/components/share-dialog.tsx:1110
+#: src/components/share-dialog.tsx:1112
 msgid "Can view + download"
 msgstr "Có thể xem + tải xuống"
 
@@ -1065,7 +1065,7 @@ msgstr "Có thể xem + tải xuống"
 #: src/components/nodes/embed-link-modal.tsx:116
 #: src/components/settings/panes/account-security.tsx:48
 #: src/components/settings/panes/personal-tokens.tsx:160
-#: src/components/share-dialog.tsx:1023
+#: src/components/share-dialog.tsx:1025
 #: src/components/team-folder-dialog.tsx:87
 #: src/components/upload-conflict-dialog.tsx:120
 msgid "Cancel"
@@ -1075,7 +1075,7 @@ msgstr "Huỷ"
 msgid "Cancel {fileName}"
 msgstr "Huỷ {fileName}"
 
-#: src/components/share-dialog.tsx:828
+#: src/components/share-dialog.tsx:830
 msgid "Cancel the invitation for {invitee}"
 msgstr "Hủy lời mời gửi {invitee}"
 
@@ -1103,8 +1103,8 @@ msgstr "Thao tác với thẻ"
 msgid "Card title"
 msgstr "Tiêu đề thẻ"
 
-#: src/components/share-dialog.tsx:659
-#: src/components/share-dialog.tsx:757
+#: src/components/share-dialog.tsx:661
+#: src/components/share-dialog.tsx:759
 msgid "Change access for {name}"
 msgstr "Thay đổi quyền truy cập của {name}"
 
@@ -1120,8 +1120,8 @@ msgstr "Đổi biểu tượng"
 msgid "Change space avatar"
 msgstr "Đổi ảnh đại diện không gian"
 
-#: src/components/share-dialog.tsx:666
-#: src/components/share-dialog.tsx:769
+#: src/components/share-dialog.tsx:668
+#: src/components/share-dialog.tsx:771
 msgid "Changed access for {name}"
 msgstr "Đã thay đổi quyền truy cập của {name}"
 
@@ -1365,11 +1365,11 @@ msgstr "Đã sao chép thành “{copyName}”"
 #: src/components/settings/panes/agent-access-section.tsx:105
 #: src/components/settings/panes/agent-access-section.tsx:204
 #: src/components/settings/panes/personal-tokens.tsx:76
-#: src/components/share-dialog.tsx:966
+#: src/components/share-dialog.tsx:968
 msgid "Copy"
 msgstr "Sao chép"
 
-#: src/components/share-dialog.tsx:996
+#: src/components/share-dialog.tsx:998
 msgid "Copy link"
 msgstr "Sao chép liên kết"
 
@@ -1405,8 +1405,8 @@ msgstr "Không thể thêm họ vào nhóm"
 msgid "Could not ask for a code. Try again in a moment."
 msgstr "Không thể yêu cầu mã. Hãy thử lại sau giây lát."
 
-#: src/components/share-dialog.tsx:668
-#: src/components/share-dialog.tsx:771
+#: src/components/share-dialog.tsx:670
+#: src/components/share-dialog.tsx:773
 msgid "Could not change access"
 msgstr "Không thể thay đổi quyền truy cập"
 
@@ -1422,8 +1422,8 @@ msgstr "Không thể sao chép “{nodeName}”"
 msgid "Could not copy the connector URL"
 msgstr "Không thể sao chép URL trình kết nối"
 
-#: src/components/share-dialog.tsx:961
-#: src/components/share-dialog.tsx:991
+#: src/components/share-dialog.tsx:963
+#: src/components/share-dialog.tsx:993
 msgid "Could not copy the link"
 msgstr "Không thể sao chép liên kết"
 
@@ -1534,7 +1534,7 @@ msgstr "Không thể liên kết {spaceName}"
 msgid "Could not load items."
 msgstr "Không thể tải các mục."
 
-#: src/components/share-dialog.tsx:871
+#: src/components/share-dialog.tsx:873
 msgid "Could not load the access that comes from folders above this."
 msgstr "Không thể tải quyền truy cập đến từ các thư mục phía trên."
 
@@ -1622,8 +1622,8 @@ msgid "Could not restore the sub-page"
 msgstr "Không thể khôi phục trang con"
 
 #: src/components/share-dialog.tsx:376
-#: src/components/share-dialog.tsx:686
-#: src/components/share-dialog.tsx:835
+#: src/components/share-dialog.tsx:688
+#: src/components/share-dialog.tsx:837
 msgid "Could not revoke"
 msgstr "Không thể thu hồi"
 
@@ -1750,7 +1750,7 @@ msgstr "Tạo không gian mới"
 msgid "Create password"
 msgstr "Tạo mật khẩu"
 
-#: src/components/share-dialog.tsx:943
+#: src/components/share-dialog.tsx:945
 msgid "Create public link"
 msgstr "Tạo liên kết công khai"
 
@@ -1791,7 +1791,7 @@ msgstr "tạo {created} · hết hạn {expires} · dùng lần cuối {lastUsed
 msgid "created {created} · expires {expires} · never used"
 msgstr "tạo {created} · hết hạn {expires} · chưa từng dùng"
 
-#: src/components/share-dialog.tsx:745
+#: src/components/share-dialog.tsx:747
 msgid "Created {owned, plural, one {# item} other {# items}} in here — those stay theirs."
 msgstr "Đã tạo {owned, plural, one {# mục} other {# mục}} ở đây — những mục đó vẫn thuộc về họ."
 
@@ -2005,8 +2005,8 @@ msgstr "Thiết bị"
 msgid "Device signed out"
 msgstr "Đã đăng xuất thiết bị"
 
-#: src/components/share-dialog.tsx:740
-#: src/components/share-dialog.tsx:1173
+#: src/components/share-dialog.tsx:742
+#: src/components/share-dialog.tsx:1177
 msgid "Direct share"
 msgstr "Chia sẻ trực tiếp"
 
@@ -2284,7 +2284,7 @@ msgstr "Mọi phiên bản đã lưu của tệp này."
 msgid "Every user and space on this install"
 msgstr "Mọi người dùng và không gian trên bản cài đặt này"
 
-#: src/components/share-dialog.tsx:637
+#: src/components/share-dialog.tsx:639
 #: src/routes/admin.settings.tsx:474
 msgid "Everyone"
 msgstr "Mọi người"
@@ -2335,7 +2335,7 @@ msgstr "Mở rộng khối"
 msgid "Expand transfers"
 msgstr "Mở rộng danh sách truyền tải"
 
-#: src/components/share-dialog.tsx:916
+#: src/components/share-dialog.tsx:918
 msgid "Expiration"
 msgstr "Hết hạn"
 
@@ -2354,7 +2354,7 @@ msgid "Export with images (.zip)"
 msgstr "Xuất kèm hình ảnh (.zip)"
 
 #: src/components/people-table.tsx:658
-#: src/components/share-dialog.tsx:728
+#: src/components/share-dialog.tsx:730
 msgid "External"
 msgstr "Bên ngoài"
 
@@ -2535,7 +2535,7 @@ msgstr "Vĩnh viễn"
 msgid "Found by the hourly check"
 msgstr "Phát hiện trong lần kiểm tra hằng giờ"
 
-#: src/components/share-dialog.tsx:857
+#: src/components/share-dialog.tsx:859
 msgid "From {viaName}"
 msgstr "Từ {viaName}"
 
@@ -2575,7 +2575,7 @@ msgstr "Chung"
 msgid "General & Branding"
 msgstr "Chung & Thương hiệu"
 
-#: src/components/share-dialog.tsx:820
+#: src/components/share-dialog.tsx:822
 msgid "Gets access after signing in for the first time."
 msgstr "Sẽ có quyền truy cập sau lần đăng nhập đầu tiên."
 
@@ -2612,8 +2612,8 @@ msgstr "Lưới"
 msgid "Grid view"
 msgstr "Xem dạng lưới"
 
-#: src/components/share-dialog.tsx:648
-#: src/components/share-dialog.tsx:1169
+#: src/components/share-dialog.tsx:650
+#: src/components/share-dialog.tsx:1173
 msgid "Group"
 msgstr "Nhóm"
 
@@ -2664,7 +2664,7 @@ msgid "Groups decide what people can open. Give a group a file or folder from th
 msgstr "Nhóm quyết định những gì mọi người có thể mở. Hãy cấp tệp hoặc thư mục cho một nhóm từ hộp thoại “Chia sẻ” của mục đó."
 
 #: src/components/presence-avatars.tsx:24
-#: src/components/share-dialog.tsx:728
+#: src/components/share-dialog.tsx:730
 msgid "Guest"
 msgstr "Khách"
 
@@ -2802,7 +2802,7 @@ msgstr "Cài đặt hệ thống"
 msgid "invitation accepted"
 msgstr "lời mời đã được chấp nhận"
 
-#: src/components/share-dialog.tsx:834
+#: src/components/share-dialog.tsx:836
 msgid "Invitation cancelled"
 msgstr "Đã hủy lời mời"
 
@@ -2831,7 +2831,7 @@ msgstr "Mời {inviteEmail}"
 msgid "Invite people"
 msgstr "Mời người dùng"
 
-#: src/components/share-dialog.tsx:816
+#: src/components/share-dialog.tsx:818
 msgid "Invited"
 msgstr "Đã mời"
 
@@ -3066,8 +3066,8 @@ msgstr "Liên kết tới một trang có sẵn"
 msgid "Link card"
 msgstr "Thẻ liên kết"
 
-#: src/components/share-dialog.tsx:960
-#: src/components/share-dialog.tsx:990
+#: src/components/share-dialog.tsx:962
+#: src/components/share-dialog.tsx:992
 msgid "Link copied"
 msgstr "Đã sao chép liên kết"
 
@@ -3477,7 +3477,7 @@ msgstr "Thành viên mới mặc định là quản trị viên"
 msgid "New presentation"
 msgstr "Bản trình chiếu mới"
 
-#: src/components/share-dialog.tsx:951
+#: src/components/share-dialog.tsx:953
 msgid "New public link"
 msgstr "Liên kết công khai mới"
 
@@ -3836,7 +3836,7 @@ msgstr "mở"
 #: src/components/preview-content.tsx:462
 #: src/components/preview-modal.tsx:128
 #: src/components/preview-panel.tsx:340
-#: src/components/share-dialog.tsx:786
+#: src/components/share-dialog.tsx:788
 msgid "Open"
 msgstr "Mở"
 
@@ -3887,7 +3887,7 @@ msgstr "Đang mở"
 msgid "Opening editor…"
 msgstr "Đang mở trình chỉnh sửa…"
 
-#: src/components/share-dialog.tsx:982
+#: src/components/share-dialog.tsx:984
 msgid "Opens for people who already have access."
 msgstr "Mở được với những người đã có quyền truy cập."
 
@@ -3946,7 +3946,7 @@ msgstr "Tổng quan"
 #: src/components/node-table.tsx:84
 #: src/components/preview-modal.tsx:170
 #: src/components/preview-panel.tsx:403
-#: src/components/share-dialog.tsx:1167
+#: src/components/share-dialog.tsx:1171
 msgid "Owner"
 msgstr "Chủ sở hữu"
 
@@ -4157,9 +4157,9 @@ msgstr "Không tìm thấy hồ sơ."
 msgid "Profile saved"
 msgstr "Đã lưu hồ sơ"
 
-#: src/components/share-dialog.tsx:734
-#: src/components/share-dialog.tsx:884
-#: src/components/share-dialog.tsx:1171
+#: src/components/share-dialog.tsx:736
+#: src/components/share-dialog.tsx:886
+#: src/components/share-dialog.tsx:1175
 msgid "Public link"
 msgstr "Liên kết công khai"
 
@@ -4243,7 +4243,7 @@ msgstr "Xoá {name}"
 msgid "Remove {name} from {groupName}"
 msgstr "Xoá {name} khỏi {groupName}"
 
-#: src/components/share-dialog.tsx:681
+#: src/components/share-dialog.tsx:683
 msgid "Remove {name}'s access"
 msgstr "Xoá quyền truy cập của {name}"
 
@@ -4255,8 +4255,8 @@ msgstr "Gỡ {personName}"
 msgid "Remove {removingName} from this space?"
 msgstr "Xoá {removingName} khỏi không gian này?"
 
-#: src/components/share-dialog.tsx:1010
-#: src/components/share-dialog.tsx:1033
+#: src/components/share-dialog.tsx:1012
+#: src/components/share-dialog.tsx:1035
 msgid "Remove access"
 msgstr "Xoá quyền truy cập"
 
@@ -4437,7 +4437,7 @@ msgstr "Thử tải lên lại"
 msgid "Revoke"
 msgstr "Thu hồi"
 
-#: src/components/share-dialog.tsx:794
+#: src/components/share-dialog.tsx:796
 msgid "Revoke access for {grantee}"
 msgstr "Thu hồi quyền truy cập của {grantee}"
 
@@ -5137,7 +5137,7 @@ msgid "The organization exists; its members are being added now. The space shows
 msgstr "Tổ chức đã được tạo; các thành viên đang được thêm vào. Không gian sẽ hiện là đã liên kết trong giây lát."
 
 #: src/components/move-dialog.tsx:183
-#: src/components/share-dialog.tsx:703
+#: src/components/share-dialog.tsx:705
 msgid "the public link"
 msgstr "liên kết công khai"
 
@@ -5334,7 +5334,7 @@ msgstr "Loại tệp này không thể hiển thị tại đây. Hãy tải xu�
 msgid "This link is not available"
 msgstr "Liên kết này không khả dụng"
 
-#: src/components/share-dialog.tsx:970
+#: src/components/share-dialog.tsx:972
 msgid "This link is shown only once. Copy it now — it cannot be shown again after this dialog closes."
 msgstr "Liên kết này chỉ hiển thị một lần. Hãy sao chép ngay — sau khi đóng hộp thoại sẽ không thể hiển thị lại."
 

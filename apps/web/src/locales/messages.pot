@@ -281,7 +281,7 @@ msgstr ""
 msgid "{n, plural, one {Paste # item} other {Paste # items}}"
 msgstr ""
 
-#: src/components/share-dialog.tsx:685
+#: src/components/share-dialog.tsx:687
 msgid "{name} no longer has access"
 msgstr ""
 
@@ -317,7 +317,7 @@ msgstr ""
 msgid "{rescued, plural, one {# item created by other people moved to their owner’s top level instead.} other {# items created by other people moved to their owner’s top level instead.}}"
 msgstr ""
 
-#: src/components/share-dialog.tsx:1013
+#: src/components/share-dialog.tsx:1015
 msgid "{revokeWho} loses access to this {nodeKind, select, dir {folder} other {file}}, but keeps the {revokeOwned, plural, one {# item} other {# items}} they created inside it — ownership is theirs, so those appear at their own top level."
 msgstr ""
 
@@ -551,11 +551,11 @@ msgstr ""
 msgid "A top-level folder in {spaceName} that nobody owns personally: access to everything inside it is managed through Share, so removing someone really removes them, even from files they uploaded. It stays with the team when whoever created it leaves."
 msgstr ""
 
-#: src/components/share-dialog.tsx:900
+#: src/components/share-dialog.tsx:902
 msgid "Access"
 msgstr ""
 
-#: src/components/share-dialog.tsx:847
+#: src/components/share-dialog.tsx:849
 msgid "Access from the folders above. Change these on the folder they come from."
 msgstr ""
 
@@ -743,7 +743,7 @@ msgstr ""
 msgid "Administration"
 msgstr ""
 
-#: src/components/share-dialog.tsx:643
+#: src/components/share-dialog.tsx:645
 msgid "Admins"
 msgstr ""
 
@@ -789,12 +789,12 @@ msgid "All transfers complete"
 msgstr ""
 
 #: src/components/share-dialog.tsx:558
-#: src/components/share-dialog.tsx:909
+#: src/components/share-dialog.tsx:911
 msgid "Allow download"
 msgstr ""
 
 #: src/components/share-dialog.tsx:563
-#: src/components/share-dialog.tsx:1130
+#: src/components/share-dialog.tsx:1132
 msgid "Allow re-sharing"
 msgstr ""
 
@@ -834,13 +834,13 @@ msgstr ""
 msgid "Anyone"
 msgstr ""
 
-#: src/components/share-dialog.tsx:887
+#: src/components/share-dialog.tsx:889
 msgid "Anyone holding the link can view this item without signing in. A link never carries editing, and nobody can re-share it onward — download is the one choice it offers."
 msgstr ""
 
 #: src/components/preview-panel.tsx:299
-#: src/components/share-dialog.tsx:725
-#: src/components/share-dialog.tsx:1163
+#: src/components/share-dialog.tsx:727
+#: src/components/share-dialog.tsx:1167
 msgid "Anyone with the link"
 msgstr ""
 
@@ -988,7 +988,7 @@ msgid "Can download"
 msgstr ""
 
 #: src/components/share-dialog.tsx:524
-#: src/components/share-dialog.tsx:1115
+#: src/components/share-dialog.tsx:1117
 msgid "Can edit"
 msgstr ""
 
@@ -997,11 +997,11 @@ msgid "Can share"
 msgstr ""
 
 #: src/components/share-dialog.tsx:521
-#: src/components/share-dialog.tsx:1106
+#: src/components/share-dialog.tsx:1108
 msgid "Can view"
 msgstr ""
 
-#: src/components/share-dialog.tsx:1110
+#: src/components/share-dialog.tsx:1112
 msgid "Can view + download"
 msgstr ""
 
@@ -1024,7 +1024,7 @@ msgstr ""
 #: src/components/nodes/embed-link-modal.tsx:116
 #: src/components/settings/panes/account-security.tsx:48
 #: src/components/settings/panes/personal-tokens.tsx:160
-#: src/components/share-dialog.tsx:1023
+#: src/components/share-dialog.tsx:1025
 #: src/components/team-folder-dialog.tsx:87
 #: src/components/upload-conflict-dialog.tsx:120
 msgid "Cancel"
@@ -1034,7 +1034,7 @@ msgstr ""
 msgid "Cancel {fileName}"
 msgstr ""
 
-#: src/components/share-dialog.tsx:828
+#: src/components/share-dialog.tsx:830
 msgid "Cancel the invitation for {invitee}"
 msgstr ""
 
@@ -1062,8 +1062,8 @@ msgstr ""
 msgid "Card title"
 msgstr ""
 
-#: src/components/share-dialog.tsx:659
-#: src/components/share-dialog.tsx:757
+#: src/components/share-dialog.tsx:661
+#: src/components/share-dialog.tsx:759
 msgid "Change access for {name}"
 msgstr ""
 
@@ -1079,8 +1079,8 @@ msgstr ""
 msgid "Change space avatar"
 msgstr ""
 
-#: src/components/share-dialog.tsx:666
-#: src/components/share-dialog.tsx:769
+#: src/components/share-dialog.tsx:668
+#: src/components/share-dialog.tsx:771
 msgid "Changed access for {name}"
 msgstr ""
 
@@ -1316,11 +1316,11 @@ msgstr ""
 #: src/components/settings/panes/agent-access-section.tsx:105
 #: src/components/settings/panes/agent-access-section.tsx:204
 #: src/components/settings/panes/personal-tokens.tsx:76
-#: src/components/share-dialog.tsx:966
+#: src/components/share-dialog.tsx:968
 msgid "Copy"
 msgstr ""
 
-#: src/components/share-dialog.tsx:996
+#: src/components/share-dialog.tsx:998
 msgid "Copy link"
 msgstr ""
 
@@ -1356,8 +1356,8 @@ msgstr ""
 msgid "Could not ask for a code. Try again in a moment."
 msgstr ""
 
-#: src/components/share-dialog.tsx:668
-#: src/components/share-dialog.tsx:771
+#: src/components/share-dialog.tsx:670
+#: src/components/share-dialog.tsx:773
 msgid "Could not change access"
 msgstr ""
 
@@ -1373,8 +1373,8 @@ msgstr ""
 msgid "Could not copy the connector URL"
 msgstr ""
 
-#: src/components/share-dialog.tsx:961
-#: src/components/share-dialog.tsx:991
+#: src/components/share-dialog.tsx:963
+#: src/components/share-dialog.tsx:993
 msgid "Could not copy the link"
 msgstr ""
 
@@ -1485,7 +1485,7 @@ msgstr ""
 msgid "Could not load items."
 msgstr ""
 
-#: src/components/share-dialog.tsx:871
+#: src/components/share-dialog.tsx:873
 msgid "Could not load the access that comes from folders above this."
 msgstr ""
 
@@ -1573,8 +1573,8 @@ msgid "Could not restore the sub-page"
 msgstr ""
 
 #: src/components/share-dialog.tsx:376
-#: src/components/share-dialog.tsx:686
-#: src/components/share-dialog.tsx:835
+#: src/components/share-dialog.tsx:688
+#: src/components/share-dialog.tsx:837
 msgid "Could not revoke"
 msgstr ""
 
@@ -1701,7 +1701,7 @@ msgstr ""
 msgid "Create password"
 msgstr ""
 
-#: src/components/share-dialog.tsx:943
+#: src/components/share-dialog.tsx:945
 msgid "Create public link"
 msgstr ""
 
@@ -1742,7 +1742,7 @@ msgstr ""
 msgid "created {created} · expires {expires} · never used"
 msgstr ""
 
-#: src/components/share-dialog.tsx:745
+#: src/components/share-dialog.tsx:747
 msgid "Created {owned, plural, one {# item} other {# items}} in here — those stay theirs."
 msgstr ""
 
@@ -1952,8 +1952,8 @@ msgstr ""
 msgid "Device signed out"
 msgstr ""
 
-#: src/components/share-dialog.tsx:740
-#: src/components/share-dialog.tsx:1173
+#: src/components/share-dialog.tsx:742
+#: src/components/share-dialog.tsx:1177
 msgid "Direct share"
 msgstr ""
 
@@ -2219,7 +2219,7 @@ msgstr ""
 msgid "Every user and space on this install"
 msgstr ""
 
-#: src/components/share-dialog.tsx:637
+#: src/components/share-dialog.tsx:639
 #: src/routes/admin.settings.tsx:474
 msgid "Everyone"
 msgstr ""
@@ -2270,7 +2270,7 @@ msgstr ""
 msgid "Expand transfers"
 msgstr ""
 
-#: src/components/share-dialog.tsx:916
+#: src/components/share-dialog.tsx:918
 msgid "Expiration"
 msgstr ""
 
@@ -2289,7 +2289,7 @@ msgid "Export with images (.zip)"
 msgstr ""
 
 #: src/components/people-table.tsx:658
-#: src/components/share-dialog.tsx:728
+#: src/components/share-dialog.tsx:730
 msgid "External"
 msgstr ""
 
@@ -2462,7 +2462,7 @@ msgstr ""
 msgid "Found by the hourly check"
 msgstr ""
 
-#: src/components/share-dialog.tsx:857
+#: src/components/share-dialog.tsx:859
 msgid "From {viaName}"
 msgstr ""
 
@@ -2502,7 +2502,7 @@ msgstr ""
 msgid "General & Branding"
 msgstr ""
 
-#: src/components/share-dialog.tsx:820
+#: src/components/share-dialog.tsx:822
 msgid "Gets access after signing in for the first time."
 msgstr ""
 
@@ -2539,8 +2539,8 @@ msgstr ""
 msgid "Grid view"
 msgstr ""
 
-#: src/components/share-dialog.tsx:648
-#: src/components/share-dialog.tsx:1169
+#: src/components/share-dialog.tsx:650
+#: src/components/share-dialog.tsx:1173
 msgid "Group"
 msgstr ""
 
@@ -2591,7 +2591,7 @@ msgid "Groups decide what people can open. Give a group a file or folder from th
 msgstr ""
 
 #: src/components/presence-avatars.tsx:24
-#: src/components/share-dialog.tsx:728
+#: src/components/share-dialog.tsx:730
 msgid "Guest"
 msgstr ""
 
@@ -2725,7 +2725,7 @@ msgstr ""
 msgid "invitation accepted"
 msgstr ""
 
-#: src/components/share-dialog.tsx:834
+#: src/components/share-dialog.tsx:836
 msgid "Invitation cancelled"
 msgstr ""
 
@@ -2754,7 +2754,7 @@ msgstr ""
 msgid "Invite people"
 msgstr ""
 
-#: src/components/share-dialog.tsx:816
+#: src/components/share-dialog.tsx:818
 msgid "Invited"
 msgstr ""
 
@@ -2977,8 +2977,8 @@ msgstr ""
 msgid "Link card"
 msgstr ""
 
-#: src/components/share-dialog.tsx:960
-#: src/components/share-dialog.tsx:990
+#: src/components/share-dialog.tsx:962
+#: src/components/share-dialog.tsx:992
 msgid "Link copied"
 msgstr ""
 
@@ -3356,7 +3356,7 @@ msgstr ""
 msgid "New presentation"
 msgstr ""
 
-#: src/components/share-dialog.tsx:951
+#: src/components/share-dialog.tsx:953
 msgid "New public link"
 msgstr ""
 
@@ -3695,7 +3695,7 @@ msgstr ""
 #: src/components/preview-content.tsx:462
 #: src/components/preview-modal.tsx:128
 #: src/components/preview-panel.tsx:340
-#: src/components/share-dialog.tsx:786
+#: src/components/share-dialog.tsx:788
 msgid "Open"
 msgstr ""
 
@@ -3746,7 +3746,7 @@ msgstr ""
 msgid "Opening editor…"
 msgstr ""
 
-#: src/components/share-dialog.tsx:982
+#: src/components/share-dialog.tsx:984
 msgid "Opens for people who already have access."
 msgstr ""
 
@@ -3805,7 +3805,7 @@ msgstr ""
 #: src/components/node-table.tsx:84
 #: src/components/preview-modal.tsx:170
 #: src/components/preview-panel.tsx:403
-#: src/components/share-dialog.tsx:1167
+#: src/components/share-dialog.tsx:1171
 msgid "Owner"
 msgstr ""
 
@@ -4006,9 +4006,9 @@ msgstr ""
 msgid "Profile saved"
 msgstr ""
 
-#: src/components/share-dialog.tsx:734
-#: src/components/share-dialog.tsx:884
-#: src/components/share-dialog.tsx:1171
+#: src/components/share-dialog.tsx:736
+#: src/components/share-dialog.tsx:886
+#: src/components/share-dialog.tsx:1175
 msgid "Public link"
 msgstr ""
 
@@ -4080,7 +4080,7 @@ msgstr ""
 msgid "Remove {name} from {groupName}"
 msgstr ""
 
-#: src/components/share-dialog.tsx:681
+#: src/components/share-dialog.tsx:683
 msgid "Remove {name}'s access"
 msgstr ""
 
@@ -4092,8 +4092,8 @@ msgstr ""
 msgid "Remove {removingName} from this space?"
 msgstr ""
 
-#: src/components/share-dialog.tsx:1010
-#: src/components/share-dialog.tsx:1033
+#: src/components/share-dialog.tsx:1012
+#: src/components/share-dialog.tsx:1035
 msgid "Remove access"
 msgstr ""
 
@@ -4261,7 +4261,7 @@ msgstr ""
 msgid "Revoke"
 msgstr ""
 
-#: src/components/share-dialog.tsx:794
+#: src/components/share-dialog.tsx:796
 msgid "Revoke access for {grantee}"
 msgstr ""
 
@@ -4918,7 +4918,7 @@ msgid "The organization exists; its members are being added now. The space shows
 msgstr ""
 
 #: src/components/move-dialog.tsx:183
-#: src/components/share-dialog.tsx:703
+#: src/components/share-dialog.tsx:705
 msgid "the public link"
 msgstr ""
 
@@ -5099,7 +5099,7 @@ msgstr ""
 msgid "This link is not available"
 msgstr ""
 
-#: src/components/share-dialog.tsx:970
+#: src/components/share-dialog.tsx:972
 msgid "This link is shown only once. Copy it now — it cannot be shown again after this dialog closes."
 msgstr ""
 

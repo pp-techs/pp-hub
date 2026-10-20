@@ -626,8 +626,10 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
                   {grantRows.map((g) => {
                     const changeable = covers(held, g);
                     return (
-                      <li key={g.id} className="flex items-center gap-3 p-3 text-sm">
-                        <Users className="text-muted-foreground size-4 shrink-0" />
+                      <li key={g.id} className="flex items-center gap-3 p-3 text-xs">
+                        <span className="flex size-6 shrink-0 items-center justify-center">
+                          <Users className="text-muted-foreground size-4" />
+                        </span>
                         <div className="min-w-0 flex-1">
                           <p className="flex items-center gap-2 truncate font-medium">
                             {g.group_name}
@@ -710,7 +712,7 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
                         ? s.grantee_email
                         : undefined;
                     return (
-                      <li key={s.id} className="flex items-center gap-3 p-3 text-sm">
+                      <li key={s.id} className="flex items-center gap-3 p-3 text-xs">
                         <Avatar size="sm">
                           {s.kind === "direct" ? (
                             <AvatarFallback>{grantee.charAt(0).toUpperCase()}</AvatarFallback>
@@ -803,7 +805,7 @@ export const ShareDialog = createModal<Props, null>("share", ({ node, modal }) =
                   {pendingShares.map((p) => {
                     const invitee = p.email;
                     return (
-                      <li key={`pending:${p.id}`} className="flex items-center gap-3 p-3 text-sm">
+                      <li key={`pending:${p.id}`} className="flex items-center gap-3 p-3 text-xs">
                         <Avatar size="sm">
                           <AvatarFallback>
                             <Mail className="size-3.5" />
@@ -1143,9 +1145,11 @@ function CapsControl({
  */
 function InheritedRow({ row, summary }: { row: InheritedAccess; summary: string | null }) {
   return (
-    <li className="flex items-center gap-3 p-3 text-sm">
+    <li className="flex items-center gap-3 p-3 text-xs">
       {row.kind === "group" ? (
-        <Users className="text-muted-foreground size-4 shrink-0" />
+        <span className="flex size-6 shrink-0 items-center justify-center">
+          <Users className="text-muted-foreground size-4" />
+        </span>
       ) : (
         <Avatar size="sm">
           <AvatarFallback>
