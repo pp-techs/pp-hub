@@ -1,5 +1,11 @@
 # @pp-hub/release
 
+## 0.28.1
+
+### Patch Changes
+
+- eba80aa: The open-file bar is more compact: the version and size line is gone, and Share, Versions and Download are icon buttons with tooltips. A long folder breadcrumb now keeps only its last two entries and folds the rest into a `…` dropdown.
+
 ## 0.28.0
 
 ### Minor Changes
