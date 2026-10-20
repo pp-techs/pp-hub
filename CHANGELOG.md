@@ -11,6 +11,10 @@ Versions up to and including 0.14.1 predate this changelog; see the
 
 <!-- `bun run version-packages` adds each release's section from its changesets; edit it in the Version Packages PR. -->
 
+## [0.29.0] — 2026-10-20
+
+Publish an `.html` file or a folder as a public mini web site, like an AI chat's artifact link: `Publish…` takes a snapshot, gives it a stable `/p/<link>` URL, and Republish updates it in place. Scripts run sandboxed with no network access; styles, scripts and fonts may come from an admin-chosen CDN allowlist. A publication can carry a password and an expiry, and agents can publish over MCP (`publish_artifact`). Operators enable it by switching on Admin › Settings › Sharing › Publishing; it is off by default. No second domain is needed: published pages are served under `/a/` on the app's own address, guarded by the browser's CSP sandbox alone. Before letting untrusted people publish, set `PP_ARTIFACT_URL` to a separate domain routed to `server` so pages run on an origin with no session; the admin page warns until it is set.
+
 ## [0.28.1] — 2026-10-20
 
 The open-file bar is more compact: the version and size line is gone, and Share, Versions and Download are icon buttons with tooltips. A long folder breadcrumb now keeps only its last two entries and folds the rest into a `…` dropdown.
