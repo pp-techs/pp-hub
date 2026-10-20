@@ -23,6 +23,9 @@ func Tools(o Options) []Tool {
 	if o.PublicLinks {
 		tools = append(tools, createPublicLink())
 	}
+	if o.Publishing {
+		tools = append(tools, publishArtifact(), unpublishArtifact())
+	}
 	return tools
 }
 

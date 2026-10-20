@@ -69,6 +69,10 @@ type Options struct {
 	WebURL string
 	// PublicLinks offers create_public_link (sysconfig mcp_public_links).
 	PublicLinks bool
+	// Publishing offers publish_artifact and unpublish_artifact: the
+	// instance offers publishing (artifacts_enabled) and
+	// mcp_public_links is on — a publication is a public link with scripts.
+	Publishing bool
 }
 
 // ErrInvalidArguments is an argument a tool refuses before calling anything:

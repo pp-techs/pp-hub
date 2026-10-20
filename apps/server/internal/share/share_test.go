@@ -63,7 +63,7 @@ func TestGrantCapsNormalized(t *testing.T) {
 func TestNewLinkTokenShape(t *testing.T) {
 	seen := map[string]bool{}
 	for range 200 {
-		token, err := newLinkToken()
+		token, err := NewLinkToken()
 		if err != nil {
 			t.Fatalf("newLinkToken: %v", err)
 		}

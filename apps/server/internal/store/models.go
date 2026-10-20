@@ -416,6 +416,31 @@ type Preview struct {
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 }
 
+type Publication struct {
+	ID           pgtype.UUID        `json:"id"`
+	TenantID     string             `json:"tenant_id"`
+	SpaceID      pgtype.UUID        `json:"space_id"`
+	NodeID       pgtype.UUID        `json:"node_id"`
+	Title        string             `json:"title"`
+	EntryPath    string             `json:"entry_path"`
+	TokenHash    string             `json:"token_hash"`
+	TokenSealed  string             `json:"token_sealed"`
+	Rev          int32              `json:"rev"`
+	PublishedAt  pgtype.Timestamptz `json:"published_at"`
+	PasswordHash pgtype.Text        `json:"password_hash"`
+	ExpiresAt    pgtype.Timestamptz `json:"expires_at"`
+	CreatedBy    pgtype.UUID        `json:"created_by"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+}
+
+type PublicationFile struct {
+	PublicationID pgtype.UUID `json:"publication_id"`
+	Path          string      `json:"path"`
+	BlobHash      string      `json:"blob_hash"`
+	Size          int64       `json:"size"`
+	Mime          string      `json:"mime"`
+}
+
 type SecurityEvent struct {
 	ID        pgtype.UUID        `json:"id"`
 	Kind      string             `json:"kind"`

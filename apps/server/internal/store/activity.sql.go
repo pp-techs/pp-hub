@@ -298,7 +298,11 @@ SELECT ((SELECT COALESCE(SUM(v.size), 0)
       + (SELECT COALESCE(SUM(a.size), 0)
           FROM node_attachments a
           JOIN nodes n ON n.id = a.node_id
-         WHERE n.space_id = $1))::bigint AS total
+         WHERE n.space_id = $1)
+      + (SELECT COALESCE(SUM(f.size), 0)
+          FROM publication_files f
+          JOIN publications p ON p.id = f.publication_id
+         WHERE p.space_id = $1))::bigint AS total
 `
 
 // Total bytes of every stored version of every file in a space, trash
@@ -307,7 +311,8 @@ SELECT ((SELECT COALESCE(SUM(v.size), 0)
 // much as current ones do; counting only current versions let the two numbers
 // drift apart until the disk filled under a meter that still showed room.
 // A document's attachments count too: without them every image dropped into
-// a document would pass a quota check that never saw the last one.
+// a document would pass a quota check that never saw the last one. So do a
+// publication's snapshot files (M50), as 0030's triggers count them.
 func (q *Queries) SumSpaceUsage(ctx context.Context, spaceID pgtype.UUID) (int64, error) {
 	row := q.db.QueryRow(ctx, sumSpaceUsage, spaceID)
 	var total int64
@@ -361,6 +366,26 @@ FROM (
   JOIN node_attachments a ON a.node_id = n.id
   JOIN space_members m ON m.space_id = n.space_id AND m.user_id = $1
   WHERE $2::uuid IS NULL OR n.space_id = $2::uuid
+  UNION ALL
+  -- A publication's snapshot (M50), by the type of each file.
+  SELECT
+    p.id::text || '/' || f.path AS item,
+    f.size,
+    CASE
+      WHEN f.mime LIKE 'video/%' THEN 'video'
+      WHEN f.mime LIKE 'image/%' THEN 'image'
+      WHEN f.mime LIKE 'audio/%' THEN 'audio'
+      WHEN f.mime LIKE 'text/%'
+        OR f.mime LIKE 'application/pdf'
+        OR f.mime LIKE 'application/vnd.openxmlformats%'
+        OR f.mime LIKE 'application/vnd.oasis%'
+        OR f.mime LIKE 'application/ms%' THEN 'document'
+      ELSE 'other'
+    END AS category
+  FROM publications p
+  JOIN publication_files f ON f.publication_id = p.id
+  JOIN space_members m ON m.space_id = p.space_id AND m.user_id = $1
+  WHERE $2::uuid IS NULL OR p.space_id = $2::uuid
 ) u
 GROUP BY u.category
 ORDER BY bytes DESC

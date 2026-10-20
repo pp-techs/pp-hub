@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -60,6 +61,15 @@ const (
 	// guest who can view and comment (docs/architecture/guest-access.md). Off by
 	// default; it also needs external sharing, on the instance and the space.
 	KeyGuestAccess = "guest_access"
+	// KeyArtifactsEnabled lets people publish an HTML file or a folder as a
+	// public mini site (M50, publishing.md), on PP_ARTIFACT_URL or, without
+	// one, under /a/ on this origin. Off by default: a publication is a
+	// public link that runs scripts.
+	KeyArtifactsEnabled = "artifacts_enabled"
+	// KeyArtifactCDNAllowlist is the space-separated list of https origins
+	// a published page may load scripts, styles, images and fonts from. It
+	// is spliced into the artifact host's CSP, so it is validated strictly.
+	KeyArtifactCDNAllowlist = "artifact_cdn_allowlist"
 
 	DefaultTenantID = "default"
 )
@@ -75,6 +85,10 @@ const (
 	// PersonalSpacesEveryone provisions every account — a public instance.
 	PersonalSpacesEveryone = "everyone"
 )
+
+// DefaultArtifactCDNAllowlist is where most generated HTML loads its
+// libraries and fonts from.
+const DefaultArtifactCDNAllowlist = "https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com https://fonts.googleapis.com https://fonts.gstatic.com"
 
 // SettingDef describes a known system configuration knob.
 type SettingDef struct {
@@ -380,6 +394,23 @@ func defaultDefs() map[string]SettingDef {
 			Description: "Let people outside the instance open what was shared with their email by proving it with a one-time code",
 			Default:     false,
 		},
+		KeyArtifactsEnabled: {
+			Key:         KeyArtifactsEnabled,
+			Type:        "boolean",
+			Description: "Let people publish an HTML file or a folder as a public web page",
+			Default:     false,
+		},
+		KeyArtifactCDNAllowlist: {
+			Key:         KeyArtifactCDNAllowlist,
+			Type:        "string",
+			Description: "Space-separated https:// origins published pages may load scripts, styles, images and fonts from (empty = none)",
+			Default:     DefaultArtifactCDNAllowlist,
+			Validate: func(val any) error {
+				s, _ := val.(string)
+				_, err := ParseCDNAllowlist(s)
+				return err
+			},
+		},
 	}
 }
 
@@ -477,12 +508,19 @@ func (s *Service) coerceAndValidate(def SettingDef, raw json.RawMessage) (any, [
 		val = num
 	case KeySMTP:
 		return s.coerceSMTP(raw)
-	case KeyMCPEnabled, KeyMCPPublicLinks, KeyMCPTokens, KeyMCPExternalShares, KeyExternalSharingEnabled, KeyWebDAVEnabled, KeyGuestAccess:
+	case KeyMCPEnabled, KeyMCPPublicLinks, KeyMCPTokens, KeyMCPExternalShares, KeyExternalSharingEnabled, KeyWebDAVEnabled, KeyGuestAccess, KeyArtifactsEnabled:
 		var b bool
 		if err := json.Unmarshal(raw, &b); err != nil {
 			return nil, nil, fmt.Errorf("%s must be true or false: %w", def.Key, err)
 		}
 		val = b
+	case KeyArtifactCDNAllowlist:
+		var str string
+		if err := json.Unmarshal(raw, &str); err != nil {
+			return nil, nil, fmt.Errorf("%s must be a string: %w", def.Key, err)
+		}
+		// One space between origins, whatever the admin typed.
+		val = strings.Join(strings.Fields(str), " ")
 	default:
 		if def.Type == "string" {
 			var str string
@@ -760,6 +798,52 @@ func (s *Service) GuestAccess() bool { return s.cachedBool(KeyGuestAccess, false
 
 // WebDAVEnabled reports whether drives may be mounted over WebDAV.
 func (s *Service) WebDAVEnabled() bool { return s.cachedBool(KeyWebDAVEnabled, false) }
+
+// ArtifactsEnabled reports whether publishing is switched on.
+func (s *Service) ArtifactsEnabled() bool { return s.cachedBool(KeyArtifactsEnabled, false) }
+
+// ArtifactCDNAllowlist returns the origins a published page may load from,
+// already validated. A stored value that no longer parses yields none — the
+// narrower policy, never a malformed one.
+func (s *Service) ArtifactCDNAllowlist() []string {
+	s.mu.RLock()
+	raw, ok := s.cache[KeyArtifactCDNAllowlist]
+	s.mu.RUnlock()
+	v := DefaultArtifactCDNAllowlist
+	if ok && json.Unmarshal(raw, &v) != nil {
+		return nil
+	}
+	origins, err := ParseCDNAllowlist(v)
+	if err != nil {
+		return nil
+	}
+	return origins
+}
+
+// ParseCDNAllowlist splits a space-separated list of https origins and
+// refuses anything that is not exactly scheme://host[:port]: a path, a
+// query, a wildcard, a quote or a semicolon would change what the CSP says.
+func ParseCDNAllowlist(s string) ([]string, error) {
+	fields := strings.Fields(s)
+	out := make([]string, 0, len(fields))
+	for _, f := range fields {
+		u, err := url.Parse(f)
+		if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil ||
+			u.Path != "" || u.RawQuery != "" || u.Fragment != "" || u.Opaque != "" ||
+			"https://"+u.Host != f {
+			return nil, fmt.Errorf("artifact_cdn_allowlist: %q is not an https:// origin (no path, no wildcard)", f)
+		}
+		for _, c := range u.Host {
+			switch {
+			case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9', c == '.', c == '-', c == ':':
+			default:
+				return nil, fmt.Errorf("artifact_cdn_allowlist: %q is not an https:// origin (no path, no wildcard)", f)
+			}
+		}
+		out = append(out, f)
+	}
+	return out, nil
+}
 
 // PersonalSpaces returns who gets a personal space at sign-in.
 func (s *Service) PersonalSpaces() string {

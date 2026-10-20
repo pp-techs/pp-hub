@@ -747,6 +747,27 @@ link's download flag whenever the creator no longer holds `CapDownload`.
 Every download route reads the flag through `LinkCaps`, so the clamp reaches all
 of them, and `GET /s/{token}` reports `can_download: false`.
 
+## Publishing
+
+A publication (M50, [publishing.md](publishing.md)) is a public link with
+scripts, and is gated like one. Publishing and republishing take what
+`handleCreateShare` takes for a link that allows downloads — `CapShare` and
+`CapDownload` on the source, and the space's `allow_public_links` — plus the
+instance offering publishing (`artifacts_enabled` on; `PP_ARTIFACT_URL` only
+moves where the bytes are served);
+each refusal is a 403 (`requirePublishRights`). Reading a publication,
+changing its settings and unpublishing take the same, **or being its
+creator**: the creator passes even with the source in the trash or a switch
+turned off, so a publisher can always take their page down
+(`existingPublication`).
+
+Serving re-checks on every request, as `resolveLinkNode` does for a link
+(`publish.Resolve`): not expired, the instance switch on, the space's
+`allow_public_links` on and the space not archived, the creator still a
+member. Any failure is 404 on both origins, the same answer as a token that
+never existed. Unlike a link, the creator's capabilities on the source are not
+re-resolved: what is served is a snapshot, not the source.
+
 ## Archive
 
 Every space owns one `Archive` folder (`spaces.archive_root_id`), created with
@@ -941,7 +962,9 @@ not when the connector is added, so turning one off takes effect at once:
 - **`mcp_public_links`** (instance, default off) — creating a public link
   through an agent needs this _and_ the space's `allow_public_links`; one
   person's agent should not be able to publish a document to the internet
-  unless the instance has decided it may.
+  unless the instance has decided it may. `publish_artifact` and
+  `unpublish_artifact` are offered only when it is on as well as publishing
+  itself — a publication is a public link with scripts.
 - **`mcp_tokens`** (instance, default on) — off, personal access tokens can be
   neither minted nor presented (403).
 
@@ -953,9 +976,11 @@ capability of its own — it is its creator, as an OAuth token is.
 A token whose identity has no pp-hub account answers 403 ("sign in to pp-hub
 once…"); the MCP path never creates an account.
 
-Three routes exist only on the in-process agent router: `GET /nodes/{id}/text`
+Four routes exist only on the in-process agent router: `GET /nodes/{id}/text`
 takes `CapView` (reading is view), `GET /nodes/{id}/file` takes `CapDownload`
-(it hands the bytes over, like `/download`) and `PUT /nodes/{id}/text` takes `CapEdit`.
+(it hands the bytes over, like `/download`), `PUT /nodes/{id}/text` takes `CapEdit`
+and `PUT /nodes/{id}/site-files` (publish_artifact's files) takes `CapEdit` on
+a folder that is empty or already a publication's source.
 `add_comment` with a quote anchors the thread by writing the document, so it
 needs edit; without a quote it opens a thread like a reviewer, on view.
 

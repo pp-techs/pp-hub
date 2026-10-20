@@ -37,6 +37,9 @@ import type {
   PathEntry,
   PendingShare,
   PendingShareCreated,
+  Publication,
+  PublicationBody,
+  PublicPublication,
   Space,
   TrashNode,
   TreeNode,
@@ -571,6 +574,64 @@ export function shareNodeContentUrl(token: string, nodeId: string): string {
 /** Zip of a shared folder. Omit `dir` for the share root. */
 export function shareDownloadAllUrl(token: string, dir?: string): string {
   return dir ? `/s/${token}/download-all?dir=${dir}` : `/s/${token}/download-all`;
+}
+
+// ─── Publishing (M50) ───────────────────────────────────────────────────────
+
+/** The node's publication, or `null` when it has none (404). */
+export async function getPublication(nodeId: string): Promise<Publication | null> {
+  const res = await api.get(`api/v1/nodes/${nodeId}/publication`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<Publication>;
+}
+
+/** Publishes, or republishes: a new snapshot of the source under the same URL. */
+export async function publishNode(nodeId: string, body: PublicationBody): Promise<Publication> {
+  const res = await api.post(`api/v1/nodes/${nodeId}/publication`, { json: body });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<Publication>;
+}
+
+/** Changes password or expiry without taking a new snapshot. */
+export async function updatePublication(
+  nodeId: string,
+  body: PublicationBody,
+): Promise<Publication> {
+  const res = await api.patch(`api/v1/nodes/${nodeId}/publication`, { json: body });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<Publication>;
+}
+
+export async function unpublishNode(nodeId: string): Promise<void> {
+  const res = await api.delete(`api/v1/nodes/${nodeId}/publication`);
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+}
+
+/**
+ * What a visitor of `/p/<token>` is told. The JSON Accept is what tells this
+ * request apart from the browser navigation that loaded the SPA.
+ */
+export async function getPublicPublication(token: string): Promise<PublicPublication> {
+  const res = await api.get(`p/${token}`, { headers: { Accept: "application/json" } });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<PublicPublication>;
+}
+
+/**
+ * Trades the password for a frame URL carrying a grant. A wrong password is
+ * 422, never 401: the client reads 401 as "your session is gone".
+ */
+export async function unlockPublication(
+  token: string,
+  password: string,
+): Promise<{ content_url: string }> {
+  const res = await api.post(`p/${token}/unlock`, {
+    json: { password },
+    headers: { Accept: "application/json" },
+  });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<{ content_url: string }>;
 }
 
 // ─── WOPI ───────────────────────────────────────────────────────────────────

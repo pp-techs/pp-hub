@@ -135,6 +135,9 @@ export function useUpdateAdminSettings() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: keys.adminSettings });
       void qc.invalidateQueries({ queryKey: ["admin", "security-events"] });
+      // The profile carries instance switches (`publishing_enabled`, the
+      // WebDAV and MCP addresses) the admin may just have flipped.
+      void qc.invalidateQueries({ queryKey: keys.me });
     },
   });
 }
@@ -146,6 +149,7 @@ export function useDeleteAdminSetting() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: keys.adminSettings });
       void qc.invalidateQueries({ queryKey: ["admin", "security-events"] });
+      void qc.invalidateQueries({ queryKey: keys.me });
     },
   });
 }

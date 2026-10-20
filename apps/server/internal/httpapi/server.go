@@ -3,6 +3,8 @@ package httpapi
 import (
 	"context"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -24,6 +26,7 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/orgsync"
 	"github.com/nhatbui/pp-hub/apps/server/internal/personal"
 	"github.com/nhatbui/pp-hub/apps/server/internal/preview"
+	"github.com/nhatbui/pp-hub/apps/server/internal/publish"
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 	"github.com/nhatbui/pp-hub/apps/server/internal/spaces"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
@@ -94,6 +97,12 @@ type Server struct {
 	// web serves the single-page app next to the API; nil leaves the server
 	// API-only (development, handler tests).
 	web *WebApp
+	// publish is the publishing model (M50); nil or not Enabled means no
+	// publishing. artifactHost is PP_ARTIFACT_URL's host when one is
+	// configured; Router hands that host, or else this origin's /a/, to the
+	// artifact router and nothing else (artifact.go).
+	publish      *publish.Service
+	artifactHost string
 }
 
 // Deps is what the HTTP edge needs. A struct rather than a parameter list
@@ -137,6 +146,9 @@ type Deps struct {
 	// Web serves the built single-page app on the API's origin; nil serves
 	// the API only.
 	Web *WebApp
+	// Publish is the publishing model; nil disables publishing and the
+	// artifact host.
+	Publish *publish.Service
 }
 
 func NewServer(d Deps) *Server {
@@ -171,9 +183,17 @@ func NewServer(d Deps) *Server {
 		metrics:        d.Metrics,
 		ext:            d.Ext,
 		web:            d.Web,
+		publish:        d.Publish,
 	}
 	if d.Ext != nil {
 		s.useExt(d.Ext)
+	}
+	if d.Publish.Isolated() {
+		u, err := url.Parse(d.Publish.ArtifactURL())
+		if err != nil {
+			panic("publish: artifact URL was validated at startup: " + err.Error())
+		}
+		s.artifactHost = strings.ToLower(u.Host)
 	}
 	if s.sysconfig == nil {
 		s.sysconfig = sysconfig.NewService(d.Store, nil)
@@ -202,6 +222,11 @@ func (s *Server) uploadCap() int64 {
 
 func (s *Server) Router() http.Handler {
 	r := chi.NewRouter()
+	// Published sites first, before anything else is attached: a request
+	// for PP_ARTIFACT_URL's host — or, with none, for /a/ — gets the
+	// artifact router and never reaches the session, the security headers,
+	// the API or the app.
+	r.Use(s.artifactSwitch(s.artifactRouter()))
 	r.Use(middleware.RequestID)
 	// chi's RealIP is deprecated in this version precisely because it
 	// believes True-Client-IP / X-Real-IP / X-Forwarded-For from anyone, and
@@ -241,6 +266,10 @@ func (s *Server) Router() http.Handler {
 	// is the real bound.
 	guestCodeLimit := newLimiter(1, 10)
 	guestVerifyLimit := newLimiter(10, 20)
+	// A publication token is a link token; its password is the guessable
+	// part, so unlock gets a far smaller bucket.
+	viewerLimit := newLimiter(60, 20)
+	unlockLimit := newLimiter(10, 5)
 
 	r.With(loginLimit.middleware).Get("/auth/login", s.auth.HandleLogin)
 	r.With(loginLimit.middleware).Get("/auth/callback", s.auth.HandleCallback)
@@ -313,6 +342,15 @@ func (s *Server) Router() http.Handler {
 		r.Get("/page", s.handleSharePage)
 		r.Get("/pages", s.handleSharePages)
 		r.Get("/edit-session", s.handleShareEditSession)
+	})
+
+	// Publishing's viewer API (M50). Anonymous like /s; the browser
+	// navigation to the same URL is the SPA (shareLanding). unlock is a
+	// POST from the SPA on this origin, so the same-origin check applies.
+	r.Route("/p/{token}", func(r chi.Router) {
+		r.Use(viewerLimit.middleware)
+		r.Get("/", s.handlePublicationInfo)
+		r.With(unlockLimit.middleware, s.sameOrigin).Post("/unlock", s.handlePublicationUnlock)
 	})
 	return r
 }
@@ -464,6 +502,11 @@ func (s *Server) apiRoutes(r chi.Router, agent bool) {
 		r.Get("/pending-shares", s.handleListPendingShares)
 		r.Delete("/pending-shares/{pendingID}", s.handleRevokePendingShare)
 		r.Get("/inherited-access", s.handleInheritedAccess)
+		// Publishing (M50): the node's one publication.
+		r.Get("/publication", s.handleGetPublication)
+		r.Post("/publication", s.handlePublish)
+		r.Patch("/publication", s.handleUpdatePublication)
+		r.Delete("/publication", s.handleUnpublish)
 		r.Post("/edit-session", s.handleEditSession)
 		r.Get("/collab", s.handleCollabSession)
 		r.Get("/attachments/{hash}", s.handleAttachment)
@@ -487,6 +530,9 @@ func (s *Server) apiRoutes(r chi.Router, agent bool) {
 			r.Get("/text", s.handleReadText)
 			r.Get("/file", s.handleReadFile)
 			r.Put("/text", s.handleWriteMarkdown)
+			// publish_artifact's files, written into the folder it
+			// publishes (agent_publish.go).
+			r.Put("/site-files", s.handleWriteSiteFiles)
 		}
 	})
 	// The block editor's sockets. A GET, so sameOrigin lets it by, and a

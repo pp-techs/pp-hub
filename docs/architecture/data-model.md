@@ -385,8 +385,8 @@ blobs(hash, size, ref_count, created_at,       -- blake3 hash = PK
       released_at, pinned_until,               -- GC: when ref_count last hit 0; a write's claim (0011)
       verified_at, damaged_at)                 -- scrub bookkeeping (0011)
   -- ref_count is maintained by triggers on node_versions, previews,
-  -- users.avatar_blob, node_attachments and spaces.avatar_blob, cascades
-  -- included; no application code moves it.
+  -- users.avatar_blob, node_attachments, spaces.avatar_blob and
+  -- publication_files (0030), cascades included; no application code moves it.
 
 file_locks(node_id, lock_token, expires_at)     -- WOPI locks, and block-document rooms'
   -- A room's token is `collab:<nodeId>.<epoch>` (M39): taken when the room loads,
@@ -443,6 +443,23 @@ node_texts(node_id PK, node_version_id, content, folded,  -- M27 content search 
   -- snippets are cut from); folded is content lower-cased without diacritics,
   -- rune for rune (textsearch.Fold), so a hit's position in folded is its
   -- position in content. GIN on tsv, GIN trigram on folded. Both FKs cascade.
+
+publications(id, tenant_id, space_id,          -- M50 publishing (0030), see publishing.md
+             node_id,                          -- the source; UNIQUE, ON DELETE CASCADE
+             title, entry_path,                -- title = the source's name at publish time
+             token_hash,                       -- sha256 hex, UNIQUE; the lookup
+             token_sealed,                     -- AES-GCM under DeriveKey("publication-token-v1")
+             rev, published_at,                -- rev starts at 1, bumped by each republish
+             password_hash,                    -- NULL = no password; PBKDF2-SHA256
+             expires_at,                       -- NULL = never
+             created_by, created_at)
+  -- space_id ON DELETE CASCADE; indexed on space_id and on expires_at (partial).
+  -- Trashing the source leaves it; purging the source or the space ends it.
+
+publication_files(publication_id, path, blob_hash, size, mime)  -- the snapshot's manifest
+  PRIMARY KEY (publication_id, path)
+  -- publication_id ON DELETE CASCADE; blob_hash REFERENCES blobs, indexed.
+  -- A republish replaces the rows; no bytes are copied.
 ```
 
 ## Extensions
@@ -561,7 +578,7 @@ page_order(node_id PK, position)
 ## Invariants
 
 - `node_versions` are immutable; restore = flip `nodes.current_version_id`.
-- Every `blob_hash` referenced by a version exists in `blobs` (the store claims the row before installing the bytes, and the version trigger creates it if somehow absent). `ref_count` equals the number of version, preview, user- or space-avatar and attachment rows naming the hash — kept by trigger in the same statement as the reference, including the `node_attachments` rows a purge removes by cascade; the daily storage audit recounts and logs any correction as a bug. See [storage.md](storage.md#garbage-collection).
+- Every `blob_hash` referenced by a version exists in `blobs` (the store claims the row before installing the bytes, and the version trigger creates it if somehow absent). `ref_count` equals the number of version, preview, user- or space-avatar, attachment and publication-file rows naming the hash — kept by trigger in the same statement as the reference, including the `node_attachments` and `publication_files` rows a purge or an unpublish removes by cascade; the daily storage audit recounts and logs any correction as a bug. A publication keeps its blobs after its source is purged. See [storage.md](storage.md#garbage-collection).
 - An attachment lives exactly as long as its document: one row per (document, blob), attaching the same bytes twice is the row already there, and the reference is released only when the document is purged (a copy holds its own row).
 - A `file_locks` row whose token starts `collab:` belongs to a block-document room. REST replacement is refused through it (423) like an OnlyOffice lock; restoring a version is let through, because the room reseeds itself.
 - A file node always has at least one version.
@@ -630,6 +647,8 @@ Recording is best-effort: an event describes work that already succeeded, so a f
 `fs.EnsureRoom` rejects adding bytes that would push a space past `quota_bytes`, answering **413** with `fs.ErrQuotaExceeded`. Since M30 it compares `used + incoming` with no discount: a new version costs its full size, because the version it supersedes is still on disk. (Before M30, `fs.checkQuota` measured only the delta a new version introduced, so replacing a 10 MB file with an 11 MB one cost 1 MB — and every superseded version was invisible to the meter.) It runs twice for a tus upload: at creation against the declared length plus `PendingUploadBytes` — what other uploads still in flight have promised to the space, so parallel uploads cannot each pass a check they would fail together — and again in `fs.putFile` against the measured size once the bytes have landed, which is the enforcement; the declared figure only refuses early. The second check runs before the node is created, so a refused upload leaves no empty file behind. A space with `quota_bytes = 0` is unmetered.
 
 `spaces.used_bytes` is maintained by row triggers (migration `0028`): an insert into `node_versions` or `node_attachments` (M39) adds its `size` to the node's space, a delete subtracts it. A purge is subtracted once, by the `nodes` `BEFORE DELETE` trigger, which still sees the node's versions and attachments; the cascaded version and attachment deletes that follow find their node gone and skip, so nothing counts twice. No writer re-sums the space, and no query changes a row's `size` or a node's `space_id`, so no UPDATE trigger is needed. The figure is the same as `SumSpaceUsage` — **every stored version of every file in the space, trash included**, plus every attachment — which tests use to assert it; until M30 it summed only the current versions of live files, and until `0028` it was recounted by `fs.RecountUsage` after each mutation, a full-space `SUM` on every save that also missed purges. `0028` recomputed every space from the true totals. It sums version sizes, not distinct blobs, so a copy sharing its blob is counted for each version that references it. `fs.EnsureRoom` reads the stored figure.
+
+A publication's snapshot (M50, migration `0030`) counts the same way: a `publication_files` insert adds its `size` to the publication's space, a delete subtracts it, and a deleted publication — unpublish, expiry, or the cascade from purging its source or the space — is subtracted once by the `publications` `BEFORE DELETE` trigger, after which the cascaded file deletes find it gone and skip. A republish replaces the rows, so the old snapshot's bytes leave the figure as the new one's arrive. `SumSpaceUsage` and `SumSpaceUsageByCategory` include these rows (by each file's MIME family).
 
 **Version retention** keeps history bounded. `version_retention_count` (`system_config`, default 100, `0` keeps every version, at most 10000) is read on every save; after each new version `fs.pruneVersions` runs `PruneVersions`, deleting every version beyond the newest N — the current version is never a candidate and counts as one of the N. Previews cascade, and the triggers release both kinds of blob so GC reclaims them. It applies on each file's next save, not in a retroactive sweep.
 

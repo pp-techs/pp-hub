@@ -67,6 +67,11 @@ const (
 	KindPendingShareCreated Kind = "pending_share_created"
 	KindPendingShareAdopted Kind = "pending_share_adopted"
 	KindPendingShareRevoked Kind = "pending_share_revoked"
+	// Publishing (M50): a node's snapshot becomes a public site, its
+	// settings (password, expiry) change or it is republished, or it stops.
+	KindPublicationCreated Kind = "publication_created"
+	KindPublicationUpdated Kind = "publication_updated"
+	KindPublicationDeleted Kind = "publication_deleted"
 	// Guest access (guest-access.md). A code is asked for, a guest proves an
 	// address with it (a session starts), or a code is refused. The subject
 	// is the address: a guest has no account until the first success.

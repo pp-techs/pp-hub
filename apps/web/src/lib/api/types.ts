@@ -91,6 +91,15 @@ export interface UserProfile {
    * Present only when the administrator has turned WebDAV on.
    */
   webdav_url?: string;
+  /**
+   * Whether "Publish…" is offered: the administrator turned publishing on.
+   */
+  publishing_enabled?: boolean;
+  /**
+   * Whether published sites have an origin of their own (PP_ARTIFACT_URL)
+   * rather than /a/ on this one.
+   */
+  publishing_isolated?: boolean;
   /** The caller's personal space, absent when they have none. */
   personal_space_id?: string;
   /** Instance switch: may anyone share with people outside a space. */
@@ -712,6 +721,56 @@ export interface ShareInfo {
    */
   shared_by?: string;
   expires_at?: string;
+}
+
+/**
+ * A node published as a public mini site (M50): a snapshot of its bytes served
+ * from the artifact origin (or `/a/` on this one when the server has none),
+ * viewed through `url` (`/p/<token>` on this origin).
+ * The token is sealed server-side, so `url` comes back on every read.
+ */
+export interface Publication {
+  id: string;
+  node_id: string;
+  url: string;
+  /** The source's name when it was last published. */
+  title: string;
+  entry_path: string;
+  /** Bumped by every republish; a password grant is valid for one rev only. */
+  rev: number;
+  published_at: string;
+  expires_at: string | null;
+  has_password: boolean;
+  file_count: number;
+  total_bytes: number;
+  /** A file in the source changed after `published_at`. */
+  stale: boolean;
+  published_by: { id: string; name: string };
+}
+
+/**
+ * Body of publish (POST, takes a snapshot) and settings (PATCH, no snapshot).
+ * `password` and `expires_at`: a value sets, `null` clears, absent keeps.
+ */
+export interface PublicationBody {
+  entry_path?: string;
+  password?: string | null;
+  /** RFC 3339. */
+  expires_at?: string | null;
+}
+
+/** What an anonymous visitor of `/p/<token>` is told. */
+export interface PublicPublication {
+  title: string;
+  entry_path: string;
+  rev: number;
+  published_at: string;
+  /** The publisher's display name. */
+  published_by: string;
+  expires_at: string | null;
+  needs_password: boolean;
+  /** The frame's source (artifact origin or `/a/` here); absent until a password unlocks it. */
+  content_url?: string;
 }
 
 /**

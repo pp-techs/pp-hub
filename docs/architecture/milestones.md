@@ -64,6 +64,7 @@ Each shipped milestone has its own file under [`milestones/`](milestones/) with 
 | M47 | WebDAV access                                          | ✅         | [detail](milestones/M47.md) |
 | M48 | Open files in the shell, as tabs                       | ✅         | [detail](milestones/M48.md) |
 | M49 | Guest access                                           | ✅         | [detail](milestones/M49.md) |
+| M50 | Publishing: HTML artifacts on their own origin         | ✅         | [detail](milestones/M50.md) |
 
 ## Upcoming — M28 Onward
 

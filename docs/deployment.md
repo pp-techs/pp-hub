@@ -67,9 +67,22 @@ the API (`apps/web/vite.config.ts`). The server refuses to start if
 is nothing to keep in step with the dev proxy; the SPA and API share an origin
 because one process answers both (`internal/httpapi/web.go`).
 
-An unmatched path under `/api`, `/auth`, `/hooks`, `/mcp`, `/dav`, `/wopi` or
-`/s` is a 404, never the SPA shell, so a mistyped API URL answers with an
-error and not with HTML that parses as a broken JSON response.
+An unmatched path under `/api`, `/auth`, `/hooks`, `/mcp`, `/dav`, `/wopi`,
+`/s`, `/p` or `/a` is a 404, never the SPA shell, so a mistyped API URL answers with
+an error and not with HTML that parses as a broken JSON response.
+
+**Published pages are the one thing that must not run as that origin.** HTML a
+member uploaded runs its script as whoever opens it, so publishing (M50,
+[publishing.md](architecture/publishing.md)) serves it through a separate
+artifact router that answers only published bytes, `GET`/`HEAD`, with a
+sandboxing CSP, and nothing else. By default that router sits under `/a/` on
+this same origin, selected by path prefix before any of the app's headers,
+session or routes, and the CSP `sandbox` header alone keeps the page's scripts
+away from the session. Set `PP_ARTIFACT_URL` (`art.example.com`, routed to the
+same `server:8080`) and the server picks the router by `Host` instead, so a
+proxy or browser that drops the sandbox still leaves the page on an origin
+with no session — the recommended hardening for production. See
+[Publishing](#publishing-the-artifact-host).
 
 `/wopi/*` is not on that listener at all: it has its own, `PP_WOPI_ADDR`
 (default `:8081`), which the Document Server reaches over the compose network.
@@ -79,6 +92,7 @@ for nothing. See [The WOPI listener](#the-wopi-listener).
 ```
                     ┌──────────────────────────────────────┐
  drive.example.com ─┤ your proxy / Traefik          [edge] │  TLS only
+   art.example.com ─┤  (optional, publishing)             │
                     └───────────────────┬──────────────────┘
                                         │ edge → server:8080
                           ┌─────────────▼─────────────┐   ┌──────────────────┐
@@ -120,6 +134,10 @@ the SPA has a page at the same URL. They are told apart by `Accept`:
 | `GET /s/<token>` with `Accept: text/html` | SPA          |
 | `GET /s/<token>` with anything else       | API          |
 | `GET /s/<token>/download`, `/children`, … | API (always) |
+
+`/p/<token>`, a published page's viewer, is split the same way: `Accept:
+text/html` is the SPA, anything else the API; `POST /p/<token>/unlock` is
+always the API.
 
 Any reverse proxy you put in front must pass both through unchanged (it does
 not need to know the difference), or share links break for anonymous visitors.
@@ -379,7 +397,9 @@ rather than a panic out of chi.
 
 The rate limits themselves are not configurable, and are worth knowing:
 `/auth/login`, `/auth/callback`, `/auth/logout` at 30/min with a burst of 10;
-`/s/{token}` at 60/min burst 20; `/api/v1` at 1200/min burst 200. An exhausted
+`/s/{token}` at 60/min burst 20; `/p/{token}` at 60/min burst 20, its
+`/unlock` at 10/min burst 5; the artifact router at 600/min burst 200 (one page
+load fetches its assets through it); `/api/v1` at 1200/min burst 200. An exhausted
 bucket answers 429 with `Retry-After`. **The buckets live in the process**, so
 `N` `server` replicas allow `N` times those rates — scaling out scales the
 limit with you. That is a deliberate trade against making Redis a dependency
@@ -518,7 +538,7 @@ The policy itself:
 ```
 default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';
 img-src 'self' data: blob:; media-src 'self' blob:; object-src 'self';
-frame-src 'self' <PP_ONLYOFFICE_URL>; form-action 'self' <PP_ONLYOFFICE_URL>;
+frame-src 'self' <PP_ONLYOFFICE_URL> <PP_ARTIFACT_URL>; form-action 'self' <PP_ONLYOFFICE_URL>;
 frame-ancestors 'none'; base-uri 'none';
 connect-src 'self' wss://<Host> ws://<Host>
 ```
@@ -543,6 +563,9 @@ tightening them breaks the app**:
   the access token as a query parameter on that route, so the browser submits
   a form to the Document Server's origin. With `'self'` alone the editor frame
   is simply blank.
+- **`frame-src` names `PP_ARTIFACT_URL`** when it is set: the `/p/<token>`
+  viewer frames the published page from that origin. Unset, the page is framed
+  from `/a/` on this origin, which `'self'` already covers.
 
 One more is looser than it should be, for a reason worth fixing later:
 **`style-src 'unsafe-inline'`** covers a handful of React `style` props
@@ -567,10 +590,13 @@ ships with an empty entry and the editor frame goes blank. Hashed
 immediately without ever re-fetching an asset; text types are gzipped (the
 entry chunk is 378 KB raw against 116 KB gzipped).
 
-The access log redacts `/s/<token>` to `/s/REDACTED` before the line is
-written, because a share token is the entire authorization for anonymous
-access to a file and only its SHA-256 is stored in the database. The same
-goes for the WOPI `access_token` query parameter.
+The access log redacts `/s/<token>` and `/p/<token>` to `/s/REDACTED` and
+`/p/REDACTED` before the line is written, because a share token is the entire
+authorization for anonymous access to a file and only its SHA-256 is stored in
+the database. The same goes for the WOPI `access_token` query parameter, and,
+for the artifact router, for the token and password grant in every path
+(`/REDACTED/~REDACTED/app.js` on the artifact host, `/a/REDACTED/~REDACTED/…`
+on the app's origin).
 
 ### Block document collaboration
 
@@ -680,6 +706,40 @@ body limit, no buffering, long timeouts — and pass every WebDAV method
 (`PROPFIND`, `PROPPATCH`, `MKCOL`, `COPY`, `MOVE`, `LOCK`, `UNLOCK`). The
 generated Caddyfile's plain `reverse_proxy` already does. Windows Explorer
 sends Basic credentials only over HTTPS.
+
+### Publishing (the artifact host)
+
+Publishing (M50, [publishing.md](architecture/publishing.md)) is off until
+**Admin › Settings › Publishing** is switched on (`artifacts_enabled`); that is
+all it needs. Without `PP_ARTIFACT_URL`, published bytes are served under
+`/a/` on `PP_EXTERNAL_URL` and only the CSP `sandbox` header keeps their
+scripts from the viewer's session: a proxy that strips or overrides CSP, or a
+browser that ignores the sandbox, would run the page with that session. A
+separate origin bounds that failure, so set `PP_ARTIFACT_URL` before letting
+untrusted people publish. Until then Admin › Settings › Sharing › Publishing
+shows a "Published sites share this address" warning (`publishing_isolated`
+on `GET /api/v1/users/me` is false). With it set, `/a/` on the main host is a
+plain 404.
+
+| Variable                   | Default | Meaning                                                                                                                                                                                                                                |
+| -------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PP_ARTIFACT_URL`          | unset   | Optional, recommended. Separate origin published pages are served from; unset serves them under `/a/` on `PP_EXTERNAL_URL`. Must be a different host from `PP_EXTERNAL_URL`, and `https://` when it is, or the server refuses to start |
+| `PP_MAX_PUBLICATION_BYTES` | `50M`   | Ceiling on one publication's snapshot; same syntax as `PP_MAX_UPLOAD_BYTES`                                                                                                                                                            |
+
+To isolate, route the domain to `server:8080`, like `drive.example.com`; nothing on it
+reads or sets cookies. A separate registrable domain
+(`example-usercontent.com`) is better than a subdomain, but a subdomain is
+safe too. `pp-generate.sh` does not know about it: the generated `Caddyfile`
+and `pphub.env` leave it out, so add both by hand —
+
+```
+art.example.com {
+	reverse_proxy 127.0.0.1:8090
+}
+```
+
+and `PP_ARTIFACT_URL=https://art.example.com` in `pphub.env`, then restart
+`server`.
 
 ### Outbound HTTP for link previews
 
@@ -862,8 +922,10 @@ organization reconciles fill in phone numbers regardless of this flag.
 Both production stacks — pp-hub (`compose.prod.yml`) and Logto
 (`compose.logto.yml`) — publish **no host ports**; they `expose` only.
 Something in front terminates HTTPS and routes the four domains: `server:8080`,
-`onlyoffice:80`, `logto:3001` and `logto:3002`. Any of these works, and
-`deploy/pp-generate.sh` produces the files for the first one directly.
+`onlyoffice:80`, `logto:3001` and `logto:3002` — plus, if publishing is on,
+the artifact domain, also to `server:8080`. Any of these works, and
+`deploy/pp-generate.sh` produces the files for the first one directly (without
+the artifact domain; see [Publishing](#publishing-the-artifact-host)).
 
 #### A reverse proxy on the same host
 
@@ -907,12 +969,13 @@ are written: binding 80/443 would collide with Dokploy's Traefik.
    [CONTRIBUTING.md](../CONTRIBUTING.md#repository-settings-the-flow-relies-on))
    or add a registry credential for `ghcr.io/pp-techs` (a PAT with
    `read:packages`).
-5. In the Domains tab add two domains:
+5. In the Domains tab add the domains:
 
-   | Service      | Container port | Example domain       |
-   | ------------ | -------------- | -------------------- |
-   | `server`     | 8080           | `drive.example.com`  |
-   | `onlyoffice` | 80             | `office.example.com` |
+   | Service      | Container port | Example domain                           |
+   | ------------ | -------------- | ---------------------------------------- |
+   | `server`     | 8080           | `drive.example.com`                      |
+   | `onlyoffice` | 80             | `office.example.com`                     |
+   | `server`     | 8080           | `art.example.com` (publishing, optional) |
 
 6. Deploy, then run the backfill once (below).
 
@@ -1047,7 +1110,7 @@ The server has no dotenv loader — it reads real environment variables — so
 `.env` has to be **sourced**, not merely present.
 
 `PP_EXTERNAL_URL` is the origin the _browser_ uses, which in development is the
-Vite dev server (`http://localhost:5173`): it proxies `/api`, `/auth` and `/s/`
+Vite dev server (`http://localhost:5173`): it proxies `/api`, `/auth`, `/s/` and `/p/`
 to `:8080`, so the redirect to `/` after an OIDC callback lands on the SPA. The
 IdP's redirect URI must be `http://localhost:5173/auth/callback` to match.
 It is now also what the same-origin check compares against, so pointing it at

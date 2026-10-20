@@ -8,6 +8,7 @@ import {
   FileArchive,
   FolderDown,
   FolderInput,
+  Globe,
   History,
   Info,
   Link2,
@@ -29,10 +30,14 @@ import {
   isMarkdownFile,
   opensInEditor,
   type Node,
+  type UserProfile,
 } from "@/lib/api";
 import { openFile } from "@/lib/open-file";
+import { queryClient } from "@/lib/query-client";
+import { keys } from "@/lib/queries/keys";
 import type { OpenPanel } from "@/lib/ui-store";
 import { ShareDialog } from "@/components/share-dialog";
+import { PublishDialog } from "@/components/publish-dialog";
 
 /**
  * Menu blocks, in the order they appear: opening the item, facts about it and
@@ -230,6 +235,24 @@ export function nodeActions(
       // eslint-disable-next-line lingui/no-unlocalized-strings -- keyboard key name
       shortcut: "⌘⇧S",
       run: () => void ShareDialog.show({ node }),
+    });
+  }
+  // A public mini site from an `.html` file or a folder (M50). It takes what a
+  // public link takes, so it rides on share; the profile says whether this
+  // instance offers publishing at all. Read from the cache rather than a
+  // parameter: the auth guard has loaded it before any listing renders.
+  const publishable = node.kind === "dir" || (node.kind === "file" && /\.html?$/i.test(node.name));
+  if (
+    caps.share &&
+    publishable &&
+    queryClient.getQueryData<UserProfile>(keys.me)?.publishing_enabled
+  ) {
+    actions.push({
+      key: "publish",
+      label: msg`Publish…`,
+      icon: Globe,
+      group: "about",
+      run: () => void PublishDialog.show({ node }),
     });
   }
   if (restructure) {

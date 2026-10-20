@@ -215,7 +215,12 @@ func (s *Server) newMCPServer(r *http.Request) *mcp.Server {
 		&mcp.ServerOptions{Instructions: mcpInstructions},
 	)
 	api := agentAPI{router: s.agentRouter, outer: r, sess: sess}
-	opts := agenttools.Options{WebURL: s.externalURL, PublicLinks: s.sysconfig.MCPPublicLinks()}
+	opts := agenttools.Options{
+		WebURL:      s.externalURL,
+		PublicLinks: s.sysconfig.MCPPublicLinks(),
+		// A publication is a public link that runs scripts: both switches.
+		Publishing: s.sysconfig.MCPPublicLinks() && s.publish.Enabled(),
+	}
 	for _, t := range agenttools.Tools(opts) {
 		srv.AddTool(mcpTool(t), mcpHandler(t, api))
 	}

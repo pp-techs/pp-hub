@@ -170,3 +170,27 @@ func TestSMTPAcceptsUnset(t *testing.T) {
 		t.Error("expected SMTP to be disabled when host is unset")
 	}
 }
+
+// Published HTML runs scripts, so the artifact origin must never share the
+// session's host, and must not downgrade an https app to http.
+func TestArtifactURLMustBeAnotherHost(t *testing.T) {
+	for _, tc := range []struct {
+		external, artifact string
+		ok                 bool
+	}{
+		{"https://drive.example.com", "https://art.example.net", true},
+		{"https://drive.example.com", "https://art.drive.example.com", true},
+		{"http://localhost:5173", "http://127.0.0.1:8080", true},
+		{"https://drive.example.com", "https://drive.example.com:8443", false},
+		{"https://drive.example.com", "https://DRIVE.example.com", false},
+		{"http://localhost:5173", "http://localhost:8080", false},
+		{"https://drive.example.com", "http://art.example.net", false},
+		{"https://drive.example.com", "https://art.example.net/sub", false},
+		{"https://drive.example.com", "art.example.net", false},
+	} {
+		c := &Config{ExternalURL: tc.external, ArtifactURL: tc.artifact}
+		if err := c.validateArtifactURL(); (err == nil) != tc.ok {
+			t.Errorf("external %s, artifact %s: err = %v, want ok=%v", tc.external, tc.artifact, err, tc.ok)
+		}
+	}
+}

@@ -50,6 +50,11 @@ type userProfileDTO struct {
 	// ExternalSharingEnabled is the instance switch on sharing with people
 	// outside a space; each space has its own beneath it.
 	ExternalSharingEnabled bool `json:"external_sharing_enabled"`
+	// PublishingEnabled is whether the instance offers publishing (M50):
+	// artifacts_enabled on. PublishingIsolated is whether published sites
+	// have an origin of their own (PP_ARTIFACT_URL) rather than /a/ here.
+	PublishingEnabled  bool `json:"publishing_enabled"`
+	PublishingIsolated bool `json:"publishing_isolated"`
 	// Kind is "member" or "guest": a guest opens things with a one-time code,
 	// has no space of their own and sees a smaller app (guest-access.md).
 	Kind string `json:"kind"`
@@ -127,6 +132,8 @@ func (s *Server) profileExtras(r *http.Request, u *store.User, dto *userProfileD
 	dto.MCPTokens = s.mcpTokensAllowed()
 	dto.WebDAVURL = s.davURL()
 	dto.ExternalSharingEnabled = s.share.ExternalSharingEnabled()
+	dto.PublishingEnabled = s.publish.Enabled()
+	dto.PublishingIsolated = s.publish.Isolated()
 	if s.personal != nil {
 		if err := s.personal.Provision(r.Context(), *u); err != nil {
 			slog.WarnContext(r.Context(), "personal space on profile", "user", u.Email, "err", err)

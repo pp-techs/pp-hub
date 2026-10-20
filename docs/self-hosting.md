@@ -199,6 +199,19 @@ the files. The generated `Caddyfile` needs no change; another proxy must not
 cap or buffer request bodies on `/dav` and needs long timeouts, see
 [deployment.md](deployment.md#webdav-dav).
 
+**Optional: publish HTML pages and folders.** Switch on **Admin → Settings →
+Publishing**; people get **Publish…** on `.html` files and folders, served
+under `/a/` on `drive.example.com`. There only the browser's CSP sandbox keeps
+a published page's scripts away from the viewer's session — a proxy that
+strips CSP, or a browser that ignores it, would let the page act as that
+person — and the admin page warns about it. Before letting people you do not
+fully trust publish, give published pages a domain of their own (recommended):
+point another domain (`art.example.com`, or better one on another registrable
+domain) at this host, add it to the `Caddyfile` with the same
+`reverse_proxy 127.0.0.1:8090` as `drive.example.com`, set
+`PP_ARTIFACT_URL=https://art.example.com` in `pphub.env` and run `up -d`
+again. See [deployment.md](deployment.md#publishing-the-artifact-host).
+
 **Optional: personal spaces and sharing outside a space.** In **Admin →
 Settings → Personal use**, _Personal spaces_ gives each account a "My Drive"
 beside its organization spaces: **Members of an organization** for a company

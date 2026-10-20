@@ -205,12 +205,13 @@ a reverse proxy on the same host would trip it).
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Read          | `whoami`, `list_spaces`, `list_folder`, `search`, `get_node`, `list_recent`, `list_starred`, `list_shared_with_me`, `list_versions`, `list_members`, `list_groups`, `list_document_templates` | The existing reach-filtered routes, answered as the web client gets them. `list_folder` takes a markdown document's id as `folder_id` and lists its sub-pages (M43); rows carry `child_page_count`                                               |
 | Read          | `read_document`                                                                                                                                                                               | Markdown and `text/*` with an `etag`; anything else → 415 and a hint to send a link. The description says the YAML frontmatter holds the page `icon`/`cover` (keep it on update) and that `<!-- slash:subPage … -->` blocks mark sub-pages (M43) |
-| Read          | `download_file`                                                                                                                                                                               | Any file's bytes as `content_base64` with `name`, `mime`, `size`, `version`, `etag`. Needs download (not just view); at most 8 MiB, 413 above. Read-only — there is no binary write                                                              |
+| Read          | `download_file`                                                                                                                                                                               | Any file's bytes as `content_base64` with `name`, `mime`, `size`, `version`, `etag`. Needs download (not just view); at most 8 MiB, 413 above. Read-only — the only binary write is `publish_artifact`'s, into its own folder                    |
 | Read          | `get_web_link`                                                                                                                                                                                | `/edit/{id}` for a markdown document, the containing folder for any other file, the folder itself for a folder                                                                                                                                   |
 | Write         | `create_document`                                                                                                                                                                             | `.md`, empty, from a template, or with markdown (an empty first version, then the content as the second). `folder_id` may be a markdown document: the new document is its sub-page (M43)                                                         |
 | Write         | `update_document(node_id, markdown, base_etag)`                                                                                                                                               | See below                                                                                                                                                                                                                                        |
 | Sharing       | `list_access`, `grant_access`, `revoke_access`                                                                                                                                                | Shares, group grants and inherited access; grants go through the same handlers, so M36's bounds apply. `grant_access` takes `email` too; outside the space it needs `mcp_external_shares` (M42)                                                  |
 | Sharing       | `create_public_link`                                                                                                                                                                          | Offered only while `mcp_public_links` is on — and the space must still allow public links                                                                                                                                                        |
+| Publishing    | `publish_artifact(space_id, folder_id?, name, files, entry_path?, password?, expires_in_days?)`, `unpublish_artifact(node_id)`                                                                | M50, [publishing.md](publishing.md#agents). Offered only while publishing is available and `mcp_public_links` is on. `files` are `{path, content, encoding?: utf8\|base64}`, at most 8 MiB together, written into folder `name` and published    |
 | Comments      | `list_comments`, `add_comment(quote?)`, `reply_comment`, `resolve_thread`                                                                                                                     | See below                                                                                                                                                                                                                                        |
 | Notifications | `list_notifications`, `mark_notifications_read`                                                                                                                                               | Pull only: MCP has no push channel to a chat app                                                                                                                                                                                                 |
 
@@ -225,9 +226,9 @@ instructions to share, publish or rewrite.
 
 ### The text routes
 
-Three routes exist only on the agent router (`apiRoutes(r, true)`), never on the
-network; the web client edits documents through the collaboration room and does
-not need them.
+Four routes exist only on the agent router (`apiRoutes(r, true)`), never on the
+network; the web client edits documents through the collaboration room and
+publishes what is already in the drive, so it does not need them.
 
 - **`GET /nodes/{id}/text`** — view. Markdown or `text/*`, valid UTF-8, at most
   1 MiB (413 above: a truncated read written back would drop the rest). A
@@ -250,11 +251,20 @@ not need them.
   writes the new version as the caller and the room's peers receive the new
   content at once. Identical content writes nothing. Recorded in the activity
   feed as `uploaded`.
+- **`PUT /nodes/{id}/site-files`** `{files: [{path, content}]}` — edit on a
+  folder, `publish_artifact`'s write (`httpapi/agent_publish.go`). Refused
+  (409) unless the folder is empty or already a publication's source, so it
+  cannot overwrite an arbitrary folder. The folder ends up holding exactly the
+  given files: existing ones get a new version through `fs.PutFile`, missing
+  ones (and subfolders) are created, and files no longer named go to the trash.
+  At most 8 MiB and 2000 files together; quota applies per file; an office
+  editor's lock refuses (423).
 
-This is the one route besides the upload routes that turns a request body into
-file content, and it is safe for the reasons the upload routes are: it is
-bounded, quota is enforced by `fs.PutFile`, and locks and rooms are honoured —
-and it is not reachable from the network at all.
+`PUT /text` and `PUT /site-files` are the only routes besides the upload routes
+that turn a request body into file content, and they are safe for the reasons
+the upload routes are: they are bounded, quota is enforced by `fs.PutFile`, and
+locks are honoured (rooms too, for `/text`) — and they are not reachable from
+the network at all.
 
 ### Comment anchors
 
@@ -293,7 +303,7 @@ the activity feed and the notifications.
 | Switch                          | Where                                            | Default | Effect                                                                               |
 | ------------------------------- | ------------------------------------------------ | ------- | ------------------------------------------------------------------------------------ |
 | `mcp_enabled`                   | `system_config`; Admin › Settings › Agent access | off     | `/mcp/` and its metadata answer 404; `mcp_url` is absent                             |
-| `mcp_public_links`              | `system_config`; same card                       | off     | `create_public_link` is not offered                                                  |
+| `mcp_public_links`              | `system_config`; same card                       | off     | `create_public_link`, `publish_artifact` and `unpublish_artifact` are not offered    |
 | `mcp_tokens`                    | `system_config`; same card                       | on      | Personal tokens cannot be created or presented (403)                                 |
 | `mcp_external_shares`           | `system_config`; Admin › Settings › Agent access | off     | `grant_access` by email to someone outside the space, or an invitation, is 403 (M42) |
 | `users.settings.agents_enabled` | Settings › Security › AI agents                  | on      | This person's agents get 403                                                         |
@@ -304,7 +314,8 @@ here" from "off for me", and `mcp_tokens` while personal tokens may be minted.
 
 ## Non-goals
 
-Binary upload or write-back (`download_file` is read-only); file management
+Binary upload or write-back (`download_file` is read-only; `publish_artifact`
+writes base64 files only into the folder it publishes); file management
 (folders, rename, move, trash); text from office documents or PDFs (indexed for search since M27, but not
 returned by a tool); admin operations; the embedded agent (next, over the same registry); a
 CLI.

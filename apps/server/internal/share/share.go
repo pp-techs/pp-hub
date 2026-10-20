@@ -160,7 +160,7 @@ func (s *Service) ExternalSharingEnabled() bool {
 // read what the link covers, and the only choice is whether they may also take
 // the bytes away.
 func (s *Service) CreateLink(ctx context.Context, nodeID pgtype.UUID, canDownload bool, expiresAt pgtype.Timestamptz, creator pgtype.UUID) (store.Share, string, error) {
-	token, err := newLinkToken()
+	token, err := NewLinkToken()
 	if err != nil {
 		return store.Share{}, "", err
 	}
@@ -187,13 +187,14 @@ const linkTokenAlphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopq
 // enough to live in a link somebody reads aloud.
 const linkTokenLength = 16
 
-// newLinkToken draws a fresh link token from crypto/rand.
+// NewLinkToken draws a fresh link token from crypto/rand. Publishing (M50)
+// mints its tokens with it too, so both bearer URLs have the same shape.
 //
 // 256 is not a multiple of 62, so the obvious `b % 62` would make the first
 // eight characters of the alphabet likelier than the rest. Bytes at or above
 // the largest multiple of 62 are discarded instead (248), which costs a few
 // redraws and buys back an even distribution.
-func newLinkToken() (string, error) {
+func NewLinkToken() (string, error) {
 	// 248 = 256 rounded down to a multiple of 62; bytes at or above it are
 	// redrawn rather than folded in.
 	const limit byte = 248

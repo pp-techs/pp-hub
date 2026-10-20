@@ -71,7 +71,8 @@ LIMIT @lim;
 -- much as current ones do; counting only current versions let the two numbers
 -- drift apart until the disk filled under a meter that still showed room.
 -- A document's attachments count too: without them every image dropped into
--- a document would pass a quota check that never saw the last one.
+-- a document would pass a quota check that never saw the last one. So do a
+-- publication's snapshot files (M50), as 0030's triggers count them.
 SELECT ((SELECT COALESCE(SUM(v.size), 0)
           FROM node_versions v
           JOIN nodes n ON n.id = v.node_id
@@ -79,7 +80,11 @@ SELECT ((SELECT COALESCE(SUM(v.size), 0)
       + (SELECT COALESCE(SUM(a.size), 0)
           FROM node_attachments a
           JOIN nodes n ON n.id = a.node_id
-         WHERE n.space_id = $1))::bigint AS total;
+         WHERE n.space_id = $1)
+      + (SELECT COALESCE(SUM(f.size), 0)
+          FROM publication_files f
+          JOIN publications p ON p.id = f.publication_id
+         WHERE p.space_id = $1))::bigint AS total;
 
 -- name: SumSpaceUsageByCategory :many
 -- Usage split for the storage breakdown, in the same terms as SumSpaceUsage
@@ -133,6 +138,26 @@ FROM (
   JOIN node_attachments a ON a.node_id = n.id
   JOIN space_members m ON m.space_id = n.space_id AND m.user_id = $1
   WHERE sqlc.narg('space_id')::uuid IS NULL OR n.space_id = sqlc.narg('space_id')::uuid
+  UNION ALL
+  -- A publication's snapshot (M50), by the type of each file.
+  SELECT
+    p.id::text || '/' || f.path AS item,
+    f.size,
+    CASE
+      WHEN f.mime LIKE 'video/%' THEN 'video'
+      WHEN f.mime LIKE 'image/%' THEN 'image'
+      WHEN f.mime LIKE 'audio/%' THEN 'audio'
+      WHEN f.mime LIKE 'text/%'
+        OR f.mime LIKE 'application/pdf'
+        OR f.mime LIKE 'application/vnd.openxmlformats%'
+        OR f.mime LIKE 'application/vnd.oasis%'
+        OR f.mime LIKE 'application/ms%' THEN 'document'
+      ELSE 'other'
+    END AS category
+  FROM publications p
+  JOIN publication_files f ON f.publication_id = p.id
+  JOIN space_members m ON m.space_id = p.space_id AND m.user_id = $1
+  WHERE sqlc.narg('space_id')::uuid IS NULL OR p.space_id = sqlc.narg('space_id')::uuid
 ) u
 GROUP BY u.category
 ORDER BY bytes DESC;

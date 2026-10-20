@@ -19,7 +19,7 @@ pp-hub/
 │   │       │   ├── comments.ts     # comment thread store over REST: 10 s poll while a document is open (M29)
 │   │       │   ├── event-stream.ts # SSE subscription with capped exponential reconnect (notifications)
 │   │       │   ├── queries/        # TanStack Query hooks (per-resource); pages.ts = page/lineage/children/backlinks
-│   │       │   │                   #   options under ['pages', scope, …] (M43)
+│   │       │   │                   #   options under ['pages', scope, …] (M43); publications.ts = a node's publication (M50)
 │   │       │   ├── query-client.ts # shared QueryClient
 │   │       │   ├── ext-name.ts, ext-notification.ts # M44: an extension's translated name; how the bell words ext:<id>:<verb> notifications
 │   │       │   ├── ui-store.ts     # zustand ephemeral UI state
@@ -35,6 +35,7 @@ pp-hub/
 │   │       ├── ext/                # host side of the apps: host.ts (ExtHost handed to the SDK), registry.ts + registry.gen.ts (the list compiled into this build)
 │   │       ├── components/         # app-level UI panels
 │   │       │   ├── share-dialog.tsx      # the one access surface: groups, people, link (better-modal)
+│   │       │   ├── publish-dialog.tsx    # M50: publish / republish / unpublish a page or folder, entry, password, expiry (better-modal)
 │   │       │   ├── people-table.tsx      # space membership: fixed-height rows, per-row ⋯ menu (admin, groups, remove), pending handover
 │   │       │   ├── group-list.tsx        # Groups pane: the space's groups and who is in them
 │   │       │   ├── invite-modal.tsx      # the one way into a space: an email + the admin toggle (better-modal)
@@ -110,6 +111,7 @@ pp-hub/
 │   │           ├── admin.security.tsx   # the security log: filters (kind, file, dates), CSV export
 │   │           ├── admin.settings.tsx   # instance settings: tabs (`?tab=` general/storage/security/sharing/mail), grouped setting rows, sticky save bar, SMTP
 │   │           ├── s/$token.tsx         # anonymous share-link browser (no rail, no account)
+│   │           ├── p/$token.tsx         # M50: published-page viewer — bar, password form, sandboxed iframe on /a/ or PP_ARTIFACT_URL
 │   │           ├── edit/$nodeId.tsx     # legacy address (stored page links, bookmarks) → /open/$nodeId
 │   │           ├── open.$nodeId.tsx     # resolves a node to where it opens: a file tab, or its folder
 │   │           ├── drive.tsx            # drive shell: SidebarProvider + AppSidebar + SidebarInset (tab strip, header, Outlet, tab host)
@@ -137,7 +139,7 @@ pp-hub/
 │           ├── auth/               # ✅ OIDC (PKCE + nonce) + DB-backed sessions (go-oidc)
 │           ├── gc/                 # ✅ blob reclaim + trash retention sweeps
 │           ├── config/             # ✅ env config; DeriveKey issues purpose-bound subkeys
-│           ├── httpapi/            # ✅ chi routes (/healthz, /auth/*, /api/v1/*, /wopi/*, /s/*, /hooks/logto; web.go serves the SPA when PP_WEB_DIR is set; WopiRouter on its own :8081 listener)
+│           ├── httpapi/            # ✅ chi routes (/healthz, /auth/*, /api/v1/*, /wopi/*, /s/*, /p/*, /hooks/logto; web.go serves the SPA when PP_WEB_DIR is set; WopiRouter on its own :8081 listener; the artifact router by /a prefix or, with PP_ARTIFACT_URL, by Host)
 │           │   ├── server.go       # the router, and the middleware that makes it safe by group
 │           │   ├── csrf.go         # sameOrigin: every mutation, before authentication; socketOrigin: the collab upgrade
 │           │   ├── collab.go       # GET /nodes/{id}/collab, the /collab/{room} socket, /nodes/{id}/attachments/{hash}
@@ -150,7 +152,7 @@ pp-hub/
 │           │   ├── ratelimit.go    # per-IP token buckets on the anonymous surfaces
 │           │   ├── limits.go       # body ceilings outside tus: limitBody (WOPI PutFile), parseUpload (avatar)
 │           │   ├── uploads.go      # tus 1.0.0 /api/v1/uploads — every browser upload; WOPI PutFile is the other writer
-│           │   ├── logging.go      # chi's logger with share and WOPI tokens redacted
+│           │   ├── logging.go      # chi's logger with share, publication, artifact-path and WOPI tokens redacted
 │           │   ├── sessions.go     # the account's own device list and its revoke endpoints
 │           │   ├── security_events.go # GET /admin/security-events (+ filters) and its CSV /export
 │           │   ├── users.go        # user profile CRUD
@@ -159,6 +161,9 @@ pp-hub/
 │           │   ├── mcp.go          # M41: /mcp/ (bearer-only, mcpBearer) + /.well-known/oauth-protected-resource
 │           │   ├── agent.go        # M41: agentAPI — tool calls dispatched in process through apiRoutes (innerRequest, shared with /dav)
 │           │   ├── agent_text.go   # M41: GET/PUT /nodes/{id}/text and GET /nodes/{id}/file, mounted only on the agent router
+│           │   ├── publish.go      # M50: /api/v1/nodes/{id}/publication (GET/POST/PATCH/DELETE), /p/{token} and /unlock
+│           │   ├── artifact.go     # M50: the artifact router — under /a on the app's origin, or by Host on PP_ARTIFACT_URL; sandbox CSP, GET/HEAD of a snapshot
+│           │   ├── agent_publish.go # M50: PUT /nodes/{id}/site-files, publish_artifact's write, mounted only on the agent router
 │           │   ├── agent_tokens.go # M41: personal access tokens (/users/me/agent-tokens; purpose mcp|dav since M47), never on the agent router
 │           │   ├── dav.go          # M47: /dav — davAuth (Basic/Bearer dav token), reads, DELETE, MKCOL
 │           │   ├── dav_tree.go     # M47: namespace, listings, x/net/webdav adapters (davFS, davFile, davInfo, davLocks)
@@ -179,7 +184,10 @@ pp-hub/
 │           │                       #    0018_agent_tokens.sql, 0019_personal_spaces.sql,
 │           │                       #    0020_invite_hardening.sql, 0021_pages.sql,
 │           │                       #    0022_ext_node_kind.sql, 0023_extensions.sql,
-│           │                       #    0024_comment_subjects.sql, 0025_dav_tokens.sql
+│           │                       #    0024_comment_subjects.sql, 0025_dav_tokens.sql,
+│           │                       #    0026_page_order.sql, 0027_perf_indexes.sql,
+│           │                       #    0028_used_bytes_triggers.sql, 0029_guest_access.sql,
+│           │                       #    0030_publications.sql
 │           ├── users/              # user service layer (profile)
 │           ├── orgsync/            # ✅ Logto sync: client.go (Management API), orgsync.go (membership reconciler, jobs, sweep),
 │           │                       #    accounts.go (accounts), spacesync.go (create, rename, Link to Logto)
@@ -205,7 +213,9 @@ pp-hub/
 │           ├── comments/           # ✅ M29 threads on block documents: who may do what, who is told
 │           ├── notifications/      # ✅ M29 rows, the per-process SSE broker, notify:mentions job
 │           ├── textsearch/         # ✅ M27 folding, query building, snippets (pure)
-│           ├── agenttools/         # ✅ M41 the MCP tool registry (REST calls via agenttools.API); anchor.go = comment anchors
+│           ├── agenttools/         # ✅ M41 the MCP tool registry (REST calls via agenttools.API); anchor.go = comment anchors;
+│           │                       #    publish.go = publish_artifact / unpublish_artifact (M50)
+│           ├── publish/            # ✅ M50 publications: snapshots, sealed tokens, password grants, Resolve (liveness); crypto.go
 │           ├── uploads/            # ✅ resumable upload rows + staging files in <PP_BLOB_ROOT>/.uploads; 24h idle sweep
 │           ├── blob/               # CAS Store interface + local and S3 impls; Ingest takes over a staged upload
 │           ├── share/              # grants — user, group, link — and the caps they resolve to

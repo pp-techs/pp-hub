@@ -50,6 +50,8 @@ export const keys = {
   shares: (nodeId: string) => ["shares", nodeId] as const,
   pendingShares: (nodeId: string) => ["pending-shares", nodeId] as const,
   shareInfo: (token: string) => ["share", token] as const,
+  publication: (nodeId: string) => ["publication", nodeId] as const,
+  publicPublication: (token: string) => ["public-publication", token] as const,
   users: ["users"] as const,
   // People/group caches live under their own roots, NOT under "spaces":
   // invalidating keys.spaces must not wipe them (prefix matching).

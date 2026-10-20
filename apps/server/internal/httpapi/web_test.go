@@ -25,7 +25,7 @@ func newTestWeb(t *testing.T) *WebApp {
 			t.Fatal(err)
 		}
 	}
-	app, err := NewWebApp(dir, "https://office.example", "https://hub.example")
+	app, err := NewWebApp(dir, "https://office.example", "https://hub.example", "")
 	if err != nil {
 		t.Fatalf("NewWebApp: %v", err)
 	}
@@ -44,7 +44,7 @@ func webGet(h http.Handler, method, target string, hdr map[string]string) *httpt
 }
 
 func TestNewWebAppRefusesADirectoryWithoutIndex(t *testing.T) {
-	if _, err := NewWebApp(t.TempDir(), "", ""); err == nil {
+	if _, err := NewWebApp(t.TempDir(), "", "", ""); err == nil {
 		t.Fatal("a directory with no index.html was accepted")
 	}
 }
@@ -187,7 +187,7 @@ func TestHSTSOnlyForHTTPSDeployments(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "index.html"), []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	app, err := NewWebApp(dir, "http://localhost:9980", "http://localhost:8080")
+	app, err := NewWebApp(dir, "http://localhost:9980", "http://localhost:8080", "")
 	if err != nil {
 		t.Fatal(err)
 	}

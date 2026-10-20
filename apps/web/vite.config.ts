@@ -68,6 +68,20 @@ export default defineConfig({
           }
         },
       },
+      // Published sites (M50), told apart the same way: a navigation to
+      // /p/<token> is the SPA's viewer page; its JSON fetch and
+      // /p/<token>/unlock go to the server.
+      "^/p/": {
+        target: "http://localhost:8080",
+        bypass(req) {
+          if (req.headers.accept?.includes("text/html") && /^\/p\/[^/]+$/.test(req.url ?? "")) {
+            return req.url;
+          }
+        },
+      },
+      // The published bytes, when PP_ARTIFACT_URL is unset: always the
+      // server, which serves them under /a/ on this origin.
+      "^/a/": "http://localhost:8080",
     },
   },
 });

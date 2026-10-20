@@ -125,6 +125,17 @@ export {
   useShareChildren,
 } from "./shares";
 
+// Publishing (M50)
+export {
+  usePublication,
+  usePublish,
+  useUpdatePublication,
+  useUnpublish,
+  publicPublicationOptions,
+  usePublicPublication,
+  useUnlockPublication,
+} from "./publications";
+
 // Users
 export {
   usersOptions,

@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/audit"
+	"github.com/nhatbui/pp-hub/apps/server/internal/publish"
 )
 
 // requestLog is what inner handlers contribute to the access log line; for
@@ -35,6 +36,21 @@ type requestLog struct{ userID string }
 // resolved to "REDACTED" and every share link answered 404. Metrics use the
 // chi route pattern, which contains no token either.
 func (s *Server) observe(next http.Handler) http.Handler {
+	return s.observeWith(next, redactURI)
+}
+
+// observeArtifact is observe for published bytes (artifact.go), whose every
+// path starts with a publication token and may carry a grant. Under /a/ the
+// router sees the path with the prefix stripped, so the log puts it back.
+func (s *Server) observeArtifact(next http.Handler) http.Handler {
+	prefix := ""
+	if !s.publish.Isolated() {
+		prefix = publish.SamePath
+	}
+	return s.observeWith(next, func(u *url.URL) string { return prefix + redactArtifactURI(u) })
+}
+
+func (s *Server) observeWith(next http.Handler, redact func(*url.URL) string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		s.metrics.Start()
@@ -59,7 +75,7 @@ func (s *Server) observe(next http.Handler) http.Handler {
 		}
 		elapsed := time.Since(start)
 		route := routePattern(r)
-		path := redactURI(r.URL)
+		path := redact(r.URL)
 		if path == "" {
 			path = r.URL.RequestURI()
 		}
@@ -138,21 +154,28 @@ func recoverer(next http.Handler) http.Handler {
 // is nothing to hide — the overwhelmingly common case, which costs one prefix
 // check and one map lookup.
 func redactURI(u *url.URL) string {
-	isShare := strings.HasPrefix(u.Path, "/s/")
+	// A share token (/s/) and a publication token (/p/) are both bearer
+	// secrets in the first segment after the prefix.
+	prefix := ""
+	for _, p := range []string{"/s/", "/p/"} {
+		if strings.HasPrefix(u.Path, p) {
+			prefix = p
+		}
+	}
 	hasToken := u.Query().Get("access_token") != ""
-	if !isShare && !hasToken {
+	if prefix == "" && !hasToken {
 		return ""
 	}
 
 	path := u.Path
-	if isShare {
+	if prefix != "" {
 		// "/s/<token>/download" → "/s/REDACTED/download". The shape of the
 		// request stays readable, which is the only reason to log it.
-		rest := strings.TrimPrefix(path, "/s/")
+		rest := strings.TrimPrefix(path, prefix)
 		if i := strings.IndexByte(rest, '/'); i >= 0 {
-			path = "/s/REDACTED" + rest[i:]
+			path = prefix + "REDACTED" + rest[i:]
 		} else {
-			path = "/s/REDACTED"
+			path = prefix + "REDACTED"
 		}
 	}
 
@@ -166,4 +189,25 @@ func redactURI(u *url.URL) string {
 		return path + "?" + query
 	}
 	return path
+}
+
+// redactArtifactURI hides the token and the grant of an artifact-host path:
+// "/<token>/~<grant>/app.js" → "/REDACTED/~REDACTED/app.js". The query is
+// the page's own and is dropped rather than parsed.
+func redactArtifactURI(u *url.URL) string {
+	rest := strings.TrimPrefix(u.Path, "/")
+	if rest == "" {
+		return "/"
+	}
+	_, after, ok := strings.Cut(rest, "/")
+	if !ok {
+		return "/REDACTED"
+	}
+	if strings.HasPrefix(after, "~") {
+		if _, tail, ok := strings.Cut(after, "/"); ok {
+			return "/REDACTED/~REDACTED/" + tail
+		}
+		return "/REDACTED/~REDACTED"
+	}
+	return "/REDACTED/" + after
 }

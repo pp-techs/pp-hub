@@ -31,6 +31,7 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/orgsync"
 	"github.com/nhatbui/pp-hub/apps/server/internal/personal"
 	"github.com/nhatbui/pp-hub/apps/server/internal/preview"
+	"github.com/nhatbui/pp-hub/apps/server/internal/publish"
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
 	"github.com/nhatbui/pp-hub/apps/server/internal/spaces"
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
@@ -170,6 +171,19 @@ func run() error {
 	}
 	fsSvc.SetVersionRetention(func() int { return syscfg.VersionRetentionCount("default") })
 	shareSvc.SetExternalSharing(syscfg.ExternalSharingEnabled)
+	// Publishing (M50): where sites are served from (PP_ARTIFACT_URL, or
+	// this origin under /a) and both keys are fixed at startup; the
+	// instance switch is read on every request.
+	publishSvc := publish.New(publish.Config{
+		Store:       queries,
+		Blobs:       blobs,
+		TokenKey:    cfg.DeriveKey(publish.TokenKeyPurpose),
+		GrantKey:    cfg.DeriveKey(publish.GrantKeyPurpose),
+		ArtifactURL: cfg.ArtifactURL,
+		ExternalURL: cfg.ExternalURL,
+		MaxBytes:    cfg.MaxPublicationBytes,
+		Enabled:     syscfg.ArtifactsEnabled,
+	})
 
 	// Resumable uploads stage under the blob root; the sweep drops those
 	// idle past uploads.TTL, with their bytes.
@@ -230,6 +244,11 @@ func run() error {
 				if _, err := queries.PruneGuestOTPs(ctx); err != nil {
 					slog.WarnContext(ctx, "guest code sweep", "err", err)
 				}
+				if n, err := publishSvc.SweepExpired(ctx); err != nil {
+					slog.WarnContext(ctx, "publication sweep", "err", err)
+				} else if n > 0 {
+					slog.InfoContext(ctx, "expired publications deleted", "count", n)
+				}
 			}
 		}
 	}()
@@ -252,7 +271,7 @@ func run() error {
 	// is API-only and something else (Vite in development) serves the bundle.
 	var web *httpapi.WebApp
 	if cfg.WebDir != "" {
-		web, err = httpapi.NewWebApp(cfg.WebDir, cfg.OnlyOfficeURL, cfg.ExternalURL)
+		web, err = httpapi.NewWebApp(cfg.WebDir, cfg.OnlyOfficeURL, cfg.ExternalURL, cfg.ArtifactURL)
 		if err != nil {
 			return err
 		}
@@ -285,6 +304,7 @@ func run() error {
 		Metrics:         metrics.HTTP,
 		Ext:             extHost,
 		Web:             web,
+		Publish:         publishSvc,
 	})
 	srv := &http.Server{
 		Addr:              cfg.Addr,

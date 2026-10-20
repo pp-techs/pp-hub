@@ -4,9 +4,11 @@ import { toast } from "sonner";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
-import { Save, Send, Trash2 } from "lucide-react";
+import { Save, Send, ShieldAlert, Trash2 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
+import { Textarea } from "@workspace/ui/components/textarea";
 import { Label } from "@workspace/ui/components/label";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { Switch } from "@workspace/ui/components/switch";
@@ -178,6 +180,7 @@ const BOOL_SETTINGS = [
   "external_sharing_enabled",
   "guest_access",
   "webdav_enabled",
+  "artifacts_enabled",
 ] as const;
 
 /** The keys the rows below are built from, named once instead of spelled at each use. */
@@ -194,6 +197,8 @@ const KEY = {
   mcpTokens: "mcp_tokens",
   mcpExternalShares: "mcp_external_shares",
   webdavEnabled: "webdav_enabled",
+  artifactsEnabled: "artifacts_enabled",
+  artifactCdnAllowlist: "artifact_cdn_allowlist",
   instanceName: "instance_name",
 } as const;
 /* eslint-enable lingui/no-unlocalized-strings */
@@ -210,6 +215,7 @@ const BOOL_DEFAULTS: BoolSettingValues = {
   external_sharing_enabled: false,
   guest_access: false,
   webdav_enabled: false,
+  artifacts_enabled: false,
 };
 
 /** Who is given a personal space; the server's `personal_spaces` values. */
@@ -409,6 +415,7 @@ function ArchivedPersonalSpacesRow() {
 
 function SettingsForm({ settings, onMailTab }: { settings: AdminSettingsMap; onMailTab: boolean }) {
   const { t } = useLingui();
+  const { data: me } = useMe();
   const update = useUpdateAdminSettings();
   const remove = useDeleteAdminSetting();
   // eslint-disable-next-line lingui/no-unlocalized-strings -- default instance name
@@ -426,6 +433,10 @@ function SettingsForm({ settings, onMailTab }: { settings: AdminSettingsMap; onM
   const setBool = (key: BoolSettingKey, value: boolean) =>
     setBools((prev) => ({ ...prev, [key]: value }));
   const [instanceName, setInstanceName] = useState(currentInstanceName);
+  // Space-separated origins. Absent means the server's default list, so the
+  // field shows what the server reports rather than a client-side copy of it.
+  const currentCdnAllowlist = (settings.artifact_cdn_allowlist?.value as string | undefined) ?? "";
+  const [cdnAllowlist, setCdnAllowlist] = useState(currentCdnAllowlist);
   const [maxUploadGb, setMaxUploadGb] = useState(
     currentMaxUpload > 0 ? String(Math.round(currentMaxUpload / 1024 ** 3)) : "0",
   );
@@ -448,6 +459,7 @@ function SettingsForm({ settings, onMailTab }: { settings: AdminSettingsMap; onM
 
   const isDirty =
     instanceName !== currentInstanceName ||
+    cdnAllowlist !== currentCdnAllowlist ||
     maxUploadGb !== initialMaxUploadGb ||
     INT_SETTINGS.some((s) => ints[s.key] !== currentInts[s.key]) ||
     BOOL_SETTINGS.some((k) => bools[k] !== currentBools[k]) ||
@@ -496,6 +508,17 @@ function SettingsForm({ settings, onMailTab }: { settings: AdminSettingsMap; onM
         return;
       }
       patch.instance_name = trimmed;
+    }
+
+    if (cdnAllowlist !== currentCdnAllowlist) {
+      // One space between origins, whatever was typed or pasted between them.
+      const origins = cdnAllowlist.split(/\s+/).filter(Boolean);
+      const bad = origins.find((o) => !/^https:\/\/[^/\s]+$/.test(o));
+      if (bad) {
+        toast.error(t`Each CDN must be an https:// origin with no path: ${bad}`);
+        return;
+      }
+      patch.artifact_cdn_allowlist = origins.join(" ");
     }
 
     if (maxUploadGb !== initialMaxUploadGb) {
@@ -588,6 +611,11 @@ function SettingsForm({ settings, onMailTab }: { settings: AdminSettingsMap; onM
     // eslint-disable-next-line lingui/no-unlocalized-strings -- setting key
     const next = await handleReset("default_personal_quota_bytes");
     if (next) setPersonalQuotaGb(gbOf((next.default_personal_quota_bytes?.value as number) ?? 0));
+  };
+
+  const resetCdnAllowlist = async () => {
+    const next = await handleReset(KEY.artifactCdnAllowlist);
+    if (next) setCdnAllowlist((next.artifact_cdn_allowlist?.value as string | undefined) ?? "");
   };
 
   const resetPending = remove.isPending;
@@ -836,6 +864,68 @@ function SettingsForm({ settings, onMailTab }: { settings: AdminSettingsMap; onM
         </SettingsSection>
 
         <SettingsSection
+          title={<Trans>Publishing</Trans>}
+          description={
+            <Trans>
+              Lets people turn an HTML file or a folder into a public web site that anyone with the
+              link can open, scripts included. Needs public links allowed in the space.
+            </Trans>
+          }
+        >
+          {me && !me.publishing_isolated && (
+            <Alert>
+              <ShieldAlert />
+              <AlertTitle>
+                <Trans>Published sites share this address</Trans>
+              </AlertTitle>
+              <AlertDescription>
+                <Trans>
+                  Without a separate address for published content (PP_ARTIFACT_URL on the server),
+                  sites are served under /a/ here and only the browser's sandbox keeps their scripts
+                  away from people's sessions. Set PP_ARTIFACT_URL to a domain of its own before
+                  letting untrusted people publish.
+                </Trans>
+              </AlertDescription>
+            </Alert>
+          )}
+          {boolRow(
+            KEY.artifactsEnabled,
+            <Trans>Let people publish HTML pages and folders as public sites</Trans>,
+          )}
+          <SettingRow
+            title={<Trans>Allowed CDNs</Trans>}
+            htmlFor={KEY.artifactCdnAllowlist}
+            description={
+              <>
+                {settings.artifact_cdn_allowlist?.description}{" "}
+                <Trans>
+                  The https:// origins published pages may load scripts, styles, images and fonts
+                  from, separated by spaces. Leave empty to allow none: pages then load only their
+                  own files.
+                </Trans>
+              </>
+            }
+            source={settings.artifact_cdn_allowlist?.source}
+            onReset={
+              settings.artifact_cdn_allowlist?.source === "database"
+                ? () => void resetCdnAllowlist()
+                : undefined
+            }
+            resetDisabled={resetPending}
+          >
+            <Textarea
+              id={KEY.artifactCdnAllowlist}
+              className="w-full font-mono text-xs sm:w-80"
+              rows={4}
+              value={cdnAllowlist}
+              onChange={(e) => setCdnAllowlist(e.target.value)}
+              // eslint-disable-next-line lingui/no-unlocalized-strings -- example origin
+              placeholder="https://cdn.jsdelivr.net"
+            />
+          </SettingRow>
+        </SettingsSection>
+
+        <SettingsSection
           title={<Trans>AI agents</Trans>}
           description={
             <Trans>
@@ -883,6 +973,7 @@ function SettingsForm({ settings, onMailTab }: { settings: AdminSettingsMap; onM
               disabled={update.isPending}
               onClick={() => {
                 setInstanceName(currentInstanceName);
+                setCdnAllowlist(currentCdnAllowlist);
                 setMaxUploadGb(initialMaxUploadGb);
                 setInts(currentInts);
                 setBools(currentBools);

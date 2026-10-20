@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/netip"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -121,6 +122,15 @@ type Config struct {
 	// SMTP configures the outgoing mail relay. Environment variables are the
 	// fallback; an admin override in /admin/settings replaces them.
 	SMTP mail.Settings
+	// ArtifactURL is the second origin published sites are served from
+	// (M50, docs/architecture/publishing.md). Empty serves them under /a/
+	// on ExternalURL, isolated by the sandboxing CSP alone. Load refuses
+	// one on the same host as ExternalURL, or plain http while ExternalURL
+	// is https.
+	ArtifactURL string
+	// MaxPublicationBytes caps one publication's snapshot, all files
+	// together.
+	MaxPublicationBytes int64
 }
 
 func Load() (*Config, error) {
@@ -133,6 +143,10 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 	scrubPerDay, err := bytesEnv("PP_BLOB_SCRUB_BYTES_PER_DAY", 100<<30)
+	if err != nil {
+		return nil, err
+	}
+	maxPublication, err := bytesEnv("PP_MAX_PUBLICATION_BYTES", 50<<20)
 	if err != nil {
 		return nil, err
 	}
@@ -171,6 +185,8 @@ func Load() (*Config, error) {
 		OnlyOfficeJWTSecret:  []byte(os.Getenv("PP_ONLYOFFICE_JWT_SECRET")),
 		MaxUploadBytes:       maxUpload,
 		BlobScrubBytesPerDay: scrubPerDay,
+		MaxPublicationBytes:  maxPublication,
+		ArtifactURL:          strings.TrimRight(strings.TrimSpace(os.Getenv("PP_ARTIFACT_URL")), "/"),
 		MetricsAddr:          env("PP_METRICS_ADDR", ":9091"),
 		BootstrapAdminEmail:  strings.ToLower(strings.TrimSpace(os.Getenv("PP_BOOTSTRAP_ADMIN_EMAIL"))),
 		AuditRetention:       time.Duration(daysEnv("PP_AUDIT_RETENTION_DAYS", 365)) * 24 * time.Hour,
@@ -228,6 +244,9 @@ func Load() (*Config, error) {
 		slog.Warn("PP_ONLYOFFICE_JWT_SECRET unset: the Document Server is unsigned",
 			"effect", "anything that can reach its port can drive it, including asking it to fetch an arbitrary URL")
 	}
+	if err := c.validateArtifactURL(); err != nil {
+		return nil, err
+	}
 	if err := c.validateBlobBackend(); err != nil {
 		return nil, err
 	}
@@ -235,6 +254,34 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("PP_SMTP_*: %w", err)
 	}
 	return c, nil
+}
+
+// validateArtifactURL refuses an artifact origin that would hand published
+// HTML the session's origin. Uploaded scripts served from PP_EXTERNAL_URL's
+// host run as whoever opens them, which is the one thing the second origin
+// exists to prevent; a downgrade to http while the app is https would let a
+// network attacker rewrite every published page.
+func (c *Config) validateArtifactURL() error {
+	if c.ArtifactURL == "" {
+		return nil
+	}
+	art, err := url.Parse(c.ArtifactURL)
+	if err != nil || art.Host == "" || (art.Scheme != "http" && art.Scheme != "https") ||
+		(art.Path != "" && art.Path != "/") || art.RawQuery != "" || art.User != nil {
+		return fmt.Errorf("PP_ARTIFACT_URL must be an origin like https://art.example.com, got %q", c.ArtifactURL)
+	}
+	ext, err := url.Parse(c.ExternalURL)
+	if err != nil {
+		return fmt.Errorf("PP_EXTERNAL_URL: %w", err)
+	}
+	if strings.EqualFold(art.Hostname(), ext.Hostname()) {
+		return fmt.Errorf("PP_ARTIFACT_URL must be a different host from PP_EXTERNAL_URL (%s): published pages would run on the app's origin", ext.Hostname())
+	}
+	if ext.Scheme == "https" && art.Scheme != "https" {
+		return fmt.Errorf("PP_ARTIFACT_URL must be https:// when PP_EXTERNAL_URL is")
+	}
+	c.ArtifactURL = art.Scheme + "://" + art.Host
+	return nil
 }
 
 // S3Settings configures the S3-compatible blob backend.

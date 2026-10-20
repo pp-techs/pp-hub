@@ -389,3 +389,28 @@ func TestSMTPFallsBackToEnv(t *testing.T) {
 		t.Fatalf("expected effective %v, got %v", cfg.SMTP, effective)
 	}
 }
+
+// The CDN allowlist is spliced into the artifact host's CSP, so only bare
+// https origins pass: a path, a wildcard, a quote or a semicolon would change
+// what the policy says.
+func TestArtifactCDNAllowlistValidation(t *testing.T) {
+	svc := NewService(nil, nil)
+	for _, bad := range []string{
+		"http://cdn.example", "https://cdn.example/lib", "https://*.example", "'unsafe-inline'",
+		"https://cdn.example; script-src *", "*", "https://cdn.example?x=1", "https://user@cdn.example",
+		"data:", "https://cdn.example#x",
+	} {
+		raw, _ := json.Marshal(bad)
+		if _, err := svc.UpdateMany(context.Background(), "default",
+			map[string]json.RawMessage{KeyArtifactCDNAllowlist: raw}, pgtype.UUID{}); err == nil {
+			t.Errorf("%q accepted", bad)
+		}
+	}
+	got, err := ParseCDNAllowlist("  https://cdn.example   https://fonts.example:8443 ")
+	if err != nil || len(got) != 2 || got[1] != "https://fonts.example:8443" {
+		t.Fatalf("ParseCDNAllowlist = %v, %v", got, err)
+	}
+	if list := svc.ArtifactCDNAllowlist(); len(list) != 5 {
+		t.Fatalf("default allowlist = %v", list)
+	}
+}

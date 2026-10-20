@@ -44,6 +44,10 @@ type WebApp struct {
 	// frameSrc is the Document Server's origin, named in the CSP because the
 	// editor handoff is a real cross-origin form POST into an iframe.
 	frameSrc string
+	// artifactSrc is PP_ARTIFACT_URL, framed by the publication viewer
+	// (/p/<token>) and never a form target. Empty when sites are served
+	// under /a/ here, which frame-src 'self' already covers.
+	artifactSrc string
 	// hsts is whether Strict-Transport-Security is sent: only when the
 	// public address is https, since the header means nothing over http.
 	hsts     bool
@@ -53,7 +57,7 @@ type WebApp struct {
 // NewWebApp opens the bundle in dir. It fails when dir has no index.html, so
 // a wrong PP_WEB_DIR is a startup error rather than a site that answers 404
 // to everything.
-func NewWebApp(dir, onlyOfficeURL, externalURL string) (*WebApp, error) {
+func NewWebApp(dir, onlyOfficeURL, externalURL, artifactURL string) (*WebApp, error) {
 	root := os.DirFS(dir)
 	info, err := fs.Stat(root, "index.html")
 	if err != nil {
@@ -64,11 +68,12 @@ func NewWebApp(dir, onlyOfficeURL, externalURL string) (*WebApp, error) {
 		return nil, fmt.Errorf("PP_WEB_DIR %q: %w", dir, err)
 	}
 	return &WebApp{
-		root:      root,
-		index:     index,
-		indexTime: info.ModTime(),
-		frameSrc:  strings.TrimSpace(onlyOfficeURL),
-		hsts:      strings.HasPrefix(externalURL, "https://"),
+		root:        root,
+		index:       index,
+		indexTime:   info.ModTime(),
+		frameSrc:    strings.TrimSpace(onlyOfficeURL),
+		artifactSrc: strings.TrimSpace(artifactURL),
+		hsts:        strings.HasPrefix(externalURL, "https://"),
 		// Vite emits content-hashed names, so compressing on the fly costs
 		// one pass per cold cache entry and nothing after.
 		compress: middleware.Compress(6,
@@ -87,7 +92,7 @@ func NewWebApp(dir, onlyOfficeURL, externalURL string) (*WebApp, error) {
 // apiPrefixes are the path trees the API owns. A request under one of them
 // that matched no route is a 404, never the app shell: a mistyped API call
 // answering 200 with HTML is the failure that is hardest to see.
-var apiPrefixes = []string{"/api", "/auth", "/hooks", "/mcp", "/dav", "/wopi", "/s"}
+var apiPrefixes = []string{"/api", "/auth", "/hooks", "/mcp", "/dav", "/wopi", "/s", "/p", "/a"}
 
 func apiOwned(p string) bool {
 	for _, prefix := range apiPrefixes {
@@ -141,16 +146,17 @@ func (a *WebApp) serveIndex(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, "index.html", a.indexTime, bytes.NewReader(a.index))
 }
 
-// shareLanding answers a browser navigation to /s/<token> with the app shell.
+// shareLanding answers a browser navigation to /s/<token> — or a
+// publication's /p/<token> — with the app shell.
 //
 // One path, two meanings: the API answers GET /s/<token> as JSON, and the SPA
 // has a page at the same URL. A top-level navigation sends Accept: text/html
 // and gets the page; the SPA's own fetch() does not, and gets the JSON.
-// Sub-paths (/download, /children, …) are always the API.
+// Sub-paths (/download, /children, /unlock, …) are always the API.
 func (a *WebApp) shareLanding(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if (r.Method == http.MethodGet || r.Method == http.MethodHead) &&
-			isShareToken(r.URL.Path) &&
+			(isShareToken(r.URL.Path) || isPublicationToken(r.URL.Path)) &&
 			strings.Contains(strings.ToLower(r.Header.Get("Accept")), "text/html") {
 			a.serveIndex(w, r)
 			return
@@ -160,8 +166,13 @@ func (a *WebApp) shareLanding(next http.Handler) http.Handler {
 }
 
 // isShareToken reports whether p is exactly /s/<segment>.
-func isShareToken(p string) bool {
-	rest, ok := strings.CutPrefix(p, "/s/")
+func isShareToken(p string) bool { return isTokenPath(p, "/s/") }
+
+// isPublicationToken reports whether p is exactly /p/<segment>.
+func isPublicationToken(p string) bool { return isTokenPath(p, "/p/") }
+
+func isTokenPath(p, prefix string) bool {
+	rest, ok := strings.CutPrefix(p, prefix)
 	return ok && rest != "" && !strings.Contains(rest, "/")
 }
 
@@ -209,6 +220,9 @@ func (a *WebApp) csp(host string) string {
 	if a.frameSrc != "" {
 		frame += " " + a.frameSrc
 		form += " " + a.frameSrc
+	}
+	if a.artifactSrc != "" {
+		frame += " " + a.artifactSrc
 	}
 	return "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
 		"img-src 'self' data: blob:; media-src 'self' blob:; object-src 'self'; " +
