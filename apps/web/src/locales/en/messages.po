@@ -2067,8 +2067,10 @@ msgstr "Done"
 msgid "download"
 msgstr "download"
 
-#: src/components/editor-header.tsx:134
-#: src/components/editor-header.tsx:159
+#: src/components/editor-header.tsx:151
+#: src/components/editor-header.tsx:158
+#: src/components/editor-header.tsx:185
+#: src/components/editor-header.tsx:194
 #: src/components/node-actions.tsx:164
 #: src/components/preview-modal.tsx:137
 #: src/components/preview-panel.tsx:350
@@ -2348,7 +2350,7 @@ msgstr "Expires after"
 msgid "Export CSV"
 msgstr "Export CSV"
 
-#: src/components/editor-header.tsx:151
+#: src/components/editor-header.tsx:174
 #: src/components/node-actions.tsx:178
 msgid "Export with images (.zip)"
 msgstr "Export with images (.zip)"
@@ -2701,7 +2703,7 @@ msgid "Highlighted aside"
 msgstr "Highlighted aside"
 
 #: src/components/nav-space.tsx:44
-#: src/components/site-header.tsx:32
+#: src/components/site-header.tsx:40
 #: src/routes/drive/$spaceId/home.tsx:22
 msgid "Home"
 msgstr "Home"
@@ -3202,7 +3204,7 @@ msgstr "Mark all read"
 msgid "Mark as read"
 msgstr "Mark as read"
 
-#: src/components/editor-header.tsx:144
+#: src/components/editor-header.tsx:167
 msgid "Markdown (.md)"
 msgstr "Markdown (.md)"
 
@@ -3309,6 +3311,7 @@ msgid "Monospaced code"
 msgstr "Monospaced code"
 
 #: src/components/locale-provider.tsx:81
+#: src/components/site-header.tsx:313
 msgid "More"
 msgstr "More"
 
@@ -3363,7 +3366,7 @@ msgid "Moved to the trash"
 msgstr "Moved to the trash"
 
 #: src/components/nav-space.tsx:152
-#: src/components/site-header.tsx:237
+#: src/components/site-header.tsx:247
 #: src/lib/use-space-label.ts:11
 msgid "My Drive"
 msgstr "My Drive"
@@ -4205,7 +4208,7 @@ msgid "Read-only"
 msgstr "Read-only"
 
 #: src/components/nav-space.tsx:47
-#: src/components/site-header.tsx:33
+#: src/components/site-header.tsx:41
 #: src/routes/drive/$spaceId/home.tsx:98
 #: src/routes/drive/$spaceId/recent.tsx:13
 msgid "Recent"
@@ -4693,7 +4696,8 @@ msgstr "Settings saved"
 msgid "Settings sections"
 msgstr "Settings sections"
 
-#: src/components/editor-header.tsx:115
+#: src/components/editor-header.tsx:110
+#: src/components/editor-header.tsx:118
 #: src/components/node-actions.tsx:227
 #: src/components/preview-panel.tsx:359
 #: src/components/selection-bar.tsx:74
@@ -4730,15 +4734,14 @@ msgid "Shared"
 msgstr "Shared"
 
 #: src/components/nav-external.tsx:33
-#: src/components/site-header.tsx:140
-#: src/components/site-header.tsx:146
+#: src/components/site-header.tsx:145
 #: src/routes/drive/shared.tsx:15
 #: src/routes/drive/shared.tsx:41
 msgid "Shared from outside"
 msgstr "Shared from outside"
 
 #: src/components/nav-space.tsx:46
-#: src/components/site-header.tsx:35
+#: src/components/site-header.tsx:43
 #: src/routes/drive/$spaceId/shared.tsx:12
 #: src/routes/drive/$spaceId/shared.tsx:34
 msgid "Shared with me"
@@ -4967,7 +4970,7 @@ msgid "Star a file from its ⋯ menu to keep it here."
 msgstr "Star a file from its ⋯ menu to keep it here."
 
 #: src/components/nav-space.tsx:48
-#: src/components/site-header.tsx:34
+#: src/components/site-header.tsx:42
 #: src/routes/drive/$spaceId/home.tsx:128
 #: src/routes/drive/$spaceId/starred.tsx:11
 msgid "Starred"
@@ -5446,7 +5449,7 @@ msgid "Top level"
 msgstr "Top level"
 
 #: src/components/nav-space.tsx:50
-#: src/components/site-header.tsx:36
+#: src/components/site-header.tsx:44
 #: src/components/storage-breakdown.tsx:38
 #: src/components/trash-panel.tsx:202
 #: src/routes/drive/$spaceId/trash.tsx:8
@@ -5674,8 +5677,8 @@ msgid "Version"
 msgstr "Version"
 
 #: src/components/editor-header.tsx:104
-msgid "version {version}"
-msgstr "version {version}"
+#~ msgid "version {version}"
+#~ msgstr "version {version}"
 
 #: src/components/preview-modal.tsx:92
 msgid "version {versionNo}"
@@ -5693,7 +5696,8 @@ msgstr "Version history"
 msgid "versions"
 msgstr "versions"
 
-#: src/components/editor-header.tsx:125
+#: src/components/editor-header.tsx:129
+#: src/components/editor-header.tsx:138
 #: src/components/node-actions.tsx:187
 #: src/components/preview-modal.tsx:162
 #: src/components/preview-panel.tsx:366

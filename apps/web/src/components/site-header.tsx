@@ -11,6 +11,14 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb";
+import { MoreHorizontal } from "lucide-react";
+import { Button } from "@workspace/ui/components/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@workspace/ui/components/dropdown-menu";
 import { cn } from "@workspace/ui/lib/utils";
 import { SidebarTrigger } from "@workspace/ui/components/sidebar";
 import type { Node } from "@/lib/api";
@@ -133,32 +141,34 @@ export function ExternalBreadcrumb({
   const { t } = useLingui();
   const path = useNodePath(dir ?? null);
   const trail = dir ? (path.data ?? []) : [];
+  const crumbs = [
+    { key: "shared", label: t`Shared from outside`, dirId: undefined as string | undefined },
+    ...trail.map((seg) => ({ key: seg.id, label: seg.name, dirId: seg.id as string | undefined })),
+  ];
+  const { hidden, shown } = foldCrumbs(crumbs, linkLast);
   return (
     <>
-      <BreadcrumbItem className="min-w-0">
-        {trail.length === 0 && !linkLast ? (
-          <BreadcrumbPage className="truncate font-medium">{t`Shared from outside`}</BreadcrumbPage>
-        ) : (
-          <BreadcrumbLink
-            className="truncate"
-            render={<Link to="/drive/shared" search={{ dir: undefined }} />}
-          >
-            {t`Shared from outside`}
-          </BreadcrumbLink>
-        )}
-      </BreadcrumbItem>
-      {trail.map((seg, i) => (
-        <Fragment key={seg.id}>
-          <BreadcrumbSeparator />
+      {hidden.length > 0 && (
+        <CrumbOverflow
+          items={hidden.map((crumb) => ({
+            key: crumb.key,
+            label: crumb.label,
+            link: <Link to="/drive/shared" search={{ dir: crumb.dirId }} />,
+          }))}
+        />
+      )}
+      {shown.map((crumb, i) => (
+        <Fragment key={crumb.key}>
+          {(i > 0 || hidden.length > 0) && <BreadcrumbSeparator />}
           <BreadcrumbItem className="min-w-0">
-            {i === trail.length - 1 && !linkLast ? (
-              <BreadcrumbPage className="truncate font-medium">{seg.name}</BreadcrumbPage>
+            {i === shown.length - 1 && !linkLast ? (
+              <BreadcrumbPage className="truncate font-medium">{crumb.label}</BreadcrumbPage>
             ) : (
               <BreadcrumbLink
                 className="truncate"
-                render={<Link to="/drive/shared" search={{ dir: seg.id }} />}
+                render={<Link to="/drive/shared" search={{ dir: crumb.dirId }} />}
               >
-                {seg.name}
+                {crumb.label}
               </BreadcrumbLink>
             )}
           </BreadcrumbItem>
@@ -242,13 +252,26 @@ export function ListingBreadcrumb({
     })),
   ];
 
+  const { hidden, shown } = foldCrumbs(crumbs, linkLast);
+
   return (
     <>
-      {crumbs.map((crumb, i) => {
-        const isLast = i === crumbs.length - 1 && !linkLast;
+      {hidden.length > 0 && (
+        <CrumbOverflow
+          items={hidden.map((crumb) => ({
+            key: crumb.key,
+            label: crumb.label,
+            link: spaceId ? (
+              <Link to="/drive/$spaceId" params={{ spaceId }} search={{ dir: crumb.dirId }} />
+            ) : undefined,
+          }))}
+        />
+      )}
+      {shown.map((crumb, i) => {
+        const isLast = i === shown.length - 1 && !linkLast;
         return (
           <Fragment key={crumb.key}>
-            {i > 0 && <BreadcrumbSeparator />}
+            {(i > 0 || hidden.length > 0) && <BreadcrumbSeparator />}
             <BreadcrumbItem className="min-w-0">
               {isLast || !spaceId ? (
                 <BreadcrumbPage className="truncate font-medium">{crumb.label}</BreadcrumbPage>
@@ -260,6 +283,46 @@ export function ListingBreadcrumb({
         );
       })}
     </>
+  );
+}
+
+/**
+ * Once a trail is longer than this many crumbs (the open file's name
+ * counts), only the last `FOLD_KEEP` stay on the bar and the rest fold into
+ * a dropdown — Google Drive's behaviour.
+ */
+const FOLD_KEEP = 2;
+
+function foldCrumbs<T>(crumbs: T[], linkLast: boolean) {
+  const keep = linkLast ? FOLD_KEEP - 1 : FOLD_KEEP;
+  if (crumbs.length + (linkLast ? 1 : 0) <= FOLD_KEEP + 1) return { hidden: [], shown: crumbs };
+  return { hidden: crumbs.slice(0, -keep), shown: crumbs.slice(-keep) };
+}
+
+/** The `…` button standing in for the folded crumbs. */
+function CrumbOverflow({
+  items,
+}: {
+  items: { key: string; label: string; link?: React.ReactElement }[];
+}) {
+  const { t } = useLingui();
+  return (
+    <BreadcrumbItem>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={<Button variant="ghost" size="icon-sm" aria-label={t`More`} />}
+        >
+          <MoreHorizontal />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          {items.map((item) => (
+            <DropdownMenuItem key={item.key} render={item.link} disabled={!item.link}>
+              {item.label}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </BreadcrumbItem>
   );
 }
 

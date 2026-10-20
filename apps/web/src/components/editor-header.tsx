@@ -17,7 +17,7 @@ import {
 import { capsOf, exportDocumentUrl, isMarkdownFile, type Node } from "@/lib/api";
 import { useMe, useSpaces } from "@/lib/queries";
 import { useUiStore } from "@/lib/ui-store";
-import { useFormatters } from "@/lib/format";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@workspace/ui/components/tooltip";
 import { NodeIcon } from "@/components/node-icon";
 import { ShareDialog } from "@/components/share-dialog";
 import { DocActions, HeaderLead } from "@/components/header-slot";
@@ -54,11 +54,7 @@ export function EditorHeader({
   children?: ReactNode;
 }) {
   const { t } = useLingui();
-  const f = useFormatters();
   const openPanel = useUiStore((s) => s.openPanel);
-  // Named so the extracted message reads `version {version}` rather than
-  // `version {0}`: the placeholder name is all a translator gets.
-  const version = node?.version;
   // Somebody reached through an outside share has no way into the space;
   // their trail runs through the outside-shares browser.
   const spaces = useSpaces();
@@ -98,43 +94,70 @@ export function EditorHeader({
       </HeaderLead>
 
       <DocActions>
-        {node ? (
-          <span className="text-muted-foreground mr-1 hidden truncate text-xs tabular-nums xl:inline">
-            {[
-              version ? t`version ${version}` : null,
-              node.size != null ? f.size(node.size) : null,
-              status,
-            ]
-              .filter(Boolean)
-              .join(" · ")}
+        {status ? (
+          <span className="text-muted-foreground mr-1 hidden truncate text-xs xl:inline">
+            {status}
           </span>
         ) : null}
         {children}
         {node && capsOf(node).share && (
-          <Button variant="outline" size="sm" onClick={() => void ShareDialog.show({ node })}>
-            <Link2 data-icon="inline-start" /> <Trans>Share</Trans>
-          </Button>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={t`Share`}
+                  onClick={() => void ShareDialog.show({ node })}
+                />
+              }
+            >
+              <Link2 />
+            </TooltipTrigger>
+            <TooltipContent>
+              <Trans>Share</Trans>
+            </TooltipContent>
+          </Tooltip>
         )}
         {hasBytes && !guest && (
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={!node}
-            onClick={() => node && openPanel("versions", node)}
-          >
-            <History data-icon="inline-start" /> <Trans>Versions</Trans>
-          </Button>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={t`Versions`}
+                  disabled={!node}
+                  onClick={() => node && openPanel("versions", node)}
+                />
+              }
+            >
+              <History />
+            </TooltipTrigger>
+            <TooltipContent>
+              <Trans>Versions</Trans>
+            </TooltipContent>
+          </Tooltip>
         )}
         {/* A markdown document downloads two ways: the `.md` alone, whose
             `attachment:` references only resolve inside pp-hub, or a zip
             with its images and files beside it. */}
         {!hasBytes ? null : node && capsOf(node).download && isMarkdownFile(node) ? (
           <DropdownMenu>
-            <DropdownMenuTrigger
-              render={<Button variant="ghost" size="icon-sm" aria-label={t`Download`} />}
-            >
-              <Download />
-            </DropdownMenuTrigger>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <DropdownMenuTrigger
+                    render={<Button variant="ghost" size="icon-sm" aria-label={t`Download`} />}
+                  />
+                }
+              >
+                <Download />
+              </TooltipTrigger>
+              <TooltipContent>
+                <Trans>Download</Trans>
+              </TooltipContent>
+            </Tooltip>
             <DropdownMenuContent align="end">
               <DropdownMenuItem
                 // eslint-disable-next-line lingui/no-unlocalized-strings -- API route path and window.open target
@@ -153,15 +176,24 @@ export function EditorHeader({
             </DropdownMenuContent>
           </DropdownMenu>
         ) : node && capsOf(node).download ? (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={t`Download`}
-            // eslint-disable-next-line lingui/no-unlocalized-strings -- API route path
-            render={<a href={`/api/v1/nodes/${nodeId}/download`} />}
-          >
-            <Download />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={t`Download`}
+                  // eslint-disable-next-line lingui/no-unlocalized-strings -- API route path
+                  render={<a href={`/api/v1/nodes/${nodeId}/download`} />}
+                />
+              }
+            >
+              <Download />
+            </TooltipTrigger>
+            <TooltipContent>
+              <Trans>Download</Trans>
+            </TooltipContent>
+          </Tooltip>
         ) : null}
       </DocActions>
     </>
