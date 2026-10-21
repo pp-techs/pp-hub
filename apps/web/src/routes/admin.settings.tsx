@@ -83,7 +83,7 @@ function AdminSettingsPage() {
         <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
           <TabsList variant="line" className="h-9 w-max min-w-full justify-start gap-4 border-b">
             {SETTINGS_TABS.map((s) => (
-              <TabsTrigger key={s.value} value={s.value} className="flex-none px-1 text-sm">
+              <TabsTrigger key={s.value} value={s.value} className="flex-none px-1">
                 {i18n._(s.label)}
               </TabsTrigger>
             ))}

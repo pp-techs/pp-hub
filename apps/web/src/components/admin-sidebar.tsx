@@ -52,7 +52,7 @@ export function AdminSidebar(props: ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="offcanvas" className="px-0" {...props}>
       <SidebarHeader>
-        <div className="flex items-center gap-2.5 px-2 py-1.5">
+        <div className="flex h-12 items-center gap-2.5 px-2">
           <div className="bg-primary text-primary-foreground flex size-8 shrink-0 items-center justify-center rounded-lg">
             <Server className="size-4" />
           </div>

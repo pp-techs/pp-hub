@@ -106,7 +106,8 @@ Three layers, one direction only — components never call `api` directly:
 
 ## Open files
 
-- **A file opens in the shell, never in a new browser tab.** `openFile(node)`
+- **A file opens in the shell, except an office file the browser is set to open in
+  a new tab.** `openFile(node)`
   (`lib/open-file.ts`) is the one way in — menus, toasts, the palette,
   notifications and the New menu all call it; it navigates to
   `/drive/$spaceId/file/$nodeId`, or `/drive/shared/file/$nodeId` for a file
@@ -115,6 +116,15 @@ Three layers, one direction only — components never call `api` directly:
   instance `main.tsx` binds (`bindRouter`), because most callers are not
   components. `/edit/$nodeId` stays as a redirect: it is the href page links
   are stored with, and it is in bookmarks and old notification links.
+- **Office files can leave the shell.** `ui-store.officeOpenIn` (`"new-tab"` by
+  default, `"current"` to stay; per browser, edited from Account → Preferences →
+  Opening files) makes `openFile` open an office file — PDFs included — with
+  `window.open(officeLink(id))` when the caller passes the node's `name`. The
+  address is `/office/$nodeId` (`routes/office.$nodeId.tsx`): OnlyOffice's
+  frame alone, filling the window, with no rail, header or tab strip, because
+  the shell's chrome costs height the editor needs. `components/office-frame.tsx`
+  (`useOfficeSession`, `EditorFrame`) is shared with the shell's `OfficeEditor`.
+  A same-tab open, a node without a name and a blocked popup stay in the shell.
 - **Open files are tabs.** `components/file-tabs.tsx`: the URL names the file
   on screen, the tab list is `ui-store.fileTabs` per space (persisted). A
   file route renders nothing; `FileTabsHost` draws every open file and keeps

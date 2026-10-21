@@ -54,7 +54,7 @@ function AdminLayout() {
     >
       <AdminSidebar variant="inset" />
       <SidebarInset className="min-h-0 overflow-hidden">
-        <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b px-4 lg:px-6">
+        <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger className="-ml-1" />
           <Breadcrumb>
             <BreadcrumbList>

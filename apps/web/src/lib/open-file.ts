@@ -1,5 +1,7 @@
 import type { RegisteredRouter } from "@tanstack/react-router";
 import type { Node, Space } from "@/lib/api";
+import { isOfficeFile } from "@/lib/api";
+import { useUiStore } from "@/lib/ui-store";
 import { queryClient } from "@/lib/query-client";
 import { keys } from "@/lib/queries/keys";
 
@@ -58,6 +60,15 @@ export function nodeLink(nodeId: string): string {
 }
 
 /**
+ * The address of an office file on a page of its own — `/office/$nodeId`, the
+ * editor filling the window with none of the drive around it.
+ */
+export function officeLink(nodeId: string): string {
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- URL path
+  return new URL(`/office/${encodeURIComponent(nodeId)}`, location.origin).href;
+}
+
+/**
  * A file opens in a tab of its own (or the tab it is already open in), but a
  * page link followed inside a document stays in that document's tab. The
  * navigation cannot carry that, so it is left here for the tab host to take
@@ -76,13 +87,34 @@ export function takeSameTab(nodeId: string): boolean {
  * Opens a file in the shell. A node whose space is not known yet goes
  * through `/open/$nodeId`, which resolves it — the address mailed to people.
  * `sameTab` replaces what the current tab shows instead of opening a tab.
+ *
+ * An office file follows this browser's "open office files in"
+ * preference: given its `name`, it opens on a page of its own in a browser tab
+ * (`/office/$nodeId`: the editor alone, filling the window). A node passed without a name
+ * — a notification, a page link — cannot be told apart and stays in the shell,
+ * as does a same-tab open and a browser that blocks the new tab.
  */
 export function openFile(
-  node: Pick<Node, "id"> & Partial<Pick<Node, "space_id">>,
+  node: Pick<Node, "id"> & Partial<Pick<Node, "space_id" | "name">>,
   search: FileSearch = {},
   { sameTab = false }: { sameTab?: boolean } = {},
 ): void {
   if (!router) return;
+  if (
+    !sameTab &&
+    node.name &&
+    isOfficeFile(node.name) &&
+    useUiStore.getState().officeOpenIn === "new-tab"
+  ) {
+    // eslint-disable-next-line lingui/no-unlocalized-strings -- window target
+    const opened = window.open(officeLink(node.id), "_blank");
+    if (opened) {
+      // `noopener` in the features string would make `open` return null, which
+      // is indistinguishable from a blocked popup — sever the link by hand.
+      opened.opener = null;
+      return;
+    }
+  }
   sameTabFor = sameTab ? node.id : null;
   const spaces = queryClient.getQueryData<Space[]>(keys.spaces);
   if (!node.space_id || !spaces) {

@@ -100,7 +100,9 @@ export const MoveDialog = createModal<Props, Destination | null>(
               className={destinationRow(target === undefined)}
               onClick={() => setTarget(undefined)}
             >
-              <HardDrive className="text-muted-foreground size-3.5 shrink-0" />
+              <HardDrive
+                className={cn("size-3.5 shrink-0", target !== undefined && "text-muted-foreground")}
+              />
               <span className="truncate font-medium">{spaceName}</span>
             </button>
             <DestinationLevel

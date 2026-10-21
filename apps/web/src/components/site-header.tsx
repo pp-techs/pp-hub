@@ -67,7 +67,7 @@ export function SiteHeader() {
   const onListing = sections.length === 0;
 
   return (
-    <header className="flex h-(--header-height) shrink-0 items-center gap-1 border-b px-4 transition-[width,height] ease-linear lg:gap-2 lg:px-6">
+    <header className="flex h-(--header-height) shrink-0 items-center gap-1 border-b px-4 transition-[width,height] ease-linear lg:gap-2">
       <SidebarTrigger className="-ml-1" />
       {/* Plain div so height is predictable: base-ui's Separator has
           self-stretch defaults that fight explicit sizing. */}

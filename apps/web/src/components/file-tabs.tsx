@@ -315,7 +315,7 @@ export function FileTabBar() {
   if (!scope || tabs.length === 0) return null;
 
   return (
-    <div className="flex h-10 shrink-0 items-stretch gap-3 border-b px-4 lg:px-6">
+    <div className="flex h-10 shrink-0 items-stretch gap-3 border-b px-4">
       <nav
         ref={strip}
         aria-label={t`Open files`}

@@ -252,7 +252,7 @@ msgstr "{itemCount, plural, one {# mục} other {# mục}}"
 msgid "{label} — {size}"
 msgstr "{label} — {size}"
 
-#: src/components/move-dialog.tsx:187
+#: src/components/move-dialog.tsx:189
 msgid "{listed} and {rest, plural, one {# more} other {# more}}"
 msgstr "{listed} và {rest, plural, one {# mục nữa} other {# mục nữa}}"
 
@@ -558,6 +558,10 @@ msgstr "7 ngày"
 msgid "A file with this name is already in this folder."
 msgstr "Đã có tệp trùng tên trong thư mục này."
 
+#: src/components/settings/panes/account-general.tsx:56
+msgid "A new browser tab"
+msgstr "Một tab trình duyệt mới"
+
 #: src/lib/collab/page-store.ts:50
 msgid "A page can only be moved under another page."
 msgstr "Trang chỉ có thể được chuyển vào bên dưới một trang khác."
@@ -842,7 +846,7 @@ msgstr "Cho phép chia sẻ ra ngoài không gian"
 msgid "Allowed CDNs"
 msgstr "CDN được phép"
 
-#: src/components/move-dialog.tsx:130
+#: src/components/move-dialog.tsx:132
 msgid "Already here"
 msgstr "Đã có ở đây"
 
@@ -904,7 +908,7 @@ msgstr "Ứng dụng đã tắt"
 msgid "App item"
 msgstr "Mục của ứng dụng"
 
-#: src/components/settings/panes/account-general.tsx:158
+#: src/components/settings/panes/account-general.tsx:165
 msgid "Appearance"
 msgstr "Giao diện"
 
@@ -1066,7 +1070,7 @@ msgstr "Có thể xem + tải xuống"
 #: src/components/doc-editor/lossy-edit-modal.tsx:39
 #: src/components/group-list.tsx:394
 #: src/components/link-space-modal.tsx:135
-#: src/components/move-dialog.tsx:127
+#: src/components/move-dialog.tsx:129
 #: src/components/new-document-dialog.tsx:169
 #: src/components/new-ext-node-dialog.tsx:85
 #: src/components/nodes/embed-link-modal.tsx:116
@@ -1240,7 +1244,7 @@ msgstr "Ngôn ngữ mã"
 
 #: src/components/doc-editor/page-tree-panel.tsx:351
 #: src/components/folder-tree.tsx:103
-#: src/components/move-dialog.tsx:267
+#: src/components/move-dialog.tsx:269
 msgid "Collapse"
 msgstr "Thu gọn"
 
@@ -1683,7 +1687,7 @@ msgstr "Không thể lưu bình luận"
 msgid "Could not save your agent setting."
 msgstr "Không thể lưu cài đặt tác tử."
 
-#: src/components/settings/panes/account-general.tsx:149
+#: src/components/settings/panes/account-general.tsx:156
 msgid "Could not save your notification setting."
 msgstr "Không thể lưu cài đặt thông báo của bạn."
 
@@ -1883,7 +1887,7 @@ msgstr "ngày"
 msgid "Default"
 msgstr "Mặc định"
 
-#: src/components/settings/panes/account-general.tsx:172
+#: src/components/settings/panes/account-general.tsx:179
 msgid "Default listing"
 msgstr "Danh sách mặc định"
 
@@ -2049,7 +2053,7 @@ msgstr "Đã đăng xuất thiết bị"
 msgid "Direct share"
 msgstr "Chia sẻ trực tiếp"
 
-#: src/components/settings/panes/account-general.tsx:196
+#: src/components/settings/panes/account-general.tsx:203
 msgid "Direction"
 msgstr "Hướng"
 
@@ -2076,7 +2080,7 @@ msgstr "Thảo luận"
 msgid "Dismiss"
 msgstr "Đóng"
 
-#: src/components/settings/panes/account-general.tsx:89
+#: src/components/settings/panes/account-general.tsx:96
 msgid "Display language"
 msgstr "Ngôn ngữ hiển thị"
 
@@ -2228,7 +2232,7 @@ msgstr "Địa chỉ email cần thêm"
 msgid "Email me a code"
 msgstr "Gửi mã cho tôi"
 
-#: src/components/settings/panes/account-general.tsx:131
+#: src/components/settings/panes/account-general.tsx:138
 msgid "Email me when something is shared with me"
 msgstr "Gửi email khi có nội dung được chia sẻ với tôi"
 
@@ -2372,7 +2376,7 @@ msgstr "Nơi bắt đầu mọi quyền truy cập của bạn vào không gian 
 
 #: src/components/doc-editor/page-tree-panel.tsx:351
 #: src/components/folder-tree.tsx:103
-#: src/components/move-dialog.tsx:267
+#: src/components/move-dialog.tsx:269
 msgid "Expand"
 msgstr "Mở rộng"
 
@@ -2605,7 +2609,7 @@ msgstr "Cần có địa chỉ người gửi khi đã thiết lập máy chủ 
 msgid "From date"
 msgstr "Từ ngày"
 
-#: src/components/move-dialog.tsx:157
+#: src/components/move-dialog.tsx:159
 msgid "Gains access: {gaining}."
 msgstr "Được cấp quyền truy cập: {gaining}."
 
@@ -3022,11 +3026,11 @@ msgstr "Nhãn"
 msgid "Labels are shared by every card on this board."
 msgstr "Nhãn được dùng chung cho mọi thẻ trên bảng này."
 
-#: src/components/settings/panes/account-general.tsx:83
+#: src/components/settings/panes/account-general.tsx:90
 msgid "Language"
 msgstr "Ngôn ngữ"
 
-#: src/components/settings/panes/account-general.tsx:106
+#: src/components/settings/panes/account-general.tsx:113
 msgid "Language changed here, but could not be saved to your account."
 msgstr "Đã đổi ngôn ngữ tại đây, nhưng không lưu được vào tài khoản của bạn."
 
@@ -3224,7 +3228,7 @@ msgstr "đăng nhập thất bại"
 msgid "logout"
 msgstr "đăng xuất"
 
-#: src/components/move-dialog.tsx:165
+#: src/components/move-dialog.tsx:167
 msgid "Loses access: {losing}."
 msgstr "Mất quyền truy cập: {losing}."
 
@@ -3392,7 +3396,7 @@ msgstr "Thêm"
 msgid "Mount as a drive (WebDAV)"
 msgstr "Gắn như một ổ đĩa (WebDAV)"
 
-#: src/components/move-dialog.tsx:130
+#: src/components/move-dialog.tsx:132
 #: src/components/selection-bar.tsx:84
 msgid "Move"
 msgstr "Di chuyển"
@@ -3829,7 +3833,7 @@ msgstr "Phát hiện trong lần đăng nhập gần nhất của họ"
 
 #: src/components/notifications-bell.tsx:56
 #: src/components/notifications-bell.tsx:73
-#: src/components/settings/panes/account-general.tsx:127
+#: src/components/settings/panes/account-general.tsx:134
 msgid "Notifications"
 msgstr "Thông báo"
 
@@ -3897,7 +3901,7 @@ msgstr "Chỉ quản trị viên mới có thể mở trang quản trị máy ch
 msgid "Only the open page’s icon and cover can be changed."
 msgstr "Chỉ có thể đổi biểu tượng và ảnh bìa của trang đang mở."
 
-#: src/components/file-view.tsx:295
+#: src/components/office-frame.tsx:71
 msgid "OnlyOffice editor"
 msgstr "Trình chỉnh sửa OnlyOffice"
 
@@ -3940,6 +3944,10 @@ msgstr "Mở trong tab mới"
 msgid "Open link"
 msgstr "Mở liên kết"
 
+#: src/components/settings/panes/account-general.tsx:216
+msgid "Open office files in"
+msgstr "Mở tệp Office trong"
+
 #: src/routes/drive.tsx:192
 msgid "Open Shared from outside"
 msgstr "Mở Được chia sẻ từ bên ngoài"
@@ -3958,14 +3966,20 @@ msgstr "đã mở trong trình soạn thảo"
 
 #: src/routes/drive/$spaceId/file.$nodeId.tsx:13
 #: src/routes/drive/shared_.file.$nodeId.tsx:14
+#: src/routes/office.$nodeId.tsx:18
 #: src/routes/open.$nodeId.tsx:19
 msgid "Opening"
 msgstr "Đang mở"
 
-#: src/components/file-view.tsx:141
-#: src/components/file-view.tsx:256
+#: src/components/file-view.tsx:134
+#: src/components/file-view.tsx:226
+#: src/routes/office.$nodeId.tsx:42
 msgid "Opening editor…"
 msgstr "Đang mở trình chỉnh sửa…"
+
+#: src/components/settings/panes/account-general.tsx:212
+msgid "Opening files"
+msgstr "Mở tệp"
 
 #: src/components/share-dialog.tsx:984
 msgid "Opens for people who already have access."
@@ -4195,7 +4209,7 @@ msgstr "Cổng phải nằm trong khoảng từ 1 đến 65535."
 #~ msgid "Preferences"
 #~ msgstr "Tuỳ chọn"
 
-#: src/components/settings/panes/account-general.tsx:163
+#: src/components/settings/panes/account-general.tsx:170
 msgid "Press D anywhere outside a text field to flip between light and dark."
 msgstr "Nhấn D ở bất kỳ đâu ngoài ô nhập văn bản để chuyển giữa giao diện sáng và tối."
 
@@ -4315,7 +4329,7 @@ msgstr "Trích dẫn"
 msgid "re-share"
 msgstr "chia sẻ lại"
 
-#: src/components/file-view.tsx:250
+#: src/components/file-view.tsx:220
 msgid "read-only"
 msgstr "chỉ đọc"
 
@@ -4627,15 +4641,15 @@ msgstr "Đã lưu"
 msgid "Saved {created} · {size}"
 msgstr "Đã lưu {created} · {size}"
 
-#: src/components/file-view.tsx:250
+#: src/components/file-view.tsx:220
 msgid "saved by OnlyOffice"
 msgstr "được lưu bởi OnlyOffice"
 
-#: src/components/settings/panes/account-general.tsx:91
+#: src/components/settings/panes/account-general.tsx:98
 msgid "Saved to your account, so it follows you to any browser you sign in from."
 msgstr "Được lưu vào tài khoản, nên sẽ theo bạn trên mọi trình duyệt bạn đăng nhập."
 
-#: src/components/settings/panes/account-general.tsx:133
+#: src/components/settings/panes/account-general.tsx:140
 msgid "Saved to your account. Only sent when your administrator has set up mail."
 msgstr "Được lưu vào tài khoản của bạn. Chỉ gửi khi quản trị viên đã thiết lập thư."
 
@@ -5048,7 +5062,7 @@ msgid "Sort ascending"
 msgstr "Sắp xếp tăng dần"
 
 #: src/components/folder-actions.tsx:189
-#: src/components/settings/panes/account-general.tsx:189
+#: src/components/settings/panes/account-general.tsx:196
 msgid "Sort by"
 msgstr "Sắp xếp theo"
 
@@ -5296,7 +5310,7 @@ msgstr "Trang người xem mở đầu tiên, tính từ thư mục này."
 msgid "The page visitors land on, relative to this folder. Applies on republish."
 msgstr "Trang người xem mở đầu tiên, tính từ thư mục này. Áp dụng khi xuất bản lại."
 
-#: src/components/move-dialog.tsx:183
+#: src/components/move-dialog.tsx:185
 #: src/components/share-dialog.tsx:705
 msgid "the public link"
 msgstr "liên kết công khai"
@@ -5323,7 +5337,7 @@ msgstr "Quyền truy cập của họ kết thúc ngay lập tức. Các tệp h
 msgid "Their files stay in place and wait for a handover on the People pane."
 msgstr "Tệp của họ vẫn được giữ nguyên và chờ bàn giao ở mục Mọi người."
 
-#: src/components/settings/panes/account-general.tsx:162
+#: src/components/settings/panes/account-general.tsx:169
 msgid "Theme"
 msgstr "Giao diện"
 
@@ -5371,7 +5385,7 @@ msgstr "Tài khoản này đã bị tạm khoá. Hãy liên hệ quản trị vi
 msgid "This address is on a different mail domain from yours"
 msgstr "Địa chỉ này thuộc miền thư khác với miền của bạn"
 
-#: src/components/file-view.tsx:185
+#: src/components/file-view.tsx:178
 msgid "This app is not part of this installation"
 msgstr "Ứng dụng này không có trong bản cài đặt này"
 
@@ -5474,7 +5488,7 @@ msgstr "Hệ thống này"
 msgid "This install includes no apps."
 msgstr "Bản cài đặt này không có ứng dụng nào."
 
-#: src/components/file-view.tsx:188
+#: src/components/file-view.tsx:181
 msgid "This item belongs to an app that this version of PP Hub does not include. It can still be renamed, moved or deleted from the drive."
 msgstr "Mục này thuộc về một ứng dụng mà phiên bản PP Hub này không có. Bạn vẫn có thể đổi tên, di chuyển hoặc xoá nó khỏi kho tệp."
 
@@ -5533,6 +5547,10 @@ msgstr "Không gian này không có quản trị viên"
 #: src/components/invite-modal.tsx:63
 msgid "This space is not linked to an organization yet, so nobody can be added to it. An instance administrator has to link it first — there is nothing to fix from this screen."
 msgstr "Không gian này chưa được liên kết với tổ chức nào nên không thể thêm ai vào. Quản trị viên máy chủ phải liên kết trước — không có gì để khắc phục từ màn hình này."
+
+#: src/components/settings/panes/account-general.tsx:55
+msgid "This tab"
+msgstr "Tab này"
 
 #: src/components/preview-content.tsx:175
 msgid "This video can't be played here — use Download."
@@ -5834,7 +5852,7 @@ msgstr "Slug URL"
 msgid "Used to email people when a file or folder is shared with them. Leave the host empty to turn mail off."
 msgstr "Dùng để gửi email cho mọi người khi tệp hoặc thư mục được chia sẻ với họ. Để trống máy chủ để tắt thư."
 
-#: src/components/settings/panes/account-general.tsx:175
+#: src/components/settings/panes/account-general.tsx:182
 msgid "Used when a link says nothing about how to draw the folder. A link that carries a view or a sort keeps the one it was copied with."
 msgstr "Được dùng khi liên kết không chỉ định cách hiển thị thư mục. Liên kết có kèm kiểu xem hoặc cách sắp xếp sẽ giữ nguyên giá trị lúc được sao chép."
 
@@ -5930,7 +5948,7 @@ msgid "view"
 msgstr "xem"
 
 #: src/components/folder-actions.tsx:203
-#: src/components/settings/panes/account-general.tsx:182
+#: src/components/settings/panes/account-general.tsx:189
 #: src/components/version-list.tsx:120
 msgid "View"
 msgstr "Xem"
@@ -6028,6 +6046,10 @@ msgstr "Giới hạn WIP…"
 #: src/routes/admin.settings.tsx:882
 msgid "Without a separate address for published content (PP_ARTIFACT_URL on the server), sites are served under /a/ here and only the browser's sandbox keeps their scripts away from people's sessions. Set PP_ARTIFACT_URL to a domain of its own before letting untrusted people publish."
 msgstr "Khi chưa có địa chỉ riêng cho nội dung xuất bản (PP_ARTIFACT_URL trên máy chủ), các trang được phục vụ dưới /a/ tại đây và chỉ sandbox của trình duyệt ngăn script của chúng chạm tới phiên đăng nhập của mọi người. Hãy đặt PP_ARTIFACT_URL thành một tên miền riêng trước khi cho người không tin cậy xuất bản."
+
+#: src/components/settings/panes/account-general.tsx:217
+msgid "Word, Excel, PowerPoint and PDF files. Saved to this browser only."
+msgstr "Tệp Word, Excel, PowerPoint và PDF. Chỉ lưu trên trình duyệt này."
 
 #: src/components/comments/thread-list.tsx:106
 msgid "Write a comment… (@ to mention)"
