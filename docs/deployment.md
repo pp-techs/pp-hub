@@ -880,6 +880,38 @@ in the same JSON file would also make `/ai-proxy` answer 403). Not verified: whe
 apply to `/ai-proxy` (the server config reference says it uses the ordinary
 external-request filtering, which they are not), and a real provider round trip.
 
+### OnlyOffice fonts
+
+The editor, and the office thumbnails the worker asks it for, draw with the
+fonts installed in the `onlyoffice` container, not the viewer's. The image ships
+Microsoft's 2006 Calibri and Tahoma, which lack most Vietnamese letters (`ơ ư ạ ả
+ấ ế ệ ộ ứ ự …`): those letters were drawn in a different fallback face, mixed
+into a line of Calibri. The compose entrypoint therefore deletes both. The editor
+then substitutes Carlito (Calibri's metrics, full Vietnamese) and Open Sans
+(Tahoma), so layout does not change. Cambria and Consolas are left as they are;
+Cambria's replacement, Caladea, lacks the same letters.
+
+It also fetches a set of open-licence families that cover Vietnamese, once, into
+the `onlyoffice_fonts` volume mounted at `/usr/share/fonts/truetype/custom`:
+Roboto (and Condensed, Slab), Noto Sans/Serif/Mono, Lato, Inter, Montserrat, IBM
+Plex, JetBrains Mono, Quicksand, Comfortaa, Cantarell, Vollkorn, Linux Libertine,
+Be Vietnam Pro, Barlow, Fira Sans, Sarabun, Alegreya Sans, Spectral, Pacifico,
+Lobster, Patrick Hand, Anton and Varela Round, in Regular, Bold, Italic and Bold
+Italic only. They are static files: OnlyOffice lists a variable font under its
+default instance's name (`Montserrat Thin`), so variable fonts from Google Fonts
+are not used. The first start needs outbound access to the Ubuntu archive and
+`raw.githubusercontent.com` and takes minutes (the healthcheck `start_period` is
+300s); offline it starts with the image's own fonts and tries again next start.
+Bump the `.pphub-fonts-1` marker's name in the entrypoint to refetch after the
+list changes.
+
+**Adding your own:** copy `.ttf`/`.otf` files into the volume (for example
+`docker cp MyFont.ttf <container>:/usr/share/fonts/truetype/custom/`) and restart
+`onlyoffice`; the image rebuilds its font list on every start. Microsoft's own
+fonts (Segoe UI, Aptos, a current Calibri) are not redistributable, so they are
+not fetched: add them there if you hold a licence. A hand-written compose needs
+the `fonts` step of the `entrypoint` in `compose.prod.yml` and the volume.
+
 ### One issuer or two
 
 `PP_OIDC_ISSUER` is the issuer **this process** can reach: discovery, token,

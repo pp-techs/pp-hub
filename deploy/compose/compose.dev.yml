@@ -111,10 +111,41 @@ services:
         # compose.prod.yml), so name it again. Needs onlyoffice.github.io on first start.
         grep -q '"ai"' /var/www/onlyoffice/documentserver/sdkjs-plugins/plugin-list-default.json ||
           sed -i 's/^\[/[\n\t"ai",/' /var/www/onlyoffice/documentserver/sdkjs-plugins/plugin-list-default.json
+        # Fonts, see compose.prod.yml for the reasoning. Vietnamese-capable
+        # families are fetched once into the onlyoffice_fonts volume, which is
+        # also where you drop a font of your own (a licensed one, say).
+        rm -f /usr/share/fonts/truetype/msttcorefonts/CALIBRI*.TTF \
+              /usr/share/fonts/truetype/msttcorefonts/[Tt]ahoma*.ttf
+        export F=/usr/share/fonts/truetype/custom
+        if [ ! -e $$F/.pphub-fonts-1 ]; then
+          (
+            set -e
+            T=$$(mktemp -d); cd $$T; mkdir x
+            apt-get update -qq
+            apt-get download -qq fonts-roboto-unhinted fonts-roboto-slab fonts-noto-core \
+              fonts-noto-mono fonts-lato fonts-inter fonts-montserrat fonts-ibm-plex \
+              fonts-jetbrains-mono fonts-quicksand fonts-comfortaa fonts-cantarell \
+              fonts-vollkorn fonts-linuxlibertine
+            for d in *.deb; do dpkg-deb -x $$d x; done
+            find x -type f ! -path '*/opentype/montserrat/*' \
+              | grep -E '/((Roboto|RobotoCondensed|RobotoSlab|NotoSans|NotoSerif|NotoSansMono|Lato|Inter|Montserrat|IBMPlexSans|IBMPlexSerif|IBMPlexMono|JetBrainsMono|Quicksand|Comfortaa|Cantarell|Vollkorn)-(Regular|Bold|Italic|BoldItalic)\.(ttf|otf)|LinLibertine_(R|RB|RI|RBI)\.otf|LinBiolinum_(R|RB|RI)\.otf)$$' \
+              | xargs -I{} cp {} $$F/
+            export G=https://raw.githubusercontent.com/google/fonts/47d54ca1ebb14fd864695f1d39dc734f39017c33/ofl
+            for f in bevietnampro/BeVietnamPro barlow/Barlow firasans/FiraSans sarabun/Sarabun \
+                     alegreyasans/AlegreyaSans spectral/Spectral; do
+              for s in Regular Bold Italic BoldItalic; do echo $$f-$$s; done
+            done > list
+            for f in pacifico/Pacifico lobster/Lobster patrickhand/PatrickHand anton/Anton \
+                     varelaround/VarelaRound; do echo $$f-Regular; done >> list
+            xargs -P8 -n1 sh -c 'curl -fsSL --retry 3 -o "$$F/$${0##*/}.ttf" "$$G/$$0.ttf"' < list
+            touch $$F/.pphub-fonts-1
+          ) || echo "fonts: install failed, starting with the image's own fonts" >&2
+        fi
         exec /app/ds/run-document-server.sh
     volumes:
       - onlyoffice_data:/var/www/onlyoffice/Data
       - onlyoffice_logs:/var/log/onlyoffice
+      - onlyoffice_fonts:/usr/share/fonts/truetype/custom
     ports:
       - "9980:80"
     # Reaches your Go server, which runs on the host rather than in compose.
@@ -125,7 +156,9 @@ services:
       interval: 15s
       timeout: 5s
       retries: 10
-      start_period: 60s
+      # The first start also downloads the fonts, which then waits on the
+      # font list being rebuilt: minutes, not seconds.
+      start_period: 300s
 
   # --profile worker
   #
@@ -283,5 +316,6 @@ volumes:
   pg_data:
   onlyoffice_data:
   onlyoffice_logs:
+  onlyoffice_fonts:
   seaweed_data:
   logto_pg_data:
