@@ -3,13 +3,13 @@ import { persist } from "zustand/middleware";
 import type { Node, NodeView, SortField, SortOrder } from "@/lib/api";
 import type { ClipboardState } from "@/lib/write-target";
 import type { DraggingNodes } from "@/lib/drag-drop";
-import type { FileTab } from "@/lib/file-tabs";
 
 export type PanelKind = "versions";
 
 export type OpenPanel = (kind: PanelKind, node: Node) => void;
 
-export type OfficeOpenIn = "current" | "new-tab";
+/** Where an editor opens in this browser. */
+export type FileOpenIn = "current" | "new-tab";
 
 interface DirEntry {
   name: string;
@@ -48,12 +48,12 @@ interface UiState {
   listingPrefs: { view: NodeView; sort: SortField; order: SortOrder };
   setListingPrefs: (next: Partial<UiState["listingPrefs"]>) => void;
   /**
-   * Where an office file opens: in the drive shell's tab strip (`current`) or
-   * in a browser tab of its own (`new-tab`). Local to this browser, like the
-   * listing defaults — a habit of the machine, not a fact about the person.
+   * Where a file opens: in this browser tab or a new browser tab. Local to
+   * this browser, like the listing defaults — a habit of the machine, not a
+   * fact about the person.
    */
-  officeOpenIn: OfficeOpenIn;
-  setOfficeOpenIn: (v: OfficeOpenIn) => void;
+  fileOpenIn: FileOpenIn;
+  setFileOpenIn: (v: FileOpenIn) => void;
   openPanel: OpenPanel;
   closePanel: () => void;
   /** Record dir id + its parent (from the listing it appeared in). */
@@ -91,14 +91,6 @@ interface UiState {
    */
   docPanels: DocPanels;
   setDocPanel: (panel: keyof DocPanels, open: boolean) => void;
-  /**
-   * The open-file tabs, per space id (or `shared` for files shared from
-   * outside any of the caller's spaces). Persisted so a reload — or the next
-   * day — comes back to the same files; only the list is kept, each file
-   * loads when its tab is shown.
-   */
-  fileTabs: Record<string, FileTab[]>;
-  setFileTabs: (scope: string, tabs: FileTab[]) => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -112,9 +104,9 @@ export const useUiStore = create<UiState>()(
       // eslint-disable-next-line lingui/no-unlocalized-strings -- NodeView/SortField/SortOrder ids
       listingPrefs: { view: "grid", sort: "name", order: "asc" },
       setListingPrefs: (next) => set((s) => ({ listingPrefs: { ...s.listingPrefs, ...next } })),
-      // eslint-disable-next-line lingui/no-unlocalized-strings -- OfficeOpenIn id
-      officeOpenIn: "new-tab",
-      setOfficeOpenIn: (v) => set({ officeOpenIn: v }),
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- FileOpenIn id
+      fileOpenIn: "current",
+      setFileOpenIn: (v) => set({ fileOpenIn: v }),
       openPanel: (kind, node) => set({ panel: { kind, node } }),
       closePanel: () => set({ panel: null }),
       rememberDir: (node) => {
@@ -143,8 +135,6 @@ export const useUiStore = create<UiState>()(
       setDraggingNodes: (val) => set({ draggingNodes: val }),
       docPanels: { pages: true },
       setDocPanel: (panel, open) => set((s) => ({ docPanels: { ...s.docPanels, [panel]: open } })),
-      fileTabs: {},
-      setFileTabs: (scope, tabs) => set((s) => ({ fileTabs: { ...s.fileTabs, [scope]: tabs } })),
     }),
     {
       name: "pp-hub-ui",
@@ -152,9 +142,8 @@ export const useUiStore = create<UiState>()(
         dirs: s.dirs,
         lastSpaceId: s.lastSpaceId,
         listingPrefs: s.listingPrefs,
-        officeOpenIn: s.officeOpenIn,
+        fileOpenIn: s.fileOpenIn,
         docPanels: s.docPanels,
-        fileTabs: s.fileTabs,
       }),
     },
   ),

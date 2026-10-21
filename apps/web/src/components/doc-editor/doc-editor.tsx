@@ -160,10 +160,9 @@ export function DocEditor({
     }
     setThreadPanel({ comments: next.comments, focusThreadId: next.focusThreadId });
   };
-  // The editor latches its page options once, so this must not change. A
-  // page followed from here replaces this one in its tab.
+  // The editor latches its page options once, so this must not change.
   const openPage = useCallback(
-    (pageId: string) => openFile({ id: pageId, space_id: node.space_id }, {}, { sameTab: true }),
+    (pageId: string) => openFile({ id: pageId, space_id: node.space_id }),
     [node.space_id],
   );
   // One listing names every sub-page block's page, before each block asks

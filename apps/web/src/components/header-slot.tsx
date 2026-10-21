@@ -10,10 +10,9 @@ import { createPortal } from "react-dom";
  * sub-page's trail) — the lead, in place of the breadcrumb the shell derives
  * from the pathname.
  *
- * The header is navigation only. What belongs to an open file — its version
- * line, presence, the outline and comments toggles, Share, Versions,
- * Download — goes to the document bar under it (`DocActions`), beside the
- * open-file tabs.
+ * An open file's own controls — its version line, presence, the outline and
+ * comments toggles, Share, Versions and Download — go to the same header's
+ * trailing actions through `HeaderActions`; there is one header and no second bar.
  *
  * Deliberately not `ui-store`: that store is for ephemeral UI *state*, and a
  * ReactNode is not state — keeping it here means no effect writes on render
@@ -25,30 +24,21 @@ const HeaderSlotContext = createContext<{
   setActions: (node: Slot) => void;
   lead: Slot;
   setLead: (node: Slot) => void;
-  doc: Slot;
-  setDoc: (node: Slot) => void;
 }>({
   actions: null,
   setActions: () => {},
   lead: null,
   setLead: () => {},
-  doc: null,
-  setDoc: () => {},
 });
 
-/**
- * Whether the surface below is the one on screen. Open files stay mounted
- * out of sight behind the one shown, and only the shown one may fill the
- * header or name the browser tab.
- */
+/** A nested editor may suppress its header portals while it is not visible. */
 const OnScreenContext = createContext(true);
 
 export function HeaderSlotProvider({ children }: { children: React.ReactNode }) {
   const [actions, setActions] = useState<Slot>(null);
   const [lead, setLead] = useState<Slot>(null);
-  const [doc, setDoc] = useState<Slot>(null);
   return (
-    <HeaderSlotContext.Provider value={{ actions, setActions, lead, setLead, doc, setDoc }}>
+    <HeaderSlotContext.Provider value={{ actions, setActions, lead, setLead }}>
       {children}
     </HeaderSlotContext.Provider>
   );
@@ -66,12 +56,6 @@ export function HeaderLeadSlot() {
   return <div ref={setLead} className="flex min-w-0 flex-1 items-center gap-2" />;
 }
 
-/** Rendered once by the document bar — where an open file's own controls land. */
-export function DocActionsSlot() {
-  const { setDoc } = useContext(HeaderSlotContext);
-  return <div ref={setDoc} className="flex shrink-0 items-center gap-1" />;
-}
-
 /** Rendered by a route: puts its controls in the shell's one header. */
 export function HeaderActions({ children }: { children: React.ReactNode }) {
   const { actions } = useContext(HeaderSlotContext);
@@ -86,19 +70,8 @@ export function HeaderLead({ children }: { children: React.ReactNode }) {
   return lead && onScreen ? createPortal(children, lead) : null;
 }
 
-/** Rendered by a file's editor: its own controls, in the document bar. */
-export function DocActions({ children }: { children: React.ReactNode }) {
-  const { doc } = useContext(HeaderSlotContext);
-  const onScreen = useContext(OnScreenContext);
-  return doc && onScreen ? createPortal(children, doc) : null;
-}
-
 /** Marks a subtree as on screen or not; nested markers can only narrow it. */
 export function OnScreen({ value, children }: { value: boolean; children: React.ReactNode }) {
   const outer = useContext(OnScreenContext);
   return <OnScreenContext.Provider value={outer && value}>{children}</OnScreenContext.Provider>;
-}
-
-export function useOnScreen(): boolean {
-  return useContext(OnScreenContext);
 }

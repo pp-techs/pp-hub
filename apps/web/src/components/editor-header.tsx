@@ -20,7 +20,7 @@ import { useUiStore } from "@/lib/ui-store";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@workspace/ui/components/tooltip";
 import { NodeIcon } from "@/components/node-icon";
 import { ShareDialog } from "@/components/share-dialog";
-import { DocActions, HeaderLead } from "@/components/header-slot";
+import { HeaderActions, HeaderLead } from "@/components/header-slot";
 import { ExternalBreadcrumb, ListingBreadcrumb } from "@/components/site-header";
 
 /**
@@ -29,13 +29,12 @@ import { ExternalBreadcrumb, ListingBreadcrumb } from "@/components/site-header"
  * editor itself cannot know: where the file lives, and the pp-hub actions
  * (share, version history, download) that operate on the node. Where it
  * lives (folder trail, `trail`, name) takes the navigation header's
- * breadcrumb; everything about the file itself goes to the document bar
- * under it, beside the open-file tabs: the version line (`status` ends it),
- * then `children` (presence, save state, badges, the panel toggles), then
- * the actions. `trail` (a sub-page's parent documents) sits before the
- * file's name, and `driveDir` is the folder the trail ends in when it is not
- * the node's parent — a sub-page's parent is a document, which the listing
- * cannot open.
+ * breadcrumb; the file's own controls go to the same header's trailing
+ * actions: the version line (`status` ends it), then `children` (presence,
+ * save state, badges, the panel toggles), then the actions. `trail` (a
+ * sub-page's parent documents) sits before the file's name, and `driveDir`
+ * is the folder the trail ends in when it is not the node's parent — a
+ * sub-page's parent is a document, which the listing cannot open.
  */
 export function EditorHeader({
   nodeId,
@@ -93,7 +92,7 @@ export function EditorHeader({
         )}
       </HeaderLead>
 
-      <DocActions>
+      <HeaderActions>
         {status ? (
           <span className="text-muted-foreground mr-1 hidden truncate text-xs xl:inline">
             {status}
@@ -195,7 +194,7 @@ export function EditorHeader({
             </TooltipContent>
           </Tooltip>
         ) : null}
-      </DocActions>
+      </HeaderActions>
     </>
   );
 }
