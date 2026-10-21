@@ -1,5 +1,0 @@
----
-"@pp-hub/release": minor
----
-
-Office documents no longer show Vietnamese letters in a mismatched font. The OnlyOffice image's 2006 Calibri and Tahoma lack most Vietnamese letters, so they were drawn in another face mid-word, in the editor and in thumbnails; they are now removed and the editor substitutes Carlito and Open Sans, which cover them with the same metrics. The `onlyoffice` service also installs a set of open-licence fonts that support Vietnamese (Roboto, Noto, Lato, Inter, Montserrat, IBM Plex, Be Vietnam Pro, Fira Sans and more) into a new `onlyoffice_fonts` volume on its first start, which needs outbound access to the Ubuntu archive and `raw.githubusercontent.com` and takes a few minutes; fonts of your own can be copied into the same volume. **If you run your own compose (for example a Dokploy copy)** add the `fonts` step from the `entrypoint` in `compose.prod.yml`, the `onlyoffice_fonts` volume and its mount at `/usr/share/fonts/truetype/custom`. See [docs/deployment.md](docs/deployment.md#onlyoffice-fonts).
