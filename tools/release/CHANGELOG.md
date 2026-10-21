@@ -1,5 +1,16 @@
 # @pp-hub/release
 
+## 0.30.0
+
+### Minor Changes
+
+- 45558ff: Office files (Word, Excel, PowerPoint, PDF) now open in a new browser tab by default, on a page that holds only the OnlyOffice editor — no sidebar, header or tab strip — so it gets the full window height. A new preference, Account → Preferences → Opening files, switches back to opening them inside the drive. It is stored in the browser, not the account.
+- 913d5c3: Office documents no longer show Vietnamese letters in a mismatched font. The OnlyOffice image's 2006 Calibri and Tahoma lack most Vietnamese letters, so they were drawn in another face mid-word, in the editor and in thumbnails; they are now removed and the editor substitutes Carlito and Open Sans, which cover them with the same metrics. The `onlyoffice` service also installs a set of open-licence fonts that support Vietnamese (Roboto, Noto, Lato, Inter, Montserrat, IBM Plex, Be Vietnam Pro, Fira Sans and more) into a new `onlyoffice_fonts` volume on its first start, which needs outbound access to the Ubuntu archive and `raw.githubusercontent.com` and takes a few minutes; fonts of your own can be copied into the same volume. **If you run your own compose (for example a Dokploy copy)** add the `fonts` step from the `entrypoint` in `compose.prod.yml`, the `onlyoffice_fonts` volume and its mount at `/usr/share/fonts/truetype/custom`. See [docs/deployment.md](docs/deployment.md#onlyoffice-fonts).
+
+### Patch Changes
+
+- 45558ff: Small interface fixes: the drive icon in the Move dialog now turns light when its row is selected, the keyboard hint on "Move to trash" is drawn in the destructive colour like the rest of the item, the tabs on Admin → Instance settings use the standard tab text size, and the header and the open-file tab bar now share the page's side padding (`px-4`) instead of widening to `px-6` on large screens, on the drive and in administration alike.
+
 ## 0.29.0
 
 ### Minor Changes

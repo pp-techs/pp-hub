@@ -11,6 +11,14 @@ Versions up to and including 0.14.1 predate this changelog; see the
 
 <!-- `bun run version-packages` adds each release's section from its changesets; edit it in the Version Packages PR. -->
 
+## [0.30.0] — 2026-10-21
+
+Office files (Word, Excel, PowerPoint, PDF) now open in a new browser tab by default, on a page that holds only the OnlyOffice editor — no sidebar, header or tab strip — so it gets the full window height. A new preference, Account → Preferences → Opening files, switches back to opening them inside the drive. It is stored in the browser, not the account.
+
+Office documents no longer show Vietnamese letters in a mismatched font. The OnlyOffice image's 2006 Calibri and Tahoma lack most Vietnamese letters, so they were drawn in another face mid-word, in the editor and in thumbnails; they are now removed and the editor substitutes Carlito and Open Sans, which cover them with the same metrics. The `onlyoffice` service also installs a set of open-licence fonts that support Vietnamese (Roboto, Noto, Lato, Inter, Montserrat, IBM Plex, Be Vietnam Pro, Fira Sans and more) into a new `onlyoffice_fonts` volume on its first start, which needs outbound access to the Ubuntu archive and `raw.githubusercontent.com` and takes a few minutes; fonts of your own can be copied into the same volume. **If you run your own compose (for example a Dokploy copy)** add the `fonts` step from the `entrypoint` in `compose.prod.yml`, the `onlyoffice_fonts` volume and its mount at `/usr/share/fonts/truetype/custom`. See [docs/deployment.md](docs/deployment.md#onlyoffice-fonts).
+
+Small interface fixes: the drive icon in the Move dialog now turns light when its row is selected, the keyboard hint on "Move to trash" is drawn in the destructive colour like the rest of the item, the tabs on Admin → Instance settings use the standard tab text size, and the header and the open-file tab bar now share the page's side padding (`px-4`) instead of widening to `px-6` on large screens, on the drive and in administration alike.
+
 ## [0.29.0] — 2026-10-20
 
 Publish an `.html` file or a folder as a public mini web site, like an AI chat's artifact link: `Publish…` takes a snapshot, gives it a stable `/p/<link>` URL, and Republish updates it in place. Scripts run sandboxed with no network access; styles, scripts and fonts may come from an admin-chosen CDN allowlist. A publication can carry a password and an expiry, and agents can publish over MCP (`publish_artifact`). Operators enable it by switching on Admin › Settings › Sharing › Publishing; it is off by default. No second domain is needed: published pages are served under `/a/` on the app's own address, guarded by the browser's CSP sandbox alone. Before letting untrusted people publish, set `PP_ARTIFACT_URL` to a separate domain routed to `server` so pages run on an origin with no session; the admin page warns until it is set.
