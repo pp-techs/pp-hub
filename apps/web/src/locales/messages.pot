@@ -248,7 +248,7 @@ msgstr ""
 msgid "{label} — {size}"
 msgstr ""
 
-#: src/components/move-dialog.tsx:187
+#: src/components/move-dialog.tsx:189
 msgid "{listed} and {rest, plural, one {# more} other {# more}}"
 msgstr ""
 
@@ -546,6 +546,10 @@ msgstr ""
 msgid "A file with this name is already in this folder."
 msgstr ""
 
+#: src/components/settings/panes/account-general.tsx:56
+msgid "A new browser tab"
+msgstr ""
+
 #: src/lib/collab/page-store.ts:50
 msgid "A page can only be moved under another page."
 msgstr ""
@@ -809,7 +813,7 @@ msgstr ""
 msgid "Allowed CDNs"
 msgstr ""
 
-#: src/components/move-dialog.tsx:130
+#: src/components/move-dialog.tsx:132
 msgid "Already here"
 msgstr ""
 
@@ -867,7 +871,7 @@ msgstr ""
 msgid "App item"
 msgstr ""
 
-#: src/components/settings/panes/account-general.tsx:158
+#: src/components/settings/panes/account-general.tsx:165
 msgid "Appearance"
 msgstr ""
 
@@ -1025,7 +1029,7 @@ msgstr ""
 #: src/components/doc-editor/lossy-edit-modal.tsx:39
 #: src/components/group-list.tsx:394
 #: src/components/link-space-modal.tsx:135
-#: src/components/move-dialog.tsx:127
+#: src/components/move-dialog.tsx:129
 #: src/components/new-document-dialog.tsx:169
 #: src/components/new-ext-node-dialog.tsx:85
 #: src/components/nodes/embed-link-modal.tsx:116
@@ -1191,7 +1195,7 @@ msgstr ""
 
 #: src/components/doc-editor/page-tree-panel.tsx:351
 #: src/components/folder-tree.tsx:103
-#: src/components/move-dialog.tsx:267
+#: src/components/move-dialog.tsx:269
 msgid "Collapse"
 msgstr ""
 
@@ -1634,7 +1638,7 @@ msgstr ""
 msgid "Could not save your agent setting."
 msgstr ""
 
-#: src/components/settings/panes/account-general.tsx:149
+#: src/components/settings/panes/account-general.tsx:156
 msgid "Could not save your notification setting."
 msgstr ""
 
@@ -1834,7 +1838,7 @@ msgstr ""
 msgid "Default"
 msgstr ""
 
-#: src/components/settings/panes/account-general.tsx:172
+#: src/components/settings/panes/account-general.tsx:179
 msgid "Default listing"
 msgstr ""
 
@@ -1996,7 +2000,7 @@ msgstr ""
 msgid "Direct share"
 msgstr ""
 
-#: src/components/settings/panes/account-general.tsx:196
+#: src/components/settings/panes/account-general.tsx:203
 msgid "Direction"
 msgstr ""
 
@@ -2023,7 +2027,7 @@ msgstr ""
 msgid "Dismiss"
 msgstr ""
 
-#: src/components/settings/panes/account-general.tsx:89
+#: src/components/settings/panes/account-general.tsx:96
 msgid "Display language"
 msgstr ""
 
@@ -2167,7 +2171,7 @@ msgstr ""
 msgid "Email me a code"
 msgstr ""
 
-#: src/components/settings/panes/account-general.tsx:131
+#: src/components/settings/panes/account-general.tsx:138
 msgid "Email me when something is shared with me"
 msgstr ""
 
@@ -2307,7 +2311,7 @@ msgstr ""
 
 #: src/components/doc-editor/page-tree-panel.tsx:351
 #: src/components/folder-tree.tsx:103
-#: src/components/move-dialog.tsx:267
+#: src/components/move-dialog.tsx:269
 msgid "Expand"
 msgstr ""
 
@@ -2532,7 +2536,7 @@ msgstr ""
 msgid "From date"
 msgstr ""
 
-#: src/components/move-dialog.tsx:157
+#: src/components/move-dialog.tsx:159
 msgid "Gains access: {gaining}."
 msgstr ""
 
@@ -2941,11 +2945,11 @@ msgstr ""
 msgid "Labels are shared by every card on this board."
 msgstr ""
 
-#: src/components/settings/panes/account-general.tsx:83
+#: src/components/settings/panes/account-general.tsx:90
 msgid "Language"
 msgstr ""
 
-#: src/components/settings/panes/account-general.tsx:106
+#: src/components/settings/panes/account-general.tsx:113
 msgid "Language changed here, but could not be saved to your account."
 msgstr ""
 
@@ -3111,7 +3115,7 @@ msgstr ""
 msgid "logout"
 msgstr ""
 
-#: src/components/move-dialog.tsx:165
+#: src/components/move-dialog.tsx:167
 msgid "Loses access: {losing}."
 msgstr ""
 
@@ -3267,7 +3271,7 @@ msgstr ""
 msgid "Mount as a drive (WebDAV)"
 msgstr ""
 
-#: src/components/move-dialog.tsx:130
+#: src/components/move-dialog.tsx:132
 #: src/components/selection-bar.tsx:84
 msgid "Move"
 msgstr ""
@@ -3696,7 +3700,7 @@ msgstr ""
 
 #: src/components/notifications-bell.tsx:56
 #: src/components/notifications-bell.tsx:73
-#: src/components/settings/panes/account-general.tsx:127
+#: src/components/settings/panes/account-general.tsx:134
 msgid "Notifications"
 msgstr ""
 
@@ -3752,7 +3756,7 @@ msgstr ""
 msgid "Only the open page’s icon and cover can be changed."
 msgstr ""
 
-#: src/components/file-view.tsx:295
+#: src/components/office-frame.tsx:71
 msgid "OnlyOffice editor"
 msgstr ""
 
@@ -3795,6 +3799,10 @@ msgstr ""
 msgid "Open link"
 msgstr ""
 
+#: src/components/settings/panes/account-general.tsx:216
+msgid "Open office files in"
+msgstr ""
+
 #: src/routes/drive.tsx:192
 msgid "Open Shared from outside"
 msgstr ""
@@ -3813,13 +3821,19 @@ msgstr ""
 
 #: src/routes/drive/$spaceId/file.$nodeId.tsx:13
 #: src/routes/drive/shared_.file.$nodeId.tsx:14
+#: src/routes/office.$nodeId.tsx:18
 #: src/routes/open.$nodeId.tsx:19
 msgid "Opening"
 msgstr ""
 
-#: src/components/file-view.tsx:141
-#: src/components/file-view.tsx:256
+#: src/components/file-view.tsx:134
+#: src/components/file-view.tsx:226
+#: src/routes/office.$nodeId.tsx:42
 msgid "Opening editor…"
+msgstr ""
+
+#: src/components/settings/panes/account-general.tsx:212
+msgid "Opening files"
 msgstr ""
 
 #: src/components/share-dialog.tsx:984
@@ -4040,7 +4054,7 @@ msgstr ""
 msgid "Port must be between 1 and 65535."
 msgstr ""
 
-#: src/components/settings/panes/account-general.tsx:163
+#: src/components/settings/panes/account-general.tsx:170
 msgid "Press D anywhere outside a text field to flip between light and dark."
 msgstr ""
 
@@ -4156,7 +4170,7 @@ msgstr ""
 msgid "re-share"
 msgstr ""
 
-#: src/components/file-view.tsx:250
+#: src/components/file-view.tsx:220
 msgid "read-only"
 msgstr ""
 
@@ -4447,15 +4461,15 @@ msgstr ""
 msgid "Saved {created} · {size}"
 msgstr ""
 
-#: src/components/file-view.tsx:250
+#: src/components/file-view.tsx:220
 msgid "saved by OnlyOffice"
 msgstr ""
 
-#: src/components/settings/panes/account-general.tsx:91
+#: src/components/settings/panes/account-general.tsx:98
 msgid "Saved to your account, so it follows you to any browser you sign in from."
 msgstr ""
 
-#: src/components/settings/panes/account-general.tsx:133
+#: src/components/settings/panes/account-general.tsx:140
 msgid "Saved to your account. Only sent when your administrator has set up mail."
 msgstr ""
 
@@ -4838,7 +4852,7 @@ msgid "Sort ascending"
 msgstr ""
 
 #: src/components/folder-actions.tsx:189
-#: src/components/settings/panes/account-general.tsx:189
+#: src/components/settings/panes/account-general.tsx:196
 msgid "Sort by"
 msgstr ""
 
@@ -5073,7 +5087,7 @@ msgstr ""
 msgid "The page visitors land on, relative to this folder. Applies on republish."
 msgstr ""
 
-#: src/components/move-dialog.tsx:183
+#: src/components/move-dialog.tsx:185
 #: src/components/share-dialog.tsx:705
 msgid "the public link"
 msgstr ""
@@ -5100,7 +5114,7 @@ msgstr ""
 msgid "Their files stay in place and wait for a handover on the People pane."
 msgstr ""
 
-#: src/components/settings/panes/account-general.tsx:162
+#: src/components/settings/panes/account-general.tsx:169
 msgid "Theme"
 msgstr ""
 
@@ -5144,7 +5158,7 @@ msgstr ""
 msgid "This address is on a different mail domain from yours"
 msgstr ""
 
-#: src/components/file-view.tsx:185
+#: src/components/file-view.tsx:178
 msgid "This app is not part of this installation"
 msgstr ""
 
@@ -5239,7 +5253,7 @@ msgstr ""
 msgid "This install includes no apps."
 msgstr ""
 
-#: src/components/file-view.tsx:188
+#: src/components/file-view.tsx:181
 msgid "This item belongs to an app that this version of PP Hub does not include. It can still be renamed, moved or deleted from the drive."
 msgstr ""
 
@@ -5293,6 +5307,10 @@ msgstr ""
 
 #: src/components/invite-modal.tsx:63
 msgid "This space is not linked to an organization yet, so nobody can be added to it. An instance administrator has to link it first — there is nothing to fix from this screen."
+msgstr ""
+
+#: src/components/settings/panes/account-general.tsx:55
+msgid "This tab"
 msgstr ""
 
 #: src/components/preview-content.tsx:175
@@ -5591,7 +5609,7 @@ msgstr ""
 msgid "Used to email people when a file or folder is shared with them. Leave the host empty to turn mail off."
 msgstr ""
 
-#: src/components/settings/panes/account-general.tsx:175
+#: src/components/settings/panes/account-general.tsx:182
 msgid "Used when a link says nothing about how to draw the folder. A link that carries a view or a sort keeps the one it was copied with."
 msgstr ""
 
@@ -5679,7 +5697,7 @@ msgid "view"
 msgstr ""
 
 #: src/components/folder-actions.tsx:203
-#: src/components/settings/panes/account-general.tsx:182
+#: src/components/settings/panes/account-general.tsx:189
 #: src/components/version-list.tsx:120
 msgid "View"
 msgstr ""
@@ -5764,6 +5782,10 @@ msgstr ""
 
 #: src/routes/admin.settings.tsx:882
 msgid "Without a separate address for published content (PP_ARTIFACT_URL on the server), sites are served under /a/ here and only the browser's sandbox keeps their scripts away from people's sessions. Set PP_ARTIFACT_URL to a domain of its own before letting untrusted people publish."
+msgstr ""
+
+#: src/components/settings/panes/account-general.tsx:217
+msgid "Word, Excel, PowerPoint and PDF files. Saved to this browser only."
 msgstr ""
 
 #: src/components/comments/thread-list.tsx:106

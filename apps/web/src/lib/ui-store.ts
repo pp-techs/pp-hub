@@ -9,6 +9,8 @@ export type PanelKind = "versions";
 
 export type OpenPanel = (kind: PanelKind, node: Node) => void;
 
+export type OfficeOpenIn = "current" | "new-tab";
+
 interface DirEntry {
   name: string;
   /** parent dir id; undefined = space root */
@@ -45,6 +47,13 @@ interface UiState {
    */
   listingPrefs: { view: NodeView; sort: SortField; order: SortOrder };
   setListingPrefs: (next: Partial<UiState["listingPrefs"]>) => void;
+  /**
+   * Where an office file opens: in the drive shell's tab strip (`current`) or
+   * in a browser tab of its own (`new-tab`). Local to this browser, like the
+   * listing defaults — a habit of the machine, not a fact about the person.
+   */
+  officeOpenIn: OfficeOpenIn;
+  setOfficeOpenIn: (v: OfficeOpenIn) => void;
   openPanel: OpenPanel;
   closePanel: () => void;
   /** Record dir id + its parent (from the listing it appeared in). */
@@ -103,6 +112,9 @@ export const useUiStore = create<UiState>()(
       // eslint-disable-next-line lingui/no-unlocalized-strings -- NodeView/SortField/SortOrder ids
       listingPrefs: { view: "grid", sort: "name", order: "asc" },
       setListingPrefs: (next) => set((s) => ({ listingPrefs: { ...s.listingPrefs, ...next } })),
+      // eslint-disable-next-line lingui/no-unlocalized-strings -- OfficeOpenIn id
+      officeOpenIn: "new-tab",
+      setOfficeOpenIn: (v) => set({ officeOpenIn: v }),
       openPanel: (kind, node) => set({ panel: { kind, node } }),
       closePanel: () => set({ panel: null }),
       rememberDir: (node) => {
@@ -140,6 +152,7 @@ export const useUiStore = create<UiState>()(
         dirs: s.dirs,
         lastSpaceId: s.lastSpaceId,
         listingPrefs: s.listingPrefs,
+        officeOpenIn: s.officeOpenIn,
         docPanels: s.docPanels,
         fileTabs: s.fileTabs,
       }),

@@ -14,7 +14,7 @@ import {
 } from "@workspace/ui/components/select";
 import { updatePreferences } from "@/lib/api/users";
 import type { NodeView, SortField, SortOrder, UserPreferences, UserProfile } from "@/lib/api";
-import { useUiStore } from "@/lib/ui-store";
+import { useUiStore, type OfficeOpenIn } from "@/lib/ui-store";
 import { LOCALES, type Locale } from "@/lib/i18n";
 import { useTheme } from "@/components/theme-provider";
 import { useLocale, useSetLocale } from "@/components/locale-provider";
@@ -51,6 +51,11 @@ const ORDERS: Choice[] = [
   { label: msg`Descending`, value: "desc" },
 ];
 
+const OFFICE_OPEN: Choice[] = [
+  { label: msg`This tab`, value: "current" },
+  { label: msg`A new browser tab`, value: "new-tab" },
+];
+
 /**
  * How the app is drawn and read.
  *
@@ -70,6 +75,8 @@ export function AccountGeneralPane() {
   const { data: me } = useMe();
   const prefs = useUiStore((s) => s.listingPrefs);
   const setPrefs = useUiStore((s) => s.setListingPrefs);
+  const officeOpenIn = useUiStore((s) => s.officeOpenIn);
+  const setOfficeOpenIn = useUiStore((s) => s.setOfficeOpenIn);
 
   // Language names are written in the language they name — a reader looking
   // for their own language finds "Tiếng Việt", not "Vietnamese" spelled in a
@@ -197,6 +204,20 @@ export function AccountGeneralPane() {
           value={prefs.order}
           items={ORDERS}
           onChange={(v) => setPrefs({ order: v as SortOrder })}
+        />
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <SectionLabel>
+          <Trans>Opening files</Trans>
+        </SectionLabel>
+        <Field
+          id="pref-office-open"
+          label={msg`Open office files in`}
+          hint={msg`Word, Excel, PowerPoint and PDF files. Saved to this browser only.`}
+          value={officeOpenIn}
+          items={OFFICE_OPEN}
+          onChange={(v) => setOfficeOpenIn(v as OfficeOpenIn)}
         />
       </section>
     </div>

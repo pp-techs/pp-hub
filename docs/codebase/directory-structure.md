@@ -114,6 +114,7 @@ pp-hub/
 │   │           ├── p/$token.tsx         # M50: published-page viewer — bar, password form, sandboxed iframe on /a/ or PP_ARTIFACT_URL
 │   │           ├── edit/$nodeId.tsx     # legacy address (stored page links, bookmarks) → /open/$nodeId
 │   │           ├── open.$nodeId.tsx     # resolves a node to where it opens: a file tab, or its folder
+│   │           ├── office.$nodeId.tsx   # an office file alone in the window (OnlyOffice frame, no shell) — where "open in a new tab" lands
 │   │           ├── drive.tsx            # drive shell: SidebarProvider + AppSidebar + SidebarInset (tab strip, header, Outlet, tab host)
 │   │           ├── drive/shared_.file.$nodeId.tsx # a file shared from outside, open in the shell (drawn by the tab host)
 │   │           └── drive/$spaceId/      # route.tsx (space guard) + index.tsx (listing)

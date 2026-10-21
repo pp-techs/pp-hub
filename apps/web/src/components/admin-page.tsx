@@ -18,7 +18,7 @@ export function AdminPage({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex w-full flex-col gap-6 p-4 md:p-8">
+    <div className="flex w-full flex-col gap-6 p-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-1">
           <h1 className="font-heading text-xl font-semibold tracking-tight">{title}</h1>
