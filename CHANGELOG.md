@@ -11,6 +11,10 @@ Versions up to and including 0.14.1 predate this changelog; see the
 
 <!-- `bun run version-packages` adds each release's section from its changesets; edit it in the Version Packages PR. -->
 
+## [0.30.1] — 2026-10-21
+
+Remove the in-app file tab strip and keep a file's Share, Versions and Download controls in the single header. Files open in the current browser tab by default, with a per-browser preference to open each in a new browser tab.
+
 ## [0.30.0] — 2026-10-21
 
 Office files (Word, Excel, PowerPoint, PDF) now open in a new browser tab by default, on a page that holds only the OnlyOffice editor — no sidebar, header or tab strip — so it gets the full window height. A new preference, Account → Preferences → Opening files, switches back to opening them inside the drive. It is stored in the browser, not the account.

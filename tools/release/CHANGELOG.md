@@ -1,5 +1,11 @@
 # @pp-hub/release
 
+## 0.30.1
+
+### Patch Changes
+
+- 28ef343: Remove the in-app file tab strip and keep a file's Share, Versions and Download controls in the single header. Files open in the current browser tab by default, with a per-browser preference to open each in a new browser tab.
+
 ## 0.30.0
 
 ### Minor Changes
