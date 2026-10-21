@@ -67,12 +67,12 @@ Three layers, one direction only — components never call `api` directly:
   `site-header.tsx` — add a segment there, not a prop. An open file is the
   one surface whose breadcrumb only it can draw (a sub-page's trail), so on
   a file route the header swaps its breadcrumb for
-  `HeaderLeadSlot` and `EditorHeader` fills it through `HeaderLead`. The
-  header is navigation only: a file's own controls (version line, presence,
-  outline, comments, Share, Versions, Download) go to the document bar under
-  it through `DocActions`, never to `HeaderActions`. These portals render
-  only inside an on-screen subtree (`OnScreen`): files kept mounted out of
-  sight must not fill the header.
+  `HeaderLeadSlot` and `EditorHeader` fills it through `HeaderLead`. A
+  file's own controls (version line, presence, outline, comments, Share,
+  Versions, Download) go to the same header's trailing slot through
+  `HeaderActions` — there is no second bar under the header. These portals
+  render only inside an on-screen subtree (`OnScreen`), so a page held
+  behind the shown one while it loads never fills the header.
 - **Page rhythm lives in `surface.tsx`.** Every surface except the folder
   listing renders inside `<Surface>`; size sections with container queries
   (`@xl/main`, `@4xl/main`), not viewport breakpoints, because the details
@@ -106,41 +106,24 @@ Three layers, one direction only — components never call `api` directly:
 
 ## Open files
 
-- **A file opens in the shell, except an office file the browser is set to open in
-  a new tab.** `openFile(node)`
-  (`lib/open-file.ts`) is the one way in — menus, toasts, the palette,
-  notifications and the New menu all call it; it navigates to
-  `/drive/$spaceId/file/$nodeId`, or `/drive/shared/file/$nodeId` for a file
-  shared from outside the caller's spaces, and goes through `/open/$nodeId`
-  when the node's space is unknown. It reaches the router through the
-  instance `main.tsx` binds (`bindRouter`), because most callers are not
-  components. `/edit/$nodeId` stays as a redirect: it is the href page links
-  are stored with, and it is in bookmarks and old notification links.
-- **Office files can leave the shell.** `ui-store.officeOpenIn` (`"new-tab"` by
-  default, `"current"` to stay; per browser, edited from Account → Preferences →
-  Opening files) makes `openFile` open an office file — PDFs included — with
-  `window.open(officeLink(id))` when the caller passes the node's `name`. The
-  address is `/office/$nodeId` (`routes/office.$nodeId.tsx`): OnlyOffice's
-  frame alone, filling the window, with no rail, header or tab strip, because
-  the shell's chrome costs height the editor needs. `components/office-frame.tsx`
-  (`useOfficeSession`, `EditorFrame`) is shared with the shell's `OfficeEditor`.
-  A same-tab open, a node without a name and a blocked popup stay in the shell.
-- **Open files are tabs.** `components/file-tabs.tsx`: the URL names the file
-  on screen, the tab list is `ui-store.fileTabs` per space (persisted). A
-  file route renders nothing; `FileTabsHost` draws every open file and keeps
-  the five most recently shown mounted (`lib/file-tabs.ts`: `LIVE_TABS`), of
-  which at most two office files — an OnlyOffice frame holds the file's WOPI
-  lock, so one left out of sight for ten minutes is let go. A tab restored
-  from storage loads when it is first shown.
-- **Which tab a navigation lands in.** A file already open is focused. A page
-  link followed inside a document (`openFile(…, { sameTab: true })`) and the
-  browser's back/forward retarget the tab on screen; anything else opens a
-  tab next to it. The pure rules (`showNode`, `closeTab`, `liveTabs`) are
-  tested in `tests/file-tabs.test.ts`.
-- **Slots render in tab order, never recency order.** Moving an iframe in the
-  DOM reloads it, and React moves a keyed child whose position among its
-  siblings changes. A slot's `key` is stable while its node changes (page
-  links), so `FileView` can hold the page on screen while the next one loads.
+- **A file opens in this browser tab by default.** `openFile(node)` (`lib/open-file.ts`) is
+  the one way in — menus, toasts, the palette, notifications and the New menu
+  all call it. `ui-store.fileOpenIn` is per browser and defaults to
+  `"current"`; Account → Preferences → Opening files selects `"new-tab"` to
+  open each file in a new browser tab. A new tab opens `/open/$nodeId`, which
+  resolves the correct drive route for the reader; a blocked popup falls back
+  to current-tab navigation. Both paths reach `/drive/$spaceId/file/$nodeId`,
+  or `/drive/shared/file/$nodeId` for a file shared from outside the caller's
+  spaces. `/edit/$nodeId` stays as a redirect: it is the href page links are
+  stored with, and it is in bookmarks and old notification links.
+- **Each file route renders its own `FileView`.** There is no persisted
+  in-app tab list or hidden editor host. `FileView` keeps the current markdown
+  page visible only while a linked markdown page loads, then swaps it in one
+  frame. This preserves the editor's room handover without retaining other
+  files or OnlyOffice locks.
+- **The shell keeps the file controls in the one header.** On a file route,
+  `EditorHeader` fills the header's breadcrumb lead and its trailing actions
+  (presence, comments, Share, Versions, Download).
 - **Never `scrollIntoView` inside the shell.** It scrolls every
   `overflow: hidden` ancestor too — the shell pins the viewport with those —
   and it stalls rendering in headless Chromium. Scroll the one container.

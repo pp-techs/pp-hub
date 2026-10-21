@@ -14,7 +14,7 @@ import {
 } from "@workspace/ui/components/select";
 import { updatePreferences } from "@/lib/api/users";
 import type { NodeView, SortField, SortOrder, UserPreferences, UserProfile } from "@/lib/api";
-import { useUiStore, type OfficeOpenIn } from "@/lib/ui-store";
+import { useUiStore, type FileOpenIn } from "@/lib/ui-store";
 import { LOCALES, type Locale } from "@/lib/i18n";
 import { useTheme } from "@/components/theme-provider";
 import { useLocale, useSetLocale } from "@/components/locale-provider";
@@ -51,7 +51,7 @@ const ORDERS: Choice[] = [
   { label: msg`Descending`, value: "desc" },
 ];
 
-const OFFICE_OPEN: Choice[] = [
+const FILE_OPEN: Choice[] = [
   { label: msg`This tab`, value: "current" },
   { label: msg`A new browser tab`, value: "new-tab" },
 ];
@@ -59,12 +59,11 @@ const OFFICE_OPEN: Choice[] = [
 /**
  * How the app is drawn and read.
  *
- * The three sections differ in where they are stored, and deliberately so.
- * Theme and the default listing stay local to this browser: a theme that
- * travelled between machines would be a surprise rather than a feature.
- * Language is the opposite — it is a fact about the person, not the device,
- * so it lives on the account (`users.settings`) and follows them to any
- * browser they sign in from.
+ * The sections differ in where they are stored, and deliberately so. Theme,
+ * default listing and file-opening behavior stay local to this browser: they
+ * describe a machine's habits. Language is the opposite — it is a fact about
+ * the person, so it lives on the account (`users.settings`) and follows them
+ * to any browser they sign in from.
  */
 export function AccountGeneralPane() {
   const { i18n } = useLingui();
@@ -75,8 +74,8 @@ export function AccountGeneralPane() {
   const { data: me } = useMe();
   const prefs = useUiStore((s) => s.listingPrefs);
   const setPrefs = useUiStore((s) => s.setListingPrefs);
-  const officeOpenIn = useUiStore((s) => s.officeOpenIn);
-  const setOfficeOpenIn = useUiStore((s) => s.setOfficeOpenIn);
+  const fileOpenIn = useUiStore((s) => s.fileOpenIn);
+  const setFileOpenIn = useUiStore((s) => s.setFileOpenIn);
 
   // Language names are written in the language they name — a reader looking
   // for their own language finds "Tiếng Việt", not "Vietnamese" spelled in a
@@ -212,12 +211,12 @@ export function AccountGeneralPane() {
           <Trans>Opening files</Trans>
         </SectionLabel>
         <Field
-          id="pref-office-open"
-          label={msg`Open office files in`}
-          hint={msg`Word, Excel, PowerPoint and PDF files. Saved to this browser only.`}
-          value={officeOpenIn}
-          items={OFFICE_OPEN}
-          onChange={(v) => setOfficeOpenIn(v as OfficeOpenIn)}
+          id="pref-file-open"
+          label={msg`Open files in`}
+          hint={msg`Saved to this browser only.`}
+          value={fileOpenIn}
+          items={FILE_OPEN}
+          onChange={(v) => setFileOpenIn(v as FileOpenIn)}
         />
       </section>
     </div>

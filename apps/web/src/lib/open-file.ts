@@ -1,16 +1,12 @@
 import type { RegisteredRouter } from "@tanstack/react-router";
 import type { Node, Space } from "@/lib/api";
-import { isOfficeFile } from "@/lib/api";
-import { useUiStore } from "@/lib/ui-store";
 import { queryClient } from "@/lib/query-client";
 import { keys } from "@/lib/queries/keys";
+import { useUiStore } from "@/lib/ui-store";
 
 /**
- * Opening a file is a navigation inside the drive shell: a document, a sheet,
- * a board or a PDF takes the content column under the same rail and header,
- * at `/drive/$spaceId/file/$nodeId` — or `/drive/shared/file/$nodeId` for a
- * file shared from a space the caller is not a member of. It used to be a new
- * browser tab per file, a full page with no way back but its own arrow.
+ * Opening a file navigates to its drive-shell route. The preference decides
+ * whether that navigation stays in this browser tab or starts in a new one.
  *
  * Callers are menus, toasts and command handlers as often as components, so
  * this reaches the router through the instance `main.tsx` binds rather than
@@ -49,65 +45,37 @@ export function fileLocation(node: Pick<Node, "id" | "space_id">, spaces: Pick<S
 }
 
 /**
- * The absolute address of a node — `/open/$nodeId`, the one the share mails
+ * The absolute address of a node — `/open/$nodeId`, the one share mails
  * carry. It resolves per account, so the same link opens a file in the editor,
  * a folder in its listing, or the no-access page for someone it was not
  * shared with.
  */
-export function nodeLink(nodeId: string): string {
+export function nodeLink(nodeId: string, search: FileSearch = {}): string {
   // eslint-disable-next-line lingui/no-unlocalized-strings -- URL path
-  return new URL(`/open/${encodeURIComponent(nodeId)}`, location.origin).href;
+  const link = new URL(`/open/${encodeURIComponent(nodeId)}`, location.origin);
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- URL search parameter names
+  if (search.thread) link.searchParams.set("thread", search.thread);
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- URL search parameter names
+  if (search.subject) link.searchParams.set("subject", search.subject);
+  return link.href;
 }
 
 /**
- * The address of an office file on a page of its own — `/office/$nodeId`, the
- * editor filling the window with none of the drive around it.
- */
-export function officeLink(nodeId: string): string {
-  // eslint-disable-next-line lingui/no-unlocalized-strings -- URL path
-  return new URL(`/office/${encodeURIComponent(nodeId)}`, location.origin).href;
-}
-
-/**
- * A file opens in a tab of its own (or the tab it is already open in), but a
- * page link followed inside a document stays in that document's tab. The
- * navigation cannot carry that, so it is left here for the tab host to take
- * when the node arrives — see `takeSameTab`.
- */
-let sameTabFor: string | null = null;
-
-/** Whether `nodeId` arrived through a same-tab open; reading it clears it. */
-export function takeSameTab(nodeId: string): boolean {
-  const same = sameTabFor === nodeId;
-  sameTabFor = null;
-  return same;
-}
-
-/**
- * Opens a file in the shell. A node whose space is not known yet goes
+ * Opens a file in the drive shell. A node whose space is not known yet goes
  * through `/open/$nodeId`, which resolves it — the address mailed to people.
- * `sameTab` replaces what the current tab shows instead of opening a tab.
  *
- * An office file follows this browser's "open office files in"
- * preference: given its `name`, it opens on a page of its own in a browser tab
- * (`/office/$nodeId`: the editor alone, filling the window). A node passed without a name
- * — a notification, a page link — cannot be told apart and stays in the shell,
- * as does a same-tab open and a browser that blocks the new tab.
+ * This browser's preference applies to every editor, including documents,
+ * apps, viewers and office files. Opening in a new browser tab starts at the
+ * resolving address so it can determine which drive surface the reader may
+ * use; a blocked popup falls back to the current tab.
  */
 export function openFile(
-  node: Pick<Node, "id"> & Partial<Pick<Node, "space_id" | "name">>,
+  node: Pick<Node, "id"> & Partial<Pick<Node, "space_id">>,
   search: FileSearch = {},
-  { sameTab = false }: { sameTab?: boolean } = {},
 ): void {
-  if (!router) return;
-  if (
-    !sameTab &&
-    node.name &&
-    isOfficeFile(node.name) &&
-    useUiStore.getState().officeOpenIn === "new-tab"
-  ) {
+  if (useUiStore.getState().fileOpenIn === "new-tab") {
     // eslint-disable-next-line lingui/no-unlocalized-strings -- window target
-    const opened = window.open(officeLink(node.id), "_blank");
+    const opened = window.open(nodeLink(node.id, search), "_blank");
     if (opened) {
       // `noopener` in the features string would make `open` return null, which
       // is indistinguishable from a blocked popup — sever the link by hand.
@@ -115,7 +83,7 @@ export function openFile(
       return;
     }
   }
-  sameTabFor = sameTab ? node.id : null;
+  if (!router) return;
   const spaces = queryClient.getQueryData<Space[]>(keys.spaces);
   if (!node.space_id || !spaces) {
     void router.navigate({ to: "/open/$nodeId", params: { nodeId: node.id }, search });

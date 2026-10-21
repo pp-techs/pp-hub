@@ -870,7 +870,7 @@ msgstr "An administrator has not turned on agent access."
 msgid "An administrator has turned personal tokens off."
 msgstr "An administrator has turned personal tokens off."
 
-#: src/components/doc-editor/doc-editor.tsx:378
+#: src/components/doc-editor/doc-editor.tsx:377
 msgid "Anonymous"
 msgstr "Anonymous"
 
@@ -908,7 +908,7 @@ msgstr "App disabled"
 msgid "App item"
 msgstr "App item"
 
-#: src/components/settings/panes/account-general.tsx:165
+#: src/components/settings/panes/account-general.tsx:164
 msgid "Appearance"
 msgstr "Appearance"
 
@@ -1203,8 +1203,8 @@ msgid "Close"
 msgstr "Close"
 
 #: src/components/file-tabs.tsx:359
-msgid "Close {name}"
-msgstr "Close {name}"
+#~ msgid "Close {name}"
+#~ msgstr "Close {name}"
 
 #: src/components/comments/comments-panel.tsx:229
 #~ msgid "Close comments"
@@ -1323,7 +1323,7 @@ msgstr "Comment thread"
 #: src/components/comments/block-comments.tsx:201
 #: src/components/comments/comments-popover.tsx:191
 #: src/components/comments/comments-popover.tsx:287
-#: src/components/doc-editor/doc-editor.tsx:248
+#: src/components/doc-editor/doc-editor.tsx:247
 msgid "Comments"
 msgstr "Comments"
 
@@ -1503,7 +1503,7 @@ msgstr "Could not create the page"
 msgid "Could not create the password"
 msgstr "Could not create the password"
 
-#: src/routes/drive.tsx:290
+#: src/routes/drive.tsx:278
 msgid "Could not create the space"
 msgstr "Could not create the space"
 
@@ -1594,7 +1594,7 @@ msgstr "Could not move the page to the trash"
 msgid "Could not move the sub-page to the trash"
 msgstr "Could not move the sub-page to the trash"
 
-#: src/components/doc-editor/doc-editor.tsx:310
+#: src/components/doc-editor/doc-editor.tsx:309
 msgid "Could not open the document"
 msgstr "Could not open the document"
 
@@ -1687,7 +1687,7 @@ msgstr "Could not save the comment"
 msgid "Could not save your agent setting."
 msgstr "Could not save your agent setting."
 
-#: src/components/settings/panes/account-general.tsx:156
+#: src/components/settings/panes/account-general.tsx:155
 msgid "Could not save your notification setting."
 msgstr "Could not save your notification setting."
 
@@ -1753,7 +1753,7 @@ msgstr "Could not upload the cover"
 #: src/components/new-document-dialog.tsx:172
 #: src/components/new-ext-node-dialog.tsx:88
 #: src/components/team-folder-dialog.tsx:90
-#: src/routes/drive.tsx:377
+#: src/routes/drive.tsx:365
 msgid "Create"
 msgstr "Create"
 
@@ -1765,7 +1765,7 @@ msgstr "Create a folder in {destination}."
 msgid "Create a personal token"
 msgstr "Create a personal token"
 
-#: src/routes/drive.tsx:257
+#: src/routes/drive.tsx:245
 msgid "Create a space"
 msgstr "Create a space"
 
@@ -1797,7 +1797,7 @@ msgstr "Create password"
 msgid "Create public link"
 msgstr "Create public link"
 
-#: src/routes/drive.tsx:219
+#: src/routes/drive.tsx:207
 msgid "Create space"
 msgstr "Create space"
 
@@ -1806,7 +1806,7 @@ msgstr "Create space"
 msgid "Create token"
 msgstr "Create token"
 
-#: src/routes/drive.tsx:214
+#: src/routes/drive.tsx:202
 msgid "Create your first space to start organizing your files and collaborating with your team."
 msgstr "Create your first space to start organizing your files and collaborating with your team."
 
@@ -1850,7 +1850,7 @@ msgstr "Creates a Logto organization named “{spaceName}” and makes it the so
 msgid "Creates it in {destination} and opens it in the editor."
 msgstr "Creates it in {destination} and opens it in the editor."
 
-#: src/routes/drive.tsx:377
+#: src/routes/drive.tsx:365
 msgid "Creating…"
 msgstr "Creating…"
 
@@ -1887,7 +1887,7 @@ msgstr "days"
 msgid "Default"
 msgstr "Default"
 
-#: src/components/settings/panes/account-general.tsx:179
+#: src/components/settings/panes/account-general.tsx:178
 msgid "Default listing"
 msgstr "Default listing"
 
@@ -2020,7 +2020,7 @@ msgstr "Descending"
 #: ../../packages/ext-kanban/src/card-dialog.tsx:178
 #: src/components/group-list.tsx:382
 #: src/components/settings/panes/space-general.tsx:187
-#: src/routes/drive.tsx:328
+#: src/routes/drive.tsx:316
 msgid "Description"
 msgstr "Description"
 
@@ -2053,7 +2053,7 @@ msgstr "Device signed out"
 msgid "Direct share"
 msgstr "Direct share"
 
-#: src/components/settings/panes/account-general.tsx:203
+#: src/components/settings/panes/account-general.tsx:202
 msgid "Direction"
 msgstr "Direction"
 
@@ -2080,7 +2080,7 @@ msgstr "Discussion"
 msgid "Dismiss"
 msgstr "Dismiss"
 
-#: src/components/settings/panes/account-general.tsx:96
+#: src/components/settings/panes/account-general.tsx:95
 msgid "Display language"
 msgstr "Display language"
 
@@ -2110,10 +2110,10 @@ msgstr "Done"
 msgid "download"
 msgstr "download"
 
-#: src/components/editor-header.tsx:151
-#: src/components/editor-header.tsx:158
-#: src/components/editor-header.tsx:185
-#: src/components/editor-header.tsx:194
+#: src/components/editor-header.tsx:150
+#: src/components/editor-header.tsx:157
+#: src/components/editor-header.tsx:184
+#: src/components/editor-header.tsx:193
 #: src/components/node-actions.tsx:169
 #: src/components/preview-modal.tsx:137
 #: src/components/preview-panel.tsx:350
@@ -2153,7 +2153,7 @@ msgstr "Drag to move, click to open menu"
 msgid "Drag to reorder, click to open the block menu"
 msgstr "Drag to reorder, click to open the block menu"
 
-#: src/routes/drive.tsx:50
+#: src/routes/drive.tsx:48
 #: src/routes/drive/$spaceId/index.tsx:82
 #: src/routes/login.tsx:128
 msgid "Drive"
@@ -2191,7 +2191,7 @@ msgid "edit"
 msgstr "edit"
 
 #: src/components/comments/comments-popover.tsx:594
-#: src/components/doc-editor/doc-editor.tsx:235
+#: src/components/doc-editor/doc-editor.tsx:234
 #: src/components/node-actions.tsx:159
 msgid "Edit"
 msgstr "Edit"
@@ -2232,7 +2232,7 @@ msgstr "Email address to add"
 msgid "Email me a code"
 msgstr "Email me a code"
 
-#: src/components/settings/panes/account-general.tsx:138
+#: src/components/settings/panes/account-general.tsx:137
 msgid "Email me when something is shared with me"
 msgstr "Email me when something is shared with me"
 
@@ -2284,7 +2284,7 @@ msgstr "Empty means unlimited."
 msgid "Empty trash"
 msgstr "Empty trash"
 
-#: src/routes/drive.tsx:352
+#: src/routes/drive.tsx:340
 msgid "Enable"
 msgstr "Enable"
 
@@ -2406,7 +2406,7 @@ msgstr "Expires after"
 msgid "Export CSV"
 msgstr "Export CSV"
 
-#: src/components/editor-header.tsx:174
+#: src/components/editor-header.tsx:173
 #: src/components/node-actions.tsx:183
 msgid "Export with images (.zip)"
 msgstr "Export with images (.zip)"
@@ -3026,11 +3026,11 @@ msgstr "Labels"
 msgid "Labels are shared by every card on this board."
 msgstr "Labels are shared by every card on this board."
 
-#: src/components/settings/panes/account-general.tsx:90
+#: src/components/settings/panes/account-general.tsx:89
 msgid "Language"
 msgstr "Language"
 
-#: src/components/settings/panes/account-general.tsx:113
+#: src/components/settings/panes/account-general.tsx:112
 msgid "Language changed here, but could not be saved to your account."
 msgstr "Language changed here, but could not be saved to your account."
 
@@ -3050,7 +3050,7 @@ msgstr "Last active"
 msgid "Last seen"
 msgstr "Last seen"
 
-#: src/routes/drive.tsx:371
+#: src/routes/drive.tsx:359
 msgid "Leave empty for unlimited. Cannot be changed after creation."
 msgstr "Leave empty for unlimited. Cannot be changed after creation."
 
@@ -3236,7 +3236,7 @@ msgstr "Loses access: {losing}."
 msgid "Lowercase letters, numbers and dashes. Leave empty for none."
 msgstr "Lowercase letters, numbers and dashes. Leave empty for none."
 
-#: src/routes/drive.tsx:322
+#: src/routes/drive.tsx:310
 msgid "Lowercase letters, numbers and dashes. Optional."
 msgstr "Lowercase letters, numbers and dashes. Optional."
 
@@ -3281,16 +3281,16 @@ msgstr "Mark all read"
 msgid "Mark as read"
 msgstr "Mark as read"
 
-#: src/components/editor-header.tsx:167
+#: src/components/editor-header.tsx:166
 msgid "Markdown (.md)"
 msgstr "Markdown (.md)"
 
 #: src/components/settings/panes/space-general.tsx:177
-#: src/routes/drive.tsx:319
+#: src/routes/drive.tsx:307
 msgid "marketing"
 msgstr "marketing"
 
-#: src/routes/drive.tsx:306
+#: src/routes/drive.tsx:294
 msgid "Marketing"
 msgstr "Marketing"
 
@@ -3460,7 +3460,7 @@ msgstr "My Drive"
 #: src/components/space-node-table.tsx:86
 #: src/components/team-folder-dialog.tsx:74
 #: src/components/trash-panel.tsx:282
-#: src/routes/drive.tsx:299
+#: src/routes/drive.tsx:287
 #: src/routes/s/$token.tsx:584
 msgid "Name"
 msgstr "Name"
@@ -3549,7 +3549,7 @@ msgid "New markdown document"
 msgstr "New markdown document"
 
 #: src/components/settings/panes/space-general.tsx:208
-#: src/routes/drive.tsx:340
+#: src/routes/drive.tsx:328
 msgid "New members are admins by default"
 msgstr "New members are admins by default"
 
@@ -3833,7 +3833,7 @@ msgstr "Noticed when they last signed in"
 
 #: src/components/notifications-bell.tsx:56
 #: src/components/notifications-bell.tsx:73
-#: src/components/settings/panes/account-general.tsx:134
+#: src/components/settings/panes/account-general.tsx:133
 msgid "Notifications"
 msgstr "Notifications"
 
@@ -3865,7 +3865,7 @@ msgstr "Off. Nobody can create or open its items."
 msgid "Office"
 msgstr "Office"
 
-#: src/components/doc-editor/doc-editor.tsx:645
+#: src/components/doc-editor/doc-editor.tsx:644
 msgid "Offline"
 msgstr "Offline"
 
@@ -3932,8 +3932,12 @@ msgid "Open a card to set a due date, assign people, add labels and link drive f
 msgstr "Open a card to set a due date, assign people, add labels and link drive files."
 
 #: src/components/file-tabs.tsx:321
-msgid "Open files"
-msgstr "Open files"
+#~ msgid "Open files"
+#~ msgstr "Open files"
+
+#: src/components/settings/panes/account-general.tsx:215
+msgid "Open files in"
+msgstr "Open files in"
 
 #: src/components/preview-content.tsx:160
 #: src/routes/p/$token.tsx:121
@@ -3945,10 +3949,10 @@ msgid "Open link"
 msgstr "Open link"
 
 #: src/components/settings/panes/account-general.tsx:216
-msgid "Open office files in"
-msgstr "Open office files in"
+#~ msgid "Open office files in"
+#~ msgstr "Open office files in"
 
-#: src/routes/drive.tsx:192
+#: src/routes/drive.tsx:180
 msgid "Open Shared from outside"
 msgstr "Open Shared from outside"
 
@@ -3964,20 +3968,18 @@ msgstr "Open your files in Finder, File Explorer or rclone. Sign in with your em
 msgid "opened in editor"
 msgstr "opened in editor"
 
-#: src/routes/drive/$spaceId/file.$nodeId.tsx:13
-#: src/routes/drive/shared_.file.$nodeId.tsx:14
-#: src/routes/office.$nodeId.tsx:18
+#: src/routes/drive/$spaceId/file.$nodeId.tsx:10
+#: src/routes/drive/shared_.file.$nodeId.tsx:10
 #: src/routes/open.$nodeId.tsx:19
 msgid "Opening"
 msgstr "Opening"
 
-#: src/components/file-view.tsx:134
-#: src/components/file-view.tsx:226
-#: src/routes/office.$nodeId.tsx:42
+#: src/components/file-view.tsx:132
+#: src/components/file-view.tsx:224
 msgid "Opening editor…"
 msgstr "Opening editor…"
 
-#: src/components/settings/panes/account-general.tsx:212
+#: src/components/settings/panes/account-general.tsx:211
 msgid "Opening files"
 msgstr "Opening files"
 
@@ -4061,7 +4063,7 @@ msgstr "Page not found."
 msgid "Page title"
 msgstr "Page title"
 
-#: src/components/doc-editor/doc-editor.tsx:241
+#: src/components/doc-editor/doc-editor.tsx:240
 #: src/components/doc-editor/labels.ts:58
 #: src/components/doc-editor/page-tree-panel.tsx:193
 #: src/components/doc-editor/page-tree-panel.tsx:198
@@ -4122,7 +4124,7 @@ msgstr "Pending handover"
 msgid "People"
 msgstr "People"
 
-#: src/routes/drive.tsx:189
+#: src/routes/drive.tsx:177
 msgid "People outside your organization have shared files with you."
 msgstr "People outside your organization have shared files with you."
 
@@ -4209,7 +4211,7 @@ msgstr "Port must be between 1 and 65535."
 #~ msgid "Preferences"
 #~ msgstr "Preferences"
 
-#: src/components/settings/panes/account-general.tsx:170
+#: src/components/settings/panes/account-general.tsx:169
 msgid "Press D anywhere outside a text field to flip between light and dark."
 msgstr "Press D anywhere outside a text field to flip between light and dark."
 
@@ -4329,11 +4331,11 @@ msgstr "Quote"
 msgid "re-share"
 msgstr "re-share"
 
-#: src/components/file-view.tsx:220
+#: src/components/file-view.tsx:218
 msgid "read-only"
 msgstr "read-only"
 
-#: src/components/doc-editor/doc-editor.tsx:229
+#: src/components/doc-editor/doc-editor.tsx:228
 msgid "Read-only"
 msgstr "Read-only"
 
@@ -4633,7 +4635,7 @@ msgstr "Save changes"
 msgid "Save settings"
 msgstr "Save settings"
 
-#: src/components/doc-editor/doc-editor.tsx:635
+#: src/components/doc-editor/doc-editor.tsx:634
 msgid "Saved"
 msgstr "Saved"
 
@@ -4641,15 +4643,19 @@ msgstr "Saved"
 msgid "Saved {created} · {size}"
 msgstr "Saved {created} · {size}"
 
-#: src/components/file-view.tsx:220
+#: src/components/file-view.tsx:218
 msgid "saved by OnlyOffice"
 msgstr "saved by OnlyOffice"
 
-#: src/components/settings/panes/account-general.tsx:98
+#: src/components/settings/panes/account-general.tsx:216
+msgid "Saved to this browser only."
+msgstr "Saved to this browser only."
+
+#: src/components/settings/panes/account-general.tsx:97
 msgid "Saved to your account, so it follows you to any browser you sign in from."
 msgstr "Saved to your account, so it follows you to any browser you sign in from."
 
-#: src/components/settings/panes/account-general.tsx:140
+#: src/components/settings/panes/account-general.tsx:139
 msgid "Saved to your account. Only sent when your administrator has set up mail."
 msgstr "Saved to your account. Only sent when your administrator has set up mail."
 
@@ -4847,8 +4853,8 @@ msgstr "Settings saved"
 msgid "Settings sections"
 msgstr "Settings sections"
 
-#: src/components/editor-header.tsx:110
-#: src/components/editor-header.tsx:118
+#: src/components/editor-header.tsx:109
+#: src/components/editor-header.tsx:117
 #: src/components/node-actions.tsx:232
 #: src/components/preview-panel.tsx:359
 #: src/components/selection-bar.tsx:74
@@ -5033,7 +5039,7 @@ msgstr "Size (largest)"
 msgid "Size (smallest)"
 msgstr "Size (smallest)"
 
-#: src/routes/drive.tsx:313
+#: src/routes/drive.tsx:301
 msgid "Slug"
 msgstr "Slug"
 
@@ -5062,7 +5068,7 @@ msgid "Sort ascending"
 msgstr "Sort ascending"
 
 #: src/components/folder-actions.tsx:189
-#: src/components/settings/panes/account-general.tsx:196
+#: src/components/settings/panes/account-general.tsx:195
 msgid "Sort by"
 msgstr "Sort by"
 
@@ -5107,11 +5113,11 @@ msgstr "Space settings"
 msgid "Spaces"
 msgstr "Spaces"
 
-#: src/routes/drive.tsx:260
+#: src/routes/drive.tsx:248
 msgid "Spaces are isolated file areas with their own members, permissions and storage."
 msgstr "Spaces are isolated file areas with their own members, permissions and storage."
 
-#: src/routes/drive.tsx:197
+#: src/routes/drive.tsx:185
 msgid "Spaces follow the organizations you belong to at your identity provider. Ask an administrator to add you to one — it appears here the next time you sign in."
 msgstr "Spaces follow the organizations you belong to at your identity provider. Ask an administrator to add you to one — it appears here the next time you sign in."
 
@@ -5155,7 +5161,7 @@ msgid "Storage & Uploads"
 msgstr "Storage & Uploads"
 
 #: src/components/settings/panes/space-general.tsx:279
-#: src/routes/drive.tsx:359
+#: src/routes/drive.tsx:347
 msgid "Storage quota (GB)"
 msgstr "Storage quota (GB)"
 
@@ -5187,7 +5193,7 @@ msgstr "Suspended"
 msgid "Switch space"
 msgstr "Switch space"
 
-#: src/components/doc-editor/doc-editor.tsx:640
+#: src/components/doc-editor/doc-editor.tsx:639
 msgid "Syncing…"
 msgstr "Syncing…"
 
@@ -5320,7 +5326,7 @@ msgstr "the public link"
 msgid "The rest of the thread stays."
 msgstr "The rest of the thread stays."
 
-#: src/components/doc-editor/doc-editor.tsx:315
+#: src/components/doc-editor/doc-editor.tsx:314
 #: src/components/markdown-document-view/index.tsx:212
 msgid "The server did not answer."
 msgstr "The server did not answer."
@@ -5337,7 +5343,7 @@ msgstr "Their access ends immediately. Files they own stay here and wait under P
 msgid "Their files stay in place and wait for a handover on the People pane."
 msgstr "Their files stay in place and wait for a handover on the People pane."
 
-#: src/components/settings/panes/account-general.tsx:169
+#: src/components/settings/panes/account-general.tsx:168
 msgid "Theme"
 msgstr "Theme"
 
@@ -5385,7 +5391,7 @@ msgstr "This account is suspended. Contact an administrator."
 msgid "This address is on a different mail domain from yours"
 msgstr "This address is on a different mail domain from yours"
 
-#: src/components/file-view.tsx:178
+#: src/components/file-view.tsx:176
 msgid "This app is not part of this installation"
 msgstr "This app is not part of this installation"
 
@@ -5433,7 +5439,7 @@ msgstr "This device stays signed in."
 msgid "This document cannot be shown"
 msgstr "This document cannot be shown"
 
-#: src/components/doc-editor/doc-editor.tsx:293
+#: src/components/doc-editor/doc-editor.tsx:292
 msgid "This document is not available"
 msgstr "This document is not available"
 
@@ -5488,7 +5494,7 @@ msgstr "This install"
 msgid "This install includes no apps."
 msgstr "This install includes no apps."
 
-#: src/components/file-view.tsx:181
+#: src/components/file-view.tsx:179
 msgid "This item belongs to an app that this version of PP Hub does not include. It can still be renamed, moved or deleted from the drive."
 msgstr "This item belongs to an app that this version of PP Hub does not include. It can still be renamed, moved or deleted from the drive."
 
@@ -5653,7 +5659,7 @@ msgid "Try a different search."
 msgstr "Try a different search."
 
 #: ../../packages/ext-sdk/src/ext-unavailable.tsx:51
-#: src/components/doc-editor/doc-editor.tsx:321
+#: src/components/doc-editor/doc-editor.tsx:320
 msgid "Try again"
 msgstr "Try again"
 
@@ -5724,7 +5730,7 @@ msgid "Unknown IP"
 msgstr "Unknown IP"
 
 #: src/components/settings/panes/space-general.tsx:287
-#: src/routes/drive.tsx:368
+#: src/routes/drive.tsx:356
 msgid "Unlimited"
 msgstr "Unlimited"
 
@@ -5852,7 +5858,7 @@ msgstr "URL slug"
 msgid "Used to email people when a file or folder is shared with them. Leave the host empty to turn mail off."
 msgstr "Used to email people when a file or folder is shared with them. Leave the host empty to turn mail off."
 
-#: src/components/settings/panes/account-general.tsx:182
+#: src/components/settings/panes/account-general.tsx:181
 msgid "Used when a link says nothing about how to draw the folder. A link that carries a view or a sort keeps the one it was copied with."
 msgstr "Used when a link says nothing about how to draw the folder. A link that carries a view or a sort keeps the one it was copied with."
 
@@ -5908,8 +5914,8 @@ msgstr "Version history"
 msgid "versions"
 msgstr "versions"
 
-#: src/components/editor-header.tsx:129
-#: src/components/editor-header.tsx:138
+#: src/components/editor-header.tsx:128
+#: src/components/editor-header.tsx:137
 #: src/components/node-actions.tsx:192
 #: src/components/preview-modal.tsx:162
 #: src/components/preview-panel.tsx:366
@@ -5948,7 +5954,7 @@ msgid "view"
 msgstr "view"
 
 #: src/components/folder-actions.tsx:203
-#: src/components/settings/panes/account-general.tsx:189
+#: src/components/settings/panes/account-general.tsx:188
 #: src/components/version-list.tsx:120
 msgid "View"
 msgstr "View"
@@ -5978,12 +5984,12 @@ msgstr "Waiting"
 msgid "WebDAV"
 msgstr "WebDAV"
 
-#: src/routes/drive.tsx:211
+#: src/routes/drive.tsx:199
 msgid "Welcome to pp-hub"
 msgstr "Welcome to pp-hub"
 
 #: src/components/settings/panes/space-general.tsx:193
-#: src/routes/drive.tsx:334
+#: src/routes/drive.tsx:322
 msgid "What lives in this space?"
 msgstr "What lives in this space?"
 
@@ -6015,7 +6021,7 @@ msgstr "When on, people outside this space can be given access to files and fold
 msgid "When someone outside your spaces shares a file or folder with you, it appears here."
 msgstr "When someone outside your spaces shares a file or folder with you, it appears here."
 
-#: src/routes/drive.tsx:343
+#: src/routes/drive.tsx:331
 msgid "When turned on, everyone you invite joins as an admin."
 msgstr "When turned on, everyone you invite joins as an admin."
 
@@ -6048,8 +6054,8 @@ msgid "Without a separate address for published content (PP_ARTIFACT_URL on the 
 msgstr "Without a separate address for published content (PP_ARTIFACT_URL on the server), sites are served under /a/ here and only the browser's sandbox keeps their scripts away from people's sessions. Set PP_ARTIFACT_URL to a domain of its own before letting untrusted people publish."
 
 #: src/components/settings/panes/account-general.tsx:217
-msgid "Word, Excel, PowerPoint and PDF files. Saved to this browser only."
-msgstr "Word, Excel, PowerPoint and PDF files. Saved to this browser only."
+#~ msgid "Word, Excel, PowerPoint and PDF files. Saved to this browser only."
+#~ msgstr "Word, Excel, PowerPoint and PDF files. Saved to this browser only."
 
 #: src/components/comments/thread-list.tsx:106
 msgid "Write a comment… (@ to mention)"
@@ -6060,7 +6066,7 @@ msgstr "Write a comment… (@ to mention)"
 msgid "You"
 msgstr "You"
 
-#: src/routes/drive.tsx:184
+#: src/routes/drive.tsx:172
 msgid "You are not in any space yet"
 msgstr "You are not in any space yet"
 
@@ -6160,7 +6166,7 @@ msgstr "You uploaded"
 msgid "Your access"
 msgstr "Your access"
 
-#: src/components/doc-editor/doc-editor.tsx:296
+#: src/components/doc-editor/doc-editor.tsx:295
 msgid "Your access may have been removed, or the file is no longer a markdown document."
 msgstr "Your access may have been removed, or the file is no longer a markdown document."
 

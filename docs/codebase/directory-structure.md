@@ -99,9 +99,8 @@ pp-hub/
 │   │       │   ├── admin-sidebar.tsx     # the /admin rail: nav (ADMIN_NAV), back to Drive, signed-in user
 │   │       │   ├── admin-page.tsx        # AdminPage: title + description + actions frame for every admin page
 │   │       │   ├── admin-settings-ui.tsx # SettingsSection / SettingRow / UnitInput / SourceBadge for instance settings
-│   │       │   ├── file-tabs.tsx         # open files as tabs: FileTabsProvider, FileTabBar (the document bar under the header), FileTabsHost (keeps recent files mounted)
 │   │       │   ├── file-view.tsx         # one open file: block editor / OnlyOffice / app editor / viewer, by type
-│   │       │   ├── editor-header.tsx     # an open file's breadcrumb (header lead) and controls (document bar), by portal
+│   │       │   ├── editor-header.tsx     # an open file's breadcrumb (header lead) and controls (header actions), by portal
 │   │       │   └── ...                  # folder-tree, preview, nav, etc.
 │   │       └── routes/             # TanStack Router file-based routes
 │   │           ├── login.tsx            # OIDC hand-off; ?redirect= survives the round trip
@@ -113,13 +112,12 @@ pp-hub/
 │   │           ├── s/$token.tsx         # anonymous share-link browser (no rail, no account)
 │   │           ├── p/$token.tsx         # M50: published-page viewer — bar, password form, sandboxed iframe on /a/ or PP_ARTIFACT_URL
 │   │           ├── edit/$nodeId.tsx     # legacy address (stored page links, bookmarks) → /open/$nodeId
-│   │           ├── open.$nodeId.tsx     # resolves a node to where it opens: a file tab, or its folder
-│   │           ├── office.$nodeId.tsx   # an office file alone in the window (OnlyOffice frame, no shell) — where "open in a new tab" lands
-│   │           ├── drive.tsx            # drive shell: SidebarProvider + AppSidebar + SidebarInset (tab strip, header, Outlet, tab host)
-│   │           ├── drive/shared_.file.$nodeId.tsx # a file shared from outside, open in the shell (drawn by the tab host)
+│   │           ├── open.$nodeId.tsx     # resolves a node to its file route or folder
+│   │           ├── drive.tsx            # drive shell: SidebarProvider + AppSidebar + SidebarInset (header, Outlet)
+│   │           ├── drive/shared_.file.$nodeId.tsx # a file shared from outside, rendered in the shell
 │   │           └── drive/$spaceId/      # route.tsx (space guard) + index.tsx (listing)
 │   │                                    #   + home / recent / starred / shared / trash
-│   │                                    #   + file.$nodeId.tsx (an open file; drawn by the tab host)
+│   │                                    #   + file.$nodeId.tsx (an open file, rendered by its route)
 │   └── server/                     # Go backend — own go.mod
 │       ├── cmd/server/             # entry point: OIDC wait, http.Server; owns migrations; binds before collab Start (listenThenStart)
 │       │                           #   extensions.go: the apps compiled into this build (M44)

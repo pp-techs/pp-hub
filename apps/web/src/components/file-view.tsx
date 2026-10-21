@@ -19,7 +19,7 @@ import { useDocumentTitle, useFavicon } from "@/lib/use-page-head";
 import { EditorFrame, useOfficeSession } from "@/components/office-frame";
 import { LoadingStatus } from "@/components/loading";
 import { extKindOf } from "@/ext/registry";
-import { OnScreen, useOnScreen } from "@/components/header-slot";
+import { OnScreen } from "@/components/header-slot";
 import { EditorHeader } from "@/components/editor-header";
 import { DocEditor } from "@/components/doc-editor/doc-editor";
 import { PreviewContent } from "@/components/preview-content";
@@ -28,8 +28,8 @@ import { PreviewContent } from "@/components/preview-content";
  * An open file in the drive shell's content column. Which view is a question
  * of type: a markdown document opens in the block editor, an office file in
  * OnlyOffice (PDFs too: its PDF editor), an extension node in its app's
- * editor, anything else in the viewer the preview uses (image, video, audio, text). The header around each
- * is the shell's, filled through `EditorHeader`.
+ * editor, anything else in the viewer the preview uses (image, video, audio,
+ * text). The header around each is the shell's, filled through `EditorHeader`.
  *
  * `nodeId` may change under a mounted view — following a link from one
  * markdown page to another. That does not tear the screen down: the page on
@@ -47,7 +47,6 @@ export function FileView({ nodeId, thread, subject }: { nodeId: string } & FileS
   const [settled, setSettled] = useState<string | null>(null);
   const target = useFileNode(nodeId);
   const current = useFileNode(shown);
-  const onScreen = useOnScreen();
 
   if (shown !== nodeId) {
     const hold =
@@ -68,9 +67,8 @@ export function FileView({ nodeId, thread, subject }: { nodeId: string } & FileS
     setShown(id);
   }, []);
 
-  // Only the file on screen names the browser tab.
-  useDocumentTitle(onScreen ? current.data?.name : undefined);
-  useFavicon(onScreen && current.data ? faviconFor(current.data.name) : undefined);
+  useDocumentTitle(current.data?.name);
+  useFavicon(current.data ? faviconFor(current.data.name) : undefined);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
