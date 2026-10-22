@@ -159,7 +159,7 @@ function ShareLanding() {
   };
   const pageTrail =
     shownPage && shownPage !== baseDoc ? (
-      <PageTrail store={pageStore} pageId={shownPage} onNavigate={openPage} current />
+      <PageTrail store={pageStore} pageId={shownPage} onNavigate={openPage} />
     ) : null;
   const sharedBy = info.data.shared_by;
   const expiresOn = info.data.expires_at ? f.date(info.data.expires_at) : null;

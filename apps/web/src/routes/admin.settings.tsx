@@ -1123,7 +1123,7 @@ function MailSettingsSection({ setting }: { setting?: AdminSetting }) {
 
         <div className="grid gap-4 p-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="smtp-host">
+            <Label htmlFor="smtp-host" className="text-sm">
               <Trans>Host</Trans>
             </Label>
             <Input
@@ -1135,7 +1135,7 @@ function MailSettingsSection({ setting }: { setting?: AdminSetting }) {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="smtp-port">
+            <Label htmlFor="smtp-port" className="text-sm">
               <Trans>Port</Trans>
             </Label>
             <Input
@@ -1149,7 +1149,7 @@ function MailSettingsSection({ setting }: { setting?: AdminSetting }) {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="smtp-tls">
+            <Label htmlFor="smtp-tls" className="text-sm">
               <Trans>Security</Trans>
             </Label>
             <Select
@@ -1171,7 +1171,7 @@ function MailSettingsSection({ setting }: { setting?: AdminSetting }) {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="smtp-from">
+            <Label htmlFor="smtp-from" className="text-sm">
               <Trans>From address</Trans>
             </Label>
             <Input
@@ -1183,7 +1183,7 @@ function MailSettingsSection({ setting }: { setting?: AdminSetting }) {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="smtp-username">
+            <Label htmlFor="smtp-username" className="text-sm">
               <Trans>Username</Trans>
             </Label>
             <Input
@@ -1194,7 +1194,7 @@ function MailSettingsSection({ setting }: { setting?: AdminSetting }) {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="smtp-password">
+            <Label htmlFor="smtp-password" className="text-sm">
               <Trans>Password</Trans>
             </Label>
             <div className="flex items-center gap-2">

@@ -190,11 +190,11 @@ msgstr "{done, plural, one {Uploaded # file} other {Uploaded # files}}"
 msgid "{done} uploaded, {failed} failed"
 msgstr "{done} uploaded, {failed} failed"
 
-#: src/routes/admin.users.tsx:320
+#: src/routes/admin.users.tsx:318
 msgid "{email} reinstated"
 msgstr "{email} reinstated"
 
-#: src/routes/admin.users.tsx:320
+#: src/routes/admin.users.tsx:318
 msgid "{email} suspended"
 msgstr "{email} suspended"
 
@@ -277,7 +277,7 @@ msgstr "{moved, plural, one {Moved # item} other {Moved # items}}"
 #~ msgid "{n, plural, one {# card} other {# cards}}"
 #~ msgstr "{n, plural, one {# card} other {# cards}}"
 
-#: src/routes/admin.users.tsx:350
+#: src/routes/admin.users.tsx:348
 msgid "{n, plural, one {# suspended} other {# suspended}}"
 msgstr "{n, plural, one {# suspended} other {# suspended}}"
 
@@ -651,7 +651,7 @@ msgstr "Action"
 msgid "Actions"
 msgstr "Actions"
 
-#: src/routes/admin.users.tsx:286
+#: src/routes/admin.users.tsx:284
 msgid "Actions for {email}"
 msgstr "Actions for {email}"
 
@@ -665,7 +665,7 @@ msgstr "Actions for {memberEmail}"
 msgid "Actions for {nodeName}"
 msgstr "Actions for {nodeName}"
 
-#: src/routes/admin.users.tsx:276
+#: src/routes/admin.users.tsx:274
 msgid "Active"
 msgstr "Active"
 
@@ -804,7 +804,7 @@ msgstr "admin revoked"
 #~ msgstr "Admin sections"
 
 #: src/components/admin-sidebar.tsx:61
-#: src/routes/admin.tsx:62
+#: src/routes/admin.tsx:63
 msgid "Administration"
 msgstr "Administration"
 
@@ -845,7 +845,7 @@ msgstr "Alert window must be between 1 and 1440 minutes"
 msgid "All"
 msgstr "All"
 
-#: src/routes/admin.users.tsx:352
+#: src/routes/admin.users.tsx:350
 msgid "all active"
 msgstr "all active"
 
@@ -903,7 +903,7 @@ msgstr "An administrator has not turned on agent access."
 msgid "An administrator has turned personal tokens off."
 msgstr "An administrator has turned personal tokens off."
 
-#: src/components/doc-editor/doc-editor.tsx:377
+#: src/components/doc-editor/doc-editor.tsx:370
 msgid "Anonymous"
 msgstr "Anonymous"
 
@@ -1393,7 +1393,7 @@ msgstr "Comment thread"
 #: src/components/comments/block-comments.tsx:201
 #: src/components/comments/comments-popover.tsx:191
 #: src/components/comments/comments-popover.tsx:287
-#: src/components/doc-editor/doc-editor.tsx:247
+#: src/components/doc-editor/doc-editor.tsx:240
 msgid "Comments"
 msgstr "Comments"
 
@@ -1688,7 +1688,7 @@ msgstr "Could not move the page to the trash"
 msgid "Could not move the sub-page to the trash"
 msgstr "Could not move the sub-page to the trash"
 
-#: src/components/doc-editor/doc-editor.tsx:309
+#: src/components/doc-editor/doc-editor.tsx:302
 msgid "Could not open the document"
 msgstr "Could not open the document"
 
@@ -2283,7 +2283,7 @@ msgid "edit"
 msgstr "edit"
 
 #: src/components/comments/comments-popover.tsx:594
-#: src/components/doc-editor/doc-editor.tsx:234
+#: src/components/doc-editor/doc-editor.tsx:227
 #: src/components/node-actions.tsx:159
 msgid "Edit"
 msgstr "Edit"
@@ -2867,7 +2867,7 @@ msgid "Highlighted aside"
 msgstr "Highlighted aside"
 
 #: src/components/nav-space.tsx:44
-#: src/components/site-header.tsx:40
+#: src/components/site-header.tsx:41
 #: src/routes/drive/$spaceId/home.tsx:22
 msgid "Home"
 msgstr "Home"
@@ -2912,7 +2912,7 @@ msgstr "Images"
 msgid "Implicit TLS / SMTPS (port 465)"
 msgstr "Implicit TLS / SMTPS (port 465)"
 
-#: src/components/nodes/page-node-views.tsx:110
+#: src/components/nodes/page-node-views.tsx:114
 msgid "In trash"
 msgstr "In trash"
 
@@ -3374,7 +3374,7 @@ msgid "Make a copy"
 msgstr "Make a copy"
 
 #: src/components/people-table.tsx:553
-#: src/routes/admin.users.tsx:307
+#: src/routes/admin.users.tsx:305
 msgid "Make admin"
 msgstr "Make admin"
 
@@ -3516,7 +3516,7 @@ msgid "Monospaced code"
 msgstr "Monospaced code"
 
 #: src/components/locale-provider.tsx:81
-#: src/components/site-header.tsx:313
+#: src/components/site-header.tsx:337
 msgid "More"
 msgstr "More"
 
@@ -3571,7 +3571,7 @@ msgid "Moved to the trash"
 msgstr "Moved to the trash"
 
 #: src/components/nav-space.tsx:152
-#: src/components/site-header.tsx:247
+#: src/components/site-header.tsx:223
 #: src/lib/use-space-label.ts:11
 msgid "My Drive"
 msgstr "My Drive"
@@ -3621,7 +3621,7 @@ msgid "navigate"
 msgstr "navigate"
 
 #: src/components/people-table.tsx:526
-#: src/routes/admin.users.tsx:264
+#: src/routes/admin.users.tsx:262
 msgid "never"
 msgstr "never"
 
@@ -4004,7 +4004,7 @@ msgstr "Off. Nobody can create or open its items."
 msgid "Office"
 msgstr "Office"
 
-#: src/components/doc-editor/doc-editor.tsx:644
+#: src/components/doc-editor/doc-editor.tsx:637
 msgid "Offline"
 msgstr "Offline"
 
@@ -4192,8 +4192,8 @@ msgstr "Packaging the folder…"
 msgid "Page"
 msgstr "Page"
 
-#: src/components/nodes/page-node-views.tsx:88
-#: src/components/nodes/page-node-views.tsx:145
+#: src/components/nodes/page-node-views.tsx:92
+#: src/components/nodes/page-node-views.tsx:149
 msgid "Page not available"
 msgstr "Page not available"
 
@@ -4205,7 +4205,7 @@ msgstr "Page not found."
 msgid "Page title"
 msgstr "Page title"
 
-#: src/components/doc-editor/doc-editor.tsx:240
+#: src/components/doc-editor/doc-editor.tsx:233
 #: src/components/doc-editor/labels.ts:58
 #: src/components/doc-editor/page-tree-panel.tsx:193
 #: src/components/doc-editor/page-tree-panel.tsx:198
@@ -4477,12 +4477,12 @@ msgstr "re-share"
 msgid "read-only"
 msgstr "read-only"
 
-#: src/components/doc-editor/doc-editor.tsx:228
+#: src/components/doc-editor/doc-editor.tsx:221
 msgid "Read-only"
 msgstr "Read-only"
 
 #: src/components/nav-space.tsx:47
-#: src/components/site-header.tsx:41
+#: src/components/site-header.tsx:42
 #: src/routes/drive/$spaceId/home.tsx:98
 #: src/routes/drive/$spaceId/recent.tsx:13
 msgid "Recent"
@@ -4496,7 +4496,7 @@ msgstr "referenced blobs"
 msgid "Refresh"
 msgstr "Refresh"
 
-#: src/routes/admin.users.tsx:328
+#: src/routes/admin.users.tsx:326
 msgid "Reinstate"
 msgstr "Reinstate"
 
@@ -4752,7 +4752,7 @@ msgstr "Revoke"
 msgid "Revoke access for {grantee}"
 msgstr "Revoke access for {grantee}"
 
-#: src/routes/admin.users.tsx:303
+#: src/routes/admin.users.tsx:301
 msgid "Revoke admin"
 msgstr "Revoke admin"
 
@@ -4794,7 +4794,7 @@ msgstr "Save changes"
 msgid "Save settings"
 msgstr "Save settings"
 
-#: src/components/doc-editor/doc-editor.tsx:634
+#: src/components/doc-editor/doc-editor.tsx:627
 msgid "Saved"
 msgstr "Saved"
 
@@ -5056,14 +5056,14 @@ msgid "Shared"
 msgstr "Shared"
 
 #: src/components/nav-external.tsx:33
-#: src/components/site-header.tsx:145
+#: src/components/site-header.tsx:148
 #: src/routes/drive/shared.tsx:15
 #: src/routes/drive/shared.tsx:41
 msgid "Shared from outside"
 msgstr "Shared from outside"
 
 #: src/components/nav-space.tsx:46
-#: src/components/site-header.tsx:43
+#: src/components/site-header.tsx:44
 #: src/routes/drive/$spaceId/shared.tsx:12
 #: src/routes/drive/$spaceId/shared.tsx:34
 msgid "Shared with me"
@@ -5292,7 +5292,7 @@ msgid "Star a file from its ⋯ menu to keep it here."
 msgstr "Star a file from its ⋯ menu to keep it here."
 
 #: src/components/nav-space.tsx:48
-#: src/components/site-header.tsx:42
+#: src/components/site-header.tsx:43
 #: src/routes/drive/$spaceId/home.tsx:128
 #: src/routes/drive/$spaceId/starred.tsx:11
 msgid "Starred"
@@ -5346,11 +5346,11 @@ msgstr "Strikethrough"
 msgid "Structure"
 msgstr "Structure"
 
-#: src/routes/admin.users.tsx:332
+#: src/routes/admin.users.tsx:330
 msgid "Suspend"
 msgstr "Suspend"
 
-#: src/routes/admin.users.tsx:276
+#: src/routes/admin.users.tsx:274
 msgid "Suspended"
 msgstr "Suspended"
 
@@ -5358,7 +5358,7 @@ msgstr "Suspended"
 msgid "Switch space"
 msgstr "Switch space"
 
-#: src/components/doc-editor/doc-editor.tsx:639
+#: src/components/doc-editor/doc-editor.tsx:632
 msgid "Syncing…"
 msgstr "Syncing…"
 
@@ -5515,7 +5515,7 @@ msgstr "the public link"
 msgid "The rest of the thread stays."
 msgstr "The rest of the thread stays."
 
-#: src/components/doc-editor/doc-editor.tsx:314
+#: src/components/doc-editor/doc-editor.tsx:307
 #: src/components/markdown-document-view/index.tsx:212
 msgid "The server did not answer."
 msgstr "The server did not answer."
@@ -5632,7 +5632,7 @@ msgstr "This device stays signed in."
 msgid "This document cannot be shown"
 msgstr "This document cannot be shown"
 
-#: src/components/doc-editor/doc-editor.tsx:292
+#: src/components/doc-editor/doc-editor.tsx:285
 msgid "This document is not available"
 msgstr "This document is not available"
 
@@ -5830,7 +5830,7 @@ msgid "Top level"
 msgstr "Top level"
 
 #: src/components/nav-space.tsx:50
-#: src/components/site-header.tsx:44
+#: src/components/site-header.tsx:45
 #: src/components/storage-breakdown.tsx:38
 #: src/components/trash-panel.tsx:202
 #: src/routes/drive/$spaceId/trash.tsx:8
@@ -5850,7 +5850,7 @@ msgstr "Trash retention (days)"
 msgid "Try a different search."
 msgstr "Try a different search."
 
-#: src/components/doc-editor/doc-editor.tsx:320
+#: src/components/doc-editor/doc-editor.tsx:313
 #: src/ext/ext-unavailable.tsx:63
 msgid "Try again"
 msgstr "Try again"
@@ -6402,7 +6402,7 @@ msgstr "You uploaded"
 msgid "Your access"
 msgstr "Your access"
 
-#: src/components/doc-editor/doc-editor.tsx:295
+#: src/components/doc-editor/doc-editor.tsx:288
 msgid "Your access may have been removed, or the file is no longer a markdown document."
 msgstr "Your access may have been removed, or the file is no longer a markdown document."
 

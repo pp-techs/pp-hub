@@ -389,9 +389,9 @@ function EventRow({
           minimum keeps it readable on a narrow screen. */}
       <TableCell className="max-w-0 min-w-48">
         <div className="flex min-w-0 flex-col">
-          <span className="truncate font-medium">{who}</span>
+          <span className="truncate text-sm font-medium">{who}</span>
           {event.user_email && event.user_name && (
-            <span className="text-muted-foreground truncate text-[10px]">{event.user_email}</span>
+            <span className="text-muted-foreground truncate text-xs">{event.user_email}</span>
           )}
           {event.node_id && (
             <Button
@@ -404,7 +404,7 @@ function EventRow({
               <span className="truncate">{event.node_name || event.node_id}</span>
             </Button>
           )}
-          {detail && <span className="text-muted-foreground truncate text-[10px]">{detail}</span>}
+          {detail && <span className="text-muted-foreground truncate text-xs">{detail}</span>}
         </div>
       </TableCell>
       <TableCell className="text-muted-foreground tabular-nums">{event.ip || "—"}</TableCell>

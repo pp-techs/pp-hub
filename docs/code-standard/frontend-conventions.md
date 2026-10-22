@@ -73,6 +73,12 @@ Three layers, one direction only — components never call `api` directly:
   `HeaderActions` — there is no second bar under the header. These portals
   render only inside an on-screen subtree (`OnScreen`), so a page held
   behind the shown one while it loads never fills the header.
+- **One trail, one fold.** Folders, outside shares and a document's
+  sub-pages are all `Crumb`s drawn by `CrumbItems` (`site-header.tsx`): a
+  long trail keeps its last two crumbs (one on a phone) and folds the rest
+  into a `…` menu. A sub-page's parents come from `usePageCrumbs`
+  (`page-trail.tsx`) and are passed to `EditorHeader` as `crumbs`; never
+  draw a second, separately folded breadcrumb beside it.
 - **Page rhythm lives in `surface.tsx`.** Every surface except the folder
   listing renders inside `<Surface>`; size sections with container queries
   (`@xl/main`, `@4xl/main`), not viewport breakpoints, because the details

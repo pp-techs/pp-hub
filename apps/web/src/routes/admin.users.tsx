@@ -257,10 +257,8 @@ function UserRow({
           </span>
         )}
       </TableCell>
-      <TableCell className="text-muted-foreground text-sm tabular-nums">
-        {u.spaces ?? "—"}
-      </TableCell>
-      <TableCell className="text-muted-foreground text-sm">
+      <TableCell className="text-muted-foreground tabular-nums">{u.spaces ?? "—"}</TableCell>
+      <TableCell className="text-muted-foreground">
         {u.last_seen ? lastSeen(u.last_seen) : <Trans>never</Trans>}
       </TableCell>
       <TableCell>

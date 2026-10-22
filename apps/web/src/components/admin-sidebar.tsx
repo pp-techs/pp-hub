@@ -60,7 +60,7 @@ export function AdminSidebar(props: ComponentProps<typeof Sidebar>) {
             <span className="truncate text-sm font-medium">
               <Trans>Administration</Trans>
             </span>
-            <span className="text-muted-foreground truncate text-[10px]">
+            <span className="text-muted-foreground truncate text-xs">
               <Trans>This install</Trans>
             </span>
           </div>
@@ -105,7 +105,7 @@ export function AdminSidebar(props: ComponentProps<typeof Sidebar>) {
           <UserAvatar src={me.data?.avatar_url} name={name} email={me.data?.email} size="sm" />
           <div className="grid min-w-0 flex-1 leading-tight">
             <span className="truncate text-sm font-medium">{name}</span>
-            <span className="text-muted-foreground truncate text-[10px]">{me.data?.email}</span>
+            <span className="text-muted-foreground truncate text-xs">{me.data?.email}</span>
           </div>
         </div>
       </SidebarFooter>

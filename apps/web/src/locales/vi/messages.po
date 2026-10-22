@@ -190,11 +190,11 @@ msgstr "{done, plural, one {Đã tải lên # tệp} other {Đã tải lên # t�
 msgid "{done} uploaded, {failed} failed"
 msgstr "Đã tải lên {done}, thất bại {failed}"
 
-#: src/routes/admin.users.tsx:320
+#: src/routes/admin.users.tsx:318
 msgid "{email} reinstated"
 msgstr "Đã khôi phục {email}"
 
-#: src/routes/admin.users.tsx:320
+#: src/routes/admin.users.tsx:318
 msgid "{email} suspended"
 msgstr "Đã tạm khoá {email}"
 
@@ -277,7 +277,7 @@ msgstr "{moved, plural, one {Đã di chuyển # mục} other {Đã di chuyển #
 #~ msgid "{n, plural, one {# card} other {# cards}}"
 #~ msgstr "{n, plural, one {# thẻ} other {# thẻ}}"
 
-#: src/routes/admin.users.tsx:350
+#: src/routes/admin.users.tsx:348
 msgid "{n, plural, one {# suspended} other {# suspended}}"
 msgstr "{n, plural, one {# đã tạm khoá} other {# đã tạm khoá}}"
 
@@ -651,7 +651,7 @@ msgstr "Hành động"
 msgid "Actions"
 msgstr "Hành động"
 
-#: src/routes/admin.users.tsx:286
+#: src/routes/admin.users.tsx:284
 msgid "Actions for {email}"
 msgstr "Thao tác cho {email}"
 
@@ -665,7 +665,7 @@ msgstr "Thao tác cho {memberEmail}"
 msgid "Actions for {nodeName}"
 msgstr "Thao tác với {nodeName}"
 
-#: src/routes/admin.users.tsx:276
+#: src/routes/admin.users.tsx:274
 msgid "Active"
 msgstr "Đang hoạt động"
 
@@ -804,7 +804,7 @@ msgstr "đã thu hồi quyền quản trị"
 #~ msgstr "Các mục quản trị"
 
 #: src/components/admin-sidebar.tsx:61
-#: src/routes/admin.tsx:62
+#: src/routes/admin.tsx:63
 msgid "Administration"
 msgstr "Quản trị"
 
@@ -845,7 +845,7 @@ msgstr "Khoảng thời gian cảnh báo phải từ 1 đến 1440 phút"
 msgid "All"
 msgstr "Tất cả"
 
-#: src/routes/admin.users.tsx:352
+#: src/routes/admin.users.tsx:350
 msgid "all active"
 msgstr "tất cả đang hoạt động"
 
@@ -903,7 +903,7 @@ msgstr "Quản trị viên chưa bật quyền truy cập cho tác tử."
 msgid "An administrator has turned personal tokens off."
 msgstr "Quản trị viên đã tắt mã truy cập cá nhân."
 
-#: src/components/doc-editor/doc-editor.tsx:377
+#: src/components/doc-editor/doc-editor.tsx:370
 msgid "Anonymous"
 msgstr "Ẩn danh"
 
@@ -1393,7 +1393,7 @@ msgstr "Chuỗi bình luận"
 #: src/components/comments/block-comments.tsx:201
 #: src/components/comments/comments-popover.tsx:191
 #: src/components/comments/comments-popover.tsx:287
-#: src/components/doc-editor/doc-editor.tsx:247
+#: src/components/doc-editor/doc-editor.tsx:240
 msgid "Comments"
 msgstr "Bình luận"
 
@@ -1688,7 +1688,7 @@ msgstr "Không thể chuyển trang vào thùng rác"
 msgid "Could not move the sub-page to the trash"
 msgstr "Không thể chuyển trang con vào thùng rác"
 
-#: src/components/doc-editor/doc-editor.tsx:309
+#: src/components/doc-editor/doc-editor.tsx:302
 msgid "Could not open the document"
 msgstr "Không thể mở tài liệu"
 
@@ -2283,7 +2283,7 @@ msgid "edit"
 msgstr "chỉnh sửa"
 
 #: src/components/comments/comments-popover.tsx:594
-#: src/components/doc-editor/doc-editor.tsx:234
+#: src/components/doc-editor/doc-editor.tsx:227
 #: src/components/node-actions.tsx:159
 msgid "Edit"
 msgstr "Chỉnh sửa"
@@ -2867,7 +2867,7 @@ msgid "Highlighted aside"
 msgstr "Ghi chú được làm nổi bật"
 
 #: src/components/nav-space.tsx:44
-#: src/components/site-header.tsx:40
+#: src/components/site-header.tsx:41
 #: src/routes/drive/$spaceId/home.tsx:22
 msgid "Home"
 msgstr "Trang chủ"
@@ -2912,7 +2912,7 @@ msgstr "Hình ảnh"
 msgid "Implicit TLS / SMTPS (port 465)"
 msgstr "TLS ngầm định / SMTPS (cổng 465)"
 
-#: src/components/nodes/page-node-views.tsx:110
+#: src/components/nodes/page-node-views.tsx:114
 msgid "In trash"
 msgstr "Trong thùng rác"
 
@@ -3374,7 +3374,7 @@ msgid "Make a copy"
 msgstr "Tạo bản sao"
 
 #: src/components/people-table.tsx:553
-#: src/routes/admin.users.tsx:307
+#: src/routes/admin.users.tsx:305
 msgid "Make admin"
 msgstr "Đặt làm quản trị viên"
 
@@ -3516,7 +3516,7 @@ msgid "Monospaced code"
 msgstr "Mã phông đơn cách"
 
 #: src/components/locale-provider.tsx:81
-#: src/components/site-header.tsx:313
+#: src/components/site-header.tsx:337
 msgid "More"
 msgstr "Thêm"
 
@@ -3571,7 +3571,7 @@ msgid "Moved to the trash"
 msgstr "Đã chuyển vào thùng rác"
 
 #: src/components/nav-space.tsx:152
-#: src/components/site-header.tsx:247
+#: src/components/site-header.tsx:223
 #: src/lib/use-space-label.ts:11
 msgid "My Drive"
 msgstr "Drive của tôi"
@@ -3621,7 +3621,7 @@ msgid "navigate"
 msgstr "điều hướng"
 
 #: src/components/people-table.tsx:526
-#: src/routes/admin.users.tsx:264
+#: src/routes/admin.users.tsx:262
 msgid "never"
 msgstr "không bao giờ"
 
@@ -4004,7 +4004,7 @@ msgstr "Đang tắt. Không ai tạo hay mở được các mục của nó."
 msgid "Office"
 msgstr "Office"
 
-#: src/components/doc-editor/doc-editor.tsx:644
+#: src/components/doc-editor/doc-editor.tsx:637
 msgid "Offline"
 msgstr "Ngoại tuyến"
 
@@ -4192,8 +4192,8 @@ msgstr "Đang đóng gói thư mục…"
 msgid "Page"
 msgstr "Trang"
 
-#: src/components/nodes/page-node-views.tsx:88
-#: src/components/nodes/page-node-views.tsx:145
+#: src/components/nodes/page-node-views.tsx:92
+#: src/components/nodes/page-node-views.tsx:149
 msgid "Page not available"
 msgstr "Trang không khả dụng"
 
@@ -4205,7 +4205,7 @@ msgstr "Không tìm thấy trang."
 msgid "Page title"
 msgstr "Tiêu đề trang"
 
-#: src/components/doc-editor/doc-editor.tsx:240
+#: src/components/doc-editor/doc-editor.tsx:233
 #: src/components/doc-editor/labels.ts:58
 #: src/components/doc-editor/page-tree-panel.tsx:193
 #: src/components/doc-editor/page-tree-panel.tsx:198
@@ -4477,12 +4477,12 @@ msgstr "chia sẻ lại"
 msgid "read-only"
 msgstr "chỉ đọc"
 
-#: src/components/doc-editor/doc-editor.tsx:228
+#: src/components/doc-editor/doc-editor.tsx:221
 msgid "Read-only"
 msgstr "Chỉ đọc"
 
 #: src/components/nav-space.tsx:47
-#: src/components/site-header.tsx:41
+#: src/components/site-header.tsx:42
 #: src/routes/drive/$spaceId/home.tsx:98
 #: src/routes/drive/$spaceId/recent.tsx:13
 msgid "Recent"
@@ -4496,7 +4496,7 @@ msgstr "blob được tham chiếu"
 msgid "Refresh"
 msgstr "Làm mới"
 
-#: src/routes/admin.users.tsx:328
+#: src/routes/admin.users.tsx:326
 msgid "Reinstate"
 msgstr "Phục hồi"
 
@@ -4752,7 +4752,7 @@ msgstr "Thu hồi"
 msgid "Revoke access for {grantee}"
 msgstr "Thu hồi quyền truy cập của {grantee}"
 
-#: src/routes/admin.users.tsx:303
+#: src/routes/admin.users.tsx:301
 msgid "Revoke admin"
 msgstr "Thu hồi quyền quản trị"
 
@@ -4794,7 +4794,7 @@ msgstr "Lưu thay đổi"
 msgid "Save settings"
 msgstr "Lưu cài đặt"
 
-#: src/components/doc-editor/doc-editor.tsx:634
+#: src/components/doc-editor/doc-editor.tsx:627
 msgid "Saved"
 msgstr "Đã lưu"
 
@@ -5056,14 +5056,14 @@ msgid "Shared"
 msgstr "Đã chia sẻ"
 
 #: src/components/nav-external.tsx:33
-#: src/components/site-header.tsx:145
+#: src/components/site-header.tsx:148
 #: src/routes/drive/shared.tsx:15
 #: src/routes/drive/shared.tsx:41
 msgid "Shared from outside"
 msgstr "Được chia sẻ từ bên ngoài"
 
 #: src/components/nav-space.tsx:46
-#: src/components/site-header.tsx:43
+#: src/components/site-header.tsx:44
 #: src/routes/drive/$spaceId/shared.tsx:12
 #: src/routes/drive/$spaceId/shared.tsx:34
 msgid "Shared with me"
@@ -5292,7 +5292,7 @@ msgid "Star a file from its ⋯ menu to keep it here."
 msgstr "Gắn sao một tệp từ menu ⋯ của tệp để giữ tệp ở đây."
 
 #: src/components/nav-space.tsx:48
-#: src/components/site-header.tsx:42
+#: src/components/site-header.tsx:43
 #: src/routes/drive/$spaceId/home.tsx:128
 #: src/routes/drive/$spaceId/starred.tsx:11
 msgid "Starred"
@@ -5346,11 +5346,11 @@ msgstr "Gạch ngang"
 msgid "Structure"
 msgstr "Cấu trúc"
 
-#: src/routes/admin.users.tsx:332
+#: src/routes/admin.users.tsx:330
 msgid "Suspend"
 msgstr "Tạm khoá"
 
-#: src/routes/admin.users.tsx:276
+#: src/routes/admin.users.tsx:274
 msgid "Suspended"
 msgstr "Đã tạm khoá"
 
@@ -5358,7 +5358,7 @@ msgstr "Đã tạm khoá"
 msgid "Switch space"
 msgstr "Chuyển không gian"
 
-#: src/components/doc-editor/doc-editor.tsx:639
+#: src/components/doc-editor/doc-editor.tsx:632
 msgid "Syncing…"
 msgstr "Đang đồng bộ…"
 
@@ -5515,7 +5515,7 @@ msgstr "liên kết công khai"
 msgid "The rest of the thread stays."
 msgstr "Phần còn lại của chuỗi bình luận vẫn được giữ."
 
-#: src/components/doc-editor/doc-editor.tsx:314
+#: src/components/doc-editor/doc-editor.tsx:307
 #: src/components/markdown-document-view/index.tsx:212
 msgid "The server did not answer."
 msgstr "Máy chủ không phản hồi."
@@ -5632,7 +5632,7 @@ msgstr "Thiết bị này luôn ở trạng thái đăng nhập."
 msgid "This document cannot be shown"
 msgstr "Không thể hiển thị tài liệu này"
 
-#: src/components/doc-editor/doc-editor.tsx:292
+#: src/components/doc-editor/doc-editor.tsx:285
 msgid "This document is not available"
 msgstr "Tài liệu này không khả dụng"
 
@@ -5830,7 +5830,7 @@ msgid "Top level"
 msgstr "Cấp cao nhất"
 
 #: src/components/nav-space.tsx:50
-#: src/components/site-header.tsx:44
+#: src/components/site-header.tsx:45
 #: src/components/storage-breakdown.tsx:38
 #: src/components/trash-panel.tsx:202
 #: src/routes/drive/$spaceId/trash.tsx:8
@@ -5850,7 +5850,7 @@ msgstr "Thời gian giữ trong thùng rác (ngày)"
 msgid "Try a different search."
 msgstr "Hãy thử tìm kiếm khác."
 
-#: src/components/doc-editor/doc-editor.tsx:320
+#: src/components/doc-editor/doc-editor.tsx:313
 #: src/ext/ext-unavailable.tsx:63
 msgid "Try again"
 msgstr "Thử lại"
@@ -6402,7 +6402,7 @@ msgstr "Bạn đã tải lên"
 msgid "Your access"
 msgstr "Quyền của bạn"
 
-#: src/components/doc-editor/doc-editor.tsx:295
+#: src/components/doc-editor/doc-editor.tsx:288
 msgid "Your access may have been removed, or the file is no longer a markdown document."
 msgstr "Có thể quyền truy cập của bạn đã bị gỡ, hoặc tệp không còn là tài liệu markdown."
 
