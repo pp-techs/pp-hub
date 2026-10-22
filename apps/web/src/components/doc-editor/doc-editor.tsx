@@ -50,7 +50,7 @@ import { useCommentStore, type PpCommentStore } from "@/lib/comments";
 import { useMe, useNode, usePageLineage } from "@/lib/queries";
 import { LoadingStatus } from "@/components/loading";
 import { EditorHeader } from "@/components/editor-header";
-import { PageTrail } from "@/components/page-trail";
+import { usePageCrumbs } from "@/components/page-trail";
 import { BlockHandle } from "@/components/block-handle";
 import { BubbleToolbar } from "@/components/bubble-toolbar";
 import { LinkEditorPopover } from "@/components/link-editor-popover";
@@ -165,6 +165,7 @@ export function DocEditor({
     (pageId: string) => openFile({ id: pageId, space_id: node.space_id }),
     [node.space_id],
   );
+  const pageCrumbs = usePageCrumbs(pageStore, node.id, openPage);
   // One listing names every sub-page block's page, before each block asks
   // for its own.
   useEffect(() => {
@@ -203,15 +204,7 @@ export function DocEditor({
       <EditorHeader
         nodeId={node.id}
         node={node}
-        trail={
-          // No room beside the name on a narrow screen; the page tree still has it.
-          <PageTrail
-            store={pageStore}
-            pageId={node.id}
-            onNavigate={openPage}
-            className="hidden md:block"
-          />
-        }
+        crumbs={pageCrumbs.ancestors}
         // A sub-page's way back to the Drive is its top-level page's folder
         // (`null`: the space's top level).
         driveDir={ancestors.length > 0 ? (rootPage.data?.parent_id ?? null) : undefined}

@@ -54,18 +54,21 @@ function AdminLayout() {
     >
       <AdminSidebar variant="inset" />
       <SidebarInset className="min-h-0 overflow-hidden">
-        <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b px-4">
+        <header className="flex h-(--header-height) shrink-0 items-center gap-1 border-b px-4 lg:gap-2">
           <SidebarTrigger className="-ml-1" />
-          <Breadcrumb>
-            <BreadcrumbList>
+          <div className="bg-border mx-1 h-4 w-px lg:mx-2" />
+          <Breadcrumb className="min-w-0">
+            <BreadcrumbList className="gap-1 sm:gap-1.5">
               <BreadcrumbItem className="text-muted-foreground hidden sm:inline-flex">
                 {t`Administration`}
               </BreadcrumbItem>
               {current && (
                 <>
                   <BreadcrumbSeparator className="hidden sm:block" />
-                  <BreadcrumbItem>
-                    <BreadcrumbPage className="font-medium">{i18n._(current.label)}</BreadcrumbPage>
+                  <BreadcrumbItem className="min-w-0">
+                    <BreadcrumbPage className="truncate font-medium">
+                      {i18n._(current.label)}
+                    </BreadcrumbPage>
                   </BreadcrumbItem>
                 </>
               )}

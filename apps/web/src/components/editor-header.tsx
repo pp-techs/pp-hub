@@ -21,33 +21,35 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@workspace/ui/component
 import { NodeIcon } from "@/components/node-icon";
 import { ShareDialog } from "@/components/share-dialog";
 import { HeaderActions, HeaderLead } from "@/components/header-slot";
-import { ExternalBreadcrumb, ListingBreadcrumb } from "@/components/site-header";
+import { ExternalBreadcrumb, ListingBreadcrumb, type Crumb } from "@/components/site-header";
 
 /**
  * An open file's part of the shell's chrome — over OnlyOffice's iframe, the
  * block editor, an app's editor or the viewer. What it carries is what the
  * editor itself cannot know: where the file lives, and the pp-hub actions
  * (share, version history, download) that operate on the node. Where it
- * lives (folder trail, `trail`, name) takes the navigation header's
- * breadcrumb; the file's own controls go to the same header's trailing
- * actions: the version line (`status` ends it), then `children` (presence,
- * save state, badges, the panel toggles), then the actions. `trail` (a
- * sub-page's parent documents) sits before the file's name, and `driveDir`
- * is the folder the trail ends in when it is not the node's parent — a
- * sub-page's parent is a document, which the listing cannot open.
+ * lives (folder trail, `crumbs`, name) takes the navigation header's
+ * breadcrumb, folded like every other: what does not fit goes into one `…`
+ * menu, on a phone all of it but the name. The file's own controls go to the
+ * same header's trailing actions: the version line (`status` ends it), then
+ * `children` (presence, save state, badges, the panel toggles), then the
+ * actions. `crumbs` (a sub-page's parent documents) sit before the file's
+ * name, and `driveDir` is the folder the trail ends in when it is not the
+ * node's parent — a sub-page's parent is a document, which the listing
+ * cannot open.
  */
 export function EditorHeader({
   nodeId,
   node,
   status,
-  trail,
+  crumbs,
   driveDir,
   children,
 }: {
   nodeId: string;
   node: Node | undefined;
   status?: string | null;
-  trail?: ReactNode;
+  crumbs?: Crumb[];
   /** `null`: the space's top level. Omitted: the node's parent. */
   driveDir?: string | null;
   children?: ReactNode;
@@ -69,19 +71,17 @@ export function EditorHeader({
     <>
       <HeaderLead>
         {node && spaces.isSuccess ? (
-          // No room for the folders on a narrow screen; the rail has them.
-          <Breadcrumb className="hidden min-w-0 shrink md:block">
+          <Breadcrumb className="min-w-0 shrink">
             <BreadcrumbList className="flex-nowrap gap-1 sm:gap-1.5">
               {outsider ? (
-                <ExternalBreadcrumb dir={dir} linkLast />
+                <ExternalBreadcrumb dir={dir} after={crumbs} linkLast />
               ) : (
-                <ListingBreadcrumb spaceId={node.space_id} dir={dir} linkLast />
+                <ListingBreadcrumb spaceId={node.space_id} dir={dir} after={crumbs} linkLast />
               )}
               <BreadcrumbSeparator />
             </BreadcrumbList>
           </Breadcrumb>
         ) : null}
-        {trail}
         {node ? (
           <span className="text-foreground flex min-w-0 shrink-[2] items-center gap-1.5 text-xs/relaxed font-medium">
             <NodeIcon node={node} className="size-4 shrink-0" />

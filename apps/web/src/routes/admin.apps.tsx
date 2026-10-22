@@ -118,7 +118,7 @@ function AppRow({ ext }: { ext: Extension }) {
             {name}
           </label>
           {ext.version && (
-            <span className="text-muted-foreground text-[0.625rem] tabular-nums">
+            <span className="text-muted-foreground text-xs tabular-nums">
               <Trans>v{version}</Trans>
             </span>
           )}
@@ -127,7 +127,7 @@ function AppRow({ ext }: { ext: Extension }) {
           <p className="text-muted-foreground text-xs/relaxed">{ext.description}</p>
         )}
         {ext.author && (
-          <p className="text-muted-foreground text-[0.625rem]">
+          <p className="text-muted-foreground text-xs">
             <Trans>By {author}</Trans>
           </p>
         )}

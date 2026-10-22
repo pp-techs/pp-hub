@@ -70,7 +70,11 @@ export function SubPageNodeView({ editor, node, selected }: NodeViewProps) {
   const title = usePageTitle(page);
 
   return (
-    <NodeViewWrapper contentEditable={false} className="my-1" data-selected={selected || undefined}>
+    <NodeViewWrapper
+      contentEditable={false}
+      className="my-1 leading-8"
+      data-selected={selected || undefined}
+    >
       <div
         role="link"
         tabIndex={0}
@@ -79,7 +83,7 @@ export function SubPageNodeView({ editor, node, selected }: NodeViewProps) {
         onPointerEnter={warm}
         onFocus={warm}
         onKeyDown={onKeyDown}
-        className="hover:bg-muted/60 focus-visible:ring-ring in-data-selected:ring-ring flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 outline-none select-none focus-visible:ring-2 in-data-selected:ring-2"
+        className="hover:bg-muted/60 focus-visible:ring-ring in-data-selected:ring-ring flex h-8 cursor-pointer items-center gap-2 rounded-md px-1.5 outline-none select-none focus-visible:ring-2 in-data-selected:ring-2"
       >
         {status === "missing" ? (
           <>
