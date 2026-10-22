@@ -92,7 +92,7 @@ Every table carries `tenant_id` (single value `'default'` in MVP). No tenant rou
 
 - **WebDAV mount (M47)**: files can already be worked on from a desktop without a sync client — `/dav` serves the same nodes, versions and grants as a mount, nothing copied; see [webdav.md](webdav.md).
 - **Desktop/mobile sync**: still later. The CAS blob interface hides chunking. A later rollsum-based chunk layer under `blob.Put` plus `chunkExists/chunkPut` endpoints enables delta sync without changing callers.
-- **Marketplace/plugins**: designed as compile-time extensions behind a public `extsdk`, switched on per instance and per space — see [extensions.md](extensions.md) (M44–M46, kanban first).
+- **Marketplace/plugins**: packaged apps an administrator uploads at runtime and switches on per instance and per space (M51; Kanban and Checklist are first-party ones, not preinstalled) — static files in a sandboxed frame on the `/x/` asset origin, data in the host's `ext_records`, optional logic in the author's own backend; no uploaded code runs in the server process. See [extensions.md](extensions.md). A catalog and signing are not built.
 
 ## Deployment
 

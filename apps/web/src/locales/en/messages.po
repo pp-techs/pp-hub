@@ -18,28 +18,28 @@ msgid ".mcp.json"
 msgstr ".mcp.json"
 
 #: ../../packages/ext-kanban/src/card-dialog.tsx:396
-msgid "\"{cardTitle}\" will be deleted for everyone who can open this board."
-msgstr "\"{cardTitle}\" will be deleted for everyone who can open this board."
+#~ msgid "\"{cardTitle}\" will be deleted for everyone who can open this board."
+#~ msgstr "\"{cardTitle}\" will be deleted for everyone who can open this board."
 
 #: ../../packages/ext-kanban/src/column-dialogs.tsx:156
-msgid "\"{columnTitle}\" is empty and will be deleted."
-msgstr "\"{columnTitle}\" is empty and will be deleted."
+#~ msgid "\"{columnTitle}\" is empty and will be deleted."
+#~ msgstr "\"{columnTitle}\" is empty and will be deleted."
 
 #: ../../packages/ext-kanban/src/column-dialogs.tsx:158
-msgid "\"{columnTitle}\" still has cards and there is no other column to move them to. Add a column first."
-msgstr "\"{columnTitle}\" still has cards and there is no other column to move them to. Add a column first."
+#~ msgid "\"{columnTitle}\" still has cards and there is no other column to move them to. Add a column first."
+#~ msgstr "\"{columnTitle}\" still has cards and there is no other column to move them to. Add a column first."
 
 #: ../../packages/ext-kanban/src/column-dialogs.tsx:163
-msgid "\"{columnTitle}\" will be deleted. Choose where its cards go."
-msgstr "\"{columnTitle}\" will be deleted. Choose where its cards go."
+#~ msgid "\"{columnTitle}\" will be deleted. Choose where its cards go."
+#~ msgstr "\"{columnTitle}\" will be deleted. Choose where its cards go."
 
 #: ../../packages/ext-kanban/src/board-editor.tsx:417
-msgid "\"{deletingTitle}\" will be deleted for everyone who can open this board."
-msgstr "\"{deletingTitle}\" will be deleted for everyone who can open this board."
+#~ msgid "\"{deletingTitle}\" will be deleted for everyone who can open this board."
+#~ msgstr "\"{deletingTitle}\" will be deleted for everyone who can open this board."
 
 #: ../../packages/ext-kanban/src/labels-dialog.tsx:115
-msgid "\"{labelName}\" will be removed from every card that has it."
-msgstr "\"{labelName}\" will be removed from every card that has it."
+#~ msgid "\"{labelName}\" will be removed from every card that has it."
+#~ msgstr "\"{labelName}\" will be removed from every card that has it."
 
 #: src/routes/drive/$spaceId/index.tsx:383
 msgid "“{nodeName}” copied — paste it in another folder"
@@ -114,8 +114,8 @@ msgid "{0, plural, one {Permanently delete the # item in the trash, including ev
 msgstr "{0, plural, one {Permanently delete the # item in the trash, including everything inside deleted folders. This cannot be undone.} other {Permanently delete all # items in the trash, including everything inside deleted folders. This cannot be undone.}}"
 
 #: ../../packages/ext-kanban/src/index.ts:12
-msgid "{actor} assigned you to “{excerpt}”"
-msgstr "{actor} assigned you to “{excerpt}”"
+#~ msgid "{actor} assigned you to “{excerpt}”"
+#~ msgstr "{actor} assigned you to “{excerpt}”"
 
 #: src/lib/ext-notification.ts:29
 msgid "{actor} sent you an update on {doc}"
@@ -130,16 +130,16 @@ msgid "{buried, plural, one {# item of yours inside} other {# items of yours ins
 msgstr "{buried, plural, one {# item of yours inside} other {# items of yours inside}}"
 
 #: ../../packages/ext-kanban/src/board-toolbar.tsx:227
-msgid "{columns, plural, one {# column} other {# columns}}"
-msgstr "{columns, plural, one {# column} other {# columns}}"
+#~ msgid "{columns, plural, one {# column} other {# columns}}"
+#~ msgstr "{columns, plural, one {# column} other {# columns}}"
 
 #: ../../packages/ext-kanban/src/column-dialogs.tsx:194
-msgid "{count, plural, one {# card will be moved to the end of that column.} other {# cards will be moved to the end of that column.}}"
-msgstr "{count, plural, one {# card will be moved to the end of that column.} other {# cards will be moved to the end of that column.}}"
+#~ msgid "{count, plural, one {# card will be moved to the end of that column.} other {# cards will be moved to the end of that column.}}"
+#~ msgstr "{count, plural, one {# card will be moved to the end of that column.} other {# cards will be moved to the end of that column.}}"
 
 #: ../../packages/ext-kanban/src/labels-dialog.tsx:98
-msgid "{count, plural, one {# card} other {# cards}}"
-msgstr "{count, plural, one {# card} other {# cards}}"
+#~ msgid "{count, plural, one {# card} other {# cards}}"
+#~ msgstr "{count, plural, one {# card} other {# cards}}"
 
 #: src/components/sub-page-count.tsx:17
 msgid "{count, plural, one {# sub-page} other {# sub-pages}}"
@@ -183,8 +183,8 @@ msgid "{done, plural, one {Uploaded # file} other {Uploaded # files}}"
 msgstr "{done, plural, one {Uploaded # file} other {Uploaded # files}}"
 
 #: ../../packages/ext-checklist/src/list-editor.tsx:51
-msgid "{done} of {total} done"
-msgstr "{done} of {total} done"
+#~ msgid "{done} of {total} done"
+#~ msgstr "{done} of {total} done"
 
 #: src/components/transfer-tray.tsx:173
 msgid "{done} uploaded, {failed} failed"
@@ -228,7 +228,7 @@ msgstr "{folders, plural, one {# folder} other {# folders}} and {files, plural, 
 msgid "{folders, plural, one {# folder} other {# folders}} and {files, plural, one {# file} other {# files}} selected"
 msgstr "{folders, plural, one {# folder} other {# folders}} and {files, plural, one {# file} other {# files}} selected"
 
-#: src/routes/admin.security.tsx:322
+#: src/routes/admin.security.tsx:326
 msgid "{from}–{to} of {total}"
 msgstr "{from}–{to} of {total}"
 
@@ -274,8 +274,8 @@ msgid "{moved, plural, one {Moved # item} other {Moved # items}}"
 msgstr "{moved, plural, one {Moved # item} other {Moved # items}}"
 
 #: ../../packages/ext-kanban/src/column-dialogs.tsx:132
-msgid "{n, plural, one {# card} other {# cards}}"
-msgstr "{n, plural, one {# card} other {# cards}}"
+#~ msgid "{n, plural, one {# card} other {# cards}}"
+#~ msgstr "{n, plural, one {# card} other {# cards}}"
 
 #: src/routes/admin.users.tsx:350
 msgid "{n, plural, one {# suspended} other {# suspended}}"
@@ -284,6 +284,18 @@ msgstr "{n, plural, one {# suspended} other {# suspended}}"
 #: src/components/folder-actions.tsx:275
 msgid "{n, plural, one {Paste # item} other {Paste # items}}"
 msgstr "{n, plural, one {Paste # item} other {Paste # items}}"
+
+#: src/components/apps/app-backend-modal.tsx:74
+msgid "{name} backend"
+msgstr "{name} backend"
+
+#: src/ext/app-frame.tsx:125
+msgid "{name} did not start"
+msgstr "{name} did not start"
+
+#: src/ext/app-frame.tsx:123
+msgid "{name} left its page"
+msgstr "{name} left its page"
 
 #: src/components/share-dialog.tsx:687
 msgid "{name} no longer has access"
@@ -342,8 +354,8 @@ msgid "{sharedBy} shared this folder"
 msgstr "{sharedBy} shared this folder"
 
 #: ../../packages/ext-kanban/src/board-toolbar.tsx:221
-msgid "{shown} of {total, plural, one {# card} other {# cards}}"
-msgstr "{shown} of {total, plural, one {# card} other {# cards}}"
+#~ msgid "{shown} of {total, plural, one {# card} other {# cards}}"
+#~ msgstr "{shown} of {total, plural, one {# card} other {# cards}}"
 
 #: src/routes/admin.users.tsx:167
 msgid "{shown} of {total} users"
@@ -406,8 +418,8 @@ msgid "{spaceName} · uploaded {when}"
 msgstr "{spaceName} · uploaded {when}"
 
 #: ../../packages/ext-kanban/src/board-toolbar.tsx:225
-msgid "{total, plural, one {# card} other {# cards}}"
-msgstr "{total, plural, one {# card} other {# cards}}"
+#~ msgid "{total, plural, one {# card} other {# cards}}"
+#~ msgstr "{total, plural, one {# card} other {# cards}}"
 
 #: src/components/people-table.tsx:174
 msgid "{total, plural, one {# member} other {# members}}"
@@ -451,7 +463,7 @@ msgstr "{who} can now view"
 msgid "<0>{actor}</0> added <1>{nodeName}</1> to <2>{spaceName}</2>"
 msgstr "<0>{actor}</0> added <1>{nodeName}</1> to <2>{spaceName}</2>"
 
-#: src/components/notifications-bell.tsx:192
+#: src/components/notifications-bell.tsx:193
 msgid "<0>{actor}</0> commented on <1>{doc}</1>"
 msgstr "<0>{actor}</0> commented on <1>{doc}</1>"
 
@@ -463,7 +475,7 @@ msgstr "<0>{actor}</0> created <1>{nodeName}</1> in <2>{spaceName}</2>"
 msgid "<0>{actor}</0> invited <1>{nodeName}</1> to <2>{spaceName}</2>"
 msgstr "<0>{actor}</0> invited <1>{nodeName}</1> to <2>{spaceName}</2>"
 
-#: src/components/notifications-bell.tsx:182
+#: src/components/notifications-bell.tsx:183
 msgid "<0>{actor}</0> mentioned you in <1>{doc}</1>"
 msgstr "<0>{actor}</0> mentioned you in <1>{doc}</1>"
 
@@ -483,7 +495,7 @@ msgstr "<0>{actor}</0> permanently deleted <1>{nodeName}</1> in <2>{spaceName}</
 msgid "<0>{actor}</0> renamed <1>{nodeName}</1> in <2>{spaceName}</2>"
 msgstr "<0>{actor}</0> renamed <1>{nodeName}</1> in <2>{spaceName}</2>"
 
-#: src/components/notifications-bell.tsx:187
+#: src/components/notifications-bell.tsx:188
 msgid "<0>{actor}</0> replied in <1>{doc}</1>"
 msgstr "<0>{actor}</0> replied in <1>{doc}</1>"
 
@@ -554,6 +566,10 @@ msgstr "30 days"
 msgid "7 days"
 msgstr "7 days"
 
+#: src/components/apps/upload-app-modal.tsx:132
+msgid "A .zip or a folder holding a pp-app.json and the app’s built web files. The app runs in a sandbox and arrives switched off."
+msgstr "A .zip or a folder holding a pp-app.json and the app’s built web files. The app runs in a sandbox and arrives switched off."
+
 #: src/components/upload-conflict-dialog.tsx:83
 msgid "A file with this name is already in this folder."
 msgstr "A file with this name is already in this folder."
@@ -562,9 +578,21 @@ msgstr "A file with this name is already in this folder."
 msgid "A new browser tab"
 msgstr "A new browser tab"
 
+#: src/components/apps/upload-app-modal.tsx:81
+msgid "A package holds at most 2000 files."
+msgstr "A package holds at most 2000 files."
+
+#: src/components/apps/upload-app-modal.tsx:60
+msgid "A package is at most 20 MiB."
+msgstr "A package is at most 20 MiB."
+
 #: src/lib/collab/page-store.ts:50
 msgid "A page can only be moved under another page."
 msgstr "A page can only be moved under another page."
+
+#: src/components/apps/app-backend-modal.tsx:148
+msgid "A secret is set. Generating a new one stops the old one at once; give the backend the new one."
+msgstr "A secret is set. Generating a new one stops the old one at once; give the backend the new one."
 
 #: src/components/team-folder-dialog.tsx:56
 msgid "A top-level folder in {spaceName} that nobody owns personally: access to everything inside it is managed through Share, so removing someone really removes them, even from files they uploaded. It stays with the team when whoever created it leaves."
@@ -631,7 +659,7 @@ msgstr "Actions for {email}"
 msgid "Actions for {memberEmail}"
 msgstr "Actions for {memberEmail}"
 
-#: src/components/nav-apps.tsx:284
+#: src/components/nav-apps.tsx:286
 #: src/components/node-grid.tsx:461
 #: src/components/node-list.tsx:415
 msgid "Actions for {nodeName}"
@@ -645,8 +673,6 @@ msgstr "Active"
 msgid "Activity"
 msgstr "Activity"
 
-#: ../../packages/ext-checklist/src/list-editor.tsx:116
-#: ../../packages/ext-kanban/src/labels-dialog.tsx:167
 #: src/components/invite-modal.tsx:135
 msgid "Add"
 msgstr "Add"
@@ -668,8 +694,8 @@ msgid "Add a file"
 msgstr "Add a file"
 
 #: ../../packages/ext-kanban/src/card-dialog.tsx:185
-msgid "Add a more detailed description…"
-msgstr "Add a more detailed description…"
+#~ msgid "Add a more detailed description…"
+#~ msgstr "Add a more detailed description…"
 
 #: src/components/nodes/video-node-view.tsx:35
 msgid "Add a video"
@@ -680,23 +706,23 @@ msgid "Add an image"
 msgstr "Add an image"
 
 #: ../../packages/ext-checklist/src/list-editor.tsx:112
-msgid "Add an item…"
-msgstr "Add an item…"
+#~ msgid "Add an item…"
+#~ msgstr "Add an item…"
 
 #: ../../packages/ext-kanban/src/board-column.tsx:105
 #: ../../packages/ext-kanban/src/board-column.tsx:254
 #: ../../packages/ext-kanban/src/board-column.tsx:369
-msgid "Add card"
-msgstr "Add card"
+#~ msgid "Add card"
+#~ msgstr "Add card"
 
 #: ../../packages/ext-kanban/src/board-editor.tsx:169
-msgid "Add cards to a column and drag them between columns."
-msgstr "Add cards to a column and drag them between columns."
+#~ msgid "Add cards to a column and drag them between columns."
+#~ msgstr "Add cards to a column and drag them between columns."
 
 #: ../../packages/ext-kanban/src/board-editor.tsx:88
 #: ../../packages/ext-kanban/src/board-editor.tsx:121
-msgid "Add column"
-msgstr "Add column"
+#~ msgid "Add column"
+#~ msgstr "Add column"
 
 #: src/components/doc-editor/page-header.tsx:129
 msgid "Add cover"
@@ -706,7 +732,6 @@ msgstr "Add cover"
 msgid "Add icon"
 msgstr "Add icon"
 
-#: ../../packages/ext-kanban/src/link-picker.tsx:100
 #: src/components/nodes/embed-node-view.tsx:102
 msgid "Add link"
 msgstr "Add link"
@@ -735,13 +760,17 @@ msgstr "Add to group"
 msgid "Add without preview"
 msgstr "Add without preview"
 
-#: src/components/preview-panel.tsx:398
+#: src/components/preview-panel.tsx:399
 msgid "Added by {ownerName}"
 msgstr "Added by {ownerName}"
 
 #: src/components/people-table.tsx:268
 msgid "Added to {groupName}"
 msgstr "Added to {groupName}"
+
+#: src/components/apps/app-backend-modal.tsx:93
+msgid "Address"
+msgstr "Address"
 
 #: src/components/command-palette.tsx:188
 #: src/components/people-table.tsx:485
@@ -820,7 +849,7 @@ msgstr "All"
 msgid "all active"
 msgstr "all active"
 
-#: src/routes/admin.security.tsx:101
+#: src/routes/admin.security.tsx:105
 msgid "All events"
 msgstr "All events"
 
@@ -850,6 +879,10 @@ msgstr "Allowed CDNs"
 msgid "Already here"
 msgstr "Already here"
 
+#: src/components/apps/remove-app-modal.tsx:77
+msgid "Also delete everything stored in its items. This cannot be undone."
+msgstr "Also delete everything stored in its items. This cannot be undone."
+
 #: src/routes/login.tsx:46
 msgid "An account already exists with this email address under a different identity provider. Contact an administrator."
 msgstr "An account already exists with this email address under a different identity provider. Contact an administrator."
@@ -875,18 +908,18 @@ msgid "Anonymous"
 msgstr "Anonymous"
 
 #: ../../packages/ext-kanban/src/board-toolbar.tsx:197
-msgid "Any date"
-msgstr "Any date"
+#~ msgid "Any date"
+#~ msgstr "Any date"
 
 #: ../../packages/ext-kanban/src/board-toolbar.tsx:124
-msgid "Anyone"
-msgstr "Anyone"
+#~ msgid "Anyone"
+#~ msgstr "Anyone"
 
 #: src/components/share-dialog.tsx:889
 msgid "Anyone holding the link can view this item without signing in. A link never carries editing, and nobody can re-share it onward — download is the one choice it offers."
 msgstr "Anyone holding the link can view this item without signing in. A link never carries editing, and nobody can re-share it onward — download is the one choice it offers."
 
-#: src/components/preview-panel.tsx:299
+#: src/components/preview-panel.tsx:300
 #: src/components/share-dialog.tsx:727
 #: src/components/share-dialog.tsx:1167
 msgid "Anyone with the link"
@@ -900,13 +933,33 @@ msgstr "Anyone with this link can view and download these files. You cannot edit
 msgid "Anyone with this link can view these files. Downloads are off, so there is no button to save a copy. You cannot edit or upload, and you cannot see who else has access."
 msgstr "Anyone with this link can view these files. Downloads are off, so there is no button to save a copy. You cannot edit or upload, and you cannot see who else has access."
 
+#: src/routes/admin.security.tsx:92
+msgid "app backend changed"
+msgstr "app backend changed"
+
 #: src/components/ext-off-badge.tsx:20
 msgid "App disabled"
 msgstr "App disabled"
 
-#: src/components/preview-panel.tsx:285
+#: src/routes/admin.security.tsx:90
+msgid "app installed"
+msgstr "app installed"
+
+#: src/components/apps/upload-app-modal.tsx:99
+msgid "App installed"
+msgstr "App installed"
+
+#: src/components/preview-panel.tsx:286
 msgid "App item"
 msgstr "App item"
+
+#: src/routes/admin.security.tsx:93
+msgid "app removed"
+msgstr "app removed"
+
+#: src/routes/admin.security.tsx:91
+msgid "app updated"
+msgstr "app updated"
 
 #: src/components/settings/panes/account-general.tsx:164
 msgid "Appearance"
@@ -915,14 +968,22 @@ msgstr "Appearance"
 #: src/components/admin-sidebar.tsx:37
 #: src/components/nav-apps.tsx:85
 #: src/components/settings/panes.ts:112
-#: src/routes/admin.apps.tsx:18
-#: src/routes/admin.apps.tsx:33
+#: src/routes/admin.apps.tsx:31
+#: src/routes/admin.apps.tsx:46
 msgid "Apps"
 msgstr "Apps"
 
 #: src/components/settings/panes/space-apps.tsx:55
 msgid "Apps add new kinds of item to the drive. Switching one off here hides it from the New menu and stops its items from opening in this space; nothing is deleted, and switching it back on restores everything."
 msgstr "Apps add new kinds of item to the drive. Switching one off here hides it from the New menu and stops its items from opening in this space; nothing is deleted, and switching it back on restores everything."
+
+#: src/routes/admin.apps.tsx:49
+#~ msgid "Apps built into this install, and apps you upload. Every app arrives switched off: turn one on here to make it available, then space admins can switch it off again for their own space."
+#~ msgstr "Apps built into this install, and apps you upload. Every app arrives switched off: turn one on here to make it available, then space admins can switch it off again for their own space."
+
+#: src/routes/admin.apps.tsx:48
+msgid "Apps you upload for this install. Every app arrives switched off: turn one on here to make it available, then space admins can switch it off again for their own space."
+msgstr "Apps you upload for this install. Every app arrives switched off: turn one on here to make it available, then space admins can switch it off again for their own space."
 
 #: src/components/nav-space.tsx:122
 #: src/components/nav-space.tsx:201
@@ -933,7 +994,7 @@ msgstr "Archive"
 msgid "Archived personal spaces"
 msgstr "Archived personal spaces"
 
-#: src/components/nav-apps.tsx:345
+#: src/components/nav-apps.tsx:347
 #: src/routes/drive/$spaceId/index.tsx:727
 msgid "Are you sure you want to move \"{nodeName}\" to trash?"
 msgstr "Are you sure you want to move \"{nodeName}\" to trash?"
@@ -943,21 +1004,21 @@ msgid "Ascending"
 msgstr "Ascending"
 
 #: ../../packages/ext-kanban/src/people-picker.tsx:72
-msgid "Assign"
-msgstr "Assign"
+#~ msgid "Assign"
+#~ msgstr "Assign"
 
 #: ../../packages/ext-kanban/src/board-toolbar.tsx:113
-msgid "Assignee"
-msgstr "Assignee"
+#~ msgid "Assignee"
+#~ msgstr "Assignee"
 
 #: ../../packages/ext-kanban/src/card-dialog.tsx:222
-msgid "Assignees"
-msgstr "Assignees"
+#~ msgid "Assignees"
+#~ msgstr "Assignees"
 
 #: ../../packages/ext-kanban/src/board-column.tsx:234
 #: ../../packages/ext-kanban/src/board-column.tsx:245
-msgid "At the WIP limit"
-msgstr "At the WIP limit"
+#~ msgid "At the WIP limit"
+#~ msgstr "At the WIP limit"
 
 #: src/components/storage-breakdown.tsx:34
 msgid "Audio"
@@ -985,6 +1046,10 @@ msgstr "Avatar updated"
 msgid "Back to Drive"
 msgstr "Back to Drive"
 
+#: src/routes/admin.apps.tsx:178
+msgid "Backend…"
+msgstr "Backend…"
+
 #: src/components/doc-editor/labels.ts:53
 msgid "Basic blocks"
 msgstr "Basic blocks"
@@ -998,12 +1063,12 @@ msgid "Blank"
 msgstr "Blank"
 
 #: ../../packages/ext-kanban/src/board-editor.tsx:263
-msgid "board"
-msgstr "board"
+#~ msgid "board"
+#~ msgstr "board"
 
 #: ../../packages/ext-kanban/src/labels-dialog.tsx:206
-msgid "Board labels ({labelCount})"
-msgstr "Board labels ({labelCount})"
+#~ msgid "Board labels ({labelCount})"
+#~ msgstr "Board labels ({labelCount})"
 
 #: src/components/doc-editor/labels.ts:63
 msgid "Bold"
@@ -1022,11 +1087,15 @@ msgstr "Breadcrumb"
 msgid "Browse files"
 msgstr "Browse files"
 
+#: src/routes/admin.apps.tsx:129
+#~ msgid "Built in"
+#~ msgstr "Built in"
+
 #: src/components/doc-editor/labels.ts:28
 msgid "Bulleted list"
 msgstr "Bulleted list"
 
-#: src/routes/admin.apps.tsx:88
+#: src/routes/admin.apps.tsx:131
 msgid "By {author}"
 msgstr "By {author}"
 
@@ -1035,7 +1104,7 @@ msgstr "By {author}"
 msgid "Callout"
 msgstr "Callout"
 
-#: src/components/preview-panel.tsx:451
+#: src/components/preview-panel.tsx:452
 msgid "Can download"
 msgstr "Can download"
 
@@ -1044,7 +1113,7 @@ msgstr "Can download"
 msgid "Can edit"
 msgstr "Can edit"
 
-#: src/components/preview-panel.tsx:452
+#: src/components/preview-panel.tsx:453
 msgid "Can share"
 msgstr "Can share"
 
@@ -1057,11 +1126,7 @@ msgstr "Can view"
 msgid "Can view + download"
 msgstr "Can view + download"
 
-#: ../../packages/ext-kanban/src/board-column.tsx:108
-#: ../../packages/ext-kanban/src/board-editor.tsx:132
-#: ../../packages/ext-kanban/src/card-dialog.tsx:375
-#: ../../packages/ext-kanban/src/column-dialogs.tsx:96
-#: ../../packages/ext-kanban/src/column-dialogs.tsx:204
+#: src/components/apps/remove-app-modal.tsx:82
 #: src/components/comments/comment-composer.tsx:94
 #: src/components/comments/comments-popover.tsx:481
 #: src/components/comments/comments-popover.tsx:619
@@ -1072,7 +1137,7 @@ msgstr "Can view + download"
 #: src/components/link-space-modal.tsx:135
 #: src/components/move-dialog.tsx:129
 #: src/components/new-document-dialog.tsx:169
-#: src/components/new-ext-node-dialog.tsx:85
+#: src/components/new-ext-node-dialog.tsx:86
 #: src/components/nodes/embed-link-modal.tsx:116
 #: src/components/publish-dialog.tsx:448
 #: src/components/publish-dialog.tsx:475
@@ -1105,16 +1170,16 @@ msgid "Capture a quotation"
 msgstr "Capture a quotation"
 
 #: ../../packages/ext-kanban/src/card-dialog.tsx:146
-msgid "Card"
-msgstr "Card"
+#~ msgid "Card"
+#~ msgstr "Card"
 
 #: ../../packages/ext-kanban/src/card-tile.tsx:84
-msgid "Card actions"
-msgstr "Card actions"
+#~ msgid "Card actions"
+#~ msgstr "Card actions"
 
 #: ../../packages/ext-kanban/src/board-column.tsx:90
-msgid "Card title"
-msgstr "Card title"
+#~ msgid "Card title"
+#~ msgstr "Card title"
 
 #: src/components/share-dialog.tsx:661
 #: src/components/share-dialog.tsx:759
@@ -1143,43 +1208,51 @@ msgid "Changed since last published. Republish to show the latest version."
 msgstr "Changed since last published. Republish to show the latest version."
 
 #: ../../packages/ext-checklist/src/list-editor.tsx:37
-msgid "checklist"
-msgstr "checklist"
+#~ msgid "checklist"
+#~ msgstr "checklist"
 
 #: ../../packages/ext-checklist/src/index.ts:10
 #: ../../packages/ext-checklist/src/index.ts:14
-msgid "Checklist"
-msgstr "Checklist"
+#~ msgid "Checklist"
+#~ msgstr "Checklist"
 
 #: src/components/doc-editor/labels.ts:30
 msgid "Checklist with checkboxes"
 msgstr "Checklist with checkboxes"
 
+#: src/components/apps/upload-app-modal.tsx:143
+msgid "Choose .zip"
+msgstr "Choose .zip"
+
 #: src/components/move-dialog.tsx:92
 msgid "Choose a destination folder in {spaceName}."
 msgstr "Choose a destination folder in {spaceName}."
+
+#: src/components/apps/upload-app-modal.tsx:147
+msgid "Choose folder"
+msgstr "Choose folder"
 
 #: src/components/settings/panes/agent-access-section.tsx:129
 msgid "Claude Code on my laptop"
 msgstr "Claude Code on my laptop"
 
 #: ../../packages/ext-kanban/src/board-toolbar.tsx:213
-msgid "Clear"
-msgstr "Clear"
+#~ msgid "Clear"
+#~ msgstr "Clear"
 
 #: src/components/transfer-tray.tsx:143
 msgid "Clear completed"
 msgstr "Clear completed"
 
 #: ../../packages/ext-kanban/src/card-dialog.tsx:211
-msgid "Clear due date"
-msgstr "Clear due date"
+#~ msgid "Clear due date"
+#~ msgstr "Clear due date"
 
-#: src/routes/admin.security.tsx:251
+#: src/routes/admin.security.tsx:255
 msgid "Clear file filter"
 msgstr "Clear file filter"
 
-#: src/routes/admin.security.tsx:274
+#: src/routes/admin.security.tsx:278
 msgid "Clear filters"
 msgstr "Clear filters"
 
@@ -1196,7 +1269,6 @@ msgstr "Clear selection"
 msgid "Cleared"
 msgstr "Cleared"
 
-#: ../../packages/ext-kanban/src/card-dialog.tsx:375
 #: src/components/locale-provider.tsx:80
 #: src/components/version-preview-modal.tsx:59
 msgid "Close"
@@ -1282,21 +1354,21 @@ msgstr "Column"
 
 #: ../../packages/ext-kanban/src/board-column.tsx:266
 #: ../../packages/ext-kanban/src/board-column.tsx:274
-msgid "Column actions"
-msgstr "Column actions"
+#~ msgid "Column actions"
+#~ msgstr "Column actions"
 
 #: ../../packages/ext-kanban/src/board-editor.tsx:108
 #: ../../packages/ext-kanban/src/board-editor.tsx:109
-msgid "Column name"
-msgstr "Column name"
+#~ msgid "Column name"
+#~ msgstr "Column name"
 
 #: src/components/doc-editor/labels.ts:45
 msgid "Columns"
 msgstr "Columns"
 
 #: ../../packages/ext-kanban/src/index.ts:21
-msgid "Columns To do, In progress, and Done are added for you."
-msgstr "Columns To do, In progress, and Done are added for you."
+#~ msgid "Columns To do, In progress, and Done are added for you."
+#~ msgstr "Columns To do, In progress, and Done are added for you."
 
 #: src/components/bubble-toolbar.tsx:142
 #: src/components/comments/comment-composer.tsx:97
@@ -1318,8 +1390,6 @@ msgstr "Comment on the selected text"
 msgid "Comment thread"
 msgstr "Comment thread"
 
-#: ../../packages/ext-kanban/src/card-tile.tsx:176
-#: ../../packages/ext-kanban/src/card-tile.tsx:181
 #: src/components/comments/block-comments.tsx:201
 #: src/components/comments/comments-popover.tsx:191
 #: src/components/comments/comments-popover.tsx:287
@@ -1357,6 +1427,10 @@ msgstr "Connector URL copied"
 msgid "Contents"
 msgstr "Contents"
 
+#: src/ext/app-frame.tsx:202
+msgid "Continue"
+msgstr "Continue"
+
 #: src/routes/drive/$spaceId/home.tsx:87
 msgid "Continue where you left off"
 msgstr "Continue where you left off"
@@ -1368,6 +1442,10 @@ msgstr "Continue with SSO"
 #: src/routes/login.tsx:149
 msgid "Continue with the identity provider your administrator configured."
 msgstr "Continue with the identity provider your administrator configured."
+
+#: src/components/apps/app-backend-modal.tsx:64
+msgid "Copied"
+msgstr "Copied"
 
 #: src/components/drive-write.tsx:160
 msgid "Copied {done, plural, one {# item} other {# items}} to {destination}"
@@ -1387,9 +1465,17 @@ msgstr "Copied as “{copyName}”"
 msgid "Copy"
 msgstr "Copy"
 
+#: src/components/apps/app-backend-modal.tsx:128
+msgid "Copy it now — it is not shown again"
+msgstr "Copy it now — it is not shown again"
+
 #: src/components/share-dialog.tsx:998
 msgid "Copy link"
 msgstr "Copy link"
+
+#: src/components/apps/app-backend-modal.tsx:141
+msgid "Copy secret"
+msgstr "Copy secret"
 
 #: src/components/settings/panes/webdav-section.tsx:47
 msgid "Copy your password now"
@@ -1404,12 +1490,12 @@ msgid "Could not add {address}"
 msgstr "Could not add {address}"
 
 #: ../../packages/ext-kanban/src/queries.ts:143
-msgid "Could not add the card"
-msgstr "Could not add the card"
+#~ msgid "Could not add the card"
+#~ msgstr "Could not add the card"
 
 #: ../../packages/ext-kanban/src/queries.ts:171
-msgid "Could not add the column"
-msgstr "Could not add the column"
+#~ msgid "Could not add the column"
+#~ msgstr "Could not add the column"
 
 #: src/components/comments/comment-composer.tsx:57
 msgid "Could not add the comment"
@@ -1431,6 +1517,10 @@ msgstr "Could not change access"
 #: src/components/doc-editor/page-header.tsx:84
 msgid "Could not change the page"
 msgstr "Could not change the page"
+
+#: src/components/apps/app-backend-modal.tsx:65
+msgid "Could not copy"
+msgstr "Could not copy"
 
 #: src/routes/drive/$spaceId/index.tsx:373
 msgid "Could not copy “{nodeName}”"
@@ -1471,7 +1561,7 @@ msgstr "Could not copy the username"
 msgid "Could not create “{name}”"
 msgstr "Could not create “{name}”"
 
-#: src/components/nav-apps.tsx:124
+#: src/components/nav-apps.tsx:125
 msgid "Could not create “{nodeName}”"
 msgstr "Could not create “{nodeName}”"
 
@@ -1492,8 +1582,8 @@ msgid "Could not create the group"
 msgstr "Could not create the group"
 
 #: ../../packages/ext-kanban/src/queries.ts:227
-msgid "Could not create the label"
-msgstr "Could not create the label"
+#~ msgid "Could not create the label"
+#~ msgstr "Could not create the label"
 
 #: src/components/doc-editor/doc-editor.tsx:86
 msgid "Could not create the page"
@@ -1521,12 +1611,12 @@ msgid "Could not delete “{name}”"
 msgstr "Could not delete “{name}”"
 
 #: ../../packages/ext-kanban/src/queries.ts:158
-msgid "Could not delete the card"
-msgstr "Could not delete the card"
+#~ msgid "Could not delete the card"
+#~ msgstr "Could not delete the card"
 
 #: ../../packages/ext-kanban/src/queries.ts:216
-msgid "Could not delete the column"
-msgstr "Could not delete the column"
+#~ msgid "Could not delete the column"
+#~ msgstr "Could not delete the column"
 
 #: src/components/comments/comments-popover.tsx:403
 #: src/components/comments/thread-list.tsx:275
@@ -1534,8 +1624,8 @@ msgid "Could not delete the comment"
 msgstr "Could not delete the comment"
 
 #: ../../packages/ext-kanban/src/queries.ts:255
-msgid "Could not delete the label"
-msgstr "Could not delete the label"
+#~ msgid "Could not delete the label"
+#~ msgstr "Could not delete the label"
 
 #: src/components/nodes/uploadable-node-view.tsx:68
 msgid "Could not embed the file"
@@ -1545,11 +1635,15 @@ msgstr "Could not embed the file"
 msgid "Could not empty the trash"
 msgstr "Could not empty the trash"
 
+#: src/components/apps/app-backend-modal.tsx:59
+msgid "Could not generate a secret"
+msgstr "Could not generate a secret"
+
 #: src/components/link-space-modal.tsx:57
 msgid "Could not link {spaceName}"
 msgstr "Could not link {spaceName}"
 
-#: src/components/nav-apps.tsx:170
+#: src/components/nav-apps.tsx:171
 msgid "Could not load items."
 msgstr "Could not load items."
 
@@ -1573,13 +1667,13 @@ msgstr "Could not load your tokens."
 msgid "Could not move “{nodeName}”"
 msgstr "Could not move “{nodeName}”"
 
-#: src/components/nav-apps.tsx:352
+#: src/components/nav-apps.tsx:354
 msgid "Could not move “{nodeName}” to trash"
 msgstr "Could not move “{nodeName}” to trash"
 
 #: ../../packages/ext-kanban/src/queries.ts:111
-msgid "Could not move the card"
-msgstr "Could not move the card"
+#~ msgid "Could not move the card"
+#~ msgstr "Could not move the card"
 
 #: src/components/doc-editor/page-tree-panel.tsx:112
 #: src/components/doc-editor/page-tree-panel.tsx:123
@@ -1618,11 +1712,15 @@ msgstr "Could not publish"
 msgid "Could not purge the personal space"
 msgstr "Could not purge the personal space"
 
+#: src/components/apps/remove-app-modal.tsx:49
+msgid "Could not remove {name}"
+msgstr "Could not remove {name}"
+
 #: src/components/space-avatar.tsx:92
 msgid "Could not remove the space avatar"
 msgstr "Could not remove the space avatar"
 
-#: src/components/nav-apps.tsx:255
+#: src/components/nav-apps.tsx:257
 msgid "Could not rename “{nodeName}”"
 msgstr "Could not rename “{nodeName}”"
 
@@ -1666,6 +1764,7 @@ msgstr "Could not revoke"
 msgid "Could not revoke that token"
 msgstr "Could not revoke that token"
 
+#: src/components/apps/app-backend-modal.tsx:53
 #: src/components/settings/panes/account-profile.tsx:126
 #: src/components/settings/panes/space-general.tsx:136
 msgid "Could not save"
@@ -1676,8 +1775,8 @@ msgid "Could not save settings"
 msgstr "Could not save settings"
 
 #: ../../packages/ext-kanban/src/queries.ts:131
-msgid "Could not save the card"
-msgstr "Could not save the card"
+#~ msgid "Could not save the card"
+#~ msgstr "Could not save the card"
 
 #: src/components/comments/comments-popover.tsx:550
 msgid "Could not save the comment"
@@ -1721,21 +1820,21 @@ msgid "Could not unpublish"
 msgstr "Could not unpublish"
 
 #: src/components/settings/panes/space-apps.tsx:102
-#: src/routes/admin.apps.tsx:116
+#: src/routes/admin.apps.tsx:158
 msgid "Could not update {name}"
 msgstr "Could not update {name}"
 
 #: ../../packages/ext-checklist/src/queries.ts:47
-msgid "Could not update the checklist"
-msgstr "Could not update the checklist"
+#~ msgid "Could not update the checklist"
+#~ msgstr "Could not update the checklist"
 
 #: ../../packages/ext-kanban/src/queries.ts:203
-msgid "Could not update the column"
-msgstr "Could not update the column"
+#~ msgid "Could not update the column"
+#~ msgstr "Could not update the column"
 
 #: ../../packages/ext-kanban/src/queries.ts:244
-msgid "Could not update the label"
-msgstr "Could not update the label"
+#~ msgid "Could not update the label"
+#~ msgstr "Could not update the label"
 
 #: src/components/space-avatar.tsx:49
 msgid "Could not update the space avatar"
@@ -1751,7 +1850,7 @@ msgstr "Could not upload the cover"
 
 #: src/components/drive-write.tsx:279
 #: src/components/new-document-dialog.tsx:172
-#: src/components/new-ext-node-dialog.tsx:88
+#: src/components/new-ext-node-dialog.tsx:89
 #: src/components/team-folder-dialog.tsx:90
 #: src/routes/drive.tsx:365
 msgid "Create"
@@ -1782,8 +1881,8 @@ msgid "Create group"
 msgstr "Create group"
 
 #: ../../packages/ext-kanban/src/labels-dialog.tsx:155
-msgid "Create new label"
-msgstr "Create new label"
+#~ msgid "Create new label"
+#~ msgstr "Create new label"
 
 #: src/components/space-switcher.tsx:134
 msgid "Create new space"
@@ -1814,7 +1913,7 @@ msgstr "Create your first space to start organizing your files and collaborating
 msgid "Created \"{created}\""
 msgstr "Created \"{created}\""
 
-#: src/components/nav-apps.tsx:121
+#: src/components/nav-apps.tsx:122
 msgid "Created “{createdName}”"
 msgstr "Created “{createdName}”"
 
@@ -1903,9 +2002,6 @@ msgstr "Default quota must be a valid number (0 for unlimited)"
 msgid "Default space quota"
 msgstr "Default space quota"
 
-#: ../../packages/ext-kanban/src/board-editor.tsx:418
-#: ../../packages/ext-kanban/src/card-dialog.tsx:397
-#: ../../packages/ext-kanban/src/labels-dialog.tsx:116
 #: src/components/block-handle.tsx:253
 #: src/components/comments/comments-popover.tsx:510
 #: src/components/comments/comments-popover.tsx:600
@@ -1924,18 +2020,16 @@ msgstr "Delete {groupName}"
 
 #: ../../packages/ext-kanban/src/card-dialog.tsx:368
 #: ../../packages/ext-kanban/src/card-tile.tsx:114
-msgid "Delete card"
-msgstr "Delete card"
+#~ msgid "Delete card"
+#~ msgstr "Delete card"
 
-#: ../../packages/ext-kanban/src/board-column.tsx:300
-#: ../../packages/ext-kanban/src/column-dialogs.tsx:216
 #: src/components/table-controls.tsx:143
 msgid "Delete column"
 msgstr "Delete column"
 
 #: ../../packages/ext-kanban/src/column-dialogs.tsx:152
-msgid "Delete column?"
-msgstr "Delete column?"
+#~ msgid "Delete column?"
+#~ msgstr "Delete column?"
 
 #: src/components/trash-panel.tsx:397
 #: src/components/trash-panel.tsx:414
@@ -1948,16 +2042,16 @@ msgid "Delete group"
 msgstr "Delete group"
 
 #: ../../packages/ext-checklist/src/list-editor.tsx:87
-msgid "Delete item"
-msgstr "Delete item"
+#~ msgid "Delete item"
+#~ msgstr "Delete item"
 
 #: ../../packages/ext-kanban/src/labels-dialog.tsx:105
-msgid "Delete label {labelName}"
-msgstr "Delete label {labelName}"
+#~ msgid "Delete label {labelName}"
+#~ msgstr "Delete label {labelName}"
 
 #: ../../packages/ext-kanban/src/labels-dialog.tsx:114
-msgid "Delete label?"
-msgstr "Delete label?"
+#~ msgid "Delete label?"
+#~ msgstr "Delete label?"
 
 #: src/components/table-controls.tsx:103
 msgid "Delete row"
@@ -1976,8 +2070,8 @@ msgstr "Delete table"
 
 #: ../../packages/ext-kanban/src/board-editor.tsx:416
 #: ../../packages/ext-kanban/src/card-dialog.tsx:395
-msgid "Delete this card?"
-msgstr "Delete this card?"
+#~ msgid "Delete this card?"
+#~ msgstr "Delete this card?"
 
 #: src/components/comments/comments-popover.tsx:504
 #: src/components/comments/thread-list.tsx:264
@@ -2017,7 +2111,6 @@ msgstr "Deleted by someone else — you see it because your items are inside"
 msgid "Descending"
 msgstr "Descending"
 
-#: ../../packages/ext-kanban/src/card-dialog.tsx:178
 #: src/components/group-list.tsx:382
 #: src/components/settings/panes/space-general.tsx:187
 #: src/routes/drive.tsx:316
@@ -2036,11 +2129,11 @@ msgstr "Detached — the commented text was removed"
 #: src/components/preview-modal.tsx:159
 #: src/components/preview-panel.tsx:112
 #: src/components/preview-panel.tsx:242
-#: src/components/preview-panel.tsx:377
+#: src/components/preview-panel.tsx:378
 msgid "Details"
 msgstr "Details"
 
-#: src/routes/admin.security.tsx:295
+#: src/routes/admin.security.tsx:299
 msgid "Device"
 msgstr "Device"
 
@@ -2072,13 +2165,13 @@ msgstr "Discard changes"
 msgid "Discard unsaved changes?"
 msgstr "Discard unsaved changes?"
 
-#: ../../packages/ext-kanban/src/card-dialog.tsx:344
+#: src/ext/app-frame.tsx:175
 msgid "Discussion"
 msgstr "Discussion"
 
 #: ../../packages/ext-kanban/src/board-editor.tsx:163
-msgid "Dismiss"
-msgstr "Dismiss"
+#~ msgid "Dismiss"
+#~ msgstr "Dismiss"
 
 #: src/components/settings/panes/account-general.tsx:95
 msgid "Display language"
@@ -2100,7 +2193,7 @@ msgstr "Divider"
 msgid "Documents"
 msgstr "Documents"
 
-#: ../../packages/ext-kanban/src/labels-dialog.tsx:230
+#: src/components/apps/app-backend-modal.tsx:182
 #: src/components/settings/panes/agent-access-section.tsx:119
 #: src/components/settings/panes/webdav-section.tsx:101
 msgid "Done"
@@ -2116,7 +2209,7 @@ msgstr "download"
 #: src/components/editor-header.tsx:193
 #: src/components/node-actions.tsx:169
 #: src/components/preview-modal.tsx:137
-#: src/components/preview-panel.tsx:350
+#: src/components/preview-panel.tsx:351
 #: src/components/selection-bar.tsx:69
 #: src/components/version-list.tsx:130
 #: src/routes/drive/shared.tsx:73
@@ -2142,8 +2235,8 @@ msgstr "Download as .zip"
 #~ msgstr "Downloads are off for this file, so it can only be opened by its owner."
 
 #: ../../packages/ext-kanban/src/board-column.tsx:321
-msgid "Drag cards here, or add one below"
-msgstr "Drag cards here, or add one below"
+#~ msgid "Drag cards here, or add one below"
+#~ msgstr "Drag cards here, or add one below"
 
 #: src/components/block-handle.tsx:132
 msgid "Drag to move, click to open menu"
@@ -2163,15 +2256,14 @@ msgstr "Drive"
 msgid "Drop files to upload"
 msgstr "Drop files to upload"
 
-#: ../../packages/ext-kanban/src/board-toolbar.tsx:184
 #: src/components/trash-panel.tsx:473
 msgid "Due"
 msgstr "Due"
 
 #: ../../packages/ext-kanban/src/card-dialog.tsx:192
 #: ../../packages/ext-kanban/src/card-tile.tsx:162
-msgid "Due date"
-msgstr "Due date"
+#~ msgid "Due date"
+#~ msgstr "Due date"
 
 #: src/components/block-handle.tsx:240
 msgid "Duplicate"
@@ -2185,7 +2277,7 @@ msgstr "Each CDN must be an https:// origin with no path: {bad}"
 msgid "Each row is a live session. Signing one out takes effect immediately — the device is asked to sign in again the next time it reaches the server."
 msgstr "Each row is a live session. Signing one out takes effect immediately — the device is asked to sign in again the next time it reaches the server."
 
-#: src/components/preview-panel.tsx:448
+#: src/components/preview-panel.tsx:449
 #: src/components/share-dialog.tsx:383
 msgid "edit"
 msgstr "edit"
@@ -2205,8 +2297,8 @@ msgid "Edit anyway"
 msgstr "Edit anyway"
 
 #: ../../packages/ext-kanban/src/card-dialog.tsx:146
-msgid "Edit card"
-msgstr "Edit card"
+#~ msgid "Edit card"
+#~ msgstr "Edit card"
 
 #: src/routes/login.tsx:132
 msgid "Edit documents and spreadsheets together in the browser."
@@ -2284,11 +2376,15 @@ msgstr "Empty means unlimited."
 msgid "Empty trash"
 msgstr "Empty trash"
 
+#: src/components/apps/app-backend-modal.tsx:113
+msgid "Empty uses the address the app ships with: {manifestURL}"
+msgstr "Empty uses the address the app ships with: {manifestURL}"
+
 #: src/routes/drive.tsx:340
 msgid "Enable"
 msgstr "Enable"
 
-#: src/components/nav-apps.tsx:319
+#: src/components/nav-apps.tsx:321
 #: src/routes/drive/$spaceId/index.tsx:690
 msgid "Enter a new name for this item."
 msgstr "Enter a new name for this item."
@@ -2298,8 +2394,8 @@ msgid "Enter a password, or turn the password off."
 msgstr "Enter a password, or turn the password off."
 
 #: ../../packages/ext-kanban/src/board-column.tsx:91
-msgid "Enter a title for this card…"
-msgstr "Enter a title for this card…"
+#~ msgid "Enter a title for this card…"
+#~ msgstr "Enter a title for this card…"
 
 #: src/components/nodes/embed-link-modal.tsx:110
 msgid "Enter a web address starting with http:// or https://."
@@ -2321,7 +2417,7 @@ msgstr "Environment variable"
 msgid "esc to close"
 msgstr "esc to close"
 
-#: src/routes/admin.security.tsx:286
+#: src/routes/admin.security.tsx:290
 msgid "Event"
 msgstr "Event"
 
@@ -2402,7 +2498,7 @@ msgid "Expires after"
 msgstr "Expires after"
 
 #: src/components/people-table.tsx:199
-#: src/routes/admin.security.tsx:195
+#: src/routes/admin.security.tsx:199
 msgid "Export CSV"
 msgstr "Export CSV"
 
@@ -2452,7 +2548,7 @@ msgstr "Female"
 
 #: src/components/doc-editor/labels.ts:41
 #: src/components/preview-modal.tsx:168
-#: src/components/preview-panel.tsx:382
+#: src/components/preview-panel.tsx:383
 msgid "File"
 msgstr "File"
 
@@ -2476,7 +2572,7 @@ msgstr "file downloaded"
 msgid "file viewed"
 msgstr "file viewed"
 
-#: src/routes/admin.security.tsx:247
+#: src/routes/admin.security.tsx:251
 msgid "File: {nodeName}"
 msgstr "File: {nodeName}"
 
@@ -2504,7 +2600,7 @@ msgstr "Files owned"
 msgid "Files you upload or edit in this space show up here."
 msgstr "Files you upload or edit in this space show up here."
 
-#: src/routes/admin.security.tsx:209
+#: src/routes/admin.security.tsx:213
 msgid "Filter by event kind"
 msgstr "Filter by event kind"
 
@@ -2518,12 +2614,12 @@ msgid "Filter by name or email"
 msgstr "Filter by name or email"
 
 #: ../../packages/ext-kanban/src/board-toolbar.tsx:102
-msgid "Filter cards"
-msgstr "Filter cards"
+#~ msgid "Filter cards"
+#~ msgstr "Filter cards"
 
 #: ../../packages/ext-kanban/src/board-toolbar.tsx:103
-msgid "Filter cards…"
-msgstr "Filter cards…"
+#~ msgid "Filter cards…"
+#~ msgstr "Filter cards…"
 
 #: src/components/trash-panel.tsx:242
 #: src/components/trash-panel.tsx:243
@@ -2551,8 +2647,12 @@ msgstr "Finder on my laptop"
 msgid "Flowcharts, sequences, and more"
 msgstr "Flowcharts, sequences, and more"
 
+#: src/components/apps/upload-app-modal.tsx:71
+msgid "folder"
+msgstr "folder"
+
 #: src/components/node-grid.tsx:446
-#: src/components/preview-panel.tsx:382
+#: src/components/preview-panel.tsx:383
 msgid "Folder"
 msgstr "Folder"
 
@@ -2605,7 +2705,7 @@ msgstr "From address"
 msgid "From address is required when an SMTP host is set."
 msgstr "From address is required when an SMTP host is set."
 
-#: src/routes/admin.security.tsx:222
+#: src/routes/admin.security.tsx:226
 msgid "From date"
 msgstr "From date"
 
@@ -2633,6 +2733,14 @@ msgstr "General"
 msgid "General & Branding"
 msgstr "General & Branding"
 
+#: src/components/apps/app-backend-modal.tsx:170
+msgid "Generate a new secret"
+msgstr "Generate a new secret"
+
+#: src/components/apps/app-backend-modal.tsx:172
+msgid "Generate secret"
+msgstr "Generate secret"
+
 #: src/components/share-dialog.tsx:822
 msgid "Gets access after signing in for the first time."
 msgstr "Gets access after signing in for the first time."
@@ -2650,8 +2758,8 @@ msgid "Go to Drive"
 msgstr "Go to Drive"
 
 #: ../../packages/ext-kanban/src/board-editor.tsx:182
-msgid "Got it"
-msgstr "Got it"
+#~ msgid "Got it"
+#~ msgstr "Got it"
 
 #: src/routes/admin.security.tsx:70
 msgid "grant created"
@@ -2772,6 +2880,10 @@ msgstr "Host"
 msgid "How your name appears on files, shares and member lists."
 msgstr "How your name appears on files, shares and member lists."
 
+#: src/components/apps/app-backend-modal.tsx:100
+msgid "https://…"
+msgstr "https://…"
+
 #: src/components/link-space-modal.tsx:125
 msgid "I understand they will lose access"
 msgstr "I understand they will lose access"
@@ -2841,6 +2953,10 @@ msgstr "Insert row above"
 msgid "Insert row below"
 msgstr "Insert row below"
 
+#: src/components/apps/upload-app-modal.tsx:202
+msgid "Install"
+msgstr "Install"
+
 #: src/routes/admin.settings.tsx:657
 msgid "Instance display name"
 msgstr "Instance display name"
@@ -2897,13 +3013,17 @@ msgstr "Invited"
 msgid "Invited {invitee}, but no email could be sent — share the link yourself."
 msgstr "Invited {invitee}, but no email could be sent — share the link yourself."
 
-#: src/routes/admin.security.tsx:292
+#: src/routes/admin.security.tsx:296
 msgid "IP"
 msgstr "IP"
 
 #: src/components/version-list.tsx:67
 msgid "It is now the current version."
 msgstr "It is now the current version."
+
+#: src/components/apps/upload-app-modal.tsx:100
+msgid "It is off until you switch it on."
+msgstr "It is off until you switch it on."
 
 #: src/components/comments/comments-popover.tsx:507
 #: src/components/comments/thread-list.tsx:267
@@ -2914,7 +3034,7 @@ msgstr "It is the only comment in its thread, so the thread is deleted too."
 msgid "It may have been deleted or unshared, or it was shared with a different account. Ask the person who sent the link to share it with you again."
 msgstr "It may have been deleted or unshared, or it was shared with a different account. Ask the person who sent the link to share it with you again."
 
-#: ../../packages/ext-sdk/src/ext-unavailable.tsx:45
+#: src/ext/ext-unavailable.tsx:57
 msgid "It may have been deleted, or you may no longer have access to it."
 msgstr "It may have been deleted, or you may no longer have access to it."
 
@@ -2941,6 +3061,10 @@ msgstr "It will not be shown again. Anyone holding it can open your files as you
 #: src/components/doc-editor/labels.ts:64
 msgid "Italic"
 msgstr "Italic"
+
+#: src/ext/app-frame.tsx:68
+msgid "item"
+msgstr "item"
 
 #: src/components/trash-panel.tsx:512
 msgid "Items here are removed automatically once their retention window passes."
@@ -2983,12 +3107,12 @@ msgstr "Joining the space opens no files on its own — what someone can see is 
 #~ msgstr "Joining the space opens no files on its own — what someone can see is what their groups have been given. Add them to a group on the People table afterwards."
 
 #: ../../packages/ext-kanban/src/index.ts:10
-msgid "Kanban"
-msgstr "Kanban"
+#~ msgid "Kanban"
+#~ msgstr "Kanban"
 
 #: ../../packages/ext-kanban/src/index.ts:17
-msgid "Kanban board"
-msgstr "Kanban board"
+#~ msgid "Kanban board"
+#~ msgstr "Kanban board"
 
 #: src/components/publish-dialog.tsx:191
 msgid "Keep (expires {expiresOn})"
@@ -3007,24 +3131,24 @@ msgid "Kept"
 msgstr "Kept"
 
 #: ../../packages/ext-kanban/src/board-toolbar.tsx:143
-msgid "Label"
-msgstr "Label"
+#~ msgid "Label"
+#~ msgstr "Label"
 
 #: ../../packages/ext-kanban/src/labels-dialog.tsx:76
-msgid "Label colour"
-msgstr "Label colour"
+#~ msgid "Label colour"
+#~ msgstr "Label colour"
 
 #: ../../packages/ext-kanban/src/labels-dialog.tsx:91
-msgid "Label name"
-msgstr "Label name"
+#~ msgid "Label name"
+#~ msgstr "Label name"
 
 #: ../../packages/ext-kanban/src/card-dialog.tsx:234
-msgid "Labels"
-msgstr "Labels"
+#~ msgid "Labels"
+#~ msgstr "Labels"
 
 #: ../../packages/ext-kanban/src/labels-dialog.tsx:200
-msgid "Labels are shared by every card on this board."
-msgstr "Labels are shared by every card on this board."
+#~ msgid "Labels are shared by every card on this board."
+#~ msgstr "Labels are shared by every card on this board."
 
 #: src/components/settings/panes/account-general.tsx:89
 msgid "Language"
@@ -3119,8 +3243,8 @@ msgid "Light"
 msgstr "Light"
 
 #: ../../packages/ext-kanban/src/column-dialogs.tsx:81
-msgid "Limit"
-msgstr "Limit"
+#~ msgid "Limit"
+#~ msgstr "Limit"
 
 #: src/components/settings/panes/space-general.tsx:272
 msgid "Limits"
@@ -3174,8 +3298,8 @@ msgstr "Linked from"
 #: ../../packages/ext-kanban/src/card-dialog.tsx:316
 #: ../../packages/ext-kanban/src/card-tile.tsx:188
 #: ../../packages/ext-kanban/src/card-tile.tsx:193
-msgid "Linked items"
-msgstr "Linked items"
+#~ msgid "Linked items"
+#~ msgstr "Linked items"
 
 #: src/components/link-space-modal.tsx:50
 msgid "Linking {spaceName}"
@@ -3258,13 +3382,17 @@ msgstr "Make admin"
 msgid "Male"
 msgstr "Male"
 
+#: src/routes/admin.apps.tsx:165
+msgid "Manage {name}"
+msgstr "Manage {name}"
+
 #: ../../packages/ext-kanban/src/board-toolbar.tsx:232
 #: ../../packages/ext-kanban/src/card-dialog.tsx:302
 #: ../../packages/ext-kanban/src/labels-dialog.tsx:197
-msgid "Manage labels"
-msgstr "Manage labels"
+#~ msgid "Manage labels"
+#~ msgstr "Manage labels"
 
-#: src/components/preview-panel.tsx:395
+#: src/components/preview-panel.tsx:396
 msgid "Managed by"
 msgstr "Managed by"
 
@@ -3276,8 +3404,8 @@ msgstr "Managed by"
 msgid "Mark all read"
 msgstr "Mark all read"
 
-#: src/components/notifications-bell.tsx:222
 #: src/components/notifications-bell.tsx:223
+#: src/components/notifications-bell.tsx:224
 msgid "Mark as read"
 msgstr "Mark as read"
 
@@ -3368,7 +3496,7 @@ msgstr "minutes"
 #: src/components/node-list.tsx:203
 #: src/components/node-table.tsx:78
 #: src/components/preview-modal.tsx:171
-#: src/components/preview-panel.tsx:406
+#: src/components/preview-panel.tsx:407
 #: src/components/settings/panes/account-general.tsx:45
 #: src/components/space-node-table.tsx:93
 #: src/routes/s/$token.tsx:587
@@ -3406,24 +3534,24 @@ msgid "Move “{name}”"
 msgstr "Move “{name}”"
 
 #: ../../packages/ext-kanban/src/column-dialogs.tsx:174
-msgid "Move its cards to"
-msgstr "Move its cards to"
+#~ msgid "Move its cards to"
+#~ msgstr "Move its cards to"
 
 #: ../../packages/ext-kanban/src/board-column.tsx:287
-msgid "Move left"
-msgstr "Move left"
+#~ msgid "Move left"
+#~ msgstr "Move left"
 
 #: ../../packages/ext-kanban/src/board-column.tsx:293
-msgid "Move right"
-msgstr "Move right"
+#~ msgid "Move right"
+#~ msgstr "Move right"
 
 #: ../../packages/ext-kanban/src/card-tile.tsx:100
-msgid "Move to column…"
-msgstr "Move to column…"
+#~ msgid "Move to column…"
+#~ msgstr "Move to column…"
 
 #: src/components/doc-editor/page-tree-panel.tsx:370
-#: src/components/nav-apps.tsx:344
 #: src/components/nav-apps.tsx:346
+#: src/components/nav-apps.tsx:348
 #: src/components/node-actions.tsx:319
 #: src/routes/drive/$spaceId/index.tsx:724
 #: src/routes/drive/$spaceId/index.tsx:733
@@ -3448,11 +3576,10 @@ msgstr "Moved to the trash"
 msgid "My Drive"
 msgstr "My Drive"
 
-#: ../../packages/ext-kanban/src/column-dialogs.tsx:81
 #: src/components/group-list.tsx:369
 #: src/components/listing-controls.tsx:23
 #: src/components/new-document-dialog.tsx:121
-#: src/components/new-ext-node-dialog.tsx:66
+#: src/components/new-ext-node-dialog.tsx:67
 #: src/components/node-list.tsx:200
 #: src/components/node-table.tsx:74
 #: src/components/settings/panes/account-general.tsx:44
@@ -3508,8 +3635,8 @@ msgid "New"
 msgstr "New"
 
 #: ../../packages/ext-checklist/src/index.ts:16
-msgid "New checklist"
-msgstr "New checklist"
+#~ msgid "New checklist"
+#~ msgstr "New checklist"
 
 #: src/components/folder-actions.tsx:132
 #: src/components/new-document-dialog.tsx:99
@@ -3527,21 +3654,21 @@ msgid "New group"
 msgstr "New group"
 
 #: ../../packages/ext-checklist/src/list-editor.tsx:111
-msgid "New item"
-msgstr "New item"
+#~ msgid "New item"
+#~ msgstr "New item"
 
 #: ../../packages/ext-kanban/src/index.ts:19
-msgid "New kanban board"
-msgstr "New kanban board"
+#~ msgid "New kanban board"
+#~ msgstr "New kanban board"
 
 #: ../../packages/ext-kanban/src/card-dialog.tsx:284
 #: ../../packages/ext-kanban/src/labels-dialog.tsx:162
-msgid "New label"
-msgstr "New label"
+#~ msgid "New label"
+#~ msgstr "New label"
 
 #: ../../packages/ext-kanban/src/labels-dialog.tsx:161
-msgid "New label name"
-msgstr "New label name"
+#~ msgid "New label name"
+#~ msgstr "New label name"
 
 #: src/components/folder-actions.tsx:159
 #: src/components/new-document-dialog.tsx:100
@@ -3576,25 +3703,29 @@ msgstr "New sub-page"
 msgid "New team folder"
 msgstr "New team folder"
 
-#: src/routes/admin.security.tsx:341
+#: src/routes/admin.security.tsx:345
 msgid "Next"
 msgstr "Next"
 
 #: ../../packages/ext-kanban/src/board-toolbar.tsx:86
-msgid "Next 7 days"
-msgstr "Next 7 days"
+#~ msgid "Next 7 days"
+#~ msgstr "Next 7 days"
 
 #: src/components/preview-modal.tsx:117
 msgid "Next file"
 msgstr "Next file"
 
 #: ../../packages/ext-kanban/src/link-picker.tsx:52
-msgid "No access"
-msgstr "No access"
+#~ msgid "No access"
+#~ msgstr "No access"
 
 #: src/components/guest-sign-in.tsx:77
 msgid "No account needed. We send a code to the address it was shared with."
 msgstr "No account needed. We send a code to the address it was shared with."
+
+#: src/routes/admin.apps.tsx:79
+msgid "No apps yet. Upload one to get started."
+msgstr "No apps yet. Upload one to get started."
 
 #: src/routes/admin.settings.tsx:365
 msgid "No archived personal spaces."
@@ -3605,8 +3736,8 @@ msgid "No blocks match “{query}”."
 msgstr "No blocks match “{query}”."
 
 #: ../../packages/ext-kanban/src/board-column.tsx:317
-msgid "No cards yet"
-msgstr "No cards yet"
+#~ msgid "No cards yet"
+#~ msgstr "No cards yet"
 
 #: src/components/comments/comments-popover.tsx:312
 #: src/components/comments/thread-list.tsx:94
@@ -3618,8 +3749,8 @@ msgid "No comments yet. Select some text and choose Comment to start a thread."
 msgstr "No comments yet. Select some text and choose Comment to start a thread."
 
 #: ../../packages/ext-kanban/src/board-toolbar.tsx:87
-msgid "No date"
-msgstr "No date"
+#~ msgid "No date"
+#~ msgstr "No date"
 
 #: src/components/trash-panel.tsx:254
 msgid "No deleted items match"
@@ -3630,15 +3761,15 @@ msgstr "No deleted items match"
 msgid "No emoji matches."
 msgstr "No emoji matches."
 
-#: src/routes/admin.security.tsx:306
+#: src/routes/admin.security.tsx:310
 msgid "No events match these filters."
 msgstr "No events match these filters."
 
-#: src/routes/admin.security.tsx:308
+#: src/routes/admin.security.tsx:312
 msgid "No events recorded for {filterLabel}."
 msgstr "No events recorded for {filterLabel}."
 
-#: src/routes/admin.security.tsx:310
+#: src/routes/admin.security.tsx:314
 msgid "No events recorded."
 msgstr "No events recorded."
 
@@ -3650,37 +3781,37 @@ msgstr "No folders yet."
 msgid "No groups yet."
 msgstr "No groups yet."
 
-#: src/components/nav-apps.tsx:183
+#: src/components/nav-apps.tsx:184
 msgid "No items yet"
 msgstr "No items yet"
 
 #: ../../packages/ext-kanban/src/card-dialog.tsx:308
-msgid "No labels"
-msgstr "No labels"
+#~ msgid "No labels"
+#~ msgstr "No labels"
 
 #: ../../packages/ext-kanban/src/board-toolbar.tsx:157
-msgid "No labels on this board yet."
-msgstr "No labels on this board yet."
+#~ msgid "No labels on this board yet."
+#~ msgstr "No labels on this board yet."
 
 #: ../../packages/ext-kanban/src/labels-dialog.tsx:222
-msgid "No labels yet."
-msgstr "No labels yet."
+#~ msgid "No labels yet."
+#~ msgstr "No labels yet."
 
 #: ../../packages/ext-kanban/src/column-dialogs.tsx:89
-msgid "No limit"
-msgstr "No limit"
+#~ msgid "No limit"
+#~ msgstr "No limit"
 
 #: ../../packages/ext-kanban/src/card-dialog.tsx:333
-msgid "No linked items"
-msgstr "No linked items"
+#~ msgid "No linked items"
+#~ msgstr "No linked items"
 
 #: src/components/command-palette.tsx:171
 msgid "No matches for “{queryText}”"
 msgstr "No matches for “{queryText}”"
 
 #: ../../packages/ext-kanban/src/board-column.tsx:313
-msgid "No matching cards"
-msgstr "No matching cards"
+#~ msgid "No matching cards"
+#~ msgstr "No matching cards"
 
 #: src/routes/drive/$spaceId/index.tsx:598
 msgid "No matching files or folders"
@@ -3695,8 +3826,8 @@ msgstr "No notifications yet."
 #~ msgstr "No one else has access yet — only you, and anyone who can reach a folder above this."
 
 #: ../../packages/ext-kanban/src/people-picker.tsx:85
-msgid "No one found"
-msgstr "No one found"
+#~ msgid "No one found"
+#~ msgstr "No one found"
 
 #: src/components/people-table.tsx:291
 msgid "No one matches these filters."
@@ -3709,6 +3840,10 @@ msgstr "No open comments."
 #: src/components/preview-content.tsx:469
 msgid "No preview available — use Download to view this file."
 msgstr "No preview available — use Download to view this file."
+
+#: src/components/apps/app-backend-modal.tsx:153
+msgid "No secret yet: PP Hub will not call the backend until one is generated and given to it."
+msgstr "No secret yet: PP Hub will not call the backend until one is generated and given to it."
 
 #: src/components/settings/panes/account-profile.tsx:207
 #: src/components/settings/panes/space-general.tsx:337
@@ -3730,6 +3865,10 @@ msgstr "Nobody can be added to this space until it is linked. Linking creates an
 #: src/components/no-admin-banner.tsx:27
 msgid "Nobody can change its settings, manage its people or complete a handover until an instance administrator appoints one."
 msgstr "Nobody can change its settings, manage its people or complete a handover until an instance administrator appoints one."
+
+#: src/components/apps/remove-app-modal.tsx:61
+msgid "Nobody can open its items any more. The items stay in the drive, marked as belonging to an app this install does not have; uploading the app again brings them back."
+msgstr "Nobody can open its items any more. The items stay in the drive, marked as belonging to an app this install does not have; uploading the app again brings them back."
 
 #: src/components/drive-write.tsx:181
 msgid "Nobody can see it yet — access to a team folder is given through Share."
@@ -3777,7 +3916,7 @@ msgstr "Not linked to a Logto organization"
 msgid "Not set"
 msgstr "Not set"
 
-#: src/components/preview-panel.tsx:459
+#: src/components/preview-panel.tsx:460
 msgid "Not shared."
 msgstr "Not shared."
 
@@ -3786,8 +3925,8 @@ msgid "Not yours to restore"
 msgstr "Not yours to restore"
 
 #: ../../packages/ext-kanban/src/link-picker.tsx:114
-msgid "Nothing found"
-msgstr "Nothing found"
+#~ msgid "Nothing found"
+#~ msgstr "Nothing found"
 
 #: src/routes/drive/shared.tsx:60
 msgid "Nothing has been added here yet."
@@ -3802,8 +3941,8 @@ msgid "Nothing matches."
 msgstr "Nothing matches."
 
 #: ../../packages/ext-checklist/src/list-editor.tsx:59
-msgid "Nothing on this list yet"
-msgstr "Nothing on this list yet"
+#~ msgid "Nothing on this list yet"
+#~ msgstr "Nothing on this list yet"
 
 #: src/routes/drive/$spaceId/home.tsx:112
 #: src/routes/drive/$spaceId/recent.tsx:52
@@ -3853,7 +3992,7 @@ msgstr "Off"
 msgid "Off in this space."
 msgstr "Off in this space."
 
-#: src/routes/admin.apps.tsx:102
+#: src/routes/admin.apps.tsx:145
 msgid "Off. Nobody can create or open its items."
 msgstr "Off. Nobody can create or open its items."
 
@@ -3873,7 +4012,7 @@ msgstr "Offline"
 msgid "Older versions"
 msgstr "Older versions"
 
-#: src/routes/admin.apps.tsx:100
+#: src/routes/admin.apps.tsx:143
 msgid "On for this install. Spaces can still switch it off."
 msgstr "On for this install. Spaces can still switch it off."
 
@@ -3909,14 +4048,13 @@ msgstr "OnlyOffice editor"
 msgid "open"
 msgstr "open"
 
-#: ../../packages/ext-kanban/src/card-tile.tsx:94
 #: src/components/guest-sign-in.tsx:130
 #: src/components/node-actions.tsx:122
 #: src/components/node-actions.tsx:145
 #: src/components/node-actions.tsx:159
 #: src/components/preview-content.tsx:462
 #: src/components/preview-modal.tsx:128
-#: src/components/preview-panel.tsx:340
+#: src/components/preview-panel.tsx:341
 #: src/components/publish-dialog.tsx:303
 #: src/components/share-dialog.tsx:788
 #: src/routes/p/$token.tsx:187
@@ -3924,12 +4062,12 @@ msgid "Open"
 msgstr "Open"
 
 #: ../../packages/ext-kanban/src/link-picker.tsx:44
-msgid "Open {name}"
-msgstr "Open {name}"
+#~ msgid "Open {name}"
+#~ msgstr "Open {name}"
 
 #: ../../packages/ext-kanban/src/board-editor.tsx:172
-msgid "Open a card to set a due date, assign people, add labels and link drive files."
-msgstr "Open a card to set a due date, assign people, add labels and link drive files."
+#~ msgid "Open a card to set a due date, assign people, add labels and link drive files."
+#~ msgstr "Open a card to set a due date, assign people, add labels and link drive files."
 
 #: src/components/file-tabs.tsx:321
 #~ msgid "Open files"
@@ -3975,7 +4113,7 @@ msgid "Opening"
 msgstr "Opening"
 
 #: src/components/file-view.tsx:132
-#: src/components/file-view.tsx:224
+#: src/components/file-view.tsx:225
 msgid "Opening editor…"
 msgstr "Opening editor…"
 
@@ -3987,7 +4125,7 @@ msgstr "Opening files"
 msgid "Opens for people who already have access."
 msgstr "Opens for people who already have access."
 
-#: src/components/new-ext-node-dialog.tsx:48
+#: src/components/new-ext-node-dialog.tsx:49
 msgid "Opens it in the editor when it is created."
 msgstr "Opens it in the editor when it is created."
 
@@ -4025,14 +4163,14 @@ msgstr "Outline"
 
 #: ../../packages/ext-kanban/src/board-column.tsx:234
 #: ../../packages/ext-kanban/src/board-column.tsx:240
-msgid "Over the WIP limit"
-msgstr "Over the WIP limit"
+#~ msgid "Over the WIP limit"
+#~ msgstr "Over the WIP limit"
 
 #: ../../packages/ext-kanban/src/board-toolbar.tsx:85
 #: ../../packages/ext-kanban/src/card-tile.tsx:162
 #: ../../packages/ext-kanban/src/card-tile.tsx:168
-msgid "Overdue"
-msgstr "Overdue"
+#~ msgid "Overdue"
+#~ msgstr "Overdue"
 
 #: src/routes/admin.users.tsx:113
 msgid "Overview"
@@ -4041,10 +4179,14 @@ msgstr "Overview"
 #: src/components/node-list.tsx:209
 #: src/components/node-table.tsx:84
 #: src/components/preview-modal.tsx:170
-#: src/components/preview-panel.tsx:403
+#: src/components/preview-panel.tsx:404
 #: src/components/share-dialog.tsx:1171
 msgid "Owner"
 msgstr "Owner"
+
+#: src/components/apps/upload-app-modal.tsx:174
+msgid "Packaging the folder…"
+msgstr "Packaging the folder…"
 
 #: src/components/doc-editor/labels.ts:47
 msgid "Page"
@@ -4194,8 +4336,8 @@ msgid "Plain text"
 msgstr "Plain text"
 
 #: ../../packages/ext-kanban/src/board-editor.tsx:161
-msgid "Plan work on this board"
-msgstr "Plan work on this board"
+#~ msgid "Plan work on this board"
+#~ msgstr "Plan work on this board"
 
 #: src/routes/admin.settings.tsx:1139
 msgid "Port"
@@ -4216,7 +4358,7 @@ msgid "Press D anywhere outside a text field to flip between light and dark."
 msgstr "Press D anywhere outside a text field to flip between light and dark."
 
 #: src/components/node-actions.tsx:132
-#: src/components/preview-panel.tsx:340
+#: src/components/preview-panel.tsx:341
 msgid "Preview"
 msgstr "Preview"
 
@@ -4234,7 +4376,7 @@ msgstr "Preview not available yet — it is generated shortly after upload."
 msgid "Preview queue"
 msgstr "Preview queue"
 
-#: src/routes/admin.security.tsx:333
+#: src/routes/admin.security.tsx:337
 msgid "Previous"
 msgstr "Previous"
 
@@ -4331,7 +4473,7 @@ msgstr "Quote"
 msgid "re-share"
 msgstr "re-share"
 
-#: src/components/file-view.tsx:218
+#: src/components/file-view.tsx:219
 msgid "read-only"
 msgstr "read-only"
 
@@ -4358,6 +4500,10 @@ msgstr "Refresh"
 msgid "Reinstate"
 msgstr "Reinstate"
 
+#: src/ext/app-frame.tsx:144
+msgid "Reload"
+msgstr "Reload"
+
 #: src/components/doc-editor/page-header.tsx:155
 msgid "Remove"
 msgstr "Remove"
@@ -4378,13 +4524,17 @@ msgstr "Remove {name}"
 msgid "Remove {name} from {groupName}"
 msgstr "Remove {name} from {groupName}"
 
+#: src/components/apps/remove-app-modal.tsx:58
+msgid "Remove {name}?"
+msgstr "Remove {name}?"
+
 #: src/components/share-dialog.tsx:683
 msgid "Remove {name}'s access"
 msgstr "Remove {name}'s access"
 
 #: ../../packages/ext-kanban/src/people-picker.tsx:52
-msgid "Remove {personName}"
-msgstr "Remove {personName}"
+#~ msgid "Remove {personName}"
+#~ msgstr "Remove {personName}"
 
 #: src/components/people-table.tsx:346
 msgid "Remove {removingName} from this space?"
@@ -4399,6 +4549,10 @@ msgstr "Remove access"
 msgid "Remove admin rights"
 msgstr "Remove admin rights"
 
+#: src/components/apps/remove-app-modal.tsx:85
+msgid "Remove app"
+msgstr "Remove app"
+
 #: src/components/people-table.tsx:574
 msgid "Remove from group"
 msgstr "Remove from group"
@@ -4412,14 +4566,13 @@ msgstr "Remove from space"
 msgid "Remove icon"
 msgstr "Remove icon"
 
-#: ../../packages/ext-kanban/src/link-picker.tsx:59
 #: src/components/link-editor-popover.tsx:74
 msgid "Remove link"
 msgstr "Remove link"
 
 #: ../../packages/ext-kanban/src/link-picker.tsx:59
-msgid "Remove link {name}"
-msgstr "Remove link {name}"
+#~ msgid "Remove link {name}"
+#~ msgstr "Remove link {name}"
 
 #: src/routes/admin.settings.tsx:1226
 msgid "Remove password"
@@ -4433,9 +4586,17 @@ msgstr "Remove space avatar"
 msgid "Remove star"
 msgstr "Remove star"
 
+#: src/routes/admin.apps.tsx:186
+msgid "Remove…"
+msgstr "Remove…"
+
 #: src/components/people-table.tsx:357
 msgid "Removed {memberEmail}"
 msgstr "Removed {memberEmail}"
+
+#: src/components/apps/remove-app-modal.tsx:46
+msgid "Removed {name}"
+msgstr "Removed {name}"
 
 #: src/components/people-table.tsx:278
 msgid "Removed from {groupName}"
@@ -4453,8 +4614,7 @@ msgstr "Removed from this space here"
 msgid "Removes “{spaceName}” and everything in it — every file, version, share and member. The blobs are released and cannot be recovered. Its Logto organization is kept; delete it in Logto too if the company is gone."
 msgstr "Removes “{spaceName}” and everything in it — every file, version, share and member. The blobs are released and cannot be recovered. Its Logto organization is kept; delete it in Logto too if the company is gone."
 
-#: ../../packages/ext-kanban/src/board-column.tsx:278
-#: src/components/nav-apps.tsx:316
+#: src/components/nav-apps.tsx:318
 #: src/components/node-actions.tsx:261
 #: src/components/selection-bar.tsx:79
 #: src/routes/drive/$spaceId/index.tsx:687
@@ -4462,8 +4622,8 @@ msgid "Rename"
 msgstr "Rename"
 
 #: ../../packages/ext-kanban/src/column-dialogs.tsx:61
-msgid "Rename column"
-msgstr "Rename column"
+#~ msgid "Rename column"
+#~ msgstr "Rename column"
 
 #: src/components/trash-panel.tsx:122
 msgid "Renamed to “{restored}” — the old name was taken."
@@ -4476,7 +4636,7 @@ msgstr "Renamed to “{restored}” — the old name was taken."
 msgid "Reopen thread"
 msgstr "Reopen thread"
 
-#: src/routes/admin.security.tsx:94
+#: src/routes/admin.security.tsx:98
 msgid "Repeated failed sign-ins"
 msgstr "Repeated failed sign-ins"
 
@@ -4569,7 +4729,7 @@ msgstr "Resume uploads"
 #~ msgid "Retention period (days)"
 #~ msgstr "Retention period (days)"
 
-#: src/components/nav-apps.tsx:172
+#: src/components/nav-apps.tsx:173
 #: src/components/nodes/uploadable-node-view.tsx:140
 #: src/components/transfer-tray.tsx:223
 msgid "Retry"
@@ -4616,10 +4776,9 @@ msgstr "Row"
 msgid "Rows and columns of cells"
 msgstr "Rows and columns of cells"
 
-#: ../../packages/ext-kanban/src/card-dialog.tsx:385
-#: ../../packages/ext-kanban/src/column-dialogs.tsx:99
+#: src/components/apps/app-backend-modal.tsx:108
 #: src/components/comments/comments-popover.tsx:622
-#: src/components/nav-apps.tsx:334
+#: src/components/nav-apps.tsx:336
 #: src/routes/drive/$spaceId/index.tsx:714
 msgid "Save"
 msgstr "Save"
@@ -4643,7 +4802,7 @@ msgstr "Saved"
 msgid "Saved {created} · {size}"
 msgstr "Saved {created} · {size}"
 
-#: src/components/file-view.tsx:218
+#: src/components/file-view.tsx:219
 msgid "saved by OnlyOffice"
 msgstr "saved by OnlyOffice"
 
@@ -4658,6 +4817,10 @@ msgstr "Saved to your account, so it follows you to any browser you sign in from
 #: src/components/settings/panes/account-general.tsx:139
 msgid "Saved to your account. Only sent when your administrator has set up mail."
 msgstr "Saved to your account. Only sent when your administrator has set up mail."
+
+#: src/components/apps/app-backend-modal.tsx:52
+msgid "Saved where {name} reaches its backend"
+msgstr "Saved where {name} reaches its backend"
 
 #: src/routes/admin.settings.tsx:778
 #~ msgid "Saving a new version removes the oldest ones beyond this number. The current version is always kept."
@@ -4683,16 +4846,16 @@ msgid "Search files, folders and spaces"
 msgstr "Search files, folders and spaces"
 
 #: ../../packages/ext-kanban/src/link-picker.tsx:106
-msgid "Search files…"
-msgstr "Search files…"
+#~ msgid "Search files…"
+#~ msgstr "Search files…"
 
 #: src/components/grantee-picker.tsx:94
 msgid "Search groups and people…"
 msgstr "Search groups and people…"
 
 #: ../../packages/ext-kanban/src/people-picker.tsx:81
-msgid "Search people…"
-msgstr "Search people…"
+#~ msgid "Search people…"
+#~ msgstr "Search people…"
 
 #: src/components/grantee-picker.tsx:94
 msgid "Search, or type an email…"
@@ -4702,8 +4865,6 @@ msgstr "Search, or type an email…"
 msgid "Search..."
 msgstr "Search..."
 
-#: ../../packages/ext-kanban/src/link-picker.tsx:112
-#: ../../packages/ext-kanban/src/people-picker.tsx:85
 #: src/components/command-palette.tsx:169
 msgid "Searching…"
 msgstr "Searching…"
@@ -4711,6 +4872,10 @@ msgstr "Searching…"
 #: src/components/share-dialog.tsx:585
 #~ msgid "Seconds; use 0 for no expiration."
 #~ msgstr "Seconds; use 0 for no expiration."
+
+#: src/components/apps/app-backend-modal.tsx:122
+msgid "Secret"
+msgstr "Secret"
 
 #: src/components/settings/panes.ts:82
 #: src/routes/admin.settings.tsx:117
@@ -4729,7 +4894,7 @@ msgstr "security alert"
 #: src/components/admin-sidebar.tsx:36
 #: src/components/nav-user.tsx:136
 #: src/routes/admin.security.tsx:38
-#: src/routes/admin.security.tsx:187
+#: src/routes/admin.security.tsx:191
 msgid "Security log"
 msgstr "Security log"
 
@@ -4762,8 +4927,8 @@ msgid "Select all deleted items"
 msgstr "Select all deleted items"
 
 #: ../../packages/ext-kanban/src/labels-dialog.tsx:172
-msgid "Select color tag"
-msgstr "Select color tag"
+#~ msgid "Select color tag"
+#~ msgstr "Select color tag"
 
 #: src/components/selection-bar.tsx:50
 msgid "Selection actions"
@@ -4856,7 +5021,7 @@ msgstr "Settings sections"
 #: src/components/editor-header.tsx:109
 #: src/components/editor-header.tsx:117
 #: src/components/node-actions.tsx:232
-#: src/components/preview-panel.tsx:359
+#: src/components/preview-panel.tsx:360
 #: src/components/selection-bar.tsx:74
 #: src/components/share-dialog.tsx:575
 msgid "Share"
@@ -4870,7 +5035,7 @@ msgstr "Share “{nodeName}”"
 msgid "share created"
 msgstr "share created"
 
-#: src/routes/admin.security.tsx:368
+#: src/routes/admin.security.tsx:372
 msgid "Share link visitor"
 msgstr "Share link visitor"
 
@@ -4883,8 +5048,8 @@ msgid "share revoked"
 msgstr "share revoked"
 
 #: ../../packages/ext-kanban/src/board-editor.tsx:177
-msgid "Share the board from the header — people see changes live."
-msgstr "Share the board from the header — people see changes live."
+#~ msgid "Share the board from the header — people see changes live."
+#~ msgstr "Share the board from the header — people see changes live."
 
 #: src/routes/s/$token.tsx:46
 msgid "Shared"
@@ -4908,7 +5073,7 @@ msgstr "Shared with me"
 msgid "Shared with you"
 msgstr "Shared with you"
 
-#: src/components/preview-panel.tsx:419
+#: src/components/preview-panel.tsx:420
 #: src/components/settings/panes/space-general.tsx:227
 msgid "Sharing"
 msgstr "Sharing"
@@ -4921,7 +5086,7 @@ msgstr "Sharing & agents"
 msgid "Sharing outside this space is not allowed here."
 msgstr "Sharing outside this space is not allowed here."
 
-#: src/routes/admin.security.tsx:397
+#: src/routes/admin.security.tsx:401
 msgid "Show all events for this item"
 msgstr "Show all events for this item"
 
@@ -5007,7 +5172,7 @@ msgstr "sign-ins"
 #~ msgid "Sign-ins, failures and access changes across this install"
 #~ msgstr "Sign-ins, failures and access changes across this install"
 
-#: src/routes/admin.security.tsx:189
+#: src/routes/admin.security.tsx:193
 msgid "Sign-ins, failures, access changes and file access across this install"
 msgstr "Sign-ins, failures, access changes and file access across this install"
 
@@ -5023,7 +5188,7 @@ msgstr "Signed-in devices"
 #: src/components/node-list.tsx:206
 #: src/components/node-table.tsx:81
 #: src/components/preview-modal.tsx:169
-#: src/components/preview-panel.tsx:385
+#: src/components/preview-panel.tsx:386
 #: src/components/settings/panes/account-general.tsx:46
 #: src/components/space-node-table.tsx:96
 #: src/components/trash-panel.tsx:297
@@ -5044,8 +5209,8 @@ msgid "Slug"
 msgstr "Slug"
 
 #: src/routes/admin.apps.tsx:35
-msgid "Small apps built into this install. Every app ships switched off: turn one on here to make it available, then space admins can switch it off again for their own space."
-msgstr "Small apps built into this install. Every app ships switched off: turn one on here to make it available, then space admins can switch it off again for their own space."
+#~ msgid "Small apps built into this install. Every app ships switched off: turn one on here to make it available, then space admins can switch it off again for their own space."
+#~ msgstr "Small apps built into this install. Every app ships switched off: turn one on here to make it available, then space admins can switch it off again for their own space."
 
 #: src/components/doc-editor/labels.ts:27
 msgid "Small section title"
@@ -5206,14 +5371,14 @@ msgid "Table"
 msgstr "Table"
 
 #: ../../packages/ext-kanban/src/column-dialogs.tsx:181
-msgid "Target column"
-msgstr "Target column"
+#~ msgid "Target column"
+#~ msgstr "Target column"
 
 #: src/components/node-list.tsx:406
 msgid "Team"
 msgstr "Team"
 
-#: src/components/preview-panel.tsx:395
+#: src/components/preview-panel.tsx:396
 msgid "Team folder"
 msgstr "Team folder"
 
@@ -5267,13 +5432,37 @@ msgstr "That sign-in link expired or was already used. Start again from this pag
 msgid "The address stops working at once for everyone who has it. Publishing again later gives a new address."
 msgstr "The address stops working at once for everyone who has it. Publishing again later gives a new address."
 
+#: src/ext/app-frame.tsx:134
+msgid "The app loaded but never connected to PP Hub. It may be broken or built for a different version; an administrator can check it in Admin › Apps."
+msgstr "The app loaded but never connected to PP Hub. It may be broken or built for a different version; an administrator can check it in Admin › Apps."
+
+#: src/ext/app-frame.tsx:130
+msgid "The app opened another page, which cannot reach your files. Reload it to go back."
+msgstr "The app opened another page, which cannot reach your files. Reload it to go back."
+
+#: src/components/apps/app-backend-modal.tsx:115
+msgid "The app ships with no address; set one here."
+msgstr "The app ships with no address; set one here."
+
+#: src/components/apps/app-backend-modal.tsx:77
+msgid "The app’s own server. PP Hub forwards the app’s requests to it with a short-lived token saying who is asking, signed with the secret below."
+msgstr "The app’s own server. PP Hub forwards the app’s requests to it with a short-lived token saying who is asking, signed with the secret below."
+
 #: ../../packages/ext-kanban/src/queries.ts:89
-msgid "The board has been refreshed. Review it and try again."
-msgstr "The board has been refreshed. Review it and try again."
+#~ msgid "The board has been refreshed. Review it and try again."
+#~ msgstr "The board has been refreshed. Review it and try again."
 
 #: src/ext/checklist/list-editor.tsx:56
 #~ msgid "The Checklist app is switched off for this space. The list is kept; an admin can turn the app back on."
 #~ msgstr "The Checklist app is switched off for this space. The list is kept; an admin can turn the app back on."
+
+#: src/components/apps/upload-app-modal.tsx:79
+msgid "The folder holds no files to package."
+msgstr "The folder holds no files to package."
+
+#: src/components/apps/upload-app-modal.tsx:82
+msgid "The folder is too large for a package (50 MiB, 20 MiB once compressed)."
+msgstr "The folder is too large for a package (50 MiB, 20 MiB once compressed)."
 
 #: src/routes/admin.settings.tsx:901
 msgid "The https:// origins published pages may load scripts, styles, images and fonts from, separated by spaces. Leave empty to allow none: pages then load only their own files."
@@ -5301,8 +5490,8 @@ msgid "The link could not be read."
 msgstr "The link could not be read."
 
 #: ../../packages/ext-kanban/src/column-dialogs.tsx:65
-msgid "The most cards this column should hold. It is a warning, not a lock; leave it empty for no limit."
-msgstr "The most cards this column should hold. It is a warning, not a lock; leave it empty for no limit."
+#~ msgid "The most cards this column should hold. It is a warning, not a lock; leave it empty for no limit."
+#~ msgstr "The most cards this column should hold. It is a warning, not a lock; leave it empty for no limit."
 
 #: src/components/link-space-modal.tsx:51
 msgid "The organization exists; its members are being added now. The space shows as linked in a moment."
@@ -5379,7 +5568,7 @@ msgstr "They owned nothing here, so nothing moves into the Archive. This revokes
 msgid "They will be added to {destination}"
 msgstr "They will be added to {destination}"
 
-#: ../../packages/ext-sdk/src/ext-unavailable.tsx:35
+#: src/ext/ext-unavailable.tsx:47
 msgid "This {what} could not be opened"
 msgstr "This {what} could not be opened"
 
@@ -5391,15 +5580,19 @@ msgstr "This account is suspended. Contact an administrator."
 msgid "This address is on a different mail domain from yours"
 msgstr "This address is on a different mail domain from yours"
 
-#: src/components/file-view.tsx:176
+#: src/components/apps/upload-app-modal.tsx:109
+msgid "This app is already installed. Update it with this package instead?"
+msgstr "This app is already installed. Update it with this package instead?"
+
+#: src/components/file-view.tsx:177
 msgid "This app is not part of this installation"
 msgstr "This app is not part of this installation"
 
-#: ../../packages/ext-sdk/src/ext-unavailable.tsx:40
+#: src/ext/ext-unavailable.tsx:52
 msgid "This app is switched off for this space. Your {what} is kept; an admin can turn the app back on."
 msgstr "This app is switched off for this space. Your {what} is kept; an admin can turn the app back on."
 
-#: ../../packages/ext-sdk/src/ext-unavailable.tsx:33
+#: src/ext/ext-unavailable.tsx:45
 msgid "This app is turned off"
 msgstr "This app is turned off"
 
@@ -5408,8 +5601,8 @@ msgstr "This app is turned off"
 #~ msgstr "This board could not be opened"
 
 #: ../../packages/ext-kanban/src/board-editor.tsx:342
-msgid "This board has no columns yet"
-msgstr "This board has no columns yet"
+#~ msgid "This board has no columns yet"
+#~ msgstr "This board has no columns yet"
 
 #: src/components/preview-content.tsx:150
 msgid "This browser can't display PDFs inline."
@@ -5420,8 +5613,8 @@ msgid "This cannot be undone."
 msgstr "This cannot be undone."
 
 #: ../../packages/ext-kanban/src/queries.ts:88
-msgid "This card was changed by someone else"
-msgstr "This card was changed by someone else"
+#~ msgid "This card was changed by someone else"
+#~ msgstr "This card was changed by someone else"
 
 #: src/ext/checklist/list-editor.tsx:51
 #~ msgid "This checklist could not be opened"
@@ -5490,11 +5683,10 @@ msgid "This install"
 msgstr "This install"
 
 #: src/components/settings/panes/space-apps.tsx:47
-#: src/routes/admin.apps.tsx:60
 msgid "This install includes no apps."
 msgstr "This install includes no apps."
 
-#: src/components/file-view.tsx:179
+#: src/components/file-view.tsx:180
 msgid "This item belongs to an app that this version of PP Hub does not include. It can still be renamed, moved or deleted from the drive."
 msgstr "This item belongs to an app that this version of PP Hub does not include. It can still be renamed, moved or deleted from the drive."
 
@@ -5567,14 +5759,14 @@ msgid "Those names are taken"
 msgstr "Those names are taken"
 
 #: ../../packages/ext-kanban/src/card-dialog.tsx:165
-msgid "Title"
-msgstr "Title"
+#~ msgid "Title"
+#~ msgstr "Title"
 
 #: ../../packages/ext-kanban/src/card-dialog.tsx:149
-msgid "Title, description, due date, assignees and labels of this card."
-msgstr "Title, description, due date, assignees and labels of this card."
+#~ msgid "Title, description, due date, assignees and labels of this card."
+#~ msgstr "Title, description, due date, assignees and labels of this card."
 
-#: src/routes/admin.security.tsx:236
+#: src/routes/admin.security.tsx:240
 msgid "To date"
 msgstr "To date"
 
@@ -5658,12 +5850,12 @@ msgstr "Trash retention (days)"
 msgid "Try a different search."
 msgstr "Try a different search."
 
-#: ../../packages/ext-sdk/src/ext-unavailable.tsx:51
 #: src/components/doc-editor/doc-editor.tsx:320
+#: src/ext/ext-unavailable.tsx:63
 msgid "Try again"
 msgstr "Try again"
 
-#: src/routes/admin.apps.tsx:108
+#: src/routes/admin.apps.tsx:151
 msgid "Turn {name} on for this install"
 msgstr "Turn {name} on for this install"
 
@@ -5676,8 +5868,16 @@ msgid "Turned off for this install by an administrator."
 msgstr "Turned off for this install by an administrator."
 
 #: src/routes/admin.apps.tsx:128
-msgid "Turning an app off hides it from the New menu and stops its items from opening. Nothing is deleted; turning it back on restores everything."
-msgstr "Turning an app off hides it from the New menu and stops its items from opening. Nothing is deleted; turning it back on restores everything."
+#~ msgid "Turning an app off hides it from the New menu and stops its items from opening. Nothing is deleted; turning it back on restores everything."
+#~ msgstr "Turning an app off hides it from the New menu and stops its items from opening. Nothing is deleted; turning it back on restores everything."
+
+#: src/routes/admin.apps.tsx:91
+msgid "Turning an app off hides it from the New menu and stops its items from opening. Nothing is deleted; turning it back on restores everything. Apps run in a sandbox: they reach files only through the items they are opened on, with the access of whoever opens them."
+msgstr "Turning an app off hides it from the New menu and stops its items from opening. Nothing is deleted; turning it back on restores everything. Apps run in a sandbox: they reach files only through the items they are opened on, with the access of whoever opens them."
+
+#: src/routes/admin.apps.tsx:93
+#~ msgid "Turning an app off hides it from the New menu and stops its items from opening. Nothing is deleted; turning it back on restores everything. Uploaded apps run in a sandbox: they reach files only through the items they are opened on, with the access of whoever opens them."
+#~ msgstr "Turning an app off hides it from the New menu and stops its items from opening. Nothing is deleted; turning it back on restores everything. Uploaded apps run in a sandbox: they reach files only through the items they are opened on, with the access of whoever opens them."
 
 #: src/components/publish-dialog.tsx:103
 msgid "Turns this folder into a public web site that anyone with the link can open, scripts included. Visitors see a snapshot: later edits stay private until you republish."
@@ -5688,7 +5888,7 @@ msgid "Turns this page into a public web site that anyone with the link can open
 msgstr "Turns this page into a public web site that anyone with the link can open, scripts included. Visitors see a snapshot: later edits stay private until you republish."
 
 #: src/components/preview-modal.tsx:168
-#: src/components/preview-panel.tsx:381
+#: src/components/preview-panel.tsx:382
 msgid "Type"
 msgstr "Type"
 
@@ -5697,8 +5897,8 @@ msgid "Type “/” for blocks…"
 msgstr "Type “/” for blocks…"
 
 #: ../../packages/ext-kanban/src/link-picker.tsx:110
-msgid "Type at least two letters"
-msgstr "Type at least two letters"
+#~ msgid "Type at least two letters"
+#~ msgstr "Type at least two letters"
 
 #: src/components/nodes/mermaid-node-view.tsx:120
 msgid "Type Mermaid source above"
@@ -5714,8 +5914,8 @@ msgstr "Type to search"
 
 #: ../../packages/ext-kanban/src/board-toolbar.tsx:81
 #: ../../packages/ext-kanban/src/board-toolbar.tsx:127
-msgid "Unassigned"
-msgstr "Unassigned"
+#~ msgid "Unassigned"
+#~ msgstr "Unassigned"
 
 #: src/components/publish-dialog.tsx:393
 msgid "Unchanged"
@@ -5764,12 +5964,12 @@ msgid "Untitled"
 msgstr "Untitled"
 
 #: ../../packages/ext-kanban/src/index.ts:20
-msgid "Untitled board"
-msgstr "Untitled board"
+#~ msgid "Untitled board"
+#~ msgstr "Untitled board"
 
 #: ../../packages/ext-checklist/src/index.ts:17
-msgid "Untitled checklist"
-msgstr "Untitled checklist"
+#~ msgid "Untitled checklist"
+#~ msgstr "Untitled checklist"
 
 #: src/components/new-document-dialog.tsx:64
 msgid "Untitled document"
@@ -5795,6 +5995,18 @@ msgstr "Untitled spreadsheet"
 msgid "Update"
 msgstr "Update"
 
+#: src/components/apps/upload-app-modal.tsx:123
+msgid "Update {updateName}"
+msgstr "Update {updateName}"
+
+#: src/components/apps/upload-app-modal.tsx:194
+msgid "Update the installed app"
+msgstr "Update the installed app"
+
+#: src/components/apps/upload-app-modal.tsx:99
+msgid "Updated to v{version}"
+msgstr "Updated to v{version}"
+
 #: src/components/nodes/uploadable-node-view.tsx:151
 msgid "Upload"
 msgstr "Upload"
@@ -5803,9 +6015,17 @@ msgstr "Upload"
 msgid "Upload a video"
 msgstr "Upload a video"
 
+#: src/components/apps/upload-app-modal.tsx:123
+msgid "Upload an app"
+msgstr "Upload an app"
+
 #: src/components/doc-editor/labels.ts:40
 msgid "Upload an image"
 msgstr "Upload an image"
+
+#: src/routes/admin.apps.tsx:56
+msgid "Upload app"
+msgstr "Upload app"
 
 #: src/components/drive-write.tsx:118
 msgid "Upload cancelled"
@@ -5826,9 +6046,21 @@ msgstr "Upload files"
 msgid "Upload folder"
 msgstr "Upload folder"
 
+#: src/routes/admin.apps.tsx:174
+msgid "Upload new version…"
+msgstr "Upload new version…"
+
 #: src/components/doc-editor/labels.ts:41
 msgid "Upload or attach a file"
 msgstr "Upload or attach a file"
+
+#: src/components/apps/upload-app-modal.tsx:127
+msgid "Upload the new version as a .zip or a folder. Items made with the app keep their data, and its switches stay as they are."
+msgstr "Upload the new version as a .zip or a folder. Items made with the app keep their data, and its switches stay as they are."
+
+#: src/components/apps/upload-app-modal.tsx:202
+msgid "Upload update"
+msgstr "Upload update"
 
 #: src/routes/login.tsx:144
 #~ msgid "Upload, organise and share files, with every version kept."
@@ -5837,6 +6069,10 @@ msgstr "Upload or attach a file"
 #: src/routes/login.tsx:129
 msgid "Upload, organise and share files, with their version history."
 msgstr "Upload, organise and share files, with their version history."
+
+#: src/routes/admin.apps.tsx:129
+#~ msgid "Uploaded"
+#~ msgstr "Uploaded"
 
 #: src/components/drive-write.tsx:125
 msgid "Uploading {count, plural, one {# file} other {# files}} to {label}"
@@ -5886,7 +6122,7 @@ msgstr "Username copied"
 msgid "Users"
 msgstr "Users"
 
-#: src/routes/admin.apps.tsx:79
+#: src/routes/admin.apps.tsx:122
 msgid "v{version}"
 msgstr "v{version}"
 
@@ -5918,8 +6154,8 @@ msgstr "versions"
 #: src/components/editor-header.tsx:137
 #: src/components/node-actions.tsx:192
 #: src/components/preview-modal.tsx:162
-#: src/components/preview-panel.tsx:366
-#: src/components/preview-panel.tsx:410
+#: src/components/preview-panel.tsx:367
+#: src/components/preview-panel.tsx:411
 msgid "Versions"
 msgstr "Versions"
 
@@ -5948,7 +6184,7 @@ msgstr "Versions of “{nodeName}”"
 msgid "Video"
 msgstr "Video"
 
-#: src/components/preview-panel.tsx:448
+#: src/components/preview-panel.tsx:449
 #: src/components/share-dialog.tsx:383
 msgid "view"
 msgstr "view"
@@ -5993,7 +6229,7 @@ msgstr "Welcome to pp-hub"
 msgid "What lives in this space?"
 msgstr "What lives in this space?"
 
-#: src/routes/admin.security.tsx:283
+#: src/routes/admin.security.tsx:287
 msgid "When"
 msgstr "When"
 
@@ -6025,7 +6261,7 @@ msgstr "When someone outside your spaces shares a file or folder with you, it ap
 msgid "When turned on, everyone you invite joins as an admin."
 msgstr "When turned on, everyone you invite joins as an admin."
 
-#: src/routes/admin.security.tsx:289
+#: src/routes/admin.security.tsx:293
 msgid "Who"
 msgstr "Who"
 
@@ -6042,12 +6278,12 @@ msgstr "Who belongs in here, and why"
 #~ msgstr "Window (minutes)"
 
 #: ../../packages/ext-kanban/src/column-dialogs.tsx:61
-msgid "WIP limit"
-msgstr "WIP limit"
+#~ msgid "WIP limit"
+#~ msgstr "WIP limit"
 
 #: ../../packages/ext-kanban/src/board-column.tsx:282
-msgid "WIP limit…"
-msgstr "WIP limit…"
+#~ msgid "WIP limit…"
+#~ msgstr "WIP limit…"
 
 #: src/routes/admin.settings.tsx:882
 msgid "Without a separate address for published content (PP_ARTIFACT_URL on the server), sites are served under /a/ here and only the browser's sandbox keeps their scripts away from people's sessions. Set PP_ARTIFACT_URL to a domain of its own before letting untrusted people publish."
@@ -6079,8 +6315,8 @@ msgid "You are viewing a shared link"
 msgstr "You are viewing a shared link"
 
 #: ../../packages/ext-kanban/src/board-editor.tsx:306
-msgid "You can view this board but not change it."
-msgstr "You can view this board but not change it."
+#~ msgid "You can view this board but not change it."
+#~ msgstr "You can view this board but not change it."
 
 #: src/components/people-table.tsx:471
 #~ msgid "You cannot change your own admin rights"

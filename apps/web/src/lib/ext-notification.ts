@@ -1,6 +1,6 @@
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
-import type { ExtManifest, ExtNodeKind } from "@pp-hub/ext-sdk";
+import type { ExtManifest, ExtNodeKind } from "@/ext/types";
 import type { AppNotification } from "@/lib/api";
 
 /** `ext:<id>:<verb>` split into its parts; null for the core kinds and anything malformed. */

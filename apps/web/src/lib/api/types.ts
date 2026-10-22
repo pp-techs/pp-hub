@@ -938,9 +938,10 @@ export interface RelativeEmbed {
 }
 
 /**
- * An extension this build of the server carries. `instance` is the admin's
- * switch, `space` the space admin's; `enabled` is the effective answer for the
- * space the list was asked for (the instance switch when none was).
+ * An app installed on this server, uploaded by an administrator (M51).
+ * `instance` is the admin's switch, `space` the space admin's; `enabled` is
+ * the effective answer for the space the list was asked for (the instance
+ * switch when none was).
  */
 export interface Extension {
   id: string;
@@ -955,4 +956,57 @@ export interface Extension {
   instance: boolean;
   space: boolean;
   enabled: boolean;
+  /** How the SPA draws and opens the app: there is no code for it in the bundle. */
+  package: AppPackage;
+}
+
+/** What the SPA knows of an app's package. */
+export interface AppPackage {
+  digest: string;
+  /** The page the app's frame loads, on the app asset origin. */
+  entry_url: string;
+  icon_url: string;
+  kinds: AppPackageKind[];
+  /** Verb → bell wording, with `{actor}` and `{excerpt}`. */
+  notifications: Record<string, string>;
+  /** Locale → English string → translation, for the strings above. */
+  translations: Record<string, Record<string, string>>;
+  has_backend: boolean;
+  /** Origins the app's frame may fetch from directly. */
+  connect: string[];
+}
+
+export interface AppPackageKind {
+  kind: string;
+  label: string;
+  new_label: string;
+  default_name: string;
+  new_hint: string;
+  icon_url: string;
+}
+
+/** An uploaded app as Admin › Apps manages it. */
+export interface AdminApp {
+  id: string;
+  version: string;
+  digest: string;
+  size: number;
+  /** The administrator's address for the backend; empty follows the manifest's. */
+  backend_url: string;
+  manifest_backend_url: string;
+  has_secret: boolean;
+  installed_at: string;
+  updated_at: string;
+}
+
+/** A record of a packaged app's node (the bridge's AppRecord). */
+export interface AppRecord {
+  id: string;
+  collection: string;
+  data: Record<string, unknown>;
+  rev: number;
+  created_by: string | null;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
 }

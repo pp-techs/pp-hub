@@ -8,8 +8,6 @@ import (
 	"net/http"
 	"sync"
 	"time"
-
-	"github.com/nhatbui/pp-hub/apps/server/extsdk"
 )
 
 const (
@@ -133,7 +131,7 @@ func (rt realtime) Publish(topic, event string, data any) { rt.b.publish(topic, 
 func (rt realtime) Stream(w http.ResponseWriter, r *http.Request, topic string, stillAllowed func(ctx context.Context) bool) {
 	s, cancel, status := rt.b.subscribe(topic)
 	if s == nil {
-		extsdk.WriteProblem(w, status, "too many open streams")
+		writeProblem(w, status, "too many open streams")
 		return
 	}
 	defer cancel()

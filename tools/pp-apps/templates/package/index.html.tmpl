@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{Name}}</title>
+    <!-- Every asset is referenced relatively: the host serves the app under a versioned path. -->
+    <link rel="stylesheet" href="./style.css" />
+    <script type="module" src="./app.js"></script>
+  </head>
+  <body>
+    <main>
+      <form id="add">
+        <input name="text" placeholder="Add an item" autocomplete="off" required />
+        <button type="submit">Add</button>
+      </form>
+      <ul id="list"></ul>
+      <p id="empty" hidden>Nothing here yet.</p>
+    </main>
+  </body>
+</html>

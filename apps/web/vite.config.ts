@@ -82,6 +82,8 @@ export default defineConfig({
       // The published bytes, when PP_ARTIFACT_URL is unset: always the
       // server, which serves them under /a/ on this origin.
       "^/a/": "http://localhost:8080",
+      // Uploaded apps' files (M51), framed by their editor, the same way.
+      "^/x/": "http://localhost:8080",
     },
   },
 });

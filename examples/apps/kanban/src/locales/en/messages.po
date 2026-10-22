@@ -1,0 +1,577 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-10-22 15:59+0700\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: en\n"
+
+#: src/board-editor.tsx
+#: src/card-dialog.tsx
+msgid "\"{cardTitle}\" will be deleted for everyone who can open this board."
+msgstr "\"{cardTitle}\" will be deleted for everyone who can open this board."
+
+#: src/column-dialogs.tsx
+msgid "\"{columnTitle}\" is empty and will be deleted."
+msgstr "\"{columnTitle}\" is empty and will be deleted."
+
+#: src/column-dialogs.tsx
+msgid "\"{columnTitle}\" still has cards and there is no other column to move them to. Add a column first."
+msgstr "\"{columnTitle}\" still has cards and there is no other column to move them to. Add a column first."
+
+#: src/column-dialogs.tsx
+msgid "\"{columnTitle}\" will be deleted. Choose where its cards go."
+msgstr "\"{columnTitle}\" will be deleted. Choose where its cards go."
+
+#: src/labels-dialog.tsx
+msgid "\"{labelName}\" will be removed from every card that has it."
+msgstr "\"{labelName}\" will be removed from every card that has it."
+
+#: src/board-toolbar.tsx
+msgid "{columns, plural, one {# column} other {# columns}}"
+msgstr "{columns, plural, one {# column} other {# columns}}"
+
+#: src/column-dialogs.tsx
+msgid "{count, plural, one {# card will be moved to the end of that column.} other {# cards will be moved to the end of that column.}}"
+msgstr "{count, plural, one {# card will be moved to the end of that column.} other {# cards will be moved to the end of that column.}}"
+
+#: src/labels-dialog.tsx
+msgid "{count, plural, one {# card} other {# cards}}"
+msgstr "{count, plural, one {# card} other {# cards}}"
+
+#: src/column-dialogs.tsx
+msgid "{n, plural, one {# card} other {# cards}}"
+msgstr "{n, plural, one {# card} other {# cards}}"
+
+#: src/board-toolbar.tsx
+msgid "{shown} of {total, plural, one {# card} other {# cards}}"
+msgstr "{shown} of {total, plural, one {# card} other {# cards}}"
+
+#: src/board-toolbar.tsx
+msgid "{total, plural, one {# card} other {# cards}}"
+msgstr "{total, plural, one {# card} other {# cards}}"
+
+#: src/board-context.tsx
+msgid "A board holds at most 30 columns"
+msgstr "A board holds at most 30 columns"
+
+#: src/board-context.tsx
+msgid "A board holds at most 50 labels"
+msgstr "A board holds at most 50 labels"
+
+#: src/board-context.tsx
+msgid "A board holds at most 5000 cards"
+msgstr "A board holds at most 5000 cards"
+
+#: src/board-context.tsx
+msgid "A card holds at most 50 assignees and 50 labels"
+msgstr "A card holds at most 50 assignees and 50 labels"
+
+#: src/board-context.tsx
+msgid "A card links to at most 20 items"
+msgstr "A card links to at most 20 items"
+
+#: src/board-context.tsx
+msgid "A label on this card was deleted meanwhile"
+msgstr "A label on this card was deleted meanwhile"
+
+#: src/board-context.tsx
+msgid "A label with this name exists"
+msgstr "A label with this name exists"
+
+#: src/board-context.tsx
+msgid "A linked item is not available"
+msgstr "A linked item is not available"
+
+#: src/labels-dialog.tsx
+msgid "Add"
+msgstr "Add"
+
+#: src/card-dialog.tsx
+msgid "Add a more detailed description…"
+msgstr "Add a more detailed description…"
+
+#: src/board-column.tsx
+msgid "Add card"
+msgstr "Add card"
+
+#: src/board-editor.tsx
+msgid "Add cards to a column and drag them between columns."
+msgstr "Add cards to a column and drag them between columns."
+
+#: src/board-editor.tsx
+msgid "Add column"
+msgstr "Add column"
+
+#: src/link-picker.tsx
+msgid "Add link"
+msgstr "Add link"
+
+#: src/board-toolbar.tsx
+msgid "Any date"
+msgstr "Any date"
+
+#: src/board-toolbar.tsx
+msgid "Anyone"
+msgstr "Anyone"
+
+#: src/people-picker.tsx
+msgid "Assign"
+msgstr "Assign"
+
+#: src/board-toolbar.tsx
+msgid "Assignee"
+msgstr "Assignee"
+
+#: src/card-dialog.tsx
+msgid "Assignees"
+msgstr "Assignees"
+
+#: src/board-column.tsx
+msgid "At the WIP limit"
+msgstr "At the WIP limit"
+
+#: src/board-editor.tsx
+msgid "board"
+msgstr "board"
+
+#: src/labels-dialog.tsx
+msgid "Board labels ({labelCount})"
+msgstr "Board labels ({labelCount})"
+
+#: src/board-column.tsx
+#: src/board-editor.tsx
+#: src/card-dialog.tsx
+#: src/column-dialogs.tsx
+msgid "Cancel"
+msgstr "Cancel"
+
+#: src/card-dialog.tsx
+msgid "Card"
+msgstr "Card"
+
+#: src/card-tile.tsx
+msgid "Card actions"
+msgstr "Card actions"
+
+#: src/board-column.tsx
+msgid "Card title"
+msgstr "Card title"
+
+#: src/board-toolbar.tsx
+msgid "Clear"
+msgstr "Clear"
+
+#: src/card-dialog.tsx
+msgid "Clear due date"
+msgstr "Clear due date"
+
+#: src/bridge/app-provider.tsx
+#: src/card-dialog.tsx
+msgid "Close"
+msgstr "Close"
+
+#: src/board-column.tsx
+msgid "Column actions"
+msgstr "Column actions"
+
+#: src/board-editor.tsx
+msgid "Column name"
+msgstr "Column name"
+
+#: src/card-dialog.tsx
+#: src/card-tile.tsx
+msgid "Comments"
+msgstr "Comments"
+
+#: src/board-editor.tsx
+msgid "Could not add the card"
+msgstr "Could not add the card"
+
+#: src/board-editor.tsx
+msgid "Could not add the column"
+msgstr "Could not add the column"
+
+#: src/labels-dialog.tsx
+msgid "Could not create the label"
+msgstr "Could not create the label"
+
+#: src/board-editor.tsx
+#: src/card-dialog.tsx
+msgid "Could not delete the card"
+msgstr "Could not delete the card"
+
+#: src/column-dialogs.tsx
+msgid "Could not delete the column"
+msgstr "Could not delete the column"
+
+#: src/labels-dialog.tsx
+msgid "Could not delete the label"
+msgstr "Could not delete the label"
+
+#: src/board-editor.tsx
+msgid "Could not move the card"
+msgstr "Could not move the card"
+
+#: src/card-dialog.tsx
+msgid "Could not save the card"
+msgstr "Could not save the card"
+
+#: src/board-editor.tsx
+#: src/column-dialogs.tsx
+msgid "Could not update the column"
+msgstr "Could not update the column"
+
+#: src/labels-dialog.tsx
+msgid "Could not update the label"
+msgstr "Could not update the label"
+
+#: src/labels-dialog.tsx
+msgid "Create new label"
+msgstr "Create new label"
+
+#: src/board-editor.tsx
+#: src/card-dialog.tsx
+#: src/labels-dialog.tsx
+msgid "Delete"
+msgstr "Delete"
+
+#: src/card-dialog.tsx
+#: src/card-tile.tsx
+msgid "Delete card"
+msgstr "Delete card"
+
+#: src/board-column.tsx
+#: src/column-dialogs.tsx
+msgid "Delete column"
+msgstr "Delete column"
+
+#: src/column-dialogs.tsx
+msgid "Delete column?"
+msgstr "Delete column?"
+
+#: src/labels-dialog.tsx
+msgid "Delete label {labelName}"
+msgstr "Delete label {labelName}"
+
+#: src/labels-dialog.tsx
+msgid "Delete label?"
+msgstr "Delete label?"
+
+#: src/board-editor.tsx
+#: src/card-dialog.tsx
+msgid "Delete this card?"
+msgstr "Delete this card?"
+
+#: src/card-dialog.tsx
+msgid "Description"
+msgstr "Description"
+
+#: src/card-dialog.tsx
+msgid "Discussion"
+msgstr "Discussion"
+
+#: src/board-editor.tsx
+msgid "Dismiss"
+msgstr "Dismiss"
+
+#: src/labels-dialog.tsx
+msgid "Done"
+msgstr "Done"
+
+#: src/board-column.tsx
+msgid "Drag cards here, or add one below"
+msgstr "Drag cards here, or add one below"
+
+#: src/board-toolbar.tsx
+msgid "Due"
+msgstr "Due"
+
+#: src/card-dialog.tsx
+#: src/card-tile.tsx
+msgid "Due date"
+msgstr "Due date"
+
+#: src/card-dialog.tsx
+msgid "Edit card"
+msgstr "Edit card"
+
+#: src/board-column.tsx
+msgid "Enter a title for this card…"
+msgstr "Enter a title for this card…"
+
+#: src/board-toolbar.tsx
+msgid "Filter cards"
+msgstr "Filter cards"
+
+#: src/board-toolbar.tsx
+msgid "Filter cards…"
+msgstr "Filter cards…"
+
+#: src/board-editor.tsx
+msgid "Got it"
+msgstr "Got it"
+
+#: src/bridge/app-provider.tsx
+msgid "It may have been deleted, or you may no longer have access to it."
+msgstr "It may have been deleted, or you may no longer have access to it."
+
+#: src/bridge/app-provider.tsx
+msgid "It only works when opened from pp-hub. Reload the page to try again."
+msgstr "It only works when opened from pp-hub. Reload the page to try again."
+
+#: src/board-toolbar.tsx
+msgid "Label"
+msgstr "Label"
+
+#: src/labels-dialog.tsx
+msgid "Label colour"
+msgstr "Label colour"
+
+#: src/labels-dialog.tsx
+msgid "Label name"
+msgstr "Label name"
+
+#: src/card-dialog.tsx
+msgid "Labels"
+msgstr "Labels"
+
+#: src/labels-dialog.tsx
+msgid "Labels are shared by every card on this board."
+msgstr "Labels are shared by every card on this board."
+
+#: src/column-dialogs.tsx
+msgid "Limit"
+msgstr "Limit"
+
+#: src/card-dialog.tsx
+#: src/card-tile.tsx
+msgid "Linked items"
+msgstr "Linked items"
+
+#: src/bridge/app-provider.tsx
+msgid "Loading…"
+msgstr "Loading…"
+
+#: src/board-toolbar.tsx
+#: src/card-dialog.tsx
+#: src/labels-dialog.tsx
+msgid "Manage labels"
+msgstr "Manage labels"
+
+#: src/bridge/app-provider.tsx
+msgid "More"
+msgstr "More"
+
+#: src/column-dialogs.tsx
+msgid "Move its cards to"
+msgstr "Move its cards to"
+
+#: src/board-column.tsx
+msgid "Move left"
+msgstr "Move left"
+
+#: src/board-column.tsx
+msgid "Move right"
+msgstr "Move right"
+
+#: src/card-tile.tsx
+msgid "Move to column…"
+msgstr "Move to column…"
+
+#: src/column-dialogs.tsx
+msgid "Name"
+msgstr "Name"
+
+#: src/card-dialog.tsx
+#: src/labels-dialog.tsx
+msgid "New label"
+msgstr "New label"
+
+#: src/labels-dialog.tsx
+msgid "New label name"
+msgstr "New label name"
+
+#: src/board-toolbar.tsx
+msgid "Next 7 days"
+msgstr "Next 7 days"
+
+#: src/link-picker.tsx
+msgid "No access"
+msgstr "No access"
+
+#: src/board-column.tsx
+msgid "No cards yet"
+msgstr "No cards yet"
+
+#: src/board-toolbar.tsx
+msgid "No date"
+msgstr "No date"
+
+#: src/card-dialog.tsx
+msgid "No labels"
+msgstr "No labels"
+
+#: src/board-toolbar.tsx
+msgid "No labels on this board yet."
+msgstr "No labels on this board yet."
+
+#: src/labels-dialog.tsx
+msgid "No labels yet."
+msgstr "No labels yet."
+
+#: src/column-dialogs.tsx
+msgid "No limit"
+msgstr "No limit"
+
+#: src/card-dialog.tsx
+msgid "No linked items"
+msgstr "No linked items"
+
+#: src/board-column.tsx
+msgid "No matching cards"
+msgstr "No matching cards"
+
+#: src/people-picker.tsx
+msgid "No one found"
+msgstr "No one found"
+
+#: src/link-picker.tsx
+msgid "Nothing found"
+msgstr "Nothing found"
+
+#: src/card-tile.tsx
+msgid "Open"
+msgstr "Open"
+
+#: src/link-picker.tsx
+msgid "Open {name}"
+msgstr "Open {name}"
+
+#: src/board-editor.tsx
+msgid "Open a card to set a due date, assign people, add labels and link drive files."
+msgstr "Open a card to set a due date, assign people, add labels and link drive files."
+
+#: src/board-column.tsx
+msgid "Over the WIP limit"
+msgstr "Over the WIP limit"
+
+#: src/board-toolbar.tsx
+#: src/card-tile.tsx
+msgid "Overdue"
+msgstr "Overdue"
+
+#: src/board-editor.tsx
+msgid "Plan work on this board"
+msgstr "Plan work on this board"
+
+#: src/people-picker.tsx
+msgid "Remove {personName}"
+msgstr "Remove {personName}"
+
+#: src/link-picker.tsx
+msgid "Remove link"
+msgstr "Remove link"
+
+#: src/link-picker.tsx
+msgid "Remove link {name}"
+msgstr "Remove link {name}"
+
+#: src/board-column.tsx
+msgid "Rename"
+msgstr "Rename"
+
+#: src/column-dialogs.tsx
+msgid "Rename column"
+msgstr "Rename column"
+
+#: src/card-dialog.tsx
+#: src/column-dialogs.tsx
+msgid "Save"
+msgstr "Save"
+
+#: src/link-picker.tsx
+msgid "Search files…"
+msgstr "Search files…"
+
+#: src/people-picker.tsx
+msgid "Search people…"
+msgstr "Search people…"
+
+#: src/link-picker.tsx
+#: src/people-picker.tsx
+msgid "Searching…"
+msgstr "Searching…"
+
+#: src/labels-dialog.tsx
+msgid "Select color tag"
+msgstr "Select color tag"
+
+#: src/board-editor.tsx
+msgid "Share the board from the header — people see changes live."
+msgstr "Share the board from the header — people see changes live."
+
+#: src/column-dialogs.tsx
+msgid "Target column"
+msgstr "Target column"
+
+#: src/column-dialogs.tsx
+msgid "The most cards this column should hold. It is a warning, not a lock; leave it empty for no limit."
+msgstr "The most cards this column should hold. It is a warning, not a lock; leave it empty for no limit."
+
+#: src/bridge/app-provider.tsx
+msgid "This {what} could not be opened"
+msgstr "This {what} could not be opened"
+
+#: src/bridge/app-provider.tsx
+msgid "This app could not reach pp-hub"
+msgstr "This app could not reach pp-hub"
+
+#: src/bridge/app-provider.tsx
+msgid "This app is switched off for this space. Your {what} is kept; an admin can turn the app back on."
+msgstr "This app is switched off for this space. Your {what} is kept; an admin can turn the app back on."
+
+#: src/bridge/app-provider.tsx
+msgid "This app is turned off"
+msgstr "This app is turned off"
+
+#: src/board-editor.tsx
+msgid "This board has no columns yet"
+msgstr "This board has no columns yet"
+
+#: src/board-context.tsx
+msgid "This card was changed by someone else. The board has been refreshed. Review it and try again."
+msgstr "This card was changed by someone else. The board has been refreshed. Review it and try again."
+
+#: src/card-dialog.tsx
+msgid "Title"
+msgstr "Title"
+
+#: src/card-dialog.tsx
+msgid "Title, description, due date, assignees and labels of this card."
+msgstr "Title, description, due date, assignees and labels of this card."
+
+#: src/bridge/app-provider.tsx
+msgid "Try again"
+msgstr "Try again"
+
+#: src/link-picker.tsx
+msgid "Type at least two letters"
+msgstr "Type at least two letters"
+
+#: src/board-toolbar.tsx
+msgid "Unassigned"
+msgstr "Unassigned"
+
+#: src/column-dialogs.tsx
+msgid "WIP limit"
+msgstr "WIP limit"
+
+#: src/board-column.tsx
+msgid "WIP limit…"
+msgstr "WIP limit…"
+
+#: src/board-editor.tsx
+msgid "You can view this board but not change it."
+msgstr "You can view this board but not change it."

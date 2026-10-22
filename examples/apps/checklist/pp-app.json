@@ -1,0 +1,32 @@
+{
+  "id": "checklist",
+  "name": "Checklist",
+  "version": "2.0.0",
+  "description": "A list of items to tick, live for everyone who has it open.",
+  "author": "pp-hub",
+  "license": "AGPL-3.0-only",
+  "engines": {
+    "sdk": 1
+  },
+  "icon": "icon.svg",
+  "nodeKinds": [
+    {
+      "kind": "checklist.list",
+      "label": "Checklist",
+      "newLabel": "New checklist",
+      "defaultName": "Untitled checklist",
+      "icon": "icon.svg"
+    }
+  ],
+  "web": {
+    "entry": "dist/index.html"
+  },
+  "translations": {
+    "vi": {
+      "Checklist": "Danh sách việc",
+      "A list of items to tick, live for everyone who has it open.": "Danh sách các mục để đánh dấu, cập nhật trực tiếp cho mọi người đang mở.",
+      "New checklist": "Danh sách việc mới",
+      "Untitled checklist": "Danh sách việc chưa đặt tên"
+    }
+  }
+}

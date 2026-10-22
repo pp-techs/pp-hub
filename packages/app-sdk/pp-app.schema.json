@@ -1,0 +1,195 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/pp-techs/pp-hub/packages/app-sdk/pp-app.schema.json",
+  "title": "pp-hub packaged app manifest (pp-app.json)",
+  "description": "The manifest at the root of an uploadable app package. Beyond what this schema states, every nodeKinds[].kind must start with \"<id>.\", kinds and connect origins must be unique, seed data must encode to at most 64 KiB, and referenced files must exist; `pp-apps pack` and the server check all of it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "name", "version", "description", "author", "engines", "nodeKinds", "web"],
+  "properties": {
+    "id": {
+      "description": "Name in URLs and the record store.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,31}$"
+    },
+    "name": {
+      "description": "Display name.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 60,
+      "pattern": "\\S"
+    },
+    "version": {
+      "description": "Semantic version of the app.",
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
+    },
+    "description": {
+      "description": "One sentence shown in Admin > Apps.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "pattern": "\\S"
+    },
+    "author": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "pattern": "\\S"
+    },
+    "license": {
+      "description": "SPDX identifier.",
+      "type": "string",
+      "maxLength": 100
+    },
+    "homepage": {
+      "description": "An http(s) URL; empty means none.",
+      "type": "string",
+      "pattern": "^(https?://[^\\s/?#]+\\S*)?$"
+    },
+    "engines": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sdk"],
+      "properties": {
+        "sdk": {
+          "description": "The packaged-app API version; must be 1.",
+          "const": 1
+        }
+      }
+    },
+    "icon": {
+      "description": "A file in the package, .svg or .png, at most 256 KiB; empty means none.",
+      "type": "string",
+      "pattern": "^((?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\\\u0000]+\\.(svg|png))?$"
+    },
+    "nodeKinds": {
+      "description": "The kinds of node the app owns.",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "label"],
+        "properties": {
+          "kind": {
+            "description": "\"<id>.<name>\".",
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,31}\\.[a-z][a-z0-9_]{0,31}$"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60,
+            "pattern": "\\S"
+          },
+          "newLabel": {
+            "description": "Default \"New \" + label.",
+            "type": "string",
+            "maxLength": 60
+          },
+          "defaultName": {
+            "description": "Name of a new node; default label.",
+            "type": "string",
+            "maxLength": 120
+          },
+          "newHint": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "icon": {
+            "description": "A file in the package, .svg or .png, at most 256 KiB; empty means none.",
+            "type": "string",
+            "pattern": "^((?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\\\u0000]+\\.(svg|png))?$"
+          },
+          "seed": {
+            "description": "Records created with every new node.",
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["collection", "data"],
+              "properties": {
+                "collection": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_]{0,31}$"
+                },
+                "data": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "web": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entry"],
+      "properties": {
+        "entry": {
+          "description": "The HTML page shown in the frame; must reference its assets relatively.",
+          "type": "string",
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\\\u0000]+\\.html$"
+        },
+        "connect": {
+          "description": "Bare https origins the UI may fetch() directly.",
+          "type": "array",
+          "maxItems": 10,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^https://[^/?#@\\s\\\\]+$"
+          }
+        }
+      }
+    },
+    "backend": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["url"],
+      "properties": {
+        "url": {
+          "description": "The app's own service; the host proxies to it with a signed token.",
+          "type": "string",
+          "pattern": "^https?://[^\\s/?#@]+[^\\s?#]*$"
+        }
+      }
+    },
+    "notifications": {
+      "description": "Verb → template; templates may use {actor} and {excerpt}.",
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_.-]{0,31}$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200,
+        "pattern": "\\S"
+      }
+    },
+    "translations": {
+      "description": "Locale → English string → translation.",
+      "type": "object",
+      "maxProperties": 50,
+      "propertyNames": {
+        "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "maxProperties": 500,
+        "propertyNames": {
+          "maxLength": 500
+        },
+        "additionalProperties": {
+          "type": "string",
+          "maxLength": 500
+        }
+      }
+    }
+  }
+}

@@ -7,7 +7,7 @@ import {
 } from "react";
 import { Puzzle } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
-import { extKindOf } from "@/ext/registry";
+import { extKindOf, useExtRegistry } from "@/ext/registry";
 import type { Node } from "@/lib/api";
 
 export type IconComponent = FunctionComponent<SVGProps<SVGSVGElement>>;
@@ -269,6 +269,8 @@ export function NodeIcon({
   isShared?: boolean;
 }) {
   const cls = cn("size-4 shrink-0", className);
+  // An uploaded app's glyph arrives with the extensions list.
+  useExtRegistry();
   // The fallback is an empty svg with the same class list, so a pending glyph
   // occupies the exact box the loaded one will — no layout shift in lists.
   const fallback = <svg className={cls} aria-hidden="true" />;

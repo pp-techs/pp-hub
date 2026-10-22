@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 import { msg } from "@lingui/core/macro";
-import type { ExtManifest } from "@pp-hub/ext-sdk";
+import type { ExtManifest } from "../src/ext/types";
 import { extNotificationMessage, parseExtKind } from "../src/lib/ext-notification";
 
 const item = (kind: string) => ({

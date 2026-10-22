@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tasks</title>
+    <link rel="stylesheet" href="./style.css" />
+    <script type="module" src="./app.js"></script>
+  </head>
+  <body>
+    <main>
+      <form id="add">
+        <input name="text" autocomplete="off" required />
+        <button type="submit" class="primary"></button>
+      </form>
+      <p id="summary"></p>
+      <ul id="list"></ul>
+      <p id="empty" hidden></p>
+    </main>
+    <dialog id="assign">
+      <form method="dialog">
+        <input id="assign-query" type="search" autocomplete="off" />
+        <ul id="assign-results"></ul>
+        <div class="row">
+          <button value="unassign" id="unassign"></button>
+          <button value="cancel" id="assign-cancel"></button>
+        </div>
+      </form>
+    </dialog>
+  </body>
+</html>

@@ -40,7 +40,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { extIconOf } from "@/components/ext-icon-tile";
 import { NewExtNodeDialog } from "@/components/new-ext-node-dialog";
 import { nodeActions, type NodeActionHandlers } from "@/components/node-actions";
-import { extKindOf } from "@/ext/registry";
+import { extKindOf, useExtRegistry } from "@/ext/registry";
 import type { Extension, Node } from "@/lib/api";
 import { openFile } from "@/lib/open-file";
 import { sidebarApps } from "@/lib/ext-apps";
@@ -101,6 +101,7 @@ function NavApp({ spaceId, ext }: { spaceId: string; ext: Extension }) {
   const { t, i18n } = useLingui();
   const [expanded, setExpanded] = useState(false);
   const create = useCreateExtNode(spaceId);
+  useExtRegistry();
   const Icon = extIconOf(ext.node_kinds);
   const name = extensionName(ext, i18n);
   // The app's first kind this build can open is the one the + creates.
@@ -220,6 +221,7 @@ function AppNode({ spaceId, node }: { spaceId: string; node: Node }) {
 
   const isStarred = (starred.data ?? []).some((n) => n.id === node.id);
   const { nodeId: openId } = useParams({ strict: false }) as { nodeId?: string };
+  useExtRegistry();
   const Icon = extKindOf(node.ext_kind)?.icon ?? Puzzle;
   const nodeName = node.name;
 

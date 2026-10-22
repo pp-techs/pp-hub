@@ -24,7 +24,7 @@ import { useUiStore } from "@/lib/ui-store";
 import { useSpaceLabel } from "@/lib/use-space-label";
 import { LoadingStatus } from "@/components/loading";
 import { NodeIcon } from "@/components/node-icon";
-import { extKindOf } from "@/ext/registry";
+import { extKindOf, useExtRegistry } from "@/ext/registry";
 import { MarkdownThumbnail } from "@/components/markdown-document-view";
 import { PreviewModal } from "@/components/preview-modal";
 import { ShareDialog } from "@/components/share-dialog";
@@ -281,6 +281,7 @@ function NodeDetails({ node }: { node: Node }) {
   // no versions, no size.
   const isExt = node.kind === "ext";
   const sharable = isFile || isExt;
+  useExtRegistry();
   const extKind = extKindOf(node.ext_kind);
   const kindLabel = extKind ? i18n._(extKind.label) : t`App item`;
   // Who else holds this is a sharer's question, and the endpoint answers 403

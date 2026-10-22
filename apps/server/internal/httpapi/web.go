@@ -92,7 +92,7 @@ func NewWebApp(dir, onlyOfficeURL, externalURL, artifactURL string) (*WebApp, er
 // apiPrefixes are the path trees the API owns. A request under one of them
 // that matched no route is a 404, never the app shell: a mistyped API call
 // answering 200 with HTML is the failure that is hardest to see.
-var apiPrefixes = []string{"/api", "/auth", "/hooks", "/mcp", "/dav", "/wopi", "/s", "/p", "/a"}
+var apiPrefixes = []string{"/api", "/auth", "/hooks", "/mcp", "/dav", "/wopi", "/s", "/p", "/a", "/x"}
 
 func apiOwned(p string) bool {
 	for _, prefix := range apiPrefixes {
@@ -221,11 +221,15 @@ func (a *WebApp) csp(host string) string {
 		frame += " " + a.frameSrc
 		form += " " + a.frameSrc
 	}
+	img := "'self' data: blob:"
 	if a.artifactSrc != "" {
 		frame += " " + a.artifactSrc
+		// Uploaded apps' icons (M51) are files of their packages, served
+		// from the artifact origin with the rest of them.
+		img += " " + a.artifactSrc
 	}
 	return "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
-		"img-src 'self' data: blob:; media-src 'self' blob:; object-src 'self'; " +
+		"img-src " + img + "; media-src 'self' blob:; object-src 'self'; " +
 		"frame-src " + frame + "; form-action " + form + "; " +
 		"frame-ancestors 'none'; base-uri 'none'; connect-src " + connect
 }

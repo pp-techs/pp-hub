@@ -1,0 +1,37 @@
+{
+  "name": "@pp-hub/app-checklist",
+  "version": "2.0.0",
+  "private": true,
+  "description": "The Checklist packaged app for pp-hub: a list of items to tick, live for everyone who has it open.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "dev": "vp dev",
+    "build": "vp build",
+    "test": "vp test",
+    "pack": "bun ../../../tools/pp-apps/src/cli.ts pack . -o dist-pack/checklist-2.0.0.zip",
+    "i18n:extract": "lingui extract --overwrite"
+  },
+  "dependencies": {
+    "@lingui/core": "6.9.0",
+    "@lingui/react": "6.9.0",
+    "@pp-hub/app-sdk": "workspace:*",
+    "@workspace/ui": "workspace:*",
+    "lucide-react": "^1.52.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@lingui/babel-plugin-lingui-macro": "6.9.0",
+    "@lingui/cli": "6.9.0",
+    "@lingui/format-po": "6.9.0",
+    "@lingui/vite-plugin": "6.9.0",
+    "@tailwindcss/vite": "^4.1.0",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^5.1.1",
+    "tailwindcss": "^4.1.0",
+    "typescript": "^7.0.2",
+    "vite-plus": "catalog:"
+  }
+}

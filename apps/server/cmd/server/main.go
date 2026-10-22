@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -124,14 +125,15 @@ func run() error {
 	// the open streams, and the mention job below delivers through it, so
 	// the job runs here and never in cmd/worker.
 	notificationsSvc := notifications.NewService(queries, blobs, shareSvc)
-	// Extensions (M44): compiled into this build (extensions.go), migrated
-	// here beside the core schema, and registered before the router is built.
-	extHost, err := exthost.New(exthost.Config{
+	// Apps (M44, M51): uploaded by an administrator and loaded from the
+	// database; their files are served from the artifact origin when there
+	// is one, the same isolation published sites get.
+	extHost := exthost.New(exthost.Config{
 		Pool: deps.Pool, Store: queries, FS: fsSvc, Share: shareSvc, Notifications: notificationsSvc,
-	}, extensions()...)
-	if err != nil {
-		return err
-	}
+		SecretKey:   cfg.DeriveKey("exthost/backend-secret"),
+		ExternalURL: cfg.ExternalURL,
+		AssetBase:   appAssetBase(cfg.ArtifactURL, cfg.ExternalURL),
+	})
 	fsSvc.SetExtHooks(extHost)
 	if err := extHost.Start(ctx); err != nil {
 		return err
@@ -372,6 +374,17 @@ func run() error {
 		err := errors.Join(srv.Shutdown(shutdownCtx), wopiSrv.Shutdown(shutdownCtx))
 		return errors.Join(err, <-roomsClosed)
 	}
+}
+
+// appAssetBase is where packaged apps' files are served (M51):
+// PP_ARTIFACT_URL when it is set, so an app's frame is on an origin of its
+// own like a published site, else this origin.
+func appAssetBase(artifactURL, externalURL string) string {
+	base := artifactURL
+	if base == "" {
+		base = externalURL
+	}
+	return strings.TrimRight(base, "/") + exthost.AssetPath
 }
 
 // listenThenStart binds addr and only then runs start, closing the listener

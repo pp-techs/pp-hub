@@ -2,13 +2,16 @@
   "name": "@pp-hub/pp-apps",
   "version": "0.0.0",
   "private": true,
-  "description": "Scaffolds, wires and checks pp-hub extensions; see docs/architecture/extensions.md.",
+  "description": "Scaffolds and packages pp-hub apps; see docs/architecture/extension-authoring.md.",
   "bin": {
     "pp-apps": "./src/cli.ts"
   },
   "type": "module",
   "scripts": {
     "test": "vp test"
+  },
+  "dependencies": {
+    "fflate": "^0.8.3"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",

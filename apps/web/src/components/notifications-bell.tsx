@@ -7,7 +7,7 @@ import { Skeleton } from "@workspace/ui/components/skeleton";
 import { cn } from "@workspace/ui/lib/utils";
 import type { AppNotification } from "@/lib/api";
 import { openFile } from "@/lib/open-file";
-import { extensionById } from "@/ext/registry";
+import { extensionById, useExtRegistry } from "@/ext/registry";
 import { extNotificationIcon, extNotificationMessage } from "@/lib/ext-notification";
 import { useFormatters } from "@/lib/format";
 import {
@@ -162,6 +162,7 @@ function NotificationRow({
   const f = useFormatters();
   const actor = item.actor.name;
   const doc = item.node.name;
+  useExtRegistry();
   const extLine = extNotificationMessage(item, extensionById);
   const unread = !item.read_at;
   const ExtIcon = extNotificationIcon(item.kind, extensionById) ?? Puzzle;
