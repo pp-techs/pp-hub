@@ -1,5 +1,12 @@
 # @pp-hub/release
 
+## 1.0.1
+
+### Patch Changes
+
+- 0effa2d: Administration pages now share one type scale (no more 10px and 11px captions beside 12px and 14px text), the sidebar toggle in the admin header lines up with the drive header, and the sub-page block in a document is centred on its row beside the block controls.
+- 0effa2d: The breadcrumb of a sub-page now folds like the folder breadcrumb: folders and parent pages share one trail, and what does not fit goes into a single "…" menu instead of staying flat. On a phone the trail is shown too, keeping the last crumb and the page name.
+
 ## 1.0.0
 
 ### Major Changes

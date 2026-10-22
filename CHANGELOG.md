@@ -11,6 +11,12 @@ Versions up to and including 0.14.1 predate this changelog; see the
 
 <!-- `bun run version-packages` adds each release's section from its changesets; edit it in the Version Packages PR. -->
 
+## [1.0.1] — 2026-10-22
+
+Administration pages now share one type scale (no more 10px and 11px captions beside 12px and 14px text), the sidebar toggle in the admin header lines up with the drive header, and the sub-page block in a document is centred on its row beside the block controls.
+
+The breadcrumb of a sub-page now folds like the folder breadcrumb: folders and parent pages share one trail, and what does not fit goes into a single "…" menu instead of staying flat. On a phone the trail is shown too, keeping the last crumb and the page name.
+
 ## [1.0.0] — 2026-10-22
 
 Kanban and Checklist are no longer built in: they are now ordinary uploadable apps, and pp-hub ships with no apps installed. **Operator action:** after upgrading, an admin uploads `kanban-2.0.0.zip` and `checklist-2.0.0.zip` (build them with `bun run apps:build`; they land in `examples/apps/kanban/dist-pack/` and `examples/apps/checklist/dist-pack/`) in Admin › Apps. Until then, existing boards and checklists stay in the drive but open as "not part of this installation"; nothing is lost. The on/off switches are kept, so an app that was on comes back on with its upload; a fresh install starts with both off, like every app.
