@@ -11,6 +11,16 @@ Versions up to and including 0.14.1 predate this changelog; see the
 
 <!-- `bun run version-packages` adds each release's section from its changesets; edit it in the Version Packages PR. -->
 
+## [1.0.0] — 2026-10-22
+
+Kanban and Checklist are no longer built in: they are now ordinary uploadable apps, and pp-hub ships with no apps installed. **Operator action:** after upgrading, an admin uploads `kanban-2.0.0.zip` and `checklist-2.0.0.zip` (build them with `bun run apps:build`; they land in `examples/apps/kanban/dist-pack/` and `examples/apps/checklist/dist-pack/`) in Admin › Apps. Until then, existing boards and checklists stay in the drive but open as "not part of this installation"; nothing is lost. The on/off switches are kept, so an app that was on comes back on with its upload; a fresh install starts with both off, like every app.
+
+Migration `0032` moves every board (columns, labels, cards with their assignees, labels, links and due dates) and every checklist into the app record store under the same ids, keeps card comment threads and notification links, and drops the old `ext_kanban` and `ext_checklist` schemas. It is applied automatically.
+
+Apps can now be uploaded. In Admin › Apps, **Upload app** installs an app from a `.zip` or a folder — no rebuild, no restart — and **Upload new version…**, **Backend…** and **Remove…** manage it afterwards. An uploaded app runs in a sandboxed frame with no access to the session: it reads and writes only the item it is opened on, with the access of whoever opens it, through the record store, live updates, comments and notifications pp-hub provides. An app that needs its own server names a backend; pp-hub forwards its calls there with a short-lived signed token (generate the secret under **Backend…**). Like every app, an uploaded one arrives switched off.
+
+Write one with `bun run apps init <dir>`, package it with `bun run apps pack <dir>`, and see `examples/apps/tasks` and `packages/app-sdk`. Migration `0031` adds the package and record tables and is applied automatically. App files are served under `/x/` — from `PP_ARTIFACT_URL`'s host when it is set — and an app's backend calls back under `/api/apps/`; a proxy in front of pp-hub must pass both through, and treat `/api/v1/apps/*/events` like the notification stream (no buffering).
+
 ## [0.30.1] — 2026-10-21
 
 Remove the in-app file tab strip and keep a file's Share, Versions and Download controls in the single header. Files open in the current browser tab by default, with a per-browser preference to open each in a new browser tab.
