@@ -1,0 +1,24 @@
+# {{Name}}
+
+A zero-build pp-hub packaged app: plain HTML, CSS and an ES module, no bundler.
+
+- `pp-app.json`: the manifest (id `{{id}}`, node kind `{{id}}.doc`).
+- `index.html`, `app.js`, `style.css`: the UI, shown in a sandboxed frame. Keep every asset
+  reference relative (`./app.js`, never `/app.js`).
+- `app-sdk.js` / `app-sdk.d.ts`: a copy of `@pp-hub/app-sdk`, the bridge to the host.
+
+## Try it
+
+1. Pack it into a zip (from the pp-hub repo root):
+
+   ```sh
+   bun run apps pack <path to this folder>
+   ```
+
+   This validates the manifest and writes `{{id}}-<version>.zip` next to the folder.
+
+2. Upload the zip in pp-hub under **Admin › Apps** (instance admins only), then create a
+   "{{Name}}" node in any space.
+
+3. Changed something? Bump `version` in `pp-app.json`, pack again and upload the new zip as an
+   upgrade of the installed app; existing records are kept.

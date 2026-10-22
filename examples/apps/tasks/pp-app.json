@@ -1,0 +1,40 @@
+{
+  "id": "tasks",
+  "name": "Tasks",
+  "version": "1.0.0",
+  "description": "A shared task list with assignees and comments.",
+  "author": "pp-hub",
+  "license": "MIT",
+  "engines": { "sdk": 1 },
+  "icon": "icon.svg",
+  "nodeKinds": [
+    {
+      "kind": "tasks.list",
+      "label": "Task list",
+      "newLabel": "New task list",
+      "defaultName": "Untitled tasks",
+      "newHint": "A checklist your team ticks off together",
+      "seed": [
+        {
+          "collection": "tasks",
+          "data": { "text": "Tick me off when you are done", "done": false }
+        }
+      ]
+    }
+  ],
+  "web": { "entry": "index.html" },
+  "notifications": {
+    "assigned": "{actor} assigned you a task: {excerpt}"
+  },
+  "translations": {
+    "vi": {
+      "Tasks": "Công việc",
+      "A shared task list with assignees and comments.": "Danh sách việc dùng chung, có người phụ trách và bình luận.",
+      "Task list": "Danh sách việc",
+      "New task list": "Danh sách việc mới",
+      "Untitled tasks": "Danh sách việc chưa đặt tên",
+      "A checklist your team ticks off together": "Danh sách để cả nhóm cùng đánh dấu hoàn thành",
+      "{actor} assigned you a task: {excerpt}": "{actor} đã giao cho bạn một việc: {excerpt}"
+    }
+  }
+}

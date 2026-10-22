@@ -1,0 +1,65 @@
+{
+  "id": "kanban",
+  "name": "Kanban",
+  "version": "2.0.0",
+  "description": "Project boards for teams: columns, cards, labels, assignees and due dates.",
+  "author": "pp-hub",
+  "license": "AGPL-3.0-only",
+  "engines": {
+    "sdk": 1
+  },
+  "icon": "icon.svg",
+  "nodeKinds": [
+    {
+      "kind": "kanban.board",
+      "label": "Kanban board",
+      "newLabel": "New kanban board",
+      "defaultName": "Untitled board",
+      "newHint": "Columns To do, In progress, and Done are added for you.",
+      "icon": "icon.svg",
+      "seed": [
+        {
+          "collection": "columns",
+          "data": {
+            "title": "To do",
+            "position": "11i",
+            "wip_limit": null
+          }
+        },
+        {
+          "collection": "columns",
+          "data": {
+            "title": "In progress",
+            "position": "12i",
+            "wip_limit": null
+          }
+        },
+        {
+          "collection": "columns",
+          "data": {
+            "title": "Done",
+            "position": "13i",
+            "wip_limit": null
+          }
+        }
+      ]
+    }
+  ],
+  "web": {
+    "entry": "dist/index.html"
+  },
+  "notifications": {
+    "assigned": "{actor} assigned you to “{excerpt}”"
+  },
+  "translations": {
+    "vi": {
+      "Kanban": "Kanban",
+      "Project boards for teams: columns, cards, labels, assignees and due dates.": "Bảng dự án cho nhóm: cột, thẻ, nhãn, người phụ trách và hạn chót.",
+      "Kanban board": "Bảng Kanban",
+      "New kanban board": "Bảng Kanban mới",
+      "Untitled board": "Bảng chưa đặt tên",
+      "Columns To do, In progress, and Done are added for you.": "Các cột To do, In progress và Done được thêm sẵn cho bạn.",
+      "{actor} assigned you to “{excerpt}”": "{actor} đã giao thẻ “{excerpt}” cho bạn"
+    }
+  }
+}

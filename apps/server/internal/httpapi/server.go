@@ -225,8 +225,8 @@ func (s *Server) Router() http.Handler {
 	// Published sites first, before anything else is attached: a request
 	// for PP_ARTIFACT_URL's host — or, with none, for /a/ — gets the
 	// artifact router and never reaches the session, the security headers,
-	// the API or the app.
-	r.Use(s.artifactSwitch(s.artifactRouter()))
+	// the API or the app. Packaged apps' files (/x/, M51) the same way.
+	r.Use(s.appAssetSwitch(), s.artifactSwitch(s.artifactRouter()))
 	r.Use(middleware.RequestID)
 	// chi's RealIP is deprecated in this version precisely because it
 	// believes True-Client-IP / X-Real-IP / X-Forwarded-For from anyone, and
@@ -316,6 +316,16 @@ func (s *Server) Router() http.Handler {
 	// Authorization header on every request, never the cookie. It answers
 	// through the agent router mcpRoutes builds.
 	s.davRoutes(r)
+
+	// Packaged apps' backends calling back (M51). Outside /api/v1 for the
+	// same reason again: a bearer token signed with the app's secret, never
+	// a cookie. See exthost/backend.go.
+	if s.ext != nil {
+		r.Group(func(r chi.Router) {
+			r.Use(apiLimit.middleware)
+			s.ext.MountBackendAPI(r)
+		})
+	}
 
 	r.Route("/s/{token}", func(r chi.Router) {
 		// A share token is a bearer secret in a URL. Without a limit, it is
@@ -423,6 +433,16 @@ func (s *Server) apiRoutes(r chi.Router, agent bool) {
 	r.Post("/admin/settings/smtp/test", s.handleTestSMTP)
 	r.Get("/extensions", s.handleListExtensions)
 	r.Patch("/admin/extensions/{extID}", s.handleSetExtensionInstance)
+	// Packaged apps (M51): install, upgrade, configure, remove. Putting code
+	// into the server, or a key into an app's backend, is a person's act;
+	// an agent acting for an administrator gets none of it.
+	if !agent {
+		r.Post("/admin/apps", s.handleInstallApp)
+		r.Get("/admin/apps/{extID}", s.handleGetApp)
+		r.Patch("/admin/apps/{extID}", s.handleUpdateApp)
+		r.Delete("/admin/apps/{extID}", s.handleRemoveApp)
+		r.Post("/admin/apps/{extID}/backend-secret", s.handleRotateAppSecret)
+	}
 	// Extension routes (M44), under /ext/{id}. Mounted inside this group, so
 	// the same limits, origin and session checks cover them; a stream has no
 	// place in the agent dispatcher's request/response calls.

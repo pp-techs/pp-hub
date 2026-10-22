@@ -87,6 +87,10 @@ const KIND_LABELS = {
   file_opened: msg`opened in editor`,
   security_alert: msg`security alert`,
   security_log_exported: msg`security log exported`,
+  app_installed: msg`app installed`,
+  app_upgraded: msg`app updated`,
+  app_configured: msg`app backend changed`,
+  app_removed: msg`app removed`,
 } satisfies Record<string, MessageDescriptor>;
 
 /** What a `security_alert` row's subject — the rule that fired — reads as. */

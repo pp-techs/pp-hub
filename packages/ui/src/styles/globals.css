@@ -7,8 +7,6 @@
 @source "../../../apps/**/*.{ts,tsx}";
 @source "../../../components/**/*.{ts,tsx}";
 @source "../**/*.{ts,tsx}";
-/* The apps' web packages (packages/ext-*) draw screens too: scan them for classes. */
-@source "../../../ext-*/src/**/*.{ts,tsx}";
 
 @theme inline {
   --font-heading: var(--font-sans);

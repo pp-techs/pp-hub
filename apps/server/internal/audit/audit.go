@@ -104,6 +104,13 @@ const (
 	// Raised by internal/alert, not by a request.
 	KindSecurityAlert       Kind = "security_alert"
 	KindSecurityLogExported Kind = "security_log_exported"
+
+	// Packaged apps (M51): what an administrator put into or took out of
+	// the server, and changes to where its backend is and the key it holds.
+	KindAppInstalled  Kind = "app_installed"
+	KindAppUpgraded   Kind = "app_upgraded"
+	KindAppConfigured Kind = "app_configured"
+	KindAppRemoved    Kind = "app_removed"
 )
 
 // ReadKinds are the kinds retained under the read-audit retention rather than

@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/nhatbui/pp-hub/apps/server/ext/kanban"
 	"github.com/nhatbui/pp-hub/apps/server/internal/exthost"
 )
 
@@ -151,10 +150,16 @@ var clientRoutes = []string{
 	"PATCH /api/v1/admin/extensions/{extID}",
 	"PUT /api/v1/spaces/{spaceID}/extensions/{extID}",
 	"POST /api/v1/spaces/{spaceID}/ext-nodes",
-	"GET /api/v1/ext/kanban/*/boards/{nodeID}/",
-	"GET /api/v1/ext/kanban/*/boards/{nodeID}/events",
-	"POST /api/v1/ext/kanban/*/boards/{nodeID}/cards",
-	"POST /api/v1/ext/kanban/*/boards/{nodeID}/cards/{cardID}/move",
+	"GET /api/v1/apps/{appID}/nodes/{nodeID}/records",
+	"POST /api/v1/apps/{appID}/nodes/{nodeID}/records",
+	"PATCH /api/v1/apps/{appID}/nodes/{nodeID}/records/{recordID}",
+	"DELETE /api/v1/apps/{appID}/nodes/{nodeID}/records/{recordID}",
+	"GET /api/v1/apps/{appID}/nodes/{nodeID}/events",
+	"POST /api/v1/apps/{appID}/nodes/{nodeID}/notify",
+	"POST /api/v1/admin/apps",
+	"PATCH /api/v1/admin/apps/{extID}",
+	"DELETE /api/v1/admin/apps/{extID}",
+	"POST /api/v1/admin/apps/{extID}/backend-secret",
 
 	"GET /s/{token}/",
 	"GET /s/{token}/download",
@@ -198,19 +203,12 @@ func TestRouterRegistersClientRoutes(t *testing.T) {
 // The check is on the middleware chain rather than on a live 401, because a
 // zero Server has no session store to answer with and the invariant being
 // defended is structural: this handler is wrapped, whatever it does.
-// routerWithExtensions is the router with the extensions' routes registered
-// (no database is touched): an extension's routes are the API's too, and the
+// routerWithExtensions is the router with the apps' routes registered (no
+// database is touched): the app runtime's routes are the API's too, and the
 // walks below must see them.
 func routerWithExtensions(t *testing.T) chi.Routes {
 	t.Helper()
-	reg, err := exthost.New(exthost.Config{}, kanban.New())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := reg.Register(); err != nil {
-		t.Fatal(err)
-	}
-	return (&Server{ext: reg}).Router().(chi.Routes)
+	return (&Server{ext: exthost.New(exthost.Config{})}).Router().(chi.Routes)
 }
 
 func TestEveryAPIRouteIsAuthenticated(t *testing.T) {

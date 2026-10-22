@@ -179,14 +179,19 @@ export default defineConfig({
         // particular has no i18n dependency by design — its few reader-facing
         // strings are the English defaults of UiStringsProvider, which the app
         // overrides.
-        // The extension packages (packages/ext-*) are not shared UI kit: they
-        // draw the screens of an app and are held to the same rule as the web app.
         files: ["packages/ui/**", "packages/utils/**"],
         rules: { "lingui/no-unlocalized-strings": "off" },
       },
       {
         // pp-apps is a terminal tool: paths, commands and file contents.
         files: ["tools/**"],
+        rules: { "lingui/no-unlocalized-strings": "off" },
+      },
+      {
+        // The app SDK holds protocol method names and developer-facing
+        // errors; the tasks example translates from context.locale with its
+        // own table. (The kanban and checklist examples use Lingui.)
+        files: ["packages/app-sdk/**", "examples/apps/tasks/**"],
         rules: { "lingui/no-unlocalized-strings": "off" },
       },
       {

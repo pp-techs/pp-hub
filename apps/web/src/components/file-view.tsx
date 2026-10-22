@@ -18,7 +18,7 @@ import { faviconFor } from "@/components/node-icon";
 import { useDocumentTitle, useFavicon } from "@/lib/use-page-head";
 import { EditorFrame, useOfficeSession } from "@/components/office-frame";
 import { LoadingStatus } from "@/components/loading";
-import { extKindOf } from "@/ext/registry";
+import { extKindOf, useExtRegistry } from "@/ext/registry";
 import { OnScreen } from "@/components/header-slot";
 import { EditorHeader } from "@/components/editor-header";
 import { DocEditor } from "@/components/doc-editor/doc-editor";
@@ -157,6 +157,7 @@ function FileBody({
  * editor says so itself.
  */
 function ExtEditor({ node, subject, thread }: { node: Node; subject?: string; thread?: string }) {
+  useExtRegistry();
   const kind = extKindOf(node.ext_kind);
   const Editor = kind?.editor;
   return (

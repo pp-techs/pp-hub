@@ -242,10 +242,38 @@ type DetachedOrg struct {
 	DetachedBy pgtype.UUID        `json:"detached_by"`
 }
 
-type ExtMigration struct {
-	ExtID     string             `json:"ext_id"`
-	Version   string             `json:"version"`
-	AppliedAt pgtype.Timestamptz `json:"applied_at"`
+type ExtPackage struct {
+	ExtID         string             `json:"ext_id"`
+	Manifest      []byte             `json:"manifest"`
+	Version       string             `json:"version"`
+	Digest        string             `json:"digest"`
+	Size          int64              `json:"size"`
+	BackendUrl    pgtype.Text        `json:"backend_url"`
+	BackendSecret pgtype.Text        `json:"backend_secret"`
+	InstalledBy   pgtype.UUID        `json:"installed_by"`
+	InstalledAt   pgtype.Timestamptz `json:"installed_at"`
+	UpdatedBy     pgtype.UUID        `json:"updated_by"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+}
+
+type ExtPackageFile struct {
+	ExtID       string `json:"ext_id"`
+	Path        string `json:"path"`
+	ContentType string `json:"content_type"`
+	Sha256      string `json:"sha256"`
+	Body        []byte `json:"body"`
+}
+
+type ExtRecord struct {
+	NodeID     pgtype.UUID        `json:"node_id"`
+	ID         pgtype.UUID        `json:"id"`
+	Collection string             `json:"collection"`
+	Data       []byte             `json:"data"`
+	Rev        int64              `json:"rev"`
+	CreatedBy  pgtype.UUID        `json:"created_by"`
+	UpdatedBy  pgtype.UUID        `json:"updated_by"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
 }
 
 type ExtState struct {

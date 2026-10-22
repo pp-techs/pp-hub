@@ -387,17 +387,28 @@ Six notes on the table:
   no longer view, so a revoked grant stops the excerpts too. The stream
   re-checks its session every 60 s. **Unfurl** takes `CapEdit`: it stores an
   attachment on the document.
-- **Extension nodes (M44–M46).** An extension never decides access: its routes
-  sit behind `Guard`, which resolves `share.EffectiveCapsForNode` of the node
-  and applies the capability the route names (kanban: `CapView` reads and
-  subscribes, `CapEdit` writes). A node of an extension that is off — for the
-  instance or for its space — answers 403 whatever the caller may do to it.
-  Comments on a card take `CapView` like a document's. An assignee must be
-  someone who could open the board, and a card's link to a drive file shows its
-  name only to a viewer who can open that file (`Host.Resolve`); the writer
-  must be able to open it too. A long-lived stream asks the same question every
-  minute (`Host.Allowed`) and ends when the answer changes. See
-  [extensions.md](extensions.md).
+- **Extension nodes.** An app never decides access: a node of an app that is
+  off — for the instance or for its space — answers 403 whatever the caller may
+  do to it, and comments on an app's record take `CapView` like a document's.
+  The people picker lists only someone who could open the node, and a link to
+  a drive file resolves only to a viewer who can open that file. A long-lived
+  stream asks the same question periodically and ends when the answer changes.
+  See [extensions.md](extensions.md).
+- **Packaged apps (M51).** Every app — Kanban and Checklist included — is a
+  packaged app, and the host decides access for code it does
+  not trust: every route under `/api/v1/apps/{id}/nodes/{nodeID}` asks one
+  question (`authorizeApp`) — the app installed, the node live and of one of
+  its kinds, the app on for the space, and the capability from
+  `share.EffectiveCapsForNode`. Reading records, the event stream, broadcasts,
+  people/user/link lookups and the backend proxy take `CapView`; writing
+  records and `notify` take `CapEdit`. The app's frame has an opaque origin
+  and no session, so it acts only through the host page, as the viewer. A
+  backend's callbacks (`/api/apps/…`, bearer token) are re-authorized the same
+  way on every call, for the token's user, who must also not be suspended.
+  Record contents are not validated beyond shape and size: `CapEdit` on the
+  item is permission to write any record in it. Installing, configuring and
+  removing apps (`/api/v1/admin/apps`) take an instance administrator. See
+  [extensions.md](extensions.md#access).
 
 ### Every Node Carries Its Own Answer
 

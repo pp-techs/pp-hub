@@ -68,10 +68,10 @@ is nothing to keep in step with the dev proxy; the SPA and API share an origin
 because one process answers both (`internal/httpapi/web.go`).
 
 An unmatched path under `/api`, `/auth`, `/hooks`, `/mcp`, `/dav`, `/wopi`,
-`/s`, `/p` or `/a` is a 404, never the SPA shell, so a mistyped API URL answers with
+`/s`, `/p`, `/a` or `/x` is a 404, never the SPA shell, so a mistyped API URL answers with
 an error and not with HTML that parses as a broken JSON response.
 
-**Published pages are the one thing that must not run as that origin.** HTML a
+**Published pages must not run as that origin.** HTML a
 member uploaded runs its script as whoever opens it, so publishing (M50,
 [publishing.md](architecture/publishing.md)) serves it through a separate
 artifact router that answers only published bytes, `GET`/`HEAD`, with a
@@ -83,6 +83,14 @@ same `server:8080`) and the server picks the router by `Host` instead, so a
 proxy or browser that drops the sandbox still leaves the page on an origin
 with no session — the recommended hardening for production. See
 [Publishing](#publishing-the-artifact-host).
+
+**Packaged apps' files (M51) take the same road.** An app an administrator
+uploaded is static web files that run in a sandboxed frame
+([extensions.md](architecture/extensions.md#packaged-apps-m51)); they are
+served at `/x/<id>/<digest>/…` by a router picked before anything else, like
+the artifact router — on `PP_ARTIFACT_URL`'s host when it is set (and then a
+plain 404 under `/x/` on the main host), otherwise on this origin. See
+[Packaged apps](#packaged-apps-the-x-assets-and-backends).
 
 `/wopi/*` is not on that listener at all: it has its own, `PP_WOPI_ADDR`
 (default `:8081`), which the Document Server reaches over the compose network.
@@ -537,7 +545,7 @@ The policy itself:
 
 ```
 default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';
-img-src 'self' data: blob:; media-src 'self' blob:; object-src 'self';
+img-src 'self' data: blob: <PP_ARTIFACT_URL>; media-src 'self' blob:; object-src 'self';
 frame-src 'self' <PP_ONLYOFFICE_URL> <PP_ARTIFACT_URL>; form-action 'self' <PP_ONLYOFFICE_URL>;
 frame-ancestors 'none'; base-uri 'none';
 connect-src 'self' wss://<Host> ws://<Host>
@@ -564,8 +572,12 @@ tightening them breaks the app**:
   a form to the Document Server's origin. With `'self'` alone the editor frame
   is simply blank.
 - **`frame-src` names `PP_ARTIFACT_URL`** when it is set: the `/p/<token>`
-  viewer frames the published page from that origin. Unset, the page is framed
-  from `/a/` on this origin, which `'self'` already covers.
+  viewer frames the published page from that origin, and a packaged app's
+  editor frames its files (`/x/…`) from it. Unset, both are framed from this
+  origin (`/a/`, `/x/`), which `'self'` already covers.
+- **`img-src` names `PP_ARTIFACT_URL`** when it is set, for the same reason:
+  packaged apps' icons are files of their packages, served from there with
+  the rest of them (M51).
 
 One more is looser than it should be, for a reason worth fixing later:
 **`style-src 'unsafe-inline'`** covers a handful of React `style` props
@@ -576,7 +588,9 @@ rather than a configuration decision.
 `script-src` needs no nonce: the built `index.html` carries zero inline
 script and the SPA uses `dangerouslySetInnerHTML` nowhere.
 `frame-ancestors 'none'` is safe because pp-hub is always the framer and never
-the framed — nothing reads `window.parent` or listens for `postMessage`.
+the framed — nothing reads `window.parent` or listens for a window `message`;
+a packaged app's frame gets one `MessageChannel` port from the page and talks
+over it alone.
 
 **Mechanics.** All of it is Go (`internal/httpapi/web.go`), on every
 response — API responses included, so a failed or proxied-through request
@@ -632,17 +646,28 @@ filled, i.e. forever — and needs a read timeout above the heartbeat (an hour
 is plenty); the client reconnects with backoff and refetches the list, so a
 proxy that cuts idle responses costs only a reconnect.
 
-**Extension streams (M44).** An app's live view — a kanban board — is the same
-kind of stream at `GET /api/v1/ext/<id>/…/events`, and a proxy in front must
-not buffer these either. Each open board holds one connection, in addition to the
-notification stream, so over HTTP/1.1 — where a browser allows six per origin
-— several tabs can starve ordinary requests: terminate TLS with HTTP/2.
+**App streams (M51).** An app's live view — a kanban board, any open
+packaged app — is the same kind of stream at
+`GET /api/v1/apps/<id>/nodes/<node>/events`, and a proxy in front must not
+buffer it either. Each open item holds one connection, in
+addition to the notification stream, so over HTTP/1.1 — where a browser allows
+six per origin — several tabs can starve ordinary requests: terminate TLS with
+HTTP/2.
 
 An app ships **off**: an instance administrator switches it on under Admin ›
 Apps, and a space administrator can switch it off for a space under Settings ›
-Apps. Each app keeps its tables in a Postgres schema of its own (`ext_<id>`),
-created by the server's startup migrations; `pg_dump` covers it, so
+Apps. An app's files and records are rows in core tables
+(`ext_package_files`, `ext_records`); `pg_dump` covers them, so
 `pp-backup.sh` needs no change.
+
+No app is preinstalled — Kanban and Checklist included. Build their packages
+with `bun run apps:build` (output in `examples/apps/kanban/dist-pack/` and
+`examples/apps/checklist/dist-pack/`) and upload `kanban-2.0.0.zip` and
+`checklist-2.0.0.zip` in Admin › Apps. **Upgrading from a release where they
+were built in:** migration `0032` converts their data into `ext_records`
+automatically at startup; boards and checklists show "not part of this
+installation" until an administrator uploads the two zips, after which they
+open whole and their earlier on/off switches are restored.
 
 Like the rooms, the streams belong to one process
 (`notifications.Broker`, and so does the `notify:mentions` job that feeds
@@ -719,12 +744,13 @@ separate origin bounds that failure, so set `PP_ARTIFACT_URL` before letting
 untrusted people publish. Until then Admin › Settings › Sharing › Publishing
 shows a "Published sites share this address" warning (`publishing_isolated`
 on `GET /api/v1/users/me` is false). With it set, `/a/` on the main host is a
-plain 404.
+plain 404, and so is `/x/` — packaged apps' files move to that host too
+([below](#packaged-apps-the-x-assets-and-backends)).
 
-| Variable                   | Default | Meaning                                                                                                                                                                                                                                |
-| -------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PP_ARTIFACT_URL`          | unset   | Optional, recommended. Separate origin published pages are served from; unset serves them under `/a/` on `PP_EXTERNAL_URL`. Must be a different host from `PP_EXTERNAL_URL`, and `https://` when it is, or the server refuses to start |
-| `PP_MAX_PUBLICATION_BYTES` | `50M`   | Ceiling on one publication's snapshot; same syntax as `PP_MAX_UPLOAD_BYTES`                                                                                                                                                            |
+| Variable                   | Default | Meaning                                                                                                                                                                                                                                                                                               |
+| -------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PP_ARTIFACT_URL`          | unset   | Optional, recommended. Separate origin published pages (at its root) and packaged apps' files (under `/x/`) are served from; unset serves them under `/a/` and `/x/` on `PP_EXTERNAL_URL`. Must be a different host from `PP_EXTERNAL_URL`, and `https://` when it is, or the server refuses to start |
+| `PP_MAX_PUBLICATION_BYTES` | `50M`   | Ceiling on one publication's snapshot; same syntax as `PP_MAX_UPLOAD_BYTES`                                                                                                                                                                                                                           |
 
 To isolate, route the domain to `server:8080`, like `drive.example.com`; nothing on it
 reads or sets cookies. A separate registrable domain
@@ -740,6 +766,41 @@ art.example.com {
 
 and `PP_ARTIFACT_URL=https://art.example.com` in `pphub.env`, then restart
 `server`.
+
+### Packaged apps (the `/x/` assets and backends)
+
+Packaged apps (M51, [extensions.md](architecture/extensions.md#packaged-apps-m51))
+need no configuration of their own; an instance administrator uploads one in
+Admin › Apps. What a deployment should know:
+
+- **Files at `/x/<id>/<digest>/…`.** On `PP_ARTIFACT_URL`'s host when it is
+  set, otherwise on `PP_EXTERNAL_URL`, answered `GET`/`HEAD` only by a router
+  picked before the app's headers (so no `X-Frame-Options: DENY`), with a
+  `sandbox` CSP, `Access-Control-Allow-Origin: *` and
+  `Cache-Control: public, max-age=31536000, immutable` — the digest changes
+  with every version, so a CDN may cache them for good. A proxy must not strip
+  or override that CSP. Without a separate origin a file opened directly as a
+  page has only that header between it and the session, the publishing
+  tradeoff above; inside pp-hub the frame's own `sandbox` attribute holds
+  either way. The main CSP names `PP_ARTIFACT_URL` in `frame-src` and
+  `img-src` (app icons). The Vite dev proxy forwards `^/x/`.
+- **The app's stream.** `GET /api/v1/apps/<id>/nodes/<node>/events` is SSE
+  like the notification stream: no buffering, a long read timeout
+  ([Notification stream](#notification-stream)).
+- **Backend callbacks at `/api/apps/`.** An app with a backend has the
+  server call `<backend url>/<path>` (30 s, no redirects followed) with a
+  signed token, and the backend calls back into
+  `${PP_EXTERNAL_URL}/api/apps/<id>/nodes/<node>/…` with that token as
+  `Authorization: Bearer`. These routes are outside `/api/v1`, like `/mcp/`:
+  no cookie, no same-origin check, the API rate limit. A proxy must pass
+  `/api/apps/` and the `Authorization` header through unchanged.
+- **The backend address is called from the `server` container.** It must
+  resolve and be reachable from there — a service on the same compose network
+  by its service name, or a public address with outbound 80/443 allowed —
+  not merely from the administrator's browser. An unreachable backend answers
+  the app with 502.
+- **One process.** The app registry and its event broker live in the `server`
+  process, like the collaboration rooms. One `server` instance.
 
 ### Outbound HTTP for link previews
 

@@ -67,6 +67,11 @@ export {
   useSetInstanceExtension,
   useSetSpaceExtension,
   useCreateExtNode,
+  useAdminApp,
+  useInstallApp,
+  useUpdateApp,
+  useRotateAppSecret,
+  useRemoveApp,
 } from "./extensions";
 
 // Block documents

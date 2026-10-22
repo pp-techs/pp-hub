@@ -4,6 +4,7 @@
 import { api, ApiError } from "../client";
 import type {
   ActivityEvent,
+  AdminApp,
   AdminSettingsMap,
   ArchivedPersonalSpace,
   AdminStats,
@@ -318,6 +319,49 @@ export async function listExtNodes(spaceId: string, extId: string): Promise<Node
   const res = await api.get(`api/v1/spaces/${spaceId}/extensions/${extId}/nodes`);
   if (!res.ok) throw new ApiError(res.status, await res.text());
   return res.json() as Promise<Node[]>;
+}
+
+/**
+ * Instance admin: installs an uploaded app (a .zip), or with `upgrade`
+ * replaces the installed version of the same id (M51).
+ */
+export async function installApp(file: Blob, upgrade: boolean, id?: string): Promise<AdminApp> {
+  const body = new FormData();
+  body.append("package", file, "app.zip");
+  const res = await api.post("api/v1/admin/apps", {
+    body,
+    searchParams: { upgrade: upgrade ? "true" : undefined, id },
+  });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<AdminApp>;
+}
+
+export async function getAdminApp(extId: string): Promise<AdminApp> {
+  const res = await api.get(`api/v1/admin/apps/${extId}`);
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<AdminApp>;
+}
+
+/** The app's backend address; "" goes back to the manifest's. */
+export async function updateApp(extId: string, backendURL: string): Promise<AdminApp> {
+  const res = await api.patch(`api/v1/admin/apps/${extId}`, { json: { backend_url: backendURL } });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<AdminApp>;
+}
+
+/** A new key for the app's backend tokens, returned this once. */
+export async function rotateAppSecret(extId: string): Promise<{ secret: string; app: AdminApp }> {
+  const res = await api.post(`api/v1/admin/apps/${extId}/backend-secret`);
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<{ secret: string; app: AdminApp }>;
+}
+
+/** Uninstalls an uploaded app; `purge` also deletes what its items hold. */
+export async function removeApp(extId: string, purge: boolean): Promise<void> {
+  const res = await api.delete(`api/v1/admin/apps/${extId}`, {
+    searchParams: purge ? { purge: "true" } : undefined,
+  });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
 }
 
 /** Renames a node; the server answers no node, only success. */

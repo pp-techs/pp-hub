@@ -471,34 +471,71 @@ will not use a value in the transaction that adds it.
 ```sql
 nodes.kind              -- node_kind gains 'ext'
 nodes.ext_kind TEXT     -- CHECK ((kind = 'ext') = (ext_kind IS NOT NULL))  nodes_ext_kind_ck
-                        -- an ext node has no current_version_id: its content is its extension's rows
+                        -- an ext node has no current_version_id: its content is its app's records
 
 ext_state(ext_id, space_id NULL, enabled, updated_by, updated_at)
   UNIQUE (ext_id) WHERE space_id IS NULL        -- the instance switch; no row = off
   UNIQUE (ext_id, space_id) WHERE space_id IS NOT NULL
   -- a space row can only switch an instance-enabled extension OFF; switching it
   -- back on deletes the row, so the space follows the instance again
-
-ext_migrations(ext_id, version, applied_at)    -- each extension's own migration track
 ```
 
-Each extension owns a Postgres schema `ext_<id>`, created at startup, and its
-tables reference `public.nodes` with `ON DELETE CASCADE` so a purge takes its
-data along. `pg_dump` covers every schema, so backup needs no change. The
-kanban schema (`0001_init.sql`, `0002_card_links.sql`):
+### Packaged apps
+
+Migration `0031_app_packages.sql` (M51,
+[extensions.md](extensions.md#packaged-apps-m51)). A packaged app has no
+schema of its own: its package and its nodes' data live in three core tables,
+keyed by its id in `ext_state`, node kinds and notification kinds.
 
 ```sql
-ext_kanban.columns(id, board_id → nodes, title, position COLLATE "C", wip_limit)
-ext_kanban.cards(id, board_id → nodes, column_id → columns, title, description_md,
-                 position COLLATE "C", due_at, created_by, created_at, updated_at, rev)
-ext_kanban.card_assignees(card_id, user_id)    -- INDEX (user_id): "assigned to me", later
-ext_kanban.labels(id, board_id, name, color)   UNIQUE (board_id, name), color #rrggbb
-ext_kanban.card_labels(card_id, label_id)
-ext_kanban.card_links(card_id, node_id → nodes)  -- re-resolved per viewer on read
+ext_packages(ext_id PK,                        -- CHECK ^[a-z][a-z0-9_]{0,31}$
+             manifest JSONB,                   -- pp-app.json as uploaded; re-parsed at startup
+             version, digest, size,            -- digest = sha256 over the files; names the asset URL
+             backend_url NULL,                 -- the administrator's override; NULL follows the manifest
+             backend_secret NULL,              -- AES-GCM under DeriveKey("exthost/backend-secret");
+                                               --   NULL until generated, and the proxy refuses without it
+             installed_by, installed_at, updated_by, updated_at)  -- users ON DELETE SET NULL
+
+ext_package_files(ext_id → ext_packages ON DELETE CASCADE, path, content_type, sha256, body BYTEA)
+  PRIMARY KEY (ext_id, path)
+  -- in the database, not the CAS: small, replaced whole in one transaction on
+  -- upgrade, already in pg_dump; no blob reference counting involved
+
+ext_records(node_id → nodes ON DELETE CASCADE, id DEFAULT gen_random_uuid(),
+            collection,                        -- CHECK ^[a-z][a-z0-9_]{0,31}$
+            data JSONB,                        -- CHECK object, octet_length(data::text) <= 131072
+            rev DEFAULT 1, created_by, updated_by, created_at, updated_at)
+  PRIMARY KEY (node_id, id)                    -- a copy keeps record ids, and references between them
+  INDEX (node_id, collection, created_at, id), INDEX (node_id, created_at, id)
 ```
 
-`position` is a fractional-index string ordered bytewise; `rev` is bumped by
-every card write and checked by edits (`if_rev`).
+The API holds a record to 64 KiB as sent; the 128 KiB `CHECK`, on jsonb's
+wider text, is the backstop for a merge. A node holds at most 10 000 records
+(API). Purging a node takes its records by cascade; removing an app with
+`purge` deletes the records of every node whose `ext_kind` is `<id>.%`, and
+without it the records stay for a reinstall. Records are not counted in
+`used_bytes`.
+
+Collections the first-party apps use (validated by the apps, not the host):
+
+| App (`ext_kind`)             | Collection | `data`                                                                                       |
+| ---------------------------- | ---------- | -------------------------------------------------------------------------------------------- |
+| kanban (`kanban.board`)      | `columns`  | `{title, position, wip_limit}`                                                               |
+| kanban                       | `labels`   | `{name, color}`                                                                              |
+| kanban                       | `cards`    | `{column_id, title, description_md, position, due_at, assignees[], label_ids[], link_ids[]}` |
+| checklist (`checklist.list`) | `items`    | `{text, done}`, listed in creation order                                                     |
+
+`position` is a fractional-index string ordered bytewise; a card's `rev` is
+checked by edits (`if_rev`). Comment threads and
+notifications about a card name it `record:<id>`.
+
+Migration `0032_builtin_apps_to_records.sql` retired the compiled-in Kanban and
+Checklist: it copied `ext_kanban` (columns, labels, cards with their
+assignees, labels, links, `due_at` and `rev`) and `ext_checklist` items into
+`ext_records` under the same ids in the shapes above, renamed `card:<id>`
+subjects on `kanban.board` nodes to `record:<id>`, and dropped the schemas
+`ext_kanban`, `ext_checklist` and the table `ext_migrations`. `ext_state` rows
+are kept.
 
 ## Comments and Notifications
 
@@ -523,7 +560,7 @@ notifications(id, user_id, kind, actor_id, node_id, thread_id, comment_id,
 ```
 
 - **M46 (migration `0024_comment_subjects.sql`):** `comment_threads.subject`
-  (`card:<uuid>`) names the part of an extension node a thread is about — null
+  (`record:<uuid>` since `0032`; `card:<uuid>` before) names the part of an extension node a thread is about — null
   on a document — and `notifications.subject` does the same for a notification
   with no thread; a comment's notification reads its thread's. `kind` may also
   be `ext:<ext id>:<verb>` (`notifications_kind_check`, widened in `0023`).

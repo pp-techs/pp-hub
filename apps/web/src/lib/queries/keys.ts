@@ -86,6 +86,8 @@ export const keys = {
   // One app's nodes in a space; the space-level prefix is what node mutations invalidate.
   extNodes: (spaceId: string, extId: string) => ["ext-nodes", spaceId, extId] as const,
   extNodesRoot: (spaceId: string) => ["ext-nodes", spaceId] as const,
+  // An uploaded app's administration view (backend address, secret set).
+  adminApp: (extId: string) => ["admin", "apps", extId] as const,
   adminSettings: ["admin", "settings"] as const,
   archivedPersonalSpaces: ["admin", "personal-spaces"] as const,
   // Comment threads of one node; an extension node's subject has its own entry

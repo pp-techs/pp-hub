@@ -13,7 +13,7 @@ import {
 import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 import { ExtIconTile } from "@/components/ext-icon-tile";
-import { extKindOf } from "@/ext/registry";
+import { extKindOf, useExtRegistry } from "@/ext/registry";
 import { useKeyedState } from "@/lib/use-keyed-state";
 
 type Props = {
@@ -30,6 +30,7 @@ export const NewExtNodeDialog = createModal<Props, string | null>(
   "new-ext-node",
   ({ extKind, modal }) => {
     const { i18n } = useLingui();
+    useExtRegistry();
     const kind = extKindOf(extKind);
     const Icon = kind?.icon ?? Puzzle;
     const defaultName = kind ? i18n._(kind.defaultName) : "";

@@ -1,0 +1,12 @@
+@import "@workspace/ui/globals.css";
+
+/* This app's own sources; globals.css already scans the shared components. */
+@source "./";
+
+/* The frame is the app: fill it. The host writes its theme variables inline on
+   <html>, which beats globals.css's :root defaults. */
+html,
+body,
+#root {
+  height: 100%;
+}

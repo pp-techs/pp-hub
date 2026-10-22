@@ -17,26 +17,29 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 )
 
-// extensionDTO is one extension as the settings screens and the New menu see
-// it. Enabled is the effective answer for the space asked about (the instance
-// switch when none was); Instance and Space are the two switches behind it.
+// extensionDTO is one installed app as the settings screens and the New menu
+// see it. Enabled is the effective answer for the space asked about (the
+// instance switch when none was); Instance and Space are the two switches
+// behind it. Package is what the SPA draws and opens the app from: it has no
+// code for any app.
 type extensionDTO struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	Version     string   `json:"version"`
-	Description string   `json:"description"`
-	Author      string   `json:"author"`
-	License     string   `json:"license"`
-	Homepage    string   `json:"homepage"`
-	NodeKinds   []string `json:"node_kinds"`
-	Instance    bool     `json:"instance"`
-	Space       bool     `json:"space"`
-	Enabled     bool     `json:"enabled"`
+	ID          string      `json:"id"`
+	Name        string      `json:"name"`
+	Version     string      `json:"version"`
+	Description string      `json:"description"`
+	Author      string      `json:"author"`
+	License     string      `json:"license"`
+	Homepage    string      `json:"homepage"`
+	NodeKinds   []string    `json:"node_kinds"`
+	Instance    bool        `json:"instance"`
+	Space       bool        `json:"space"`
+	Enabled     bool        `json:"enabled"`
+	Package     *packageDTO `json:"package"`
 }
 
-// handleListExtensions is GET /extensions[?space_id=]: every extension this
-// build carries and whether each is on. It is open to any signed-in person —
-// the New menu needs it — and says nothing a space member could not see.
+// handleListExtensions is GET /extensions[?space_id=]: every installed app
+// and whether each is on. It is open to any signed-in person — the New menu
+// needs it — and says nothing a space member could not see.
 func (s *Server) handleListExtensions(w http.ResponseWriter, r *http.Request) {
 	u := caller(r)
 	var spaceID pgtype.UUID
@@ -61,7 +64,7 @@ func (s *Server) handleListExtensions(w http.ResponseWriter, r *http.Request) {
 			out = append(out, extensionDTO{
 				ID: i.ID, Name: i.Name, Version: i.Version, Description: i.Description,
 				Author: i.Author, License: i.License, Homepage: i.Homepage, NodeKinds: i.NodeKinds,
-				Instance: i.Instance, Space: i.Space, Enabled: i.Enabled,
+				Instance: i.Instance, Space: i.Space, Enabled: i.Enabled, Package: toPackageDTO(i.Package),
 			})
 		}
 	}

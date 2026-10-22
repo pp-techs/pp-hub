@@ -1,0 +1,577 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-10-22 15:59+0700\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: vi\n"
+
+#: src/board-editor.tsx
+#: src/card-dialog.tsx
+msgid "\"{cardTitle}\" will be deleted for everyone who can open this board."
+msgstr "\"{cardTitle}\" sẽ bị xoá với tất cả những người mở được bảng này."
+
+#: src/column-dialogs.tsx
+msgid "\"{columnTitle}\" is empty and will be deleted."
+msgstr "\"{columnTitle}\" đang trống và sẽ bị xoá."
+
+#: src/column-dialogs.tsx
+msgid "\"{columnTitle}\" still has cards and there is no other column to move them to. Add a column first."
+msgstr "\"{columnTitle}\" vẫn còn thẻ và không có cột nào khác để chuyển sang. Hãy thêm một cột trước."
+
+#: src/column-dialogs.tsx
+msgid "\"{columnTitle}\" will be deleted. Choose where its cards go."
+msgstr "\"{columnTitle}\" sẽ bị xoá. Hãy chọn nơi chuyển các thẻ của nó."
+
+#: src/labels-dialog.tsx
+msgid "\"{labelName}\" will be removed from every card that has it."
+msgstr "\"{labelName}\" sẽ bị gỡ khỏi mọi thẻ đang dùng nhãn này."
+
+#: src/board-toolbar.tsx
+msgid "{columns, plural, one {# column} other {# columns}}"
+msgstr "{columns, plural, one {# cột} other {# cột}}"
+
+#: src/column-dialogs.tsx
+msgid "{count, plural, one {# card will be moved to the end of that column.} other {# cards will be moved to the end of that column.}}"
+msgstr "{count, plural, one {# thẻ sẽ được chuyển xuống cuối cột đó.} other {# thẻ sẽ được chuyển xuống cuối cột đó.}}"
+
+#: src/labels-dialog.tsx
+msgid "{count, plural, one {# card} other {# cards}}"
+msgstr "{count, plural, one {# thẻ} other {# thẻ}}"
+
+#: src/column-dialogs.tsx
+msgid "{n, plural, one {# card} other {# cards}}"
+msgstr "{n, plural, one {# thẻ} other {# thẻ}}"
+
+#: src/board-toolbar.tsx
+msgid "{shown} of {total, plural, one {# card} other {# cards}}"
+msgstr "{shown} trên {total, plural, one {# thẻ} other {# thẻ}}"
+
+#: src/board-toolbar.tsx
+msgid "{total, plural, one {# card} other {# cards}}"
+msgstr "{total, plural, one {# thẻ} other {# thẻ}}"
+
+#: src/board-context.tsx
+msgid "A board holds at most 30 columns"
+msgstr "Một bảng có tối đa 30 cột"
+
+#: src/board-context.tsx
+msgid "A board holds at most 50 labels"
+msgstr "Một bảng có tối đa 50 nhãn"
+
+#: src/board-context.tsx
+msgid "A board holds at most 5000 cards"
+msgstr "Một bảng có tối đa 5000 thẻ"
+
+#: src/board-context.tsx
+msgid "A card holds at most 50 assignees and 50 labels"
+msgstr "Một thẻ có tối đa 50 người phụ trách và 50 nhãn"
+
+#: src/board-context.tsx
+msgid "A card links to at most 20 items"
+msgstr "Một thẻ liên kết tối đa 20 mục"
+
+#: src/board-context.tsx
+msgid "A label on this card was deleted meanwhile"
+msgstr "Một nhãn của thẻ này vừa bị xoá"
+
+#: src/board-context.tsx
+msgid "A label with this name exists"
+msgstr "Đã có nhãn trùng tên"
+
+#: src/board-context.tsx
+msgid "A linked item is not available"
+msgstr "Một mục được liên kết không còn truy cập được"
+
+#: src/labels-dialog.tsx
+msgid "Add"
+msgstr "Thêm"
+
+#: src/card-dialog.tsx
+msgid "Add a more detailed description…"
+msgstr "Thêm mô tả chi tiết hơn…"
+
+#: src/board-column.tsx
+msgid "Add card"
+msgstr "Thêm thẻ"
+
+#: src/board-editor.tsx
+msgid "Add cards to a column and drag them between columns."
+msgstr "Thêm thẻ vào một cột và kéo thẻ qua lại giữa các cột."
+
+#: src/board-editor.tsx
+msgid "Add column"
+msgstr "Thêm cột"
+
+#: src/link-picker.tsx
+msgid "Add link"
+msgstr "Thêm liên kết"
+
+#: src/board-toolbar.tsx
+msgid "Any date"
+msgstr "Mọi ngày"
+
+#: src/board-toolbar.tsx
+msgid "Anyone"
+msgstr "Bất kỳ ai"
+
+#: src/people-picker.tsx
+msgid "Assign"
+msgstr "Giao việc"
+
+#: src/board-toolbar.tsx
+msgid "Assignee"
+msgstr "Người được giao"
+
+#: src/card-dialog.tsx
+msgid "Assignees"
+msgstr "Người phụ trách"
+
+#: src/board-column.tsx
+msgid "At the WIP limit"
+msgstr "Đã đạt giới hạn WIP"
+
+#: src/board-editor.tsx
+msgid "board"
+msgstr "bảng"
+
+#: src/labels-dialog.tsx
+msgid "Board labels ({labelCount})"
+msgstr "Nhãn của bảng ({labelCount})"
+
+#: src/board-column.tsx
+#: src/board-editor.tsx
+#: src/card-dialog.tsx
+#: src/column-dialogs.tsx
+msgid "Cancel"
+msgstr "Huỷ"
+
+#: src/card-dialog.tsx
+msgid "Card"
+msgstr "Thẻ"
+
+#: src/card-tile.tsx
+msgid "Card actions"
+msgstr "Thao tác với thẻ"
+
+#: src/board-column.tsx
+msgid "Card title"
+msgstr "Tiêu đề thẻ"
+
+#: src/board-toolbar.tsx
+msgid "Clear"
+msgstr "Xóa bộ lọc"
+
+#: src/card-dialog.tsx
+msgid "Clear due date"
+msgstr "Xoá hạn chót"
+
+#: src/bridge/app-provider.tsx
+#: src/card-dialog.tsx
+msgid "Close"
+msgstr "Đóng"
+
+#: src/board-column.tsx
+msgid "Column actions"
+msgstr "Thao tác với cột"
+
+#: src/board-editor.tsx
+msgid "Column name"
+msgstr "Tên cột"
+
+#: src/card-dialog.tsx
+#: src/card-tile.tsx
+msgid "Comments"
+msgstr "Bình luận"
+
+#: src/board-editor.tsx
+msgid "Could not add the card"
+msgstr "Không thêm được thẻ"
+
+#: src/board-editor.tsx
+msgid "Could not add the column"
+msgstr "Không thêm được cột"
+
+#: src/labels-dialog.tsx
+msgid "Could not create the label"
+msgstr "Không tạo được nhãn"
+
+#: src/board-editor.tsx
+#: src/card-dialog.tsx
+msgid "Could not delete the card"
+msgstr "Không xoá được thẻ"
+
+#: src/column-dialogs.tsx
+msgid "Could not delete the column"
+msgstr "Không xoá được cột"
+
+#: src/labels-dialog.tsx
+msgid "Could not delete the label"
+msgstr "Không xoá được nhãn"
+
+#: src/board-editor.tsx
+msgid "Could not move the card"
+msgstr "Không di chuyển được thẻ"
+
+#: src/card-dialog.tsx
+msgid "Could not save the card"
+msgstr "Không lưu được thẻ"
+
+#: src/board-editor.tsx
+#: src/column-dialogs.tsx
+msgid "Could not update the column"
+msgstr "Không cập nhật được cột"
+
+#: src/labels-dialog.tsx
+msgid "Could not update the label"
+msgstr "Không cập nhật được nhãn"
+
+#: src/labels-dialog.tsx
+msgid "Create new label"
+msgstr "Tạo nhãn mới"
+
+#: src/board-editor.tsx
+#: src/card-dialog.tsx
+#: src/labels-dialog.tsx
+msgid "Delete"
+msgstr "Xoá"
+
+#: src/card-dialog.tsx
+#: src/card-tile.tsx
+msgid "Delete card"
+msgstr "Xoá thẻ"
+
+#: src/board-column.tsx
+#: src/column-dialogs.tsx
+msgid "Delete column"
+msgstr "Xóa cột"
+
+#: src/column-dialogs.tsx
+msgid "Delete column?"
+msgstr "Xoá cột?"
+
+#: src/labels-dialog.tsx
+msgid "Delete label {labelName}"
+msgstr "Xoá nhãn {labelName}"
+
+#: src/labels-dialog.tsx
+msgid "Delete label?"
+msgstr "Xoá nhãn?"
+
+#: src/board-editor.tsx
+#: src/card-dialog.tsx
+msgid "Delete this card?"
+msgstr "Xoá thẻ này?"
+
+#: src/card-dialog.tsx
+msgid "Description"
+msgstr "Mô tả"
+
+#: src/card-dialog.tsx
+msgid "Discussion"
+msgstr "Thảo luận"
+
+#: src/board-editor.tsx
+msgid "Dismiss"
+msgstr "Đóng"
+
+#: src/labels-dialog.tsx
+msgid "Done"
+msgstr "Xong"
+
+#: src/board-column.tsx
+msgid "Drag cards here, or add one below"
+msgstr "Kéo thẻ vào đây, hoặc thêm thẻ ở bên dưới"
+
+#: src/board-toolbar.tsx
+msgid "Due"
+msgstr "Hạn"
+
+#: src/card-dialog.tsx
+#: src/card-tile.tsx
+msgid "Due date"
+msgstr "Hạn chót"
+
+#: src/card-dialog.tsx
+msgid "Edit card"
+msgstr "Sửa thẻ"
+
+#: src/board-column.tsx
+msgid "Enter a title for this card…"
+msgstr "Nhập tiêu đề cho thẻ này…"
+
+#: src/board-toolbar.tsx
+msgid "Filter cards"
+msgstr "Lọc thẻ"
+
+#: src/board-toolbar.tsx
+msgid "Filter cards…"
+msgstr "Lọc thẻ…"
+
+#: src/board-editor.tsx
+msgid "Got it"
+msgstr "Đã hiểu"
+
+#: src/bridge/app-provider.tsx
+msgid "It may have been deleted, or you may no longer have access to it."
+msgstr "Có thể nó đã bị xoá, hoặc bạn không còn quyền truy cập."
+
+#: src/bridge/app-provider.tsx
+msgid "It only works when opened from pp-hub. Reload the page to try again."
+msgstr "Ứng dụng chỉ hoạt động khi được mở từ pp-hub. Hãy tải lại trang để thử lại."
+
+#: src/board-toolbar.tsx
+msgid "Label"
+msgstr "Nhãn"
+
+#: src/labels-dialog.tsx
+msgid "Label colour"
+msgstr "Màu nhãn"
+
+#: src/labels-dialog.tsx
+msgid "Label name"
+msgstr "Tên nhãn"
+
+#: src/card-dialog.tsx
+msgid "Labels"
+msgstr "Nhãn"
+
+#: src/labels-dialog.tsx
+msgid "Labels are shared by every card on this board."
+msgstr "Nhãn được dùng chung cho mọi thẻ trên bảng này."
+
+#: src/column-dialogs.tsx
+msgid "Limit"
+msgstr "Giới hạn"
+
+#: src/card-dialog.tsx
+#: src/card-tile.tsx
+msgid "Linked items"
+msgstr "Mục liên kết"
+
+#: src/bridge/app-provider.tsx
+msgid "Loading…"
+msgstr "Đang tải…"
+
+#: src/board-toolbar.tsx
+#: src/card-dialog.tsx
+#: src/labels-dialog.tsx
+msgid "Manage labels"
+msgstr "Quản lý nhãn"
+
+#: src/bridge/app-provider.tsx
+msgid "More"
+msgstr "Thêm"
+
+#: src/column-dialogs.tsx
+msgid "Move its cards to"
+msgstr "Chuyển các thẻ của nó sang"
+
+#: src/board-column.tsx
+msgid "Move left"
+msgstr "Chuyển sang trái"
+
+#: src/board-column.tsx
+msgid "Move right"
+msgstr "Chuyển sang phải"
+
+#: src/card-tile.tsx
+msgid "Move to column…"
+msgstr "Chuyển đến cột…"
+
+#: src/column-dialogs.tsx
+msgid "Name"
+msgstr "Tên"
+
+#: src/card-dialog.tsx
+#: src/labels-dialog.tsx
+msgid "New label"
+msgstr "Nhãn mới"
+
+#: src/labels-dialog.tsx
+msgid "New label name"
+msgstr "Tên nhãn mới"
+
+#: src/board-toolbar.tsx
+msgid "Next 7 days"
+msgstr "7 ngày tới"
+
+#: src/link-picker.tsx
+msgid "No access"
+msgstr "Không có quyền"
+
+#: src/board-column.tsx
+msgid "No cards yet"
+msgstr "Chưa có thẻ"
+
+#: src/board-toolbar.tsx
+msgid "No date"
+msgstr "Không có ngày"
+
+#: src/card-dialog.tsx
+msgid "No labels"
+msgstr "Không có nhãn"
+
+#: src/board-toolbar.tsx
+msgid "No labels on this board yet."
+msgstr "Bảng này chưa có nhãn nào."
+
+#: src/labels-dialog.tsx
+msgid "No labels yet."
+msgstr "Chưa có nhãn nào."
+
+#: src/column-dialogs.tsx
+msgid "No limit"
+msgstr "Không giới hạn"
+
+#: src/card-dialog.tsx
+msgid "No linked items"
+msgstr "Chưa có mục liên kết"
+
+#: src/board-column.tsx
+msgid "No matching cards"
+msgstr "Không có thẻ phù hợp"
+
+#: src/people-picker.tsx
+msgid "No one found"
+msgstr "Không tìm thấy ai"
+
+#: src/link-picker.tsx
+msgid "Nothing found"
+msgstr "Không tìm thấy gì"
+
+#: src/card-tile.tsx
+msgid "Open"
+msgstr "Mở"
+
+#: src/link-picker.tsx
+msgid "Open {name}"
+msgstr "Mở {name}"
+
+#: src/board-editor.tsx
+msgid "Open a card to set a due date, assign people, add labels and link drive files."
+msgstr "Mở thẻ để đặt hạn, giao người, thêm nhãn và liên kết tệp trong drive."
+
+#: src/board-column.tsx
+msgid "Over the WIP limit"
+msgstr "Vượt giới hạn WIP"
+
+#: src/board-toolbar.tsx
+#: src/card-tile.tsx
+msgid "Overdue"
+msgstr "Quá hạn"
+
+#: src/board-editor.tsx
+msgid "Plan work on this board"
+msgstr "Lên kế hoạch công việc trên bảng này"
+
+#: src/people-picker.tsx
+msgid "Remove {personName}"
+msgstr "Gỡ {personName}"
+
+#: src/link-picker.tsx
+msgid "Remove link"
+msgstr "Gỡ liên kết"
+
+#: src/link-picker.tsx
+msgid "Remove link {name}"
+msgstr "Gỡ liên kết {name}"
+
+#: src/board-column.tsx
+msgid "Rename"
+msgstr "Đổi tên"
+
+#: src/column-dialogs.tsx
+msgid "Rename column"
+msgstr "Đổi tên cột"
+
+#: src/card-dialog.tsx
+#: src/column-dialogs.tsx
+msgid "Save"
+msgstr "Lưu"
+
+#: src/link-picker.tsx
+msgid "Search files…"
+msgstr "Tìm tệp…"
+
+#: src/people-picker.tsx
+msgid "Search people…"
+msgstr "Tìm người…"
+
+#: src/link-picker.tsx
+#: src/people-picker.tsx
+msgid "Searching…"
+msgstr "Đang tìm kiếm…"
+
+#: src/labels-dialog.tsx
+msgid "Select color tag"
+msgstr "Chọn màu nhãn"
+
+#: src/board-editor.tsx
+msgid "Share the board from the header — people see changes live."
+msgstr "Chia sẻ bảng từ thanh tiêu đề — mọi người thấy thay đổi ngay lập tức."
+
+#: src/column-dialogs.tsx
+msgid "Target column"
+msgstr "Cột đích"
+
+#: src/column-dialogs.tsx
+msgid "The most cards this column should hold. It is a warning, not a lock; leave it empty for no limit."
+msgstr "Số thẻ tối đa nên có trong cột này. Đây chỉ là cảnh báo, không phải khoá cứng; để trống nếu không giới hạn."
+
+#: src/bridge/app-provider.tsx
+msgid "This {what} could not be opened"
+msgstr "Không thể mở {what} này"
+
+#: src/bridge/app-provider.tsx
+msgid "This app could not reach pp-hub"
+msgstr "Ứng dụng này không kết nối được với pp-hub"
+
+#: src/bridge/app-provider.tsx
+msgid "This app is switched off for this space. Your {what} is kept; an admin can turn the app back on."
+msgstr "Ứng dụng này đang tắt trong không gian này. Dữ liệu của {what} vẫn được giữ; quản trị viên có thể bật lại ứng dụng."
+
+#: src/bridge/app-provider.tsx
+msgid "This app is turned off"
+msgstr "Ứng dụng này đã bị tắt"
+
+#: src/board-editor.tsx
+msgid "This board has no columns yet"
+msgstr "Bảng này chưa có cột nào"
+
+#: src/board-context.tsx
+msgid "This card was changed by someone else. The board has been refreshed. Review it and try again."
+msgstr "Thẻ này đã được người khác thay đổi. Bảng đã được làm mới. Hãy xem lại rồi thử lại."
+
+#: src/card-dialog.tsx
+msgid "Title"
+msgstr "Tiêu đề"
+
+#: src/card-dialog.tsx
+msgid "Title, description, due date, assignees and labels of this card."
+msgstr "Tiêu đề, mô tả, hạn chót, người phụ trách và nhãn của thẻ này."
+
+#: src/bridge/app-provider.tsx
+msgid "Try again"
+msgstr "Thử lại"
+
+#: src/link-picker.tsx
+msgid "Type at least two letters"
+msgstr "Nhập ít nhất hai ký tự"
+
+#: src/board-toolbar.tsx
+msgid "Unassigned"
+msgstr "Chưa giao"
+
+#: src/column-dialogs.tsx
+msgid "WIP limit"
+msgstr "Giới hạn WIP"
+
+#: src/board-column.tsx
+msgid "WIP limit…"
+msgstr "Giới hạn WIP…"
+
+#: src/board-editor.tsx
+msgid "You can view this board but not change it."
+msgstr "Bạn có thể xem bảng này nhưng không thể thay đổi."

@@ -65,6 +65,7 @@ Each shipped milestone has its own file under [`milestones/`](milestones/) with 
 | M48 | Open files in the shell, as tabs                       | ✅         | [detail](milestones/M48.md) |
 | M49 | Guest access                                           | ✅         | [detail](milestones/M49.md) |
 | M50 | Publishing: HTML artifacts on their own origin         | ✅         | [detail](milestones/M50.md) |
+| M51 | Packaged apps: uploaded, sandboxed, no rebuild         | ✅         | [detail](milestones/M51.md) |
 
 ## Upcoming — M28 Onward
 
@@ -143,16 +144,29 @@ re-parenting and trashing from the page tree followed with slash-editor 0.8.
 
 ### Phase G — Extensions
 
-M44–M46 shipped (small apps compiled into the server and the SPA behind a
+M44–M46 shipped (history: small apps compiled into the server and the SPA behind a
 public SDK, switched on per instance and per space — the xcaddy model, not
 runtime install and not a sandbox — with a kanban board as the first one;
 [M44](milestones/M44.md), [M45](milestones/M45.md), [M46](milestones/M46.md),
-design in [extensions.md](extensions.md)). What they deliberately did not
-build, and so what comes next on this line: share links to boards, a
-cross-board "assigned to me" view and due-date reminders, MCP tools from
-extensions, a published SDK with a semver promise (after a second extension
-has been written against the contract alone), per-extension translation
-catalogs.
+design in [extensions.md](extensions.md)).
+
+M51 added packaged apps: an administrator uploads a `.zip` in Admin › Apps and
+it works without a rebuild — static web files in a sandboxed frame talking to
+the host over a bridge, records in a host-owned store guarded by the node's
+capabilities, optional logic in the author's own backend behind a signed-token
+proxy ([detail](milestones/M51.md), design in
+[extensions.md](extensions.md#packaged-apps-m51), guide in
+[extension-authoring.md](extension-authoring.md#packaged-apps)). It
+delivered runtime install and per-app translations. The compiled-in mechanism
+was then removed: Kanban and Checklist are first-party packaged apps
+(`examples/apps/kanban`, `examples/apps/checklist`) an administrator uploads, their
+data moved by migration `0032`
+([detail](milestones/M51.md#built-in-extensions-removed)).
+
+What comes next on this line: share links to extension items, a cross-board
+"assigned to me" view and due-date reminders, MCP tools from extensions, `@pp-hub/app-sdk` published with a semver promise (after an app has been
+written against it by someone other than its authors), a catalog with signed
+packages.
 
 ### Named but Unscheduled
 

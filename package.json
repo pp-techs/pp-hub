@@ -14,7 +14,9 @@
   "workspaces": [
     "packages/*",
     "apps/*",
-    "tools/*"
+    "tools/*",
+    "examples/apps/kanban",
+    "examples/apps/checklist"
   ],
   "type": "module",
   "scripts": {
@@ -23,6 +25,7 @@
     "prepare": "vp config",
     "check": "vp check",
     "apps": "bun tools/pp-apps/src/cli.ts",
+    "apps:build": "vp run --filter '@pp-hub/app-*' build && vp run --no-cache --filter '@pp-hub/app-*' pack",
     "changeset": "changeset",
     "version-packages": "bun scripts/version-packages.ts"
   },
