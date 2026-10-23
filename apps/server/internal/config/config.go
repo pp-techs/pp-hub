@@ -77,6 +77,11 @@ type Config struct {
 	// can reach its port can drive it, including asking it to fetch an
 	// arbitrary URL.
 	OnlyOfficeJWTSecret []byte
+	// OfficeAutosaveInterval is how often the server asks the Document Server
+	// to write every open document back (PP_OFFICE_AUTOSAVE_INTERVAL). Zero
+	// turns it off. Each round that finds edits adds a version, so it also
+	// sets how fast an active session consumes version retention.
+	OfficeAutosaveInterval time.Duration
 	// MaxUploadBytes caps a single request body that becomes file content.
 	// A space's quota is checked only after the bytes have landed — the
 	// request's declared length is not trustworthy — so without a ceiling
@@ -154,6 +159,10 @@ func Load() (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("PP_SMTP_PORT must be a number, got %q", os.Getenv("PP_SMTP_PORT"))
 	}
+	autosave, err := officeAutosaveInterval(os.Getenv("PP_OFFICE_AUTOSAVE_INTERVAL"))
+	if err != nil {
+		return nil, err
+	}
 	logtoResource := env("PP_LOGTO_API_RESOURCE", "https://default.logto.app/api")
 	c := &Config{
 		Addr:             env("PP_ADDR", ":8080"),
@@ -182,14 +191,15 @@ func Load() (*Config, error) {
 		OnlyOfficeIntURL: os.Getenv("PP_ONLYOFFICE_INTERNAL_URL"),
 		WopiServerURL:    env("PP_WOPI_SERVER_URL", "http://localhost:8081"),
 
-		OnlyOfficeJWTSecret:  []byte(os.Getenv("PP_ONLYOFFICE_JWT_SECRET")),
-		MaxUploadBytes:       maxUpload,
-		BlobScrubBytesPerDay: scrubPerDay,
-		MaxPublicationBytes:  maxPublication,
-		ArtifactURL:          strings.TrimRight(strings.TrimSpace(os.Getenv("PP_ARTIFACT_URL")), "/"),
-		MetricsAddr:          env("PP_METRICS_ADDR", ":9091"),
-		BootstrapAdminEmail:  strings.ToLower(strings.TrimSpace(os.Getenv("PP_BOOTSTRAP_ADMIN_EMAIL"))),
-		AuditRetention:       time.Duration(daysEnv("PP_AUDIT_RETENTION_DAYS", 365)) * 24 * time.Hour,
+		OnlyOfficeJWTSecret:    []byte(os.Getenv("PP_ONLYOFFICE_JWT_SECRET")),
+		OfficeAutosaveInterval: autosave,
+		MaxUploadBytes:         maxUpload,
+		BlobScrubBytesPerDay:   scrubPerDay,
+		MaxPublicationBytes:    maxPublication,
+		ArtifactURL:            strings.TrimRight(strings.TrimSpace(os.Getenv("PP_ARTIFACT_URL")), "/"),
+		MetricsAddr:            env("PP_METRICS_ADDR", ":9091"),
+		BootstrapAdminEmail:    strings.ToLower(strings.TrimSpace(os.Getenv("PP_BOOTSTRAP_ADMIN_EMAIL"))),
+		AuditRetention:         time.Duration(daysEnv("PP_AUDIT_RETENTION_DAYS", 365)) * 24 * time.Hour,
 		Logto: LogtoSettings{
 			Endpoint:     strings.TrimRight(strings.TrimSpace(os.Getenv("PP_LOGTO_ENDPOINT")), "/"),
 			ClientID:     strings.TrimSpace(os.Getenv("PP_LOGTO_M2M_CLIENT_ID")),
@@ -381,6 +391,31 @@ func daysEnv(key string, def int) int {
 		return def
 	}
 	return n
+}
+
+// defaultOfficeAutosave is how often open office documents are written back
+// when PP_OFFICE_AUTOSAVE_INTERVAL is unset. Short enough that a restart
+// loses minutes, long enough that a long editing session does not push the
+// version history out: each round that finds edits adds a version.
+const defaultOfficeAutosave = 5 * time.Minute
+
+// officeAutosaveInterval reads PP_OFFICE_AUTOSAVE_INTERVAL: a Go duration
+// ("5m"), or "off"/"0" to turn the periodic save off. A wrong value is an
+// error rather than a default: an operator who typed "5 minutes" meaning to
+// shorten the window should not get the old one without being told.
+func officeAutosaveInterval(raw string) (time.Duration, error) {
+	raw = strings.TrimSpace(raw)
+	switch strings.ToLower(raw) {
+	case "":
+		return defaultOfficeAutosave, nil
+	case "off", "0":
+		return 0, nil
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil || d < time.Minute {
+		return 0, fmt.Errorf("PP_OFFICE_AUTOSAVE_INTERVAL must be a duration of at least 1m (such as 5m), or off; got %q", raw)
+	}
+	return d, nil
 }
 
 // bytesEnv reads a byte count, accepting a plain number or a K/M/G/T suffix.

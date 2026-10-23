@@ -96,6 +96,18 @@ services:
       # the service name, so WOPI never leaves the host. Port 8081, not the
       # public 8080: /wopi is not served there.
       PP_WOPI_SERVER_URL: http://server:8081
+      # The Document Server as the server reaches it over the compose network.
+      # With the secret below, the server asks it every
+      # PP_OFFICE_AUTOSAVE_INTERVAL to write open documents back, so a restart
+      # of either side loses minutes of typing rather than the whole session
+      # (the Document Server hands a document to this server only when the
+      # last editor leaves). The secret is the Document Server's JWT_SECRET,
+      # the same value the worker signs conversions with.
+      PP_ONLYOFFICE_INTERNAL_URL: http://onlyoffice
+      PP_ONLYOFFICE_JWT_SECRET: "${PP_ONLYOFFICE_JWT_SECRET:?set in .env - generate with openssl rand -base64 32}"
+      # A duration of at least 1m, or "off". Each round that finds edits adds
+      # a version to the file's history.
+      PP_OFFICE_AUTOSAVE_INTERVAL: "${PP_OFFICE_AUTOSAVE_INTERVAL:-5m}"
 
       # Whoever signs in with this address becomes an instance admin, on
       # every sign-in. Without it a fresh install has no administrator and no
@@ -158,6 +170,14 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      # Order, not readiness: `up -d` recreates a service's dependencies
+      # before it, so this makes a redeploy stop the Document Server first,
+      # while this server can still receive the PutFile it sends on the way
+      # down. Without it both are recreated at once and whatever was typed
+      # since the file was opened is lost. (`down` and `stop` run the other
+      # way round and stop this server first: stop editing before using them.)
+      onlyoffice:
+        condition: service_started
     networks: [edge, data, office]
 
   # Preview worker — optional. Remove this service and the app still works:
@@ -248,6 +268,9 @@ services:
     # WOPI host (see the entrypoint below).
     image: onlyoffice/documentserver:10.0.0.1
     restart: unless-stopped
+    # Measured at about 30 s to shut down on 10.0.0.1, against Docker's
+    # default of 10 s before SIGKILL. It saves open documents on the way down.
+    stop_grace_period: 60s
     expose:
       - "80"
     # PLAIN VPS: publish and give it a hostname in your own proxy.

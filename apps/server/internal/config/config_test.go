@@ -2,6 +2,7 @@ package config
 
 import (
 	"testing"
+	"time"
 )
 
 // A ceiling an operator typed wrongly must stop the server, not silently
@@ -191,6 +192,34 @@ func TestArtifactURLMustBeAnotherHost(t *testing.T) {
 		c := &Config{ExternalURL: tc.external, ArtifactURL: tc.artifact}
 		if err := c.validateArtifactURL(); (err == nil) != tc.ok {
 			t.Errorf("external %s, artifact %s: err = %v, want ok=%v", tc.external, tc.artifact, err, tc.ok)
+		}
+	}
+}
+
+func TestOfficeAutosaveInterval(t *testing.T) {
+	cases := []struct {
+		in   string
+		want time.Duration
+		bad  bool
+	}{
+		{"", 5 * time.Minute, false},
+		{"2m", 2 * time.Minute, false},
+		{"1h", time.Hour, false},
+		{"off", 0, false},
+		{"0", 0, false},
+		// Below a minute would version a file every few seconds of typing.
+		{"30s", 0, true},
+		{"5 minutes", 0, true},
+		{"-5m", 0, true},
+	}
+	for _, c := range cases {
+		got, err := officeAutosaveInterval(c.in)
+		if (err != nil) != c.bad {
+			t.Errorf("%q: err = %v, want error = %v", c.in, err, c.bad)
+			continue
+		}
+		if !c.bad && got != c.want {
+			t.Errorf("%q = %v, want %v", c.in, got, c.want)
 		}
 	}
 }

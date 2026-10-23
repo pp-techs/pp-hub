@@ -65,7 +65,7 @@ to its address, and set `PP_WOPI_SERVER_URL` to that URL (the worker uses it too
 - Compose sets `WOPI_ENABLED=true`; OnlyOffice serves `/hosting/discovery` and the editor at `/hosting/wopi/{documentType}/{mode}` (`word|cell|slide`, mapped from the file extension; `edit` or `view`, see below).
 - The browser loads the editor by **POSTing a form** into an iframe with `access_token` and `access_token_ttl` in the body — 9.x does not accept the token as a query param on this route.
 - `PP_WOPI_SERVER_URL` must be reachable **from the OnlyOffice container** and, since 10.0, **named by an ipfilter rule** (`* allowed` no longer counts; without one the frame shows only "Access forbidden"). Compose writes that rule in the `onlyoffice` entrypoint: `server` in production, `wopi-proxy` in development. Development cannot point at `host.docker.internal` — OrbStack resolves it to `0.250.250.254`, which OnlyOffice 10 refuses outright for WOPI — so `wopi-proxy` (socat) forwards to the host server's WOPI listener. See [deployment.md](../deployment.md#onlyoffice-10-name-the-wopi-host).
-- Saving: a clean close writes back within seconds; after an unclean disconnect the Document Server holds the session for `expire.presence` = 300 s and `documentsCron` runs every 2 minutes, so `PutFile` (a new version) arrives roughly 5–10 minutes later.
+- Saving: a clean close writes back within seconds. What a person types is held in the Document Server's **memory** until the last editor leaves, and only then does it send `PutFile` (a new version) — see [Saving and restarts](#saving-and-restarts). After an unclean disconnect the Document Server holds the session for `expire.presence` = 300 s and `documentsCron` runs every 2 minutes, so `PutFile` arrives roughly 5–10 minutes later.
 
 ## Read-Only Sessions
 
@@ -122,6 +122,48 @@ into a tombstone reappears on restore as content nobody wrote there.
 - Same file → same WOPI `FileId` → OnlyOffice merges concurrent edits in realtime.
 - Save produces one `PutFile` with merged content; a `Version` mismatch → HTTP 409 → OnlyOffice reloads/re-merges.
 
+## Saving and restarts
+
+The Document Server keeps a document's live state in process memory (its
+`editorDataStorage` is `editorDataMemory`; the 10.0.0.1 community image runs no
+Postgres, Redis or RabbitMQ of its own). It writes to this server only when the
+last editor leaves. Until then pp-hub holds the version the file was opened
+with, and nothing in the version history shows that anyone has typed.
+
+That window is how data was lost on 2026-10-22: a redeploy recreated the
+`server` and `onlyoffice` containers together. The Document Server assembled
+each open file into its cache on the way down, tried `PutFile` and `UNLOCK`
+against a server that had already stopped (`ECONNREFUSED`), and the new
+container started with no memory of those sessions. The assembled files stay
+in `cache/files/data/<lock id>/output.<ext>` and are deleted after
+`expire.files` (24 h); they are never retried. They can be fetched by hand from
+the container, and the `changesHistory.json` beside each lists who edited when.
+
+Two things now narrow it:
+
+- **Periodic forcesave.** Every `PP_OFFICE_AUTOSAVE_INTERVAL` (default 5 m, at
+  least 1 m, `off` disables) `office.Forcesaver` asks the Document Server's
+  command service (`POST /command`, `{"c":"forcesave","key":<lock id>}`, signed
+  like the conversion request) to write each open document back. The lock id
+  that OnlyOffice sends with `LOCK` (`wopi_…`) is also the key of its editing
+  session, so the list of keys is `file_locks` rows with that prefix
+  (`ListOfficeEditorLockTokens`); collab rooms and WebDAV hold other tokens.
+  The Document Server answers with an ordinary `PutFile` (`X-LOOL-WOPI-IsAutosave:
+true`), so a forcesave is a normal version, subject to the version retention
+  policy. Error 1 (no such session) and 4 (no changes since the last save) are
+  the usual answers and are not logged; anything else is. `autoAssembly` in the
+  Document Server's own configuration looks like the same thing and is not: with
+  it enabled, 10.0.0.1 sent no `PutFile` for a document that stayed open.
+- **Stop order.** `server` depends on `onlyoffice` in `compose.prod.yml`, so
+  `docker compose up -d` stops and recreates the Document Server first and waits
+  for it (`stop_grace_period: 60s`; it takes about 30 s) while the server is
+  still answering. Its shutdown save arrives (`X-LOOL-WOPI-IsExitSave: true`)
+  followed by `UNLOCK`. `down` and `stop` reverse dependencies and stop the
+  server first, so stop editing before using them. Dokploy runs `up -d`.
+
+A server crash or an OOM kill of the Document Server still loses up to one
+interval.
+
 ## Conversion API
 
 `cmd/worker` uses `POST {PP_ONLYOFFICE_INTERNAL_URL}/converter` to turn office
@@ -154,8 +196,9 @@ request to fetch an arbitrary address from inside the network, which is
 exactly what `ALLOW_PRIVATE_IP_ADDRESS=true` then permits.
 
 So both compose stacks set `JWT_ENABLED=true` with a shared
-`PP_ONLYOFFICE_JWT_SECRET`, and the worker signs every conversion request:
-`preview.signOnlyOfficeJWT` puts an HS256 token over the request body in its
+`PP_ONLYOFFICE_JWT_SECRET`, and everything that calls the Document Server signs
+its request — the worker's conversions, and the server's forcesave commands:
+`office.SignJWT` puts an HS256 token over the request body in its
 `token` field and the same request, wrapped in `payload`, in an
 `Authorization: Bearer` header — the documentation is inconsistent about which
 endpoints honour which, and sending both costs nothing. Unsigned or

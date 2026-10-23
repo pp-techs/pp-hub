@@ -59,8 +59,9 @@ The deployment still carries what makes this safe, and an operator editing it
 should know why.
 
 - **Requests to the Document Server are signed**: `JWT_ENABLED=true` with a shared
-  `PP_ONLYOFFICE_JWT_SECRET`, and `preview.signOnlyOfficeJWT` signs every
-  conversion request — body `token` claim **and** `Authorization: Bearer`, because
+  `PP_ONLYOFFICE_JWT_SECRET`, and `office.SignJWT` signs every
+  request to it — the worker's conversions and the server's forcesave commands —
+  body `token` claim **and** `Authorization: Bearer`, because
   the docs disagree about which endpoints honour which. Unsigned requests come
   back `-8` with no fetch attempted, verified against a live 10.0.0.1.
 - **`ALLOW_PRIVATE_IP_ADDRESS=true` stays, and it is load-bearing**: the WOPI host

@@ -1,4 +1,4 @@
-package preview
+package office
 
 import (
 	"crypto/hmac"
@@ -13,14 +13,11 @@ import (
 // with the same opaque `-8` as a wrong secret, so a padding or header mistake
 // here would surface in production as "office thumbnails stopped working"
 // with nothing to go on. This asserts the wire shape a verifier will check.
-func TestOnlyOfficeJWTIsVerifiable(t *testing.T) {
+func TestSignJWTIsVerifiable(t *testing.T) {
 	secret := []byte("a-shared-onlyoffice-secret-value")
-	claims := convertRequest{
-		Async: false, URL: "http://host/doc.docx",
-		FileType: "docx", OutputType: "pdf", Key: "cachekey", Title: "doc.docx",
-	}
+	claims := map[string]string{"c": "forcesave", "key": "wopi_cachekey"}
 
-	token, err := signOnlyOfficeJWT(secret, claims)
+	token, err := SignJWT(secret, claims)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,12 +51,12 @@ func TestOnlyOfficeJWTIsVerifiable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("decode payload: %v", err)
 	}
-	var round convertRequest
+	var round map[string]string
 	if err := json.Unmarshal(body, &round); err != nil {
-		t.Fatalf("payload is not the request: %v", err)
+		t.Fatalf("payload is not the claims: %v", err)
 	}
-	if round.URL != claims.URL || round.Key != claims.Key {
-		t.Errorf("payload = %+v, want the signed request", round)
+	if round["c"] != claims["c"] || round["key"] != claims["key"] {
+		t.Errorf("payload = %+v, want the signed claims", round)
 	}
 
 	mac := hmac.New(sha256.New, secret)
@@ -72,30 +69,17 @@ func TestOnlyOfficeJWTIsVerifiable(t *testing.T) {
 
 // A different secret must produce a different signature — otherwise the
 // Document Server would accept a token this deployment did not mint.
-func TestOnlyOfficeJWTBindsTheSecret(t *testing.T) {
+func TestSignJWTBindsTheSecret(t *testing.T) {
 	claims := map[string]string{"url": "http://host/doc.docx"}
-	a, err := signOnlyOfficeJWT([]byte("secret-one-is-thirty-two-bytes!!"), claims)
+	a, err := SignJWT([]byte("secret-one-is-thirty-two-bytes!!"), claims)
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := signOnlyOfficeJWT([]byte("secret-two-is-thirty-two-bytes!!"), claims)
+	b, err := SignJWT([]byte("secret-two-is-thirty-two-bytes!!"), claims)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if a == b {
 		t.Fatal("two secrets produced the same token")
-	}
-}
-
-// Empty secret means the Document Server is unsigned; the renderer must not
-// attach a token at all, because one it cannot verify fails identically to a
-// wrong one and the operator learns nothing from the error.
-func TestConvertRequestOmitsEmptyToken(t *testing.T) {
-	body, err := json.Marshal(convertRequest{URL: "http://host/doc.docx"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if strings.Contains(string(body), "token") {
-		t.Errorf("unsigned request carries a token field: %s", body)
 	}
 }

@@ -31,3 +31,11 @@ WHERE file_locks.lock_token = EXCLUDED.lock_token OR file_locks.expires_at <= no
 -- Releases every lock whose token starts with the prefix — the collab rooms'
 -- locks at startup, when no room can be resident yet (one server instance).
 DELETE FROM file_locks WHERE starts_with(lock_token, @prefix::text);
+
+-- name: ListOfficeEditorLockTokens :many
+-- The live locks OnlyOffice holds on open documents. Its lock id is also the
+-- key of the document's editing session, which is what the command service
+-- addresses; WOPI lock ids are minted as "wopi_<random>". Collab rooms and
+-- WebDAV clients hold other tokens and have no OnlyOffice session.
+SELECT lock_token FROM file_locks
+WHERE expires_at > now() AND starts_with(lock_token, 'wopi_');

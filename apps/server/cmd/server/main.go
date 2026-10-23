@@ -29,6 +29,7 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/notifications"
 	"github.com/nhatbui/pp-hub/apps/server/internal/notify"
 	"github.com/nhatbui/pp-hub/apps/server/internal/obs"
+	"github.com/nhatbui/pp-hub/apps/server/internal/office"
 	"github.com/nhatbui/pp-hub/apps/server/internal/orgsync"
 	"github.com/nhatbui/pp-hub/apps/server/internal/personal"
 	"github.com/nhatbui/pp-hub/apps/server/internal/preview"
@@ -194,6 +195,17 @@ func run() error {
 		return err
 	}
 	go uploadsSvc.Run(ctx, 15*time.Minute)
+
+	// An office editor's session lives in the Document Server's memory until
+	// the last person leaves, so a restart of either process in between loses
+	// it. Asking for a save on a timer keeps what is lost to minutes.
+	if cfg.OfficeAutosaveInterval > 0 {
+		go (&office.Forcesaver{
+			URL:    cfg.OnlyOfficeIntURL,
+			Secret: cfg.OnlyOfficeJWTSecret,
+			Keys:   queries.ListOfficeEditorLockTokens,
+		}).Run(ctx, cfg.OfficeAutosaveInterval)
+	}
 	mailer := mail.New(syscfg.SMTP)
 	notifier := notify.New(queries, mailer, syscfg, cfg.ExternalURL)
 	go notifier.Run(ctx)
