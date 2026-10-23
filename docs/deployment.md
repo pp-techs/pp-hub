@@ -973,6 +973,42 @@ fonts (Segoe UI, Aptos, a current Calibri) are not redistributable, so they are
 not fetched: add them there if you hold a licence. A hand-written compose needs
 the `fonts` step of the `entrypoint` in `compose.prod.yml` and the volume.
 
+### Saving, and redeploying while people are editing
+
+An office file is edited in the Document Server's memory, and it writes the
+file back to pp-hub only when the last person closes it. Until then pp-hub has
+the version the file was opened with. If the Document Server is replaced or
+killed meanwhile, or the server it writes to is already gone, everything typed
+since the file was opened is lost, and the version history does not show it.
+This is what happened on 2026-10-22: a redeploy recreated both containers at
+once.
+
+Two things in the stack narrow it, and one habit closes the rest.
+
+- **Periodic save.** `PP_OFFICE_AUTOSAVE_INTERVAL` (default `5m`; a duration of
+  at least `1m`, or `off`) is how often the server asks the Document Server to
+  write every open document back. It needs `PP_ONLYOFFICE_INTERNAL_URL` and
+  `PP_ONLYOFFICE_JWT_SECRET` on the `server` service (`compose.prod.yml` sets
+  both; outside it, the internal URL defaults to the browser-facing one). Each
+  round that finds edits adds a version to the file, so a long session uses up
+  `version_retention_count` faster than before; raise it in the admin console
+  if the history matters. A server crash or an OOM kill of the Document Server
+  still loses up to one interval.
+- **Stop order.** `compose.prod.yml` makes `server` depend on `onlyoffice`, so
+  `docker compose up -d` (what Dokploy runs) replaces the Document Server first
+  and waits for it, up to `stop_grace_period: 60s` (it needs about 30 s), while
+  the server still answers. `docker compose down` and `stop` stop `server`
+  first. Do not use them while people are editing. A hand-written compose needs
+  both settings.
+- **Before a deploy,** look at who is in a file. A lock on an open office
+  document is a `file_locks` row whose token starts with `wopi_`; the same list
+  is what the periodic save works from.
+
+Lost work that the Document Server already assembled is kept in its cache for
+24 hours: `/var/lib/onlyoffice/documentserver/App_Data/cache/files/data/<id>/output.xlsx`
+(or `.docx`, `.pptx`), with `changesHistory.json` beside it naming who edited and
+when. Copy it out before the next cleanup.
+
 ### One issuer or two
 
 `PP_OIDC_ISSUER` is the issuer **this process** can reach: discovery, token,
@@ -1395,9 +1431,11 @@ does it once.
 `PP_ONLYOFFICE_JWT_SECRET`, which is a required secret in production and has a
 fixed well-known default in development. The Document Server has no other
 access control: without a signature anything that can reach its port can drive
-its conversion API, and that API takes a URL to fetch. The worker is the only
-process that calls it, and it signs every request; a mismatched secret shows
-up as conversion error `-8` in the job's `last_error`.
+its conversion API, and that API takes a URL to fetch. Two processes call it,
+the worker (conversions) and the server (the periodic save below), and both
+sign every request; a mismatched secret shows up as conversion error `-8` in
+the job's `last_error`, and as `command service error 6` in the server's log
+for the save.
 
 The older instruction to keep JWT disabled was half right and half wrong: the
 _conversion_ call used to be unsigned, so turning JWT on did break office

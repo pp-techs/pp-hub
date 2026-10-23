@@ -14,6 +14,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/nhatbui/pp-hub/apps/server/internal/office"
 	"github.com/nhatbui/pp-hub/apps/server/internal/wopi"
 )
 
@@ -191,14 +192,14 @@ func (r *officeConverter) convert(ctx context.Context, srcURL string, p Payload)
 	// to fetch anything at all.
 	var bearer string
 	if len(r.cfg.JWTSecret) > 0 {
-		signed, err := signOnlyOfficeJWT(r.cfg.JWTSecret, payload)
+		signed, err := office.SignJWT(r.cfg.JWTSecret, payload)
 		if err != nil {
 			return "", fmt.Errorf("office: sign convert request: %w", err)
 		}
 		payload.Token = signed
 		// The header form wraps the same request under `payload`; the
 		// Document Server checks whichever it is configured for.
-		bearer, err = signOnlyOfficeJWT(r.cfg.JWTSecret, map[string]any{"payload": payload})
+		bearer, err = office.SignJWT(r.cfg.JWTSecret, map[string]any{"payload": payload})
 		if err != nil {
 			return "", fmt.Errorf("office: sign convert header: %w", err)
 		}

@@ -12,6 +12,7 @@ import (
 	"time"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/store"
 	"github.com/nhatbui/pp-hub/apps/server/internal/wopi"
@@ -334,5 +335,62 @@ func TestWopiMachineTokenIsAuthorizedWithoutACapability(t *testing.T) {
 	// resolve one for.
 	if rank != 1 {
 		t.Errorf("machine token rank = %d, want the 1 it was minted with", rank)
+	}
+}
+
+// The forcesaver addresses an editing session by its lock id, so the list it
+// is given must hold OnlyOffice's locks and nothing else: a collab room's or a
+// WebDAV client's token names no session, and an expired lock names one that
+// is gone.
+func TestEditorLockListHoldsOnlyLiveOfficeLocks(t *testing.T) {
+	srv, q := wopiEnv(t)
+	ctx := context.Background()
+
+	office := newWopiFixture(t, srv, q, "lock-office")
+	room := newWopiFixture(t, srv, q, "lock-room")
+	stale := newWopiFixture(t, srv, q, "lock-stale")
+
+	officeLock := "wopi_test-office-" + fmt.Sprint(os.Getpid())
+	staleLock := "wopi_test-stale-" + fmt.Sprint(os.Getpid())
+	for node, token := range map[pgtype.UUID]string{
+		office.file.ID: officeLock,
+		room.file.ID:   "collab:test-room",
+		stale.file.ID:  staleLock,
+	} {
+		if err := q.UpsertLock(ctx, store.UpsertLockParams{NodeID: node, LockToken: token}); err != nil {
+			t.Fatalf("lock %q: %v", token, err)
+		}
+	}
+	// No query backdates a lock, and a test must not wait out thirty minutes:
+	// open the pool the fixture used to reach the table directly.
+	pool, err := pgxpool.New(ctx, os.Getenv("PP_TEST_DATABASE_URL"))
+	if err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	t.Cleanup(pool.Close)
+	if _, err := pool.Exec(ctx, `UPDATE file_locks SET expires_at = now() - interval '1 minute' WHERE node_id = $1`, stale.file.ID); err != nil {
+		t.Fatalf("expire lock: %v", err)
+	}
+
+	got, err := q.ListOfficeEditorLockTokens(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	has := func(tok string) bool {
+		for _, g := range got {
+			if g == tok {
+				return true
+			}
+		}
+		return false
+	}
+	if !has(officeLock) {
+		t.Errorf("a live OnlyOffice lock is missing from %v", got)
+	}
+	if has("collab:test-room") {
+		t.Errorf("a collab room's lock was listed as an editing session")
+	}
+	if has(staleLock) {
+		t.Errorf("an expired lock was listed")
 	}
 }

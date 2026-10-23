@@ -239,3 +239,16 @@ func TestSignTokenWithTTLNeedsANode(t *testing.T) {
 		t.Error("expected an error when no node id is given")
 	}
 }
+
+// Empty secret means the Document Server is unsigned; the renderer must not
+// attach a token at all, because one it cannot verify fails identically to a
+// wrong one and the operator learns nothing from the error.
+func TestConvertRequestOmitsEmptyToken(t *testing.T) {
+	body, err := json.Marshal(convertRequest{URL: "http://host/doc.docx"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(body), "token") {
+		t.Errorf("unsigned request carries a token field: %s", body)
+	}
+}

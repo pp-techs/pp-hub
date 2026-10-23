@@ -79,6 +79,35 @@ func (q *Queries) GetLock(ctx context.Context, nodeID pgtype.UUID) (FileLock, er
 	return i, err
 }
 
+const listOfficeEditorLockTokens = `-- name: ListOfficeEditorLockTokens :many
+SELECT lock_token FROM file_locks
+WHERE expires_at > now() AND starts_with(lock_token, 'wopi_')
+`
+
+// The live locks OnlyOffice holds on open documents. Its lock id is also the
+// key of the document's editing session, which is what the command service
+// addresses; WOPI lock ids are minted as "wopi_<random>". Collab rooms and
+// WebDAV clients hold other tokens and have no OnlyOffice session.
+func (q *Queries) ListOfficeEditorLockTokens(ctx context.Context) ([]string, error) {
+	rows, err := q.db.Query(ctx, listOfficeEditorLockTokens)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var lock_token string
+		if err := rows.Scan(&lock_token); err != nil {
+			return nil, err
+		}
+		items = append(items, lock_token)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const refreshLock = `-- name: RefreshLock :exec
 UPDATE file_locks SET expires_at = now() + INTERVAL '30 minutes'
 WHERE node_id = $1 AND lock_token = $2
