@@ -11,6 +11,10 @@ Versions up to and including 0.14.1 predate this changelog; see the
 
 <!-- `bun run version-packages` adds each release's section from its changesets; edit it in the Version Packages PR. -->
 
+## [1.0.2] — 2026-10-23
+
+Office files no longer lose everything typed since they were opened when a redeploy or crash replaces the editor. The server now asks the Document Server to save every open document each 5 minutes (`PP_OFFICE_AUTOSAVE_INTERVAL`, `off` to disable), and in `compose.prod.yml` the Document Server is now stopped first, with time to finish, before the server. Each save that finds edits adds a version to the file. The server needs `PP_ONLYOFFICE_JWT_SECRET` and `PP_ONLYOFFICE_INTERNAL_URL`, which `compose.prod.yml` now passes to it; a hand-written compose must do the same.
+
 ## [1.0.1] — 2026-10-22
 
 Administration pages now share one type scale (no more 10px and 11px captions beside 12px and 14px text), the sidebar toggle in the admin header lines up with the drive header, and the sub-page block in a document is centred on its row beside the block controls.
