@@ -4004,7 +4004,7 @@ msgstr "Đang tắt. Không ai tạo hay mở được các mục của nó."
 msgid "Office"
 msgstr "Office"
 
-#: src/components/doc-editor/doc-editor.tsx:637
+#: src/components/doc-editor/doc-editor.tsx:641
 msgid "Offline"
 msgstr "Ngoại tuyến"
 
@@ -4794,7 +4794,7 @@ msgstr "Lưu thay đổi"
 msgid "Save settings"
 msgstr "Lưu cài đặt"
 
-#: src/components/doc-editor/doc-editor.tsx:627
+#: src/components/doc-editor/doc-editor.tsx:631
 msgid "Saved"
 msgstr "Đã lưu"
 
@@ -5358,7 +5358,7 @@ msgstr "Đã tạm khoá"
 msgid "Switch space"
 msgstr "Chuyển không gian"
 
-#: src/components/doc-editor/doc-editor.tsx:632
+#: src/components/doc-editor/doc-editor.tsx:636
 msgid "Syncing…"
 msgstr "Đang đồng bộ…"
 

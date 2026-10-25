@@ -3460,7 +3460,7 @@ msgstr ""
 msgid "Office"
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:637
+#: src/components/doc-editor/doc-editor.tsx:641
 msgid "Offline"
 msgstr ""
 
@@ -4164,7 +4164,7 @@ msgstr ""
 msgid "Save settings"
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:627
+#: src/components/doc-editor/doc-editor.tsx:631
 msgid "Saved"
 msgstr ""
 
@@ -4678,7 +4678,7 @@ msgstr ""
 msgid "Switch space"
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:632
+#: src/components/doc-editor/doc-editor.tsx:636
 msgid "Syncing…"
 msgstr ""
 
