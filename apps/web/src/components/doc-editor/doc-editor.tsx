@@ -324,6 +324,7 @@ export function DocEditor({
   );
 }
 
+/** The open document: the page tree beside it, and over the scrolling column the outline and the comments view. */
 function DocSurface({
   node,
   doc,
@@ -486,7 +487,11 @@ function DocSurface({
           />
         </SidePanel>
       ) : null}
-      <div className="relative min-h-0 flex-1">
+      {/* min-w-0: without it the surface cannot shrink below the document's
+          min-content width (wide tables, the md gutters), so on a narrow window
+          it overflows the right edge and takes the outline anchored there with
+          it. */}
+      <div className="relative min-h-0 min-w-0 flex-1">
         <div ref={scrollRef} className="h-full overflow-y-auto">
           <div className="mx-auto w-full max-w-5xl px-4 pt-10 md:pr-32 md:pl-20">
             <PageHeader

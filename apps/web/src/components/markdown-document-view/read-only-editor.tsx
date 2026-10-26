@@ -133,7 +133,7 @@ export default function ReadOnlyEditor({
           <OutlinePanel
             editor={editor}
             scrollRef={outlineScrollRef}
-            className="sticky top-4 hidden self-start lg:block"
+            className="sticky top-4 self-start"
           />
         ) : null}
       </div>
