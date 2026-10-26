@@ -324,6 +324,7 @@ export function DocEditor({
   );
 }
 
+/** The open document: the page tree beside it, and over the scrolling column the outline and the comments view. */
 function DocSurface({
   node,
   doc,

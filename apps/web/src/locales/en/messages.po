@@ -903,7 +903,7 @@ msgstr "An administrator has not turned on agent access."
 msgid "An administrator has turned personal tokens off."
 msgstr "An administrator has turned personal tokens off."
 
-#: src/components/doc-editor/doc-editor.tsx:370
+#: src/components/doc-editor/doc-editor.tsx:371
 msgid "Anonymous"
 msgstr "Anonymous"
 
@@ -4004,7 +4004,7 @@ msgstr "Off. Nobody can create or open its items."
 msgid "Office"
 msgstr "Office"
 
-#: src/components/doc-editor/doc-editor.tsx:641
+#: src/components/doc-editor/doc-editor.tsx:642
 msgid "Offline"
 msgstr "Offline"
 
@@ -4794,7 +4794,7 @@ msgstr "Save changes"
 msgid "Save settings"
 msgstr "Save settings"
 
-#: src/components/doc-editor/doc-editor.tsx:631
+#: src/components/doc-editor/doc-editor.tsx:632
 msgid "Saved"
 msgstr "Saved"
 
@@ -5358,7 +5358,7 @@ msgstr "Suspended"
 msgid "Switch space"
 msgstr "Switch space"
 
-#: src/components/doc-editor/doc-editor.tsx:636
+#: src/components/doc-editor/doc-editor.tsx:637
 msgid "Syncing…"
 msgstr "Syncing…"
 
