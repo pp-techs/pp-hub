@@ -1,5 +1,20 @@
 # @pp-hub/release
 
+## 1.1.0
+
+### Minor Changes
+
+- 9e8fb58: Add MCP reads and conditional edits for UTF-8 text files, including HTML, CSS, JavaScript/TypeScript, JSON, XML, YAML, SVG and CSV, while preserving Markdown collaboration.
+
+  Add structured DOCX/XLSX/PPTX read/edit tools with schema discovery, permission and editor-lock checks, stale-version protection and atomic validated output. Deploy the new isolated `office-agent` image alongside the server; it uses pinned OfficeCLI over a private Unix socket without network, application secrets or blob mounts.
+
+  Correct invalid OOXML ordering and spreadsheet DPI metadata in bundled blank templates so newly created files support validated Office edits.
+
+### Patch Changes
+
+- 644fe2b: The hover table of contents on a markdown document no longer needs the browser zoomed out to appear. In the editor it was pushed past the right edge of the window on a narrow window — whenever the document's widest content, like a table, did not fit beside the side panels, which also cut that content off with no scrollbar; the document now scrolls instead. On a shared markdown page the outline was hidden below 1024px and only showed after zooming out. Both now show at any window width.
+- 1edab00: Restoring an older version of an office document now terminates any active OnlyOffice co-authoring session and clears its WOPI lock so the restore succeeds immediately rather than returning a 409 Conflict. Stale WOPI locks left behind when browser tabs close without an unload event no longer block restore for 30 minutes, and the web file view now automatically refreshes with a fresh editor session upon restoring a version.
+
 ## 1.0.2
 
 ### Patch Changes

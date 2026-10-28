@@ -11,6 +11,18 @@ Versions up to and including 0.14.1 predate this changelog; see the
 
 <!-- `bun run version-packages` adds each release's section from its changesets; edit it in the Version Packages PR. -->
 
+## [1.1.0] — 2026-10-28
+
+The hover table of contents on a markdown document no longer needs the browser zoomed out to appear. In the editor it was pushed past the right edge of the window on a narrow window — whenever the document's widest content, like a table, did not fit beside the side panels, which also cut that content off with no scrollbar; the document now scrolls instead. On a shared markdown page the outline was hidden below 1024px and only showed after zooming out. Both now show at any window width.
+
+Restoring an older version of an office document now terminates any active OnlyOffice co-authoring session and clears its WOPI lock so the restore succeeds immediately rather than returning a 409 Conflict. Stale WOPI locks left behind when browser tabs close without an unload event no longer block restore for 30 minutes, and the web file view now automatically refreshes with a fresh editor session upon restoring a version.
+
+Add MCP reads and conditional edits for UTF-8 text files, including HTML, CSS, JavaScript/TypeScript, JSON, XML, YAML, SVG and CSV, while preserving Markdown collaboration.
+
+Add structured DOCX/XLSX/PPTX read/edit tools with schema discovery, permission and editor-lock checks, stale-version protection and atomic validated output. Deploy the new isolated `office-agent` image alongside the server; it uses pinned OfficeCLI over a private Unix socket without network, application secrets or blob mounts.
+
+Correct invalid OOXML ordering and spreadsheet DPI metadata in bundled blank templates so newly created files support validated Office edits.
+
 ## [1.0.2] — 2026-10-23
 
 Office files no longer lose everything typed since they were opened when a redeploy or crash replaces the editor. The server now asks the Document Server to save every open document each 5 minutes (`PP_OFFICE_AUTOSAVE_INTERVAL`, `off` to disable), and in `compose.prod.yml` the Document Server is now stopped first, with time to finish, before the server. Each save that finds edits adds a version to the file. The server needs `PP_ONLYOFFICE_JWT_SECRET` and `PP_ONLYOFFICE_INTERNAL_URL`, which `compose.prod.yml` now passes to it; a hand-written compose must do the same.
