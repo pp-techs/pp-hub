@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -1125,9 +1126,13 @@ func TestCollabRestoreReseedsMeta(t *testing.T) {
 
 type fakeDropper struct {
 	dropped []string
+	err     error
 }
 
 func (d *fakeDropper) Drop(ctx context.Context, key string) error {
+	if d.err != nil {
+		return d.err
+	}
 	d.dropped = append(d.dropped, key)
 	return nil
 }
@@ -1149,6 +1154,33 @@ func TestRestoreOfficeDocumentDropsSessionAndClearsLock(t *testing.T) {
 	dropper := &fakeDropper{}
 	rig.srv.officeDropper = dropper
 
+	// 1. Invalid version ID must return 404 and not drop the session or clear the lock.
+	bogusVersion := "00000000-0000-0000-0000-000000000001"
+	badRes := rig.do(t, f.owner, http.MethodPost,
+		"/api/v1/nodes/"+uuidString(office.ID)+"/versions/"+bogusVersion+"/restore", nil)
+	if badRes.code != http.StatusNotFound {
+		t.Errorf("restore with bogus version returned %d, want 404", badRes.code)
+	}
+	if len(dropper.dropped) != 0 {
+		t.Errorf("office dropper called on invalid version: %v", dropper.dropped)
+	}
+	if lock, _ := rig.srv.wopi.CurrentLock(ctx, office.ID); lock != officeLock {
+		t.Errorf("lock cleared on invalid version: %q, want %q", lock, officeLock)
+	}
+
+	// 2. Failing dropper must return 409 and not clear the lock.
+	dropper.err = errors.New("command service timeout")
+	failRes := rig.do(t, f.owner, http.MethodPost,
+		"/api/v1/nodes/"+uuidString(office.ID)+"/versions/"+uuidString(v1.ID)+"/restore", nil)
+	if failRes.code != http.StatusConflict {
+		t.Errorf("restore with failing dropper returned %d, want 409", failRes.code)
+	}
+	if lock, _ := rig.srv.wopi.CurrentLock(ctx, office.ID); lock != officeLock {
+		t.Errorf("lock cleared when dropper failed: %q, want %q", lock, officeLock)
+	}
+	dropper.err = nil
+
+	// 3. Successful drop and restore.
 	res := rig.do(t, f.owner, http.MethodPost,
 		"/api/v1/nodes/"+uuidString(office.ID)+"/versions/"+uuidString(v1.ID)+"/restore", nil)
 	if res.code != http.StatusOK {

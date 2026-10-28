@@ -15,6 +15,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/activity"
 	"github.com/nhatbui/pp-hub/apps/server/internal/audit"
@@ -1223,6 +1224,15 @@ func (s *Server) handleRestoreVersion(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid version id")
 		return
 	}
+	ver, err := s.store.GetVersion(r.Context(), versionID)
+	if errors.Is(err, pgx.ErrNoRows) || (err == nil && ver.NodeID != node.ID) {
+		writeProblem(w, http.StatusNotFound, "Not Found", "version not found")
+		return
+	}
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
 	lockToken, err := s.wopi.CurrentLock(r.Context(), node.ID)
 	if err != nil {
 		Error(w, r, err)
@@ -1239,6 +1249,9 @@ func (s *Server) handleRestoreVersion(w http.ResponseWriter, r *http.Request) {
 			if s.officeDropper != nil {
 				if err := s.officeDropper.Drop(r.Context(), lockToken); err != nil {
 					slog.WarnContext(r.Context(), "office drop session", "err", err, "lock", lockToken)
+					writeProblem(w, http.StatusConflict, http.StatusText(http.StatusConflict),
+						"could not drop active editor session")
+					return
 				}
 			}
 			if err := s.wopi.ForceUnlock(r.Context(), node.ID); err != nil {

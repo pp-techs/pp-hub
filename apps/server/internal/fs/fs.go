@@ -246,6 +246,14 @@ func (s *Service) PutFile(ctx context.Context, spaceID, parentID, fileID pgtype.
 	})
 }
 
+// PutFileWithCheck streams content into the blob store and commits a new version,
+// running check inside the version transaction while holding the node row lock.
+func (s *Service) PutFileWithCheck(ctx context.Context, spaceID, parentID, fileID pgtype.UUID, name string, r io.Reader, creator pgtype.UUID, check CommitCheck) (store.Node, store.NodeVersion, error) {
+	return s.putFile(ctx, spaceID, parentID, fileID, name, creator, "", check, func(ctx context.Context) (string, int64, error) {
+		return s.blobs.Put(ctx, r)
+	})
+}
+
 // CommitCheck runs after ingestion, inside the version transaction with the
 // file and live ancestors locked. Callers can re-resolve access and editor
 // locks without leaving a slow blob upload between authorization and commit.
@@ -349,14 +357,14 @@ func (s *Service) putFile(
 			if node.Kind != store.NodeKindFile {
 				return ErrNotFile
 			}
+			if check != nil {
+				if err := check(ctx, s.q, node); err != nil {
+					return err
+				}
+			}
 			if expectedETag != "" {
 				if node.SpaceID != spaceID || node.ParentID != parentID || node.Name != name {
 					return ErrStaleVersion
-				}
-				if check != nil {
-					if err := check(ctx, s.q, node); err != nil {
-						return err
-					}
 				}
 				ver, err = s.q.GetVersion(ctx, node.CurrentVersionID)
 				if err != nil {
