@@ -138,7 +138,7 @@ function FileBody({
       ) : isMarkdownFile(node.data) ? (
         <DocEditor node={node.data} thread={thread} onSettled={settled} />
       ) : isOfficeFile(node.data.name) ? (
-        <OfficeEditor node={node.data} />
+        <OfficeEditor key={`${node.data.id}-${node.data.version}`} node={node.data} />
       ) : (
         <>
           <EditorHeader nodeId={node.data.id} node={node.data} />

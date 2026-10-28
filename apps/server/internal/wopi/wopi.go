@@ -171,6 +171,18 @@ func (s *Service) Unlock(ctx context.Context, nodeID pgtype.UUID, token string) 
 	return s.q.DeleteLock(ctx, store.DeleteLockParams{NodeID: nodeID, LockToken: token})
 }
 
+// ForceUnlock removes any lock on nodeID regardless of the token.
+func (s *Service) ForceUnlock(ctx context.Context, nodeID pgtype.UUID) error {
+	existing, err := s.q.GetLock(ctx, nodeID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	return s.q.DeleteLock(ctx, store.DeleteLockParams{NodeID: nodeID, LockToken: existing.LockToken})
+}
+
 // CurrentLock returns the active lock token, or empty.
 func (s *Service) CurrentLock(ctx context.Context, nodeID pgtype.UUID) (string, error) {
 	l, err := s.q.GetLock(ctx, nodeID)

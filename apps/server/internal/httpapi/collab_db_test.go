@@ -1122,3 +1122,50 @@ func TestCollabRestoreReseedsMeta(t *testing.T) {
 		t.Fatalf("%d versions after the reseeded room was written back, want 2", n)
 	}
 }
+
+type fakeDropper struct {
+	dropped []string
+}
+
+func (d *fakeDropper) Drop(ctx context.Context, key string) error {
+	d.dropped = append(d.dropped, key)
+	return nil
+}
+
+func TestRestoreOfficeDocumentDropsSessionAndClearsLock(t *testing.T) {
+	rig := newCollabRig(t, collab.Config{})
+	ctx := context.Background()
+	f := rig.fixture(t, "restore-office", "# Draft\n")
+	office := rig.putMarkdown(t, f.space, f.owner, "report.docx", "v1 content")
+	v1 := rig.versions(t, office)[0]
+
+	rig.putVersion(t, office, f.owner, "v2 content")
+
+	officeLock := "wopi_restore_test_123"
+	if err := rig.srv.wopi.Lock(ctx, office.ID, officeLock); err != nil {
+		t.Fatalf("lock office: %v", err)
+	}
+
+	dropper := &fakeDropper{}
+	rig.srv.officeDropper = dropper
+
+	res := rig.do(t, f.owner, http.MethodPost,
+		"/api/v1/nodes/"+uuidString(office.ID)+"/versions/"+uuidString(v1.ID)+"/restore", nil)
+	if res.code != http.StatusOK {
+		t.Fatalf("restore under office lock: %d %s", res.code, res.body)
+	}
+
+	if len(dropper.dropped) != 1 || dropper.dropped[0] != officeLock {
+		t.Errorf("office dropper saw %v, want [%s]", dropper.dropped, officeLock)
+	}
+
+	lock, err := rig.srv.wopi.CurrentLock(ctx, office.ID)
+	if err != nil || lock != "" {
+		t.Errorf("lock after restore: %q (err %v), want empty", lock, err)
+	}
+
+	cur, err := rig.q.GetCurrentVersion(ctx, office.ID)
+	if err != nil || cur.ID != v1.ID {
+		t.Errorf("current version after restore = %v (%v), want %v", cur.ID, err, v1.ID)
+	}
+}

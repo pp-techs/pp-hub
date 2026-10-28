@@ -271,6 +271,7 @@ export function useRestoreVersion(spaceId: string) {
     onSuccess: (_d, { nodeId }) => {
       void invalidate();
       void qc.invalidateQueries({ queryKey: keys.versions(nodeId) });
+      void qc.invalidateQueries({ queryKey: keys.node(nodeId) });
       // The rendered current version is now the restored one.
       void qc.invalidateQueries({ queryKey: keys.document(nodeId) });
     },

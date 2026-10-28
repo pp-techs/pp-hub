@@ -196,13 +196,17 @@ func (s *Server) handleWopiPutFile(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusConflict, "Conflict", "this file is in the trash")
 		return
 	}
+	hdr := r.Header.Get("X-WOPI-Lock")
 	if lockToken, err := s.wopi.CurrentLock(r.Context(), node.ID); err == nil && lockToken != "" {
-		hdr := r.Header.Get("X-WOPI-Lock")
 		if hdr != lockToken {
 			w.Header().Set("X-WOPI-Lock", lockToken)
 			writeProblem(w, http.StatusConflict, "Conflict", "locked by another session")
 			return
 		}
+	} else if hdr != "" {
+		w.Header().Set("X-WOPI-Lock", "")
+		writeProblem(w, http.StatusConflict, "Conflict", "file is not locked")
+		return
 	}
 	if expected := r.Header.Get("X-WOPI-ExpectedVersion"); expected != "" {
 		cur, _ := s.store.GetCurrentVersion(r.Context(), node.ID)

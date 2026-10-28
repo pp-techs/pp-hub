@@ -173,3 +173,17 @@ func TestForcesaveReportsAFailedLockListing(t *testing.T) {
 		t.Error("a failed lock listing was reported as an empty round")
 	}
 }
+
+func TestDropSessionTerminatesSessionAndTreatsGoneAsNormal(t *testing.T) {
+	f, fake := newSaver(t, []byte("shared-secret"), map[string]int{"wopi_gone": 1}, "wopi_active", "wopi_gone")
+
+	if err := f.Drop(t.Context(), "wopi_active"); err != nil {
+		t.Fatalf("drop active session: %v", err)
+	}
+	if err := f.Drop(t.Context(), "wopi_gone"); err != nil {
+		t.Fatalf("drop already-gone session: %v", err)
+	}
+	if len(fake.seen) != 2 || fake.seen[0] != "drop wopi_active" || fake.seen[1] != "drop wopi_gone" {
+		t.Errorf("server saw %v, want drop commands", fake.seen)
+	}
+}

@@ -37,6 +37,11 @@ const (
 	errNoChanges = 4
 )
 
+// SessionDropper can terminate an open OnlyOffice editing session.
+type SessionDropper interface {
+	Drop(ctx context.Context, key string) error
+}
+
 // Forcesaver periodically forces open OnlyOffice documents to be saved.
 type Forcesaver struct {
 	// URL is the Document Server as reachable from this process.
@@ -115,17 +120,28 @@ func (f *Forcesaver) Once(ctx context.Context) (int, error) {
 
 // forcesave sends one command. It reports whether a save was queued.
 func (f *Forcesaver) forcesave(ctx context.Context, key string) (bool, error) {
-	req := commandRequest{C: "forcesave", Key: key}
+	return f.command(ctx, "forcesave", key)
+}
+
+// Drop tells the Document Server to terminate a co-authoring session for key.
+// It reports nil if the session was dropped or was already closed.
+func (f *Forcesaver) Drop(ctx context.Context, key string) error {
+	_, err := f.command(ctx, "drop", key)
+	return err
+}
+
+func (f *Forcesaver) command(ctx context.Context, c, key string) (bool, error) {
+	req := commandRequest{C: c, Key: key}
 	var bearer string
 	if len(f.Secret) > 0 {
 		signed, err := SignJWT(f.Secret, req)
 		if err != nil {
-			return false, fmt.Errorf("sign forcesave: %w", err)
+			return false, fmt.Errorf("sign %s: %w", c, err)
 		}
 		req.Token = signed
 		bearer, err = SignJWT(f.Secret, map[string]any{"payload": req})
 		if err != nil {
-			return false, fmt.Errorf("sign forcesave header: %w", err)
+			return false, fmt.Errorf("sign %s header: %w", c, err)
 		}
 	}
 	body, err := json.Marshal(req)
@@ -150,15 +166,15 @@ func (f *Forcesaver) forcesave(ctx context.Context, key string) (bool, error) {
 	}
 	resp, err := client.Do(hr)
 	if err != nil {
-		return false, fmt.Errorf("forcesave %s: %w", key, err)
+		return false, fmt.Errorf("%s %s: %w", c, key, err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return false, fmt.Errorf("forcesave %s: command service returned %s", key, resp.Status)
+		return false, fmt.Errorf("%s %s: command service returned %s", c, key, resp.Status)
 	}
 	var out commandResponse
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<16)).Decode(&out); err != nil {
-		return false, fmt.Errorf("forcesave %s: decode response: %w", key, err)
+		return false, fmt.Errorf("%s %s: decode response: %w", c, key, err)
 	}
 	switch out.Error {
 	case 0:
@@ -166,6 +182,6 @@ func (f *Forcesaver) forcesave(ctx context.Context, key string) (bool, error) {
 	case errUnknownKey, errNoChanges:
 		return false, nil
 	default:
-		return false, fmt.Errorf("forcesave %s: command service error %d", key, out.Error)
+		return false, fmt.Errorf("%s %s: command service error %d", c, key, out.Error)
 	}
 }

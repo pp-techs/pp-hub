@@ -200,12 +200,16 @@ func run() error {
 	// An office editor's session lives in the Document Server's memory until
 	// the last person leaves, so a restart of either process in between loses
 	// it. Asking for a save on a timer keeps what is lost to minutes.
-	if cfg.OfficeAutosaveInterval > 0 {
-		go (&office.Forcesaver{
+	var officeForcesaver *office.Forcesaver
+	if cfg.OnlyOfficeIntURL != "" {
+		officeForcesaver = &office.Forcesaver{
 			URL:    cfg.OnlyOfficeIntURL,
 			Secret: cfg.OnlyOfficeJWTSecret,
 			Keys:   queries.ListOfficeEditorLockTokens,
-		}).Run(ctx, cfg.OfficeAutosaveInterval)
+		}
+	}
+	if officeForcesaver != nil && cfg.OfficeAutosaveInterval > 0 {
+		go officeForcesaver.Run(ctx, cfg.OfficeAutosaveInterval)
 	}
 	mailer := mail.New(syscfg.SMTP)
 	notifier := notify.New(queries, mailer, syscfg, cfg.ExternalURL)
@@ -327,6 +331,7 @@ func run() error {
 		Ext:             extHost,
 		Web:             web,
 		Publish:         publishSvc,
+		OfficeDropper:   officeForcesaver,
 	})
 	srv := &http.Server{
 		Addr:              cfg.Addr,
