@@ -221,7 +221,7 @@ func (s *Server) handleWopiPutFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	commitCheck := func(ctx context.Context, q *store.Queries, n store.Node) error {
-		l, err := q.GetLock(ctx, n.ID)
+		l, err := q.GetLockForUpdate(ctx, n.ID)
 		if hdr != "" {
 			if errors.Is(err, pgx.ErrNoRows) || l.LockToken != hdr {
 				return wopi.ErrLockConflict
