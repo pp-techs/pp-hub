@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/audit"
 	"github.com/nhatbui/pp-hub/apps/server/internal/share"
@@ -196,13 +198,17 @@ func (s *Server) handleWopiPutFile(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusConflict, "Conflict", "this file is in the trash")
 		return
 	}
+	hdr := r.Header.Get("X-WOPI-Lock")
 	if lockToken, err := s.wopi.CurrentLock(r.Context(), node.ID); err == nil && lockToken != "" {
-		hdr := r.Header.Get("X-WOPI-Lock")
 		if hdr != lockToken {
 			w.Header().Set("X-WOPI-Lock", lockToken)
 			writeProblem(w, http.StatusConflict, "Conflict", "locked by another session")
 			return
 		}
+	} else if hdr != "" {
+		w.Header().Set("X-WOPI-Lock", "")
+		writeProblem(w, http.StatusConflict, "Conflict", "file is not locked")
+		return
 	}
 	if expected := r.Header.Get("X-WOPI-ExpectedVersion"); expected != "" {
 		cur, _ := s.store.GetCurrentVersion(r.Context(), node.ID)
@@ -214,8 +220,25 @@ func (s *Server) handleWopiPutFile(w http.ResponseWriter, r *http.Request) {
 	if !limitBody(w, r, s.uploadCap()) {
 		return
 	}
-	_, ver, err := s.fs.PutFile(r.Context(), node.SpaceID, pgtype.UUID{}, node.ID, node.Name, r.Body, c.claims.UserID)
+	commitCheck := func(ctx context.Context, q *store.Queries, n store.Node) error {
+		l, err := q.GetLockForUpdate(ctx, n.ID)
+		if hdr != "" {
+			if errors.Is(err, pgx.ErrNoRows) || l.LockToken != hdr {
+				return wopi.ErrLockConflict
+			}
+		} else if err == nil && l.LockToken != "" {
+			return wopi.ErrLockConflict
+		}
+		return nil
+	}
+	_, ver, err := s.fs.PutFileWithCheck(r.Context(), node.SpaceID, pgtype.UUID{}, node.ID, node.Name, r.Body, c.claims.UserID, commitCheck)
 	if err != nil {
+		if errors.Is(err, wopi.ErrLockConflict) {
+			cur, _ := s.wopi.CurrentLock(r.Context(), node.ID)
+			w.Header().Set("X-WOPI-Lock", cur)
+			writeProblem(w, http.StatusConflict, "Conflict", "lock conflict")
+			return
+		}
 		s.nodeError(w, r, err)
 		return
 	}

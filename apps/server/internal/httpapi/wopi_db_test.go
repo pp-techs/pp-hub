@@ -394,3 +394,24 @@ func TestEditorLockListHoldsOnlyLiveOfficeLocks(t *testing.T) {
 		t.Errorf("an expired lock was listed")
 	}
 }
+
+func TestWopiPutFileRefusesMismatchedOrStaleLock(t *testing.T) {
+	srv, q := wopiEnv(t)
+	f := newWopiFixture(t, srv, q, "putfile-lock")
+	id := nodeIDString(t, f.file.ID)
+
+	r := chi.NewRouter()
+	r.Post("/wopi/files/{nodeID}/contents", srv.handleWopiPutFile)
+
+	req := httptest.NewRequest("POST", "/wopi/files/"+id+"/contents?access_token="+f.token, strings.NewReader("bytes"))
+	req.Header.Set("X-WOPI-Lock", "old-lock-token")
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusConflict {
+		t.Errorf("PutFile on unlocked file with stale lock returned %d, want 409", rec.Code)
+	}
+	if lockHdr := rec.Header().Get("X-WOPI-Lock"); lockHdr != "" {
+		t.Errorf("X-WOPI-Lock header on unlocked file = %q, want empty", lockHdr)
+	}
+}

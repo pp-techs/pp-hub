@@ -23,6 +23,7 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/notifications"
 	"github.com/nhatbui/pp-hub/apps/server/internal/notify"
 	"github.com/nhatbui/pp-hub/apps/server/internal/obs"
+	"github.com/nhatbui/pp-hub/apps/server/internal/office"
 	"github.com/nhatbui/pp-hub/apps/server/internal/officeedit"
 	"github.com/nhatbui/pp-hub/apps/server/internal/orgsync"
 	"github.com/nhatbui/pp-hub/apps/server/internal/personal"
@@ -106,6 +107,7 @@ type Server struct {
 	// artifact router and nothing else (artifact.go).
 	publish      *publish.Service
 	artifactHost string
+	officeDropper office.SessionDropper
 }
 
 // Deps is what the HTTP edge needs. A struct rather than a parameter list
@@ -155,6 +157,7 @@ type Deps struct {
 	// Publish is the publishing model; nil disables publishing and the
 	// artifact host.
 	Publish *publish.Service
+	OfficeDropper office.SessionDropper
 }
 
 func NewServer(d Deps) *Server {
@@ -191,6 +194,7 @@ func NewServer(d Deps) *Server {
 		ext:            d.Ext,
 		web:            d.Web,
 		publish:        d.Publish,
+		officeDropper:  d.OfficeDropper,
 	}
 	if d.Ext != nil {
 		s.useExt(d.Ext)

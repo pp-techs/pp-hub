@@ -15,6 +15,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/nhatbui/pp-hub/apps/server/internal/activity"
 	"github.com/nhatbui/pp-hub/apps/server/internal/audit"
@@ -1223,12 +1224,45 @@ func (s *Server) handleRestoreVersion(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid version id")
 		return
 	}
-	// A block document open in a room is restored through it: the room
-	// writes back what it has not saved, then reseeds from the restored
-	// version, so every peer sees it live. An office editor's lock still
-	// refuses.
-	if s.lockedByEditor(w, r, node.ID, http.StatusConflict, true) {
+	ver, err := s.store.GetVersion(r.Context(), versionID)
+	if errors.Is(err, pgx.ErrNoRows) || (err == nil && ver.NodeID != node.ID) {
+		writeProblem(w, http.StatusNotFound, "Not Found", "version not found")
 		return
+	}
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+	lockToken, err := s.wopi.CurrentLock(r.Context(), node.ID)
+	if err != nil {
+		Error(w, r, err)
+		return
+	}
+	if lockToken != "" {
+		if collab.IsLockToken(lockToken) {
+			// A block document open in a room is restored through it: the room
+			// writes back what it has not saved, then reseeds from the restored
+			// version, so every peer sees it live.
+		} else if strings.HasPrefix(lockToken, "wopi_") {
+			// An office document open in OnlyOffice: drop the session and clear
+			// the lock so the restored version takes effect immediately.
+			if s.officeDropper != nil {
+				if err := s.officeDropper.Drop(r.Context(), lockToken); err != nil {
+					slog.WarnContext(r.Context(), "office drop session", "err", err, "lock", lockToken)
+					writeProblem(w, http.StatusConflict, http.StatusText(http.StatusConflict),
+						"could not drop active editor session")
+					return
+				}
+			}
+			if err := s.wopi.ForceUnlock(r.Context(), node.ID); err != nil {
+				slog.WarnContext(r.Context(), "wopi force unlock", "err", err, "node_id", node.ID)
+			}
+		} else {
+			// Other locks (WebDAV, etc.): refuse with conflict as before.
+			writeProblem(w, http.StatusConflict, http.StatusText(http.StatusConflict),
+				"this file is open in the editor; close it or wait for the lock to expire")
+			return
+		}
 	}
 	restore := func(ctx context.Context) error { return s.fs.RestoreVersion(ctx, node.ID, versionID) }
 	if err := s.collab.Reseed(r.Context(), node.ID, restore); err != nil {
