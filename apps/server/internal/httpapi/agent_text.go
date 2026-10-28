@@ -91,8 +91,10 @@ func validAgentText(raw []byte) bool {
 			return false
 		}
 	}
-	// Valid UTF-8 alone is insufficient: an ASCII-only PDF is still binary.
-	return strings.HasPrefix(http.DetectContentType(raw), "text/")
+	// Valid UTF-8 alone is insufficient: ASCII-only binary formats such as
+	// PDF and PostScript must still be rejected.
+	trimmed := bytes.TrimSpace(raw)
+	return !bytes.HasPrefix(trimmed, []byte("%PDF-")) && !bytes.HasPrefix(trimmed, []byte("%!PS-Adobe"))
 }
 
 // acquireAgentTextLock never steals a live editor's lock, and keeps our unique

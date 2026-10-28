@@ -143,12 +143,12 @@ func (e *runner) Do(ctx context.Context, req Request) (Response, error) {
 			pending = append(pending, Operation{Op: "set", Path: op.Path, Props: map[string]string{"value": value, "type": "string"}})
 			continue
 		}
-		args := []string{"set", file, op.Path, "--find", op.Find, "--json"}
+		args := []string{"set", file, op.Path, "--find=" + op.Find, "--json"}
 		if op.Replace != "" || len(op.Props) == 0 {
-			args = append(args, "--replace", op.Replace)
+			args = append(args, "--replace="+op.Replace)
 		}
 		for k, v := range op.Props {
-			args = append(args, "--prop", k+"="+v)
+			args = append(args, "--prop="+k+"="+v)
 		}
 		// command checks the outer matched field for this direct operation.
 		if _, err := e.command(ctx, dir, nil, args...); err != nil {

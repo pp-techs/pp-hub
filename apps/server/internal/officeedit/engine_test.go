@@ -467,3 +467,18 @@ func TestExcelReplacementRejectsOversizedCell(t *testing.T) {
 		t.Fatalf("oversized replacement returned content or wrong error: content bytes=%d, error=%v", len(result.Content), err)
 	}
 }
+
+func TestFlagLikeFindAndReplace(t *testing.T) {
+	engine := realRunner(t)
+	original := fixture(t, engine, "docx")
+	marker := "--flag-marker"
+	first := edit(t, engine, "docx", original, Operation{
+		Op: "add", Parent: "/body", Type: "paragraph", Props: map[string]string{"text": marker},
+	})
+	result := edit(t, engine, "docx", first.Content, Operation{
+		Op: "set", Path: "/body/p[1]", Find: marker, Replace: "--replaced-marker",
+	})
+	if !strings.Contains(packageText(t, result.Content), "--replaced-marker") {
+		t.Fatal("flag-like replacement text was not persisted")
+	}
+}

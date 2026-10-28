@@ -41,6 +41,7 @@ func TestMcpTextFilesPreserveSourceBytes(t *testing.T) {
 		{"data.xml", "<?xml version=\"1.0\"?><old/>\n", "<?xml version=\"1.0\"?>\r\n<!-- keep -->\r\n<value>2</value>", "application/xml"},
 		{"table.csv", "name,value\r\nold,1\r\n", "name,value\r\n\"line\r\nbreak\",\"quoted \"\"value\"\"\"\r\n", ""},
 		{"notes.txt", "old\n", "\ufeffTiếng Việt\r\n\ttrailing spaces  ", ""},
+		{"magic-prefix.txt", "BM is a bitmap header prefix in documentation\n", "GIF89a signature discussed in text\n", ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			node := rig.putMarkdown(t, f.space, f.owner, tc.name, tc.before)
