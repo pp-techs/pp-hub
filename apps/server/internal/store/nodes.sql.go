@@ -339,6 +339,32 @@ func (q *Queries) GetNodeAny(ctx context.Context, id pgtype.UUID) (Node, error) 
 	return i, err
 }
 
+const getNodeForUpdate = `-- name: GetNodeForUpdate :one
+SELECT id, tenant_id, space_id, parent_id, kind, name, current_version_id, deleted_at, deleted_by, created_by, created_at, team_root_id, ext_kind FROM nodes WHERE id = $1 AND deleted_at IS NULL LIMIT 1 FOR UPDATE
+`
+
+// Serialize version creation and conditional replacement against node changes.
+func (q *Queries) GetNodeForUpdate(ctx context.Context, id pgtype.UUID) (Node, error) {
+	row := q.db.QueryRow(ctx, getNodeForUpdate, id)
+	var i Node
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.SpaceID,
+		&i.ParentID,
+		&i.Kind,
+		&i.Name,
+		&i.CurrentVersionID,
+		&i.DeletedAt,
+		&i.DeletedBy,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.TeamRootID,
+		&i.ExtKind,
+	)
+	return i, err
+}
+
 const getNodeParent = `-- name: GetNodeParent :one
 SELECT parent_id FROM nodes WHERE id = $1 AND deleted_at IS NULL LIMIT 1
 `
@@ -1347,6 +1373,55 @@ func (q *Queries) ListVersions(ctx context.Context, nodeID pgtype.UUID) ([]NodeV
 			&i.VersionNo,
 			&i.CreatedBy,
 			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const lockNodeAncestry = `-- name: LockNodeAncestry :many
+WITH RECURSIVE chain(id, depth) AS (
+    SELECT root.id, 0 FROM nodes root WHERE root.id = $1
+  UNION ALL
+    SELECT n.parent_id, c.depth + 1
+    FROM chain c JOIN nodes n ON n.id = c.id
+    WHERE n.parent_id IS NOT NULL AND c.depth < 100
+)
+SELECT n.id, n.tenant_id, n.space_id, n.parent_id, n.kind, n.name, n.current_version_id, n.deleted_at, n.deleted_by, n.created_by, n.created_at, n.team_root_id, n.ext_kind FROM chain c JOIN nodes n ON n.id = c.id
+ORDER BY c.depth DESC
+FOR UPDATE OF n
+`
+
+// Tree moves lock the parent before updating descendants. Conditional writes
+// must use the same root-to-leaf order instead of locking the file first.
+func (q *Queries) LockNodeAncestry(ctx context.Context, id pgtype.UUID) ([]Node, error) {
+	rows, err := q.db.Query(ctx, lockNodeAncestry, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Node
+	for rows.Next() {
+		var i Node
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.SpaceID,
+			&i.ParentID,
+			&i.Kind,
+			&i.Name,
+			&i.CurrentVersionID,
+			&i.DeletedAt,
+			&i.DeletedBy,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.TeamRootID,
+			&i.ExtKind,
 		); err != nil {
 			return nil, err
 		}

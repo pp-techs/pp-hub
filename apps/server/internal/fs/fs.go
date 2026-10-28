@@ -32,6 +32,9 @@ var (
 	ErrCycle         = errors.New("cannot move a folder into its own descendant")
 	ErrNameConflict  = errors.New("a node with this name already exists in the target folder")
 	ErrQuotaExceeded = errors.New("this upload would exceed the space's storage limit")
+	// ErrStaleVersion refuses a conditional replacement whose content or node
+	// location no longer matches the caller's snapshot.
+	ErrStaleVersion = errors.New("the file changed since it was read")
 	// ErrTeamRootFixed refuses to nest or relocate a team folder: a team folder
 	// is always top level, or "which container owns this" stops having one
 	// answer.
@@ -238,7 +241,24 @@ func (s *Service) CreateExt(ctx context.Context, spaceID, parentID pgtype.UUID, 
 // just overwritten their work. Replacing a file is an explicit act now: an
 // upload that names the node (fileID).
 func (s *Service) PutFile(ctx context.Context, spaceID, parentID, fileID pgtype.UUID, name string, r io.Reader, creator pgtype.UUID) (store.Node, store.NodeVersion, error) {
-	return s.putFile(ctx, spaceID, parentID, fileID, name, creator, func(ctx context.Context) (string, int64, error) {
+	return s.putFile(ctx, spaceID, parentID, fileID, name, creator, "", nil, func(ctx context.Context) (string, int64, error) {
+		return s.blobs.Put(ctx, r)
+	})
+}
+
+// CommitCheck runs after ingestion, inside the version transaction with the
+// file and live ancestors locked. Callers can re-resolve access and editor
+// locks without leaving a slow blob upload between authorization and commit.
+type CommitCheck func(context.Context, *store.Queries, store.Node) error
+
+// PutFileIfCurrent replaces an existing file only when its current content hash
+// and location still match the caller's snapshot. The comparison and version
+// commit share a node-row lock; identical content creates no new version.
+func (s *Service) PutFileIfCurrent(ctx context.Context, spaceID, parentID, fileID pgtype.UUID, name string, r io.Reader, creator pgtype.UUID, expectedETag string, check CommitCheck) (store.Node, store.NodeVersion, error) {
+	if !fileID.Valid || expectedETag == "" {
+		return store.Node{}, store.NodeVersion{}, ErrStaleVersion
+	}
+	return s.putFile(ctx, spaceID, parentID, fileID, name, creator, expectedETag, check, func(ctx context.Context) (string, int64, error) {
 		return s.blobs.Put(ctx, r)
 	})
 }
@@ -247,7 +267,7 @@ func (s *Service) PutFile(ctx context.Context, spaceID, parentID, fileID pgtype.
 // finished resumable upload. The blob store takes the file over (see
 // blob.Store.Ingest); on failure it is left at path for the caller.
 func (s *Service) PutStagedFile(ctx context.Context, spaceID, parentID, fileID pgtype.UUID, name, path string, creator pgtype.UUID) (store.Node, store.NodeVersion, error) {
-	return s.putFile(ctx, spaceID, parentID, fileID, name, creator, func(ctx context.Context) (string, int64, error) {
+	return s.putFile(ctx, spaceID, parentID, fileID, name, creator, "", nil, func(ctx context.Context) (string, int64, error) {
 		return s.blobs.Ingest(ctx, path)
 	})
 }
@@ -257,6 +277,8 @@ func (s *Service) putFile(
 	spaceID, parentID, fileID pgtype.UUID,
 	name string,
 	creator pgtype.UUID,
+	expectedETag string,
+	check CommitCheck,
 	putBlob func(context.Context) (string, int64, error),
 ) (store.Node, store.NodeVersion, error) {
 	var node store.Node
@@ -286,7 +308,68 @@ func (s *Service) putFile(
 	// node without content or a version that is not current. The version row
 	// is the blob reference; a trigger counts it in the same statement.
 	var ver store.NodeVersion
+	createdVersion := false
 	err = s.inTx(ctx, func(s *Service) error {
+		if fileID.Valid {
+			var err error
+			if expectedETag == "" {
+				node, err = s.q.GetNodeForUpdate(ctx, fileID)
+			} else {
+				var chain []store.Node
+				chain, err = s.q.LockNodeAncestry(ctx, fileID)
+				if err == nil {
+					if len(chain) == 0 {
+						return ErrNotFound
+					}
+					var parent pgtype.UUID
+					for _, ancestor := range chain {
+						if ancestor.DeletedAt.Valid {
+							return ErrNotFound
+						}
+						// A move committed while the query waited for a lock may
+						// change the chain it originally selected. Never authorize
+						// against a new, unlocked parent or a truncated chain.
+						if ancestor.ParentID != parent || ancestor.SpaceID != spaceID {
+							return ErrStaleVersion
+						}
+						parent = ancestor.ID
+					}
+					node = chain[len(chain)-1]
+					if node.ID != fileID {
+						return ErrStaleVersion
+					}
+				}
+			}
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrNotFound
+			}
+			if err != nil {
+				return err
+			}
+			if node.Kind != store.NodeKindFile {
+				return ErrNotFile
+			}
+			if expectedETag != "" {
+				if node.SpaceID != spaceID || node.ParentID != parentID || node.Name != name {
+					return ErrStaleVersion
+				}
+				if check != nil {
+					if err := check(ctx, s.q, node); err != nil {
+						return err
+					}
+				}
+				ver, err = s.q.GetVersion(ctx, node.CurrentVersionID)
+				if err != nil {
+					return err
+				}
+				if ver.BlobHash != expectedETag {
+					return ErrStaleVersion
+				}
+				if hash == ver.BlobHash {
+					return nil
+				}
+			}
+		}
 		// Quota is checked after the bytes land, not before: the declared
 		// length of a request is not trustworthy, so the only honest figure
 		// is the one measured on the way in. It runs before the node exists,
@@ -307,9 +390,14 @@ func (s *Service) putFile(
 				return err
 			}
 		}
-		mimeType := mime.TypeByExtension(filepath.Ext(node.Name))
-		if mimeType == "" {
-			mimeType = "application/octet-stream"
+		// Conditional content edits preserve the stored type, including MIME
+		// types the host's extension table does not recognize.
+		mimeType := ver.Mime
+		if expectedETag == "" {
+			mimeType = mime.TypeByExtension(filepath.Ext(node.Name))
+			if mimeType == "" {
+				mimeType = "application/octet-stream"
+			}
 		}
 		var err error
 		ver, err = s.q.AddVersion(ctx, store.AddVersionParams{
@@ -322,10 +410,14 @@ func (s *Service) putFile(
 		if err != nil {
 			return err
 		}
+		createdVersion = true
 		return s.q.SetCurrentVersion(ctx, store.SetCurrentVersionParams{ID: node.ID, CurrentVersionID: ver.ID})
 	})
 	if err != nil {
 		return store.Node{}, store.NodeVersion{}, err
+	}
+	if !createdVersion {
+		return node, ver, nil
 	}
 	node.CurrentVersionID = ver.ID
 	if err := s.pruneVersions(ctx, node.ID); err != nil {

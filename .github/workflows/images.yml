@@ -1,5 +1,5 @@
-# Build and push the two deployable images (server, worker). The server image
-# carries the web app.
+# Build and push the deployable images (server, worker, office-agent).
+# The server image carries the web app.
 #
 # Production must never build on the VPS: a deploy that compiles is a deploy
 # whose output depends on the machine it ran on, and a rollback becomes a
@@ -62,6 +62,10 @@ jobs:
             context: .
             dockerfile: apps/server/Dockerfile
             target: worker
+          - name: office-agent
+            context: .
+            dockerfile: apps/server/Dockerfile
+            target: office-agent
 
     steps:
       - name: Checkout

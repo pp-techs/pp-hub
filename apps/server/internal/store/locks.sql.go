@@ -79,6 +79,23 @@ func (q *Queries) GetLock(ctx context.Context, nodeID pgtype.UUID) (FileLock, er
 	return i, err
 }
 
+const getLockForUpdate = `-- name: GetLockForUpdate :one
+SELECT node_id, lock_token, expires_at, created_at FROM file_locks WHERE node_id = $1 AND expires_at > now() LIMIT 1 FOR UPDATE
+`
+
+// Keep a conditional edit's owned lock stable until its version commits.
+func (q *Queries) GetLockForUpdate(ctx context.Context, nodeID pgtype.UUID) (FileLock, error) {
+	row := q.db.QueryRow(ctx, getLockForUpdate, nodeID)
+	var i FileLock
+	err := row.Scan(
+		&i.NodeID,
+		&i.LockToken,
+		&i.ExpiresAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const listOfficeEditorLockTokens = `-- name: ListOfficeEditorLockTokens :many
 SELECT lock_token FROM file_locks
 WHERE expires_at > now() AND starts_with(lock_token, 'wopi_')

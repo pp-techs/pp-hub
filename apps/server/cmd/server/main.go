@@ -30,6 +30,7 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/notify"
 	"github.com/nhatbui/pp-hub/apps/server/internal/obs"
 	"github.com/nhatbui/pp-hub/apps/server/internal/office"
+	"github.com/nhatbui/pp-hub/apps/server/internal/officeedit"
 	"github.com/nhatbui/pp-hub/apps/server/internal/orgsync"
 	"github.com/nhatbui/pp-hub/apps/server/internal/personal"
 	"github.com/nhatbui/pp-hub/apps/server/internal/preview"
@@ -291,6 +292,12 @@ func run() error {
 		}
 		slog.InfoContext(ctx, "serving web app", "dir", cfg.WebDir)
 	}
+	// Hostile Office parsing runs across a Unix socket, never in this
+	// process with its database pool, CAS and session secrets.
+	var officeEditor officeedit.Engine
+	if cfg.OfficeAgentSocket != "" {
+		officeEditor = officeedit.NewClient(cfg.OfficeAgentSocket)
+	}
 	api := httpapi.NewServer(httpapi.Deps{
 		Auth:            authSvc,
 		Spaces:          spacesSvc,
@@ -305,6 +312,7 @@ func run() error {
 		OrgSync:         orgSvc,
 		Uploads:         uploadsSvc,
 		Collab:          collabHub,
+		OfficeEditor:    officeEditor,
 		LogtoWebhookKey: cfg.Logto.WebhookKey,
 		ExternalURL:     cfg.ExternalURL,
 		OnlyOfficeURL:   cfg.OnlyOfficeURL,

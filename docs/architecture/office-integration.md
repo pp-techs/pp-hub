@@ -228,3 +228,42 @@ See [preview-pipeline.md](preview-pipeline.md).
 ## Resource Note
 
 OnlyOffice Document Server needs roughly 2–4 GB RAM. It is the heaviest service in the compose stack; acceptable for the self-host target, documented for operators.
+
+## Structured MCP editing
+
+MCP does not automate the browser editor or send arbitrary replacement
+binaries. `read_office_file` reads a DOCX/XLSX/PPTX tree; `get_office_schema`
+describes the allowlisted operations; `edit_office_file` applies typed
+`set`/`add`/`remove` operations to a private copy and commits one new version
+only after the whole request and OOXML validation succeed. Common text,
+paragraph/run formatting, tables, spreadsheet values/formulas and slide/shape
+edits are supported within that schema, not every Office feature.
+
+The API checks view/edit capabilities and editor locks. It does not attempt to
+merge an agent edit with an unsaved OnlyOffice session: active locks refuse
+both structured reads and writes. A write holds its own unique lock and
+re-checks permissions, live ancestry and the supplied ETag at commit.
+Failures leave the stored version untouched.
+
+Processing belongs to `cmd/office-agent`, not the API or preview worker.
+The API reaches it only through a private Unix socket. The production
+container has no network, database credentials or content-store mount and
+uses a read-only root plus bounded scratch space. OfficeCLI is pinned to
+1.0.159 with checked binary hashes. Limits are 8 MiB per file, 100 operations,
+1 MiB operation JSON, read depth 8, 10,000 cells per spreadsheet read and
+45 seconds per processing request. Returned JSON and scratch output are bounded.
+
+Legacy `.doc/.xls/.ppt`, macro-enabled, encrypted, embedded-active and unsafe
+external-resource packages are refused. Invalid OOXML that OfficeCLI cannot
+validate is not silently repaired. Ordinary hyperlinks are retained; arbitrary
+XML, local paths, imported media, plugins and external fetches are not exposed.
+Literal spreadsheet replacement is stored as string content rather than
+interpreted as a formula. Explicit formula edits use the restricted schema.
+
+Embedded blank templates retain their upstream attribution. The English and
+Vietnamese Word templates have corrected schema element ordering, and the
+English workbook omits an invalid zero DPI attribute, so newly created files
+can pass the same edit validation as uploaded documents.
+
+See [agent access](agent-access.md#structured-office-editing) for tool contracts
+and [deployment](../deployment.md#agent-access-mcp) for socket configuration.

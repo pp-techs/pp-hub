@@ -90,6 +90,13 @@ jobs:
           go-version-file: apps/server/go.mod
           cache-dependency-path: apps/server/go.sum
 
+      - name: Install pinned Office editing engine
+        run: |
+          curl -fsSL https://github.com/iOfficeAI/OfficeCLI/releases/download/v1.0.159/officecli-linux-x64 -o "$RUNNER_TEMP/officecli"
+          echo "92d9aeed324d91ed2a107f7f8dc7468829b14390a66cf2bbdfb25c40beac50ea  $RUNNER_TEMP/officecli" | sha256sum -c -
+          chmod 0755 "$RUNNER_TEMP/officecli"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+          sudo cp "$RUNNER_TEMP/officecli" /usr/local/bin/officecli
       - name: Vet
         run: go vet ./...
 
@@ -119,6 +126,9 @@ jobs:
             context: .
             dockerfile: apps/server/Dockerfile
           - name: worker
+            context: .
+            dockerfile: apps/server/Dockerfile
+          - name: office-agent
             context: .
             dockerfile: apps/server/Dockerfile
     steps:

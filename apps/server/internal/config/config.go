@@ -82,6 +82,9 @@ type Config struct {
 	// turns it off. Each round that finds edits adds a version, so it also
 	// sets how fast an active session consumes version retention.
 	OfficeAutosaveInterval time.Duration
+	// OfficeAgentSocket is the isolated OfficeCLI runner's Unix socket.
+	// Empty disables Office agent reads/edits; no local subprocess fallback.
+	OfficeAgentSocket string
 	// MaxUploadBytes caps a single request body that becomes file content.
 	// A space's quota is checked only after the bytes have landed — the
 	// request's declared length is not trustworthy — so without a ceiling
@@ -193,6 +196,7 @@ func Load() (*Config, error) {
 
 		OnlyOfficeJWTSecret:    []byte(os.Getenv("PP_ONLYOFFICE_JWT_SECRET")),
 		OfficeAutosaveInterval: autosave,
+		OfficeAgentSocket:      strings.TrimSpace(os.Getenv("PP_OFFICE_AGENT_SOCKET")),
 		MaxUploadBytes:         maxUpload,
 		BlobScrubBytesPerDay:   scrubPerDay,
 		MaxPublicationBytes:    maxPublication,

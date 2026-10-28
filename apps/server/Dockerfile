@@ -1,9 +1,10 @@
 # syntax=docker/dockerfile:1
 #
-# Two independent images from one build:
+# Three independent images from one build:
 #
 #   docker build -f apps/server/Dockerfile --target server .   API server + web app (default)
 #   docker build -f apps/server/Dockerfile --target worker .   preview worker
+#   docker build -f apps/server/Dockerfile --target office-agent .   networkless Office editor
 #
 # Build context is the REPO ROOT, not apps/server: the server image carries the
 # web app, and the app depends on @workspace/ui, so the whole bun workspace has
@@ -67,6 +68,45 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/worker ./cmd/worker
 
+FROM deps AS build-office-agent
+COPY apps/server/ .
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/office-agent ./cmd/office-agent
+
+# Pin the engine and verify the release asset, not a moving installer.
+FROM alpine:3.21 AS officecli-download
+ARG TARGETARCH
+RUN apk add --no-cache curl \
+    && case "$TARGETARCH" in \
+      amd64) asset=x64; digest=265a9a0e57273a831dc668509c812cf83ae94af9ceb77a4a37e22113a1a90ac7 ;; \
+      arm64) asset=arm64; digest=590e082f0db46deb010d75e2a8249cf312f292d80424fbd45fcc97d484bfab53 ;; \
+      *) echo "unsupported OfficeCLI architecture: $TARGETARCH" >&2; exit 1 ;; \
+    esac \
+    && curl -fsSL "https://github.com/iOfficeAI/OfficeCLI/releases/download/v1.0.159/officecli-linux-alpine-$asset" -o /officecli \
+    && echo "$digest  /officecli" | sha256sum -c - \
+    && chmod 0755 /officecli \
+    && mkdir /licenses \
+    && for name in LICENSE NOTICE THIRD-PARTY-NOTICES.txt; do \
+      curl -fsSL "https://raw.githubusercontent.com/iOfficeAI/OfficeCLI/v1.0.159/$name" -o "/licenses/$name" || exit 1; \
+    done
+
+# No network, credentials or blob-store mount at runtime. The API sends one
+# bounded file through a same-UID Unix socket; only scratch space is writable.
+FROM alpine:3.21 AS office-agent
+RUN apk add --no-cache libstdc++ libgcc icu-libs zlib \
+    && addgroup -g 1000 app && adduser -D -u 1000 -G app app \
+    && mkdir -p /run/office-agent && chown app:app /run/office-agent
+COPY --from=build-office-agent /out/office-agent /usr/local/bin/office-agent
+COPY --from=officecli-download /officecli /usr/local/bin/officecli
+COPY --from=officecli-download /licenses/ /usr/share/licenses/officecli/
+RUN OFFICECLI_SKIP_UPDATE=1 /usr/local/bin/officecli --version
+USER app
+ENV PP_OFFICE_AGENT_SOCKET=/run/office-agent/office-agent.sock
+HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=3 \
+    CMD ["/usr/local/bin/office-agent", "--healthcheck"]
+ENTRYPOINT ["office-agent"]
+
 # The preview worker: build with --target worker.
 #
 # Optional to deploy. Without it, render:pdf and render:video jobs stay pending
@@ -106,7 +146,7 @@ ENTRYPOINT ["worker"]
 # alpine already carries ca-certificates-bundle, which the OIDC and S3 clients
 # need — do not swap the base for `scratch` without adding it back.
 FROM alpine:3.21 AS server
-RUN adduser -D app && mkdir -p /data/blobs && chown -R app:app /data
+RUN adduser -D -u 1000 app && mkdir -p /data/blobs && chown -R app:app /data
 USER app
 COPY --from=build-server /out/server /usr/local/bin/server
 COPY --from=build-web /src/apps/web/dist /srv/web

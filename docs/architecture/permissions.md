@@ -987,11 +987,14 @@ capability of its own — it is its creator, as an OAuth token is.
 A token whose identity has no pp-hub account answers 403 ("sign in to pp-hub
 once…"); the MCP path never creates an account.
 
-Four routes exist only on the in-process agent router: `GET /nodes/{id}/text`
-takes `CapView` (reading is view), `GET /nodes/{id}/file` takes `CapDownload`
-(it hands the bytes over, like `/download`), `PUT /nodes/{id}/text` takes `CapEdit`
-and `PUT /nodes/{id}/site-files` (publish_artifact's files) takes `CapEdit` on
-a folder that is empty or already a publication's source.
+Agent-only routes keep the same capability split: `GET /nodes/{id}/text` and
+`GET /nodes/{id}/office` take `CapView`; `GET /nodes/{id}/file` takes
+`CapDownload` because it hands over a copy. `PUT /nodes/{id}/text` and
+`PUT /nodes/{id}/office` take `CapEdit`, respect editor locks and conditionally
+commit against the read ETag. Structured Office output does not require a raw
+download grant. `GET /office/schema` exposes no document content.
+`PUT /nodes/{id}/site-files` takes `CapEdit` on a folder that is empty or already
+a publication's source.
 `add_comment` with a quote anchors the thread by writing the document, so it
 needs edit; without a quote it opens a thread like a reviewer, on view.
 

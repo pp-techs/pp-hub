@@ -108,6 +108,7 @@ services:
       # A duration of at least 1m, or "off". Each round that finds edits adds
       # a version to the file's history.
       PP_OFFICE_AUTOSAVE_INTERVAL: "${PP_OFFICE_AUTOSAVE_INTERVAL:-5m}"
+      PP_OFFICE_AGENT_SOCKET: /run/office-agent/office-agent.sock
 
       # Whoever signs in with this address becomes an instance admin, on
       # every sign-in. Without it a fresh install has no administrator and no
@@ -161,6 +162,7 @@ services:
       PP_LOGTO_ORG_ROLE_ADMIN: "${PP_LOGTO_ORG_ROLE_ADMIN:-admin}"
     volumes:
       - blob_data:/data/blobs
+      - office_agent_socket:/run/office-agent:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/readyz || exit 1"]
       interval: 10s
@@ -178,7 +180,34 @@ services:
       # way round and stop this server first: stop editing before using them.)
       onlyoffice:
         condition: service_started
+      office-agent:
+        condition: service_healthy
     networks: [edge, data, office]
+
+  # Structured Office editing for MCP. No TCP network or credentials, and
+  # never a blob mount: the API transfers one file over the shared Unix socket.
+  office-agent:
+    image: "ghcr.io/pp-techs/pp-hub-office-agent:${PP_IMAGE_TAG:?set in .env - a released tag, e.g. 0.1.0}"
+    restart: unless-stopped
+    network_mode: none
+    read_only: true
+    user: "1000:1000"
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 512m
+    cpus: 1.0
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    volumes:
+      - office_agent_socket:/run/office-agent
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/office-agent", "--healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   # Preview worker — optional. Remove this service and the app still works:
   # render:pdf/video/office jobs stay pending instead of failing, because
@@ -486,3 +515,4 @@ volumes:
   onlyoffice_logs:
   onlyoffice_fonts:
   onlyoffice_cache:
+  office_agent_socket:
