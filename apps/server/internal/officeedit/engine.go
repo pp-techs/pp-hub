@@ -117,11 +117,11 @@ func (e *runner) Do(ctx context.Context, req Request) (Response, error) {
 			} `json:"summary"`
 		}
 		if json.Unmarshal(data, &result) != nil || len(result.Results) != len(pending) || result.Summary.Total != len(pending) || result.Summary.Succeeded != len(pending) || result.Summary.Failed != 0 || result.Summary.Skipped != 0 || result.Summary.AtomicRolledBack {
-			return ErrProcessing
+			return fmt.Errorf("%w: batch execution failed: %s", ErrProcessing, string(data))
 		}
 		for _, r := range result.Results {
 			if !r.Success {
-				return ErrProcessing
+				return fmt.Errorf("%w: batch operation failed", ErrProcessing)
 			}
 		}
 		pending = nil
@@ -167,14 +167,14 @@ func (e *runner) Do(ctx context.Context, req Request) (Response, error) {
 		Errors []json.RawMessage `json:"errors"`
 	}
 	if json.Unmarshal(validation, &check) != nil || check.Count == nil || *check.Count != 0 || len(check.Errors) != 0 {
-		return Response{}, ErrProcessing
+		return Response{}, fmt.Errorf("%w: OOXML validation failed: %s", ErrProcessing, string(validation))
 	}
 	content, err := readFile(file, MaxFileBytes)
 	if err != nil {
-		return Response{}, ErrProcessing
+		return Response{}, fmt.Errorf("%w: read output: %v", ErrProcessing, err)
 	}
 	if err := validatePackage(content, req.Format); err != nil {
-		return Response{}, ErrProcessing
+		return Response{}, fmt.Errorf("%w: package validation: %v", ErrProcessing, err)
 	}
 	data, _ := json.Marshal(map[string]any{"applied": len(req.Operations), "validated": true})
 	return Response{Content: content, Data: data}, nil
@@ -277,7 +277,11 @@ func (e *runner) command(ctx context.Context, dir string, input []byte, args ...
 	close(done)
 	monitor.Wait()
 	if err != nil || ctx.Err() != nil || stdout.overflow || stderr.overflow || stderr.buf.Len() != 0 {
-		return nil, ErrProcessing
+		cmdName := "command"
+		if len(args) > 0 {
+			cmdName = args[0]
+		}
+		return nil, fmt.Errorf("%w: %s failed: err=%v, ctx=%v, stderr=%s", ErrProcessing, cmdName, err, ctx.Err(), stderr.buf.String())
 	}
 	var envelope struct {
 		Success *bool           `json:"success"`
