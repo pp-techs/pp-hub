@@ -1,6 +1,10 @@
 -- name: GetLock :one
 SELECT * FROM file_locks WHERE node_id = $1 AND expires_at > now() LIMIT 1;
 
+-- name: GetLockForUpdate :one
+-- Keep a conditional edit's owned lock stable until its version commits.
+SELECT * FROM file_locks WHERE node_id = $1 AND expires_at > now() LIMIT 1 FOR UPDATE;
+
 -- name: UpsertLock :exec
 INSERT INTO file_locks (node_id, lock_token, expires_at)
 VALUES ($1, $2, now() + INTERVAL '30 minutes')

@@ -163,8 +163,8 @@ missing variable rather than booting a half-configured stack.
 
 ### Releases
 
-`up -d`, not `up -d --build`. The two application images are published to
-`ghcr.io/pp-techs/pp-hub-{server,worker}` by the release flow
+`up -d`, not `up -d --build`. The three application images are published to
+`ghcr.io/pp-techs/pp-hub-{server,worker,office-agent}` by the release flow
 (`release.yml`, described in [CONTRIBUTING.md](../CONTRIBUTING.md#releasing)),
 and `PP_IMAGE_TAG` names the one this stack runs. A release is cut by merging
 the "Version Packages" PR: after a reviewer approves the `production-release`
@@ -200,7 +200,7 @@ variable being required, and pinned to a version, is what makes "which commit
 is in production" a question with an answer.
 
 Building on the deployment host is the thing this replaces. It puts a bun
-install, a Vite build and two Go builds on a box sized for serving, makes
+install, a Vite build and three Go builds on a box sized for serving, makes
 every deploy's output depend on the machine that ran it, and turns a rollback
 into a rebuild — minutes of downtime to return to code that was already
 working. `compose.prod.yml` therefore has no `build:` at all; building a tag
@@ -713,6 +713,32 @@ behind an allowlist must admit Anthropic's egress range, `160.79.104.0/21`.
 The per-person rate limit on `/mcp/` (1200/min, burst 200) is keyed on the
 user rather than the address for the same reason: every Claude user arrives
 from those few addresses.
+
+**Structured Office runner.** Production compose includes `office-agent`
+(pinned OfficeCLI 1.0.159), with no network, credentials, CAS mount or published
+port. It runs as UID 1000 with a read-only root, 256 MiB temporary filesystem,
+512 MiB memory limit and dropped capabilities. The API mounts only the shared
+socket volume read-only and connects using
+`PP_OFFICE_AGENT_SOCKET=/run/office-agent/office-agent.sock`; the runner owns
+that socket at mode 0600. Builds verify the downloaded binary's SHA-256 and
+retain its license notices. Publish and deploy the new image alongside the
+server; `compose.build.yml` builds all three targets locally.
+
+Text tools need no runner. Office reads/edits accept DOCX/XLSX/PPTX up to 8 MiB
+and return 503 when the socket is unset or unavailable; the operation schema
+remains available. The server never falls back to starting a local process.
+Existing OnlyOffice browser editing is unchanged.
+
+For local development, install OfficeCLI 1.0.159 and, from `apps/server`, run:
+
+```bash
+PP_OFFICE_AGENT_SOCKET=/tmp/pphub-office-agent/office-agent.sock vp exec go run ./cmd/office-agent
+```
+
+Set the same `PP_OFFICE_AGENT_SOCKET` on the API process. A host process is
+**not** the production sandbox: use the isolated compose service for untrusted
+files. See [Office integration](architecture/office-integration.md#structured-mcp-editing)
+for operation limits and refusal cases.
 
 ### WebDAV (`/dav`)
 

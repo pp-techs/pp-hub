@@ -20,6 +20,24 @@ UPDATE nodes SET team_root_id = id WHERE id = $1 AND parent_id IS NULL;
 -- name: GetNode :one
 SELECT * FROM nodes WHERE id = $1 AND deleted_at IS NULL LIMIT 1;
 
+-- name: GetNodeForUpdate :one
+-- Serialize version creation and conditional replacement against node changes.
+SELECT * FROM nodes WHERE id = $1 AND deleted_at IS NULL LIMIT 1 FOR UPDATE;
+
+-- name: LockNodeAncestry :many
+-- Tree moves lock the parent before updating descendants. Conditional writes
+-- must use the same root-to-leaf order instead of locking the file first.
+WITH RECURSIVE chain(id, depth) AS (
+    SELECT root.id, 0 FROM nodes root WHERE root.id = $1
+  UNION ALL
+    SELECT n.parent_id, c.depth + 1
+    FROM chain c JOIN nodes n ON n.id = c.id
+    WHERE n.parent_id IS NOT NULL AND c.depth < 100
+)
+SELECT n.* FROM chain c JOIN nodes n ON n.id = c.id
+ORDER BY c.depth DESC
+FOR UPDATE OF n;
+
 -- name: ListChildren :many
 SELECT * FROM nodes
 WHERE space_id = $1

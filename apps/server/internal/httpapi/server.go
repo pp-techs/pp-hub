@@ -23,6 +23,7 @@ import (
 	"github.com/nhatbui/pp-hub/apps/server/internal/notifications"
 	"github.com/nhatbui/pp-hub/apps/server/internal/notify"
 	"github.com/nhatbui/pp-hub/apps/server/internal/obs"
+	"github.com/nhatbui/pp-hub/apps/server/internal/officeedit"
 	"github.com/nhatbui/pp-hub/apps/server/internal/orgsync"
 	"github.com/nhatbui/pp-hub/apps/server/internal/personal"
 	"github.com/nhatbui/pp-hub/apps/server/internal/preview"
@@ -38,23 +39,25 @@ import (
 )
 
 type Server struct {
-	auth          *auth.Service
-	spaces        *spaces.Service
-	groups        *groups.Service
-	fs            *fs.Service
-	share         *share.Service
-	wopi          *wopi.Service
-	preview       *preview.Worker
-	users         *users.Service
-	activity      *activity.Service
-	audit         *audit.Service
-	sysconfig     *sysconfig.Service
-	store         *store.Queries
-	pool          *pgxpool.Pool
-	blobs         blob.Store
-	orgs          *orgsync.Service
-	uploads       *uploads.Service
-	collab        collab.Service
+	auth      *auth.Service
+	spaces    *spaces.Service
+	groups    *groups.Service
+	fs        *fs.Service
+	share     *share.Service
+	wopi      *wopi.Service
+	preview   *preview.Worker
+	users     *users.Service
+	activity  *activity.Service
+	audit     *audit.Service
+	sysconfig *sysconfig.Service
+	store     *store.Queries
+	pool      *pgxpool.Pool
+	blobs     blob.Store
+	orgs      *orgsync.Service
+	uploads   *uploads.Service
+	collab    collab.Service
+	// officeEditor only calls the isolated Office runner; nil disables edits.
+	officeEditor  officeedit.Engine
 	webhookKey    string
 	externalURL   string
 	onlyOfficeURL string
@@ -124,6 +127,9 @@ type Deps struct {
 	Uploads *uploads.Service
 	// Collab hosts the block editor's rooms.
 	Collab collab.Service
+	// OfficeEditor processes Office bytes in the isolated runner; nil leaves
+	// read/edit unavailable while the operation schema remains readable.
+	OfficeEditor officeedit.Engine
 	// LogtoWebhookKey signs /hooks/logto deliveries. Empty disables the
 	// route: an unauthenticated endpoint that mutates membership is worse
 	// than a slower path to the same state.
@@ -169,6 +175,7 @@ func NewServer(d Deps) *Server {
 		orgs:           d.OrgSync,
 		uploads:        d.Uploads,
 		collab:         d.Collab,
+		officeEditor:   d.OfficeEditor,
 		webhookKey:     d.LogtoWebhookKey,
 		externalURL:    d.ExternalURL,
 		onlyOfficeURL:  d.OnlyOfficeURL,
@@ -418,6 +425,9 @@ func (s *Server) apiRoutes(r chi.Router, agent bool) {
 		})
 	}
 	r.Get("/search", s.handleSearch)
+	if agent {
+		r.Get("/office/schema", s.handleOfficeSchema)
+	}
 	r.Get("/activity", s.handleListActivity)
 	r.Get("/recent", s.handleListRecent)
 	r.Get("/starred", s.handleListStarred)
@@ -550,6 +560,8 @@ func (s *Server) apiRoutes(r chi.Router, agent bool) {
 			r.Get("/text", s.handleReadText)
 			r.Get("/file", s.handleReadFile)
 			r.Put("/text", s.handleWriteMarkdown)
+			r.Get("/office", s.handleReadOffice)
+			r.Put("/office", s.handleEditOffice)
 			// publish_artifact's files, written into the folder it
 			// publishes (agent_publish.go).
 			r.Put("/site-files", s.handleWriteSiteFiles)

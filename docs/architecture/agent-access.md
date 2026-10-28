@@ -201,22 +201,26 @@ a reverse proxy on the same host would trip it).
 
 ## Tools
 
-| Group         | Tools                                                                                                                                                                                         | Notes                                                                                                                                                                                                                                            |
-| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Read          | `whoami`, `list_spaces`, `list_folder`, `search`, `get_node`, `list_recent`, `list_starred`, `list_shared_with_me`, `list_versions`, `list_members`, `list_groups`, `list_document_templates` | The existing reach-filtered routes, answered as the web client gets them. `list_folder` takes a markdown document's id as `folder_id` and lists its sub-pages (M43); rows carry `child_page_count`                                               |
-| Read          | `read_document`                                                                                                                                                                               | Markdown and `text/*` with an `etag`; anything else → 415 and a hint to send a link. The description says the YAML frontmatter holds the page `icon`/`cover` (keep it on update) and that `<!-- slash:subPage … -->` blocks mark sub-pages (M43) |
-| Read          | `download_file`                                                                                                                                                                               | Any file's bytes as `content_base64` with `name`, `mime`, `size`, `version`, `etag`. Needs download (not just view); at most 8 MiB, 413 above. Read-only — the only binary write is `publish_artifact`'s, into its own folder                    |
-| Read          | `get_web_link`                                                                                                                                                                                | `/edit/{id}` for a markdown document, the containing folder for any other file, the folder itself for a folder                                                                                                                                   |
-| Write         | `create_document`                                                                                                                                                                             | `.md`, empty, from a template, or with markdown (an empty first version, then the content as the second). `folder_id` may be a markdown document: the new document is its sub-page (M43)                                                         |
-| Write         | `update_document(node_id, markdown, base_etag)`                                                                                                                                               | See below                                                                                                                                                                                                                                        |
-| Sharing       | `list_access`, `grant_access`, `revoke_access`                                                                                                                                                | Shares, group grants and inherited access; grants go through the same handlers, so M36's bounds apply. `grant_access` takes `email` too; outside the space it needs `mcp_external_shares` (M42)                                                  |
-| Sharing       | `create_public_link`                                                                                                                                                                          | Offered only while `mcp_public_links` is on — and the space must still allow public links                                                                                                                                                        |
-| Publishing    | `publish_artifact(space_id, folder_id?, name, files, entry_path?, password?, expires_in_days?)`, `unpublish_artifact(node_id)`                                                                | M50, [publishing.md](publishing.md#agents). Offered only while publishing is available and `mcp_public_links` is on. `files` are `{path, content, encoding?: utf8\|base64}`, at most 8 MiB together, written into folder `name` and published    |
-| Comments      | `list_comments`, `add_comment(quote?)`, `reply_comment`, `resolve_thread`                                                                                                                     | See below                                                                                                                                                                                                                                        |
-| Notifications | `list_notifications`, `mark_notifications_read`                                                                                                                                               | Pull only: MCP has no push channel to a chat app                                                                                                                                                                                                 |
+| Group         | Tools                                                                                                                                                                                         | Notes                                                                                                                                                                                                                                         |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Read          | `whoami`, `list_spaces`, `list_folder`, `search`, `get_node`, `list_recent`, `list_starred`, `list_shared_with_me`, `list_versions`, `list_members`, `list_groups`, `list_document_templates` | The existing reach-filtered routes, answered as the web client gets them. `list_folder` takes a markdown document's id as `folder_id` and lists its sub-pages (M43); rows carry `child_page_count`                                            |
+| Read          | `read_document`                                                                                                                                                                               | Markdown only, including YAML frontmatter and sub-page markers; preserve these on update. Returns the current `etag`                                                                                                                          |
+| Read          | `read_text_file`                                                                                                                                                                              | UTF-8 text, including HTML, CSS, JS/TS, JSON, XML, YAML, SVG, CSV and TXT; at most 1 MiB; returns exact text and `etag`                                                                                                                       |
+| Read          | `read_office_file`, `get_office_schema`                                                                                                                                                       | Structured DOCX/XLSX/PPTX reads and the supported operation/property schema; see below                                                                                                                                                        |
+| Read          | `download_file`                                                                                                                                                                               | Any file's bytes as `content_base64` with `name`, `mime`, `size`, `version`, `etag`. Needs download, not just view; at most 8 MiB                                                                                                             |
+| Read          | `get_web_link`                                                                                                                                                                                | `/edit/{id}` for a markdown document, the containing folder for any other file, the folder itself for a folder                                                                                                                                |
+| Write         | `create_document`                                                                                                                                                                             | `.md`, empty, from a template, or with markdown (an empty first version, then the content as the second). `folder_id` may be a markdown document: the new document is its sub-page (M43)                                                      |
+| Write         | `update_document(node_id, markdown, base_etag)`                                                                                                                                               | See below                                                                                                                                                                                                                                     |
+| Write         | `update_text_file(node_id, text, base_etag)`                                                                                                                                                  | Conditional UTF-8 text replacement; Markdown keeps the collaboration-aware write path                                                                                                                                                         |
+| Write         | `edit_office_file(node_id, base_etag, operations)`                                                                                                                                            | Conditional, structured DOCX/XLSX/PPTX mutations through the isolated Office runner                                                                                                                                                           |
+| Sharing       | `list_access`, `grant_access`, `revoke_access`                                                                                                                                                | Shares, group grants and inherited access; grants go through the same handlers, so M36's bounds apply. `grant_access` takes `email` too; outside the space it needs `mcp_external_shares` (M42)                                               |
+| Sharing       | `create_public_link`                                                                                                                                                                          | Offered only while `mcp_public_links` is on — and the space must still allow public links                                                                                                                                                     |
+| Publishing    | `publish_artifact(space_id, folder_id?, name, files, entry_path?, password?, expires_in_days?)`, `unpublish_artifact(node_id)`                                                                | M50, [publishing.md](publishing.md#agents). Offered only while publishing is available and `mcp_public_links` is on. `files` are `{path, content, encoding?: utf8\|base64}`, at most 8 MiB together, written into folder `name` and published |
+| Comments      | `list_comments`, `add_comment(quote?)`, `reply_comment`, `resolve_thread`                                                                                                                     | See below                                                                                                                                                                                                                                     |
+| Notifications | `list_notifications`, `mark_notifications_read`                                                                                                                                               | Pull only: MCP has no push channel to a chat app                                                                                                                                                                                              |
 
 Ids are checked against the UUID shape before they are spliced into a path.
-Write tools carry `destructiveHint` (`update_document`, the sharing tools) so
+Write tools carry `destructiveHint` (`update_document`, `update_text_file`, `edit_office_file`, the sharing tools) so
 clients confirm before running them; every tool says `openWorldHint: false`. A
 refusal comes back as a tool error whose text is the handler's problem detail
 ("403 Forbidden: insufficient permission", "409 Conflict: the document changed
@@ -226,31 +230,33 @@ instructions to share, publish or rewrite.
 
 ### The text routes
 
-Four routes exist only on the agent router (`apiRoutes(r, true)`), never on the
-network; the web client edits documents through the collaboration room and
-publishes what is already in the drive, so it does not need them.
+These routes exist only on the in-process agent router (`apiRoutes(r, true)`),
+never as network API endpoints. The web client keeps its existing editor paths.
 
-- **`GET /nodes/{id}/text`** — view. Markdown or `text/*`, valid UTF-8, at most
-  1 MiB (413 above: a truncated read written back would drop the rest). A
-  document open in a room is flushed first (`collab.Service.Flush`), so the
-  agent reads what its editors see. Answers
+- **`GET /nodes/{id}/text`** — view. Accepts text MIME types and recognized
+  text-based formats, including JSON/XML/JavaScript/YAML/SVG and safe extension
+  fallback for generic binary MIME. Content must be valid UTF-8 without binary
+  control bytes, at most 1 MiB (413 above); binary content is refused.
+  `?markdown=true` restricts `read_document` to Markdown. A Markdown room is
+  flushed before reading. Returns
   `{node_id, name, mime, version, etag, markdown, lossy, text}`; `etag` is the
-  current version's blob hash. Audited as `file_viewed`.
+  current blob hash. Non-Markdown text is returned exactly, without HTML
+  sanitization, execution or newline normalization. Audited as `file_viewed`.
 - **`GET /nodes/{id}/file`** — download. Any file, whole, as JSON with the bytes
   in base64 (`{node_id, name, mime, size, version, etag, content_base64}`), at
   most 8 MiB (`maxAgentFileBytes`; 413 above). Takes `CapDownload` like
   `/download`, so a view-only share is refused (403); a folder is 400. A
   document open in a room is flushed first. Audited as `file_downloaded`.
-- **`PUT /nodes/{id}/text`** `{markdown, base_etag}` — edit, markdown documents
-  only. Lossy markdown (raw HTML, footnotes) is refused with 422: the document
-  would open read-only on the web from then on. An office editor's lock still
-  refuses (409). The write goes through `collab.Reseed`, the path a version
-  restore takes: a resident room writes its unsaved edits first as a version of
-  their own, `base_etag` is compared **after** that flush — so a keystroke the
-  agent never read makes the write stale rather than lost — then `fs.PutFile`
-  writes the new version as the caller and the room's peers receive the new
-  content at once. Identical content writes nothing. Recorded in the activity
-  feed as `uploaded`.
+- **`PUT /nodes/{id}/text`** — edit. Exactly one of `{text, base_etag}` or the
+  Markdown-specific `{markdown, base_etag}` is accepted. The same UTF-8, format
+  and 1 MiB limits apply to reads and writes. Markdown refuses lossy constructs
+  with 422 and uses `collab.Reseed`: unsaved room edits flush before comparing
+  the ETag, then peers receive the saved content. Other text is stored exactly
+  while holding a unique editor lock; existing editor/CSV locks refuse the
+  request. `fs.PutFileIfCurrent` locks the node and live ancestors and checks
+  the version under the commit transaction, preventing stale writes and
+  concurrent move/trash races. Identical content creates no version. Changed
+  content records `uploaded` activity and preserves the file's MIME type.
 - **`PUT /nodes/{id}/site-files`** `{files: [{path, content}]}` — edit on a
   folder, `publish_artifact`'s write (`httpapi/agent_publish.go`). Refused
   (409) unless the folder is empty or already a publication's source, so it
@@ -260,11 +266,45 @@ publishes what is already in the drive, so it does not need them.
   At most 8 MiB and 2000 files together; quota applies per file; an office
   editor's lock refuses (423).
 
-`PUT /text` and `PUT /site-files` are the only routes besides the upload routes
-that turn a request body into file content, and they are safe for the reasons
-the upload routes are: they are bounded, quota is enforced by `fs.PutFile`, and
-locks are honoured (rooms too, for `/text`) — and they are not reachable from
-the network at all.
+Text writes, structured Office edits and site-file publishing are the bounded
+agent-only exceptions to upload-based file writes. They enforce capabilities,
+quota and editor locks before committing through the filesystem service.
+
+### Structured Office editing
+
+- **`GET /nodes/{id}/office?path=/&depth=2`** (`read_office_file`) requires
+  `CapView`, returns structured content plus `etag`, and records `file_viewed`.
+  An active editor lock refuses the read rather than exposing an unsaved copy.
+- **`GET /office/schema?format=docx|xlsx|pptx`** (`get_office_schema`) returns
+  the supported paths, operations and property allowlists without opening a file.
+- **`PUT /nodes/{id}/office`** (`edit_office_file`) takes
+  `{base_etag, operations}` and requires `CapEdit`. Operations are typed
+  `set`, `add` and `remove` objects, with `path` or `parent`/`type`, string-valued
+  `props`, and optional literal `find`/`replace`. Read the schema and document
+  tree first: sheet names and element paths come from the file, not defaults.
+
+Only matching `.docx`, `.xlsx` and `.pptx` MIME/extension pairs are accepted,
+at most 8 MiB. Legacy, macro-enabled, encrypted, embedded-active and unsafe
+relationship packages are refused. Requests are limited to 100 operations,
+1 MiB of canonical operation JSON, depth 8 and 10,000 cells per XLSX read.
+The schema deliberately excludes arbitrary XML, shell commands, plugins,
+network resources and filesystem paths. Literal Excel replacements remain
+strings, even when they begin with `=`; formulas use explicit formula properties.
+
+The API never starts OfficeCLI. It sends a bounded request over a private Unix
+socket to `cmd/office-agent`, with pinned OfficeCLI 1.0.159. Production runs it
+without network, credentials or blob mounts, on a read-only filesystem with
+bounded scratch space, process count and memory. Each request has a private
+temporary copy, a 45-second deadline and bounded output. All operations and
+OOXML validation must succeed before any bytes return for commit.
+
+Edits hold a unique editor lock through processing and commit, then re-check
+live permissions, location, lock ownership and ETag. Concurrent changes return
+a conflict rather than overwrite another editor. Changed output becomes one
+normal version; failed batches create none. Missing runner configuration or an
+unavailable runner returns 503; the static schema remains available. See
+[office-integration.md](office-integration.md#structured-mcp-editing) and
+[deployment.md](../deployment.md#agent-access-mcp).
 
 ### Comment anchors
 
@@ -314,11 +354,11 @@ here" from "off for me", and `mcp_tokens` while personal tokens may be minted.
 
 ## Non-goals
 
-Binary upload or write-back (`download_file` is read-only; `publish_artifact`
-writes base64 files only into the folder it publishes); file management
-(folders, rename, move, trash); text from office documents or PDFs (indexed for search since M27, but not
-returned by a tool); admin operations; the embedded agent (next, over the same registry); a
-CLI.
+Generic binary upload/write-back; file management (folders, rename, move,
+trash); PDF editing or structured PDF reads; unrestricted OfficeCLI/XML
+operations; admin operations; the embedded agent (next, over the same registry);
+a CLI. `download_file` stays read-only; Office writes are structured operations,
+not replacement bytes supplied by a model.
 
 ## Risks
 

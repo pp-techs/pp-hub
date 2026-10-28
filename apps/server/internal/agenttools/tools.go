@@ -16,6 +16,8 @@ func Tools(o Options) []Tool {
 		listStarred(), listSharedWithMe(), listVersions(), listMembers(), listGroups(),
 		readDocument(), downloadFile(), getWebLink(o.WebURL), listDocumentTemplates(),
 		createDocument(), updateDocument(),
+		readTextFile(), updateTextFile(),
+		readOfficeFile(), editOfficeFile(), getOfficeSchema(),
 		listAccess(), grantAccess(), revokeAccess(),
 		listComments(), addComment(), replyComment(), resolveThread(),
 		listNotifications(), markNotificationsRead(),
@@ -235,18 +237,18 @@ func listGroups() Tool {
 func readDocument() Tool {
 	return Tool{
 		Name: "read_document", Title: "Read a document",
-		Description: "The text of a markdown document or plain-text file, with its etag (pass it to update_document). " +
+		Description: "A markdown document's whole text, with its etag (pass it to update_document). Use read_text_file for other UTF-8 source and data files. " +
 			"Markdown is the whole file, YAML frontmatter included: a document's page icon (`icon`, an emoji) and cover (`cover`, attachment:<hash>) live there — keep it when you update the document. " +
 			"Markdown may contain comment anchors like <!-- slash:comment {...} -->; they mark commented text, and " +
 			"<!-- slash:subPage {\"pageId\":...} --> blocks mark the document's sub-pages. " +
-			"Office documents and PDFs cannot be read as text — use download_file for their bytes, or get_web_link to send the person to them.",
+			"Use read_office_file for structured Office content, or download_file for binary files and PDFs.",
 		Schema: json.RawMessage(nodeArg), ReadOnly: true,
 		Run: func(ctx context.Context, api API, args json.RawMessage) (any, error) {
 			node, err := nodeID(args)
 			if err != nil {
 				return nil, err
 			}
-			return call(ctx, api, http.MethodGet, "/nodes/"+node+"/text", nil)
+			return call(ctx, api, http.MethodGet, "/nodes/"+node+"/text?markdown=true", nil)
 		},
 	}
 }

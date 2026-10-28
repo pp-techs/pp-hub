@@ -7,7 +7,7 @@ name: Release
 # - no changesets, and no tag vX.Y.Z for the committed version → `ci` and
 #   `verify` re-run every check and prepare the notes read-only, `approve`
 #   waits for a reviewer on the `production-release` environment, `images`
-#   builds and pushes the server and worker images as :X.Y.Z (+ :X.Y and
+#   builds and pushes the server, worker and office-agent images as :X.Y.Z (+ :X.Y and
 #   :latest for a stable release), and `release` tags vX.Y.Z and creates the
 #   GitHub Release;
 # - otherwise nothing.

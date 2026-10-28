@@ -127,7 +127,8 @@ pp-hub/
 │       ├── cmd/server/             # entry point: OIDC wait, http.Server; owns migrations; binds before collab Start (listenThenStart)
 │       │                           #   (apps are uploaded at runtime, not compiled in: internal/apppkg + internal/exthost)
 │       ├── cmd/worker/             # optional preview worker (pdftoppm/ffmpeg); --backfill (previews + text extraction)
-│       ├── Dockerfile              # build context = repo root; build-web (bun/vite) stage; targets: worker (poppler+ffmpeg), server (slim, default; ships the SPA at /srv/web); copies third_party/ and the package manifests of packages/app-sdk, examples/apps/{kanban,checklist} and tools/pp-apps
+│       ├── cmd/office-agent/       # isolated OfficeCLI Unix-socket runner; no database, credentials or CAS
+│       ├── Dockerfile              # context = repo root; targets: worker (poppler+ffmpeg), office-agent (pinned OfficeCLI), server (default, SPA at /srv/web)
 │       ├── third_party/ygo/        # reearth/ygo v1.50.0, patched (PATCHES.md); go.mod `replace`s onto it
 │       ├── .env.example            # → .env (git-ignored), sourced for local dev
 │       └── internal/
@@ -162,6 +163,7 @@ pp-hub/
 │           │   ├── mcp.go          # M41: /mcp/ (bearer-only, mcpBearer) + /.well-known/oauth-protected-resource
 │           │   ├── agent.go        # M41: agentAPI — tool calls dispatched in process through apiRoutes (innerRequest, shared with /dav)
 │           │   ├── agent_text.go   # M41: GET/PUT /nodes/{id}/text and GET /nodes/{id}/file, mounted only on the agent router
+│           │   ├── agent_office.go # agent-only structured Office reads, schema and conditional edits
 │           │   ├── publish.go      # M50: /api/v1/nodes/{id}/publication (GET/POST/PATCH/DELETE), /p/{token} and /unlock
 │           │   ├── artifact.go     # M50: the artifact router — under /a on the app's origin, or by Host on PP_ARTIFACT_URL; sandbox CSP, GET/HEAD of a snapshot
 │           │   ├── apps.go         # M51: /api/v1/admin/apps (install/upgrade, get, PATCH backend_url, DELETE ?purge, backend-secret); /x/ asset switch + app CSP
@@ -220,7 +222,8 @@ pp-hub/
 │           ├── notifications/      # ✅ M29 rows, the per-process SSE broker, notify:mentions job
 │           ├── textsearch/         # ✅ M27 folding, query building, snippets (pure)
 │           ├── agenttools/         # ✅ M41 the MCP tool registry (REST calls via agenttools.API); anchor.go = comment anchors;
-│           │                       #    publish.go = publish_artifact / unpublish_artifact (M50)
+│           │                       #    text.go / office.go = text + structured Office tools; publish.go = artifact publishing (M50)
+│           ├── officeedit/         # typed Office schema, package safety checks, bounded engine and Unix-socket client/server
 │           ├── publish/            # ✅ M50 publications: snapshots, sealed tokens, password grants, Resolve (liveness); crypto.go
 │           ├── uploads/            # ✅ resumable upload rows + staging files in <PP_BLOB_ROOT>/.uploads; 24h idle sweep
 │           ├── blob/               # CAS Store interface + local and S3 impls; Ingest takes over a staged upload

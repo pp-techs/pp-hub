@@ -28,3 +28,9 @@ services:
       context: ../..
       dockerfile: apps/server/Dockerfile
       target: worker
+
+  office-agent:
+    build:
+      context: ../..
+      dockerfile: apps/server/Dockerfile
+      target: office-agent

@@ -1,1 +1,6 @@
 Blank document templates from https://github.com/ONLYOFFICE/document-templates (Apache-2.0).
+
+Modified by pp-hub: corrected OOXML element ordering in the English and
+Vietnamese Word templates and removed an invalid zero verticalDpi attribute
+from the English spreadsheet template. These changes enable schema-validated
+structured editing; upstream licensing is unchanged.
