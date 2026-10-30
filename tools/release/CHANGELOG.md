@@ -1,5 +1,12 @@
 # @pp-hub/release
 
+## 1.1.1
+
+### Patch Changes
+
+- 228ffc0: Bumped `happy-dom` to 21.0.4 in the web workspace to fix CVE-2026-115895 (GHSA-834v-8h66-3h79), an incomplete fix for CVE-2026-33943 that allowed host code execution through an unsanitized ESM import alias. Development/test-only dependency; no production code affected.
+- 08d4054: Made the web app work on phones and tablets. File lists and tables now keep only the columns that fit the screen (name and actions first, then size/owner as it widens), and the notification panel, selection action bar, file header and office preview no longer spill off narrow screens. Tapping a file or folder opens it, since a double-press does nothing on touch. Also fixed a long-press on a file or folder opening two context menus at once.
+
 ## 1.1.0
 
 ### Minor Changes
