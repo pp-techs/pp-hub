@@ -147,7 +147,7 @@ export const PreviewModal = createModal<Props, void>("preview", ({ node, sibling
             <PreviewContent key={current.id} node={current} />
           </div>
 
-          <aside className="border-border flex w-80 shrink-0 flex-col border-l">
+          <aside className="border-border hidden w-80 shrink-0 flex-col border-l lg:flex">
             <Tabs defaultValue="details" className="flex min-h-0 flex-1 flex-col">
               {/* The line variant, not the pill one restyled: a `w-fit`
                   segmented control with its corners squared off and a border

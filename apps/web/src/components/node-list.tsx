@@ -46,6 +46,22 @@ import { DRAG_DATA_TYPE, isValidMoveTarget, setDragGhost } from "@/lib/drag-drop
 import { hitTestList } from "@/lib/listing-geometry";
 import type { MarqueeRect } from "@/lib/use-marquee-selection";
 
+/**
+ * Which listing columns survive at which width, in the order Name, Modified,
+ * Size, Owner, Actions. A phone fits the name and the row's action menu; the
+ * numbers come back as the column grows. The header, the rows and the loading
+ * skeleton all read this, so a column never shows a head without its cells.
+ */
+/* eslint-disable lingui/no-unlocalized-strings -- Tailwind class names */
+const COL_VISIBLE = [
+  "",
+  "hidden sm:table-cell",
+  "hidden md:table-cell",
+  "hidden lg:table-cell",
+  "",
+] as const;
+/* eslint-enable lingui/no-unlocalized-strings */
+
 interface NodeListProps extends NodeActionHandlers {
   /** Node ids the caller has starred, so each row can show its own state. */
   starredIds: Set<string>;
@@ -196,19 +212,19 @@ function NodeListHead() {
   return (
     <thead className="bg-background border-border text-muted-foreground sticky top-0 z-10 border-b text-[11px] tracking-wider uppercase">
       <tr className="h-9">
-        <th scope="col" className="min-w-60 px-2 font-medium">
+        <th scope="col" className={cn("min-w-60 px-2 font-medium", COL_VISIBLE[0])}>
           <Trans>Name</Trans>
         </th>
-        <th scope="col" className="w-36 px-2 text-right font-medium">
+        <th scope="col" className={cn("w-36 px-2 text-right font-medium", COL_VISIBLE[1])}>
           <Trans>Modified</Trans>
         </th>
-        <th scope="col" className="w-24 px-2 text-right font-medium">
+        <th scope="col" className={cn("w-24 px-2 text-right font-medium", COL_VISIBLE[2])}>
           <Trans>Size</Trans>
         </th>
-        <th scope="col" className="w-32 px-2 font-medium">
+        <th scope="col" className={cn("w-32 px-2 font-medium", COL_VISIBLE[3])}>
           <Trans>Owner</Trans>
         </th>
-        <th scope="col" className="w-20 px-2 text-right font-medium">
+        <th scope="col" className={cn("w-20 px-2 text-right font-medium", COL_VISIBLE[4])}>
           <Trans>Actions</Trans>
         </th>
       </tr>
@@ -228,22 +244,22 @@ export function NodeListSkeleton({ rows = 8 }: { rows?: number }) {
         <tbody>
           {Array.from({ length: rows }, (_, i) => (
             <tr key={i} className="border-border h-9 border-b">
-              <td className="px-2">
+              <td className={cn("px-2", COL_VISIBLE[0])}>
                 <div className="flex items-center gap-2">
                   <Skeleton className="size-4 rounded" />
                   <Skeleton className="h-3" style={{ width: `${40 + ((i * 17) % 35)}%` }} />
                 </div>
               </td>
-              <td className="px-2">
+              <td className={cn("px-2", COL_VISIBLE[1])}>
                 <Skeleton className="ml-auto h-3 w-20" />
               </td>
-              <td className="px-2">
+              <td className={cn("px-2", COL_VISIBLE[2])}>
                 <Skeleton className="ml-auto h-3 w-12" />
               </td>
-              <td className="px-2">
+              <td className={cn("px-2", COL_VISIBLE[3])}>
                 <Skeleton className="h-3 w-20" />
               </td>
-              <td className="px-2" />
+              <td className={cn("px-2", COL_VISIBLE[4])} />
             </tr>
           ))}
         </tbody>
@@ -379,7 +395,7 @@ const NodeListRow = memo(function NodeListRow({
           onClick={(e) => onClick(node, e)}
           onDoubleClick={() => onDoubleClick(node)}
         >
-          <td className="px-2 align-middle">
+          <td className={cn("px-2 align-middle", COL_VISIBLE[0])}>
             <div className="flex min-w-0 items-center gap-2">
               <NodeIcon node={node} isShared={shared} />
               <span
@@ -392,20 +408,30 @@ const NodeListRow = memo(function NodeListRow({
               </span>
             </div>
           </td>
-          <td className="text-muted-foreground px-2 text-right tabular-nums align-middle">
+          <td
+            className={cn(
+              "text-muted-foreground px-2 text-right tabular-nums align-middle",
+              COL_VISIBLE[1],
+            )}
+          >
             {node.modified_at ? f.date(node.modified_at) : "—"}
           </td>
-          <td className="text-muted-foreground px-2 text-right tabular-nums align-middle">
+          <td
+            className={cn(
+              "text-muted-foreground px-2 text-right tabular-nums align-middle",
+              COL_VISIBLE[2],
+            )}
+          >
             {node.size != null ? f.size(node.size) : "—"}
           </td>
           {/* Inside a team folder `owner` is only a byline — access comes from
               the folder's grants, not from whoever uploaded. Printing a name
               here would invite the reader to think that person controls the
               row, so the column names the holder instead. */}
-          <td className="text-muted-foreground truncate px-2 align-middle">
+          <td className={cn("text-muted-foreground truncate px-2 align-middle", COL_VISIBLE[3])}>
             {node.in_team ? t`Team` : (node.owner ?? "—")}
           </td>
-          <td className="px-2 text-right align-middle">
+          <td className={cn("px-2 text-right align-middle", COL_VISIBLE[4])}>
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={

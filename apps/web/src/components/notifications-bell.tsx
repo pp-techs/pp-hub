@@ -67,7 +67,7 @@ export function NotificationsBell() {
           </span>
         ) : null}
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-96 gap-0 p-0">
+      <PopoverContent align="end" className="w-96 max-w-[calc(100vw-1rem)] gap-0 p-0">
         <div className="border-border flex h-10 items-center gap-2 border-b px-3">
           <span className="text-sm font-medium">
             <Trans>Notifications</Trans>

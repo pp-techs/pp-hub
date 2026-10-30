@@ -122,7 +122,6 @@ function DriveLayout() {
           className="h-svh overflow-hidden"
           style={
             {
-              "--sidebar-width": "calc(var(--spacing) * 64)",
               "--header-height": "calc(var(--spacing) * 12)",
             } as CSSProperties
           }

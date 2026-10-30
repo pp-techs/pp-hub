@@ -71,7 +71,9 @@ export function EditorHeader({
     <>
       <HeaderLead>
         {node && spaces.isSuccess ? (
-          <Breadcrumb className="min-w-0 shrink">
+          // The folder trail costs width the file's name needs on a phone, so
+          // there the name stands alone; the trail returns at `sm`.
+          <Breadcrumb className="hidden min-w-0 shrink sm:block">
             <BreadcrumbList className="flex-nowrap gap-1 sm:gap-1.5">
               {outsider ? (
                 <ExternalBreadcrumb dir={dir} after={crumbs} linkLast />

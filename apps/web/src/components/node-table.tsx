@@ -16,9 +16,17 @@ import {
 } from "@workspace/ui/components/empty";
 import type { Node } from "@/lib/api";
 import { useFormatters } from "@/lib/format";
+import { cn } from "@workspace/ui/lib/utils";
 import { NodeIcon } from "@/components/node-icon";
 import { SkeletonTableRows } from "@/components/loading";
 import { Button } from "@workspace/ui/components/button";
+
+/** Column visibility at narrow widths — Tailwind classes, never translated. */
+/* eslint-disable lingui/no-unlocalized-strings -- Tailwind class names */
+const SHOW_SM = "hidden sm:table-cell";
+const SHOW_MD = "hidden md:table-cell";
+const SHOW_LG = "hidden lg:table-cell";
+/* eslint-enable lingui/no-unlocalized-strings */
 
 interface NodeTableProps {
   nodes: Node[];
@@ -73,14 +81,16 @@ export function NodeTable({
           <TableHead>
             <Trans>Name</Trans>
           </TableHead>
-          {extraColumn && <TableHead className="w-40">{extraColumn.header}</TableHead>}
-          <TableHead className="w-36">
+          {extraColumn && (
+            <TableHead className={cn("w-40", SHOW_MD)}>{extraColumn.header}</TableHead>
+          )}
+          <TableHead className={cn("w-36", SHOW_SM)}>
             <Trans>Modified</Trans>
           </TableHead>
-          <TableHead className="w-24">
+          <TableHead className={cn("w-24", SHOW_MD)}>
             <Trans>Size</Trans>
           </TableHead>
-          <TableHead className="w-36">
+          <TableHead className={cn("w-36", SHOW_LG)}>
             <Trans>Owner</Trans>
           </TableHead>
           {renderActions ? <TableHead className="w-24" /> : null}
@@ -88,7 +98,17 @@ export function NodeTable({
       </TableHeader>
       <TableBody>
         {isPending ? (
-          <SkeletonTableRows columns={4 + (renderActions ? 1 : 0) + (extraColumn ? 1 : 0)} />
+          <SkeletonTableRows
+            columns={4 + (renderActions ? 1 : 0) + (extraColumn ? 1 : 0)}
+            columnClasses={[
+              "",
+              ...(extraColumn ? [SHOW_MD] : []),
+              SHOW_SM,
+              SHOW_MD,
+              SHOW_LG,
+              ...(renderActions ? [""] : []),
+            ]}
+          />
         ) : (
           nodes.map((n) => (
             <TableRow key={n.id}>
@@ -111,17 +131,19 @@ export function NodeTable({
                 )}
               </TableCell>
               {extraColumn && (
-                <TableCell className="text-muted-foreground truncate">
+                <TableCell className={cn("text-muted-foreground truncate", SHOW_MD)}>
                   {extraColumn.cell(n)}
                 </TableCell>
               )}
-              <TableCell className="text-muted-foreground tabular-nums">
+              <TableCell className={cn("text-muted-foreground tabular-nums", SHOW_SM)}>
                 {f.date(n.modified_at)}
               </TableCell>
-              <TableCell className="text-muted-foreground tabular-nums">
+              <TableCell className={cn("text-muted-foreground tabular-nums", SHOW_MD)}>
                 {n.size != null ? f.size(n.size) : "—"}
               </TableCell>
-              <TableCell className="text-muted-foreground truncate">{n.owner ?? "—"}</TableCell>
+              <TableCell className={cn("text-muted-foreground truncate", SHOW_LG)}>
+                {n.owner ?? "—"}
+              </TableCell>
               {renderActions ? <TableCell>{renderActions(n)}</TableCell> : null}
             </TableRow>
           ))

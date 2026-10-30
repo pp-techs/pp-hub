@@ -19,10 +19,17 @@ import {
 import { opensInEditor, type SearchResult } from "@/lib/api";
 import { openFile } from "@/lib/open-file";
 import { useFormatters } from "@/lib/format";
+import { cn } from "@workspace/ui/lib/utils";
 import { PreviewModal } from "@/components/preview-modal";
 import { ExtOffBadge } from "@/components/ext-off-badge";
 import { NodeIcon } from "@/components/node-icon";
 import { SkeletonTableRows } from "@/components/loading";
+
+/** Column visibility at narrow widths — Tailwind classes, never translated. */
+/* eslint-disable lingui/no-unlocalized-strings -- Tailwind class names */
+const SHOW_SM = "hidden sm:table-cell";
+const SHOW_MD = "hidden md:table-cell";
+/* eslint-enable lingui/no-unlocalized-strings */
 
 interface SpaceNodeTableProps {
   nodes: SearchResult[];
@@ -85,21 +92,26 @@ export function SpaceNodeTable({
           <TableHead>
             <Trans>Name</Trans>
           </TableHead>
-          <TableHead className="w-40">
+          <TableHead className={cn("w-40", SHOW_MD)}>
             <Trans>Location</Trans>
           </TableHead>
-          {extraColumn && <TableHead className="w-36">{extraColumn.header}</TableHead>}
-          <TableHead className="w-32">
+          {extraColumn && (
+            <TableHead className={cn("w-36", SHOW_MD)}>{extraColumn.header}</TableHead>
+          )}
+          <TableHead className={cn("w-32", SHOW_SM)}>
             <Trans>Modified</Trans>
           </TableHead>
-          <TableHead className="w-24">
+          <TableHead className={cn("w-24", SHOW_MD)}>
             <Trans>Size</Trans>
           </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {isPending ? (
-          <SkeletonTableRows columns={extraColumn ? 5 : 4} />
+          <SkeletonTableRows
+            columns={extraColumn ? 5 : 4}
+            columnClasses={["", SHOW_MD, ...(extraColumn ? [SHOW_MD] : []), SHOW_SM, SHOW_MD]}
+          />
         ) : (
           nodes.map((n) => (
             <TableRow key={n.id}>
@@ -118,18 +130,18 @@ export function SpaceNodeTable({
               {/* An empty parent name means the space root, which has no folder
                 to name — an em dash reads better than the space name repeated
                 on every row. */}
-              <TableCell className="text-muted-foreground truncate">
+              <TableCell className={cn("text-muted-foreground truncate", SHOW_MD)}>
                 {n.parent_name || "—"}
               </TableCell>
               {extraColumn && (
-                <TableCell className="text-muted-foreground truncate">
+                <TableCell className={cn("text-muted-foreground truncate", SHOW_MD)}>
                   {extraColumn.cell(n)}
                 </TableCell>
               )}
-              <TableCell className="text-muted-foreground tabular-nums">
+              <TableCell className={cn("text-muted-foreground tabular-nums", SHOW_SM)}>
                 {f.relative(n.modified_at)}
               </TableCell>
-              <TableCell className="text-muted-foreground tabular-nums">
+              <TableCell className={cn("text-muted-foreground tabular-nums", SHOW_MD)}>
                 {n.kind === "file" && n.size != null ? f.size(n.size) : "—"}
               </TableCell>
             </TableRow>

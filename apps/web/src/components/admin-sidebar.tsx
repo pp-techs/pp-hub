@@ -16,6 +16,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarRail,
 } from "@workspace/ui/components/sidebar";
 import { useMe } from "@/lib/queries";
 import { UserAvatar } from "@/components/user-avatar";
@@ -50,13 +51,13 @@ export function AdminSidebar(props: ComponentProps<typeof Sidebar>) {
   const name = me.data?.display_name || me.data?.name || t`User`;
 
   return (
-    <Sidebar collapsible="offcanvas" className="px-0" {...props}>
+    <Sidebar collapsible="icon" className="px-0" {...props}>
       <SidebarHeader>
         <div className="flex h-12 items-center gap-2.5 px-2">
           <div className="bg-primary text-primary-foreground flex size-8 shrink-0 items-center justify-center rounded-lg">
             <Server className="size-4" />
           </div>
-          <div className="grid flex-1 leading-tight">
+          <div className="grid flex-1 leading-tight group-data-[collapsible=icon]:hidden">
             <span className="truncate text-sm font-medium">
               <Trans>Administration</Trans>
             </span>
@@ -103,12 +104,13 @@ export function AdminSidebar(props: ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
         <div className="flex items-center gap-2 border-t px-2 pt-3 pb-1">
           <UserAvatar src={me.data?.avatar_url} name={name} email={me.data?.email} size="sm" />
-          <div className="grid min-w-0 flex-1 leading-tight">
+          <div className="grid min-w-0 flex-1 leading-tight group-data-[collapsible=icon]:hidden">
             <span className="truncate text-sm font-medium">{name}</span>
             <span className="text-muted-foreground truncate text-xs">{me.data?.email}</span>
           </div>
         </div>
       </SidebarFooter>
+      <SidebarRail />
     </Sidebar>
   );
 }

@@ -191,7 +191,7 @@ export function PageTreePanel({
   return (
     <nav
       aria-label={t`Pages`}
-      className="border-border bg-background flex w-60 shrink-0 flex-col border-r"
+      className="border-border bg-background flex w-48 shrink-0 flex-col border-r"
     >
       <div className="flex h-10 shrink-0 items-center justify-between gap-1 pr-1 pl-3">
         <span className="text-muted-foreground text-xs font-medium">

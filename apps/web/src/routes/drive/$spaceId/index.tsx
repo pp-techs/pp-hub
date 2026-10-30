@@ -55,6 +55,7 @@ import {
 import { nextSelection } from "@/lib/selection";
 import { useMarqueeSelection, type MarqueeRect } from "@/lib/use-marquee-selection";
 import { useKeyedState } from "@/lib/use-keyed-state";
+import { useCoarsePointer } from "@/lib/use-coarse-pointer";
 import { useUiStore } from "@/lib/ui-store";
 import { useFormatters } from "@/lib/format";
 import { groupActions } from "@/lib/group-actions";
@@ -77,6 +78,29 @@ import { useDriveWrite } from "@/components/drive-write";
 import { folderActions, type FolderAction, type ListingContext } from "@/components/folder-actions";
 import { downloadUrl, nodeActions } from "@/components/node-actions";
 const EMPTY_SET = new Set<string>();
+
+/** Whether a press landed on a file/folder row (or its action chrome) rather than the folder's empty space. */
+function isOnNode(e: { target: EventTarget | null }): boolean {
+  return Boolean(
+    (e.target as HTMLElement | null)?.closest("[data-node-id],[data-keeps-selection]"),
+  );
+}
+
+/**
+ * A press on a node belongs to that node's own menu, never this folder menu.
+ * `preventBaseUIHandler` is what stops Base UI's trigger opening behind it — a
+ * plain `return` is not enough. `preventDefault` is deliberately *not* called
+ * here: on `touchstart` it would kill scrolling the listing by dragging a row.
+ * A touch long-press also fires `contextmenu`, so every entry point that can
+ * open the folder menu calls this, not just one.
+ */
+function suppressFolderMenu(e: {
+  stopPropagation(): void;
+  preventBaseUIHandler?: () => void;
+}): void {
+  e.stopPropagation();
+  e.preventBaseUIHandler?.();
+}
 
 export const Route = createFileRoute("/drive/$spaceId/")({
   head: () => ({ meta: [{ title: pageTitle(msg`Drive`) }] }),
@@ -113,6 +137,7 @@ function FolderView() {
   const { spaceId } = Route.useParams();
   const { dir, sort: sortParam, order: orderParam, view: viewParam } = Route.useSearch();
   const navigate = useNavigate();
+  const coarse = useCoarsePointer();
   const space = useSpace(spaceId);
   const rememberDir = useUiStore((s) => s.rememberDir);
   const filterQuery = useUiStore((s) => s.filterQuery);
@@ -209,11 +234,41 @@ function FolderView() {
   );
 
   /**
-   * A click only ever changes the selection — the details panel is opened by
-   * hand, from the header's (i) or the node's Information action.
+   * Opening a node: into a folder, into the editor, or the preview. This is
+   * what a double-click does with a mouse and — because a phone has no
+   * double-click gesture — what a plain tap does on a coarse pointer.
+   */
+  const handleOpenNode = useCallback(
+    (node: Node) => {
+      if (node.kind === "dir") {
+        rememberDir(node);
+        void navigate({
+          to: "/drive/$spaceId",
+          params: { spaceId },
+          search: { dir: node.id, sort, order, view },
+        });
+      } else if (opensInEditor(node)) {
+        openFile(node);
+      } else {
+        void PreviewModal.show({ node, siblings: sortedFiles });
+      }
+    },
+    [navigate, spaceId, rememberDir, sort, order, view, sortedFiles],
+  );
+
+  /**
+   * A click selects; a double-click opens — the details panel is opened by
+   * hand, from the header's (i) or the node's Information action. On a coarse
+   * pointer (a phone or a touch tablet) there is no double-click to be had, so
+   * a tap opens instead, the convention in every mobile file manager;
+   * selecting there is a long-press, which reaches the row's context menu.
    */
   const handleClick = useCallback(
     (node: Node, event: MouseEvent) => {
+      if (coarse) {
+        handleOpenNode(node);
+        return;
+      }
       setSelectedIds((prev) => {
         const next = nextSelection(sorted, { ids: prev, anchorId: anchorId.current }, node.id, {
           toggle: event.metaKey || event.ctrlKey,
@@ -223,7 +278,7 @@ function FolderView() {
         return next.ids;
       });
     },
-    [sorted, setSelectedIds],
+    [coarse, handleOpenNode, sorted, setSelectedIds],
   );
 
   /**
@@ -249,24 +304,6 @@ function FolderView() {
       });
     },
   });
-
-  const handleDoubleClick = useCallback(
-    (node: Node) => {
-      if (node.kind === "dir") {
-        rememberDir(node);
-        void navigate({
-          to: "/drive/$spaceId",
-          params: { spaceId },
-          search: { dir: node.id, sort, order, view },
-        });
-      } else if (opensInEditor(node)) {
-        openFile(node);
-      } else {
-        void PreviewModal.show({ node, siblings: sortedFiles });
-      }
-    },
-    [navigate, spaceId, rememberDir, sort, order, view, sortedFiles],
-  );
 
   /** The node's Information action: select it alone, then show the panel. */
   const handleShowDetails = useCallback((node: Node) => {
@@ -568,14 +605,20 @@ function FolderView() {
                   className="relative min-h-0 flex-1 overflow-auto"
                   onMouseDown={marquee.onMouseDown}
                   onContextMenu={(e: MouseEvent) => {
-                    if (
-                      (e.target as HTMLElement).closest("[data-node-id],[data-keeps-selection]")
-                    ) {
+                    if (isOnNode(e)) {
+                      e.preventDefault();
+                      suppressFolderMenu(e);
                       return;
                     }
                     // The menu acts on the folder, so it must not read as
                     // acting on whatever was selected a moment ago.
                     setSelectedIds(new Set());
+                  }}
+                  onTouchStart={(e) => {
+                    // The long-press path: without this the folder menu opens
+                    // beside the node's on a phone, where a hold is the only
+                    // way to reach either.
+                    if (isOnNode(e)) suppressFolderMenu(e);
                   }}
                 />
               }
@@ -617,7 +660,7 @@ function FolderView() {
                   selectedIds={selectedIds}
                   starredIds={starredIds}
                   onClick={handleClick}
-                  onDoubleClick={handleDoubleClick}
+                  onDoubleClick={handleOpenNode}
                   onMoveNodes={handleMoveNodes}
                   scrollRef={listingRef}
                   hitTestRef={hitTestRef}
@@ -630,7 +673,7 @@ function FolderView() {
                   selectedIds={selectedIds}
                   starredIds={starredIds}
                   onClick={handleClick}
-                  onDoubleClick={handleDoubleClick}
+                  onDoubleClick={handleOpenNode}
                   onMoveNodes={handleMoveNodes}
                   scrollRef={listingRef}
                   hitTestRef={hitTestRef}

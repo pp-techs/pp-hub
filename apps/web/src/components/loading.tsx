@@ -39,13 +39,22 @@ function lineWidth(i: number, min = 45, spread = 45): string {
  * Body rows for a shadcn `Table` whose real header is already on screen. The
  * caller keeps its own `TableHeader`, so column widths are the real ones.
  */
-export function SkeletonTableRows({ columns, rows = 6 }: { columns: number; rows?: number }) {
+export function SkeletonTableRows({
+  columns,
+  rows = 6,
+  columnClasses,
+}: {
+  columns: number;
+  rows?: number;
+  /** Per-column visibility classes, so a hidden column hides its skeleton too. */
+  columnClasses?: readonly string[];
+}) {
   return (
     <>
       {Array.from({ length: rows }, (_, r) => (
         <TableRow key={r} className="hover:bg-transparent">
           {Array.from({ length: columns }, (_, c) => (
-            <TableCell key={c}>
+            <TableCell key={c} className={columnClasses?.[c]}>
               {r === 0 && c === 0 && (
                 <span role="status" className="sr-only">
                   <Trans>Loading…</Trans>

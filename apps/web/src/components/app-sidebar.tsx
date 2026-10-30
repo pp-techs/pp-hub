@@ -4,6 +4,7 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
+  SidebarRail,
   SidebarSeparator,
 } from "@workspace/ui/components/sidebar";
 import { NavApps } from "@/components/nav-apps";
@@ -38,7 +39,7 @@ export function AppSidebar({
     // The inset container pads by p-2 and every header/group/footer pads by
     // p-2 again, doubling the gutter. The vertical half stays so the rail
     // lines up with the inset card's m-2; the horizontal half goes.
-    <Sidebar collapsible="offcanvas" className="px-0" {...props}>
+    <Sidebar collapsible="icon" className="px-0" {...props}>
       <SidebarHeader>
         {guest ? (
           <div className="flex items-center gap-2.5 px-2 py-1">
@@ -65,6 +66,7 @@ export function AppSidebar({
         {!guest && <SidebarSeparator className="mx-0" />}
         <NavUser />
       </SidebarFooter>
+      <SidebarRail />
     </Sidebar>
   );
 }
