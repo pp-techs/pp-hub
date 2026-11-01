@@ -15,7 +15,7 @@
 # stage, so the module download happens once. The web build stage is reached
 # only by `server`; BuildKit skips it for `worker`.
 
-FROM oven/bun:1.4.2-alpine AS build-web
+FROM oven/bun:1.4.4-alpine AS build-web
 WORKDIR /src
 
 # Manifests first so the install layer caches independently of source edits.
