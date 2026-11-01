@@ -131,7 +131,7 @@ The app is served under `<asset base>/x/<id>/<digest>/`, a path that changes
 with every version, so **every asset must be referenced relatively**.
 
 - **Zero-build** — what `init` makes: plain ES modules, `import { connect }
-from "./app-sdk.js"`. When `packages/app-sdk/src/index.js` changes, copy it
+  from "./app-sdk.js"`. When `packages/app-sdk/src/index.js` changes, copy it
   over the app's `app-sdk.js` (and `index.d.ts` over `app-sdk.d.ts`).
 - **A bundler** — import `@pp-hub/app-sdk` (a dependency-free ES module; private
   to this repository for now, so outside it copy or link `packages/app-sdk`),
@@ -196,7 +196,7 @@ class and `color-scheme`, and follows theme changes, so styling with
   (so references between records survive); deleting it for good deletes them.
   `seed` records are written as the creator when an item is made.
 - **Live updates.** `on("records", …)` receives `{type: "record.upsert",
-record}` and `{type: "record.delete", id, collection}` for every write, yours
+  record}` and `{type: "record.delete", id, collection}` for every write, yours
   included; `on("broadcast", …)` receives `{event, data, from}`. On
   `on("stream", …)` with `state: "reconnected"`, refetch — events may have been
   missed.
@@ -206,7 +206,7 @@ record}` and `{type: "record.delete", id, collection}` for every write, yours
   back with `subject` and `thread` in the context, and the host opens the
   panel itself.
 - **Notifications**: `notify({ to, verb: "assigned", excerpt, subject:
-"record:" + id })` tells someone who can open the item; the bell words it
+  "record:" + id })` tells someone who can open the item; the bell words it
   with the manifest's template and links back to the record.
 
 ### A backend

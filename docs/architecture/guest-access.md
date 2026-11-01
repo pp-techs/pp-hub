@@ -72,9 +72,9 @@ Logto's; without it no code can be sent and guests cannot sign in.
   carries `oidc_iss = ''` and `oidc_sub = 'guest:<id>'`, which keeps
   `UNIQUE (oidc_iss, oidc_sub)` without loosening the `NOT NULL`;
   `users_guest_ck` requires `kind <> 'guest' OR (oidc_iss = '' AND email <> ''
-AND email_verified)`. A guest is stored under the lower-cased address.
+  AND email_verified)`. A guest is stored under the lower-cased address.
 - `guest_otps(email_norm PK, code_hash, attempts, sends, window_start,
-expires_at, created_at)`: one live code per address, SHA-256 of
+  expires_at, created_at)`: one live code per address, SHA-256 of
   `email:code`. `sends`/`window_start` cap mail per address per hour,
   `attempts` caps guesses against the code.
 - `AdoptUserIdentity` also sets `kind = 'member'`.

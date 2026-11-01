@@ -101,7 +101,7 @@ personal spaces on.
 - `shares.is_external` with `shares_external_direct_ck` (direct only, never
   `can_share`) and `shares_external_by_creator` for the rate limit.
 - `pending_shares(node_id, email_norm, level, can_download, created_by,
-expires_at)`, unique per `(node_id, email_norm)`; `email_norm` is checked to
+  expires_at)`, unique per `(node_id, email_norm)`; `email_norm` is checked to
   be lower-cased and trimmed.
 
 `tenant_id` stays `'default'` — this is not multi-tenant routing.
