@@ -13,7 +13,7 @@
     "i18n:extract": "lingui extract --overwrite"
   },
   "dependencies": {
-    "@buiducnhat/better-modal": "^0.0.6",
+    "@buiducnhat/better-modal": "^1.0.0",
     "@lingui/core": "6.10.1",
     "@lingui/react": "6.10.1",
     "@pp-hub/app-sdk": "workspace:*",

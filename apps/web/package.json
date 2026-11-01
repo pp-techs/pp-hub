@@ -12,7 +12,7 @@
     "i18n:template": "lingui extract-template"
   },
   "dependencies": {
-    "@buiducnhat/better-modal": "^0.0.6",
+    "@buiducnhat/better-modal": "^1.0.0",
     "@hocuspocus/provider": "^4.8.0",
     "@lingui/core": "6.10.1",
     "@lingui/react": "6.10.1",
