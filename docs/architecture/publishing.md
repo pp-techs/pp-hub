@@ -240,7 +240,7 @@ only when `artifacts_enabled` and `mcp_public_links` are both on — publishing 
 a public link with scripts.
 
 - `publish_artifact(space_id, folder_id?, name, files: [{path, content,
-encoding?: "utf8" | "base64"}], entry_path?, password?, expires_in_days?)`
+  encoding?: "utf8" | "base64"}], entry_path?, password?, expires_in_days?)`
   writes the files into a folder `name` in the drive (created, or updated in
   place when it exists and was published before — files the call no longer
   names go to the trash), then publishes it, and returns the publication with

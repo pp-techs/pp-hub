@@ -111,7 +111,7 @@ the class is not.
 - **A control that was only a browser policy.** `SameSite=Lax` was the entire
   CSRF defence until `sameOrigin` existed.
 - **Authorising on one row and mutating another.** `DELETE
-/nodes/{id}/shares/{shareID}` checked `CapShare` on the node in the URL, then
+  /nodes/{id}/shares/{shareID}` checked `CapShare` on the node in the URL, then
   deleted by share id alone.
 - **A privilege check that implied membership.** `spaces.SetAdmin` seated a
   non-member, producing an admin the People page does not list.
@@ -398,7 +398,7 @@ cover them.
   `PP_EXTERNAL_URL` is https) and `X-Content-Type-Options: nosniff` on every
   response. Two CSP
   directives are looser than the standard advice on purpose — `object-src
-'self'` because the PDF viewer is an `<object>`, and `form-action` /
+  'self'` because the PDF viewer is an `<object>`, and `form-action` /
   `frame-src` naming the Document Server's origin because the
   editor handoff is a real cross-origin form POST. The third is not
   deliberate: `style-src 'self' 'unsafe-inline'`
@@ -440,7 +440,7 @@ cover them.
   origin), stores through the same claimed `Put` `fs.PutFile` uses — the
   `users.avatar_blob` column is the reference, counted by trigger since
   M37 — and serves it back from `GET
-/api/v1/users/{userID}/avatar` with `nosniff` and a cache-busting `?v=`
+  /api/v1/users/{userID}/avatar` with `nosniff` and a cache-busting `?v=`
   suffix. `TestAvatarRoundTripsThroughTheBlobStore` proves the round trip
   byte-for-byte against a real Postgres and rejects a non-image upload with 415.
 - **The UI is localized — closed by M32.** Lingui + gettext `.po`, English and

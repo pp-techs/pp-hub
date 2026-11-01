@@ -149,7 +149,7 @@ Two things now narrow it:
   session, so the list of keys is `file_locks` rows with that prefix
   (`ListOfficeEditorLockTokens`); collab rooms and WebDAV hold other tokens.
   The Document Server answers with an ordinary `PutFile` (`X-LOOL-WOPI-IsAutosave:
-true`), so a forcesave is a normal version, subject to the version retention
+  true`), so a forcesave is a normal version, subject to the version retention
   policy. Error 1 (no such session) and 4 (no changes since the last save) are
   the usual answers and are not logged; anything else is. `autoAssembly` in the
   Document Server's own configuration looks like the same thing and is not: with
