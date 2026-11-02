@@ -817,18 +817,32 @@ func (s *Service) ConvertToTeamFolder(ctx context.Context, nodeID, actor pgtype.
 		}); err != nil {
 			return err
 		}
+		// The rewrite is depth-bounded; refuse rather than leave the rest as
+		// somebody's personal work inside the team's container.
+		if deeper, err := s.q.HasUnmarkedDescendant(ctx, n.ID); err != nil {
+			return err
+		} else if deeper {
+			return fmt.Errorf("%w: it is nested more than %d levels deep", ErrNotConvertible, maxTreeDepth)
+		}
+		// Each grant is attributed to whom it is for: CompleteDeparture deletes
+		// the grants a leaver created, so a creator's manager grant written in
+		// the actor's name would vanish when the actor left.
 		managers := []pgtype.UUID{actor}
 		if n.CreatedBy != actor {
 			managers = append(managers, n.CreatedBy)
 		}
 		for _, m := range managers {
+			grantedBy := actor
+			if m == n.CreatedBy {
+				grantedBy = n.CreatedBy
+			}
 			if _, err := s.q.UpsertDirectShare(ctx, store.UpsertDirectShareParams{
 				NodeID:        n.ID,
 				GranteeUserID: m,
 				Level:         store.ShareLevelEdit,
 				CanDownload:   true,
 				CanShare:      true,
-				CreatedBy:     actor,
+				CreatedBy:     grantedBy,
 			}); err != nil {
 				return err
 			}

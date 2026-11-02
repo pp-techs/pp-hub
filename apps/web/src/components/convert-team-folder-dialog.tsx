@@ -61,6 +61,14 @@ export const ConvertTeamFolderDialog = createModal<Props, boolean>(
           </DialogHeader>
 
           <div className="text-muted-foreground flex flex-col gap-2 text-sm">
+            {detail.isError && (
+              <p className="text-destructive">
+                <Trans>
+                  Could not check who else has contributed to this folder, so it cannot be converted
+                  yet. Close this and try again.
+                </Trans>
+              </p>
+            )}
             <p>
               <Trans>
                 You and whoever created the folder become its managers. Everyone else keeps only the
@@ -84,7 +92,9 @@ export const ConvertTeamFolderDialog = createModal<Props, boolean>(
             </Button>
             <Button
               type="button"
-              disabled={convert.isPending}
+              // Only once the count of other people's items is known: it is the
+              // one consequence the confirmation exists to show.
+              disabled={convert.isPending || !detail.isSuccess}
               onClick={() =>
                 convert.mutate(node.id, {
                   onSuccess: () => {

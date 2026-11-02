@@ -288,6 +288,12 @@ func TestConvertToTeamFolder(t *testing.T) {
 	if code := convert(admin, f.dir); code != http.StatusForbidden {
 		t.Errorf("admin with no access to the folder converting = %d, want 403", code)
 	}
+	// Share without edit and download is not a way in: converting makes the
+	// caller a manager with both.
+	grantDirect(t, srv, f.dir, admin, f.owner, share.GrantCaps{Level: share.LevelView, CanShare: true})
+	if code := convert(admin, f.dir); code != http.StatusForbidden {
+		t.Errorf("admin who may only view and share converting = %d, want 403", code)
+	}
 	if got, _ := srv.fs.Get(ctx, f.dir.ID); got.TeamRootID.Valid {
 		t.Fatal("a refused conversion must change nothing")
 	}
@@ -404,3 +410,30 @@ func TestAdminCannotJoinAGroupThatOpensFiles(t *testing.T) {
 		t.Errorf("admin adding somebody else = %d, want 201", code)
 	}
 }
+
+// The container is rewritten to a fixed depth. A deeper subtree would be left
+// half converted — personal rows under a team folder, their creators still
+// owners — so conversion refuses it and changes nothing.
+func TestConvertRefusesASubtreeDeeperThanItRewrites(t *testing.T) {
+	srv, q := sharingEnv(t)
+	f := newSharingFixture(t, srv, q, "deep")
+	root := mkNode(t, q, f.space, pgtype.UUID{}, store.NodeKindDir, "deep-root", f.owner)
+	cur := root
+	for i := 0; i <= maxTreeDepthForTest; i++ {
+		cur = mkNode(t, q, f.space, cur.ID, store.NodeKindDir, fmt.Sprintf("d%d", i), f.other)
+	}
+	rec := call(t, srv.handleConvertToTeamFolder, "POST", "/nodes/{nodeID}/team-folder",
+		map[string]string{"nodeID": root.ID.String()}, &f.owner, "")
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("converting a folder nested past the rewrite depth = %d, want 409: %s", rec.Code, rec.Body)
+	}
+	if got, _ := srv.fs.Get(context.Background(), root.ID); got.TeamRootID.Valid {
+		t.Error("a refused conversion must change nothing")
+	}
+	if got, _ := srv.fs.Get(context.Background(), cur.ID); got.TeamRootID.Valid {
+		t.Error("a refused conversion must not leave rows marked")
+	}
+}
+
+// Mirrors fs's rewrite depth, which the package does not export.
+const maxTreeDepthForTest = 100

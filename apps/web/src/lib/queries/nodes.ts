@@ -168,6 +168,8 @@ export function useConvertToTeamFolder(spaceId: string) {
       void qc.invalidateQueries({ queryKey: ["node"] });
       void qc.invalidateQueries({ queryKey: ["tree", spaceId] });
       void qc.invalidateQueries({ queryKey: keys.spaces });
+      // The folder stops being an owned entry point and becomes a granted one.
+      void qc.invalidateQueries({ queryKey: ["shared"] });
     },
   });
 }

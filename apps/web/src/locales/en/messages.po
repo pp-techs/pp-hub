@@ -37,7 +37,7 @@ msgstr ".mcp.json"
 #~ msgid "\"{deletingTitle}\" will be deleted for everyone who can open this board."
 #~ msgstr "\"{deletingTitle}\" will be deleted for everyone who can open this board."
 
-#: src/components/convert-team-folder-dialog.tsx:91
+#: src/components/convert-team-folder-dialog.tsx:101
 msgid "“{folderName}” is now a team folder"
 msgstr "“{folderName}” is now a team folder"
 
@@ -277,7 +277,7 @@ msgstr "{loadedSize} transferred"
 msgid "{MIN_QUERY_LENGTH, plural, one {Type at least # character to search.} other {Type at least # characters to search.}}"
 msgstr "{MIN_QUERY_LENGTH, plural, one {Type at least # character to search.} other {Type at least # characters to search.}}"
 
-#: src/lib/queries/nodes.ts:257
+#: src/lib/queries/nodes.ts:259
 msgid "{moved, plural, one {Moved # item} other {Moved # items}}"
 msgstr "{moved, plural, one {Moved # item} other {Moved # items}}"
 
@@ -317,7 +317,7 @@ msgstr "{nodeName} — version {versionNo}"
 msgid "{nodeName} was deleted by someone else"
 msgstr "{nodeName} was deleted by someone else"
 
-#: src/components/convert-team-folder-dialog.tsx:72
+#: src/components/convert-team-folder-dialog.tsx:80
 msgid "{others, plural, one {# item inside was created by somebody else. They stop owning it and keep access only through Share.} other {# items inside were created by somebody else. They stop owning them and keep access only through Share.}}"
 msgstr "{others, plural, one {# item inside was created by somebody else. They stop owning it and keep access only through Share.} other {# items inside were created by somebody else. They stop owning them and keep access only through Share.}}"
 
@@ -1144,7 +1144,7 @@ msgstr "Can view + download"
 #: src/components/comments/comments-popover.tsx:619
 #: src/components/comments/thread-list.tsx:249
 #: src/components/confirm-dialog.tsx:71
-#: src/components/convert-team-folder-dialog.tsx:83
+#: src/components/convert-team-folder-dialog.tsx:91
 #: src/components/doc-editor/lossy-edit-modal.tsx:39
 #: src/components/group-list.tsx:394
 #: src/components/link-space-modal.tsx:135
@@ -1456,7 +1456,7 @@ msgstr "Continue with SSO"
 msgid "Continue with the identity provider your administrator configured."
 msgstr "Continue with the identity provider your administrator configured."
 
-#: src/components/convert-team-folder-dialog.tsx:99
+#: src/components/convert-team-folder-dialog.tsx:109
 msgid "Convert"
 msgstr "Convert"
 
@@ -1543,7 +1543,11 @@ msgstr "Could not change access"
 msgid "Could not change the page"
 msgstr "Could not change the page"
 
-#: src/components/convert-team-folder-dialog.tsx:95
+#: src/components/convert-team-folder-dialog.tsx:66
+msgid "Could not check who else has contributed to this folder, so it cannot be converted yet. Close this and try again."
+msgstr "Could not check who else has contributed to this folder, so it cannot be converted yet. Close this and try again."
+
+#: src/components/convert-team-folder-dialog.tsx:105
 msgid "Could not convert to a team folder"
 msgstr "Could not convert to a team folder"
 
@@ -1692,7 +1696,7 @@ msgstr "Could not load your sessions."
 msgid "Could not load your tokens."
 msgstr "Could not load your tokens."
 
-#: src/lib/queries/nodes.ts:252
+#: src/lib/queries/nodes.ts:254
 msgid "Could not move “{nodeName}”"
 msgstr "Could not move “{nodeName}”"
 
@@ -6331,7 +6335,7 @@ msgstr "Write a comment… (@ to mention)"
 msgid "You"
 msgstr "You"
 
-#: src/components/convert-team-folder-dialog.tsx:65
+#: src/components/convert-team-folder-dialog.tsx:73
 msgid "You and whoever created the folder become its managers. Everyone else keeps only the access they were given through Share."
 msgstr "You and whoever created the folder become its managers. Everyone else keeps only the access they were given through Share."
 

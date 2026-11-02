@@ -651,8 +651,17 @@ func (s *Server) handleCreateTeamFolder(w http.ResponseWriter, r *http.Request) 
 // anybody. The folder keeps its id, so no link to it or its contents breaks;
 // fs.ConvertToTeamFolder explains the grants it writes.
 func (s *Server) handleConvertToTeamFolder(w http.ResponseWriter, r *http.Request) {
-	u, node, _ := s.requireNodeCaps(w, r, share.CapShare)
+	u, node, caps := s.requireNodeCaps(w, r, share.CapShare)
 	if u == nil {
+		return
+	}
+	// The caller becomes a manager with edit + download. Share alone must not
+	// buy that: being an admin is no file access, and a grant that lets
+	// somebody re-share a folder they may only view would turn conversion
+	// into a way to read and change everything inside it.
+	if !caps.Edit || !caps.Download {
+		writeProblem(w, http.StatusForbidden, "Forbidden",
+			"converting a folder makes you its manager, which takes edit and download access to it")
 		return
 	}
 	space, err := s.spaces.Get(r.Context(), node.SpaceID)

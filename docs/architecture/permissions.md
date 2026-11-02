@@ -588,19 +588,25 @@ Four guards keep a team folder administrable:
 - **Conversion seeds both owners.** `POST /nodes/{id}/team-folder`
   (`handleConvertToTeamFolder`, `fs.ConvertToTeamFolder`) turns an existing
   personal **top-level** folder into a team folder in place — same id, so no
-  link breaks. It needs space admin **and** `CapShare` on the folder (being an
-  admin owns nothing, so it cannot take a colleague's private folder), and
+  link breaks. It needs space admin **and** `share + edit + download` on the
+  folder (being an admin owns nothing, so it cannot take a colleague's private
+  folder, and a share-only grant cannot be turned into file access), and
   refuses with **409** a node that is not a folder, is nested, is already
-  team content or is the Archive. In one transaction it marks the root,
-  rewrites `team_root_id` across the subtree and upserts an
+  team content, is the Archive, or holds a subtree deeper than the rewrite
+  reaches (`HasUnmarkedDescendant`; the transaction rolls back rather than
+  leave personal rows inside the container). In one transaction it marks the
+  root, rewrites `team_root_id` across the subtree and upserts an
   `edit + download + share` grant for the caller **and** the folder's creator:
   `created_by` stops granting inside a container, so without the creator's
-  grant the previous owner would lose the folder. Everyone who created
-  something inside stops owning it and keeps only the grants they hold; the
-  web dialog says how many such items there are (`foreign_owned`) before the
-  admin confirms. The menu offers it only on a top-level, non-team folder the
-  admin manages in an organization space, and "New team folder" only at the
-  space root — a team folder never lands anywhere else.
+  grant the previous owner would lose the folder. Each grant is attributed to
+  its grantee, so the creator's survives the converting admin's departure
+  (`CompleteDeparture` deletes the grants a leaver created). Everyone who
+  created something inside stops owning it and keeps only the grants they
+  hold; the web dialog says how many such items there are (`foreign_owned`)
+  and stays disabled until that count has loaded. The menu offers it only on
+  a top-level, non-team folder the admin manages in an organization space, and
+  "New team folder" only at the space root — a team folder never lands
+  anywhere else.
 - **The last manager stays.** Revoking, or re-granting without `can_share`,
   the only live `can_share` grant on a team folder answers **409**
   (`keepsTeamManager`, counting with `CountTeamManagers`). Somebody else must

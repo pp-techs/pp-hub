@@ -1103,3 +1103,51 @@ func TestChildAccessCapsMatchesFullResolution(t *testing.T) {
 		}
 	}
 }
+
+// Converting somebody else's folder writes two manager grants. The creator's
+// must not be created by the converting admin: CompleteDeparture deletes the
+// grants a leaver created, and the creator, still a member, would lose the
+// folder conversion promised them.
+func TestConvertedFolderKeepsItsCreatorWhenTheConvertingAdminLeaves(t *testing.T) {
+	q, sp, sh := testEnv(t)
+	ctx := context.Background()
+
+	founder := user(t, q, "convert-founder")
+	creator := user(t, q, "convert-creator")
+	converter := user(t, q, "convert-leaving-admin")
+	space, err := sp.Create(ctx, fmt.Sprintf("convertdep-%d", os.Getpid()), founder.ID)
+	if err != nil {
+		t.Fatalf("create space: %v", err)
+	}
+	t.Cleanup(func() { _ = q.DeleteSpace(ctx, space.ID) })
+	if err := sp.AddMember(ctx, space.ID, creator.ID, false); err != nil {
+		t.Fatalf("add creator: %v", err)
+	}
+	if err := sp.AddMember(ctx, space.ID, converter.ID, true); err != nil {
+		t.Fatalf("add admin: %v", err)
+	}
+	blobs, err := blob.NewLocalStore(t.TempDir(), q.BlobClaims())
+	if err != nil {
+		t.Fatalf("blobs: %v", err)
+	}
+	files := fs.NewService(q, blobs)
+	folder, err := q.CreateNode(ctx, store.CreateNodeParams{
+		SpaceID: space.ID, Kind: store.NodeKindDir, Name: "Plans", CreatedBy: creator.ID,
+	})
+	if err != nil {
+		t.Fatalf("create folder: %v", err)
+	}
+	if _, err := files.ConvertToTeamFolder(ctx, folder.ID, converter.ID); err != nil {
+		t.Fatalf("convert: %v", err)
+	}
+
+	depart(t, ctx, sp, space.ID, converter.ID, founder.ID)
+
+	after, err := q.GetNode(ctx, folder.ID)
+	if err != nil {
+		t.Fatalf("reload: %v", err)
+	}
+	if got := caps(t, sh, after, creator.ID); !got.Share || !got.Edit || !got.Download {
+		t.Errorf("the creator lost their manager grant when the converting admin left: %+v", got)
+	}
+}
