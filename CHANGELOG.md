@@ -11,6 +11,10 @@ Versions up to and including 0.14.1 predate this changelog; see the
 
 <!-- `bun run version-packages` adds each release's section from its changesets; edit it in the Version Packages PR. -->
 
+## [1.2.0] — 2026-11-02
+
+Space admins can convert a top-level folder they manage into a team folder in place (⋯ → Convert to team folder, `POST /nodes/{id}/team-folder`). The folder keeps its id and links; the caller and the folder's creator become managers, and people who created items inside keep access only through Share. "New team folder" is now offered only at the space root, since a team folder is always created there.
+
 ## [1.1.1] — 2026-10-30
 
 Bumped `happy-dom` to 21.0.4 in the web workspace to fix CVE-2026-115895 (GHSA-834v-8h66-3h79), an incomplete fix for CVE-2026-33943 that allowed host code execution through an unsanitized ESM import alias. Development/test-only dependency; no production code affected.
