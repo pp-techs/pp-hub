@@ -602,8 +602,13 @@ Four guards keep a team folder administrable:
   its grantee, so the creator's survives the converting admin's departure
   (`CompleteDeparture` deletes the grants a leaver created). Everyone who
   created something inside stops owning it and keeps only the grants they
-  hold; the web dialog says how many such items there are (`foreign_owned`)
-  and stays disabled until that count has loaded. The menu offers it only on
+  hold; the web dialog says how many live items other people created
+  (`foreign_owned`, which does not count the caller's own) and stays disabled
+  until that count has loaded. Conversion is not serialized against a write
+  landing in the folder in the same instant — creates and moves read the
+  parent's `team_root_id` without locking it, as they always have — so a child
+  created during the transaction can keep a personal container; move it out
+  and back in to repair it. The menu offers it only on
   a top-level, non-team folder the admin manages in an organization space, and
   "New team folder" only at the space root — a team folder never lands
   anywhere else.
