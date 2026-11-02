@@ -18,6 +18,7 @@ import {
   Star,
   StarOff,
   Trash2,
+  Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { msg } from "@lingui/core/macro";
@@ -30,6 +31,7 @@ import {
   isMarkdownFile,
   opensInEditor,
   type Node,
+  type Space,
   type UserProfile,
 } from "@/lib/api";
 import { openFile } from "@/lib/open-file";
@@ -37,6 +39,7 @@ import { queryClient } from "@/lib/query-client";
 import { keys } from "@/lib/queries/keys";
 import type { OpenPanel } from "@/lib/ui-store";
 import { ShareDialog } from "@/components/share-dialog";
+import { ConvertTeamFolderDialog } from "@/components/convert-team-folder-dialog";
 import { PublishDialog } from "@/components/publish-dialog";
 
 /**
@@ -274,6 +277,25 @@ export function nodeActions(
       group: "organize",
       run: () => handlers.onMove(node),
     });
+  }
+  // A personal top-level folder the caller manages becomes the team's. Offered
+  // only where the server will accept it — a space admin, an organization
+  // space, a folder that is top level, personal and not the archive — because
+  // a refusal after a confirm dialog explains nothing. The space comes from the
+  // cache the shell has already loaded, as `publishing_enabled` does above.
+  if (node.kind === "dir" && caps.share && !node.in_team && !node.parent_id) {
+    const space = queryClient
+      .getQueryData<Space[]>(keys.spaces)
+      ?.find((s) => s.id === node.space_id);
+    if (space?.is_admin && space.kind === "org" && space.archive_root_id !== node.id) {
+      actions.push({
+        key: "convert-team-folder",
+        label: msg`Convert to team folder…`,
+        icon: Users,
+        group: "organize",
+        run: () => void ConvertTeamFolderDialog.show({ node }),
+      });
+    }
   }
   // Cut/Copy stage the node for a Paste in another folder; "Make a copy"
   // duplicates it where it already is. Three neighbours, three different acts

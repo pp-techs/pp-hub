@@ -438,6 +438,25 @@ func (q *Queries) HasChildren(ctx context.Context, parentID pgtype.UUID) (int64,
 	return count, err
 }
 
+const hasUnmarkedDescendant = `-- name: HasUnmarkedDescendant :one
+SELECT EXISTS (
+    SELECT 1 FROM nodes c JOIN nodes p ON p.id = c.parent_id
+    WHERE p.team_root_id = $1 AND c.team_root_id IS DISTINCT FROM $1
+)::bool
+`
+
+// Whether any node directly under a member of `team_root_id`'s container is
+// not itself in it. SetSubtreeTeamRoot stops at a fixed depth, so a deeper
+// subtree would otherwise be left half-converted — personal rows under a team
+// folder, whose creators would keep ownership. Soft-deleted rows count: a
+// restore brings them back.
+func (q *Queries) HasUnmarkedDescendant(ctx context.Context, teamRootID pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, hasUnmarkedDescendant, teamRootID)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const listAncestry = `-- name: ListAncestry :many
 WITH RECURSIVE chain(id, parent_id, name, depth) AS (
     SELECT n.id, n.parent_id, n.name, 0 FROM nodes n WHERE n.id = $1

@@ -36,6 +36,7 @@ export {
   useCreateFolder,
   useCreateDocument,
   useCreateTeamFolder,
+  useConvertToTeamFolder,
   useRenameNode,
   useDeleteNode,
   useMoveNode,

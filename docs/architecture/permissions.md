@@ -577,7 +577,7 @@ Managers rename and delete the folder (`requireMovableNode`), move content out
 of it (`handleMoveNode`), and appoint other managers. Everyone else with `edit`
 is a contributor.
 
-Three guards keep a team folder administrable:
+Four guards keep a team folder administrable:
 
 - **Creation seeds the first manager.** `POST /spaces/{id}/team-folders` is
   admin-only — a team folder is company structure, which is the line
@@ -585,6 +585,33 @@ Three guards keep a team folder administrable:
   `edit + download + share` grant, written by `fs.CreateTeamFolder` in the
   same transaction as the folder. Without it the folder would be unreachable
   the moment it existed, since nothing about it is owned.
+- **Conversion seeds both owners.** `POST /nodes/{id}/team-folder`
+  (`handleConvertToTeamFolder`, `fs.ConvertToTeamFolder`) turns an existing
+  personal **top-level** folder into a team folder in place — same id, so no
+  link breaks. It needs space admin **and** `share + edit + download` on the
+  folder (being an admin owns nothing, so it cannot take a colleague's private
+  folder, and a share-only grant cannot be turned into file access), and
+  refuses with **409** a node that is not a folder, is nested, is already
+  team content, is the Archive, or holds a subtree deeper than the rewrite
+  reaches (`HasUnmarkedDescendant`; the transaction rolls back rather than
+  leave personal rows inside the container). In one transaction it marks the
+  root, rewrites `team_root_id` across the subtree and upserts an
+  `edit + download + share` grant for the caller **and** the folder's creator:
+  `created_by` stops granting inside a container, so without the creator's
+  grant the previous owner would lose the folder. Each grant is attributed to
+  its grantee, so the creator's survives the converting admin's departure
+  (`CompleteDeparture` deletes the grants a leaver created). Everyone who
+  created something inside stops owning it and keeps only the grants they
+  hold; the web dialog says how many live items other people created
+  (`foreign_owned`, which does not count the caller's own) and stays disabled
+  until that count has loaded. Conversion is not serialized against a write
+  landing in the folder in the same instant — creates and moves read the
+  parent's `team_root_id` without locking it, as they always have — so a child
+  created during the transaction can keep a personal container; move it out
+  and back in to repair it. The menu offers it only on
+  a top-level, non-team folder the admin manages in an organization space, and
+  "New team folder" only at the space root — a team folder never lands
+  anywhere else.
 - **The last manager stays.** Revoking, or re-granting without `can_share`,
   the only live `can_share` grant on a team folder answers **409**
   (`keepsTeamManager`, counting with `CountTeamManagers`). Somebody else must

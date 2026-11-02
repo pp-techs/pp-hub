@@ -10,6 +10,7 @@ import {
   copyNode,
   createDocument,
   createFolder,
+  convertToTeamFolder,
   createTeamFolder,
   deleteNode,
   emptyTrash,
@@ -149,6 +150,26 @@ export function useCreateTeamFolder(spaceId: string) {
     onSuccess: () => {
       void invalidate();
       void qc.invalidateQueries({ queryKey: ["tree", spaceId] });
+    },
+  });
+}
+
+/**
+ * Converting changes what the folder is, not where it is: its row, its place in
+ * the tree, its details and everyone's capabilities on it and what is inside.
+ * Every cached node and listing is therefore stale, not only the root's.
+ */
+export function useConvertToTeamFolder(spaceId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (nodeId: string) => convertToTeamFolder(nodeId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["children"] });
+      void qc.invalidateQueries({ queryKey: ["node"] });
+      void qc.invalidateQueries({ queryKey: ["tree", spaceId] });
+      void qc.invalidateQueries({ queryKey: keys.spaces });
+      // The folder stops being an owned entry point and becomes a granted one.
+      void qc.invalidateQueries({ queryKey: ["shared"] });
     },
   });
 }

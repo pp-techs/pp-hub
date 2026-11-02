@@ -74,6 +74,17 @@ WITH RECURSIVE sub AS (
 UPDATE nodes SET team_root_id = sqlc.narg('team_root_id')::uuid
 WHERE id IN (SELECT id FROM sub);
 
+-- name: HasUnmarkedDescendant :one
+-- Whether any node directly under a member of `team_root_id`'s container is
+-- not itself in it. SetSubtreeTeamRoot stops at a fixed depth, so a deeper
+-- subtree would otherwise be left half-converted — personal rows under a team
+-- folder, whose creators would keep ownership. Soft-deleted rows count: a
+-- restore brings them back.
+SELECT EXISTS (
+    SELECT 1 FROM nodes c JOIN nodes p ON p.id = c.parent_id
+    WHERE p.team_root_id = @team_root_id AND c.team_root_id IS DISTINCT FROM @team_root_id
+)::bool;
+
 -- name: ReassignAuthor :exec
 -- Give a subtree a personal owner. Used when content leaves a team folder:
 -- outside a container `created_by` IS access, and a file whose author no

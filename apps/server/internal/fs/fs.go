@@ -44,6 +44,10 @@ var (
 	ErrNotPage = errors.New("only a document under a document has a place in the page tree")
 )
 
+// ErrNotConvertible refuses to turn a node into a team folder: only a live,
+// personal, top-level folder can become one.
+var ErrNotConvertible = errors.New("only a personal top-level folder can become a team folder")
+
 const (
 	maxTreeDepth = 100
 	// How many suffixed names a restore will try before giving up.
@@ -770,6 +774,80 @@ func (s *Service) CreateTeamFolder(ctx context.Context, spaceID pgtype.UUID, nam
 		}); err != nil {
 			return err
 		}
+		node = n
+		return nil
+	})
+	return node, err
+}
+
+// ConvertToTeamFolder turns an existing personal top-level folder into a team
+// folder in place: same id, so every link to it and to what is inside it
+// keeps working. It is the same two writes a team folder's creation and a move
+// into one make — mark the root, then rewrite the container across the
+// subtree — plus the manager grants that keep it reachable.
+//
+// `created_by` stops granting anything inside a container, so whoever owned
+// the folder would lose it without a grant. The actor and the folder's
+// creator therefore both become managers (edit + download + share): the
+// creator held exactly that as owner, and the actor is the one who must
+// administer it afterwards. An existing direct grant of either is raised to
+// that level; every other grant is left as it was.
+//
+// Everything is one transaction. A crash between the writes would leave a
+// team root with no manager, or a marked root whose contents still read as
+// personal.
+func (s *Service) ConvertToTeamFolder(ctx context.Context, nodeID, actor pgtype.UUID) (store.Node, error) {
+	var node store.Node
+	err := s.inTx(ctx, func(s *Service) error {
+		n, err := s.q.GetNodeForUpdate(ctx, nodeID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotFound
+		}
+		if err != nil {
+			return err
+		}
+		if n.Kind != store.NodeKindDir || n.ParentID.Valid || n.TeamRootID.Valid {
+			return ErrNotConvertible
+		}
+		if err := s.q.MarkTeamRoot(ctx, n.ID); err != nil {
+			return err
+		}
+		if err := s.q.SetSubtreeTeamRoot(ctx, store.SetSubtreeTeamRootParams{
+			RootID: n.ID, TeamRootID: n.ID,
+		}); err != nil {
+			return err
+		}
+		// The rewrite is depth-bounded; refuse rather than leave the rest as
+		// somebody's personal work inside the team's container.
+		if deeper, err := s.q.HasUnmarkedDescendant(ctx, n.ID); err != nil {
+			return err
+		} else if deeper {
+			return fmt.Errorf("%w: it is nested more than %d levels deep", ErrNotConvertible, maxTreeDepth)
+		}
+		// Each grant is attributed to whom it is for: CompleteDeparture deletes
+		// the grants a leaver created, so a creator's manager grant written in
+		// the actor's name would vanish when the actor left.
+		managers := []pgtype.UUID{actor}
+		if n.CreatedBy != actor {
+			managers = append(managers, n.CreatedBy)
+		}
+		for _, m := range managers {
+			grantedBy := actor
+			if m == n.CreatedBy {
+				grantedBy = n.CreatedBy
+			}
+			if _, err := s.q.UpsertDirectShare(ctx, store.UpsertDirectShareParams{
+				NodeID:        n.ID,
+				GranteeUserID: m,
+				Level:         store.ShareLevelEdit,
+				CanDownload:   true,
+				CanShare:      true,
+				CreatedBy:     grantedBy,
+			}); err != nil {
+				return err
+			}
+		}
+		n.TeamRootID = n.ID
 		node = n
 		return nil
 	})

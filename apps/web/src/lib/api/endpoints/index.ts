@@ -249,6 +249,16 @@ export async function createTeamFolder(spaceId: string, name: string): Promise<N
 }
 
 /**
+ * Turns one of the caller's own top-level folders into a team folder in place
+ * (admin only). The id stays, so every link into it keeps working.
+ */
+export async function convertToTeamFolder(nodeId: string): Promise<Node> {
+  const res = await api.post(`api/v1/nodes/${nodeId}/team-folder`);
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<Node>;
+}
+
+/**
  * `template` (markdown only) seeds the new document from one of
  * `getMarkdownTemplates()` instead of leaving it empty, written in `locale` —
  * the language the picker listed it in.

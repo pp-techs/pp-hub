@@ -17,6 +17,14 @@ msgstr ""
 msgid ".mcp.json"
 msgstr ""
 
+#: src/components/convert-team-folder-dialog.tsx:101
+msgid "“{folderName}” is now a team folder"
+msgstr ""
+
+#: src/components/convert-team-folder-dialog.tsx:54
+msgid "“{folderName}” stays where it is and every link to it keeps working. It becomes a folder nobody owns personally: access to everything inside it is managed through Share, so removing someone really removes them, even from files they uploaded. It stays with the team when whoever created it leaves."
+msgstr ""
+
 #: src/routes/drive/$spaceId/index.tsx:420
 msgid "“{nodeName}” copied — paste it in another folder"
 msgstr ""
@@ -221,7 +229,7 @@ msgstr ""
 msgid "{MIN_QUERY_LENGTH, plural, one {Type at least # character to search.} other {Type at least # characters to search.}}"
 msgstr ""
 
-#: src/lib/queries/nodes.ts:238
+#: src/lib/queries/nodes.ts:259
 msgid "{moved, plural, one {Moved # item} other {Moved # items}}"
 msgstr ""
 
@@ -229,7 +237,7 @@ msgstr ""
 msgid "{n, plural, one {# suspended} other {# suspended}}"
 msgstr ""
 
-#: src/components/folder-actions.tsx:275
+#: src/components/folder-actions.tsx:276
 msgid "{n, plural, one {Paste # item} other {Paste # items}}"
 msgstr ""
 
@@ -255,6 +263,10 @@ msgstr ""
 
 #: src/components/trash-panel.tsx:322
 msgid "{nodeName} was deleted by someone else"
+msgstr ""
+
+#: src/components/convert-team-folder-dialog.tsx:80
+msgid "{others, plural, one {# item inside was created by somebody else. They stop owning it and keep access only through Share.} other {# items inside were created by somebody else. They stop owning them and keep access only through Share.}}"
 msgstr ""
 
 #: src/components/people-table.tsx:373
@@ -649,7 +661,7 @@ msgstr ""
 msgid "Add someone to this group…"
 msgstr ""
 
-#: src/components/node-actions.tsx:222
+#: src/components/node-actions.tsx:225
 msgid "Add star"
 msgstr ""
 
@@ -971,6 +983,7 @@ msgstr ""
 #: src/components/comments/comments-popover.tsx:619
 #: src/components/comments/thread-list.tsx:249
 #: src/components/confirm-dialog.tsx:71
+#: src/components/convert-team-folder-dialog.tsx:91
 #: src/components/doc-editor/lossy-edit-modal.tsx:39
 #: src/components/group-list.tsx:394
 #: src/components/link-space-modal.tsx:135
@@ -1227,11 +1240,23 @@ msgstr ""
 msgid "Continue with the identity provider your administrator configured."
 msgstr ""
 
+#: src/components/convert-team-folder-dialog.tsx:109
+msgid "Convert"
+msgstr ""
+
+#: src/components/convert-team-folder-dialog.tsx:51
+msgid "Convert to team folder"
+msgstr ""
+
+#: src/components/node-actions.tsx:293
+msgid "Convert to team folder…"
+msgstr ""
+
 #: src/components/apps/app-backend-modal.tsx:64
 msgid "Copied"
 msgstr ""
 
-#: src/components/drive-write.tsx:160
+#: src/components/drive-write.tsx:164
 msgid "Copied {done, plural, one {# item} other {# items}} to {destination}"
 msgstr ""
 
@@ -1240,7 +1265,7 @@ msgid "Copied as “{copyName}”"
 msgstr ""
 
 #: src/components/block-handle.tsx:216
-#: src/components/node-actions.tsx:300
+#: src/components/node-actions.tsx:322
 #: src/components/publish-dialog.tsx:295
 #: src/components/settings/panes/agent-access-section.tsx:105
 #: src/components/settings/panes/agent-access-section.tsx:204
@@ -1294,6 +1319,14 @@ msgstr ""
 msgid "Could not change the page"
 msgstr ""
 
+#: src/components/convert-team-folder-dialog.tsx:66
+msgid "Could not check who else has contributed to this folder, so it cannot be converted yet. Close this and try again."
+msgstr ""
+
+#: src/components/convert-team-folder-dialog.tsx:105
+msgid "Could not convert to a team folder"
+msgstr ""
+
 #: src/components/apps/app-backend-modal.tsx:65
 msgid "Could not copy"
 msgstr ""
@@ -1333,7 +1366,7 @@ msgstr ""
 msgid "Could not copy the username"
 msgstr ""
 
-#: src/components/drive-write.tsx:205
+#: src/components/drive-write.tsx:209
 msgid "Could not create “{name}”"
 msgstr ""
 
@@ -1341,7 +1374,7 @@ msgstr ""
 msgid "Could not create “{nodeName}”"
 msgstr ""
 
-#: src/components/drive-write.tsx:266
+#: src/components/drive-write.tsx:270
 msgid "Could not create folder"
 msgstr ""
 
@@ -1349,7 +1382,7 @@ msgstr ""
 msgid "Could not create link"
 msgstr ""
 
-#: src/components/drive-write.tsx:184
+#: src/components/drive-write.tsx:188
 msgid "Could not create team folder"
 msgstr ""
 
@@ -1423,7 +1456,7 @@ msgstr ""
 msgid "Could not load your tokens."
 msgstr ""
 
-#: src/lib/queries/nodes.ts:233
+#: src/lib/queries/nodes.ts:254
 msgid "Could not move “{nodeName}”"
 msgstr ""
 
@@ -1452,7 +1485,7 @@ msgstr ""
 msgid "Could not open this site. Try again."
 msgstr ""
 
-#: src/components/drive-write.tsx:148
+#: src/components/drive-write.tsx:152
 msgid "Could not paste “{nodeName}”"
 msgstr ""
 
@@ -1588,7 +1621,7 @@ msgstr ""
 msgid "Could not upload the cover"
 msgstr ""
 
-#: src/components/drive-write.tsx:279
+#: src/components/drive-write.tsx:283
 #: src/components/new-document-dialog.tsx:172
 #: src/components/new-ext-node-dialog.tsx:89
 #: src/components/team-folder-dialog.tsx:90
@@ -1596,7 +1629,7 @@ msgstr ""
 msgid "Create"
 msgstr ""
 
-#: src/components/drive-write.tsx:253
+#: src/components/drive-write.tsx:257
 msgid "Create a folder in {destination}."
 msgstr ""
 
@@ -1653,11 +1686,11 @@ msgstr ""
 msgid "Created “{createdName}”"
 msgstr ""
 
-#: src/components/drive-write.tsx:264
+#: src/components/drive-write.tsx:268
 msgid "Created “{createdName}” in {destination}"
 msgstr ""
 
-#: src/components/drive-write.tsx:203
+#: src/components/drive-write.tsx:207
 msgid "Created “{createdName}” in {label}"
 msgstr ""
 
@@ -1673,7 +1706,7 @@ msgstr ""
 msgid "Created {owned, plural, one {# item} other {# items}} in here — those stay theirs."
 msgstr ""
 
-#: src/components/drive-write.tsx:180
+#: src/components/drive-write.tsx:184
 msgid "Created team folder “{folderName}”"
 msgstr ""
 
@@ -1697,7 +1730,7 @@ msgstr ""
 msgid "Current access"
 msgstr ""
 
-#: src/components/node-actions.tsx:290
+#: src/components/node-actions.tsx:312
 msgid "Cut"
 msgstr ""
 
@@ -1909,7 +1942,7 @@ msgstr ""
 #: src/components/editor-header.tsx:159
 #: src/components/editor-header.tsx:186
 #: src/components/editor-header.tsx:195
-#: src/components/node-actions.tsx:169
+#: src/components/node-actions.tsx:172
 #: src/components/preview-modal.tsx:137
 #: src/components/preview-panel.tsx:351
 #: src/components/selection-bar.tsx:69
@@ -1927,7 +1960,7 @@ msgstr ""
 msgid "Download all"
 msgstr ""
 
-#: src/components/node-actions.tsx:205
+#: src/components/node-actions.tsx:208
 #: src/components/selection-bar.tsx:69
 msgid "Download as .zip"
 msgstr ""
@@ -1973,7 +2006,7 @@ msgstr ""
 
 #: src/components/comments/comments-popover.tsx:594
 #: src/components/doc-editor/doc-editor.tsx:227
-#: src/components/node-actions.tsx:159
+#: src/components/node-actions.tsx:162
 msgid "Edit"
 msgstr ""
 
@@ -2176,7 +2209,7 @@ msgid "Export CSV"
 msgstr ""
 
 #: src/components/editor-header.tsx:175
-#: src/components/node-actions.tsx:183
+#: src/components/node-actions.tsx:186
 msgid "Export with images (.zip)"
 msgstr ""
 
@@ -2317,11 +2350,11 @@ msgstr ""
 msgid "folder downloaded"
 msgstr ""
 
-#: src/components/folder-actions.tsx:226
+#: src/components/folder-actions.tsx:227
 msgid "Folder information"
 msgstr ""
 
-#: src/components/drive-write.tsx:274
+#: src/components/drive-write.tsx:278
 msgid "Folder name"
 msgstr ""
 
@@ -2422,7 +2455,7 @@ msgstr ""
 msgid "grant revoked"
 msgstr ""
 
-#: src/components/folder-actions.tsx:265
+#: src/components/folder-actions.tsx:266
 #: src/components/settings/panes/account-general.tsx:40
 msgid "Grid"
 msgstr ""
@@ -2569,7 +2602,7 @@ msgstr ""
 msgid "Included with edit"
 msgstr ""
 
-#: src/components/node-actions.tsx:215
+#: src/components/node-actions.tsx:218
 msgid "Information"
 msgstr ""
 
@@ -2897,7 +2930,7 @@ msgid "Linking {spaceName}"
 msgstr ""
 
 #: src/components/doc-editor/labels.ts:75
-#: src/components/folder-actions.tsx:266
+#: src/components/folder-actions.tsx:267
 #: src/components/settings/panes/account-general.tsx:39
 msgid "List"
 msgstr ""
@@ -2944,7 +2977,7 @@ msgstr ""
 msgid "Mail"
 msgstr ""
 
-#: src/components/node-actions.tsx:309
+#: src/components/node-actions.tsx:331
 msgid "Make a copy"
 msgstr ""
 
@@ -3060,11 +3093,11 @@ msgstr ""
 msgid "Modified"
 msgstr ""
 
-#: src/components/folder-actions.tsx:258
+#: src/components/folder-actions.tsx:259
 msgid "Modified (newest)"
 msgstr ""
 
-#: src/components/folder-actions.tsx:259
+#: src/components/folder-actions.tsx:260
 msgid "Modified (oldest)"
 msgstr ""
 
@@ -3093,17 +3126,17 @@ msgstr ""
 #: src/components/doc-editor/page-tree-panel.tsx:370
 #: src/components/nav-apps.tsx:346
 #: src/components/nav-apps.tsx:348
-#: src/components/node-actions.tsx:319
+#: src/components/node-actions.tsx:341
 #: src/routes/drive/$spaceId/index.tsx:767
 #: src/routes/drive/$spaceId/index.tsx:776
 msgid "Move to trash"
 msgstr ""
 
-#: src/components/node-actions.tsx:272
+#: src/components/node-actions.tsx:275
 msgid "Move to…"
 msgstr ""
 
-#: src/components/drive-write.tsx:159
+#: src/components/drive-write.tsx:163
 msgid "Moved {done, plural, one {# item} other {# items}} to {destination}"
 msgstr ""
 
@@ -3137,11 +3170,11 @@ msgstr ""
 msgid "name (2)"
 msgstr ""
 
-#: src/components/folder-actions.tsx:256
+#: src/components/folder-actions.tsx:257
 msgid "Name (A–Z)"
 msgstr ""
 
-#: src/components/folder-actions.tsx:257
+#: src/components/folder-actions.tsx:258
 msgid "Name (Z–A)"
 msgstr ""
 
@@ -3175,12 +3208,12 @@ msgstr ""
 msgid "New"
 msgstr ""
 
-#: src/components/folder-actions.tsx:132
+#: src/components/folder-actions.tsx:133
 #: src/components/new-document-dialog.tsx:99
 msgid "New document"
 msgstr ""
 
-#: src/components/drive-write.tsx:250
+#: src/components/drive-write.tsx:254
 #: src/components/folder-actions.tsx:92
 msgid "New folder"
 msgstr ""
@@ -3190,7 +3223,7 @@ msgstr ""
 msgid "New group"
 msgstr ""
 
-#: src/components/folder-actions.tsx:159
+#: src/components/folder-actions.tsx:160
 #: src/components/new-document-dialog.tsx:100
 msgid "New markdown document"
 msgstr ""
@@ -3200,7 +3233,7 @@ msgstr ""
 msgid "New members are admins by default"
 msgstr ""
 
-#: src/components/folder-actions.tsx:150
+#: src/components/folder-actions.tsx:151
 #: src/components/new-document-dialog.tsx:98
 msgid "New presentation"
 msgstr ""
@@ -3209,7 +3242,7 @@ msgstr ""
 msgid "New public link"
 msgstr ""
 
-#: src/components/folder-actions.tsx:141
+#: src/components/folder-actions.tsx:142
 #: src/components/new-document-dialog.tsx:97
 msgid "New spreadsheet"
 msgstr ""
@@ -3218,7 +3251,7 @@ msgstr ""
 msgid "New sub-page"
 msgstr ""
 
-#: src/components/folder-actions.tsx:105
+#: src/components/folder-actions.tsx:106
 #: src/components/team-folder-dialog.tsx:53
 msgid "New team folder"
 msgstr ""
@@ -3342,7 +3375,7 @@ msgstr ""
 msgid "Nobody can open its items any more. The items stay in the drive, marked as belonging to an app this install does not have; uploading the app again brings them back."
 msgstr ""
 
-#: src/components/drive-write.tsx:181
+#: src/components/drive-write.tsx:185
 msgid "Nobody can see it yet — access to a team folder is given through Share."
 msgstr ""
 
@@ -3497,9 +3530,9 @@ msgid "open"
 msgstr ""
 
 #: src/components/guest-sign-in.tsx:130
-#: src/components/node-actions.tsx:122
-#: src/components/node-actions.tsx:145
-#: src/components/node-actions.tsx:159
+#: src/components/node-actions.tsx:125
+#: src/components/node-actions.tsx:148
+#: src/components/node-actions.tsx:162
 #: src/components/preview-content.tsx:462
 #: src/components/preview-modal.tsx:128
 #: src/components/preview-panel.tsx:341
@@ -3649,7 +3682,7 @@ msgstr ""
 msgid "Password copied"
 msgstr ""
 
-#: src/components/folder-actions.tsx:272
+#: src/components/folder-actions.tsx:273
 msgid "Paste"
 msgstr ""
 
@@ -3764,7 +3797,7 @@ msgstr ""
 msgid "Press D anywhere outside a text field to flip between light and dark."
 msgstr ""
 
-#: src/components/node-actions.tsx:132
+#: src/components/node-actions.tsx:135
 #: src/components/preview-panel.tsx:341
 msgid "Preview"
 msgstr ""
@@ -3823,7 +3856,7 @@ msgstr ""
 msgid "Publish “{nodeName}”"
 msgstr ""
 
-#: src/components/node-actions.tsx:252
+#: src/components/node-actions.tsx:255
 msgid "Publish…"
 msgstr ""
 
@@ -3895,7 +3928,7 @@ msgstr ""
 msgid "referenced blobs"
 msgstr ""
 
-#: src/components/folder-actions.tsx:214
+#: src/components/folder-actions.tsx:215
 msgid "Refresh"
 msgstr ""
 
@@ -3969,7 +4002,7 @@ msgstr ""
 msgid "Remove space avatar"
 msgstr ""
 
-#: src/components/node-actions.tsx:222
+#: src/components/node-actions.tsx:225
 msgid "Remove star"
 msgstr ""
 
@@ -3998,7 +4031,7 @@ msgid "Removes “{spaceName}” and everything in it — every file, version, s
 msgstr ""
 
 #: src/components/nav-apps.tsx:318
-#: src/components/node-actions.tsx:261
+#: src/components/node-actions.tsx:264
 #: src/components/selection-bar.tsx:79
 #: src/routes/drive/$spaceId/index.tsx:730
 msgid "Rename"
@@ -4272,7 +4305,7 @@ msgstr ""
 msgid "Select a space"
 msgstr ""
 
-#: src/components/folder-actions.tsx:181
+#: src/components/folder-actions.tsx:182
 msgid "Select all"
 msgstr ""
 
@@ -4356,7 +4389,7 @@ msgstr ""
 
 #: src/components/editor-header.tsx:111
 #: src/components/editor-header.tsx:119
-#: src/components/node-actions.tsx:232
+#: src/components/node-actions.tsx:235
 #: src/components/preview-panel.tsx:360
 #: src/components/selection-bar.tsx:74
 #: src/components/share-dialog.tsx:575
@@ -4520,11 +4553,11 @@ msgstr ""
 msgid "Size"
 msgstr ""
 
-#: src/components/folder-actions.tsx:260
+#: src/components/folder-actions.tsx:261
 msgid "Size (largest)"
 msgstr ""
 
-#: src/components/folder-actions.tsx:261
+#: src/components/folder-actions.tsx:262
 msgid "Size (smallest)"
 msgstr ""
 
@@ -4552,7 +4585,7 @@ msgstr ""
 msgid "Sort ascending"
 msgstr ""
 
-#: src/components/folder-actions.tsx:189
+#: src/components/folder-actions.tsx:190
 #: src/components/settings/panes/account-general.tsx:195
 msgid "Sort by"
 msgstr ""
@@ -4573,7 +4606,7 @@ msgstr ""
 msgid "Space avatar updated"
 msgstr ""
 
-#: src/components/folder-actions.tsx:226
+#: src/components/folder-actions.tsx:227
 msgid "Space information"
 msgstr ""
 
@@ -4927,7 +4960,7 @@ msgstr ""
 msgid "This file was shared with you"
 msgstr ""
 
-#: src/components/drive-write.tsx:92
+#: src/components/drive-write.tsx:96
 msgid "this folder"
 msgstr ""
 
@@ -5002,8 +5035,8 @@ msgstr ""
 msgid "This site is password protected"
 msgstr ""
 
-#: src/components/drive-write.tsx:92
-#: src/components/drive-write.tsx:174
+#: src/components/drive-write.tsx:96
+#: src/components/drive-write.tsx:178
 #: src/routes/drive/$spaceId/home.tsx:64
 #: src/routes/drive/$spaceId/index.tsx:351
 msgid "this space"
@@ -5265,7 +5298,7 @@ msgstr ""
 msgid "Upload app"
 msgstr ""
 
-#: src/components/drive-write.tsx:118
+#: src/components/drive-write.tsx:122
 msgid "Upload cancelled"
 msgstr ""
 
@@ -5276,11 +5309,11 @@ msgstr ""
 msgid "Upload failed"
 msgstr ""
 
-#: src/components/folder-actions.tsx:114
+#: src/components/folder-actions.tsx:115
 msgid "Upload files"
 msgstr ""
 
-#: src/components/folder-actions.tsx:122
+#: src/components/folder-actions.tsx:123
 msgid "Upload folder"
 msgstr ""
 
@@ -5304,7 +5337,7 @@ msgstr ""
 msgid "Upload, organise and share files, with their version history."
 msgstr ""
 
-#: src/components/drive-write.tsx:125
+#: src/components/drive-write.tsx:129
 msgid "Uploading {count, plural, one {# file} other {# files}} to {label}"
 msgstr ""
 
@@ -5378,7 +5411,7 @@ msgstr ""
 
 #: src/components/editor-header.tsx:130
 #: src/components/editor-header.tsx:139
-#: src/components/node-actions.tsx:192
+#: src/components/node-actions.tsx:195
 #: src/components/preview-modal.tsx:162
 #: src/components/preview-panel.tsx:367
 #: src/components/preview-panel.tsx:411
@@ -5411,7 +5444,7 @@ msgstr ""
 msgid "view"
 msgstr ""
 
-#: src/components/folder-actions.tsx:203
+#: src/components/folder-actions.tsx:204
 #: src/components/settings/panes/account-general.tsx:188
 #: src/components/version-list.tsx:120
 msgid "View"
@@ -5498,6 +5531,10 @@ msgstr ""
 #: src/components/people-table.tsx:480
 #: src/routes/admin.users.tsx:240
 msgid "You"
+msgstr ""
+
+#: src/components/convert-team-folder-dialog.tsx:73
+msgid "You and whoever created the folder become its managers. Everyone else keeps only the access they were given through Share."
 msgstr ""
 
 #: src/routes/drive.tsx:171

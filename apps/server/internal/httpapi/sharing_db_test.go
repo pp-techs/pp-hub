@@ -254,6 +254,102 @@ func TestTeamFolderAlwaysKeepsAManager(t *testing.T) {
 	}
 }
 
+// Converting is the way a member's folder becomes the company's without a new
+// id. What it must get right is the access it removes: inside a team folder
+// `created_by` grants nothing, so the people who owned the folder or
+// something in it keep nothing unless a grant says so.
+func TestConvertToTeamFolder(t *testing.T) {
+	srv, q := sharingEnv(t)
+	f := newSharingFixture(t, srv, q, "convert")
+	ctx := context.Background()
+	theirs := mkNode(t, q, f.space, f.dir.ID, store.NodeKindFile, "theirs.txt", f.other)
+	params := func(n store.Node) map[string]string { return map[string]string{"nodeID": n.ID.String()} }
+	convert := func(u store.User, n store.Node) int {
+		return call(t, srv.handleConvertToTeamFolder, "POST", "/nodes/{nodeID}/team-folder", params(n), &u, "").Code
+	}
+	caps := func(n store.Node, u store.User) share.Caps {
+		got, err := srv.share.EffectiveCapsForNode(ctx, n, u.ID)
+		if err != nil {
+			t.Fatalf("caps: %v", err)
+		}
+		return got
+	}
+
+	// A manager who is not a space admin cannot: it is company structure.
+	grantDirect(t, srv, f.dir, f.other, f.owner, share.GrantCaps{Level: share.LevelEdit, CanShare: true})
+	if code := convert(f.other, f.dir); code != http.StatusForbidden {
+		t.Errorf("non-admin manager converting = %d, want 403", code)
+	}
+	// An admin who owns nothing and was granted nothing reaches nothing.
+	admin := feedUser(t, q, "convert-admin")
+	if err := srv.spaces.AddMember(ctx, f.space.ID, admin.ID, true); err != nil {
+		t.Fatalf("add admin: %v", err)
+	}
+	if code := convert(admin, f.dir); code != http.StatusForbidden {
+		t.Errorf("admin with no access to the folder converting = %d, want 403", code)
+	}
+	// Share without edit and download is not a way in: converting makes the
+	// caller a manager with both.
+	grantDirect(t, srv, f.dir, admin, f.owner, share.GrantCaps{Level: share.LevelView, CanShare: true})
+	if code := convert(admin, f.dir); code != http.StatusForbidden {
+		t.Errorf("admin who may only view and share converting = %d, want 403", code)
+	}
+	if got, _ := srv.fs.Get(ctx, f.dir.ID); got.TeamRootID.Valid {
+		t.Fatal("a refused conversion must change nothing")
+	}
+	if !caps(theirs, f.other).Owner {
+		t.Fatal("setup: the author of a file in the folder owns it before conversion")
+	}
+
+	if code := convert(f.owner, f.dir); code != http.StatusOK {
+		t.Fatalf("owner admin converting = %d, want 200", code)
+	}
+	dir, _ := srv.fs.Get(ctx, f.dir.ID)
+	file, _ := srv.fs.Get(ctx, f.file.ID)
+	if dir.TeamRootID != dir.ID || file.TeamRootID != dir.ID {
+		t.Errorf("team_root_id = dir %v / file %v, want both %v", dir.TeamRootID, file.TeamRootID, dir.ID)
+	}
+	if !caps(f.dir, f.owner).Share {
+		t.Error("the converting admin must keep managing the folder")
+	}
+	if got := caps(theirs, f.other); got.Owner {
+		t.Errorf("the author of a file inside keeps ownership after conversion: %+v", got)
+	}
+
+	// Not twice, and not a folder that is not top level.
+	if code := convert(f.owner, dir); code != http.StatusConflict {
+		t.Errorf("converting a team folder = %d, want 409", code)
+	}
+	nested := mkNode(t, q, f.space, mkNode(t, q, f.space, pgtype.UUID{}, store.NodeKindDir, "convert-plain", f.owner).ID,
+		store.NodeKindDir, "convert-nested", f.owner)
+	if code := convert(f.owner, nested); code != http.StatusConflict {
+		t.Errorf("converting a nested folder = %d, want 409", code)
+	}
+}
+
+// The admin converting somebody else's folder (shared with them as a manager)
+// must not take it from its owner.
+func TestConvertKeepsTheCreatorAsManager(t *testing.T) {
+	srv, q := sharingEnv(t)
+	f := newSharingFixture(t, srv, q, "creator")
+	ctx := context.Background()
+	theirs := mkNode(t, q, f.space, pgtype.UUID{}, store.NodeKindDir, "creator-theirs", f.other)
+	grantDirect(t, srv, theirs, f.owner, f.other, share.GrantCaps{Level: share.LevelEdit, CanDownload: true, CanShare: true})
+
+	rec := call(t, srv.handleConvertToTeamFolder, "POST", "/nodes/{nodeID}/team-folder",
+		map[string]string{"nodeID": theirs.ID.String()}, &f.owner, "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("converting = %d, want 200: %s", rec.Code, rec.Body)
+	}
+	got, err := srv.share.EffectiveCapsForNode(ctx, theirs, f.other.ID)
+	if err != nil {
+		t.Fatalf("caps: %v", err)
+	}
+	if !got.Share || !got.Edit || !got.Download || got.Owner {
+		t.Errorf("creator's caps after conversion = %+v, want a manager by grant, not an owner", got)
+	}
+}
+
 // A link is never wider than its creator's access today: narrowed to
 // view-only, they must not keep handing the bytes out anonymously.
 func TestLinkDownloadFollowsItsCreatorsAccess(t *testing.T) {
@@ -314,3 +410,30 @@ func TestAdminCannotJoinAGroupThatOpensFiles(t *testing.T) {
 		t.Errorf("admin adding somebody else = %d, want 201", code)
 	}
 }
+
+// The container is rewritten to a fixed depth. A deeper subtree would be left
+// half converted — personal rows under a team folder, their creators still
+// owners — so conversion refuses it and changes nothing.
+func TestConvertRefusesASubtreeDeeperThanItRewrites(t *testing.T) {
+	srv, q := sharingEnv(t)
+	f := newSharingFixture(t, srv, q, "deep")
+	root := mkNode(t, q, f.space, pgtype.UUID{}, store.NodeKindDir, "deep-root", f.owner)
+	cur := root
+	for i := 0; i <= maxTreeDepthForTest; i++ {
+		cur = mkNode(t, q, f.space, cur.ID, store.NodeKindDir, fmt.Sprintf("d%d", i), f.other)
+	}
+	rec := call(t, srv.handleConvertToTeamFolder, "POST", "/nodes/{nodeID}/team-folder",
+		map[string]string{"nodeID": root.ID.String()}, &f.owner, "")
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("converting a folder nested past the rewrite depth = %d, want 409: %s", rec.Code, rec.Body)
+	}
+	if got, _ := srv.fs.Get(context.Background(), root.ID); got.TeamRootID.Valid {
+		t.Error("a refused conversion must change nothing")
+	}
+	if got, _ := srv.fs.Get(context.Background(), cur.ID); got.TeamRootID.Valid {
+		t.Error("a refused conversion must not leave rows marked")
+	}
+}
+
+// Mirrors fs's rewrite depth, which the package does not export.
+const maxTreeDepthForTest = 100

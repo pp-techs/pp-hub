@@ -641,6 +641,70 @@ func (s *Server) handleCreateTeamFolder(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusCreated, dto)
 }
 
+// handleConvertToTeamFolder turns one of the caller's own top-level folders
+// into a team folder in place (POST /nodes/{id}/team-folder).
+//
+// Admin-only for the same reason creating one is: a team folder is company
+// structure. It also takes `CapShare` on the folder, not just admin rights —
+// an admin owns nothing by being an admin, so this cannot be used to take a
+// colleague's private folder, only a folder the caller could already hand to
+// anybody. The folder keeps its id, so no link to it or its contents breaks;
+// fs.ConvertToTeamFolder explains the grants it writes.
+func (s *Server) handleConvertToTeamFolder(w http.ResponseWriter, r *http.Request) {
+	u, node, caps := s.requireNodeCaps(w, r, share.CapShare)
+	if u == nil {
+		return
+	}
+	// The caller becomes a manager with edit + download. Share alone must not
+	// buy that: being an admin is no file access, and a grant that lets
+	// somebody re-share a folder they may only view would turn conversion
+	// into a way to read and change everything inside it.
+	if !caps.Edit || !caps.Download {
+		writeProblem(w, http.StatusForbidden, "Forbidden",
+			"converting a folder makes you its manager, which takes edit and download access to it")
+		return
+	}
+	space, err := s.spaces.Get(r.Context(), node.SpaceID)
+	if err != nil {
+		s.spaceError(w, r, err)
+		return
+	}
+	if s.refusePersonal(w, space) {
+		return
+	}
+	if err := s.spaces.RequireAdmin(r.Context(), space.ID, u.ID); err != nil {
+		s.spaceError(w, r, err)
+		return
+	}
+	if s.isArchiveRoot(r.Context(), node) {
+		writeProblem(w, http.StatusConflict, "Conflict", "the archive cannot become a team folder")
+		return
+	}
+	converted, err := s.fs.ConvertToTeamFolder(r.Context(), node.ID, u.ID)
+	if err != nil {
+		s.nodeError(w, r, err)
+		return
+	}
+	managers := []string{u.ID.String()}
+	if node.CreatedBy != u.ID {
+		managers = append(managers, node.CreatedBy.String())
+	}
+	s.activity.Node(r.Context(), u.ID, converted, activity.KindShared, map[string]any{"team_folder": true, "converted": true})
+	s.audit.Record(r, audit.Event{
+		Kind:    audit.KindShareCreated,
+		UserID:  u.ID,
+		Subject: u.Email,
+		NodeID:  node.ID,
+		Detail: map[string]any{
+			"node": node.ID.String(), "name": node.Name, "share_kind": "direct",
+			"level": string(store.ShareLevelEdit), "can_download": true, "can_share": true,
+			"team_folder": true, "converted": true, "managers": managers,
+		},
+	})
+	dto := nodeToDTO(converted, nil).withCaps(share.Caps{View: true, Download: true, Share: true, Edit: true})
+	writeJSON(w, http.StatusOK, dto)
+}
+
 func (s *Server) handleCreateDocument(w http.ResponseWriter, r *http.Request) {
 	u := caller(r)
 	spaceID, err := uuidParam(r, "spaceID")
@@ -1438,7 +1502,7 @@ func (s *Server) nodeError(w http.ResponseWriter, r *http.Request, err error) {
 		writeProblem(w, http.StatusNotFound, "Not Found", "node not found")
 	case errors.Is(err, fs.ErrNameConflict):
 		writeProblem(w, http.StatusConflict, "Conflict", err.Error())
-	case errors.Is(err, fs.ErrCycle), errors.Is(err, fs.ErrTeamRootFixed):
+	case errors.Is(err, fs.ErrCycle), errors.Is(err, fs.ErrTeamRootFixed), errors.Is(err, fs.ErrNotConvertible):
 		writeProblem(w, http.StatusConflict, "Conflict", err.Error())
 	case errors.Is(err, fs.ErrNotDeleted):
 		// Restoring or purging something that is not in the trash: a double
