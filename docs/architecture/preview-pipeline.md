@@ -440,6 +440,27 @@ the first 8 KiB reads as binary and is not shown. Markdown renders as a
 document instead. `.rtf` is the one remaining reader of the 4 KB `text`
 artifact. The share page does not preview text files.
 
+**HTML** is a further exception, layered on top of the text one: `isHtmlFile`
+(`apps/web/src/lib/api/utils.ts`) still routes `.html`/`.htm`/`.xhtml` through
+`isTextFile`'s fetch (`useCode`, same 256 KiB cap), but `PreviewBody` sends it
+to `HtmlPreview` instead of `CodePreview`. That component shows the fetched
+bytes two ways, as a `Tabs` switch:
+
+- **Preview** (default) — `HtmlFrame` renders the HTML with
+  `<iframe sandbox="allow-scripts" srcDoc={html}>`. `srcDoc` is load-bearing:
+  `inlineMimes` downgrades `text/html` to `attachment` exactly so a direct
+  request for it never renders (above), and `srcDoc` never makes that
+  request — the bytes are already in hand from `useCode`. `sandbox` is the
+  other half: `allow-scripts` lets the file's own script run (the point of a
+  _rendered_ preview, not just the request), but omitting
+  `allow-same-origin` forces the browser to give the frame an opaque origin
+  (`window.origin === "null"`) no matter whose bytes it holds. A `<script>`
+  in an uploaded file can run, but cannot read `document.cookie`, reach
+  pp-hub's origin, or carry credentials on a fetch — same guarantee as the
+  disposition downgrade, kept even though the markup now renders.
+- **Source** — `CodeBody`, the body `CodePreview` already uses, reusing the
+  same fetch rather than requesting the file twice.
+
 Images are the case worth spelling out: `ImagePreview` points at `/content` and
 falls back to the 256px thumbnail only if those bytes fail to load.
 

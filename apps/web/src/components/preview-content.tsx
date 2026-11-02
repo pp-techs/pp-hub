@@ -4,6 +4,7 @@ import { msg } from "@lingui/core/macro";
 import { ExternalLink, SquarePen } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { Skeleton } from "@workspace/ui/components/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs";
 import { LoadingStatus } from "@/components/loading";
 import { NodeMarkdownView } from "@/components/markdown-document-view";
 import { mdocLowlight } from "@/lib/collab/mdoc-kit";
@@ -12,6 +13,7 @@ import type { Node } from "@/lib/api";
 import {
   capsOf,
   contentUrl,
+  isHtmlFile,
   isMarkdownFile,
   isOfficeFile,
   isTextFile,
@@ -295,9 +297,13 @@ function HighlightTree({ nodes }: { nodes: HighlightNode[] }) {
  * scrolls sideways instead.
  */
 function CodePreview({ node }: { node: Node }) {
+  const state = useCode(contentUrl(node));
+  return <CodeBody node={node} state={state} />;
+}
+
+function CodeBody({ node, state }: { node: Node; state: CodeState }) {
   const { i18n } = useLingui();
   const f = useFormatters();
-  const state = useCode(contentUrl(node));
   const language = textLanguage(node);
 
   const ready = state.status === "ready" ? state.text : null;
@@ -353,6 +359,96 @@ function CodePreview({ node }: { node: Node }) {
         </p>
       )}
     </div>
+  );
+}
+
+// ── HTML preview ──────────────────────────────────────────────────────────────
+
+/**
+ * Renders fetched HTML in a sandboxed iframe rather than trusting the parent
+ * origin with it. `srcdoc` (not `src={contentUrl(node)}`): `/content`
+ * downgrades `text/html` to `Content-Disposition: attachment` precisely so a
+ * top-level request for it never renders — a `<script>` in an uploaded file
+ * would otherwise run on pp-hub's own origin, reading its cookies and
+ * session. `srcdoc` sidesteps that disposition (it never requests the URL;
+ * the bytes are already ours from `useCode`), and `sandbox="allow-scripts"`
+ * with no `allow-same-origin` still forces the frame's content onto an opaque
+ * origin the browser invents — same guarantee, so the file's own script can
+ * run (that's the point of a preview) without ever touching pp-hub's origin.
+ * See docs/architecture/preview-pipeline.md#serving-the-original-file.
+ */
+function HtmlFrame({ html, title }: { html: string; title: string }) {
+  return (
+    <iframe
+      title={title}
+      srcDoc={html}
+      sandbox="allow-scripts"
+      className="h-full min-h-[60vh] w-full flex-1 border-0 bg-white"
+    />
+  );
+}
+
+/**
+ * An HTML document: rendered by default, with a toggle to the highlighted
+ * source `CodePreview` already shows for every other text file. Shares one
+ * fetch (`useCode`) so switching tabs never re-requests the file.
+ */
+function HtmlPreview({ node }: { node: Node }) {
+  const { i18n, t } = useLingui();
+  const f = useFormatters();
+  const name = node.name;
+  const state = useCode(contentUrl(node));
+
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- union discriminator
+  if (state.status === "failed") return <Message>{i18n._(NOT_READY)}</Message>;
+  // eslint-disable-next-line lingui/no-unlocalized-strings -- union discriminator
+  if (state.status === "binary") {
+    return (
+      <Message>
+        <Trans>This file is not text, so it cannot be previewed.</Trans>
+      </Message>
+    );
+  }
+  if (state.status === "loading") {
+    return (
+      <LoadingStatus className="h-full p-4">
+        <Skeleton className="h-full min-h-40 w-full" />
+      </LoadingStatus>
+    );
+  }
+  const truncated = (node.size ?? 0) > CODE_PREVIEW_MAX_BYTES;
+  const shown = f.size(CODE_PREVIEW_MAX_BYTES);
+  const total = f.size(node.size ?? 0);
+
+  return (
+    <Tabs defaultValue="preview" className="flex min-h-full flex-col gap-0">
+      <TabsList
+        variant="line"
+        className="border-border sticky top-0 z-10 h-9 w-full justify-start gap-4 border-b bg-background px-3"
+      >
+        <TabsTrigger value="preview" className="flex-none">
+          <Trans>Preview</Trans>
+        </TabsTrigger>
+        <TabsTrigger value="source" className="flex-none">
+          <Trans>Source</Trans>
+        </TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="preview" className="flex min-h-0 flex-1 flex-col">
+        <HtmlFrame html={state.text} title={t`Rendered preview of ${name}`} />
+        {truncated && (
+          <p className="bg-background text-muted-foreground border-border border-t px-3 py-1.5 text-xs">
+            <Trans>
+              Rendered from the first {shown} of {total} — use Download for the rest.
+            </Trans>
+          </p>
+        )}
+      </TabsContent>
+
+      <TabsContent value="source" className="min-h-0 flex-1 overflow-auto">
+        <CodeBody node={node} state={state} />
+      </TabsContent>
+    </Tabs>
   );
 }
 
@@ -419,6 +515,9 @@ function PreviewBody({ node }: { node: Node }) {
   if (canRead) {
     // Text goes first and by name: the stored MIME says `.ts` is video/mp2t
     // and `.go` is an opaque download, neither of which is what is in the file.
+    // HTML ahead of the general text check: it is text too (`isTextFile` is
+    // true for it), but renders as a page instead of coloured source.
+    if (isHtmlFile(node)) return <HtmlPreview node={node} />;
     if (isTextFile(node)) return <CodePreview node={node} />;
     if (mime === "application/pdf") return <PdfPreview node={node} />;
     // eslint-disable-next-line lingui/no-unlocalized-strings -- MIME type prefix

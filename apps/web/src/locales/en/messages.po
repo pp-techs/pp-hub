@@ -3870,7 +3870,7 @@ msgstr "No one matches these filters."
 msgid "No open comments."
 msgstr "No open comments."
 
-#: src/components/preview-content.tsx:469
+#: src/components/preview-content.tsx:568
 msgid "No preview available — use Download to view this file."
 msgstr "No preview available — use Download to view this file."
 
@@ -4085,7 +4085,7 @@ msgstr "open"
 #: src/components/node-actions.tsx:125
 #: src/components/node-actions.tsx:148
 #: src/components/node-actions.tsx:162
-#: src/components/preview-content.tsx:462
+#: src/components/preview-content.tsx:561
 #: src/components/preview-modal.tsx:128
 #: src/components/preview-panel.tsx:341
 #: src/components/publish-dialog.tsx:303
@@ -4110,7 +4110,7 @@ msgstr "Open"
 msgid "Open files in"
 msgstr "Open files in"
 
-#: src/components/preview-content.tsx:160
+#: src/components/preview-content.tsx:162
 #: src/routes/p/$token.tsx:121
 msgid "Open in new tab"
 msgstr "Open in new tab"
@@ -4285,7 +4285,7 @@ msgstr "Pause uploads"
 msgid "Paused"
 msgstr "Paused"
 
-#: src/components/preview-content.tsx:146
+#: src/components/preview-content.tsx:148
 msgid "PDF preview of {name}"
 msgstr "PDF preview of {name}"
 
@@ -4391,6 +4391,7 @@ msgid "Press D anywhere outside a text field to flip between light and dark."
 msgstr "Press D anywhere outside a text field to flip between light and dark."
 
 #: src/components/node-actions.tsx:135
+#: src/components/preview-content.tsx:430
 #: src/components/preview-panel.tsx:341
 msgid "Preview"
 msgstr "Preview"
@@ -4401,7 +4402,7 @@ msgstr "Preview"
 msgid "Preview {nodeName}"
 msgstr "Preview {nodeName}"
 
-#: src/components/preview-content.tsx:80
+#: src/components/preview-content.tsx:82
 msgid "Preview not available yet — it is generated shortly after upload."
 msgstr "Preview not available yet — it is generated shortly after upload."
 
@@ -4661,6 +4662,14 @@ msgstr "Rename"
 #: src/components/trash-panel.tsx:122
 msgid "Renamed to “{restored}” — the old name was taken."
 msgstr "Renamed to “{restored}” — the old name was taken."
+
+#: src/components/preview-content.tsx:441
+msgid "Rendered from the first {shown} of {total} — use Download for the rest."
+msgstr "Rendered from the first {shown} of {total} — use Download for the rest."
+
+#: src/components/preview-content.tsx:438
+msgid "Rendered preview of {name}"
+msgstr "Rendered preview of {name}"
 
 #: src/components/comments/comments-popover.tsx:445
 #: src/components/comments/comments-popover.tsx:446
@@ -5139,7 +5148,7 @@ msgstr "Show older"
 msgid "Showing {shown} of {total}"
 msgstr "Showing {shown} of {total}"
 
-#: src/components/preview-content.tsx:350
+#: src/components/preview-content.tsx:356
 msgid "Showing the first {shown} of {total} — use Download for the rest."
 msgstr "Showing the first {shown} of {total} — use Download for the rest."
 
@@ -5273,6 +5282,10 @@ msgstr "Sort by"
 #: src/components/listing-controls.tsx:90
 msgid "Sort descending"
 msgstr "Sort descending"
+
+#: src/components/preview-content.tsx:433
+msgid "Source"
+msgstr "Source"
 
 #: src/routes/drive/shared.tsx:66
 msgid "Space"
@@ -5637,7 +5650,7 @@ msgstr "This app is turned off"
 #~ msgid "This board has no columns yet"
 #~ msgstr "This board has no columns yet"
 
-#: src/components/preview-content.tsx:150
+#: src/components/preview-content.tsx:152
 msgid "This browser can't display PDFs inline."
 msgstr "This browser can't display PDFs inline."
 
@@ -5673,11 +5686,12 @@ msgstr "This document is not available"
 msgid "This file contains formatting the block editor cannot keep, such as raw HTML or footnotes. Saving rewrites the file without it. The original stays in version history, and you can restore it from there."
 msgstr "This file contains formatting the block editor cannot keep, such as raw HTML or footnotes. Saving rewrites the file without it. The original stays in version history, and you can restore it from there."
 
-#: src/components/preview-content.tsx:321
+#: src/components/preview-content.tsx:327
+#: src/components/preview-content.tsx:408
 msgid "This file is not text, so it cannot be previewed."
 msgstr "This file is not text, so it cannot be previewed."
 
-#: src/components/preview-content.tsx:458
+#: src/components/preview-content.tsx:557
 msgid "This file opens in the office editor."
 msgstr "This file opens in the office editor."
 
@@ -5783,7 +5797,7 @@ msgstr "This space is not linked to an organization yet, so nobody can be added 
 msgid "This tab"
 msgstr "This tab"
 
-#: src/components/preview-content.tsx:175
+#: src/components/preview-content.tsx:177
 msgid "This video can't be played here — use Download."
 msgstr "This video can't be played here — use Download."
 
@@ -6373,7 +6387,7 @@ msgstr "You created"
 msgid "You deleted"
 msgstr "You deleted"
 
-#: src/components/preview-content.tsx:449
+#: src/components/preview-content.tsx:548
 msgid "You do not have access to this file."
 msgstr "You do not have access to this file."
 
