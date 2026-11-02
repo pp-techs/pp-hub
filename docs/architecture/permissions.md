@@ -577,7 +577,7 @@ Managers rename and delete the folder (`requireMovableNode`), move content out
 of it (`handleMoveNode`), and appoint other managers. Everyone else with `edit`
 is a contributor.
 
-Three guards keep a team folder administrable:
+Four guards keep a team folder administrable:
 
 - **Creation seeds the first manager.** `POST /spaces/{id}/team-folders` is
   admin-only — a team folder is company structure, which is the line
@@ -585,6 +585,22 @@ Three guards keep a team folder administrable:
   `edit + download + share` grant, written by `fs.CreateTeamFolder` in the
   same transaction as the folder. Without it the folder would be unreachable
   the moment it existed, since nothing about it is owned.
+- **Conversion seeds both owners.** `POST /nodes/{id}/team-folder`
+  (`handleConvertToTeamFolder`, `fs.ConvertToTeamFolder`) turns an existing
+  personal **top-level** folder into a team folder in place — same id, so no
+  link breaks. It needs space admin **and** `CapShare` on the folder (being an
+  admin owns nothing, so it cannot take a colleague's private folder), and
+  refuses with **409** a node that is not a folder, is nested, is already
+  team content or is the Archive. In one transaction it marks the root,
+  rewrites `team_root_id` across the subtree and upserts an
+  `edit + download + share` grant for the caller **and** the folder's creator:
+  `created_by` stops granting inside a container, so without the creator's
+  grant the previous owner would lose the folder. Everyone who created
+  something inside stops owning it and keeps only the grants they hold; the
+  web dialog says how many such items there are (`foreign_owned`) before the
+  admin confirms. The menu offers it only on a top-level, non-team folder the
+  admin manages in an organization space, and "New team folder" only at the
+  space root — a team folder never lands anywhere else.
 - **The last manager stays.** Revoking, or re-granting without `can_share`,
   the only live `can_share` grant on a team folder answers **409**
   (`keepsTeamManager`, counting with `CountTeamManagers`). Somebody else must

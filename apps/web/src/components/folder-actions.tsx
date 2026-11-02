@@ -95,9 +95,10 @@ export function folderActions(write: DriveWrite, listing?: ListingContext): Fold
       disabled: !write.canWrite,
       run: write.newFolder,
     },
-    // Admins only, and never disabled by the folder being browsed: a team
-    // folder is always created at the space's top level, so the edit rights
-    // that gate "New folder" here do not apply to it.
+    // Admins only, and only at the space root: a team folder is always created
+    // at the top level, so inside a folder it would promise a place it cannot
+    // go (`canCreateTeamFolder`). The edit rights that gate "New folder" here
+    // do not apply to it.
     ...(write.canCreateTeamFolder
       ? [
           {

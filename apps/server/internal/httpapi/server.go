@@ -521,6 +521,7 @@ func (s *Server) apiRoutes(r chi.Router, agent bool) {
 		r.Get("/content", s.handleContent)
 		r.Patch("/rename", s.handleRenameNode)
 		r.Patch("/move", s.handleMoveNode)
+		r.Post("/team-folder", s.handleConvertToTeamFolder)
 		r.Get("/move-impact", s.handleMoveImpact)
 		r.Post("/copy", s.handleCopyNode)
 		r.Delete("/", s.handleDeleteNode)

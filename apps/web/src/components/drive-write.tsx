@@ -38,7 +38,11 @@ export interface DriveWrite extends WriteTarget {
   pasteable: Node[];
   newFolder: () => void;
   newDocument: (kind: DocumentKind) => void;
-  /** True only for a space admin: the server rejects anyone else with a 403. */
+  /**
+   * True only for a space admin looking at the space root: the server rejects
+   * anyone else with a 403, and a team folder always lands at the top level,
+   * so offering it from inside a folder would promise a place it cannot go.
+   */
   canCreateTeamFolder: boolean;
   /** Always creates at the space's top level — a team folder cannot be nested. */
   newTeamFolder: () => void;
@@ -218,7 +222,7 @@ export function DriveWriteProvider({ children }: { children: ReactNode }) {
       newDocument,
       // A team folder belongs to the space, so only a space admin may start
       // one; the server answers everyone else with a 403.
-      canCreateTeamFolder: space?.is_admin === true,
+      canCreateTeamFolder: space?.is_admin === true && target.dir === undefined,
       newTeamFolder,
       uploadFiles: () => fileRef.current?.click(),
       uploadFolder: () => folderRef.current?.click(),
