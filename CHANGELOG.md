@@ -11,6 +11,10 @@ Versions up to and including 0.14.1 predate this changelog; see the
 
 <!-- `bun run version-packages` adds each release's section from its changesets; edit it in the Version Packages PR. -->
 
+## [1.3.0] — 2026-11-02
+
+HTML files now preview as a rendered page instead of coloured source. The preview panel and the full-size viewer both show a Preview/Source toggle for `.html`/`.htm`/`.xhtml` files: Preview renders the file in a sandboxed `<iframe>` (scripts run, but the frame gets an opaque origin with no access to pp-hub's cookies or session), Source shows the highlighted markup as before. "Open" now also opens HTML files full-size, alongside PDFs, images, video and audio.
+
 ## [1.2.0] — 2026-11-02
 
 Space admins can convert a top-level folder they manage into a team folder in place (⋯ → Convert to team folder, `POST /nodes/{id}/team-folder`). The folder keeps its id and links; the caller and the folder's creator become managers, and people who created items inside keep access only through Share. "New team folder" is now offered only at the space root, since a team folder is always created there.
