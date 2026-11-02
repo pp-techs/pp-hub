@@ -230,6 +230,18 @@ export function isTextFile(node: Node): boolean {
   return !isMarkdownFile(node) && textEntry(node) !== null;
 }
 
+/**
+ * An HTML document — `isTextFile` is true for it too (it has a `.html`
+ * extension), but the previewer renders it as a page instead of colouring it
+ * as source. Decided by name, same reasoning as `isTextFile`: the stored MIME
+ * is not reliable enough to gate on.
+ */
+export function isHtmlFile(node: Node): boolean {
+  if (node.kind !== "file") return false;
+  const ext = node.name.toLowerCase().match(/\.[^.]+$/)?.[0];
+  return ext === ".html" || ext === ".htm" || ext === ".xhtml";
+}
+
 /** The highlight.js language to colour a text file in, or null for plain. */
 export function textLanguage(node: Node): string | null {
   return textEntry(node)?.language ?? null;
@@ -266,10 +278,18 @@ const INLINE_MIMES = new Set([
   "text/plain",
 ]);
 
-/** File types the browser can display straight from `/content` — what the viewer opens full size. */
+/**
+ * File types the browser can display straight from `/content` — what the
+ * viewer opens full size. HTML is included even though `INLINE_MIMES`
+ * (deliberately) does not list it: the full-size viewer is `PreviewContent`
+ * routing to `HtmlPreview`, which never requests `/content` as a top-level
+ * resource — it fetches the bytes and renders them with `srcDoc` in a
+ * sandboxed iframe, so the server's `attachment` downgrade for `text/html`
+ * never comes into play (preview-pipeline.md#serving-the-original-file).
+ */
 export function canOpenInTab(node: Node): boolean {
   if (node.kind !== "file" || !node.mime) return false;
-  return INLINE_MIMES.has(node.mime.split(";")[0]!.trim());
+  return INLINE_MIMES.has(node.mime.split(";")[0]!.trim()) || isHtmlFile(node);
 }
 
 export type PreviewKind = "thumbnail" | "text";

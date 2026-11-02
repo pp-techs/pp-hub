@@ -3870,7 +3870,7 @@ msgstr "Không có ai khớp với các bộ lọc này."
 msgid "No open comments."
 msgstr "Không có bình luận đang mở."
 
-#: src/components/preview-content.tsx:469
+#: src/components/preview-content.tsx:568
 msgid "No preview available — use Download to view this file."
 msgstr "Không có bản xem trước — dùng Tải xuống để xem tệp này."
 
@@ -4085,7 +4085,7 @@ msgstr "mở"
 #: src/components/node-actions.tsx:125
 #: src/components/node-actions.tsx:148
 #: src/components/node-actions.tsx:162
-#: src/components/preview-content.tsx:462
+#: src/components/preview-content.tsx:561
 #: src/components/preview-modal.tsx:128
 #: src/components/preview-panel.tsx:341
 #: src/components/publish-dialog.tsx:303
@@ -4110,7 +4110,7 @@ msgstr "Mở"
 msgid "Open files in"
 msgstr "Mở tệp trong"
 
-#: src/components/preview-content.tsx:160
+#: src/components/preview-content.tsx:162
 #: src/routes/p/$token.tsx:121
 msgid "Open in new tab"
 msgstr "Mở trong tab mới"
@@ -4285,7 +4285,7 @@ msgstr "Tạm dừng tải lên"
 msgid "Paused"
 msgstr "Đã tạm dừng"
 
-#: src/components/preview-content.tsx:146
+#: src/components/preview-content.tsx:148
 msgid "PDF preview of {name}"
 msgstr "Bản xem trước PDF của {name}"
 
@@ -4391,6 +4391,7 @@ msgid "Press D anywhere outside a text field to flip between light and dark."
 msgstr "Nhấn D ở bất kỳ đâu ngoài ô nhập văn bản để chuyển giữa giao diện sáng và tối."
 
 #: src/components/node-actions.tsx:135
+#: src/components/preview-content.tsx:430
 #: src/components/preview-panel.tsx:341
 msgid "Preview"
 msgstr "Xem trước"
@@ -4401,7 +4402,7 @@ msgstr "Xem trước"
 msgid "Preview {nodeName}"
 msgstr "Xem trước {nodeName}"
 
-#: src/components/preview-content.tsx:80
+#: src/components/preview-content.tsx:82
 msgid "Preview not available yet — it is generated shortly after upload."
 msgstr "Bản xem trước chưa sẵn sàng — nó được tạo ngay sau khi tải lên."
 
@@ -4661,6 +4662,14 @@ msgstr "Đổi tên"
 #: src/components/trash-panel.tsx:122
 msgid "Renamed to “{restored}” — the old name was taken."
 msgstr "Đã đổi tên thành “{restored}” — tên cũ đã được sử dụng."
+
+#: src/components/preview-content.tsx:441
+msgid "Rendered from the first {shown} of {total} — use Download for the rest."
+msgstr "Hiển thị từ {shown} đầu tiên trong {total} — dùng Tải xuống để xem phần còn lại."
+
+#: src/components/preview-content.tsx:438
+msgid "Rendered preview of {name}"
+msgstr "Bản xem trước đã hiển thị của {name}"
 
 #: src/components/comments/comments-popover.tsx:445
 #: src/components/comments/comments-popover.tsx:446
@@ -5139,7 +5148,7 @@ msgstr "Xem cũ hơn"
 msgid "Showing {shown} of {total}"
 msgstr "Hiển thị {shown} trên {total}"
 
-#: src/components/preview-content.tsx:350
+#: src/components/preview-content.tsx:356
 msgid "Showing the first {shown} of {total} — use Download for the rest."
 msgstr "Đang hiển thị {shown} đầu tiên trong {total} — dùng Tải xuống để xem phần còn lại."
 
@@ -5273,6 +5282,10 @@ msgstr "Sắp xếp theo"
 #: src/components/listing-controls.tsx:90
 msgid "Sort descending"
 msgstr "Sắp xếp giảm dần"
+
+#: src/components/preview-content.tsx:433
+msgid "Source"
+msgstr "Mã nguồn"
 
 #: src/routes/drive/shared.tsx:66
 msgid "Space"
@@ -5637,7 +5650,7 @@ msgstr "Ứng dụng này đã bị tắt"
 #~ msgid "This board has no columns yet"
 #~ msgstr "Bảng này chưa có cột nào"
 
-#: src/components/preview-content.tsx:150
+#: src/components/preview-content.tsx:152
 msgid "This browser can't display PDFs inline."
 msgstr "Trình duyệt này không thể hiển thị PDF trực tiếp."
 
@@ -5673,11 +5686,12 @@ msgstr "Tài liệu này không khả dụng"
 msgid "This file contains formatting the block editor cannot keep, such as raw HTML or footnotes. Saving rewrites the file without it. The original stays in version history, and you can restore it from there."
 msgstr "Tệp này chứa định dạng mà trình soạn thảo khối không giữ được, chẳng hạn HTML thô hoặc chú thích cuối trang. Khi lưu, tệp sẽ được ghi lại mà không có phần đó. Bản gốc vẫn nằm trong lịch sử phiên bản và bạn có thể khôi phục từ đó."
 
-#: src/components/preview-content.tsx:321
+#: src/components/preview-content.tsx:327
+#: src/components/preview-content.tsx:408
 msgid "This file is not text, so it cannot be previewed."
 msgstr "Tệp này không phải văn bản nên không thể xem trước."
 
-#: src/components/preview-content.tsx:458
+#: src/components/preview-content.tsx:557
 msgid "This file opens in the office editor."
 msgstr "Tệp này mở trong trình soạn thảo Office."
 
@@ -5783,7 +5797,7 @@ msgstr "Không gian này chưa được liên kết với tổ chức nào nên 
 msgid "This tab"
 msgstr "Tab này"
 
-#: src/components/preview-content.tsx:175
+#: src/components/preview-content.tsx:177
 msgid "This video can't be played here — use Download."
 msgstr "Không thể phát video này tại đây — hãy dùng Tải xuống."
 
@@ -6373,7 +6387,7 @@ msgstr "Bạn đã tạo"
 msgid "You deleted"
 msgstr "Bạn đã xoá"
 
-#: src/components/preview-content.tsx:449
+#: src/components/preview-content.tsx:548
 msgid "You do not have access to this file."
 msgstr "Bạn không có quyền truy cập tệp này."
 
