@@ -1986,7 +1986,7 @@ msgstr "Creates it in {destination} and opens it in the editor."
 msgid "Creating…"
 msgstr "Creating…"
 
-#: src/components/version-list.tsx:110
+#: src/components/version-list.tsx:112
 msgid "Current"
 msgstr "Current"
 
@@ -2244,7 +2244,7 @@ msgstr "download"
 #: src/components/preview-modal.tsx:137
 #: src/components/preview-panel.tsx:351
 #: src/components/selection-bar.tsx:69
-#: src/components/version-list.tsx:130
+#: src/components/version-list.tsx:132
 #: src/routes/drive/shared.tsx:73
 #: src/routes/s/$token.tsx:232
 msgid "Download"
@@ -3050,7 +3050,7 @@ msgstr "Invited {invitee}, but no email could be sent — share the link yoursel
 msgid "IP"
 msgstr "IP"
 
-#: src/components/version-list.tsx:67
+#: src/components/version-list.tsx:69
 msgid "It is now the current version."
 msgstr "It is now the current version."
 
@@ -4738,7 +4738,7 @@ msgid "Resolved ({resolvedCount})"
 msgstr "Resolved ({resolvedCount})"
 
 #: src/components/trash-panel.tsx:389
-#: src/components/version-list.tsx:140
+#: src/components/version-list.tsx:142
 msgid "Restore"
 msgstr "Restore"
 
@@ -4754,7 +4754,7 @@ msgstr "Restore this version"
 msgid "Restored “{restored}”"
 msgstr "Restored “{restored}”"
 
-#: src/components/version-list.tsx:66
+#: src/components/version-list.tsx:68
 msgid "Restored version {versionNo}"
 msgstr "Restored version {versionNo}"
 
@@ -6185,7 +6185,7 @@ msgstr "Version"
 msgid "version {versionNo}"
 msgstr "version {versionNo}"
 
-#: src/components/version-list.tsx:106
+#: src/components/version-list.tsx:108
 msgid "Version {versionNo}"
 msgstr "Version {versionNo}"
 
@@ -6206,7 +6206,7 @@ msgstr "versions"
 msgid "Versions"
 msgstr "Versions"
 
-#: src/components/version-list.tsx:149
+#: src/components/version-list.tsx:151
 msgid "Versions are immutable. Restoring makes the selected version current; it does not delete anything."
 msgstr "Versions are immutable. Restoring makes the selected version current; it does not delete anything."
 
@@ -6238,7 +6238,7 @@ msgstr "view"
 
 #: src/components/folder-actions.tsx:204
 #: src/components/settings/panes/account-general.tsx:188
-#: src/components/version-list.tsx:120
+#: src/components/version-list.tsx:122
 msgid "View"
 msgstr "View"
 

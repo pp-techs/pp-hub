@@ -55,7 +55,9 @@ export function VersionList({ node, onRestored }: { node: Node; onRestored?: () 
     return <p className="text-destructive text-xs">{(versions.error as Error).message}</p>;
   }
 
-  const current = versions.data[0]?.id;
+  // The server marks it, not the row order: a restore makes an older version
+  // current and the list stays newest-first.
+  const current = versions.data.find((v) => v.current)?.id;
 
   const restoreTo = (v: Version) => {
     const versionNo = v.version_no;

@@ -1201,3 +1201,46 @@ func TestRestoreOfficeDocumentDropsSessionAndClearsLock(t *testing.T) {
 		t.Errorf("current version after restore = %v (%v), want %v", cur.ID, err, v1.ID)
 	}
 }
+
+// A restore points the node at an older version, so the list cannot mark the
+// current one by its position: the newest row is the one that was replaced.
+// GET /versions says which row is current, and it has to follow the restore.
+func TestListVersionsMarksTheRestoredVersionCurrent(t *testing.T) {
+	rig := newCollabRig(t, collab.Config{})
+	f := rig.fixture(t, "versions-current", "# Draft\n")
+	office := rig.putMarkdown(t, f.space, f.owner, "report.xlsx", "v1 content")
+	v1 := rig.versions(t, office)[0]
+	rig.putVersion(t, office, f.owner, "v2 content")
+
+	list := func() []versionDTO {
+		t.Helper()
+		res := rig.do(t, f.owner, http.MethodGet,
+			"/api/v1/nodes/"+uuidString(office.ID)+"/versions", nil)
+		if res.code != http.StatusOK {
+			t.Fatalf("list versions: %d %s", res.code, res.body)
+		}
+		var vers []versionDTO
+		if err := json.Unmarshal(res.body, &vers); err != nil {
+			t.Fatalf("decode versions: %v", err)
+		}
+		return vers
+	}
+
+	vers := list()
+	if len(vers) != 2 || vers[0].VersionNo != 2 || !vers[0].Current || vers[1].Current {
+		t.Fatalf("before restore versions = %+v, want v2 newest and current", vers)
+	}
+
+	if res := rig.do(t, f.owner, http.MethodPost,
+		"/api/v1/nodes/"+uuidString(office.ID)+"/versions/"+uuidString(v1.ID)+"/restore", nil); res.code != http.StatusOK {
+		t.Fatalf("restore: %d %s", res.code, res.body)
+	}
+
+	vers = list()
+	if len(vers) != 2 || vers[0].VersionNo != 2 || vers[0].Current {
+		t.Fatalf("after restore versions = %+v, want v2 newest and no longer current", vers)
+	}
+	if !vers[1].Current || vers[1].VersionNo != 1 {
+		t.Errorf("after restore v1 current = %v, want the restored version marked", vers[1].Current)
+	}
+}

@@ -530,6 +530,12 @@ export interface Version {
   size: number;
   mime: string;
   created_at: string;
+  /**
+   * The version the file's bytes serve from. Not necessarily the newest row:
+   * restoring an older version makes it current, and the list is still
+   * ordered newest first.
+   */
+  current: boolean;
 }
 
 /**

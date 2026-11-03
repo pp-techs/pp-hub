@@ -1986,7 +1986,7 @@ msgstr "Tạo tệp trong {destination} và mở trong trình chỉnh sửa."
 msgid "Creating…"
 msgstr "Đang tạo…"
 
-#: src/components/version-list.tsx:110
+#: src/components/version-list.tsx:112
 msgid "Current"
 msgstr "Hiện tại"
 
@@ -2244,7 +2244,7 @@ msgstr "tải xuống"
 #: src/components/preview-modal.tsx:137
 #: src/components/preview-panel.tsx:351
 #: src/components/selection-bar.tsx:69
-#: src/components/version-list.tsx:130
+#: src/components/version-list.tsx:132
 #: src/routes/drive/shared.tsx:73
 #: src/routes/s/$token.tsx:232
 msgid "Download"
@@ -3050,7 +3050,7 @@ msgstr "Đã mời {invitee}, nhưng không gửi được email — hãy tự g
 msgid "IP"
 msgstr "IP"
 
-#: src/components/version-list.tsx:67
+#: src/components/version-list.tsx:69
 msgid "It is now the current version."
 msgstr "Đây hiện là phiên bản hiện tại."
 
@@ -4738,7 +4738,7 @@ msgid "Resolved ({resolvedCount})"
 msgstr "Đã giải quyết ({resolvedCount})"
 
 #: src/components/trash-panel.tsx:389
-#: src/components/version-list.tsx:140
+#: src/components/version-list.tsx:142
 msgid "Restore"
 msgstr "Khôi phục"
 
@@ -4754,7 +4754,7 @@ msgstr "Khôi phục phiên bản này"
 msgid "Restored “{restored}”"
 msgstr "Đã khôi phục “{restored}”"
 
-#: src/components/version-list.tsx:66
+#: src/components/version-list.tsx:68
 msgid "Restored version {versionNo}"
 msgstr "Đã khôi phục phiên bản {versionNo}"
 
@@ -6185,7 +6185,7 @@ msgstr "Phiên bản"
 msgid "version {versionNo}"
 msgstr "phiên bản {versionNo}"
 
-#: src/components/version-list.tsx:106
+#: src/components/version-list.tsx:108
 msgid "Version {versionNo}"
 msgstr "Phiên bản {versionNo}"
 
@@ -6206,7 +6206,7 @@ msgstr "phiên bản"
 msgid "Versions"
 msgstr "Phiên bản"
 
-#: src/components/version-list.tsx:149
+#: src/components/version-list.tsx:151
 msgid "Versions are immutable. Restoring makes the selected version current; it does not delete anything."
 msgstr "Các phiên bản là bất biến. Khôi phục sẽ đặt phiên bản đã chọn làm phiên bản hiện tại; không xoá bất cứ thứ gì."
 
@@ -6238,7 +6238,7 @@ msgstr "xem"
 
 #: src/components/folder-actions.tsx:204
 #: src/components/settings/panes/account-general.tsx:188
-#: src/components/version-list.tsx:120
+#: src/components/version-list.tsx:122
 msgid "View"
 msgstr "Xem"
 

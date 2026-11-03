@@ -131,6 +131,10 @@ type versionDTO struct {
 	Size      int64  `json:"size"`
 	Mime      string `json:"mime"`
 	CreatedAt string `json:"created_at"`
+	// Current is the version the node's bytes serve from. It is not the
+	// newest row: a restore flips current_version_id to an older one, and the
+	// client cannot tell which from the order alone.
+	Current bool `json:"current"`
 }
 
 type treeNodeDTO struct {
@@ -1273,6 +1277,7 @@ func (s *Server) handleListVersions(w http.ResponseWriter, r *http.Request) {
 			Size:      v.Size,
 			Mime:      v.Mime,
 			CreatedAt: v.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
+			Current:   node.CurrentVersionID.Valid && node.CurrentVersionID == v.ID,
 		})
 	}
 	writeJSON(w, http.StatusOK, out)

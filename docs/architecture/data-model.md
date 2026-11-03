@@ -243,7 +243,7 @@ about the feed's schema, scoping or readers wanted to become an audit log.
   the join misses.
 - **`detail` is JSONB for the per-kind extras** — the revoked session id, `{"revoked": n}` on a
   bulk revocation, the old and new issuer on an adoption, `{"via":
-  "PP_BOOTSTRAP_ADMIN_EMAIL"}` on a bootstrap promotion. An empty object is omitted from the
+"PP_BOOTSTRAP_ADMIN_EMAIL"}` on a bootstrap promotion. An empty object is omitted from the
   wire, so the API shape stays honest about which events carry extras.
 - **`user_agent` is truncated to 400 bytes** before it reaches the column. It is
   client-controlled text and there is no reason to accept a megabyte of it.
@@ -643,7 +643,7 @@ page_order(node_id PK, position)
 ## Query Patterns
 
 - **List a folder**: `WHERE space_id AND parent_id AND deleted_at IS NULL` — single indexed query. No ltree/materialized path in MVP: move = update one row; recursive subtree listing is rare.
-- **Version history**: `WHERE node_id ORDER BY version_no DESC`.
+- **Version history**: `WHERE node_id ORDER BY version_no DESC`; `GET /nodes/{id}/versions` flags the row that is `current_version_id`, because a restore makes an older version current and the order alone no longer says which.
 - **Search**: `nodes.name ILIKE '%…%'`, answered by the GIN trigram index `nodes_name_trgm` (partial on `deleted_at IS NULL`). A B-tree cannot serve an infix match, and people search for `forecast` expecting `Q1-forecast-final.xlsx`. The same index backs `similarity()` for ranking, and results are scoped by joining `space_members` — supported by `space_members_by_user`, since the table's `(space_id, user_id)` primary key cannot serve a user-first probe. Since M27, `SearchNodes` also matches `node_texts` — the folded full-text query, or a folded substring as fallback — joined on `node_version_id = nodes.current_version_id` so stale text is never matched; every name hit ranks above every content-only hit, and `ts_rank` orders the content hits.
 - **Trash**: `WHERE space_id AND deleted_at IS NOT NULL`. `ListDeletedWithMeta` joins the current version and owner, and adds two derived columns — `location` (ancestor names joined with `" / "`, from a recursive CTE) and `child_count` (direct live children) — so a row can say where it came from and how much comes back with it.
 - **Effective capabilities**: `NodeAccessCaps` (`queries/shares.sql`) — one recursive CTE that takes an array of node ids and returns, per node, whether the caller owns it (`nodes.created_by` anywhere up the chain) plus the `BOOL_OR` of every grant flag reachable on the node **or any ancestor**, via a direct share or a group they belong to. Batched on purpose: a listing resolves every row in one query instead of one walk per row. It replaced a loop issuing one `GetNodeParent` per tree level per node, which also stopped widening at depth 100.
