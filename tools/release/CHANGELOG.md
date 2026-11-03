@@ -1,5 +1,11 @@
 # @pp-hub/release
 
+## 1.3.1
+
+### Patch Changes
+
+- 074d962: The version history now marks the version the file actually serves. After restoring an older version, the "Current" badge and the Download button move to it; before, they stayed on the newest version, which made a restore look like it had not happened.
+
 ## 1.3.0
 
 ### Minor Changes

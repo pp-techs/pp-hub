@@ -11,6 +11,10 @@ Versions up to and including 0.14.1 predate this changelog; see the
 
 <!-- `bun run version-packages` adds each release's section from its changesets; edit it in the Version Packages PR. -->
 
+## [1.3.1] — 2026-11-03
+
+The version history now marks the version the file actually serves. After restoring an older version, the "Current" badge and the Download button move to it; before, they stayed on the newest version, which made a restore look like it had not happened.
+
 ## [1.3.0] — 2026-11-02
 
 HTML files now preview as a rendered page instead of coloured source. The preview panel and the full-size viewer both show a Preview/Source toggle for `.html`/`.htm`/`.xhtml` files: Preview renders the file in a sandboxed `<iframe>` (scripts run, but the frame gets an opaque origin with no access to pp-hub's cookies or session), Source shows the highlighted markup as before. "Open" now also opens HTML files full-size, alongside PDFs, images, video and audio.
