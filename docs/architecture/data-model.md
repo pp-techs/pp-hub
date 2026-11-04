@@ -243,7 +243,7 @@ about the feed's schema, scoping or readers wanted to become an audit log.
   the join misses.
 - **`detail` is JSONB for the per-kind extras** — the revoked session id, `{"revoked": n}` on a
   bulk revocation, the old and new issuer on an adoption, `{"via":
-"PP_BOOTSTRAP_ADMIN_EMAIL"}` on a bootstrap promotion. An empty object is omitted from the
+  "PP_BOOTSTRAP_ADMIN_EMAIL"}` on a bootstrap promotion. An empty object is omitted from the
   wire, so the API shape stays honest about which events carry extras.
 - **`user_agent` is truncated to 400 bytes** before it reaches the column. It is
   client-controlled text and there is no reason to accept a megabyte of it.
