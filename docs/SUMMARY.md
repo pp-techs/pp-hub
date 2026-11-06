@@ -42,7 +42,8 @@ shrank from 43 characters to **16 base62 characters** (`newLinkToken`, with
 rejection sampling so the alphabet stays even), which is short enough to read
 aloud; existing links keep working because resolution is by SHA-256 hash, not
 length. The product name is `PP Hub` everywhere (`PRODUCT_NAME`), and the
-sign-in page and the header of a shared link share one `BrandMark`.
+sign-in page and the header of a shared link share one `BrandMark` — the
+megaminx symbol defined, with its icons and guidelines, in `docs/brand/`.
 
 **M22–M24 closed the P0 register.** There is now a **restorable backup**: `deploy/backup/pp-backup.sh` and `pp-restore.sh` capture Postgres and the blob volume together and consistently, and a restore has actually been performed against a built `compose.prod.yml` stack, not merely scripted. There was also a **mail transport for invitations** — `internal/mail` over SMTP — which **M33 deleted** (invitation email is Logto's job now) and **M31 reinstated** for share notifications, with **M35** moving its configuration into Admin › Settings. Comments and in-app notifications followed in **M29**. And a **REST version upload now honours `file_locks`**: `Server.lockedByEditor` answers 409 rather than silently discarding whatever a colleague has open in the editor (since M30 a replacement is a tus upload, refused with 423 at creation and again at commit). Alongside them, `/healthz` gained a real `/readyz` split that checks Postgres and the blob store, `cmd/worker` gained a health signal, and avatar upload gained an actual blob store behind it.
 
