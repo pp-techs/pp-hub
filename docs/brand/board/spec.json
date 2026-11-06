@@ -1,0 +1,38 @@
+{
+  "brand": "PP Hub",
+  "tagline": "Your company drive, self-hosted",
+  "brief": "A minimal, self-hosted workspace: drive, office editing, permissions and spaces for small teams. It should feel solid, modular and calm \u2014 the opposite of bloated suites.",
+  "adjectives": ["solid", "modular", "calm", "trustworthy"],
+  "criteria": "Recognisable at 16 px, one-colour safe, ownable against cloud/folder clich\u00e9s.",
+  "industry": "saas",
+  "nav": ["Drive", "Spaces", "Self-host"],
+  "brand_color": "#2980B9",
+  "greyscale": false,
+  "designer": "PP Hub",
+  "round": 2,
+  "concepts": [
+    {
+      "name": "Megaminx Hub",
+      "symbol": "../logo/pp-hub-symbol.svg",
+      "lockup": "../logo/pp-hub-horizontal.svg",
+      "idea": "A twelve-faced megaminx: every face a space, every piece a file, the solid centre is the hub.",
+      "rationale": [
+        "Drive, storage, ERP modules and hub in one geometric object",
+        "Exact 5-fold symmetry: stable and calm",
+        "Dedicated small-size cuts keep it legible at 16 px",
+        "Avoids cloud, folder and padlock clich\u00e9s"
+      ],
+      "stacked": "../logo/pp-hub-stacked.svg",
+      "symbol_on_tile": "../logo/pp-hub-symbol-onblue.svg",
+      "lockup_on_dark": "../logo/pp-hub-horizontal-reversed.svg",
+      "tile_color": "#2980B9"
+    }
+  ],
+  "recommendation": "Megaminx Hub with the constructed lowercase 'pp hub' wordmark.",
+  "next_steps": [
+    "Trademark search",
+    "Roll out in app (done: favicon, app icons, BrandMark)",
+    "Extend into module icons and patterns"
+  ],
+  "final": true
+}
