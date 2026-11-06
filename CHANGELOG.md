@@ -11,6 +11,10 @@ Versions up to and including 0.14.1 predate this changelog; see the
 
 <!-- `bun run version-packages` adds each release's section from its changesets; edit it in the Version Packages PR. -->
 
+## [1.4.0] — 2026-11-06
+
+New PP Hub brand identity: a megaminx "hub" symbol with a constructed `pp hub` wordmark. The favicon, app and touch icons, PWA manifest icons (now with a maskable icon) and the in-app brand mark are replaced; the browser theme colour is the brand blue. Brand files and usage guidelines live in `docs/brand/`.
+
 ## [1.3.1] — 2026-11-03
 
 The version history now marks the version the file actually serves. After restoring an older version, the "Current" badge and the Download button move to it; before, they stayed on the newest version, which made a restore look like it had not happened.
