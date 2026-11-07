@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
+import { cn } from "@workspace/ui/lib/utils";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
 import type { HocuspocusProvider } from "@hocuspocus/provider";
@@ -619,30 +620,26 @@ function PanelToggle({
 
 /** Where this tab's own edits are: acknowledged by the server, in flight, or waiting for a socket. */
 function SyncIndicator({ provider }: { provider: HocuspocusProvider }) {
+  const { t } = useLingui();
   const state = useSyncState(provider);
+  const label = state === "saved" ? t`Saved` : state === "syncing" ? t`Syncing…` : t`Offline`;
+  const Icon = state === "saved" ? Check : state === "syncing" ? Loader2 : CloudOff;
   return (
-    <span
-      role="status"
-      data-state={state}
-      className="text-muted-foreground flex items-center gap-1 px-1 text-xs"
-    >
-      {state === "saved" ? (
-        <>
-          <Check className="size-3.5" />
-          <Trans>Saved</Trans>
-        </>
-      ) : state === "syncing" ? (
-        <>
-          <Loader2 className="size-3.5 animate-spin" />
-          <Trans>Syncing…</Trans>
-        </>
-      ) : (
-        <>
-          <CloudOff className="size-3.5" />
-          <Trans>Offline</Trans>
-        </>
-      )}
-    </span>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <span
+            role="status"
+            aria-label={label}
+            data-state={state}
+            className="text-muted-foreground flex size-7 items-center justify-center"
+          >
+            <Icon className={cn("size-4", state === "syncing" && "animate-spin")} />
+          </span>
+        }
+      />
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
   );
 }
 
