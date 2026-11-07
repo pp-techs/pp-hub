@@ -915,7 +915,7 @@ msgstr "Quản trị viên chưa bật quyền truy cập cho tác tử."
 msgid "An administrator has turned personal tokens off."
 msgstr "Quản trị viên đã tắt mã truy cập cá nhân."
 
-#: src/components/doc-editor/doc-editor.tsx:371
+#: src/components/doc-editor/doc-editor.tsx:372
 msgid "Anonymous"
 msgstr "Ẩn danh"
 
@@ -1406,7 +1406,7 @@ msgstr "Chuỗi bình luận"
 #: src/components/comments/block-comments.tsx:201
 #: src/components/comments/comments-popover.tsx:191
 #: src/components/comments/comments-popover.tsx:287
-#: src/components/doc-editor/doc-editor.tsx:240
+#: src/components/doc-editor/doc-editor.tsx:241
 msgid "Comments"
 msgstr "Bình luận"
 
@@ -1618,7 +1618,7 @@ msgstr "Không thể tạo nhóm"
 #~ msgid "Could not create the label"
 #~ msgstr "Không tạo được nhãn"
 
-#: src/components/doc-editor/doc-editor.tsx:86
+#: src/components/doc-editor/doc-editor.tsx:87
 msgid "Could not create the page"
 msgstr "Không thể tạo trang"
 
@@ -1717,11 +1717,11 @@ msgstr "Không thể di chuyển trang"
 msgid "Could not move the page to the trash"
 msgstr "Không thể chuyển trang vào thùng rác"
 
-#: src/components/doc-editor/doc-editor.tsx:84
+#: src/components/doc-editor/doc-editor.tsx:85
 msgid "Could not move the sub-page to the trash"
 msgstr "Không thể chuyển trang con vào thùng rác"
 
-#: src/components/doc-editor/doc-editor.tsx:302
+#: src/components/doc-editor/doc-editor.tsx:303
 msgid "Could not open the document"
 msgstr "Không thể mở tài liệu"
 
@@ -1783,7 +1783,7 @@ msgstr "Không thể khôi phục “{name}”"
 msgid "Could not restore the page"
 msgstr "Không thể khôi phục trang"
 
-#: src/components/doc-editor/doc-editor.tsx:85
+#: src/components/doc-editor/doc-editor.tsx:86
 msgid "Could not restore the sub-page"
 msgstr "Không thể khôi phục trang con"
 
@@ -2316,7 +2316,7 @@ msgid "edit"
 msgstr "chỉnh sửa"
 
 #: src/components/comments/comments-popover.tsx:594
-#: src/components/doc-editor/doc-editor.tsx:227
+#: src/components/doc-editor/doc-editor.tsx:228
 #: src/components/node-actions.tsx:162
 msgid "Edit"
 msgstr "Chỉnh sửa"
@@ -4037,7 +4037,7 @@ msgstr "Đang tắt. Không ai tạo hay mở được các mục của nó."
 msgid "Office"
 msgstr "Office"
 
-#: src/components/doc-editor/doc-editor.tsx:642
+#: src/components/doc-editor/doc-editor.tsx:625
 msgid "Offline"
 msgstr "Ngoại tuyến"
 
@@ -4238,7 +4238,7 @@ msgstr "Không tìm thấy trang."
 msgid "Page title"
 msgstr "Tiêu đề trang"
 
-#: src/components/doc-editor/doc-editor.tsx:233
+#: src/components/doc-editor/doc-editor.tsx:234
 #: src/components/doc-editor/labels.ts:58
 #: src/components/doc-editor/page-tree-panel.tsx:193
 #: src/components/doc-editor/page-tree-panel.tsx:198
@@ -4511,7 +4511,7 @@ msgstr "chia sẻ lại"
 msgid "read-only"
 msgstr "chỉ đọc"
 
-#: src/components/doc-editor/doc-editor.tsx:221
+#: src/components/doc-editor/doc-editor.tsx:222
 msgid "Read-only"
 msgstr "Chỉ đọc"
 
@@ -4836,7 +4836,7 @@ msgstr "Lưu thay đổi"
 msgid "Save settings"
 msgstr "Lưu cài đặt"
 
-#: src/components/doc-editor/doc-editor.tsx:632
+#: src/components/doc-editor/doc-editor.tsx:625
 msgid "Saved"
 msgstr "Đã lưu"
 
@@ -5404,7 +5404,7 @@ msgstr "Đã tạm khoá"
 msgid "Switch space"
 msgstr "Chuyển không gian"
 
-#: src/components/doc-editor/doc-editor.tsx:637
+#: src/components/doc-editor/doc-editor.tsx:625
 msgid "Syncing…"
 msgstr "Đang đồng bộ…"
 
@@ -5561,7 +5561,7 @@ msgstr "liên kết công khai"
 msgid "The rest of the thread stays."
 msgstr "Phần còn lại của chuỗi bình luận vẫn được giữ."
 
-#: src/components/doc-editor/doc-editor.tsx:307
+#: src/components/doc-editor/doc-editor.tsx:308
 #: src/components/markdown-document-view/index.tsx:212
 msgid "The server did not answer."
 msgstr "Máy chủ không phản hồi."
@@ -5678,7 +5678,7 @@ msgstr "Thiết bị này luôn ở trạng thái đăng nhập."
 msgid "This document cannot be shown"
 msgstr "Không thể hiển thị tài liệu này"
 
-#: src/components/doc-editor/doc-editor.tsx:285
+#: src/components/doc-editor/doc-editor.tsx:286
 msgid "This document is not available"
 msgstr "Tài liệu này không khả dụng"
 
@@ -5897,7 +5897,7 @@ msgstr "Thời gian giữ trong thùng rác (ngày)"
 msgid "Try a different search."
 msgstr "Hãy thử tìm kiếm khác."
 
-#: src/components/doc-editor/doc-editor.tsx:313
+#: src/components/doc-editor/doc-editor.tsx:314
 #: src/ext/ext-unavailable.tsx:63
 msgid "Try again"
 msgstr "Thử lại"
@@ -5955,7 +5955,7 @@ msgstr "Nhập mã Mermaid ở trên"
 msgid "Type the space name to confirm"
 msgstr "Nhập tên không gian để xác nhận"
 
-#: src/components/doc-editor/doc-editor.tsx:83
+#: src/components/doc-editor/doc-editor.tsx:84
 msgid "Type to search"
 msgstr "Gõ để tìm kiếm"
 
@@ -6453,7 +6453,7 @@ msgstr "Bạn đã tải lên"
 msgid "Your access"
 msgstr "Quyền của bạn"
 
-#: src/components/doc-editor/doc-editor.tsx:288
+#: src/components/doc-editor/doc-editor.tsx:289
 msgid "Your access may have been removed, or the file is no longer a markdown document."
 msgstr "Có thể quyền truy cập của bạn đã bị gỡ, hoặc tệp không còn là tài liệu markdown."
 

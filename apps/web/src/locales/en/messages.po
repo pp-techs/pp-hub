@@ -915,7 +915,7 @@ msgstr "An administrator has not turned on agent access."
 msgid "An administrator has turned personal tokens off."
 msgstr "An administrator has turned personal tokens off."
 
-#: src/components/doc-editor/doc-editor.tsx:371
+#: src/components/doc-editor/doc-editor.tsx:372
 msgid "Anonymous"
 msgstr "Anonymous"
 
@@ -1406,7 +1406,7 @@ msgstr "Comment thread"
 #: src/components/comments/block-comments.tsx:201
 #: src/components/comments/comments-popover.tsx:191
 #: src/components/comments/comments-popover.tsx:287
-#: src/components/doc-editor/doc-editor.tsx:240
+#: src/components/doc-editor/doc-editor.tsx:241
 msgid "Comments"
 msgstr "Comments"
 
@@ -1618,7 +1618,7 @@ msgstr "Could not create the group"
 #~ msgid "Could not create the label"
 #~ msgstr "Could not create the label"
 
-#: src/components/doc-editor/doc-editor.tsx:86
+#: src/components/doc-editor/doc-editor.tsx:87
 msgid "Could not create the page"
 msgstr "Could not create the page"
 
@@ -1717,11 +1717,11 @@ msgstr "Could not move the page"
 msgid "Could not move the page to the trash"
 msgstr "Could not move the page to the trash"
 
-#: src/components/doc-editor/doc-editor.tsx:84
+#: src/components/doc-editor/doc-editor.tsx:85
 msgid "Could not move the sub-page to the trash"
 msgstr "Could not move the sub-page to the trash"
 
-#: src/components/doc-editor/doc-editor.tsx:302
+#: src/components/doc-editor/doc-editor.tsx:303
 msgid "Could not open the document"
 msgstr "Could not open the document"
 
@@ -1783,7 +1783,7 @@ msgstr "Could not restore “{name}”"
 msgid "Could not restore the page"
 msgstr "Could not restore the page"
 
-#: src/components/doc-editor/doc-editor.tsx:85
+#: src/components/doc-editor/doc-editor.tsx:86
 msgid "Could not restore the sub-page"
 msgstr "Could not restore the sub-page"
 
@@ -2316,7 +2316,7 @@ msgid "edit"
 msgstr "edit"
 
 #: src/components/comments/comments-popover.tsx:594
-#: src/components/doc-editor/doc-editor.tsx:227
+#: src/components/doc-editor/doc-editor.tsx:228
 #: src/components/node-actions.tsx:162
 msgid "Edit"
 msgstr "Edit"
@@ -4037,7 +4037,7 @@ msgstr "Off. Nobody can create or open its items."
 msgid "Office"
 msgstr "Office"
 
-#: src/components/doc-editor/doc-editor.tsx:642
+#: src/components/doc-editor/doc-editor.tsx:625
 msgid "Offline"
 msgstr "Offline"
 
@@ -4238,7 +4238,7 @@ msgstr "Page not found."
 msgid "Page title"
 msgstr "Page title"
 
-#: src/components/doc-editor/doc-editor.tsx:233
+#: src/components/doc-editor/doc-editor.tsx:234
 #: src/components/doc-editor/labels.ts:58
 #: src/components/doc-editor/page-tree-panel.tsx:193
 #: src/components/doc-editor/page-tree-panel.tsx:198
@@ -4511,7 +4511,7 @@ msgstr "re-share"
 msgid "read-only"
 msgstr "read-only"
 
-#: src/components/doc-editor/doc-editor.tsx:221
+#: src/components/doc-editor/doc-editor.tsx:222
 msgid "Read-only"
 msgstr "Read-only"
 
@@ -4836,7 +4836,7 @@ msgstr "Save changes"
 msgid "Save settings"
 msgstr "Save settings"
 
-#: src/components/doc-editor/doc-editor.tsx:632
+#: src/components/doc-editor/doc-editor.tsx:625
 msgid "Saved"
 msgstr "Saved"
 
@@ -5404,7 +5404,7 @@ msgstr "Suspended"
 msgid "Switch space"
 msgstr "Switch space"
 
-#: src/components/doc-editor/doc-editor.tsx:637
+#: src/components/doc-editor/doc-editor.tsx:625
 msgid "Syncing…"
 msgstr "Syncing…"
 
@@ -5561,7 +5561,7 @@ msgstr "the public link"
 msgid "The rest of the thread stays."
 msgstr "The rest of the thread stays."
 
-#: src/components/doc-editor/doc-editor.tsx:307
+#: src/components/doc-editor/doc-editor.tsx:308
 #: src/components/markdown-document-view/index.tsx:212
 msgid "The server did not answer."
 msgstr "The server did not answer."
@@ -5678,7 +5678,7 @@ msgstr "This device stays signed in."
 msgid "This document cannot be shown"
 msgstr "This document cannot be shown"
 
-#: src/components/doc-editor/doc-editor.tsx:285
+#: src/components/doc-editor/doc-editor.tsx:286
 msgid "This document is not available"
 msgstr "This document is not available"
 
@@ -5897,7 +5897,7 @@ msgstr "Trash retention (days)"
 msgid "Try a different search."
 msgstr "Try a different search."
 
-#: src/components/doc-editor/doc-editor.tsx:313
+#: src/components/doc-editor/doc-editor.tsx:314
 #: src/ext/ext-unavailable.tsx:63
 msgid "Try again"
 msgstr "Try again"
@@ -5955,7 +5955,7 @@ msgstr "Type Mermaid source above"
 msgid "Type the space name to confirm"
 msgstr "Type the space name to confirm"
 
-#: src/components/doc-editor/doc-editor.tsx:83
+#: src/components/doc-editor/doc-editor.tsx:84
 msgid "Type to search"
 msgstr "Type to search"
 
@@ -6453,7 +6453,7 @@ msgstr "You uploaded"
 msgid "Your access"
 msgstr "Your access"
 
-#: src/components/doc-editor/doc-editor.tsx:288
+#: src/components/doc-editor/doc-editor.tsx:289
 msgid "Your access may have been removed, or the file is no longer a markdown document."
 msgstr "Your access may have been removed, or the file is no longer a markdown document."
 

@@ -813,8 +813,10 @@ in [M29](milestones/M29.md) and [data-model.md](data-model.md#comments-and-notif
   to style.
 - `components/doc-editor/doc-editor.tsx` mounts `createMdocKit` with
   `collaboration: { document, provider, user }`. `file-view.tsx` branches on
-  type; the header carries presence avatars, a Saved/Syncing/Offline state
-  from the provider (which the SyncStatus patch makes truthful) and a
+  type; the header carries presence avatars, an icon-only Saved/Syncing/Offline state
+  from the provider (which the SyncStatus patch makes truthful; Syncing shows
+  only after an update stays unacknowledged for 800ms, so typing does not
+  flicker) and a
   Read-only badge; the lossy warning is a better-modal dialog
   (`lossy-edit-modal.tsx`).
 - Presence: each collaborator gets a colour and initials, stable per user id

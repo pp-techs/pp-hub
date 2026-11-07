@@ -161,13 +161,21 @@ export function useCollabRoom(nodeId: string): { room: CollabRoom; retry: () => 
 export type SyncState = "saved" | "syncing" | "offline";
 
 /**
+ * How long an update may stay unacknowledged before the header says
+ * `syncing`. Typing sends one update per keystroke and each is acknowledged
+ * within a round trip, so without a grace period the state would flicker
+ * between `saved` and `syncing` on every key.
+ */
+const SYNCING_GRACE_MS = 800;
+
+/**
  * What the header says about the local edits: `saved` once the server has
- * acknowledged every update this tab sent, `syncing` while some are
- * unacknowledged, `offline` while the socket is down (edits keep, and go
- * out on reconnect).
+ * acknowledged every update this tab sent, `syncing` while some have stayed
+ * unacknowledged for more than a moment, `offline` while the socket is down
+ * (edits keep, and go out on reconnect).
  */
 export function useSyncState(provider: HocuspocusProvider): SyncState {
-  return useSyncExternalStore(
+  const live = useSyncExternalStore(
     (onChange) => {
       provider.on("status", onChange);
       provider.on("unsyncedChanges", onChange);
@@ -185,4 +193,14 @@ export function useSyncState(provider: HocuspocusProvider): SyncState {
       return provider.hasUnsyncedChanges ? "syncing" : "saved";
     },
   );
+  const [stalled, setStalled] = useState(false);
+  useEffect(() => {
+    if (live !== "syncing") {
+      setStalled(false);
+      return;
+    }
+    const timer = setTimeout(() => setStalled(true), SYNCING_GRACE_MS);
+    return () => clearTimeout(timer);
+  }, [live]);
+  return live === "syncing" && !stalled ? "saved" : live;
 }
