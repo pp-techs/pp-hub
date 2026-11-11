@@ -85,8 +85,10 @@ func (s *Server) mcpRoutes(r chi.Router) {
 		// ambient access. This one takes a bearer token on every request,
 		// and a reverse proxy on the same host would trip the check.
 		DisableLocalhostProtection: true,
-		// JSON may encode each source byte as six bytes (for example '<').
-		MaxRequestBodyBytes: 6*maxAgentTextBytes + 64<<10,
+		// JSON may encode each source byte as six bytes (for example '<') and
+		// base64 as four for three; the tool calls' own limits — 1 MiB of text
+		// or 8 MiB of file content — must fit after that expansion.
+		MaxRequestBodyBytes: maxAgentFileBytes*4/3 + 64<<10,
 		Logger:              slog.Default().With("module", "mcp"),
 	}))
 	r.Handle("/mcp", endpoint)

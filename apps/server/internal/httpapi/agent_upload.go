@@ -54,8 +54,9 @@ func decodeAgentContent(w http.ResponseWriter, content, encoding string) ([]byte
 // handleUploadFile is POST /spaces/{spaceID}/files, mounted only on the agent
 // dispatcher: upload_file's new file, under folder_id or at the top of the
 // space. The name rule and the permission are the upload flow's
-// (authorizeUploadTarget): a name already used in the folder is refused
-// rather than renamed or replaced — replacing is update_file's explicit call.
+// (authorizeUploadTarget): a name already used in the folder gets a (2)
+// suffix, as any upload's commit does — replacing an existing file is
+// update_file's explicit call.
 func (s *Server) handleUploadFile(w http.ResponseWriter, r *http.Request) {
 	// JSON carries the bytes in base64: a third more on the wire.
 	if !limitBody(w, r, maxAgentFileBytes*4/3+64<<10) {

@@ -51,11 +51,14 @@ func TestMcpUploadFileLandsBytes(t *testing.T) {
 		t.Fatalf("folder_id ignored: %+v", inFolder)
 	}
 
-	// A name already used in the folder is refused, not renamed or replaced.
-	if text, isErr := callTool(t, owner, "upload_file", map[string]any{
+	// A name already used in the folder gets a (2) suffix, as on the web:
+	// the existing file is untouched and the upload lands beside it.
+	var dupe nodeDTO
+	mustTool(t, owner, "upload_file", map[string]any{
 		"space_id": space, "name": "photo.png", "content": "other",
-	}); !isErr || !strings.Contains(text, "409") {
-		t.Fatalf("a name conflict was accepted: %s", text)
+	}, &dupe)
+	if dupe.ID == made.ID || dupe.Name != "photo (2).png" {
+		t.Fatalf("a duplicate name was not suffixed: %+v", dupe)
 	}
 
 	// The mistakes told back before the server is reached.

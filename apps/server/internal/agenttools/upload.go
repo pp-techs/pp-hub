@@ -33,7 +33,7 @@ func uploadFile() Tool {
 		Name: "upload_file", Title: "Upload a file",
 		Description: "Upload a file's bytes into the drive — an image, a PDF, an office document, or any other file — under folder_id, or at the top of the space when folder_id is omitted. " +
 			"content is the file's bytes: encoding base64 for binary files (download_file returns them that way), utf8 for text. At most 8 MiB. " +
-			"name must be a plain file name; one already used in the folder is refused — change an existing file's bytes with update_file instead. " +
+			"name must be a plain file name; one already used in the folder gets a ` (2)` suffix (the existing file is untouched) — to change an existing file's bytes use update_file. " +
 			"The file lands private to this person until shared; the answer is its id, size and version.",
 		Schema: json.RawMessage(`{"type":"object","properties":{` +
 			`"space_id":{"type":"string","description":"A space id from list_spaces."},` +
