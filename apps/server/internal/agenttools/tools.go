@@ -15,7 +15,7 @@ func Tools(o Options) []Tool {
 		whoami(), listSpaces(), listFolder(), search(), getNode(), listRecent(),
 		listStarred(), listSharedWithMe(), listVersions(), listMembers(), listGroups(),
 		readDocument(), downloadFile(), getWebLink(o.WebURL), listDocumentTemplates(),
-		createDocument(), updateDocument(),
+		createDocument(), updateDocument(), uploadFile(), updateFile(),
 		readTextFile(), updateTextFile(),
 		readOfficeFile(), editOfficeFile(), getOfficeSchema(),
 		listAccess(), grantAccess(), revokeAccess(),
@@ -257,7 +257,7 @@ func downloadFile() Tool {
 	return Tool{
 		Name: "download_file", Title: "Download a file",
 		Description: "A file's bytes, base64 in content_base64, with its name, mime, size, version and etag — for office documents, PDFs, images and any other file read_document cannot return as text. " +
-			"Needs download permission on the file, and files over 8 MiB are refused (use get_web_link then). Read-only: the file cannot be written back this way.",
+			"Needs download permission on the file, and files over 8 MiB are refused (use get_web_link then). Read-only: to change the file use update_file.",
 		Schema: json.RawMessage(nodeArg), ReadOnly: true,
 		Run: func(ctx context.Context, api API, args json.RawMessage) (any, error) {
 			node, err := nodeID(args)

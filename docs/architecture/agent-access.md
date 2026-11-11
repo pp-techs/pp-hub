@@ -211,6 +211,8 @@ a reverse proxy on the same host would trip it).
 | Read          | `get_web_link`                                                                                                                                                                                | `/edit/{id}` for a markdown document, the containing folder for any other file, the folder itself for a folder                                                                                                                                |
 | Write         | `create_document`                                                                                                                                                                             | `.md`, empty, from a template, or with markdown (an empty first version, then the content as the second). `folder_id` may be a markdown document: the new document is its sub-page (M43)                                                      |
 | Write         | `update_document(node_id, markdown, base_etag)`                                                                                                                                               | See below                                                                                                                                                                                                                                     |
+| Write         | `upload_file(space_id, folder_id?, name, content, encoding?)`                                                                                                                                 | A new file with its whole bytes (`utf8` or `base64`), at most 8 MiB, under `folder_id` or at the space's top. The upload flow's name and permission rules: a name already used in the folder is refused (409), never renamed or replaced      |
+| Write         | `update_file(node_id, content, encoding?, base_etag?)`                                                                                                                                        | Replaces a binary file's bytes as a new version (the previous one stays in the history); conditional on `base_etag` (`download_file`'s) when given. Markdown and text files are refused — `update_document`/`update_text_file` own those      |
 | Write         | `update_text_file(node_id, text, base_etag)`                                                                                                                                                  | Conditional UTF-8 text replacement; Markdown keeps the collaboration-aware write path                                                                                                                                                         |
 | Write         | `edit_office_file(node_id, base_etag, operations)`                                                                                                                                            | Conditional, structured DOCX/XLSX/PPTX mutations through the isolated Office runner                                                                                                                                                           |
 | Sharing       | `list_access`, `grant_access`, `revoke_access`                                                                                                                                                | Shares, group grants and inherited access; grants go through the same handlers, so M36's bounds apply. `grant_access` takes `email` too; outside the space it needs `mcp_external_shares` (M42)                                               |
@@ -220,7 +222,7 @@ a reverse proxy on the same host would trip it).
 | Notifications | `list_notifications`, `mark_notifications_read`                                                                                                                                               | Pull only: MCP has no push channel to a chat app                                                                                                                                                                                              |
 
 Ids are checked against the UUID shape before they are spliced into a path.
-Write tools carry `destructiveHint` (`update_document`, `update_text_file`, `edit_office_file`, the sharing tools) so
+Write tools carry `destructiveHint` (`update_document`, `upload_file`, `update_file`, `update_text_file`, `edit_office_file`, the sharing tools) so
 clients confirm before running them; every tool says `openWorldHint: false`. A
 refusal comes back as a tool error whose text is the handler's problem detail
 ("403 Forbidden: insufficient permission", "409 Conflict: the document changed
@@ -265,10 +267,27 @@ never as network API endpoints. The web client keeps its existing editor paths.
   ones (and subfolders) are created, and files no longer named go to the trash.
   At most 8 MiB and 2000 files together; quota applies per file; an office
   editor's lock refuses (423).
+- **`POST /spaces/{id}/files`** `{folder_id?, name, content, encoding?}` —
+  `upload_file`'s new file (`httpapi/agent_upload.go`): the tus flow's target
+  rules without the chunking, since an agent's payload is bounded and arrives
+  whole in JSON. `authorizeUploadTarget` runs the check an upload's creation
+  runs: membership at the space's top, edit on the folder. A name already used
+  in the folder is refused (409) rather than renamed or replaced. Quota
+  applies; records `uploaded` activity.
+- **`PUT /nodes/{id}/file`** `{content, encoding?, base_etag?}` — `update_file`'s
+  whole-file replacement, a new version exactly as a replacement upload's.
+  Conditional on `base_etag` when one is given; without one the content simply
+  becomes the latest version. Markdown (415, `update_document`) and supported
+  text (415, `update_text_file`) are refused; an editor's lock refuses the
+  write, and the agent editor lock is held through a commit that rechecks
+  access and lock in the commit transaction. Records `uploaded` activity and
+  preserves the file's MIME type.
 
-Text writes, structured Office edits and site-file publishing are the bounded
-agent-only exceptions to upload-based file writes. They enforce capabilities,
-quota and editor locks before committing through the filesystem service.
+Text writes, whole-file writes, structured Office edits and site-file
+publishing are the bounded agent-only entry paths for file content; the tus
+flow stays the web client's. All of them enforce capabilities, quota and
+editor locks before committing through the filesystem service — the same
+commit an upload's final PATCH makes.
 
 ### Structured Office editing
 
@@ -354,11 +373,12 @@ here" from "off for me", and `mcp_tokens` while personal tokens may be minted.
 
 ## Non-goals
 
-Generic binary upload/write-back; file management (folders, rename, move,
-trash); PDF editing or structured PDF reads; unrestricted OfficeCLI/XML
-operations; admin operations; the embedded agent (next, over the same registry);
-a CLI. `download_file` stays read-only; Office writes are structured operations,
-not replacement bytes supplied by a model.
+File management (folders, rename, move, trash); PDF editing or structured PDF
+reads; document attachments (images inside a block document); unrestricted
+OfficeCLI/XML operations; admin operations; the embedded agent (next, over the
+same registry); a CLI. Office content stays structured operations
+(`edit_office_file`), not edits assembled by a model — though `update_file`
+replaces an office file's bytes whole, as the web's replace-upload does.
 
 ## Risks
 

@@ -488,6 +488,10 @@ func (s *Server) apiRoutes(r chi.Router, agent bool) {
 			r.Post("/dirs", s.handleMkdir)
 			r.Post("/team-folders", s.handleCreateTeamFolder)
 			r.Post("/documents", s.handleCreateDocument)
+			if agent {
+				// upload_file's new file (agent_upload.go).
+				r.Post("/files", s.handleUploadFile)
+			}
 			r.Post("/ext-nodes", s.handleCreateExtNode)
 			r.Put("/extensions/{extID}", s.handleSetExtensionSpace)
 			r.Get("/extensions/{extID}/nodes", s.handleListExtNodes)
@@ -564,6 +568,7 @@ func (s *Server) apiRoutes(r chi.Router, agent bool) {
 		if agent {
 			r.Get("/text", s.handleReadText)
 			r.Get("/file", s.handleReadFile)
+			r.Put("/file", s.handleReplaceFile)
 			r.Put("/text", s.handleWriteMarkdown)
 			r.Get("/office", s.handleReadOffice)
 			r.Put("/office", s.handleEditOffice)
