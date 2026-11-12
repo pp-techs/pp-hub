@@ -166,8 +166,8 @@ export function NodeList({
   const padBottom =
     items.length > 0 ? virtualizer.getTotalSize() - (items.at(-1)!.end - scrollMargin) : 0;
 
-  // Rows sit inside ContextMenuTrigger's `display: contents` wrapper, so
-  // `divide-y` on the tbody never reaches them; each row draws its own border.
+  // `divide-y` on the tbody would not reach the rows (each is its own
+  // context-menu trigger), so each row draws its own border.
   return (
     <div className={LISTING_PADDING}>
       <table className="w-full border-collapse text-left text-xs">
@@ -376,106 +376,112 @@ const NodeListRow = memo(function NodeListRow({
           acts on the folder: a right-click on a row is about the row, and two
           menus must never open at once. The row's own handler is on this same
           element, so it still runs. */}
-      <ContextMenuTrigger className="contents" onContextMenu={(e) => e.stopPropagation()}>
-        <tr
-          data-node-id={node.id}
-          draggable={canMove}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          onDragEnter={handleDragEnter}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
+      {/* The trigger *is* the row: a wrapping element would sit between
+          `<tbody>` and `<tr>`, which is invalid HTML (React warns about it on
+          every render of the list). */}
+      <ContextMenuTrigger
+        onContextMenu={(e) => e.stopPropagation()}
+        render={
+          <tr
+            data-node-id={node.id}
+            draggable={canMove}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDragEnter={handleDragEnter}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={cn(
+              "group border-border hover:bg-muted/40 h-9 pointer-coarse:h-12 cursor-pointer border-b transition-colors align-middle",
+              // Soft wash rather than a border, to match the grid's cards.
+              selected && "bg-primary/10 hover:bg-primary/15",
+              isDropTarget && "bg-primary/15 ring-2 ring-primary ring-inset",
+            )}
+            onClick={(e) => onClick(node, e)}
+            onDoubleClick={() => onDoubleClick(node)}
+          />
+        }
+      >
+        <td className={cn("px-2 align-middle", COL_VISIBLE[0])}>
+          <div className="flex min-w-0 items-center gap-2">
+            <NodeIcon node={node} isShared={shared} />
+            <span
+              className="flex min-w-0 items-center gap-1.5 truncate font-medium"
+              title={node.name}
+            >
+              <span className="truncate">{node.name}</span>
+              <SubPageCount node={node} />
+              <ExtOffBadge node={node} />
+            </span>
+          </div>
+        </td>
+        <td
           className={cn(
-            "group border-border hover:bg-muted/40 h-9 cursor-pointer border-b transition-colors align-middle",
-            // Soft wash rather than a border, to match the grid's cards.
-            selected && "bg-primary/10 hover:bg-primary/15",
-            isDropTarget && "bg-primary/15 ring-2 ring-primary ring-inset",
+            "text-muted-foreground px-2 text-right tabular-nums align-middle",
+            COL_VISIBLE[1],
           )}
-          onClick={(e) => onClick(node, e)}
-          onDoubleClick={() => onDoubleClick(node)}
         >
-          <td className={cn("px-2 align-middle", COL_VISIBLE[0])}>
-            <div className="flex min-w-0 items-center gap-2">
-              <NodeIcon node={node} isShared={shared} />
-              <span
-                className="flex min-w-0 items-center gap-1.5 truncate font-medium"
-                title={node.name}
-              >
-                <span className="truncate">{node.name}</span>
-                <SubPageCount node={node} />
-                <ExtOffBadge node={node} />
-              </span>
-            </div>
-          </td>
-          <td
-            className={cn(
-              "text-muted-foreground px-2 text-right tabular-nums align-middle",
-              COL_VISIBLE[1],
-            )}
-          >
-            {node.modified_at ? f.date(node.modified_at) : "—"}
-          </td>
-          <td
-            className={cn(
-              "text-muted-foreground px-2 text-right tabular-nums align-middle",
-              COL_VISIBLE[2],
-            )}
-          >
-            {node.size != null ? f.size(node.size) : "—"}
-          </td>
-          {/* Inside a team folder `owner` is only a byline — access comes from
+          {node.modified_at ? f.date(node.modified_at) : "—"}
+        </td>
+        <td
+          className={cn(
+            "text-muted-foreground px-2 text-right tabular-nums align-middle",
+            COL_VISIBLE[2],
+          )}
+        >
+          {node.size != null ? f.size(node.size) : "—"}
+        </td>
+        {/* Inside a team folder `owner` is only a byline — access comes from
               the folder's grants, not from whoever uploaded. Printing a name
               here would invite the reader to think that person controls the
               row, so the column names the holder instead. */}
-          <td className={cn("text-muted-foreground truncate px-2 align-middle", COL_VISIBLE[3])}>
-            {node.in_team ? t`Team` : (node.owner ?? "—")}
-          </td>
-          <td className={cn("px-2 text-right align-middle", COL_VISIBLE[4])}>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={t`Actions for ${nodeName}`}
-                    className={cn(
-                      "opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100",
-                      selected && "opacity-100",
-                    )}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                }
-              >
-                <MoreHorizontal />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                {groupActions(actions).map((group, i) => (
-                  <Fragment key={group[0]!.key}>
-                    {i > 0 && <DropdownMenuSeparator />}
-                    <DropdownMenuGroup>
-                      {group.map((action) => (
-                        <DropdownMenuItem
-                          key={action.key}
-                          variant={action.destructive ? "destructive" : undefined}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            action.run();
-                          }}
-                        >
-                          <action.icon /> {i18n._(action.label)}
-                          {action.shortcut && (
-                            <DropdownMenuShortcut>{action.shortcut}</DropdownMenuShortcut>
-                          )}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuGroup>
-                  </Fragment>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </td>
-        </tr>
+        <td className={cn("text-muted-foreground truncate px-2 align-middle", COL_VISIBLE[3])}>
+          {node.in_team ? t`Team` : (node.owner ?? "—")}
+        </td>
+        <td className={cn("px-2 text-right align-middle", COL_VISIBLE[4])}>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={t`Actions for ${nodeName}`}
+                  className={cn(
+                    "opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100",
+                    selected && "opacity-100",
+                  )}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              }
+            >
+              <MoreHorizontal />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              {groupActions(actions).map((group, i) => (
+                <Fragment key={group[0]!.key}>
+                  {i > 0 && <DropdownMenuSeparator />}
+                  <DropdownMenuGroup>
+                    {group.map((action) => (
+                      <DropdownMenuItem
+                        key={action.key}
+                        variant={action.destructive ? "destructive" : undefined}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          action.run();
+                        }}
+                      >
+                        <action.icon /> {i18n._(action.label)}
+                        {action.shortcut && (
+                          <DropdownMenuShortcut>{action.shortcut}</DropdownMenuShortcut>
+                        )}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuGroup>
+                </Fragment>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </td>
       </ContextMenuTrigger>
 
       <ContextMenuContent className="w-56">

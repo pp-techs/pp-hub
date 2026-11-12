@@ -3,7 +3,10 @@ import { cn } from "cn";
 
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
-    <div data-slot="table-container" className="relative w-full overflow-x-auto">
+    // A wide table on a phone scrolls sideways, and a cut-off column does not
+    // say so. `table-scroll-hint` (globals.css) fades the right edge while
+    // there is more to scroll to.
+    <div data-slot="table-container" className="table-scroll-hint relative w-full overflow-x-auto">
       <table
         data-slot="table"
         className={cn("w-full caption-bottom text-xs", className)}

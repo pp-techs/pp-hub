@@ -160,6 +160,26 @@
  * sits in. Colours come from the theme tokens only, so dark mode follows.
  */
 @layer components {
+  /* A fade at the right edge says there is more to scroll to. Two layers do
+     it: a shadow fixed to the box (`scroll`), and a cover in the page
+     background that rides with the content (`local`) and sits over the shadow
+     only at the very end of the content. While there is more to the right
+     the cover is off-screen and the shadow shows; scrolled to the end, the
+     cover reaches the box's right edge and hides it. */
+  @media (max-width: 767px) {
+    .table-scroll-hint {
+      background:
+        linear-gradient(to right, var(--background), var(--background)) right center / 1.25rem 100%
+          no-repeat local,
+        linear-gradient(
+            to left,
+            color-mix(in oklab, var(--foreground) 14%, transparent),
+            transparent 1.25rem
+          )
+          right center / 1.25rem 100% no-repeat scroll;
+    }
+  }
+
   .slash-content {
     @apply text-foreground text-sm leading-relaxed;
   }
@@ -410,6 +430,19 @@
   }
   .slash-content table {
     @apply w-full table-fixed border-collapse;
+  }
+  /* A phone is too narrow for a table's columns to share: a `table-fixed`
+     table squeezes each one to a few letters, and it ignores a cell's
+     `min-width`. Automatic layout honours the floor on the column width, so
+     the table grows wider than the screen and its wrapper scrolls. */
+  @media (max-width: 767px) {
+    .slash-content table {
+      table-layout: auto;
+    }
+    .slash-content td,
+    .slash-content th {
+      min-width: 8rem;
+    }
   }
   .slash-content th,
   .slash-content td {
