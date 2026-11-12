@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Download, FileArchive, FileText, History, Link2 } from "lucide-react";
+import { Download, FileArchive, FileText, History, Link2, MoreHorizontal } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { Skeleton } from "@workspace/ui/components/skeleton";
+import { useIsMobile } from "@workspace/ui/hooks/use-mobile";
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -66,6 +67,11 @@ export function EditorHeader({
   // An extension node has no versions and no bytes to download.
   const hasBytes = node?.kind !== "ext";
   const dir = driveDir === undefined ? node?.parent_id : (driveDir ?? undefined);
+  const isMobile = useIsMobile();
+  const canShare = !!node && capsOf(node).share;
+  const canVersions = hasBytes && !guest;
+  const canDownload = hasBytes && !!node && capsOf(node).download;
+  const isMarkdown = !!node && isMarkdownFile(node);
 
   return (
     <>
@@ -101,7 +107,60 @@ export function EditorHeader({
           </span>
         ) : null}
         {children}
-        {node && capsOf(node).share && (
+        {isMobile ? (
+          // Three more icons would crowd the file's name out of a phone's
+          // header, so what operates on the node is one menu there.
+          canShare || canVersions || canDownload ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={<Button variant="ghost" size="icon-sm" aria-label={t`More`} />}
+              >
+                <MoreHorizontal />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {canShare && (
+                  <DropdownMenuItem onClick={() => node && void ShareDialog.show({ node })}>
+                    <Link2 />
+                    <Trans>Share</Trans>
+                  </DropdownMenuItem>
+                )}
+                {canVersions && (
+                  <DropdownMenuItem onClick={() => node && openPanel("versions", node)}>
+                    <History />
+                    <Trans>Versions</Trans>
+                  </DropdownMenuItem>
+                )}
+                {canDownload && isMarkdown ? (
+                  <>
+                    <DropdownMenuItem
+                      // eslint-disable-next-line lingui/no-unlocalized-strings -- API route path and window.open target
+                      onClick={() => window.open(`/api/v1/nodes/${nodeId}/download`, "_blank")}
+                    >
+                      <FileText />
+                      <Trans>Markdown (.md)</Trans>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      // eslint-disable-next-line lingui/no-unlocalized-strings -- window.open target
+                      onClick={() => window.open(exportDocumentUrl(nodeId), "_blank")}
+                    >
+                      <FileArchive />
+                      <Trans>Export with images (.zip)</Trans>
+                    </DropdownMenuItem>
+                  </>
+                ) : canDownload ? (
+                  <DropdownMenuItem
+                    // eslint-disable-next-line lingui/no-unlocalized-strings -- API route path
+                    render={<a href={`/api/v1/nodes/${nodeId}/download`} />}
+                  >
+                    <Download />
+                    <Trans>Download</Trans>
+                  </DropdownMenuItem>
+                ) : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null
+        ) : null}
+        {!isMobile && node && capsOf(node).share && (
           <Tooltip>
             <TooltipTrigger
               render={
@@ -120,7 +179,7 @@ export function EditorHeader({
             </TooltipContent>
           </Tooltip>
         )}
-        {hasBytes && !guest && (
+        {!isMobile && hasBytes && !guest && (
           <Tooltip>
             <TooltipTrigger
               render={
@@ -143,7 +202,7 @@ export function EditorHeader({
         {/* A markdown document downloads two ways: the `.md` alone, whose
             `attachment:` references only resolve inside pp-hub, or a zip
             with its images and files beside it. */}
-        {!hasBytes ? null : node && capsOf(node).download && isMarkdownFile(node) ? (
+        {isMobile || !hasBytes ? null : node && capsOf(node).download && isMarkdownFile(node) ? (
           <DropdownMenu>
             <Tooltip>
               <TooltipTrigger

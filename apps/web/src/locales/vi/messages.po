@@ -49,11 +49,11 @@ msgstr ""
 #~ msgid "\"{labelName}\" will be removed from every card that has it."
 #~ msgstr "\"{labelName}\" sẽ bị gỡ khỏi mọi thẻ đang dùng nhãn này."
 
-#: src/routes/drive/$spaceId/index.tsx:420
+#: src/routes/drive/$spaceId/index.tsx:429
 msgid "“{nodeName}” copied — paste it in another folder"
 msgstr "Đã sao chép “{nodeName}” — dán vào thư mục khác"
 
-#: src/routes/drive/$spaceId/index.tsx:419
+#: src/routes/drive/$spaceId/index.tsx:428
 msgid "“{nodeName}” cut — paste it in another folder"
 msgstr "Đã cắt “{nodeName}” — dán vào thư mục khác"
 
@@ -153,7 +153,7 @@ msgstr "{buried, plural, one {# mục của bạn bên trong} other {# mục c�
 msgid "{count, plural, one {# sub-page} other {# sub-pages}}"
 msgstr "{count, plural, other {# trang con}}"
 
-#: src/routes/drive/$spaceId/index.tsx:771
+#: src/routes/drive/$spaceId/index.tsx:802
 msgid "{count, plural, one {Are you sure you want to move # item to trash?} other {Are you sure you want to move # items to trash?}}"
 msgstr "{count, plural, one {Bạn có chắc muốn chuyển # mục vào thùng rác không?} other {Bạn có chắc muốn chuyển # mục vào thùng rác không?}}"
 
@@ -161,11 +161,11 @@ msgstr "{count, plural, one {Bạn có chắc muốn chuyển # mục vào thùn
 msgid "{count, plural, one {The other signed-in device will have to sign in again.} other {All # other signed-in devices will have to sign in again.}}"
 msgstr "{count, plural, one {Tất cả # thiết bị đã đăng nhập khác sẽ phải đăng nhập lại.} other {Tất cả # thiết bị đã đăng nhập khác sẽ phải đăng nhập lại.}}"
 
-#: src/routes/drive/$spaceId/index.tsx:804
+#: src/routes/drive/$spaceId/index.tsx:835
 msgid "{count, plural, one {These folders hold # item other people created. They lose access until you restore them.} other {These folders hold # items other people created. They lose access until you restore them.}}"
 msgstr "{count, plural, one {Các thư mục này chứa # mục do người khác tạo. Họ sẽ mất quyền truy cập cho đến khi bạn khôi phục.} other {Các thư mục này chứa # mục do người khác tạo. Họ sẽ mất quyền truy cập cho đến khi bạn khôi phục.}}"
 
-#: src/routes/drive/$spaceId/index.tsx:799
+#: src/routes/drive/$spaceId/index.tsx:830
 msgid "{count, plural, one {This folder holds # item other people created. They lose access until you restore it.} other {This folder holds # items other people created. They lose access until you restore it.}}"
 msgstr "{count, plural, one {Thư mục này chứa # mục do người khác tạo. Họ sẽ mất quyền truy cập cho đến khi bạn khôi phục.} other {Thư mục này chứa # mục do người khác tạo. Họ sẽ mất quyền truy cập cho đến khi bạn khôi phục.}}"
 
@@ -673,7 +673,7 @@ msgstr "Thao tác cho {memberEmail}"
 
 #: src/components/nav-apps.tsx:286
 #: src/components/node-grid.tsx:461
-#: src/components/node-list.tsx:441
+#: src/components/node-list.tsx:448
 msgid "Actions for {nodeName}"
 msgstr "Thao tác với {nodeName}"
 
@@ -1007,7 +1007,7 @@ msgid "Archived personal spaces"
 msgstr "Không gian cá nhân đã lưu trữ"
 
 #: src/components/nav-apps.tsx:347
-#: src/routes/drive/$spaceId/index.tsx:770
+#: src/routes/drive/$spaceId/index.tsx:801
 msgid "Are you sure you want to move \"{nodeName}\" to trash?"
 msgstr "Bạn có chắc muốn chuyển \"{nodeName}\" vào thùng rác không?"
 
@@ -1476,7 +1476,7 @@ msgstr "Đã sao chép"
 msgid "Copied {done, plural, one {# item} other {# items}} to {destination}"
 msgstr "Đã sao chép {done, plural, one {# mục} other {# mục}} vào {destination}"
 
-#: src/routes/drive/$spaceId/index.tsx:407
+#: src/routes/drive/$spaceId/index.tsx:416
 msgid "Copied as “{copyName}”"
 msgstr "Đã sao chép thành “{copyName}”"
 
@@ -1555,7 +1555,7 @@ msgstr ""
 msgid "Could not copy"
 msgstr "Không sao chép được"
 
-#: src/routes/drive/$spaceId/index.tsx:410
+#: src/routes/drive/$spaceId/index.tsx:419
 msgid "Could not copy “{nodeName}”"
 msgstr "Không thể sao chép “{nodeName}”"
 
@@ -2163,6 +2163,7 @@ msgstr "Đã tách rời — đoạn văn được bình luận đã bị xóa"
 #: src/components/preview-panel.tsx:112
 #: src/components/preview-panel.tsx:242
 #: src/components/preview-panel.tsx:378
+#: src/routes/drive/$spaceId/index.tsx:739
 msgid "Details"
 msgstr "Chi tiết"
 
@@ -2236,10 +2237,11 @@ msgstr "Xong"
 msgid "download"
 msgstr "tải xuống"
 
-#: src/components/editor-header.tsx:152
-#: src/components/editor-header.tsx:159
-#: src/components/editor-header.tsx:186
-#: src/components/editor-header.tsx:195
+#: src/components/editor-header.tsx:156
+#: src/components/editor-header.tsx:211
+#: src/components/editor-header.tsx:218
+#: src/components/editor-header.tsx:245
+#: src/components/editor-header.tsx:254
 #: src/components/node-actions.tsx:172
 #: src/components/preview-modal.tsx:137
 #: src/components/preview-panel.tsx:351
@@ -2280,7 +2282,7 @@ msgid "Drag to reorder, click to open the block menu"
 msgstr "Kéo để sắp xếp lại, nhấn để mở menu khối"
 
 #: src/routes/drive.tsx:48
-#: src/routes/drive/$spaceId/index.tsx:106
+#: src/routes/drive/$spaceId/index.tsx:114
 #: src/routes/login.tsx:128
 msgid "Drive"
 msgstr "Drive"
@@ -2418,7 +2420,7 @@ msgid "Enable"
 msgstr "Bật"
 
 #: src/components/nav-apps.tsx:321
-#: src/routes/drive/$spaceId/index.tsx:733
+#: src/routes/drive/$spaceId/index.tsx:764
 msgid "Enter a new name for this item."
 msgstr "Nhập tên mới cho mục này."
 
@@ -2535,7 +2537,8 @@ msgstr "Hết hạn sau"
 msgid "Export CSV"
 msgstr "Xuất CSV"
 
-#: src/components/editor-header.tsx:175
+#: src/components/editor-header.tsx:147
+#: src/components/editor-header.tsx:234
 #: src/components/node-actions.tsx:186
 msgid "Export with images (.zip)"
 msgstr "Xuất kèm hình ảnh (.zip)"
@@ -2956,6 +2959,10 @@ msgstr "Đã bao gồm khi có quyền chỉnh sửa"
 #: src/components/node-actions.tsx:218
 msgid "Information"
 msgstr "Thông tin"
+
+#: src/routes/drive/$spaceId/index.tsx:742
+msgid "Information about the selected items."
+msgstr "Thông tin về các mục đã chọn."
 
 #: src/components/doc-editor/labels.ts:57
 msgid "Inline"
@@ -3442,7 +3449,8 @@ msgstr "Đánh dấu tất cả đã đọc"
 msgid "Mark as read"
 msgstr "Đánh dấu đã đọc"
 
-#: src/components/editor-header.tsx:168
+#: src/components/editor-header.tsx:140
+#: src/components/editor-header.tsx:227
 msgid "Markdown (.md)"
 msgstr "Markdown (.md)"
 
@@ -3548,6 +3556,7 @@ msgstr "Sửa đổi (cũ nhất)"
 msgid "Monospaced code"
 msgstr "Mã phông đơn cách"
 
+#: src/components/editor-header.tsx:116
 #: src/components/locale-provider.tsx:81
 #: src/components/site-header.tsx:337
 msgid "More"
@@ -3586,8 +3595,8 @@ msgstr "Di chuyển “{name}”"
 #: src/components/nav-apps.tsx:346
 #: src/components/nav-apps.tsx:348
 #: src/components/node-actions.tsx:341
-#: src/routes/drive/$spaceId/index.tsx:767
-#: src/routes/drive/$spaceId/index.tsx:776
+#: src/routes/drive/$spaceId/index.tsx:798
+#: src/routes/drive/$spaceId/index.tsx:807
 msgid "Move to trash"
 msgstr "Chuyển vào thùng rác"
 
@@ -3846,7 +3855,7 @@ msgstr "Không có kết quả cho “{queryText}”"
 #~ msgid "No matching cards"
 #~ msgstr "Không có thẻ phù hợp"
 
-#: src/routes/drive/$spaceId/index.tsx:641
+#: src/routes/drive/$spaceId/index.tsx:650
 msgid "No matching files or folders"
 msgstr "Không có tệp hoặc thư mục nào khớp"
 
@@ -4651,7 +4660,7 @@ msgstr "Xoá “{spaceName}” và mọi thứ bên trong — mọi tệp, phiê
 #: src/components/nav-apps.tsx:318
 #: src/components/node-actions.tsx:264
 #: src/components/selection-bar.tsx:79
-#: src/routes/drive/$spaceId/index.tsx:730
+#: src/routes/drive/$spaceId/index.tsx:761
 msgid "Rename"
 msgstr "Đổi tên"
 
@@ -4802,7 +4811,7 @@ msgstr "Thu hồi quyền quản trị"
 msgid "Revoking a group’s access leaves anything its members created in here — those items stay with whoever made them."
 msgstr "Thu hồi quyền truy cập của một nhóm vẫn giữ lại mọi thứ mà thành viên nhóm đã tạo ở đây — các mục đó thuộc về người đã tạo ra chúng."
 
-#: src/routes/drive/$spaceId/index.tsx:650
+#: src/routes/drive/$spaceId/index.tsx:659
 msgid "Right-click here, or use New, to add something."
 msgstr "Nhấp chuột phải vào đây, hoặc dùng Mới, để thêm nội dung."
 
@@ -4821,7 +4830,7 @@ msgstr "Các hàng và cột ô"
 #: src/components/apps/app-backend-modal.tsx:108
 #: src/components/comments/comments-popover.tsx:622
 #: src/components/nav-apps.tsx:336
-#: src/routes/drive/$spaceId/index.tsx:757
+#: src/routes/drive/$spaceId/index.tsx:788
 msgid "Save"
 msgstr "Lưu"
 
@@ -5060,8 +5069,9 @@ msgstr "Đã lưu cài đặt"
 msgid "Settings sections"
 msgstr "Mục cài đặt"
 
-#: src/components/editor-header.tsx:111
-#: src/components/editor-header.tsx:119
+#: src/components/editor-header.tsx:124
+#: src/components/editor-header.tsx:170
+#: src/components/editor-header.tsx:178
 #: src/components/node-actions.tsx:235
 #: src/components/preview-panel.tsx:360
 #: src/components/selection-bar.tsx:74
@@ -5420,7 +5430,7 @@ msgstr "Bảng"
 #~ msgid "Target column"
 #~ msgstr "Cột đích"
 
-#: src/components/node-list.tsx:432
+#: src/components/node-list.tsx:439
 msgid "Team"
 msgstr "Đội"
 
@@ -5703,7 +5713,7 @@ msgstr "Tệp này đã được chia sẻ với bạn"
 msgid "this folder"
 msgstr "thư mục này"
 
-#: src/routes/drive/$spaceId/index.tsx:643
+#: src/routes/drive/$spaceId/index.tsx:652
 #: src/routes/drive/shared.tsx:57
 #: src/routes/s/$token.tsx:569
 msgid "This folder is empty"
@@ -5781,7 +5791,7 @@ msgstr "Trang này được bảo vệ bằng mật khẩu"
 #: src/components/drive-write.tsx:96
 #: src/components/drive-write.tsx:178
 #: src/routes/drive/$spaceId/home.tsx:64
-#: src/routes/drive/$spaceId/index.tsx:351
+#: src/routes/drive/$spaceId/index.tsx:360
 msgid "this space"
 msgstr "không gian này"
 
@@ -5893,7 +5903,7 @@ msgid "Trash retention (days)"
 msgstr "Thời gian giữ trong thùng rác (ngày)"
 
 #: src/components/trash-panel.tsx:257
-#: src/routes/drive/$spaceId/index.tsx:648
+#: src/routes/drive/$spaceId/index.tsx:657
 msgid "Try a different search."
 msgstr "Hãy thử tìm kiếm khác."
 
@@ -6198,7 +6208,8 @@ msgid "versions"
 msgstr "phiên bản"
 
 #: src/components/editor-header.tsx:130
-#: src/components/editor-header.tsx:139
+#: src/components/editor-header.tsx:189
+#: src/components/editor-header.tsx:198
 #: src/components/node-actions.tsx:195
 #: src/components/preview-modal.tsx:162
 #: src/components/preview-panel.tsx:367

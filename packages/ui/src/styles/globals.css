@@ -160,6 +160,22 @@
  * sits in. Colours come from the theme tokens only, so dark mode follows.
  */
 @layer components {
+  /* The first gradient is attached to the scrolled content (`local`) and paints
+     the background over the second, which is fixed to the box (`scroll`): the
+     edge shadow shows while more lies to the right and is covered at the end. */
+  @media (max-width: 767px) {
+    .table-scroll-hint {
+      background:
+        linear-gradient(to right, var(--background), var(--background)) local,
+        linear-gradient(
+            to left,
+            color-mix(in oklab, var(--foreground) 14%, transparent),
+            transparent 1.25rem
+          )
+          scroll right / 100% 100% no-repeat;
+    }
+  }
+
   .slash-content {
     @apply text-foreground text-sm leading-relaxed;
   }
@@ -410,6 +426,19 @@
   }
   .slash-content table {
     @apply w-full table-fixed border-collapse;
+  }
+  /* A phone is too narrow for a table's columns to share: a `table-fixed`
+     table squeezes each one to a few letters, and it ignores a cell's
+     `min-width`. Automatic layout honours the floor on the column width, so
+     the table grows wider than the screen and its wrapper scrolls. */
+  @media (max-width: 767px) {
+    .slash-content table {
+      table-layout: auto;
+    }
+    .slash-content td,
+    .slash-content th {
+      min-width: 8rem;
+    }
   }
   .slash-content th,
   .slash-content td {

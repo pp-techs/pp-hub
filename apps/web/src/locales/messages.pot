@@ -25,11 +25,11 @@ msgstr ""
 msgid "“{folderName}” stays where it is and every link to it keeps working. It becomes a folder nobody owns personally: access to everything inside it is managed through Share, so removing someone really removes them, even from files they uploaded. It stays with the team when whoever created it leaves."
 msgstr ""
 
-#: src/routes/drive/$spaceId/index.tsx:420
+#: src/routes/drive/$spaceId/index.tsx:429
 msgid "“{nodeName}” copied — paste it in another folder"
 msgstr ""
 
-#: src/routes/drive/$spaceId/index.tsx:419
+#: src/routes/drive/$spaceId/index.tsx:428
 msgid "“{nodeName}” cut — paste it in another folder"
 msgstr ""
 
@@ -109,7 +109,7 @@ msgstr ""
 msgid "{count, plural, one {# sub-page} other {# sub-pages}}"
 msgstr ""
 
-#: src/routes/drive/$spaceId/index.tsx:771
+#: src/routes/drive/$spaceId/index.tsx:802
 msgid "{count, plural, one {Are you sure you want to move # item to trash?} other {Are you sure you want to move # items to trash?}}"
 msgstr ""
 
@@ -117,11 +117,11 @@ msgstr ""
 msgid "{count, plural, one {The other signed-in device will have to sign in again.} other {All # other signed-in devices will have to sign in again.}}"
 msgstr ""
 
-#: src/routes/drive/$spaceId/index.tsx:804
+#: src/routes/drive/$spaceId/index.tsx:835
 msgid "{count, plural, one {These folders hold # item other people created. They lose access until you restore them.} other {These folders hold # items other people created. They lose access until you restore them.}}"
 msgstr ""
 
-#: src/routes/drive/$spaceId/index.tsx:799
+#: src/routes/drive/$spaceId/index.tsx:830
 msgid "{count, plural, one {This folder holds # item other people created. They lose access until you restore it.} other {This folder holds # items other people created. They lose access until you restore it.}}"
 msgstr ""
 
@@ -605,7 +605,7 @@ msgstr ""
 
 #: src/components/nav-apps.tsx:286
 #: src/components/node-grid.tsx:461
-#: src/components/node-list.tsx:441
+#: src/components/node-list.tsx:448
 msgid "Actions for {nodeName}"
 msgstr ""
 
@@ -879,7 +879,7 @@ msgid "Archived personal spaces"
 msgstr ""
 
 #: src/components/nav-apps.tsx:347
-#: src/routes/drive/$spaceId/index.tsx:770
+#: src/routes/drive/$spaceId/index.tsx:801
 msgid "Are you sure you want to move \"{nodeName}\" to trash?"
 msgstr ""
 
@@ -1260,7 +1260,7 @@ msgstr ""
 msgid "Copied {done, plural, one {# item} other {# items}} to {destination}"
 msgstr ""
 
-#: src/routes/drive/$spaceId/index.tsx:407
+#: src/routes/drive/$spaceId/index.tsx:416
 msgid "Copied as “{copyName}”"
 msgstr ""
 
@@ -1331,7 +1331,7 @@ msgstr ""
 msgid "Could not copy"
 msgstr ""
 
-#: src/routes/drive/$spaceId/index.tsx:410
+#: src/routes/drive/$spaceId/index.tsx:419
 msgid "Could not copy “{nodeName}”"
 msgstr ""
 
@@ -1869,6 +1869,7 @@ msgstr ""
 #: src/components/preview-panel.tsx:112
 #: src/components/preview-panel.tsx:242
 #: src/components/preview-panel.tsx:378
+#: src/routes/drive/$spaceId/index.tsx:739
 msgid "Details"
 msgstr ""
 
@@ -1938,10 +1939,11 @@ msgstr ""
 msgid "download"
 msgstr ""
 
-#: src/components/editor-header.tsx:152
-#: src/components/editor-header.tsx:159
-#: src/components/editor-header.tsx:186
-#: src/components/editor-header.tsx:195
+#: src/components/editor-header.tsx:156
+#: src/components/editor-header.tsx:211
+#: src/components/editor-header.tsx:218
+#: src/components/editor-header.tsx:245
+#: src/components/editor-header.tsx:254
 #: src/components/node-actions.tsx:172
 #: src/components/preview-modal.tsx:137
 #: src/components/preview-panel.tsx:351
@@ -1974,7 +1976,7 @@ msgid "Drag to reorder, click to open the block menu"
 msgstr ""
 
 #: src/routes/drive.tsx:48
-#: src/routes/drive/$spaceId/index.tsx:106
+#: src/routes/drive/$spaceId/index.tsx:114
 #: src/routes/login.tsx:128
 msgid "Drive"
 msgstr ""
@@ -2099,7 +2101,7 @@ msgid "Enable"
 msgstr ""
 
 #: src/components/nav-apps.tsx:321
-#: src/routes/drive/$spaceId/index.tsx:733
+#: src/routes/drive/$spaceId/index.tsx:764
 msgid "Enter a new name for this item."
 msgstr ""
 
@@ -2208,7 +2210,8 @@ msgstr ""
 msgid "Export CSV"
 msgstr ""
 
-#: src/components/editor-header.tsx:175
+#: src/components/editor-header.tsx:147
+#: src/components/editor-header.tsx:234
 #: src/components/node-actions.tsx:186
 msgid "Export with images (.zip)"
 msgstr ""
@@ -2604,6 +2607,10 @@ msgstr ""
 
 #: src/components/node-actions.tsx:218
 msgid "Information"
+msgstr ""
+
+#: src/routes/drive/$spaceId/index.tsx:742
+msgid "Information about the selected items."
 msgstr ""
 
 #: src/components/doc-editor/labels.ts:57
@@ -3007,7 +3014,8 @@ msgstr ""
 msgid "Mark as read"
 msgstr ""
 
-#: src/components/editor-header.tsx:168
+#: src/components/editor-header.tsx:140
+#: src/components/editor-header.tsx:227
 msgid "Markdown (.md)"
 msgstr ""
 
@@ -3105,6 +3113,7 @@ msgstr ""
 msgid "Monospaced code"
 msgstr ""
 
+#: src/components/editor-header.tsx:116
 #: src/components/locale-provider.tsx:81
 #: src/components/site-header.tsx:337
 msgid "More"
@@ -3127,8 +3136,8 @@ msgstr ""
 #: src/components/nav-apps.tsx:346
 #: src/components/nav-apps.tsx:348
 #: src/components/node-actions.tsx:341
-#: src/routes/drive/$spaceId/index.tsx:767
-#: src/routes/drive/$spaceId/index.tsx:776
+#: src/routes/drive/$spaceId/index.tsx:798
+#: src/routes/drive/$spaceId/index.tsx:807
 msgid "Move to trash"
 msgstr ""
 
@@ -3326,7 +3335,7 @@ msgstr ""
 msgid "No matches for “{queryText}”"
 msgstr ""
 
-#: src/routes/drive/$spaceId/index.tsx:641
+#: src/routes/drive/$spaceId/index.tsx:650
 msgid "No matching files or folders"
 msgstr ""
 
@@ -4034,7 +4043,7 @@ msgstr ""
 #: src/components/nav-apps.tsx:318
 #: src/components/node-actions.tsx:264
 #: src/components/selection-bar.tsx:79
-#: src/routes/drive/$spaceId/index.tsx:730
+#: src/routes/drive/$spaceId/index.tsx:761
 msgid "Rename"
 msgstr ""
 
@@ -4172,7 +4181,7 @@ msgstr ""
 msgid "Revoking a group’s access leaves anything its members created in here — those items stay with whoever made them."
 msgstr ""
 
-#: src/routes/drive/$spaceId/index.tsx:650
+#: src/routes/drive/$spaceId/index.tsx:659
 msgid "Right-click here, or use New, to add something."
 msgstr ""
 
@@ -4191,7 +4200,7 @@ msgstr ""
 #: src/components/apps/app-backend-modal.tsx:108
 #: src/components/comments/comments-popover.tsx:622
 #: src/components/nav-apps.tsx:336
-#: src/routes/drive/$spaceId/index.tsx:757
+#: src/routes/drive/$spaceId/index.tsx:788
 msgid "Save"
 msgstr ""
 
@@ -4396,8 +4405,9 @@ msgstr ""
 msgid "Settings sections"
 msgstr ""
 
-#: src/components/editor-header.tsx:111
-#: src/components/editor-header.tsx:119
+#: src/components/editor-header.tsx:124
+#: src/components/editor-header.tsx:170
+#: src/components/editor-header.tsx:178
 #: src/components/node-actions.tsx:235
 #: src/components/preview-panel.tsx:360
 #: src/components/selection-bar.tsx:74
@@ -4736,7 +4746,7 @@ msgstr ""
 msgid "Table"
 msgstr ""
 
-#: src/components/node-list.tsx:432
+#: src/components/node-list.tsx:439
 msgid "Team"
 msgstr ""
 
@@ -4978,7 +4988,7 @@ msgstr ""
 msgid "this folder"
 msgstr ""
 
-#: src/routes/drive/$spaceId/index.tsx:643
+#: src/routes/drive/$spaceId/index.tsx:652
 #: src/routes/drive/shared.tsx:57
 #: src/routes/s/$token.tsx:569
 msgid "This folder is empty"
@@ -5052,7 +5062,7 @@ msgstr ""
 #: src/components/drive-write.tsx:96
 #: src/components/drive-write.tsx:178
 #: src/routes/drive/$spaceId/home.tsx:64
-#: src/routes/drive/$spaceId/index.tsx:351
+#: src/routes/drive/$spaceId/index.tsx:360
 msgid "this space"
 msgstr ""
 
@@ -5156,7 +5166,7 @@ msgid "Trash retention (days)"
 msgstr ""
 
 #: src/components/trash-panel.tsx:257
-#: src/routes/drive/$spaceId/index.tsx:648
+#: src/routes/drive/$spaceId/index.tsx:657
 msgid "Try a different search."
 msgstr ""
 
@@ -5424,7 +5434,8 @@ msgid "versions"
 msgstr ""
 
 #: src/components/editor-header.tsx:130
-#: src/components/editor-header.tsx:139
+#: src/components/editor-header.tsx:189
+#: src/components/editor-header.tsx:198
 #: src/components/node-actions.tsx:195
 #: src/components/preview-modal.tsx:162
 #: src/components/preview-panel.tsx:367

@@ -9,6 +9,14 @@ import { toast } from "sonner";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@workspace/ui/components/sheet";
+import { useIsMobile } from "@workspace/ui/hooks/use-mobile";
+import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuGroup,
@@ -138,6 +146,7 @@ function FolderView() {
   const { dir, sort: sortParam, order: orderParam, view: viewParam } = Route.useSearch();
   const navigate = useNavigate();
   const coarse = useCoarsePointer();
+  const isMobile = useIsMobile();
   const space = useSpace(spaceId);
   const rememberDir = useUiStore((s) => s.rememberDir);
   const filterQuery = useUiStore((s) => s.filterQuery);
@@ -716,10 +725,32 @@ function FolderView() {
           </ContextMenu>
         </DropZone>
 
-        {detailsOpen && (
-          <aside className="border-border w-80 shrink-0 border-l">
-            <DetailsPanel subject={panelSubject} onClose={() => setDetailsOpen(false)} />
-          </aside>
+        {/* Beside the listing there is room for a fixed 320px column only on a
+            wide viewport; on a phone it would squeeze the listing to a sliver,
+            so the same panel opens over it as a sheet instead. */}
+        {isMobile ? (
+          <Sheet open={detailsOpen} onOpenChange={setDetailsOpen}>
+            <SheetContent
+              showCloseButton={false}
+              className="w-full max-w-none gap-0 p-0 sm:max-w-sm"
+            >
+              <SheetHeader className="sr-only">
+                <SheetTitle>
+                  <Trans>Details</Trans>
+                </SheetTitle>
+                <SheetDescription>
+                  <Trans>Information about the selected items.</Trans>
+                </SheetDescription>
+              </SheetHeader>
+              <DetailsPanel subject={panelSubject} onClose={() => setDetailsOpen(false)} />
+            </SheetContent>
+          </Sheet>
+        ) : (
+          detailsOpen && (
+            <aside className="border-border w-80 shrink-0 border-l">
+              <DetailsPanel subject={panelSubject} onClose={() => setDetailsOpen(false)} />
+            </aside>
+          )
         )}
       </div>
 
