@@ -732,7 +732,7 @@ function FolderView() {
           <Sheet open={detailsOpen} onOpenChange={setDetailsOpen}>
             <SheetContent
               showCloseButton={false}
-              className="w-full max-w-none gap-0 p-0 sm:max-w-sm"
+              className="gap-0 p-0 data-[side=right]:w-full sm:data-[side=right]:max-w-sm"
             >
               <SheetHeader className="sr-only">
                 <SheetTitle>
