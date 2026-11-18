@@ -43,3 +43,24 @@ DELETE FROM file_locks WHERE starts_with(lock_token, @prefix::text);
 -- WebDAV clients hold other tokens and have no OnlyOffice session.
 SELECT lock_token FROM file_locks
 WHERE expires_at > now() AND starts_with(lock_token, 'wopi_');
+
+-- name: ListOpenEditorLocks :many
+-- Every live lock with the file it is on: what is open in an editor right now.
+-- refreshed_at is the last time the editor renewed the lock (a renewal sets
+-- the expiry thirty minutes out, as UpsertLock and AcquireLock do), so a lock
+-- nobody has renewed for a while is a tab left open, not a person typing.
+SELECT l.node_id,
+       l.lock_token,
+       l.created_at AS locked_at,
+       (l.expires_at - INTERVAL '30 minutes')::timestamptz AS refreshed_at,
+       n.name,
+       n.space_id,
+       s.name AS space_name,
+       v.version_no,
+       v.created_at AS version_at
+FROM file_locks l
+JOIN nodes n ON n.id = l.node_id
+JOIN spaces s ON s.id = n.space_id
+LEFT JOIN node_versions v ON v.id = n.current_version_id
+WHERE l.expires_at > now()
+ORDER BY l.created_at;

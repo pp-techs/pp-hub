@@ -471,6 +471,10 @@ msgstr "{who} giờ có thể chỉnh sửa"
 msgid "{who} can now view"
 msgstr "{who} giờ có thể xem"
 
+#: src/routes/admin.open-files.tsx:45
+msgid "{written} saving, {unchanged} already saved, {failed} failed"
+msgstr "{written} đang lưu, {unchanged} đã lưu từ trước, {failed} lỗi"
+
 #: src/components/activity-feed.tsx:130
 msgid "<0>{actor}</0> added <1>{nodeName}</1> to <2>{spaceName}</2>"
 msgstr "<0>{actor}</0> đã thêm <1>{nodeName}</1> vào <2>{spaceName}</2>"
@@ -660,6 +664,7 @@ msgid "Action"
 msgstr "Hành động"
 
 #: src/components/node-list.tsx:228
+#: src/routes/admin.open-files.tsx:131
 msgid "Actions"
 msgstr "Hành động"
 
@@ -815,7 +820,7 @@ msgstr "đã thu hồi quyền quản trị"
 #~ msgid "Admin sections"
 #~ msgstr "Các mục quản trị"
 
-#: src/components/admin-sidebar.tsx:62
+#: src/components/admin-sidebar.tsx:71
 #: src/routes/admin.tsx:62
 msgid "Administration"
 msgstr "Quản trị"
@@ -890,6 +895,11 @@ msgstr "CDN được phép"
 #: src/components/move-dialog.tsx:132
 msgid "Already here"
 msgstr "Đã có ở đây"
+
+#: src/lib/use-save-node.ts:27
+#: src/routes/admin.open-files.tsx:61
+msgid "Already saved"
+msgstr "Đã lưu từ trước"
 
 #: src/components/apps/remove-app-modal.tsx:77
 msgid "Also delete everything stored in its items. This cannot be undone."
@@ -977,7 +987,7 @@ msgstr "cập nhật ứng dụng"
 msgid "Appearance"
 msgstr "Giao diện"
 
-#: src/components/admin-sidebar.tsx:38
+#: src/components/admin-sidebar.tsx:47
 #: src/components/nav-apps.tsx:85
 #: src/components/settings/panes.ts:112
 #: src/routes/admin.apps.tsx:31
@@ -1052,7 +1062,7 @@ msgstr "Tự động"
 msgid "Avatar updated"
 msgstr "Đã cập nhật ảnh đại diện"
 
-#: src/components/admin-sidebar.tsx:100
+#: src/components/admin-sidebar.tsx:109
 #: src/routes/drive/$spaceId/route.tsx:57
 #: src/routes/open.$nodeId.tsx:79
 msgid "Back to Drive"
@@ -1073,6 +1083,10 @@ msgstr "Giới thiệu"
 #: src/components/new-document-dialog.tsx:79
 msgid "Blank"
 msgstr "Trống"
+
+#: src/routes/admin.open-files.tsx:38
+msgid "Block editor"
+msgstr "Trình soạn thảo khối"
 
 #: ../../packages/ext-kanban/src/board-editor.tsx:263
 #~ msgid "board"
@@ -1800,6 +1814,9 @@ msgstr "Không thể thu hồi mã đó"
 #: src/components/apps/app-backend-modal.tsx:53
 #: src/components/settings/panes/account-profile.tsx:126
 #: src/components/settings/panes/space-general.tsx:136
+#: src/lib/use-save-node.ts:39
+#: src/routes/admin.open-files.tsx:101
+#: src/routes/admin.open-files.tsx:175
 msgid "Could not save"
 msgstr "Không thể lưu"
 
@@ -2343,6 +2360,10 @@ msgstr "Cùng chỉnh sửa tài liệu và bảng tính ngay trong trình duy�
 #~ msgid "Editing"
 #~ msgstr "Chỉnh sửa"
 
+#: src/routes/admin.open-files.tsx:118
+msgid "Editor"
+msgstr "Trình soạn thảo"
+
 #: src/components/settings/panes/account-profile.tsx:165
 msgid "Email"
 msgstr "Email"
@@ -2585,6 +2606,7 @@ msgstr "Nữ"
 #: src/components/doc-editor/labels.ts:41
 #: src/components/preview-modal.tsx:168
 #: src/components/preview-panel.tsx:383
+#: src/routes/admin.open-files.tsx:115
 msgid "File"
 msgstr "Tệp"
 
@@ -2625,6 +2647,10 @@ msgstr "Tệp và thư mục"
 #: src/routes/drive/shared.tsx:44
 msgid "Files and folders people in other spaces have shared with you."
 msgstr "Tệp và thư mục mà người ở các không gian khác đã chia sẻ với bạn."
+
+#: src/routes/admin.open-files.tsx:85
+msgid "Files open in an editor right now. Save them before restarting the server so nothing typed since the last save is lost."
+msgstr "Các tệp đang mở trong trình soạn thảo. Hãy lưu trước khi khởi động lại máy chủ để không mất nội dung gõ kể từ lần lưu gần nhất."
 
 #: src/components/people-table.tsx:241
 #: src/components/people-table.tsx:323
@@ -3005,7 +3031,7 @@ msgstr "Tên hiển thị hệ thống"
 msgid "Instance name cannot be empty"
 msgstr "Tên hệ thống không được để trống"
 
-#: src/components/admin-sidebar.tsx:39
+#: src/components/admin-sidebar.tsx:48
 #: src/components/nav-user.tsx:139
 #: src/routes/admin.settings.tsx:48
 #: src/routes/admin.settings.tsx:71
@@ -3203,12 +3229,17 @@ msgid "Large section title"
 msgstr "Tiêu đề phần lớn"
 
 #: src/components/people-table.tsx:238
+#: src/routes/admin.open-files.tsx:124
 msgid "Last active"
 msgstr "Hoạt động gần nhất"
 
 #: src/routes/drive/account/preferences.tsx:48
 #~ msgid "Last modified"
 #~ msgstr "Sửa đổi lần cuối"
+
+#: src/routes/admin.open-files.tsx:127
+msgid "Last saved"
+msgstr "Lưu gần nhất"
 
 #: src/routes/admin.users.tsx:187
 msgid "Last seen"
@@ -3815,6 +3846,10 @@ msgstr "Không có sự kiện nào được ghi cho {filterLabel}."
 msgid "No events recorded."
 msgstr "Không có sự kiện nào được ghi."
 
+#: src/routes/admin.open-files.tsx:142
+msgid "No file is open in an editor."
+msgstr "Không có tệp nào đang mở trong trình soạn thảo."
+
 #: src/components/folder-tree.tsx:188
 msgid "No folders yet."
 msgstr "Chưa có thư mục nào."
@@ -4082,6 +4117,10 @@ msgstr "Chỉ quản trị viên mới có thể mở trang quản trị máy ch
 msgid "Only the open page’s icon and cover can be changed."
 msgstr "Chỉ có thể đổi biểu tượng và ảnh bìa của trang đang mở."
 
+#: src/routes/admin.open-files.tsx:37
+msgid "OnlyOffice"
+msgstr "OnlyOffice"
+
 #: src/components/office-frame.tsx:71
 msgid "OnlyOffice editor"
 msgstr "Trình chỉnh sửa OnlyOffice"
@@ -4111,9 +4150,11 @@ msgstr "Mở"
 #~ msgid "Open a card to set a due date, assign people, add labels and link drive files."
 #~ msgstr "Mở thẻ để đặt hạn, giao người, thêm nhãn và liên kết tệp trong drive."
 
-#: src/components/file-tabs.tsx:321
-#~ msgid "Open files"
-#~ msgstr "Tệp đang mở"
+#: src/components/admin-sidebar.tsx:45
+#: src/routes/admin.open-files.tsx:27
+#: src/routes/admin.open-files.tsx:83
+msgid "Open files"
+msgstr "Tệp đang mở"
 
 #: src/components/settings/panes/account-general.tsx:215
 msgid "Open files in"
@@ -4144,6 +4185,10 @@ msgstr "Mở nội dung được chia sẻ với email của bạn"
 msgid "Open your files in Finder, File Explorer or rclone. Sign in with your email and a password created here; each computer or app gets its own, and it expires."
 msgstr "Mở tệp của bạn trong Finder, File Explorer hoặc rclone. Đăng nhập bằng email của bạn và một mật khẩu tạo tại đây; mỗi máy tính hoặc ứng dụng có mật khẩu riêng, và mật khẩu sẽ hết hạn."
 
+#: src/routes/admin.open-files.tsx:121
+msgid "Opened"
+msgstr "Mở lúc"
+
 #: src/routes/admin.security.tsx:87
 msgid "opened in editor"
 msgstr "đã mở trong trình soạn thảo"
@@ -4154,8 +4199,8 @@ msgstr "đã mở trong trình soạn thảo"
 msgid "Opening"
 msgstr "Đang mở"
 
-#: src/components/file-view.tsx:132
-#: src/components/file-view.tsx:225
+#: src/components/file-view.tsx:145
+#: src/components/file-view.tsx:240
 msgid "Opening editor…"
 msgstr "Đang mở trình chỉnh sửa…"
 
@@ -4190,6 +4235,10 @@ msgstr "Vị trí gốc"
 #: src/components/storage-breakdown.tsx:36
 msgid "Other"
 msgstr "Khác"
+
+#: src/routes/admin.open-files.tsx:39
+msgid "Other client"
+msgstr "Ứng dụng khác"
 
 #: src/routes/admin.settings.tsx:1112
 msgid "Outgoing mail (SMTP)"
@@ -4516,7 +4565,7 @@ msgstr "Trích dẫn"
 msgid "re-share"
 msgstr "chia sẻ lại"
 
-#: src/components/file-view.tsx:219
+#: src/components/file-view.tsx:232
 msgid "read-only"
 msgstr "chỉ đọc"
 
@@ -4536,6 +4585,7 @@ msgid "referenced blobs"
 msgstr "blob được tham chiếu"
 
 #: src/components/folder-actions.tsx:215
+#: src/routes/admin.open-files.tsx:94
 msgid "Refresh"
 msgstr "Làm mới"
 
@@ -4830,9 +4880,14 @@ msgstr "Các hàng và cột ô"
 #: src/components/apps/app-backend-modal.tsx:108
 #: src/components/comments/comments-popover.tsx:622
 #: src/components/nav-apps.tsx:336
+#: src/routes/admin.open-files.tsx:179
 #: src/routes/drive/$spaceId/index.tsx:788
 msgid "Save"
 msgstr "Lưu"
+
+#: src/routes/admin.open-files.tsx:105
+msgid "Save all"
+msgstr "Lưu tất cả"
 
 #: src/components/settings/panes/account-profile.tsx:193
 #: src/components/settings/panes/space-general.tsx:331
@@ -4841,11 +4896,18 @@ msgstr "Lưu"
 msgid "Save changes"
 msgstr "Lưu thay đổi"
 
+#: src/components/file-view.tsx:265
+#: src/components/file-view.tsx:274
+msgid "Save now"
+msgstr "Lưu ngay"
+
 #: src/components/publish-dialog.tsx:438
 msgid "Save settings"
 msgstr "Lưu cài đặt"
 
 #: src/components/doc-editor/doc-editor.tsx:625
+#: src/lib/use-save-node.ts:28
+#: src/routes/admin.open-files.tsx:62
 msgid "Saved"
 msgstr "Đã lưu"
 
@@ -4853,7 +4915,7 @@ msgstr "Đã lưu"
 msgid "Saved {created} · {size}"
 msgstr "Đã lưu {created} · {size}"
 
-#: src/components/file-view.tsx:219
+#: src/components/file-view.tsx:232
 msgid "saved by OnlyOffice"
 msgstr "được lưu bởi OnlyOffice"
 
@@ -4876,6 +4938,11 @@ msgstr "Đã lưu địa chỉ máy chủ riêng của {name}"
 #: src/routes/admin.settings.tsx:778
 #~ msgid "Saving a new version removes the oldest ones beyond this number. The current version is always kept."
 #~ msgstr "Khi lưu phiên bản mới, các phiên bản cũ nhất vượt quá số này sẽ bị xoá. Phiên bản hiện tại luôn được giữ lại."
+
+#: src/lib/use-save-node.ts:28
+#: src/routes/admin.open-files.tsx:62
+msgid "Saving…"
+msgstr "Đang lưu…"
 
 #: src/components/command-palette.tsx:116
 msgid "Search"
@@ -4942,7 +5009,7 @@ msgstr "Bảo mật & Kiểm toán"
 msgid "security alert"
 msgstr "cảnh báo bảo mật"
 
-#: src/components/admin-sidebar.tsx:37
+#: src/components/admin-sidebar.tsx:46
 #: src/components/nav-user.tsx:136
 #: src/routes/admin.security.tsx:38
 #: src/routes/admin.security.tsx:191
@@ -5010,7 +5077,7 @@ msgstr "Cung cấp bởi {PRODUCT_NAME} · tự lưu trữ"
 #~ msgid "Served by pp-hub · self-hosted"
 #~ msgstr "Cung cấp bởi pp-hub · tự lưu trữ"
 
-#: src/components/admin-sidebar.tsx:74
+#: src/components/admin-sidebar.tsx:83
 #: src/components/settings/panes/webdav-section.tsx:57
 #: src/components/settings/panes/webdav-section.tsx:175
 msgid "Server"
@@ -5640,7 +5707,7 @@ msgstr "Địa chỉ này thuộc miền thư khác với miền của bạn"
 msgid "This app is already installed. Update it with this package instead?"
 msgstr "Ứng dụng này đã được cài. Cập nhật nó bằng gói này?"
 
-#: src/components/file-view.tsx:177
+#: src/components/file-view.tsx:190
 msgid "This app is not part of this installation"
 msgstr "Ứng dụng này không có trong bản cài đặt này"
 
@@ -5735,7 +5802,7 @@ msgstr "Nhóm này chứa các quản trị viên của không gian. Dùng công
 msgid "This group opens no folders, so nobody loses access."
 msgstr "Nhóm này không mở thư mục nào, nên không ai mất quyền truy cập."
 
-#: src/components/admin-sidebar.tsx:65
+#: src/components/admin-sidebar.tsx:74
 msgid "This install"
 msgstr "Hệ thống này"
 
@@ -5743,7 +5810,7 @@ msgstr "Hệ thống này"
 msgid "This install includes no apps."
 msgstr "Bản cài đặt này không có ứng dụng nào."
 
-#: src/components/file-view.tsx:180
+#: src/components/file-view.tsx:193
 msgid "This item belongs to an app that this version of PP Hub does not include. It can still be renamed, moved or deleted from the drive."
 msgstr "Mục này thuộc về một ứng dụng mà phiên bản PP Hub này không có. Bạn vẫn có thể đổi tên, di chuyển hoặc xoá nó khỏi kho tệp."
 
@@ -6155,7 +6222,7 @@ msgstr "Dùng để gửi email cho mọi người khi tệp hoặc thư mục �
 msgid "Used when a link says nothing about how to draw the folder. A link that carries a view or a sort keeps the one it was copied with."
 msgstr "Được dùng khi liên kết không chỉ định cách hiển thị thư mục. Liên kết có kèm kiểu xem hoặc cách sắp xếp sẽ giữ nguyên giá trị lúc được sao chép."
 
-#: src/components/admin-sidebar.tsx:51
+#: src/components/admin-sidebar.tsx:60
 #: src/components/nav-user.tsx:48
 #: src/routes/admin.users.tsx:178
 msgid "User"
@@ -6174,7 +6241,7 @@ msgstr "Tên người dùng"
 msgid "Username copied"
 msgstr "Đã sao chép tên người dùng"
 
-#: src/components/admin-sidebar.tsx:36
+#: src/components/admin-sidebar.tsx:44
 #: src/routes/admin.users.tsx:118
 msgid "Users"
 msgstr "Người dùng"
@@ -6182,6 +6249,10 @@ msgstr "Người dùng"
 #: src/routes/admin.apps.tsx:122
 msgid "v{version}"
 msgstr "v{version}"
+
+#: src/routes/admin.open-files.tsx:54
+msgid "v{version} · {ago}"
+msgstr "v{version} · {ago}"
 
 #: src/components/preview-modal.tsx:172
 msgid "Version"

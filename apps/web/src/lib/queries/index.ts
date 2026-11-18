@@ -113,6 +113,7 @@ export {
   useArchivedPersonalSpaces,
   usePurgeArchivedPersonalSpace,
 } from "./spaces-admin";
+export { useAdminOpenFiles, useSaveAdminOpenFiles, useSaveAdminOpenFile } from "./open-files";
 
 // Home surfaces
 export { useRecent, useStarred, useActivity, useUsage, useToggleStar } from "./home";

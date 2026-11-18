@@ -125,6 +125,70 @@ func (q *Queries) ListOfficeEditorLockTokens(ctx context.Context) ([]string, err
 	return items, nil
 }
 
+const listOpenEditorLocks = `-- name: ListOpenEditorLocks :many
+SELECT l.node_id,
+       l.lock_token,
+       l.created_at AS locked_at,
+       (l.expires_at - INTERVAL '30 minutes')::timestamptz AS refreshed_at,
+       n.name,
+       n.space_id,
+       s.name AS space_name,
+       v.version_no,
+       v.created_at AS version_at
+FROM file_locks l
+JOIN nodes n ON n.id = l.node_id
+JOIN spaces s ON s.id = n.space_id
+LEFT JOIN node_versions v ON v.id = n.current_version_id
+WHERE l.expires_at > now()
+ORDER BY l.created_at
+`
+
+type ListOpenEditorLocksRow struct {
+	NodeID      pgtype.UUID        `json:"node_id"`
+	LockToken   string             `json:"lock_token"`
+	LockedAt    pgtype.Timestamptz `json:"locked_at"`
+	RefreshedAt pgtype.Timestamptz `json:"refreshed_at"`
+	Name        string             `json:"name"`
+	SpaceID     pgtype.UUID        `json:"space_id"`
+	SpaceName   string             `json:"space_name"`
+	VersionNo   pgtype.Int4        `json:"version_no"`
+	VersionAt   pgtype.Timestamptz `json:"version_at"`
+}
+
+// Every live lock with the file it is on: what is open in an editor right now.
+// refreshed_at is the last time the editor renewed the lock (a renewal sets
+// the expiry thirty minutes out, as UpsertLock and AcquireLock do), so a lock
+// nobody has renewed for a while is a tab left open, not a person typing.
+func (q *Queries) ListOpenEditorLocks(ctx context.Context) ([]ListOpenEditorLocksRow, error) {
+	rows, err := q.db.Query(ctx, listOpenEditorLocks)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListOpenEditorLocksRow
+	for rows.Next() {
+		var i ListOpenEditorLocksRow
+		if err := rows.Scan(
+			&i.NodeID,
+			&i.LockToken,
+			&i.LockedAt,
+			&i.RefreshedAt,
+			&i.Name,
+			&i.SpaceID,
+			&i.SpaceName,
+			&i.VersionNo,
+			&i.VersionAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const refreshLock = `-- name: RefreshLock :exec
 UPDATE file_locks SET expires_at = now() + INTERVAL '30 minutes'
 WHERE node_id = $1 AND lock_token = $2

@@ -66,6 +66,7 @@ export const keys = {
   // the whole root rather than one node's entry.
   inheritedAccess: (nodeId: string) => ["inherited-access", nodeId] as const,
   adminStats: ["admin", "stats"] as const,
+  adminOpenFiles: ["admin", "open-files"] as const,
   // Sibling of adminStats under the "admin" root, never a child of it: the
   // user mutations invalidate `adminStats` exactly, and a log page hanging
   // below that key would be refetched by every suspend/promote for nothing.

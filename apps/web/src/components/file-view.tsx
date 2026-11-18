@@ -1,7 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { Suspense, useCallback, useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Puzzle } from "lucide-react";
+import { Puzzle, Save } from "lucide-react";
+import { Button } from "@workspace/ui/components/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@workspace/ui/components/tooltip";
 import { cn } from "@workspace/ui/lib/utils";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import {
@@ -11,9 +13,10 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@workspace/ui/components/empty";
-import { isMarkdownFile, isOfficeFile, type Node } from "@/lib/api";
+import { capsOf, isMarkdownFile, isOfficeFile, type Node } from "@/lib/api";
 import { nodeOptions } from "@/lib/queries";
 import type { FileSearch } from "@/lib/open-file";
+import { useSaveNode, useSaveShortcut } from "@/lib/use-save-node";
 import { faviconFor } from "@/components/node-icon";
 import { useDocumentTitle, useFavicon } from "@/lib/use-page-head";
 import { EditorFrame, useOfficeSession } from "@/components/office-frame";
@@ -117,6 +120,16 @@ function FileBody({
 }) {
   const node = useFileNode(nodeId);
   const settled = useCallback(() => onSettled(nodeId), [onSettled, nodeId]);
+  // Cmd/Ctrl+S saves what an editor holds: OnlyOffice's session or the block
+  // document's room. Only the page on screen listens, and only for someone
+  // who could have typed the edits; anyone else keeps the browser's own Save.
+  useSaveShortcut(
+    nodeId,
+    visible &&
+      !!node.data &&
+      (isMarkdownFile(node.data) || isOfficeFile(node.data.name)) &&
+      capsOf(node.data).edit,
+  );
 
   return (
     <div className={cn("flex min-h-0 flex-1 flex-col", !visible && "hidden")}>
@@ -217,7 +230,9 @@ function OfficeEditor({ node }: { node: Node }) {
         // A reader gets the document, not the editor, and the ribbon alone
         // is a subtle thing to read that from.
         status={session && !session.can_write ? t`read-only` : t`saved by OnlyOffice`}
-      />
+      >
+        {session?.can_write && <SaveNowButton nodeId={node.id} />}
+      </EditorHeader>
       {error ? (
         <p className="text-destructive flex flex-1 items-center justify-center text-sm">{error}</p>
       ) : !session ? (
@@ -228,5 +243,36 @@ function OfficeEditor({ node }: { node: Node }) {
         <EditorFrame key={session.token} nodeId={node.id} session={session} />
       )}
     </>
+  );
+}
+
+/**
+ * Saves the open office file now. OnlyOffice's frame keeps Cmd/Ctrl+S for
+ * itself while it has focus (that key only syncs its own session, and writes
+ * no version), so the button, and the shortcut once focus is outside the frame,
+ * are how a person asks for a version right away.
+ */
+function SaveNowButton({ nodeId }: { nodeId: string }) {
+  const { t } = useLingui();
+  const { mutate, isPending } = useSaveNode(nodeId);
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t`Save now`}
+            disabled={isPending}
+            onClick={() => mutate()}
+          />
+        }
+      >
+        <Save />
+      </TooltipTrigger>
+      <TooltipContent>
+        <Trans>Save now</Trans>
+      </TooltipContent>
+    </Tooltip>
   );
 }

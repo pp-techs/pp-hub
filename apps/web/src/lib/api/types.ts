@@ -678,6 +678,42 @@ export interface EditSession {
 }
 
 /**
+ * What asking an editor to save found. `queued`: OnlyOffice accepted it and
+ * the version follows a moment later. `saved`: a block document's room wrote
+ * its edits before answering. `unchanged`: nothing was open, or nothing typed
+ * since the last save.
+ */
+export type SaveState = "queued" | "saved" | "unchanged";
+
+/** The body of a save answer. */
+export interface SaveResult {
+  state: SaveState;
+}
+
+/** A file open in an editor right now, as the admin's open-files page lists it. */
+export interface OpenFile {
+  node_id: string;
+  name: string;
+  space_id: string;
+  space_name: string;
+  /** "other" is a WebDAV client or an agent: it cannot be saved from here. */
+  editor: "office" | "blocks" | "other";
+  locked_at: string;
+  /** When the editor last renewed its lock; an open tab does so every few minutes. */
+  refreshed_at: string;
+  version_no?: number;
+  saved_at?: string;
+}
+
+/** Totals of a save-everything request; each file is counted once. */
+export interface SaveAllResult {
+  queued: number;
+  saved: number;
+  unchanged: number;
+  failed: number;
+}
+
+/**
  * `GET /nodes/{id}/collab`: where the block editor connects for a markdown
  * document. `room` carries the epoch (`<nodeId>.<epoch>`) — a new one is
  * minted each time the server loads the document, and a client holding a

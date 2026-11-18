@@ -36,6 +36,7 @@ import type {
   LinkPreview,
   NodePerson,
   PathEntry,
+  OpenFile,
   PendingShare,
   PendingShareCreated,
   Publication,
@@ -44,6 +45,9 @@ import type {
   Space,
   TrashNode,
   TreeNode,
+  SaveAllResult,
+  SaveResult,
+  SaveState,
   UnfurledLink,
   Version,
 } from "../types";
@@ -136,6 +140,28 @@ export async function getAdminStats(): Promise<AdminStats> {
   const res = await api.get("api/v1/admin/stats");
   if (!res.ok) throw new ApiError(res.status, await res.text());
   return res.json() as Promise<AdminStats>;
+}
+
+/** The files open in an editor right now: what a restart would interrupt. */
+export async function getAdminOpenFiles(): Promise<OpenFile[]> {
+  const res = await api.get("api/v1/admin/open-files");
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<OpenFile[]>;
+}
+
+/** Asks every open editor to save now. */
+export async function saveAdminOpenFiles(): Promise<SaveAllResult> {
+  const res = await api.post("api/v1/admin/open-files/save");
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json() as Promise<SaveAllResult>;
+}
+
+/** Asks the editor holding one file to save it now. */
+export async function saveAdminOpenFile(nodeId: string): Promise<SaveState> {
+  const res = await api.post(`api/v1/admin/open-files/${nodeId}/save`);
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  const body = (await res.json()) as SaveResult;
+  return body.state;
 }
 
 export async function updateAdminUser(
@@ -711,6 +737,17 @@ export async function createEditSession(
   const res = await api.post(`api/v1/nodes/${nodeId}/edit-session${suffix}`);
   if (!res.ok) throw new ApiError(res.status, await res.text());
   return res.json() as Promise<EditSession>;
+}
+
+/**
+ * Asks the editor holding a file — OnlyOffice or a block document's room — to
+ * write what it has now, as a version, instead of at its next quiet period.
+ */
+export async function saveNode(nodeId: string): Promise<SaveState> {
+  const res = await api.post(`api/v1/nodes/${nodeId}/save`);
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  const body = (await res.json()) as SaveResult;
+  return body.state;
 }
 
 /** Mints an OnlyOffice view session for an office document inside a share link. */

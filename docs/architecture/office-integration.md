@@ -154,6 +154,18 @@ Two things now narrow it:
   the usual answers and are not logged; anything else is. `autoAssembly` in the
   Document Server's own configuration looks like the same thing and is not: with
   it enabled, 10.0.0.1 sent no `PutFile` for a document that stayed open.
+- **Save now.** `POST /nodes/{id}/save` (`CapEdit`) reads the file's lock and
+  asks the editor behind it to write back immediately: a `wopi_…` lock is a
+  forcesave command through `office.Forcesaver.Save`; a `collab:…` lock is
+  `collab.Service.Flush`. The web app binds Cmd/Ctrl+S to it on an open
+  markdown or office file the caller can edit. OnlyOffice's own iframe keeps
+  the key while it has focus: a cross-origin page cannot see it, and the
+  Document Server's own Ctrl+S only syncs its session and writes no version
+  (checked against 10.0.0.1), nor does its WOPI frame accept a save message
+  from the host. An office file's header therefore also carries a **Save now**
+  button, the reliable way to ask for a version while typing in the frame.
+  Administrators have the same action for every open file in
+  `GET/POST /admin/open-files` (see [deployment.md](../deployment.md#saving-and-redeploying-while-people-are-editing)).
 - **Stop order.** `server` depends on `onlyoffice` in `compose.prod.yml`, so
   `docker compose up -d` stops and recreates the Document Server first and waits
   for it (`stop_grace_period: 60s`; it takes about 30 s) while the server is

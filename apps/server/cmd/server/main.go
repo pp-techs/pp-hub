@@ -211,6 +211,13 @@ func run() error {
 	if officeForcesaver != nil && cfg.OfficeAutosaveInterval > 0 {
 		go officeForcesaver.Run(ctx, cfg.OfficeAutosaveInterval)
 	}
+	// The HTTP edge takes these as interfaces; a nil *Forcesaver stored in one
+	// would read as present and panic on first use, so they stay nil without it.
+	var officeDropper office.SessionDropper
+	var officeSaver office.SessionSaver
+	if officeForcesaver != nil {
+		officeDropper, officeSaver = officeForcesaver, officeForcesaver
+	}
 	mailer := mail.New(syscfg.SMTP)
 	notifier := notify.New(queries, mailer, syscfg, cfg.ExternalURL)
 	go notifier.Run(ctx)
@@ -331,7 +338,8 @@ func run() error {
 		Ext:             extHost,
 		Web:             web,
 		Publish:         publishSvc,
-		OfficeDropper:   officeForcesaver,
+		OfficeDropper:   officeDropper,
+		OfficeSaver:     officeSaver,
 	})
 	srv := &http.Server{
 		Addr:              cfg.Addr,

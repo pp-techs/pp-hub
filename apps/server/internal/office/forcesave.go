@@ -37,6 +37,15 @@ const (
 	errNoChanges = 4
 )
 
+// SessionSaver can ask for an open OnlyOffice editing session to be written
+// back now, instead of at the next periodic round.
+type SessionSaver interface {
+	// Save reports whether a save was queued for key. False with no error
+	// means there was nothing to do: no session by that key, or no edit
+	// since the last save.
+	Save(ctx context.Context, key string) (bool, error)
+}
+
 // SessionDropper can terminate an open OnlyOffice editing session.
 type SessionDropper interface {
 	Drop(ctx context.Context, key string) error
@@ -104,7 +113,7 @@ func (f *Forcesaver) Once(ctx context.Context) (int, error) {
 	saved := 0
 	var first error
 	for _, key := range keys {
-		ok, err := f.forcesave(ctx, key)
+		ok, err := f.Save(ctx, key)
 		if err != nil {
 			if first == nil {
 				first = err
@@ -118,8 +127,9 @@ func (f *Forcesaver) Once(ctx context.Context) (int, error) {
 	return saved, first
 }
 
-// forcesave sends one command. It reports whether a save was queued.
-func (f *Forcesaver) forcesave(ctx context.Context, key string) (bool, error) {
+// Save sends one forcesave command. The Document Server answers once the save
+// is queued; the PutFile that makes it a version follows.
+func (f *Forcesaver) Save(ctx context.Context, key string) (bool, error) {
 	return f.command(ctx, "forcesave", key)
 }
 

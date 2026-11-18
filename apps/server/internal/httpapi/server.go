@@ -105,9 +105,10 @@ type Server struct {
 	// publishing. artifactHost is PP_ARTIFACT_URL's host when one is
 	// configured; Router hands that host, or else this origin's /a/, to the
 	// artifact router and nothing else (artifact.go).
-	publish      *publish.Service
-	artifactHost string
+	publish       *publish.Service
+	artifactHost  string
 	officeDropper office.SessionDropper
+	officeSaver   office.SessionSaver
 }
 
 // Deps is what the HTTP edge needs. A struct rather than a parameter list
@@ -156,8 +157,9 @@ type Deps struct {
 	Web *WebApp
 	// Publish is the publishing model; nil disables publishing and the
 	// artifact host.
-	Publish *publish.Service
+	Publish       *publish.Service
 	OfficeDropper office.SessionDropper
+	OfficeSaver   office.SessionSaver
 }
 
 func NewServer(d Deps) *Server {
@@ -195,6 +197,7 @@ func NewServer(d Deps) *Server {
 		web:            d.Web,
 		publish:        d.Publish,
 		officeDropper:  d.OfficeDropper,
+		officeSaver:    d.OfficeSaver,
 	}
 	if d.Ext != nil {
 		s.useExt(d.Ext)
@@ -438,6 +441,9 @@ func (s *Server) apiRoutes(r chi.Router, agent bool) {
 	r.Get("/usage", s.handleUsage)
 	r.Get("/shared", s.handleListShared)
 	r.Get("/admin/stats", s.handleAdminStats)
+	r.Get("/admin/open-files", s.handleAdminOpenFiles)
+	r.Post("/admin/open-files/save", s.handleAdminSaveOpenFiles)
+	r.Post("/admin/open-files/{nodeID}/save", s.handleAdminSaveOpenFile)
 	r.Get("/admin/security-events", s.handleAdminSecurityEvents)
 	r.Get("/admin/security-events/export", s.handleAdminSecurityEventsExport)
 	r.Patch("/admin/users/{userID}", s.handleAdminUpdateUser)
@@ -547,6 +553,7 @@ func (s *Server) apiRoutes(r chi.Router, agent bool) {
 		r.Patch("/publication", s.handleUpdatePublication)
 		r.Delete("/publication", s.handleUnpublish)
 		r.Post("/edit-session", s.handleEditSession)
+		r.Post("/save", s.handleSaveNode)
 		r.Get("/collab", s.handleCollabSession)
 		r.Get("/attachments/{hash}", s.handleAttachment)
 		r.Get("/relative", s.handleRelative)

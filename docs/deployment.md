@@ -1026,9 +1026,15 @@ Two things in the stack narrow it, and one habit closes the rest.
   the server still answers. `docker compose down` and `stop` stop `server`
   first. Do not use them while people are editing. A hand-written compose needs
   both settings.
-- **Before a deploy,** look at who is in a file. A lock on an open office
-  document is a `file_locks` row whose token starts with `wopi_`; the same list
-  is what the periodic save works from.
+- **Before a deploy,** open **Administration → Open files**. It lists every
+  file open in an editor right now (OnlyOffice `wopi_…` locks, block-document
+  `collab:…` rooms and anything else holding a lock), when it was opened, last
+  active and last saved. **Save all** asks every open editor to write its edits
+  as a version first; a file's own **Save** does one. An office file that
+  answers _already saved_ had nothing typed since its last version. The same
+  list is `GET /api/v1/admin/open-files`, and the same actions are
+  `POST /api/v1/admin/open-files/save` and `.../{nodeId}/save`. The list is
+  also the `file_locks` rows with a live `expires_at`.
 
 Lost work that the Document Server already assembled is kept in its cache for
 24 hours: `/var/lib/onlyoffice/documentserver/App_Data/cache/files/data/<id>/output.xlsx`

@@ -407,6 +407,10 @@ msgstr ""
 msgid "{who} can now view"
 msgstr ""
 
+#: src/routes/admin.open-files.tsx:45
+msgid "{written} saving, {unchanged} already saved, {failed} failed"
+msgstr ""
+
 #: src/components/activity-feed.tsx:130
 msgid "<0>{actor}</0> added <1>{nodeName}</1> to <2>{spaceName}</2>"
 msgstr ""
@@ -592,6 +596,7 @@ msgid "Action"
 msgstr ""
 
 #: src/components/node-list.tsx:228
+#: src/routes/admin.open-files.tsx:131
 msgid "Actions"
 msgstr ""
 
@@ -707,7 +712,7 @@ msgstr ""
 msgid "admin revoked"
 msgstr ""
 
-#: src/components/admin-sidebar.tsx:62
+#: src/components/admin-sidebar.tsx:71
 #: src/routes/admin.tsx:62
 msgid "Administration"
 msgstr ""
@@ -777,6 +782,11 @@ msgstr ""
 
 #: src/components/move-dialog.tsx:132
 msgid "Already here"
+msgstr ""
+
+#: src/lib/use-save-node.ts:27
+#: src/routes/admin.open-files.tsx:61
+msgid "Already saved"
 msgstr ""
 
 #: src/components/apps/remove-app-modal.tsx:77
@@ -853,7 +863,7 @@ msgstr ""
 msgid "Appearance"
 msgstr ""
 
-#: src/components/admin-sidebar.tsx:38
+#: src/components/admin-sidebar.tsx:47
 #: src/components/nav-apps.tsx:85
 #: src/components/settings/panes.ts:112
 #: src/routes/admin.apps.tsx:31
@@ -903,7 +913,7 @@ msgstr ""
 msgid "Avatar updated"
 msgstr ""
 
-#: src/components/admin-sidebar.tsx:100
+#: src/components/admin-sidebar.tsx:109
 #: src/routes/drive/$spaceId/route.tsx:57
 #: src/routes/open.$nodeId.tsx:79
 msgid "Back to Drive"
@@ -923,6 +933,10 @@ msgstr ""
 
 #: src/components/new-document-dialog.tsx:79
 msgid "Blank"
+msgstr ""
+
+#: src/routes/admin.open-files.tsx:38
+msgid "Block editor"
 msgstr ""
 
 #: src/components/doc-editor/labels.ts:63
@@ -1556,6 +1570,9 @@ msgstr ""
 #: src/components/apps/app-backend-modal.tsx:53
 #: src/components/settings/panes/account-profile.tsx:126
 #: src/components/settings/panes/space-general.tsx:136
+#: src/lib/use-save-node.ts:39
+#: src/routes/admin.open-files.tsx:101
+#: src/routes/admin.open-files.tsx:175
 msgid "Could not save"
 msgstr ""
 
@@ -2024,6 +2041,10 @@ msgstr ""
 msgid "Edit documents and spreadsheets together in the browser."
 msgstr ""
 
+#: src/routes/admin.open-files.tsx:118
+msgid "Editor"
+msgstr ""
+
 #: src/components/settings/panes/account-profile.tsx:165
 msgid "Email"
 msgstr ""
@@ -2254,6 +2275,7 @@ msgstr ""
 #: src/components/doc-editor/labels.ts:41
 #: src/components/preview-modal.tsx:168
 #: src/components/preview-panel.tsx:383
+#: src/routes/admin.open-files.tsx:115
 msgid "File"
 msgstr ""
 
@@ -2289,6 +2311,10 @@ msgstr ""
 
 #: src/routes/drive/shared.tsx:44
 msgid "Files and folders people in other spaces have shared with you."
+msgstr ""
+
+#: src/routes/admin.open-files.tsx:85
+msgid "Files open in an editor right now. Save them before restarting the server so nothing typed since the last save is lost."
 msgstr ""
 
 #: src/components/people-table.tsx:241
@@ -2654,7 +2680,7 @@ msgstr ""
 msgid "Instance name cannot be empty"
 msgstr ""
 
-#: src/components/admin-sidebar.tsx:39
+#: src/components/admin-sidebar.tsx:48
 #: src/components/nav-user.tsx:139
 #: src/routes/admin.settings.tsx:48
 #: src/routes/admin.settings.tsx:71
@@ -2820,7 +2846,12 @@ msgid "Large section title"
 msgstr ""
 
 #: src/components/people-table.tsx:238
+#: src/routes/admin.open-files.tsx:124
 msgid "Last active"
+msgstr ""
+
+#: src/routes/admin.open-files.tsx:127
+msgid "Last saved"
 msgstr ""
 
 #: src/routes/admin.users.tsx:187
@@ -3319,6 +3350,10 @@ msgstr ""
 msgid "No events recorded."
 msgstr ""
 
+#: src/routes/admin.open-files.tsx:142
+msgid "No file is open in an editor."
+msgstr ""
+
 #: src/components/folder-tree.tsx:188
 msgid "No folders yet."
 msgstr ""
@@ -3530,6 +3565,10 @@ msgstr ""
 msgid "Only the open page’s icon and cover can be changed."
 msgstr ""
 
+#: src/routes/admin.open-files.tsx:37
+msgid "OnlyOffice"
+msgstr ""
+
 #: src/components/office-frame.tsx:71
 msgid "OnlyOffice editor"
 msgstr ""
@@ -3549,6 +3588,12 @@ msgstr ""
 #: src/components/share-dialog.tsx:788
 #: src/routes/p/$token.tsx:187
 msgid "Open"
+msgstr ""
+
+#: src/components/admin-sidebar.tsx:45
+#: src/routes/admin.open-files.tsx:27
+#: src/routes/admin.open-files.tsx:83
+msgid "Open files"
 msgstr ""
 
 #: src/components/settings/panes/account-general.tsx:215
@@ -3576,6 +3621,10 @@ msgstr ""
 msgid "Open your files in Finder, File Explorer or rclone. Sign in with your email and a password created here; each computer or app gets its own, and it expires."
 msgstr ""
 
+#: src/routes/admin.open-files.tsx:121
+msgid "Opened"
+msgstr ""
+
 #: src/routes/admin.security.tsx:87
 msgid "opened in editor"
 msgstr ""
@@ -3586,8 +3635,8 @@ msgstr ""
 msgid "Opening"
 msgstr ""
 
-#: src/components/file-view.tsx:132
-#: src/components/file-view.tsx:225
+#: src/components/file-view.tsx:145
+#: src/components/file-view.tsx:240
 msgid "Opening editor…"
 msgstr ""
 
@@ -3621,6 +3670,10 @@ msgstr ""
 
 #: src/components/storage-breakdown.tsx:36
 msgid "Other"
+msgstr ""
+
+#: src/routes/admin.open-files.tsx:39
+msgid "Other client"
 msgstr ""
 
 #: src/routes/admin.settings.tsx:1112
@@ -3919,7 +3972,7 @@ msgstr ""
 msgid "re-share"
 msgstr ""
 
-#: src/components/file-view.tsx:219
+#: src/components/file-view.tsx:232
 msgid "read-only"
 msgstr ""
 
@@ -3939,6 +3992,7 @@ msgid "referenced blobs"
 msgstr ""
 
 #: src/components/folder-actions.tsx:215
+#: src/routes/admin.open-files.tsx:94
 msgid "Refresh"
 msgstr ""
 
@@ -4200,8 +4254,13 @@ msgstr ""
 #: src/components/apps/app-backend-modal.tsx:108
 #: src/components/comments/comments-popover.tsx:622
 #: src/components/nav-apps.tsx:336
+#: src/routes/admin.open-files.tsx:179
 #: src/routes/drive/$spaceId/index.tsx:788
 msgid "Save"
+msgstr ""
+
+#: src/routes/admin.open-files.tsx:105
+msgid "Save all"
 msgstr ""
 
 #: src/components/settings/panes/account-profile.tsx:193
@@ -4211,11 +4270,18 @@ msgstr ""
 msgid "Save changes"
 msgstr ""
 
+#: src/components/file-view.tsx:265
+#: src/components/file-view.tsx:274
+msgid "Save now"
+msgstr ""
+
 #: src/components/publish-dialog.tsx:438
 msgid "Save settings"
 msgstr ""
 
 #: src/components/doc-editor/doc-editor.tsx:625
+#: src/lib/use-save-node.ts:28
+#: src/routes/admin.open-files.tsx:62
 msgid "Saved"
 msgstr ""
 
@@ -4223,7 +4289,7 @@ msgstr ""
 msgid "Saved {created} · {size}"
 msgstr ""
 
-#: src/components/file-view.tsx:219
+#: src/components/file-view.tsx:232
 msgid "saved by OnlyOffice"
 msgstr ""
 
@@ -4241,6 +4307,11 @@ msgstr ""
 
 #: src/components/apps/app-backend-modal.tsx:52
 msgid "Saved where {name} reaches its backend"
+msgstr ""
+
+#: src/lib/use-save-node.ts:28
+#: src/routes/admin.open-files.tsx:62
+msgid "Saving…"
 msgstr ""
 
 #: src/components/command-palette.tsx:116
@@ -4296,7 +4367,7 @@ msgstr ""
 msgid "security alert"
 msgstr ""
 
-#: src/components/admin-sidebar.tsx:37
+#: src/components/admin-sidebar.tsx:46
 #: src/components/nav-user.tsx:136
 #: src/routes/admin.security.tsx:38
 #: src/routes/admin.security.tsx:191
@@ -4351,7 +4422,7 @@ msgstr ""
 msgid "Served by {PRODUCT_NAME} · self-hosted"
 msgstr ""
 
-#: src/components/admin-sidebar.tsx:74
+#: src/components/admin-sidebar.tsx:83
 #: src/components/settings/panes/webdav-section.tsx:57
 #: src/components/settings/panes/webdav-section.tsx:175
 msgid "Server"
@@ -4931,7 +5002,7 @@ msgstr ""
 msgid "This app is already installed. Update it with this package instead?"
 msgstr ""
 
-#: src/components/file-view.tsx:177
+#: src/components/file-view.tsx:190
 msgid "This app is not part of this installation"
 msgstr ""
 
@@ -5010,7 +5081,7 @@ msgstr ""
 msgid "This group opens no folders, so nobody loses access."
 msgstr ""
 
-#: src/components/admin-sidebar.tsx:65
+#: src/components/admin-sidebar.tsx:74
 msgid "This install"
 msgstr ""
 
@@ -5018,7 +5089,7 @@ msgstr ""
 msgid "This install includes no apps."
 msgstr ""
 
-#: src/components/file-view.tsx:180
+#: src/components/file-view.tsx:193
 msgid "This item belongs to an app that this version of PP Hub does not include. It can still be renamed, moved or deleted from the drive."
 msgstr ""
 
@@ -5385,7 +5456,7 @@ msgstr ""
 msgid "Used when a link says nothing about how to draw the folder. A link that carries a view or a sort keeps the one it was copied with."
 msgstr ""
 
-#: src/components/admin-sidebar.tsx:51
+#: src/components/admin-sidebar.tsx:60
 #: src/components/nav-user.tsx:48
 #: src/routes/admin.users.tsx:178
 msgid "User"
@@ -5404,13 +5475,17 @@ msgstr ""
 msgid "Username copied"
 msgstr ""
 
-#: src/components/admin-sidebar.tsx:36
+#: src/components/admin-sidebar.tsx:44
 #: src/routes/admin.users.tsx:118
 msgid "Users"
 msgstr ""
 
 #: src/routes/admin.apps.tsx:122
 msgid "v{version}"
+msgstr ""
+
+#: src/routes/admin.open-files.tsx:54
+msgid "v{version} · {ago}"
 msgstr ""
 
 #: src/components/preview-modal.tsx:172
