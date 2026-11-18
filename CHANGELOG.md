@@ -11,6 +11,10 @@ Versions up to and including 0.14.1 predate this changelog; see the
 
 <!-- `bun run version-packages` adds each release's section from its changesets; edit it in the Version Packages PR. -->
 
+## [1.6.0] — 2026-11-18
+
+MCP agents can now organise the drive: `create_folder` makes a folder under another folder or at the top of a space, and `rename_node` renames a file or folder. Both go through the drive's own handlers, so edit permission and name-conflict rules are the same as in the web client. Moving and deleting are not offered yet.
+
 ## [1.5.1] — 2026-11-12
 
 Phone and touch polish for the drive and the editor. The Details panel opens as a sheet over the listing instead of a fixed 320px column that squeezed the files into a sliver. On a touch screen, buttons, toggles, menu items and list rows are larger to tap, and menus no longer show keyboard shortcuts. On a phone-width screen the editor header keeps Share, Versions and Download in one "…" menu so the file name stays readable, tables in documents scroll sideways instead of cramming their columns, and wide admin tables fade at the edge to show they scroll. Also fixes a React warning about a `<div>` inside the list view's `<tbody>`.
