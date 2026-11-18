@@ -16,7 +16,7 @@ func Tools(o Options) []Tool {
 		listStarred(), listSharedWithMe(), listVersions(), listMembers(), listGroups(),
 		readDocument(), downloadFile(), getWebLink(o.WebURL), listDocumentTemplates(),
 		createDocument(), updateDocument(), uploadFile(), updateFile(),
-		readTextFile(), updateTextFile(),
+		readTextFile(), updateTextFile(), createFolder(), renameNode(),
 		readOfficeFile(), editOfficeFile(), getOfficeSchema(),
 		listAccess(), grantAccess(), revokeAccess(),
 		listComments(), addComment(), replyComment(), resolveThread(),

@@ -541,3 +541,41 @@ func TestMcpSubPages(t *testing.T) {
 		t.Fatalf("document missing from the top of the space: %+v", listed)
 	}
 }
+
+// create_folder and rename_node run the drive's own handlers: the folder
+// lands where asked, a rename shows in the listing, and a viewer is refused.
+func TestMcpCreateFolderAndRename(t *testing.T) {
+	rig := newMCPRig(t)
+	f := rig.collabRig.fixture(t, "mcpfolder", "# Doc\n")
+	owner := rig.agent(t, f.owner)
+	viewer := rig.agent(t, f.viewer)
+	space, doc := uuidString(f.space.ID), uuidString(f.doc.ID)
+
+	var dir struct {
+		ID   string `json:"id"`
+		Kind string `json:"kind"`
+	}
+	mustTool(t, owner, "create_folder", map[string]any{"space_id": space, "name": "Reports"}, &dir)
+	if dir.ID == "" || dir.Kind != "dir" {
+		t.Fatalf("create_folder = %+v, want a dir", dir)
+	}
+	mustTool(t, owner, "rename_node", map[string]any{"node_id": dir.ID, "name": "Reports 2024"}, nil)
+	mustTool(t, owner, "rename_node", map[string]any{"node_id": doc, "name": "Renamed.md"}, nil)
+
+	var listed []struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	}
+	mustTool(t, owner, "list_folder", map[string]any{"space_id": space}, &listed)
+	names := map[string]string{}
+	for _, n := range listed {
+		names[n.ID] = n.Name
+	}
+	if names[dir.ID] != "Reports 2024" || names[doc] != "Renamed.md" {
+		t.Fatalf("listing after rename = %+v", names)
+	}
+
+	if _, isErr := callTool(t, viewer, "rename_node", map[string]any{"node_id": doc, "name": "Nope.md"}); !isErr {
+		t.Fatal("a viewer renamed a document")
+	}
+}
