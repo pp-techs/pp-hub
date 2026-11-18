@@ -9,6 +9,7 @@ import { LoadingStatus } from "@/components/loading";
 import { NodeMarkdownView } from "@/components/markdown-document-view";
 import { mdocLowlight } from "@/lib/collab/mdoc-kit";
 import { useFormatters } from "@/lib/format";
+import { withStorageShim } from "@/lib/html-storage-shim";
 import type { Node } from "@/lib/api";
 import {
   capsOf,
@@ -381,7 +382,7 @@ function HtmlFrame({ html, title }: { html: string; title: string }) {
   return (
     <iframe
       title={title}
-      srcDoc={html}
+      srcDoc={withStorageShim(html)}
       sandbox="allow-scripts"
       className="h-full min-h-[60vh] w-full flex-1 border-0 bg-white"
     />

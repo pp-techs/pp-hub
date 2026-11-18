@@ -252,7 +252,7 @@ func TestPublishLifecycle(t *testing.T) {
 	}
 
 	page := rig.artifact(t, http.MethodGet, "/"+token+"/", nil)
-	if page.code != http.StatusOK || string(page.body) != `<script src="app.js"></script>` {
+	if page.code != http.StatusOK || string(page.body) != string(injectStorageShim([]byte(`<script src="app.js"></script>`))) {
 		t.Fatalf("entry: %d %q", page.code, page.body)
 	}
 	assertSandboxed(t, page, "entry page")
@@ -388,7 +388,7 @@ func TestPublishOnTheAppOrigin(t *testing.T) {
 	}
 
 	page := get("/a/" + token + "/")
-	if page.code != http.StatusOK || string(page.body) != `<script src="app.js"></script>` {
+	if page.code != http.StatusOK || string(page.body) != string(injectStorageShim([]byte(`<script src="app.js"></script>`))) {
 		t.Fatalf("entry: %d %q", page.code, page.body)
 	}
 	sandboxed(page, "entry page")

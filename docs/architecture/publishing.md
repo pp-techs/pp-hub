@@ -174,6 +174,14 @@ app's origin):
   allowlist. The `sandbox` directive in the header means a visitor who opens
   an artifact URL directly, outside the viewer, still gets an opaque origin.
 
+- **Storage shim.** In an opaque origin every read of `localStorage` /
+  `sessionStorage` throws, which aborts the script of a page that reads it
+  unguarded at load (a slide deck's key handlers, say). Every HTML page is
+  served with a small inline script placed right after `<head>` that swaps in
+  an in-memory store when, and only when, the real one throws (nothing persists;
+  the ETag carries a shim version). The file preview's `srcDoc` frame gets the
+  same script (`apps/web/src/lib/html-storage-shim.ts`).
+
 - **Logging.** The access log redacts the token and the grant, as it does for
   `/s/` (`/a/REDACTED/~REDACTED/…` on the app's origin). A per-IP limit sits in
   front, like `/s/`.

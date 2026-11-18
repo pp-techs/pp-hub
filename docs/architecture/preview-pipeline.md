@@ -447,7 +447,7 @@ to `HtmlPreview` instead of `CodePreview`. That component shows the fetched
 bytes two ways, as a `Tabs` switch:
 
 - **Preview** (default) — `HtmlFrame` renders the HTML with
-  `<iframe sandbox="allow-scripts" srcDoc={html}>`. `srcDoc` is load-bearing:
+  `<iframe sandbox="allow-scripts" srcDoc={withStorageShim(html)}>` (the shim gives a page that reads `localStorage` at load an in-memory store, since the opaque origin makes the real one throw; see publishing.md). `srcDoc` is load-bearing:
   `inlineMimes` downgrades `text/html` to `attachment` exactly so a direct
   request for it never renders (above), and `srcDoc` never makes that
   request — the bytes are already in hand from `useCode`. `sandbox` is the

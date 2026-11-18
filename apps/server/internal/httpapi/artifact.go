@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"log/slog"
@@ -192,8 +193,18 @@ func (s *Server) serveArtifact(compress func(http.Handler) http.Handler) http.Ha
 		defer rc.Close()
 		h := func(w http.ResponseWriter, r *http.Request) {
 			writeArtifactHeaders(w, f)
-			rs, ok := rc.(io.ReadSeeker)
-			if !ok {
+			var rs io.ReadSeeker
+			if strings.HasPrefix(w.Header().Get("Content-Type"), "text/html") && f.Size <= artifactShimMaxBytes {
+				page, err := io.ReadAll(rc)
+				if err != nil {
+					Error(w, r, err)
+					return
+				}
+				w.Header().Set("ETag", `"`+f.BlobHash+"-"+artifactShimVersion+`"`)
+				rs = bytes.NewReader(injectStorageShim(page))
+			} else if seeker, ok := rc.(io.ReadSeeker); ok {
+				rs = seeker
+			} else {
 				rs = &forwardSeeker{r: rc, size: f.Size}
 			}
 			http.ServeContent(w, r, "", sv.Publication.PublishedAt.Time, rs)
