@@ -1,5 +1,18 @@
 # @pp-hub/release
 
+## 1.7.0
+
+### Minor Changes
+
+- d534865: Cmd+S (Ctrl+S) now saves the open file. In a block document or an office document it asks the editor to write what it holds as a version right away, instead of at the next quiet period or periodic save, and says whether it saved or had nothing to save. It works while the cursor is in the page; inside OnlyOffice's own frame the key stays with OnlyOffice.
+
+  Administrators get a new **Open files** page in the admin console. It lists every file open in an editor right now, with when it was opened, last active and last saved, and can ask one file or all of them to save. Use it before a redeploy to see what a restart would interrupt and to save it first.
+
+### Patch Changes
+
+- b2932e2: HTML pages (published sites and the file preview) that read `localStorage` or `sessionStorage` at load, such as slide decks with arrow-key navigation, now work. The sandbox that isolates them makes those reads throw, which stopped the page's script; pp-hub now gives such a page an in-memory store for the visit. Nothing persists between visits.
+- d45a128: A markdown document whose bullet items start with a letter or number marker, such as `- A. first choice` in a multiple-choice quiz, opens again. The server read `A.` as the start of a nested list, which the editor cannot show, so the page stayed blank. Such an item is now plain text, as the editor itself reads it.
+
 ## 1.6.0
 
 ### Minor Changes
