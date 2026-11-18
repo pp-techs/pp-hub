@@ -1,0 +1,46 @@
+{
+  "name": "list-item-same-line-alpha",
+  "input": "- A. one\n- B. two\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "bulletList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "A. one"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "B. two"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "- A. one\n- B. two",
+  "yupdate_b64": "AQkBAAcBB2NvbnRlbnQDCmJ1bGxldExpc3QHAAEAAwhsaXN0SXRlbQcAAQEDCXBhcmFncmFwaAcAAQIGBAABAwZBLiBvbmWHAQEDCGxpc3RJdGVtBwABCgMJcGFyYWdyYXBoBwABCwYEAAEMBkIuIHR3bwA=",
+  "expect_lossy": false
+}

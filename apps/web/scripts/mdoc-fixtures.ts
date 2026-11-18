@@ -202,6 +202,9 @@ const cases: Case[] = [
   { name: "list-item-trailing-spaces", input: "- a  \n- b  \n  - c  \n  - d  \n" },
   { name: "list-item-continuation", input: "- a\n   b\n- c\n" },
   { name: "list-item-alpha-interrupt", input: "- foo\n  on. bar\n- baz\n" },
+  { name: "list-item-same-line-alpha", input: "- A. one\n- B. two\n" },
+  { name: "list-item-same-line-number", input: "- 1. one\n- 2) two **bold**\n" },
+  { name: "list-item-same-line-continuation", input: "- A. one\n  more\n- b. two\n" },
   { name: "ordered-list-continuation", input: "1. foo\n   bar\n2. **x**\n    y\n" },
   // Blockquote
   { name: "blockquote", input: "> quoted\n" },

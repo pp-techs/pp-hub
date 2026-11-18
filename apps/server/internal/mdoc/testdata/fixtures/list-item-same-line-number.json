@@ -1,0 +1,55 @@
+{
+  "name": "list-item-same-line-number",
+  "input": "- 1. one\n- 2) two **bold**\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "bulletList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "1. one"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "2) two "
+                  },
+                  {
+                    "type": "text",
+                    "text": "bold",
+                    "marks": [
+                      {
+                        "type": "bold"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "- 1. one\n- 2) two **bold**",
+  "yupdate_b64": "AQwBAAcBB2NvbnRlbnQDCmJ1bGxldExpc3QHAAEAAwhsaXN0SXRlbQcAAQEDCXBhcmFncmFwaAcAAQIGBAABAwYxLiBvbmWHAQEDCGxpc3RJdGVtBwABCgMJcGFyYWdyYXBoBwABCwYEAAEMBzIpIHR3byCGARMEYm9sZAJ7fYQBFARib2xkhgEYBGJvbGQEbnVsbAA=",
+  "expect_lossy": false
+}

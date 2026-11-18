@@ -121,6 +121,15 @@ func (b htmlBlockParser) Open(parent ast.Node, reader text.Reader, pc parser.Con
 	return b.BlockParser.Open(parent, reader, pc)
 }
 
+// inlineParsers are the inline tokenizers every parser here runs: goldmark's
+// defaults with the mention, page link and emoji shortcode tokenizers ahead.
+func inlineParsers() []util.PrioritizedValue {
+	return append(parser.DefaultInlineParsers(),
+		util.Prioritized(mentionParser{}, 90),
+		util.Prioritized(pageLinkParser{}, 90),
+		util.Prioritized(shortcodeParser{}, 90))
+}
+
 // newParser is goldmark's default parser with htmlBlockParser in place of
 // the HTML block parser, and the mention, page link and emoji shortcode
 // tokenizers ahead of the inline parsers.
@@ -134,10 +143,16 @@ func newParser() parser.Parser {
 	}
 	return parser.NewParser(
 		parser.WithBlockParsers(blocks...),
-		parser.WithInlineParsers(append(parser.DefaultInlineParsers(),
-			util.Prioritized(mentionParser{}, 90),
-			util.Prioritized(pageLinkParser{}, 90),
-			util.Prioritized(shortcodeParser{}, 90))...),
+		parser.WithInlineParsers(inlineParsers()...),
 		parser.WithParagraphTransformers(parser.DefaultParagraphTransformers()...),
+	)
+}
+
+// newInlineParser reads text as nothing but one paragraph's inlines, however
+// much it looks like a list, heading or fence: marked's inlineTokens.
+func newInlineParser() parser.Parser {
+	return parser.NewParser(
+		parser.WithBlockParsers(util.Prioritized(parser.NewParagraphParser(), 1000)),
+		parser.WithInlineParsers(inlineParsers()...),
 	)
 }

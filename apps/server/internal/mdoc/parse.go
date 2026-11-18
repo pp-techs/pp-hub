@@ -12,7 +12,6 @@ import (
 	east "github.com/yuin/goldmark/extension/ast"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
-	"github.com/yuin/goldmark/util"
 )
 
 // Parse converts markdown into a document the way slash-editor's
@@ -62,11 +61,7 @@ var gm = goldmark.New(
 
 // inlineGM parses text as nothing but paragraphs: marked's inlineTokens.
 var inlineGM = goldmark.New(
-	goldmark.WithParser(newParser()),
-	goldmark.WithParserOptions(
-		parser.WithBlockParsers(util.Prioritized(parser.NewParagraphParser(), 1000)),
-		parser.WithParagraphTransformers(),
-	),
+	goldmark.WithParser(newInlineParser()),
 	goldmark.WithExtensions(extension.Strikethrough),
 )
 
@@ -758,7 +753,10 @@ func (p *mdParser) list(l *ast.List, sub, raw string) []Node {
 		body := listItemBody(itemRaw)
 		nested := p.nested
 		p.nested = true
-		content := p.blocks(body, !l.IsTight)
+		content := p.sameLineOrdered(body)
+		if content == nil {
+			content = p.blocks(body, !l.IsTight)
+		}
 		p.nested = nested
 		if len(content) == 0 {
 			content = []Node{{Type: "paragraph", Content: []Node{}}}
@@ -788,6 +786,21 @@ func (p *mdParser) list(l *ast.List, sub, raw string) []Node {
 		i = j
 	}
 	return out
+}
+
+// sameLineOrdered is ListItem.parseMarkdown's isSameLineOrderedListToken: an
+// item whose whole text lexes as one ordered list ("- A. foo", where "A." is
+// a list marker only to the ordered list tokenizer) is the plain paragraph
+// "A. foo", not a list directly inside the item, which the schema forbids (a
+// list item opens with a paragraph). nil if body is not such an item.
+func (p *mdParser) sameLineOrdered(body string) []Node {
+	lossy := p.lossy
+	entries, n, ok := p.custom(body, 0)
+	p.lossy = lossy
+	if !ok || n != len(body) || len(entries) != 1 || len(entries[0].nodes) != 1 || entries[0].nodes[0].Type != "orderedList" {
+		return nil
+	}
+	return []Node{p.paragraph(p.inlineText(body), body)}
 }
 
 // mixedTaskItem is parseListToken's task item: first line is the item,

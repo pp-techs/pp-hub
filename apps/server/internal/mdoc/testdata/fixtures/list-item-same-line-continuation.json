@@ -1,0 +1,46 @@
+{
+  "name": "list-item-same-line-continuation",
+  "input": "- A. one\n  more\n- b. two\n",
+  "frontmatter": "",
+  "json": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "bulletList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "A. one\nmore"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "b. two"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "- A. one\nmore\n- b. two",
+  "yupdate_b64": "AQkBAAcBB2NvbnRlbnQDCmJ1bGxldExpc3QHAAEAAwhsaXN0SXRlbQcAAQEDCXBhcmFncmFwaAcAAQIGBAABAwtBLiBvbmUKbW9yZYcBAQMIbGlzdEl0ZW0HAAEPAwlwYXJhZ3JhcGgHAAEQBgQAAREGYi4gdHdvAA==",
+  "expect_lossy": false
+}
