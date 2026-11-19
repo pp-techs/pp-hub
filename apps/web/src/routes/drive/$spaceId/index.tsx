@@ -697,17 +697,6 @@ function FolderView() {
                   style={marquee.rect}
                 />
               )}
-
-              <SelectionBar
-                selected={selectedNodes}
-                onClear={() => setSelectedIds(new Set())}
-                // eslint-disable-next-line lingui/no-unlocalized-strings -- window.open target
-                onDownload={(node) => window.open(downloadUrl(node), "_blank")}
-                onShare={(node) => void ShareDialog.show({ node })}
-                onRename={handleRename}
-                onMove={(nodes) => void handleMove(nodes)}
-                onDelete={(nodes) => setConfirmNodes(nodes)}
-              />
             </ContextMenuTrigger>
 
             <ContextMenuContent className="w-56">
@@ -723,6 +712,21 @@ function FolderView() {
               ))}
             </ContextMenuContent>
           </ContextMenu>
+
+          {/* Sibling of the scroller (not a child of it), so the bar's
+              absolute bottom positioning is relative to this panel's
+              viewport and stays pinned there while the listing scrolls,
+              instead of tracking the scrolled content's bottom edge. */}
+          <SelectionBar
+            selected={selectedNodes}
+            onClear={() => setSelectedIds(new Set())}
+            // eslint-disable-next-line lingui/no-unlocalized-strings -- window.open target
+            onDownload={(node) => window.open(downloadUrl(node), "_blank")}
+            onShare={(node) => void ShareDialog.show({ node })}
+            onRename={handleRename}
+            onMove={(nodes) => void handleMove(nodes)}
+            onDelete={(nodes) => setConfirmNodes(nodes)}
+          />
         </DropZone>
 
         {/* Beside the listing there is room for a fixed 320px column only on a

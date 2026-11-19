@@ -153,7 +153,7 @@ msgstr "{buried, plural, one {# mục của bạn bên trong} other {# mục c�
 msgid "{count, plural, one {# sub-page} other {# sub-pages}}"
 msgstr "{count, plural, other {# trang con}}"
 
-#: src/routes/drive/$spaceId/index.tsx:802
+#: src/routes/drive/$spaceId/index.tsx:806
 msgid "{count, plural, one {Are you sure you want to move # item to trash?} other {Are you sure you want to move # items to trash?}}"
 msgstr "{count, plural, one {Bạn có chắc muốn chuyển # mục vào thùng rác không?} other {Bạn có chắc muốn chuyển # mục vào thùng rác không?}}"
 
@@ -161,11 +161,11 @@ msgstr "{count, plural, one {Bạn có chắc muốn chuyển # mục vào thùn
 msgid "{count, plural, one {The other signed-in device will have to sign in again.} other {All # other signed-in devices will have to sign in again.}}"
 msgstr "{count, plural, one {Tất cả # thiết bị đã đăng nhập khác sẽ phải đăng nhập lại.} other {Tất cả # thiết bị đã đăng nhập khác sẽ phải đăng nhập lại.}}"
 
-#: src/routes/drive/$spaceId/index.tsx:835
+#: src/routes/drive/$spaceId/index.tsx:839
 msgid "{count, plural, one {These folders hold # item other people created. They lose access until you restore them.} other {These folders hold # items other people created. They lose access until you restore them.}}"
 msgstr "{count, plural, one {Các thư mục này chứa # mục do người khác tạo. Họ sẽ mất quyền truy cập cho đến khi bạn khôi phục.} other {Các thư mục này chứa # mục do người khác tạo. Họ sẽ mất quyền truy cập cho đến khi bạn khôi phục.}}"
 
-#: src/routes/drive/$spaceId/index.tsx:830
+#: src/routes/drive/$spaceId/index.tsx:834
 msgid "{count, plural, one {This folder holds # item other people created. They lose access until you restore it.} other {This folder holds # items other people created. They lose access until you restore it.}}"
 msgstr "{count, plural, one {Thư mục này chứa # mục do người khác tạo. Họ sẽ mất quyền truy cập cho đến khi bạn khôi phục.} other {Thư mục này chứa # mục do người khác tạo. Họ sẽ mất quyền truy cập cho đến khi bạn khôi phục.}}"
 
@@ -1017,7 +1017,7 @@ msgid "Archived personal spaces"
 msgstr "Không gian cá nhân đã lưu trữ"
 
 #: src/components/nav-apps.tsx:347
-#: src/routes/drive/$spaceId/index.tsx:801
+#: src/routes/drive/$spaceId/index.tsx:805
 msgid "Are you sure you want to move \"{nodeName}\" to trash?"
 msgstr "Bạn có chắc muốn chuyển \"{nodeName}\" vào thùng rác không?"
 
@@ -2180,7 +2180,7 @@ msgstr "Đã tách rời — đoạn văn được bình luận đã bị xóa"
 #: src/components/preview-panel.tsx:112
 #: src/components/preview-panel.tsx:242
 #: src/components/preview-panel.tsx:378
-#: src/routes/drive/$spaceId/index.tsx:739
+#: src/routes/drive/$spaceId/index.tsx:743
 msgid "Details"
 msgstr "Chi tiết"
 
@@ -2441,7 +2441,7 @@ msgid "Enable"
 msgstr "Bật"
 
 #: src/components/nav-apps.tsx:321
-#: src/routes/drive/$spaceId/index.tsx:764
+#: src/routes/drive/$spaceId/index.tsx:768
 msgid "Enter a new name for this item."
 msgstr "Nhập tên mới cho mục này."
 
@@ -2986,7 +2986,7 @@ msgstr "Đã bao gồm khi có quyền chỉnh sửa"
 msgid "Information"
 msgstr "Thông tin"
 
-#: src/routes/drive/$spaceId/index.tsx:742
+#: src/routes/drive/$spaceId/index.tsx:746
 msgid "Information about the selected items."
 msgstr "Thông tin về các mục đã chọn."
 
@@ -3626,8 +3626,8 @@ msgstr "Di chuyển “{name}”"
 #: src/components/nav-apps.tsx:346
 #: src/components/nav-apps.tsx:348
 #: src/components/node-actions.tsx:341
-#: src/routes/drive/$spaceId/index.tsx:798
-#: src/routes/drive/$spaceId/index.tsx:807
+#: src/routes/drive/$spaceId/index.tsx:802
+#: src/routes/drive/$spaceId/index.tsx:811
 msgid "Move to trash"
 msgstr "Chuyển vào thùng rác"
 
@@ -4710,7 +4710,7 @@ msgstr "Xoá “{spaceName}” và mọi thứ bên trong — mọi tệp, phiê
 #: src/components/nav-apps.tsx:318
 #: src/components/node-actions.tsx:264
 #: src/components/selection-bar.tsx:79
-#: src/routes/drive/$spaceId/index.tsx:761
+#: src/routes/drive/$spaceId/index.tsx:765
 msgid "Rename"
 msgstr "Đổi tên"
 
@@ -4881,7 +4881,7 @@ msgstr "Các hàng và cột ô"
 #: src/components/comments/comments-popover.tsx:622
 #: src/components/nav-apps.tsx:336
 #: src/routes/admin.open-files.tsx:179
-#: src/routes/drive/$spaceId/index.tsx:788
+#: src/routes/drive/$spaceId/index.tsx:792
 msgid "Save"
 msgstr "Lưu"
 

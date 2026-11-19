@@ -10,3 +10,5 @@
 - Releases go through Changesets (see `CONTRIBUTING.md#releasing`): add one with `bun run changeset` (package `@pp-hub/release`) for any user- or operator-visible change. Never bump versions, edit `CHANGELOG.md`'s release sections, or push release tags by hand
 
 <!-- RULES END-->
+
+- Always add change-set when having changes that necessary for deployments
