@@ -11,6 +11,14 @@ Versions up to and including 0.14.1 predate this changelog; see the
 
 <!-- `bun run version-packages` adds each release's section from its changesets; edit it in the Version Packages PR. -->
 
+## [1.8.0] — 2026-11-19
+
+Server administration pages (Users, Apps, Settings, etc.) now show their page title a size smaller, matching the rest of the app more closely.
+
+The selection toolbar (Download, Share, Rename, Move, Delete) that appears when you pick files in a folder no longer drifts away when you scroll a long listing. It now stays pinned to the bottom of the folder view instead of tracking the scrolled content.
+
+The document outline now lists headings inside toggles, and toggles with a heading style, as well. Selecting one opens the toggle (and any toggle around it) and scrolls to it. Also upgrades the editor to slash-editor 0.9.0.
+
 ## [1.7.0] — 2026-11-18
 
 HTML pages (published sites and the file preview) that read `localStorage` or `sessionStorage` at load, such as slide decks with arrow-key navigation, now work. The sandbox that isolates them makes those reads throw, which stopped the page's script; pp-hub now gives such a page an in-memory store for the visit. Nothing persists between visits.

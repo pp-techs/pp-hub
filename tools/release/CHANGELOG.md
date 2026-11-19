@@ -1,5 +1,16 @@
 # @pp-hub/release
 
+## 1.8.0
+
+### Minor Changes
+
+- ea94780: The document outline now lists headings inside toggles, and toggles with a heading style, as well. Selecting one opens the toggle (and any toggle around it) and scrolls to it. Also upgrades the editor to slash-editor 0.9.0.
+
+### Patch Changes
+
+- 5aab349: Server administration pages (Users, Apps, Settings, etc.) now show their page title a size smaller, matching the rest of the app more closely.
+- 3a89312: The selection toolbar (Download, Share, Rename, Move, Delete) that appears when you pick files in a folder no longer drifts away when you scroll a long listing. It now stays pinned to the bottom of the folder view instead of tracking the scrolled content.
+
 ## 1.7.0
 
 ### Minor Changes
