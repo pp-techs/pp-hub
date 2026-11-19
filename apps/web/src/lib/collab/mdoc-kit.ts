@@ -97,12 +97,17 @@ const mdocCodeBlock = codeBlock({ lowlight: mdocLowlight });
  * fixtures (`bun apps/web/scripts/mdoc-fixtures.ts`). `mention: {items}` and
  * `comment: {store}` pass through to slash-editor.
  *
+ * `headingLevels` is `1`–`6`, what `mdoc` stores: Tiptap 3.34's heading
+ * parses a level outside `levels` as a paragraph (and renders it as `<h1>`),
+ * so slash-editor's `[1, 2, 3]` default would flatten `####` headings.
+ *
  * StarterKit's `underline` is off: it serializes as `++x++`, which `mdoc`
  * does not store.
  */
 export function createMdocKit(options: MdocKitOptions = {}): AnyExtension[] {
   const { mention, starterKit, pages, ...rest } = options;
   return createBlockKit({
+    headingLevels: [1, 2, 3, 4, 5, 6],
     ...rest,
     starterKit: { ...starterKit, underline: false },
     codeBlock: rest.codeBlock ?? mdocCodeBlock,

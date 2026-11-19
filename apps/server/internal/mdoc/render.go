@@ -953,7 +953,89 @@ func htmlReopen(typ string) (open, closing string, ok bool) {
 	return "", "", false
 }
 
-func markOpening(typ string, m *Mark, mode string) string {
+// codeFence is Tiptap's inline-code delimiter for a mark span reading text: a
+// run of backticks one longer than none of the runs inside it, padded by a
+// space when the text starts or ends with a backtick.
+func codeFence(text string) (fence, pad string) {
+	runs := map[int]bool{}
+	n := 0
+	for _, c := range text + "x" {
+		if c == '`' {
+			n++
+			continue
+		}
+		if n > 0 {
+			runs[n] = true
+			n = 0
+		}
+	}
+	length := 1
+	for runs[length] {
+		length++
+	}
+	if strings.HasPrefix(text, "`") || strings.HasSuffix(text, "`") {
+		pad = " "
+	}
+	return strings.Repeat("`", length), pad
+}
+
+// collectMarkSpanTexts is Tiptap's helper of the same name: per node, per
+// mark type, the concatenated text of the run of adjacent text nodes carrying
+// that mark. A non-text node ends every run.
+func collectMarkSpanTexts(nodes []Node) []map[string]string {
+	spans := make([]map[string]string, len(nodes))
+	for i := range spans {
+		spans[i] = map[string]string{}
+	}
+	type run struct {
+		indexes []int
+		text    string
+	}
+	open := map[string]*run{}
+	flush := func(k string) {
+		r := open[k]
+		if r == nil {
+			return
+		}
+		for _, i := range r.indexes {
+			spans[i][k] = r.text
+		}
+		delete(open, k)
+	}
+	for i := range nodes {
+		n := &nodes[i]
+		if n.Type != "text" {
+			for k := range open {
+				flush(k)
+			}
+			continue
+		}
+		has := map[string]bool{}
+		for _, m := range n.Marks {
+			has[m.Type] = true
+		}
+		for k := range open {
+			if !has[k] {
+				flush(k)
+			}
+		}
+		for k := range has {
+			r := open[k]
+			if r == nil {
+				r = &run{}
+				open[k] = r
+			}
+			r.indexes = append(r.indexes, i)
+			r.text += n.Text
+		}
+	}
+	for k := range open {
+		flush(k)
+	}
+	return spans
+}
+
+func markOpening(typ string, m *Mark, mode string, markText string) string {
 	if mode == openHTML {
 		open, _, _ := htmlReopen(typ)
 		return open
@@ -966,14 +1048,15 @@ func markOpening(typ string, m *Mark, mode string) string {
 	case "strike":
 		return "~~"
 	case "code":
-		return "`"
+		fence, pad := codeFence(markText)
+		return fence + pad
 	case "link":
 		return "["
 	}
 	return ""
 }
 
-func markClosing(typ string, m *Mark, mode string) string {
+func markClosing(typ string, m *Mark, mode string, markText string) string {
 	if mode == openHTML {
 		_, closing, _ := htmlReopen(typ)
 		return closing
@@ -986,7 +1069,8 @@ func markClosing(typ string, m *Mark, mode string) string {
 	case "strike":
 		return "~~"
 	case "code":
-		return "`"
+		fence, pad := codeFence(markText)
+		return pad + fence
 	case "link":
 		var attrs map[string]any
 		if m != nil {
@@ -1030,6 +1114,13 @@ func (r *renderer) renderInline(nodes []Node, parent *Node, sep string) string {
 func (r *renderer) renderPieces(nodes []Node, parent *Node) (pieces []string, kept []bool) {
 	pieces = make([]string, len(nodes))
 	kept = make([]bool, len(nodes))
+	spanTexts := collectMarkSpanTexts(nodes)
+	spanText := func(i int, k string) string {
+		if i < 0 || i >= len(spanTexts) {
+			return ""
+		}
+		return spanTexts[i][k]
+	}
 	active := newMarkMap()
 	reopenHTML := map[string]bool{}
 	modes := map[string]string{}
@@ -1065,7 +1156,7 @@ func (r *renderer) renderPieces(nodes []Node, parent *Node) (pieces []string, ke
 			before := ""
 			for j := len(active.keys) - 1; j >= 0; j-- {
 				k := active.keys[j]
-				before = markClosing(k, active.get(k), modeOf(k)) + before
+				before = markClosing(k, active.get(k), modeOf(k), spanText(i-1, k)) + before
 			}
 			active.clear()
 			clear(modes)
@@ -1078,7 +1169,7 @@ func (r *renderer) renderPieces(nodes []Node, parent *Node) (pieces []string, ke
 						mode = openMarkdown
 					}
 					modes[k] = mode
-					after += markOpening(k, reopen.get(k), mode)
+					after += markOpening(k, reopen.get(k), mode, spanText(i+1, k))
 					active.set(k, reopen.get(k))
 				}
 			}
@@ -1121,7 +1212,7 @@ func (r *renderer) renderPieces(nodes []Node, parent *Node) (pieces []string, ke
 				if !active.has(k) {
 					continue
 				}
-				text += markClosing(k, current.get(k), modeOf(k))
+				text += markClosing(k, current.get(k), modeOf(k), spanText(i, k))
 				active.delete(k)
 				delete(modes, k)
 			}
@@ -1136,7 +1227,7 @@ func (r *renderer) renderPieces(nodes []Node, parent *Node) (pieces []string, ke
 			if reopenHTML[o.typ] {
 				mode = openHTML
 			}
-			text = markOpening(o.typ, o.mark, mode) + text
+			text = markOpening(o.typ, o.mark, mode, spanText(i, o.typ)) + text
 			modes[o.typ] = mode
 			delete(reopenHTML, o.typ)
 		}
@@ -1182,7 +1273,7 @@ func (r *renderer) renderPieces(nodes []Node, parent *Node) (pieces []string, ke
 			if m == nil {
 				m = current.get(k)
 			}
-			text += markClosing(k, m, modeOf(k))
+			text += markClosing(k, m, modeOf(k), spanText(i, k))
 			active.delete(k)
 			delete(modes, k)
 		}

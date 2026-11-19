@@ -14,8 +14,9 @@ const INDENT: Record<number, string> = { 1: "pl-3", 2: "pl-7", 3: "pl-11" };
 
 /**
  * The document's headings as a Notion-style table of contents, from
- * slash-editor's `tableOfContents` extension (top-level `h1`–`h3`; the kit's
- * `maxLevel` is set in `doc-editor.tsx`). At rest it is a column of short
+ * slash-editor's `tableOfContents` extension (`h1`–`h3`, plus headed toggles and
+ * headings inside toggles via `includeToggles`; both set in `doc-editor.tsx`
+ * and `read-only-editor.tsx`). Picking an entry inside a closed toggle opens it. At rest it is a column of short
  * dashes, one per heading, the one being read highlighted; hovering (or
  * focusing) it opens a card with the heading titles. The active entry follows
  * the caret while the writer types and the scroll position otherwise; a click

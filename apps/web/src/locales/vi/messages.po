@@ -4248,7 +4248,7 @@ msgstr "Thư gửi đi (SMTP)"
 msgid "Outgoing mail settings reset"
 msgstr "Đã đặt lại cài đặt thư gửi đi"
 
-#: src/components/doc-editor/outline-panel.tsx:48
+#: src/components/doc-editor/outline-panel.tsx:49
 msgid "Outline"
 msgstr "Mục lục"
 
@@ -6103,7 +6103,7 @@ msgstr "Tài liệu không tên"
 msgid "Untitled file"
 msgstr "Tệp không tên"
 
-#: src/components/doc-editor/outline-panel.tsx:78
+#: src/components/doc-editor/outline-panel.tsx:79
 msgid "Untitled heading"
 msgstr "Tiêu đề chưa đặt tên"
 

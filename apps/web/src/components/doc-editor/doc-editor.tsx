@@ -423,7 +423,7 @@ function DocSurface({
       collaboration: { document: doc, provider, user: { name, color } },
       comment: { store: commentStore },
       slash: false,
-      tableOfContents: { maxLevel: 3 },
+      tableOfContents: { maxLevel: 3, includeToggles: true },
       placeholder: { resolve: (context) => localizedPlaceholder(i18n, context) },
       toggle: {
         renderToggleButton: ({ element, isOpen }) => labelToggleButton(i18n, element, isOpen),

@@ -4248,7 +4248,7 @@ msgstr "Outgoing mail (SMTP)"
 msgid "Outgoing mail settings reset"
 msgstr "Outgoing mail settings reset"
 
-#: src/components/doc-editor/outline-panel.tsx:48
+#: src/components/doc-editor/outline-panel.tsx:49
 msgid "Outline"
 msgstr "Outline"
 
@@ -6103,7 +6103,7 @@ msgstr "Untitled document"
 msgid "Untitled file"
 msgstr "Untitled file"
 
-#: src/components/doc-editor/outline-panel.tsx:78
+#: src/components/doc-editor/outline-panel.tsx:79
 msgid "Untitled heading"
 msgstr "Untitled heading"
 

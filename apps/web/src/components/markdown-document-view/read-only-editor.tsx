@@ -75,7 +75,7 @@ export default function ReadOnlyEditor({
       bubbleToolbar: false,
       linkEditor: false,
       placeholder: false,
-      tableOfContents: { maxLevel: 3 },
+      tableOfContents: { maxLevel: 3, includeToggles: true },
       toggle: {
         renderToggleButton: ({ element, isOpen }) => labelToggleButton(i18n, element, isOpen),
       },

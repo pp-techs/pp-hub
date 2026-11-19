@@ -9,10 +9,6 @@
     "bulletList": {
       "id": null
     },
-    "codeBlock": {
-      "id": null,
-      "language": null
-    },
     "doc": {},
     "hardBreak": {},
     "heading": {
@@ -33,6 +29,10 @@
     "text": {},
     "blockquote": {
       "id": null
+    },
+    "codeBlock": {
+      "id": null,
+      "language": null
     },
     "taskList": {
       "id": null

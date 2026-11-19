@@ -289,7 +289,7 @@ the file.
 ### Golden fixtures
 
 `bun apps/web/scripts/mdoc-fixtures.ts`, run against the same
-`@slash-editor/core` as `apps/web` and the same `createMdocKit()`, writes 263
+`@slash-editor/core` as `apps/web` and the same `createMdocKit()`, writes 266
 fixtures to `internal/mdoc/testdata/fixtures/` — the input, its frontmatter,
 slash-editor's `parseMarkdown` JSON, its `serializeMarkdown` output, a Y
 update built by `@tiptap/y-tiptap`, and whether `Parse` must flag it lossy —
@@ -823,8 +823,10 @@ in [M29](milestones/M29.md) and [data-model.md](data-model.md#comments-and-notif
   and derived from the display name (`lib/collab/presence.ts`).
 - Editing aids (M40): table controls (add or delete a row or column, toggle
   the header row, delete the table — `components/table-controls.tsx`); an
-  Notion-style outline of the top-level `h1`–`h3` headings from slash-editor's
-  `tableOfContents` extension (`useTableOfContents`, `maxLevel: 3`): a column
+  Notion-style outline of the `h1`–`h3` headings from slash-editor's
+  `tableOfContents` extension (`useTableOfContents`, `maxLevel: 3`,
+  `includeToggles: true` since 0.9.0, so a headed toggle's title and headings
+  inside toggles are listed, and selecting one opens its closed toggles): a column
   of dashes floating at the editor's top-right, one per heading, that opens
   into a card of titles on hover or focus; the active entry follows the caret
   while typing and the scroll position otherwise, click to jump. It is always
@@ -876,7 +878,7 @@ See [deployment.md](../deployment.md#block-document-collaboration).
 
 ## Testing
 
-- **Unit:** `mdoc` against the 260 golden fixtures and `schema.json`, including
+- **Unit:** `mdoc` against the 266 golden fixtures and `schema.json`, including
   block ids and the trailing paragraph, frontmatter, and the lossy flag; the
   comment-marker cases in `testdata/comments/` and the helpers
   (`comment_test.go`, `helpers_test.go`); the Go-built seeds, comment cases
