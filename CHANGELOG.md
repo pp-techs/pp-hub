@@ -11,6 +11,10 @@ Versions up to and including 0.14.1 predate this changelog; see the
 
 <!-- `bun run version-packages` adds each release's section from its changesets; edit it in the Version Packages PR. -->
 
+## [1.8.1] — 2026-11-20
+
+A markdown document with an empty list item (a numbered `1.` with no text, or an item that opens with a sub-list) no longer opens as a blank page. The server now gives such items an empty first paragraph, and an editor that still cannot read a document's content shows an error with a retry instead of an empty editor that could overwrite the document.
+
 ## [1.8.0] — 2026-11-19
 
 Server administration pages (Users, Apps, Settings, etc.) now show their page title a size smaller, matching the rest of the app more closely.
