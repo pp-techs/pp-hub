@@ -34,12 +34,29 @@ func Parse(src []byte) (Parsed, error) {
 	content = append(content, Node{Type: "paragraph", Content: []Node{}})
 	doc := Node{Type: "doc", Content: content}
 	resolveComments(&doc)
+	openItemsWithParagraph(&doc)
 	assignIDs(&doc)
 	var frontmatter []byte
 	if fm != nil {
 		frontmatter = append([]byte(nil), fm...)
 	}
 	return Parsed{Doc: doc, Frontmatter: frontmatter, Lossy: p.lossy}, nil
+}
+
+// openItemsWithParagraph enforces the schema's `paragraph block*` for list and
+// task items: an item with no content ("1. " before a bullet) or one opening
+// with a list ("-" over an indented sub-list) gets an empty paragraph first.
+// An item the editor cannot load makes it reject the whole document, which
+// then opens blank.
+func openItemsWithParagraph(n *Node) {
+	if n.Type == "listItem" || n.Type == "taskItem" {
+		if len(n.Content) == 0 || n.Content[0].Type != "paragraph" {
+			n.Content = append([]Node{{Type: "paragraph", Content: []Node{}}}, n.Content...)
+		}
+	}
+	for i := range n.Content {
+		openItemsWithParagraph(&n.Content[i])
+	}
 }
 
 var frontmatterRe = regexp.MustCompile(`\A---[ \t]*\r?\n(?:[\s\S]*?\r?\n)?(?:---|\.\.\.)[ \t]*(?:\r?\n|\z)`)

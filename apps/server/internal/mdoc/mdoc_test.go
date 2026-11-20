@@ -404,3 +404,35 @@ func TestGoUpdates(t *testing.T) {
 		}
 	}
 }
+
+// TestListItemsOpenWithParagraph pins the schema's `paragraph block*` for list
+// items: an empty ordered item ("1. " above a bullet) or an item opening with
+// a sub-list used to come out without the paragraph, so the editor rejected
+// the whole document and opened blank.
+func TestListItemsOpenWithParagraph(t *testing.T) {
+	var check func(n Node)
+	check = func(n Node) {
+		if n.Type == "listItem" || n.Type == "taskItem" {
+			if len(n.Content) == 0 || n.Content[0].Type != "paragraph" {
+				t.Errorf("%s does not open with a paragraph: %+v", n.Type, n.Content)
+			}
+		}
+		for _, c := range n.Content {
+			check(c)
+		}
+	}
+	for _, src := range []string{
+		"# T\n\n1. \n- foo\n",
+		"1. \n   - nested\n",
+		"1. \n   1. nested\n",
+		"- a\n-\n  - x\n",
+		"- \n  - nested\n",
+		"1. a\n2. \n3. b\n",
+	} {
+		p, err := Parse([]byte(src))
+		if err != nil {
+			t.Fatal(err)
+		}
+		check(p.Doc)
+	}
+}

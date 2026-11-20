@@ -7,11 +7,13 @@ import type { HocuspocusProvider } from "@hocuspocus/provider";
 import { slashCommand, type PagesOptions, type SlashItem } from "@slash-editor/core";
 import { EditorContent, useSlashEditor } from "@slash-editor/react";
 import { useQueryClient } from "@tanstack/react-query";
+import { ySyncPluginKey } from "@tiptap/y-tiptap";
 import type * as Y from "yjs";
 import type { Awareness } from "y-protocols/awareness";
 import {
   Check,
   CloudOff,
+  FileWarning,
   ListTree,
   Loader2,
   Lock,
@@ -138,6 +140,9 @@ export function DocEditor({
   const ancestors = lineage.data?.ancestors ?? [];
   const rootPage = useNode(ancestors[0]?.id);
   const [lossyAccepted, setLossyAccepted] = useState(false);
+  // The room holds content the editor's schema cannot show. The editor is
+  // dropped rather than left on a blank page that still takes typing.
+  const [invalidContent, setInvalidContent] = useState<Error | null>(null);
   // The page tree follows the reader across pages (each page remounts this
   // editor) and reloads; on a narrow screen it would cover the document, so
   // there it starts closed and is this page's alone.
@@ -183,12 +188,17 @@ export function DocEditor({
 
   const session = room.phase === "open" ? room.session : null;
   const lossyLocked = !!session?.lossy && !lossyAccepted;
-  const editable = !!session?.can_write && !lossyLocked;
+  const editable = !!session?.can_write && !lossyLocked && !invalidContent;
   const ready = room.phase === "open" && room.ready;
 
   useEffect(() => {
     if (room.phase === "denied" || room.phase === "failed") onSettled?.();
   }, [room.phase, onSettled]);
+
+  const retryInvalid = () => {
+    setInvalidContent(null);
+    retry();
+  };
 
   const confirmLossyEdit = () => {
     LossyEditModal.show({ name: node.name }).then(
@@ -252,7 +262,35 @@ export function DocEditor({
       </EditorHeader>
 
       <div className="relative flex min-h-0 flex-1">
-        {room.phase === "open" && room.ready ? (
+        {room.phase === "open" && room.ready && invalidContent ? (
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <Empty className="h-full">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <FileWarning />
+                </EmptyMedia>
+                <EmptyTitle>
+                  <Trans>This document cannot be edited</Trans>
+                </EmptyTitle>
+                <EmptyDescription>
+                  <Trans>
+                    The editor cannot read its content, so it is not opened: editing it could
+                    overwrite the saved document. Nothing was changed.
+                  </Trans>
+                </EmptyDescription>
+                <EmptyDescription className="font-mono text-xs">
+                  {invalidContent.message}
+                </EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent>
+                <Button variant="outline" size="sm" onClick={retryInvalid}>
+                  <RefreshCw data-icon="inline-start" />
+                  <Trans>Try again</Trans>
+                </Button>
+              </EmptyContent>
+            </Empty>
+          </div>
+        ) : room.phase === "open" && room.ready ? (
           <TooltipProvider>
             <DocSurface
               // A new room is a new Y.Doc: the editor binds its document once.
@@ -267,6 +305,7 @@ export function DocEditor({
               pageStore={pageStore}
               onNavigate={openPage}
               onShown={onSettled}
+              onInvalidContent={setInvalidContent}
               // The tree hangs from the top-most page this reader can view.
               treeRootId={ancestors[0]?.id ?? node.id}
               treeExpanded={ancestors.map((page) => page.id)}
@@ -341,6 +380,7 @@ function DocSurface({
   treeReady,
   commentsButton,
   onShown,
+  onInvalidContent,
 }: {
   node: Node;
   doc: Y.Doc;
@@ -361,6 +401,8 @@ function DocSurface({
   /** The header's Comments button, which the global comments popover hangs from. */
   commentsButton: HTMLElement | null;
   onShown?: () => void;
+  /** The room's content does not fit the schema (a node missing what it requires). */
+  onInvalidContent: (error: Error) => void;
 }) {
   const [openThreadId, setOpenThreadId] = useState<string | null>(null);
   const { t, i18n } = useLingui();
@@ -417,6 +459,13 @@ function DocSurface({
   // the menus and placeholders still follow a language switch.
   const editor = useSlashEditor({
     editable,
+    // Without the check the editor drops what the schema rejects and shows
+    // an empty page, which the next keystroke saves over the document.
+    enableContentCheck: true,
+    onContentError: ({ error, editor }) => {
+      editor.setEditable(false);
+      onInvalidContent(error);
+    },
     blockKit: false,
     extensions: createMdocKit({
       ...MDOC_NODE_VIEW_KIT_OPTIONS,
@@ -447,6 +496,27 @@ function DocSurface({
   useEffect(() => {
     editor?.setEditable(editable);
   }, [editor, editable]);
+
+  // The sync plugin keeps the room's content when the schema cannot show it
+  // and refuses writes (`projectionError`), which leaves a blank page that
+  // looks like an empty document. `onContentError` covers the content check
+  // of newer releases; this covers the binding's own state.
+  useEffect(() => {
+    if (!editor) return;
+    const check = () => {
+      const error = ySyncPluginKey.getState(editor.state)?.binding?.projectionError;
+      if (error) onInvalidContent(error);
+    };
+    check();
+    /* eslint-disable lingui/no-unlocalized-strings -- editor event names */
+    editor.on("create", check);
+    editor.on("transaction", check);
+    return () => {
+      editor.off("create", check);
+      editor.off("transaction", check);
+    };
+    /* eslint-enable lingui/no-unlocalized-strings */
+  }, [editor, onInvalidContent]);
 
   // A frame after the editor exists, not at once: the page tree and header
   // beside it fill from the cache in microtasks, and a page put on screen

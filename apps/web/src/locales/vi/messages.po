@@ -925,7 +925,7 @@ msgstr "Quản trị viên chưa bật quyền truy cập cho tác tử."
 msgid "An administrator has turned personal tokens off."
 msgstr "Quản trị viên đã tắt mã truy cập cá nhân."
 
-#: src/components/doc-editor/doc-editor.tsx:372
+#: src/components/doc-editor/doc-editor.tsx:414
 msgid "Anonymous"
 msgstr "Ẩn danh"
 
@@ -1420,7 +1420,7 @@ msgstr "Chuỗi bình luận"
 #: src/components/comments/block-comments.tsx:201
 #: src/components/comments/comments-popover.tsx:191
 #: src/components/comments/comments-popover.tsx:287
-#: src/components/doc-editor/doc-editor.tsx:241
+#: src/components/doc-editor/doc-editor.tsx:251
 msgid "Comments"
 msgstr "Bình luận"
 
@@ -1632,7 +1632,7 @@ msgstr "Không thể tạo nhóm"
 #~ msgid "Could not create the label"
 #~ msgstr "Không tạo được nhãn"
 
-#: src/components/doc-editor/doc-editor.tsx:87
+#: src/components/doc-editor/doc-editor.tsx:89
 msgid "Could not create the page"
 msgstr "Không thể tạo trang"
 
@@ -1731,11 +1731,11 @@ msgstr "Không thể di chuyển trang"
 msgid "Could not move the page to the trash"
 msgstr "Không thể chuyển trang vào thùng rác"
 
-#: src/components/doc-editor/doc-editor.tsx:85
+#: src/components/doc-editor/doc-editor.tsx:87
 msgid "Could not move the sub-page to the trash"
 msgstr "Không thể chuyển trang con vào thùng rác"
 
-#: src/components/doc-editor/doc-editor.tsx:303
+#: src/components/doc-editor/doc-editor.tsx:342
 msgid "Could not open the document"
 msgstr "Không thể mở tài liệu"
 
@@ -1797,7 +1797,7 @@ msgstr "Không thể khôi phục “{name}”"
 msgid "Could not restore the page"
 msgstr "Không thể khôi phục trang"
 
-#: src/components/doc-editor/doc-editor.tsx:86
+#: src/components/doc-editor/doc-editor.tsx:88
 msgid "Could not restore the sub-page"
 msgstr "Không thể khôi phục trang con"
 
@@ -2335,7 +2335,7 @@ msgid "edit"
 msgstr "chỉnh sửa"
 
 #: src/components/comments/comments-popover.tsx:594
-#: src/components/doc-editor/doc-editor.tsx:228
+#: src/components/doc-editor/doc-editor.tsx:238
 #: src/components/node-actions.tsx:162
 msgid "Edit"
 msgstr "Chỉnh sửa"
@@ -4081,7 +4081,7 @@ msgstr "Đang tắt. Không ai tạo hay mở được các mục của nó."
 msgid "Office"
 msgstr "Office"
 
-#: src/components/doc-editor/doc-editor.tsx:625
+#: src/components/doc-editor/doc-editor.tsx:695
 msgid "Offline"
 msgstr "Ngoại tuyến"
 
@@ -4296,7 +4296,7 @@ msgstr "Không tìm thấy trang."
 msgid "Page title"
 msgstr "Tiêu đề trang"
 
-#: src/components/doc-editor/doc-editor.tsx:234
+#: src/components/doc-editor/doc-editor.tsx:244
 #: src/components/doc-editor/labels.ts:58
 #: src/components/doc-editor/page-tree-panel.tsx:193
 #: src/components/doc-editor/page-tree-panel.tsx:198
@@ -4569,7 +4569,7 @@ msgstr "chia sẻ lại"
 msgid "read-only"
 msgstr "chỉ đọc"
 
-#: src/components/doc-editor/doc-editor.tsx:222
+#: src/components/doc-editor/doc-editor.tsx:232
 msgid "Read-only"
 msgstr "Chỉ đọc"
 
@@ -4905,7 +4905,7 @@ msgstr "Lưu ngay"
 msgid "Save settings"
 msgstr "Lưu cài đặt"
 
-#: src/components/doc-editor/doc-editor.tsx:625
+#: src/components/doc-editor/doc-editor.tsx:695
 #: src/lib/use-save-node.ts:28
 #: src/routes/admin.open-files.tsx:62
 msgid "Saved"
@@ -5481,7 +5481,7 @@ msgstr "Đã tạm khoá"
 msgid "Switch space"
 msgstr "Chuyển không gian"
 
-#: src/components/doc-editor/doc-editor.tsx:625
+#: src/components/doc-editor/doc-editor.tsx:695
 msgid "Syncing…"
 msgstr "Đang đồng bộ…"
 
@@ -5579,6 +5579,10 @@ msgstr "Máy chủ riêng của ứng dụng. PP Hub chuyển các yêu cầu c�
 #~ msgid "The Checklist app is switched off for this space. The list is kept; an admin can turn the app back on."
 #~ msgstr "Ứng dụng Danh sách việc đang tắt trong không gian này. Danh sách vẫn được giữ; quản trị viên có thể bật lại ứng dụng."
 
+#: src/components/doc-editor/doc-editor.tsx:276
+msgid "The editor cannot read its content, so it is not opened: editing it could overwrite the saved document. Nothing was changed."
+msgstr "Trình soạn thảo không đọc được nội dung tài liệu nên không mở: chỉnh sửa có thể ghi đè bản đã lưu. Không có gì bị thay đổi."
+
 #: src/components/apps/upload-app-modal.tsx:79
 msgid "The folder holds no files to package."
 msgstr "Thư mục không có tệp nào để đóng gói."
@@ -5638,7 +5642,7 @@ msgstr "liên kết công khai"
 msgid "The rest of the thread stays."
 msgstr "Phần còn lại của chuỗi bình luận vẫn được giữ."
 
-#: src/components/doc-editor/doc-editor.tsx:308
+#: src/components/doc-editor/doc-editor.tsx:347
 #: src/components/markdown-document-view/index.tsx:212
 msgid "The server did not answer."
 msgstr "Máy chủ không phản hồi."
@@ -5751,11 +5755,15 @@ msgstr "Thiết bị này"
 msgid "This device stays signed in."
 msgstr "Thiết bị này luôn ở trạng thái đăng nhập."
 
+#: src/components/doc-editor/doc-editor.tsx:273
+msgid "This document cannot be edited"
+msgstr "Không thể chỉnh sửa tài liệu này"
+
 #: src/components/markdown-document-view/index.tsx:207
 msgid "This document cannot be shown"
 msgstr "Không thể hiển thị tài liệu này"
 
-#: src/components/doc-editor/doc-editor.tsx:286
+#: src/components/doc-editor/doc-editor.tsx:325
 msgid "This document is not available"
 msgstr "Tài liệu này không khả dụng"
 
@@ -5974,7 +5982,8 @@ msgstr "Thời gian giữ trong thùng rác (ngày)"
 msgid "Try a different search."
 msgstr "Hãy thử tìm kiếm khác."
 
-#: src/components/doc-editor/doc-editor.tsx:314
+#: src/components/doc-editor/doc-editor.tsx:288
+#: src/components/doc-editor/doc-editor.tsx:353
 #: src/ext/ext-unavailable.tsx:63
 msgid "Try again"
 msgstr "Thử lại"
@@ -6032,7 +6041,7 @@ msgstr "Nhập mã Mermaid ở trên"
 msgid "Type the space name to confirm"
 msgstr "Nhập tên không gian để xác nhận"
 
-#: src/components/doc-editor/doc-editor.tsx:84
+#: src/components/doc-editor/doc-editor.tsx:86
 msgid "Type to search"
 msgstr "Gõ để tìm kiếm"
 
@@ -6535,7 +6544,7 @@ msgstr "Bạn đã tải lên"
 msgid "Your access"
 msgstr "Quyền của bạn"
 
-#: src/components/doc-editor/doc-editor.tsx:289
+#: src/components/doc-editor/doc-editor.tsx:328
 msgid "Your access may have been removed, or the file is no longer a markdown document."
 msgstr "Có thể quyền truy cập của bạn đã bị gỡ, hoặc tệp không còn là tài liệu markdown."
 
