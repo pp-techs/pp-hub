@@ -4081,7 +4081,7 @@ msgstr "Off. Nobody can create or open its items."
 msgid "Office"
 msgstr "Office"
 
-#: src/components/doc-editor/doc-editor.tsx:695
+#: src/components/doc-editor/doc-editor.tsx:699
 msgid "Offline"
 msgstr "Offline"
 
@@ -4905,7 +4905,7 @@ msgstr "Save now"
 msgid "Save settings"
 msgstr "Save settings"
 
-#: src/components/doc-editor/doc-editor.tsx:695
+#: src/components/doc-editor/doc-editor.tsx:699
 #: src/lib/use-save-node.ts:28
 #: src/routes/admin.open-files.tsx:62
 msgid "Saved"
@@ -5481,7 +5481,7 @@ msgstr "Suspended"
 msgid "Switch space"
 msgstr "Switch space"
 
-#: src/components/doc-editor/doc-editor.tsx:695
+#: src/components/doc-editor/doc-editor.tsx:699
 msgid "Syncing…"
 msgstr "Syncing…"
 

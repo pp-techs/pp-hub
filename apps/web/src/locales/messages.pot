@@ -3537,7 +3537,7 @@ msgstr ""
 msgid "Office"
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:695
+#: src/components/doc-editor/doc-editor.tsx:699
 msgid "Offline"
 msgstr ""
 
@@ -4279,7 +4279,7 @@ msgstr ""
 msgid "Save settings"
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:695
+#: src/components/doc-editor/doc-editor.tsx:699
 #: src/lib/use-save-node.ts:28
 #: src/routes/admin.open-files.tsx:62
 msgid "Saved"
@@ -4805,7 +4805,7 @@ msgstr ""
 msgid "Switch space"
 msgstr ""
 
-#: src/components/doc-editor/doc-editor.tsx:695
+#: src/components/doc-editor/doc-editor.tsx:699
 msgid "Syncing…"
 msgstr ""
 
