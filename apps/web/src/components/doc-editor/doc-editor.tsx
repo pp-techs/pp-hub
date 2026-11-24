@@ -504,7 +504,11 @@ function DocSurface({
   useEffect(() => {
     if (!editor) return;
     const check = () => {
-      const error = ySyncPluginKey.getState(editor.state)?.binding?.projectionError;
+      // `projectionError` is private in the typings since y-tiptap 3.3 but still set at runtime.
+      const binding = ySyncPluginKey.getState(editor.state)?.binding as
+        | { projectionError?: Error | null }
+        | undefined;
+      const error = binding?.projectionError;
       if (error) onInvalidContent(error);
     };
     check();
