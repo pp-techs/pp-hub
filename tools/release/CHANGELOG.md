@@ -1,5 +1,12 @@
 # @pp-hub/release
 
+## 1.8.2
+
+### Patch Changes
+
+- 04ce158: Text inputs and text areas no longer show the browser's red spell-check underline (it appeared on Windows browsers).
+- 36898fe: Focusing a text input on iOS no longer zooms the page in.
+
 ## 1.8.1
 
 ### Patch Changes
