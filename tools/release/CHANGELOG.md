@@ -1,5 +1,12 @@
 # @pp-hub/release
 
+## 1.8.3
+
+### Patch Changes
+
+- 4687ee5: Documents with inline code inside bold (or other marks) now open in the editor instead of failing with "Invalid collection of marks".
+- 4687ee5: The file selection bar no longer wraps its clear button onto a second row when the window is narrow.
+
 ## 1.8.2
 
 ### Patch Changes

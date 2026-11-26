@@ -11,6 +11,12 @@ Versions up to and including 0.14.1 predate this changelog; see the
 
 <!-- `bun run version-packages` adds each release's section from its changesets; edit it in the Version Packages PR. -->
 
+## [1.8.3] — 2026-11-26
+
+Documents with inline code inside bold (or other marks) now open in the editor instead of failing with "Invalid collection of marks".
+
+The file selection bar no longer wraps its clear button onto a second row when the window is narrow.
+
 ## [1.8.2] — 2026-11-24
 
 Text inputs and text areas no longer show the browser's red spell-check underline (it appeared on Windows browsers).
