@@ -7,6 +7,7 @@ import {
   type PageStore,
   type PagesOptions,
 } from "@slash-editor/core";
+import Code from "@tiptap/extension-code";
 import { CodeBlock, codeBlock, type Lowlight } from "@slash-editor/core/code-block";
 import { emoji } from "@slash-editor/core/emoji";
 
@@ -91,6 +92,9 @@ export const mdocLowlight: Lowlight = CodeBlock.options.lowlight;
 mdocLowlight.highlightAuto = (value: string) => mdocLowlight.highlight("plaintext", value);
 const mdocCodeBlock = codeBlock({ lowlight: mdocLowlight });
 
+/** Inline code that may carry other marks (bold, italic, link, ...). */
+const mdocCode = Code.extend({ excludes: "" });
+
 /**
  * `createBlockKit` narrowed to the v1 block set: exactly what
  * `apps/server/internal/mdoc` stores. Keep in sync with the Go golden
@@ -102,17 +106,22 @@ const mdocCodeBlock = codeBlock({ lowlight: mdocLowlight });
  * so slash-editor's `[1, 2, 3]` default would flatten `####` headings.
  *
  * StarterKit's `underline` is off: it serializes as `++x++`, which `mdoc`
- * does not store.
+ * does not store. Its `code` is replaced by one that no longer excludes other
+ * marks: Tiptap's `excludes: "_"` makes `**`x`**` (valid markdown, accepted
+ * by the server) an invalid mark set that fails the whole document load.
  */
 export function createMdocKit(options: MdocKitOptions = {}): AnyExtension[] {
   const { mention, starterKit, pages, ...rest } = options;
-  return createBlockKit({
-    headingLevels: [1, 2, 3, 4, 5, 6],
-    ...rest,
-    starterKit: { ...starterKit, underline: false },
-    codeBlock: rest.codeBlock ?? mdocCodeBlock,
-    emoji: rest.emoji ?? mdocEmoji,
-    mention: mention === false ? false : { items: noMentions, ...mention },
-    pages: { resolveHref: pageHref, ...(pages ?? readOnlyPages) },
-  });
+  return [
+    ...createBlockKit({
+      headingLevels: [1, 2, 3, 4, 5, 6],
+      ...rest,
+      starterKit: { ...starterKit, underline: false, code: false },
+      codeBlock: rest.codeBlock ?? mdocCodeBlock,
+      emoji: rest.emoji ?? mdocEmoji,
+      mention: mention === false ? false : { items: noMentions, ...mention },
+      pages: { resolveHref: pageHref, ...(pages ?? readOnlyPages) },
+    }),
+    mdocCode,
+  ];
 }

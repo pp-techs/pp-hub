@@ -51,7 +51,7 @@ export function SelectionBar({
       // The bar acts on the selection, so a click inside it must not count as
       // a click on the listing's background, which clears it.
       data-keeps-selection=""
-      className="border-border bg-popover absolute bottom-6 left-1/2 z-30 flex min-h-10 max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-2 rounded-lg border px-3 py-2 shadow-sm"
+      className="border-border bg-popover absolute bottom-6 left-1/2 z-30 flex min-h-10 w-max max-w-[calc(100%-2rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-2 rounded-lg border px-3 py-2 shadow-sm"
     >
       <span className="text-xs font-medium whitespace-nowrap">
         <Plural value={selected.length} one="# selected" other="# selected" />
